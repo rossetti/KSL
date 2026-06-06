@@ -18,15 +18,20 @@
 
 package ksl.app.swing.results.panel
 
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.results.ResultsAppController
+import ksl.app.swing.results.ResultsExportController
 import java.awt.BorderLayout
+import java.awt.FlowLayout
 import javax.swing.BorderFactory
+import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JSplitPane
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
+import javax.swing.SwingUtilities
 import javax.swing.table.DefaultTableModel
 
 /**
@@ -43,7 +48,11 @@ import javax.swing.table.DefaultTableModel
  *  [ResultsAppController.timeSeriesResponseNames]; the panel holds no
  *  database logic of its own.
  */
-class DatabasePanel(private val controller: ResultsAppController) : JPanel(BorderLayout()) {
+class DatabasePanel(
+    private val controller: ResultsAppController,
+    private val exportController: ResultsExportController,
+    private val notifier: NotificationSink
+) : JPanel(BorderLayout()) {
 
     private val hintLabel = JLabel(HINT_EMPTY)
     private val experimentsModel = readOnlyModel("Experiment", "Model", "Reps")
@@ -52,6 +61,10 @@ class DatabasePanel(private val controller: ResultsAppController) : JPanel(Borde
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
     }
     private val responsesTable = JTable(responsesModel)
+    private val exportButton = JButton("Export…").apply {
+        isEnabled = false
+        addActionListener { openExportDialog() }
+    }
 
     init {
         border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
@@ -64,11 +77,21 @@ class DatabasePanel(private val controller: ResultsAppController) : JPanel(Borde
             titled("Responses", responsesTable)
         ).apply { resizeWeight = 0.45 }
         add(split, BorderLayout.CENTER)
+        add(JPanel(FlowLayout(FlowLayout.RIGHT)).apply { add(exportButton) }, BorderLayout.SOUTH)
 
         experimentsTable.selectionModel.addListSelectionListener {
             if (!it.valueIsAdjusting) showResponsesForSelection()
         }
         controller.addListener { reload() }
+    }
+
+    private fun openExportDialog() {
+        if (!exportController.canExport) {
+            notifier.warn("Open a database first.")
+            return
+        }
+        val owner = SwingUtilities.getWindowAncestor(this)
+        ExportDialog(owner, exportController, notifier, controller.appWorkspace.resolve("export")).isVisible = true
     }
 
     private fun reload() {
@@ -79,6 +102,7 @@ class DatabasePanel(private val controller: ResultsAppController) : JPanel(Borde
             experimentsModel.addRow(arrayOf<Any?>(exp.name, exp.modelIdentifier, exp.numReplications))
         }
         hintLabel.text = if (experiments.isEmpty()) HINT_EMPTY else HINT_LOADED
+        exportButton.isEnabled = controller.isDatabaseOpen
         if (experiments.isNotEmpty()) {
             experimentsTable.setRowSelectionInterval(0, 0)
         }

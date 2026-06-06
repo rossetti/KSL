@@ -26,6 +26,7 @@ import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.results.panel.CompareExperimentsPanel
 import ksl.app.swing.results.panel.DatabasePanel
 import ksl.app.swing.results.panel.ExperimentSummaryPanel
+import ksl.app.swing.results.panel.ExportDialog
 import ksl.app.swing.results.panel.HistogramFrequencyPanel
 import ksl.app.swing.results.panel.TimeSeriesPanel
 import ksl.app.swing.results.panel.WithinReplicationPanel
@@ -51,6 +52,7 @@ import javax.swing.JTabbedPane
 import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
+import java.nio.file.Path
 
 /**
  *  Top-level frame for the Results app — a report-first analysis
@@ -90,7 +92,8 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     }
 
     private val defaultStatusColor: Color = statusLabel.foreground
-    private val databasePanel = DatabasePanel(controller)
+    private val exportController = ResultsExportController(controller)
+    private val databasePanel = DatabasePanel(controller, exportController, notifier)
     private val comparePanel = CompareExperimentsPanel(controller, notifier)
     private val withinReplicationPanel = WithinReplicationPanel(controller, notifier)
     private val timeSeriesPanel = TimeSeriesPanel(controller, notifier)
@@ -135,6 +138,7 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
             )
         })
         file.add(JMenuItem(setWorkingDirectoryAction))
+        file.add(buildExportMenu())
         file.addSeparator()
         file.add(JMenuItem("Exit").apply { addActionListener { dispose() } })
         bar.add(file)
@@ -212,6 +216,59 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
             JOptionPane.INFORMATION_MESSAGE
         )
     }
+
+    // ── Export ────────────────────────────────────────────────────────────
+
+    private fun buildExportMenu(): JMenu {
+        val export = JMenu("Export")
+        export.add(JMenuItem("Excel Workbook (all tables)…").apply {
+            addActionListener { quickExport("Excel workbook") { exportController.excelAllTables(it) } }
+        })
+        export.add(JMenuItem("All Tables as CSV…").apply {
+            addActionListener { quickExport("tables CSV") { exportController.csvAllTables(it) } }
+        })
+        export.add(JMenuItem("All Views as CSV…").apply {
+            addActionListener { quickExport("views CSV") { exportController.csvAllViews(it) } }
+        })
+        export.add(JMenuItem("SQL Dump (all tables)…").apply {
+            addActionListener { quickExport("SQL dump") { exportController.sqlDumpAllTables(it) } }
+        })
+        export.addSeparator()
+        export.add(JMenuItem("Export…").apply { addActionListener { openExportDialog() } })
+        return export
+    }
+
+    private fun quickExport(label: String, op: (Path) -> ResultsExportController.Outcome) {
+        if (!exportController.canExport) {
+            notifier.warn("Open a database first.")
+            return
+        }
+        val dir = chooseExportDirectory("Export $label to…") ?: return
+        val outcome = op(dir)
+        if (outcome.ok) notifier.info(outcome.message) else notifier.error(outcome.message)
+    }
+
+    private fun chooseExportDirectory(title: String): Path? {
+        val chooser = JFileChooser(exportDefaultDir().toFile()).apply {
+            dialogTitle = title
+            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+        }
+        return if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            chooser.selectedFile?.toPath()
+        } else {
+            null
+        }
+    }
+
+    private fun openExportDialog() {
+        if (!exportController.canExport) {
+            notifier.warn("Open a database first.")
+            return
+        }
+        ExportDialog(this, exportController, notifier, exportDefaultDir()).isVisible = true
+    }
+
+    private fun exportDefaultDir(): Path = controller.appWorkspace.resolve("export")
 
     private companion object {
         val ERROR_COLOR = Color(0xC6, 0x28, 0x28)
