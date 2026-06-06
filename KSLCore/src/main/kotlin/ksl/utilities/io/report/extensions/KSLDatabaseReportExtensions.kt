@@ -478,6 +478,76 @@ fun KSLDatabase.toReport(
     }
 }
 
+// ── Cross-experiment comparison ───────────────────────────────────────────────
+
+/**
+ * Builds a [ReportNode.Document] containing a complete multiple-comparison
+ * analysis of one response across several experiments stored in this database.
+ *
+ * This is the cross-experiment counterpart to the single-experiment `toReport`
+ * entry points above.  It composes two pieces of existing KSL infrastructure:
+ * `multipleComparisonAnalyzerFor` (which builds a `MultipleComparisonAnalyzer`
+ * from the per-replication values stored for the named experiments) and the
+ * [multipleComparison] report section (which renders alternative statistics,
+ * pairwise differences, MCB max/min intervals with confidence-interval plots,
+ * and screening results).  No statistics are recomputed here and no HTML is
+ * hand-built; the document is assembled entirely from the report DSL.
+ *
+ * Zero-code path:
+ * ```kotlin
+ * val db = KSLDatabase("pharmacy.db")
+ * db.toComparisonReport("SystemTime", listOf("Base", "AddServer", "AddKiosk"))
+ *     .showInBrowser()
+ * db.toComparisonReport("SystemTime", listOf("Base", "AddServer"))
+ *     .writeMarkdown()
+ * ```
+ *
+ * All experiments named in [expNames] must record [responseName] with equal
+ * replication counts — the underlying `MultipleComparisonAnalyzer` requires
+ * this.  An `IllegalArgumentException` is thrown when an experiment name is not
+ * present in the database (propagated from `multipleComparisonAnalyzerFor`).
+ *
+ * @param responseName         the response, time-weighted, or counter name to compare
+ * @param expNames             the experiments to compare; each must be present in the database
+ * @param title                document title; defaults to "Comparison — <responseName>"
+ * @param direction            which MCB direction(s) to render; default [MCBDirection.BOTH]
+ * @param indifferenceZone     delta for MCB interval construction; `null` (default) uses the
+ *                             analyzer's own default indifference zone
+ * @param confidenceLevel      confidence level for the alternative and pairwise-difference
+ *                             tables; must be in (0, 1); default 0.95
+ * @param probCorrectSelection probability of correct selection for screening; default 0.95
+ * @param showAltCIPlot        when `true` (default) include the per-alternative
+ *                             confidence-interval plot
+ * @param showBoxPlot          when `true` (default) include the per-alternative box plot
+ * @return the assembled [ReportNode.Document]
+ */
+fun KSLDatabase.toComparisonReport(
+    responseName: String,
+    expNames: List<String>,
+    title: String = "Comparison — $responseName",
+    direction: MCBDirection = MCBDirection.BOTH,
+    indifferenceZone: Double? = null,
+    confidenceLevel: Double = 0.95,
+    probCorrectSelection: Double = 0.95,
+    showAltCIPlot: Boolean = true,
+    showBoxPlot: Boolean = true
+): ReportNode.Document {
+    val mca = multipleComparisonAnalyzerFor(expNames, responseName)
+    val delta = indifferenceZone ?: mca.defaultIndifferenceZone
+    return report(title) {
+        multipleComparison(
+            mca = mca,
+            direction = direction,
+            indifferenceZone = delta,
+            altConfidenceLevel = confidenceLevel,
+            diffConfidenceLevel = confidenceLevel,
+            probCorrectSelection = probCorrectSelection,
+            showAltCIPlot = showAltCIPlot,
+            showBoxPlot = showBoxPlot
+        )
+    }
+}
+
 // ── Private formatting helpers ────────────────────────────────────────────────
 
 /**
