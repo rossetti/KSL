@@ -101,6 +101,15 @@ class DatabasePanel(private val controller: ResultsAppController) : JPanel(Borde
                 )
             )
         }
+        // In-simulation HistogramResponse / IntegerFrequencyResponse outputs
+        // live in their own tables (not within-rep stats), so list them as
+        // their own rows so the analyst can see they exist.
+        for (name in controller.histogramResponseNames(expName)) {
+            responsesModel.addRow(arrayOf<Any?>(name, "HISTOGRAM", exp.numReplications, ""))
+        }
+        for (name in controller.frequencyResponseNames(expName)) {
+            responsesModel.addRow(arrayOf<Any?>(name, "FREQUENCY", exp.numReplications, ""))
+        }
     }
 
     private fun titled(title: String, table: JTable): JPanel = JPanel(BorderLayout()).apply {

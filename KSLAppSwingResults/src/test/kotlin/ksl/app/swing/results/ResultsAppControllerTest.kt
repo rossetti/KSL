@@ -20,6 +20,8 @@ package ksl.app.swing.results
 
 import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.ExperimentTableData
+import ksl.utilities.io.dbutil.FrequencyTableData
+import ksl.utilities.io.dbutil.HistogramTableData
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.ModelElementTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
@@ -94,6 +96,24 @@ class ResultsAppControllerTest {
         )
     }
 
+    @Test
+    fun `histogram and frequency response names are listed`() {
+        val dbName = "hist_freq_db"
+        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir)
+        val expId = insertExperiment(database, "E", "M")
+        val runId = insertSimRun(database, expId, "E_run", numReps = 3)
+        insertHistogramBin(database, runId, elementId = 1, responseName = "SystemTime:Histogram", binNum = 1)
+        insertHistogramBin(database, runId, elementId = 1, responseName = "SystemTime:Histogram", binNum = 2)
+        insertFrequencyCell(database, runId, elementId = 2, name = "NQUponArrival", value = 0)
+        insertFrequencyCell(database, runId, elementId = 2, name = "NQUponArrival", value = 1)
+
+        val controller = ResultsAppController("test")
+        controller.openDatabase(File(tempDir.toFile(), dbName))
+
+        assertEquals(listOf("SystemTime:Histogram"), controller.histogramResponseNames("E"))
+        assertEquals(listOf("NQUponArrival"), controller.frequencyResponseNames("E"))
+    }
+
     // ── Fixture: a real on-disk SQLite KSL database ───────────────────────
 
     private fun buildTwoExperimentDb(dbName: String) {
@@ -141,6 +161,30 @@ class ResultsAppControllerTest {
         val record = WithinRepStatTableData().apply {
             this.element_id_fk = elementId; this.sim_run_id_fk = runId
             this.rep_id = repId; this.stat_name = statName; this.average = avg
+        }
+        database.insertDbDataIntoTable(record)
+    }
+
+    private fun insertHistogramBin(
+        database: Database, runId: Int, elementId: Int, responseName: String, binNum: Int
+    ) {
+        val record = HistogramTableData().apply {
+            this.element_id_fk = elementId; this.sim_run_id_fk = runId
+            this.response_id_fk = elementId; this.response_name = responseName
+            this.bin_label = "bin$binNum"; this.bin_num = binNum
+            this.bin_lower_limit = (binNum - 1).toDouble(); this.bin_upper_limit = binNum.toDouble()
+            this.bin_count = 10.0; this.bin_cum_count = 10.0 * binNum
+        }
+        database.insertDbDataIntoTable(record)
+    }
+
+    private fun insertFrequencyCell(
+        database: Database, runId: Int, elementId: Int, name: String, value: Int
+    ) {
+        val record = FrequencyTableData().apply {
+            this.element_id_fk = elementId; this.sim_run_id_fk = runId
+            this.name = name; this.cell_label = value.toString(); this.value = value
+            this.count = 5.0; this.cum_count = 5.0 * (value + 1)
         }
         database.insertDbDataIntoTable(record)
     }

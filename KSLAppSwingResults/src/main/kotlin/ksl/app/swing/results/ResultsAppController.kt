@@ -119,6 +119,17 @@ class ResultsAppController(val appName: String) {
     fun timeSeriesResponseNames(expName: String): Set<String> =
         database?.timeSeriesResponseDataFor(expName)?.map { it.stat_name }?.toSet() ?: emptySet()
 
+    /** Distinct in-simulation `HistogramResponse` names (the `HISTOGRAM`
+     *  table's `response_name`) recorded for [expName], sorted.  Drives the
+     *  navigator's HISTOGRAM rows and the Histograms & Frequencies tab. */
+    fun histogramResponseNames(expName: String): List<String> =
+        database?.histogramDataFor(expName)?.map { it.response_name }?.distinct()?.sorted() ?: emptyList()
+
+    /** Distinct in-simulation `IntegerFrequencyResponse` names (the
+     *  `FREQUENCY` table's `name`) recorded for [expName], sorted. */
+    fun frequencyResponseNames(expName: String): List<String> =
+        database?.frequencyDataFor(expName)?.map { it.name }?.distinct()?.sorted() ?: emptyList()
+
     /** A short one-line description of the open database for headers. */
     fun databaseSummary(): String {
         val db = database ?: return "No database open"

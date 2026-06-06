@@ -26,6 +26,7 @@ import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.results.panel.CompareExperimentsPanel
 import ksl.app.swing.results.panel.DatabasePanel
 import ksl.app.swing.results.panel.ExperimentSummaryPanel
+import ksl.app.swing.results.panel.HistogramFrequencyPanel
 import ksl.app.swing.results.panel.TimeSeriesPanel
 import ksl.app.swing.results.panel.WithinReplicationPanel
 import kotlinx.coroutines.CoroutineScope
@@ -91,6 +92,7 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     private val withinReplicationPanel = WithinReplicationPanel(controller, notifier)
     private val timeSeriesPanel = TimeSeriesPanel(controller, notifier)
     private val experimentSummaryPanel = ExperimentSummaryPanel(controller, notifier)
+    private val histogramFrequencyPanel = HistogramFrequencyPanel(controller, notifier)
 
     /** Scope owning the workspace status bar's subscription to the
      *  settings store; cancelled when the window closes. */
@@ -146,6 +148,7 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
         tabs.addTab("Compare Experiments", comparePanel)
         tabs.addTab("Within-Replication", withinReplicationPanel)
         tabs.addTab("Time Series", timeSeriesPanel)
+        tabs.addTab("Histograms & Frequencies", histogramFrequencyPanel)
         tabs.addTab("Experiment Summary", experimentSummaryPanel)
         return tabs
     }
