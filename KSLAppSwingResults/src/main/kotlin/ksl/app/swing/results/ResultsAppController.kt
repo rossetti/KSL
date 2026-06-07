@@ -154,11 +154,24 @@ class ResultsAppController(val appName: String) {
     private fun openKslDatabase(file: File): KSLDatabase {
         val isDerby = file.isDirectory && File(file, "service.properties").exists()
         val database = if (isDerby) {
-            DerbyDb.openDatabase(file.toPath())
+            DerbyDb.openDatabase(file.toPath()).apply {
+                // KSL stores its tables in the KSL_DB schema. DerbyDb.openDatabase
+                // defaults the schema to "APP", which would make the KSLDatabase
+                // table-existence check look in the wrong schema and wrongly report
+                // the database as "not a KSLDatabase".  This mirrors what
+                // KSLDatabase.createEmbeddedDerbyKSLDatabase does on creation.
+                defaultSchemaName = KSL_DB_SCHEMA
+            }
         } else {
             SQLiteDb.openDatabase(file.toPath())
         }
         // Non-clearing constructor: result data is never mutated here.
         return KSLDatabase(database)
+    }
+
+    private companion object {
+        /** Schema that KSL uses for its tables in a schema-aware database
+         *  such as Derby.  Must match `KSLDatabase`'s internal `SCHEMA_NAME`. */
+        const val KSL_DB_SCHEMA = "KSL_DB"
     }
 }
