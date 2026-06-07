@@ -112,6 +112,10 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
         onSetWorkingDirectory = { setWorkingDirectoryAction.actionPerformed(null) }
     )
 
+    /** Where the Open Database chooser starts — the last location opened
+     *  this session, falling back to the working directory (KSLWork). */
+    private var lastOpenDir: Path? = null
+
     init {
         title = controller.appName
         defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
@@ -184,13 +188,17 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     // ── Actions ───────────────────────────────────────────────────────────
 
     private fun openDatabase() {
-        val chooser = JFileChooser().apply {
+        // Start in the last opened location this session, otherwise the
+        // working directory (KSLWork) — never the home directory.
+        val start = lastOpenDir?.toFile() ?: nearestExistingDir(controller.settingsStore.activeWorkspace())
+        val chooser = JFileChooser(start).apply {
             dialogTitle = "Open KSL Database (SQLite .db file or Derby directory)"
             // Derby databases are directories; SQLite databases are files.
             fileSelectionMode = JFileChooser.FILES_AND_DIRECTORIES
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
         val file = chooser.selectedFile ?: return
+        lastOpenDir = file.absoluteFile.parentFile?.toPath()
         try {
             controller.openDatabase(file)
             notifier.info("Opened ${controller.databaseSummary()}")
