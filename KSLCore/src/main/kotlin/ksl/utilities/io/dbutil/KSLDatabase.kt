@@ -1736,14 +1736,14 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             dbServerName: String = "localhost",
             user: String = "postgres",
             pWord: String = ""
-        ): Database {
+        ): KSLDatabase {
             DatabaseIfc.logger.info { "Create Postgres Database for KSLDatabase: $dbName" }
             val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
             val db = Database.createDatabaseFromProperties(props)
             db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
             executeKSLDbCreationScriptOnDatabase(db)
             db.defaultSchemaName = "ksl_db"
-            return db
+            return KSLDatabase(db)
         }
 
         /**
@@ -1791,6 +1791,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             dBProperties: Properties,
         ): KSLDatabase {
             val db: Database = Database.createDatabaseFromProperties(dBProperties)
+            db.defaultSchemaName = "ksl_db"
             return KSLDatabase(db, clearDataOption)
         }
 

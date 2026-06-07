@@ -121,5 +121,30 @@ class KSLDatabaseObserver(
             val kslDb = KSLDatabase(db, false)
             return KSLDatabaseObserver(model, kslDb, false)
         }
+
+        /**
+         *  Creates a Postgres KSL based database and returns a KSLDatabaseObserver
+         *  configured to observe the supplied model. The database will have a schema called "ksl_db" created if
+         *  it does not exist.  If it already exists, it will be dropped and recreated. All current data
+         *  will be deleted.
+         *
+         *  @param model the model to observe
+         *  @param dbName the name of the database that the user is logging into. Defaults to "postgres"
+         *  This is typically the user's name because users are given a database
+         *  @param dbServerName the name of the postgres server, defaults to "localhost"
+         *  @param user the username, defaults to "postgres"
+         *  @param pWord the password as a string, defaults to ""
+         */
+        fun createPostgresKSLDatabaseObserver(
+            model: Model,
+            dbName: String,
+            dbServerName: String = "localhost",
+            user: String = "postgres",
+            pWord: String = ""
+        ): KSLDatabaseObserver {
+            val kslDb = KSLDatabase.createPostgresSQLKSLDatabase(
+                dbName = dbName, dbServerName = dbServerName, user = user, pWord = pWord)
+            return KSLDatabaseObserver(model, db = kslDb)
+        }
     }
 }

@@ -1,5 +1,6 @@
 package ksl.examples.general.utilities
 
+import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.*
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -12,7 +13,7 @@ var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
 var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
 
 fun main() {
-   testSQLite()
+//   testSQLite()
 //    testDuckDb()
 //    testSQLite2()
 //    testCreateDerbyDbCreation()
@@ -23,7 +24,20 @@ fun main() {
     // and there is a user called test with pw test with appropriate privileges on the server
 //    testPostgresLocalHost()
 //    testPostgresLocalHostKSLDb()
+    testPGConnection()
 //    createPostgresLocalHostKSLDb()
+}
+
+/**
+ *  This example assumes that the KSL database already exists on the server
+ *  and this makes a connection to it.
+ */
+fun testPGConnection() {
+    val kslDb = KSLDatabase.connectPostgresKSLDatabase(
+        dbName = "test", user = "test", pWord = "test"
+    )
+    val df = kslDb.acrossReplicationStatistics
+    print(df)
 }
 
 //fun testDuckDb() {
