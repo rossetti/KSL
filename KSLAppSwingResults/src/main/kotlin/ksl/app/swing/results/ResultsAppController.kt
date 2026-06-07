@@ -24,10 +24,24 @@ import ksl.app.session.AppWorkspacePaths
 import ksl.app.settings.UserSettingsStore
 import ksl.utilities.io.dbutil.DerbyDb
 import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.PostgresDb
 import ksl.utilities.io.dbutil.SQLiteDb
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+
+/**
+ *  Connection parameters for a server-based Postgres KSL database.  The
+ *  [password] is used only for the duration of the connect call; the
+ *  controller does not retain it.
+ */
+data class PostgresConnectionSpec(
+    val server: String,
+    val port: Int,
+    val databaseName: String,
+    val user: String,
+    val password: String
+)
 
 /**
  *  Headless application state for the Results app.
@@ -54,6 +68,19 @@ class ResultsAppController(val appName: String) {
         private set
 
     var comparisonSource: KSLDatabaseComparisonSource? = null
+        private set
+
+    /** Kind of the open database — "SQLite", "Derby", or "Postgres".
+     *  Tracked explicitly rather than inferred from [databaseFile],
+     *  which is `null` for a server connection. */
+    var databaseKind: String = ""
+        private set
+
+    /** Human-readable name of the open database — the file name for an
+     *  embedded database, or `"<db>@<server>"` for a Postgres
+     *  connection.  Used for headers, the window title, and the report
+     *  output folder. */
+    var databaseDisplayName: String = ""
         private set
 
     /** User-wide settings (working directory, recent lists), backed by
@@ -86,7 +113,7 @@ class ResultsAppController(val appName: String) {
      *  database and the remembered working directory.  Created lazily by
      *  whatever writes into it. */
     val outputDir: Path
-        get() = AppWorkspacePaths.reportsDir(appWorkspace, database?.label ?: "untitled")
+        get() = AppWorkspacePaths.reportsDir(appWorkspace, databaseDisplayName.ifBlank { "untitled" })
 
     val isDatabaseOpen: Boolean get() = database != null
 
@@ -111,11 +138,44 @@ class ResultsAppController(val appName: String) {
      *  caller surfaces the error.
      */
     fun openDatabase(file: File) {
-        val opened = openKslDatabase(file)
-        val source = KSLDatabaseComparisonSource(opened)
+        val derby = file.isDirectory && File(file, "service.properties").exists()
+        val opened = openEmbeddedKslDatabase(file, derby)
         database = opened
         databaseFile = file
-        comparisonSource = source
+        databaseKind = if (derby) "Derby" else "SQLite"
+        databaseDisplayName = file.name
+        comparisonSource = KSLDatabaseComparisonSource(opened)
+        notifyChanged()
+    }
+
+    /**
+     *  Connect to a server-based Postgres KSL database described by
+     *  [spec], rebuild the comparison source, and notify listeners.
+     *
+     *  Delegates to [KSLDatabase.connectKSLDatabase], which verifies the
+     *  `ksl_db` schema is present (throwing
+     *  `ksl.utilities.io.dbutil.KSLDatabaseNotConfigured` otherwise) and
+     *  points the connection at it.  Connects read-only — the
+     *  `clearDataOption` is `false`, so data is never mutated.
+     *
+     *  Throws on failure (unreachable host, bad credentials, not a KSL
+     *  database); the previous open database, if any, is left intact and
+     *  the caller surfaces the error.
+     */
+    fun connectPostgres(spec: PostgresConnectionSpec) {
+        val props = PostgresDb.createProperties(
+            dbServerName = spec.server,
+            dbName = spec.databaseName,
+            user = spec.user,
+            pWord = spec.password,
+            portNumber = spec.port
+        )
+        val opened = KSLDatabase.connectKSLDatabase(clearDataOption = false, dBProperties = props)
+        database = opened
+        databaseFile = null
+        databaseKind = "Postgres"
+        databaseDisplayName = "${spec.databaseName}@${spec.server}"
+        comparisonSource = KSLDatabaseComparisonSource(opened)
         notifyChanged()
     }
 
@@ -143,24 +203,22 @@ class ResultsAppController(val appName: String) {
 
     /** A short one-line description of the open database for headers. */
     fun databaseSummary(): String {
-        val db = database ?: return "No database open"
+        if (database == null) return "No database open"
         val exps = experiments()
-        val kind = if (databaseFile?.isDirectory == true) "Derby" else "SQLite"
         val responseCount = exps.sumOf { it.responses.size }
-        return "${db.label} · $kind · ${exps.size} experiment${if (exps.size == 1) "" else "s"}" +
+        return "$databaseDisplayName · $databaseKind · ${exps.size} experiment${if (exps.size == 1) "" else "s"}" +
             " · $responseCount response${if (responseCount == 1) "" else "s"}"
     }
 
-    private fun openKslDatabase(file: File): KSLDatabase {
-        val isDerby = file.isDirectory && File(file, "service.properties").exists()
-        val database = if (isDerby) {
+    private fun openEmbeddedKslDatabase(file: File, derby: Boolean): KSLDatabase {
+        val database = if (derby) {
             DerbyDb.openDatabase(file.toPath()).apply {
                 // KSL stores its tables in the KSL_DB schema. DerbyDb.openDatabase
                 // defaults the schema to "APP", which would make the KSLDatabase
                 // table-existence check look in the wrong schema and wrongly report
                 // the database as "not a KSLDatabase".  This mirrors what
                 // KSLDatabase.createEmbeddedDerbyKSLDatabase does on creation.
-                defaultSchemaName = KSL_DB_SCHEMA
+                defaultSchemaName = DERBY_KSL_SCHEMA
             }
         } else {
             SQLiteDb.openDatabase(file.toPath())
@@ -170,8 +228,9 @@ class ResultsAppController(val appName: String) {
     }
 
     private companion object {
-        /** Schema that KSL uses for its tables in a schema-aware database
-         *  such as Derby.  Must match `KSLDatabase`'s internal `SCHEMA_NAME`. */
-        const val KSL_DB_SCHEMA = "KSL_DB"
+        /** Schema that KSL uses for its tables in embedded Derby.  Derby
+         *  folds unquoted identifiers to upper-case; must match
+         *  `KSLDatabase`'s internal `SCHEMA_NAME`. */
+        const val DERBY_KSL_SCHEMA = "KSL_DB"
     }
 }

@@ -28,6 +28,7 @@ import ksl.app.swing.results.panel.DatabasePanel
 import ksl.app.swing.results.panel.ExperimentSummaryPanel
 import ksl.app.swing.results.panel.ExportDialog
 import ksl.app.swing.results.panel.HistogramFrequencyPanel
+import ksl.app.swing.results.panel.PostgresConnectionDialog
 import ksl.app.swing.results.panel.nearestExistingDir
 import ksl.app.swing.results.panel.TimeSeriesPanel
 import ksl.app.swing.results.panel.WithinReplicationPanel
@@ -187,7 +188,35 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
 
     // ── Actions ───────────────────────────────────────────────────────────
 
+    /**
+     *  Single entry point for opening a database of any kind.  Because an
+     *  embedded database (SQLite file / Derby directory) and a Postgres
+     *  server connection need very different inputs, this first asks which
+     *  kind the user wants, then routes to the matching flow — so Postgres
+     *  is discoverable from the same "Open Database…" affordance.
+     */
     private fun openDatabase() {
+        val embedded = "File or Directory (SQLite / Derby)…"
+        val server = "Postgres Server…"
+        val options = arrayOf<Any>(embedded, server, "Cancel")
+        val choice = JOptionPane.showOptionDialog(
+            this,
+            "What kind of KSL database would you like to open?",
+            "Open Database",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            embedded
+        )
+        when (choice) {
+            0 -> openEmbeddedDatabase()
+            1 -> connectToServer()
+            // Cancel or window-close: do nothing.
+        }
+    }
+
+    private fun openEmbeddedDatabase() {
         // Start in the last opened location this session, otherwise the
         // working directory (KSLWork) — never the home directory.
         val start = lastOpenDir?.toFile() ?: nearestExistingDir(controller.settingsStore.activeWorkspace())
@@ -213,9 +242,17 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
         }
     }
 
+    private fun connectToServer() {
+        PostgresConnectionDialog(this, controller, notifier).isVisible = true
+    }
+
     private fun onDatabaseChanged() {
         dbSummaryLabel.text = controller.databaseSummary()
-        title = controller.databaseFile?.let { "${controller.appName} — ${it.name}" } ?: controller.appName
+        title = if (controller.isDatabaseOpen) {
+            "${controller.appName} — ${controller.databaseDisplayName}"
+        } else {
+            controller.appName
+        }
     }
 
     private fun showAbout() {
