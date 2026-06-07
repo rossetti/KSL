@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Opt-in request for engine-side bootstrap of the fitted parameters. When a
@@ -37,7 +38,10 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class BootstrapConfig(
+    @TomlComment("Integer. Number of bootstrap resamples; must be greater than 0.")
     val sampleSize: Int = 399,
+    @TomlComment("Number. Confidence level for the reported intervals; in (0, 1).")
     val level: Double = 0.95,
+    @TomlComment("Integer. Random-number stream number; a positive value makes the bootstrap reproducible.")
     val streamNumber: Int = 0
 )

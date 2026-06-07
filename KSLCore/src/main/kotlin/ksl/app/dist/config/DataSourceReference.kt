@@ -20,6 +20,7 @@ package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
 import ksl.utilities.random.rvariable.parameters.RVData
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Serializable locator for one or more numeric datasets that feed a
@@ -33,7 +34,10 @@ sealed class DataSourceReference {
      * reference. Insertion order of `datasets` is preserved by the importer.
      */
     @Serializable
-    data class Inline(val datasets: Map<String, DoubleArray>) : DataSourceReference()
+    data class Inline(
+        @TomlComment("Map of series name to numeric values, embedded directly in the document (insertion order preserved).")
+        val datasets: Map<String, DoubleArray>
+    ) : DataSourceReference()
 
     /**
      * A delimited text file on disk. Layout, delimiter, header policy, and
@@ -52,12 +56,19 @@ sealed class DataSourceReference {
      */
     @Serializable
     data class DelimitedFile(
+        @TomlComment("String. Filesystem path to the delimited text file.")
         val path: String,
+        @TomlComment("String. Field delimiter: \"COMMA\" or \"WHITESPACE\".")
         val delimiter: Delimiter = Delimiter.COMMA,
+        @TomlComment("Boolean. Whether the first row is a header. Ignored for SINGLE layout.")
         val hasHeader: Boolean = true,
+        @TomlComment("String. How datasets are arranged: \"SINGLE\", \"WIDE\" (column-per-dataset), or \"LONG\".")
         val layout: DatasetLayout = DatasetLayout.WIDE,
+        @TomlComment("String. LONG layout only: header name of the column that tags each row's dataset.")
         val idColumn: String? = null,
+        @TomlComment("String. LONG layout only: header name of the numeric value column.")
         val valueColumn: String? = null,
+        @TomlComment("List. WIDE layout only: header names to import, in order. Omit to import every column.")
         val datasetColumns: List<String>? = null
     ) : DataSourceReference()
 
@@ -78,9 +89,17 @@ sealed class DataSourceReference {
      */
     @Serializable
     data class Generated(
+        @TomlComment("The random variable to sample from: its RV type plus a name to parameter-values map.")
         val rv: RVData,
+        @TomlComment("Integer. Number of samples to draw; must be greater than 0.")
         val sampleSize: Int,
+        @TomlComment(
+            "Integer. Stream number against the default provider: 0 draws the next\n" +
+            "stream (independent each time); a positive value selects that stream and\n" +
+            "resets it before sampling, so the generation reproduces."
+        )
         val streamNumber: Int = 0,
+        @TomlComment("String. Name of the single dataset produced.")
         val name: String = "generated"
     ) : DataSourceReference()
 
@@ -99,11 +118,17 @@ sealed class DataSourceReference {
      */
     @Serializable
     data class Database(
+        @TomlComment("Credential-free locator for the database connection (type, location, optional server).")
         val connection: DatabaseConnectionRef,
+        @TomlComment("What to read: a table or a query.")
         val source: DbSource,
+        @TomlComment("String. How datasets are arranged: \"WIDE\" (column-per-dataset) or \"LONG\".")
         val layout: DatasetLayout = DatasetLayout.WIDE,
+        @TomlComment("String. LONG layout only: name of the column that tags each row's dataset.")
         val idColumn: String? = null,
+        @TomlComment("String. LONG layout only: name of the numeric value column.")
         val valueColumn: String? = null,
+        @TomlComment("List. WIDE layout only: numeric column names to import, in order. Omit to import all.")
         val datasetColumns: List<String>? = null
     ) : DataSourceReference()
 }

@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * One entry in a `FitSpec.Batch`: a human-readable name paired with the
@@ -28,6 +29,8 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class NamedFitConfiguration(
+    @TomlComment("String. Human-readable dataset name; labels this entry in results, events, and reports.")
     val name: String,
+    @TomlComment("The fit configuration for this dataset (data source, distribution kind, estimators, scoring).")
     val config: FitConfiguration
 )

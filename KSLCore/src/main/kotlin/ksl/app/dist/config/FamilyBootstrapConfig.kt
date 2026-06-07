@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Opt-in configuration for the family-frequency bootstrap analysis — a separate
@@ -33,6 +34,8 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class FamilyBootstrapConfig(
+    @TomlComment("Integer. Number of resamples used to tally family recommendation stability; must be greater than 0.")
     val numSamples: Int = 400,
+    @TomlComment("Integer. Random-number stream number; a positive value makes the analysis reproducible.")
     val streamNumber: Int = 0
 )

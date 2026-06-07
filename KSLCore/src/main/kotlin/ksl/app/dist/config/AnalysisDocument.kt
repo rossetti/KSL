@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * The persistable, hand-editable form of a distribution-fitting analysis. It is
@@ -31,7 +32,12 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class AnalysisDocument(
+    @TomlComment("String. The analysis name; labels the document and names its output folder.")
     val analysisName: String,
+    @TomlComment(
+        "List of datasets in the analysis. Each entry carries its own fit\n" +
+        "configuration plus an `included` flag for whether it participates in a run."
+    )
     val datasets: List<AnalysisDatasetEntry>
 )
 
@@ -41,6 +47,8 @@ data class AnalysisDocument(
  */
 @Serializable
 data class AnalysisDatasetEntry(
+    @TomlComment("The per-dataset fit configuration: name, data-source reference, and fit settings.")
     val config: NamedFitConfiguration,
+    @TomlComment("Boolean. When true the dataset participates in a run; when false it is kept but skipped.")
     val included: Boolean = true
 )

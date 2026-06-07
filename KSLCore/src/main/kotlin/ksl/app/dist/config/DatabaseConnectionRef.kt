@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /** Supported database backends. */
 @Serializable
@@ -37,18 +38,29 @@ sealed class CredentialSource {
 
     /** The front-end prompts the user at run time; never persisted. */
     @Serializable
-    data class RuntimePrompt(val usernameHint: String? = null) : CredentialSource()
+    data class RuntimePrompt(
+        @TomlComment("String. Optional username to pre-fill in the run-time prompt.")
+        val usernameHint: String? = null
+    ) : CredentialSource()
 
     /** Read the username/password from named environment variables. */
     @Serializable
-    data class Environment(val userVar: String, val passwordVar: String) : CredentialSource()
+    data class Environment(
+        @TomlComment("String. Name of the environment variable holding the username.")
+        val userVar: String,
+        @TomlComment("String. Name of the environment variable holding the password.")
+        val passwordVar: String
+    ) : CredentialSource()
 
     /**
      * Read credentials from a TOML secrets file (outside the config) with
      * `username` and `password` keys.
      */
     @Serializable
-    data class ExternalFile(val path: String) : CredentialSource()
+    data class ExternalFile(
+        @TomlComment("String. Path to a secrets file (outside this config) with `username` and `password` keys.")
+        val path: String
+    ) : CredentialSource()
 }
 
 /**
@@ -60,10 +72,18 @@ sealed class CredentialSource {
  */
 @Serializable
 data class DatabaseConnectionRef(
+    @TomlComment("String. Backend: \"SQLITE\", \"DERBY\", or \"POSTGRES\".")
     val dbType: DbType,
+    @TomlComment("String. For embedded databases, the file/directory path; for servers, the database name.")
     val location: String,
+    @TomlComment("String. Server host name (server databases only).")
     val serverName: String? = null,
+    @TomlComment("Integer. Server port (server databases only).")
     val portNumber: Int? = null,
+    @TomlComment(
+        "How credentials are obtained: \"None\" (embedded), \"RuntimePrompt\",\n" +
+        "\"Environment\" (named env vars), or \"ExternalFile\". Never stores secrets."
+    )
     val credentials: CredentialSource = CredentialSource.None
 )
 
@@ -71,8 +91,14 @@ data class DatabaseConnectionRef(
 @Serializable
 sealed class DbSource {
     @Serializable
-    data class Table(val name: String) : DbSource()
+    data class Table(
+        @TomlComment("String. Name of the table to read.")
+        val name: String
+    ) : DbSource()
 
     @Serializable
-    data class Query(val sql: String) : DbSource()
+    data class Query(
+        @TomlComment("String. SQL query whose numeric columns are read into datasets.")
+        val sql: String
+    ) : DbSource()
 }

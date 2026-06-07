@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Serializable description of one distribution-fitting analysis: where the
@@ -44,19 +45,36 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class FitConfiguration(
+    @TomlComment("Where the data comes from: a delimited file, database table/query, or generated RV.")
     val dataSource: ksl.app.dist.config.DataSourceReference,
+    @TomlComment("String. Distribution kind to fit: \"CONTINUOUS\" or \"DISCRETE\".")
     val kind: DistributionKind = DistributionKind.CONTINUOUS,
+    @TomlComment(
+        "List of catalog-stable estimator IDs to use. Empty selects the\n" +
+        "catalog defaults for the chosen kind."
+    )
     val estimatorIds: Set<String> = emptySet(),
+    @TomlComment(
+        "List of catalog-stable scoring-model IDs (continuous only). Empty\n" +
+        "selects the catalog defaults; ignored for DISCRETE (which ranks by\n" +
+        "chi-squared p-value)."
+    )
     val scoringModelIds: Set<String> = emptySet(),
+    @TomlComment("Boolean. Continuous only: when true, automatically shift the data before fitting.")
     val automaticShifting: Boolean = true,
+    @TomlComment("String. Continuous only: rank-tie handling for MODA evaluation, e.g. \"ORDINAL\".")
     val rankingMethod: RankingMethod = RankingMethod.ORDINAL,
+    @TomlComment("String. Continuous only: recommendation criterion for MODA evaluation, e.g. \"SCORING\".")
     val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING,
+    @TomlComment(
+        "Optional. When present, requests engine-side bootstrap of the fitted\n" +
+        "parameters (summaries only). Omit to skip bootstrapping."
+    )
     val bootstrap: BootstrapConfig? = null,
-    /**
-     * When true, the runner renders the standard PDF/PMF modeling report to an
-     * HTML string and carries it on the result (`FitResultData.standardReportHtml`).
-     * Defaults to false so remote/programmatic callers keep a bounded payload;
-     * front-ends that want the canonical report opt in.
-     */
+    @TomlComment(
+        "Boolean. When true, the runner renders the standard PDF/PMF modeling\n" +
+        "report to HTML and carries it on the result. Defaults to false to keep\n" +
+        "programmatic payloads bounded; front-ends that want the report opt in."
+    )
     val includeStandardReport: Boolean = false
 )
