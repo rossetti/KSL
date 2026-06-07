@@ -1721,7 +1721,8 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         }
 
         /**
-         * Creates a new KSLDatabase
+         * Creates a new KSLDatabase. If the database contains a schema called "ksl_db"
+         * it is dropped via cascade.
          *
          * @param dbServerName    the name of the database server, must not be null
          * @param dbName          the name of the database, must not be null
@@ -1791,6 +1792,9 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             dBProperties: Properties,
         ): KSLDatabase {
             val db: Database = Database.createDatabaseFromProperties(dBProperties)
+            if (!db.containsSchema(KSLDatabase.SCHEMA_NAME)){
+                throw KSLDatabaseNotConfigured()
+            }
             db.defaultSchemaName = "ksl_db"
             return KSLDatabase(db, clearDataOption)
         }
