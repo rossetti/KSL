@@ -85,9 +85,8 @@ class WithinReplicationPanel(
     private fun reload() {
         val names = controller.experiments().map { it.name }
         experimentCombo.model = DefaultComboBoxModel(names.toTypedArray())
-        val enabled = names.isNotEmpty()
-        generateButton.isEnabled = enabled
-        saveButton.isEnabled = enabled
+        // Button + combo state is driven by whether the selected experiment
+        // records any responses — see updateResponses().
         updateResponses()
     }
 
@@ -95,7 +94,18 @@ class WithinReplicationPanel(
         val expName = experimentCombo.selectedItem as? String
         val responses = if (expName == null) emptyList()
         else controller.experiments().firstOrNull { it.name == expName }?.responses?.map { it.name } ?: emptyList()
-        responseCombo.model = DefaultComboBoxModel(responses.toTypedArray())
+        if (responses.isEmpty()) {
+            // Nothing to diagnose — don't let the user generate an empty report.
+            responseCombo.model = DefaultComboBoxModel(arrayOf(NO_RESPONSES))
+            responseCombo.isEnabled = false
+            generateButton.isEnabled = false
+            saveButton.isEnabled = false
+        } else {
+            responseCombo.model = DefaultComboBoxModel(responses.toTypedArray())
+            responseCombo.isEnabled = true
+            generateButton.isEnabled = true
+            saveButton.isEnabled = true
+        }
     }
 
     private fun generate(open: Boolean) {
@@ -103,6 +113,10 @@ class WithinReplicationPanel(
         val expName = experimentCombo.selectedItem as? String ?: return
         val response = responseCombo.selectedItem as? String
             ?: run { notifier.warn("Pick a response."); return }
+        if (response == NO_RESPONSES) {
+            notifier.warn("Experiment \"$expName\" records no responses.")
+            return
+        }
         val level = parseConfidenceLevel() ?: return
         if (!histogramBox.isSelected && !observationsBox.isSelected && !normalityBox.isSelected) {
             notifier.warn("Select at least one diagnostic.")
@@ -123,5 +137,9 @@ class WithinReplicationPanel(
             return null
         }
         return value
+    }
+
+    private companion object {
+        const val NO_RESPONSES = "(no responses)"
     }
 }

@@ -34,6 +34,7 @@ import ksl.app.swing.results.panel.TimeSeriesPanel
 import ksl.app.swing.results.panel.WithinReplicationPanel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.swing.Swing
 import java.awt.BorderLayout
 import java.awt.Color
@@ -317,6 +318,15 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     }
 
     private fun exportDefaultDir(): Path = controller.appWorkspace.resolve("export")
+
+    /** Cancels the workspace status-bar's coroutine subscription before
+     *  the window is released, so a disposed frame leaves no live
+     *  collector behind (relevant when the frame is disposed without
+     *  exiting the JVM, e.g. in tests). */
+    override fun dispose() {
+        uiScope.cancel()
+        super.dispose()
+    }
 
     private companion object {
         val ERROR_COLOR = Color(0xC6, 0x28, 0x28)
