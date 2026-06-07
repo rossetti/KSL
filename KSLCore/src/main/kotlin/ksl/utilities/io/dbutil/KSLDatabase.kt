@@ -1578,7 +1578,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             "across_rep_view", "batch_stat_view", "pw_diff_within_rep_view"
         )
 
-        private const val SCHEMA_NAME = "KSL_DB"
+        const val SCHEMA_NAME = "KSL_DB"
 
         @JvmStatic
         val dbDir: Path = KSL.dbDir
