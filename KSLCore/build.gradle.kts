@@ -80,8 +80,6 @@ dependencies {
 
     implementation("org.xerial:sqlite-jdbc:3.50.2.0")
 
-    // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
-    implementation("org.duckdb:duckdb_jdbc:1.3.1.0")
     implementation("com.zaxxer:HikariCP:6.3.0")
 
     // https://mvnrepository.com/artifact/org.apache.poi/poi

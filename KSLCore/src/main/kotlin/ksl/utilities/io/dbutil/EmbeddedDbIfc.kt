@@ -6,7 +6,7 @@ import java.nio.file.Path
 import javax.sql.DataSource
 
 enum class EmbeddedDbType {
-    SQLITE, DERBY, DUCKDB
+    SQLITE, DERBY
 }
 
 interface EmbeddedDbIfc {

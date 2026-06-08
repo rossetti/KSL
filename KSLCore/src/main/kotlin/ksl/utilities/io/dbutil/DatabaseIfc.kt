@@ -25,7 +25,6 @@ import kotlinx.datetime.LocalTime
 import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.csv.CSVFormat
-import org.duckdb.DuckDBDatabaseMetaData
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
@@ -1318,12 +1317,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 logger.trace { "Getting the metadata for a database" }
                 val metaData = connection.metaData
-                // fix for duck db due to their bad table type naming
-                val type = if (metaData is DuckDBDatabaseMetaData) {
-                    "BASE TABLE"
-                } else {
-                    "TABLE"
-                }
+                val type = "TABLE"
                 // because schema name pattern is null and table name pattern is null,
                 // and type is TABLE we get ALL non-system tables (user defined) and the schema that
                 // they are within

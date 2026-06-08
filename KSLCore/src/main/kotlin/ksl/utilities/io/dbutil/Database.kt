@@ -86,9 +86,6 @@ open class Database @JvmOverloads constructor(
                 EmbeddedDbType.DERBY -> {
                     DerbyDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
                 }
-                EmbeddedDbType.DUCKDB -> {
-                    DuckDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
-                }
             }
         }
 
