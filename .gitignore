@@ -181,13 +181,16 @@ repos/
 
 kslOutput/
 
+# gradlew launcher scripts are ignored in subprojects by default...
 gradlew\.bat
-
 gradlew
-
-gradle/wrapper/gradle-wrapper\.properties
-
-gradle/wrapper/gradle-wrapper\.jar
+# ...but the ROOT Gradle wrapper IS committed, so CI and fresh clones can run
+# ./gradlew without a preinstalled Gradle. (Wrapper jar is checksum-verified
+# against the official Gradle 9.3.0 release: b3a875dd...ec13.)
+!/gradlew
+!/gradlew.bat
+!/gradle/wrapper/gradle-wrapper.jar
+!/gradle/wrapper/gradle-wrapper.properties
 
 \.idea/vcs\.xml
 
