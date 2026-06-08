@@ -1,0 +1,4 @@
+# R example scripts for the distribution-fitting appendix are teaching
+# material, not part of the KSL library. Exclude them from GitHub's
+# language statistics (Linguist) so they don't show up in the language bar.
+*.R linguist-documentation
