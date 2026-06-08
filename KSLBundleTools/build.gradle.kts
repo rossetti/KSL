@@ -28,11 +28,6 @@ dependencies {
         exclude(group = "org.mariadb.jdbc")
         exclude(group = "com.zaxxer")
 
-        // Apache POI (Excel I/O) — kslpkg neither reads nor writes Excel
-        exclude(group = "org.apache.poi")
-        exclude(group = "org.apache.xmlbeans")
-        exclude(group = "org.apache.logging.log4j")
-
         // Plotting and SVG — no graphical output from kslpkg
         exclude(group = "org.jetbrains.lets-plot")
         exclude(group = "org.apache.xmlgraphics")

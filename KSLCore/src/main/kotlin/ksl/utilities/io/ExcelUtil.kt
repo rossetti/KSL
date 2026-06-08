@@ -20,137 +20,131 @@ package ksl.utilities.io
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.io.dbutil.ColumnMetaData
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.ResultSetRowIterator
 import org.apache.commons.csv.CSVFormat
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException
-import org.apache.poi.openxml4j.opc.OPCPackage
-import org.apache.poi.openxml4j.opc.PackageAccess
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.ss.usermodel.DateUtil
-import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.ss.usermodel.Workbook
-import org.apache.poi.ss.util.WorkbookUtil
-import org.apache.poi.xssf.streaming.SXSSFSheet
-import org.apache.poi.xssf.streaming.SXSSFWorkbook
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import org.dhatim.fastexcel.Workbook
+import org.dhatim.fastexcel.Worksheet
+import org.dhatim.fastexcel.reader.Cell
+import org.dhatim.fastexcel.reader.CellType
+import org.dhatim.fastexcel.reader.ReadableWorkbook
+import org.dhatim.fastexcel.reader.Row
+import org.dhatim.fastexcel.reader.Sheet
 import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.IOException
 import java.io.PrintWriter
 import java.math.BigDecimal
 import java.nio.file.Path
-import java.sql.*
-import java.sql.Date
+import java.sql.ResultSet
+import java.sql.SQLException
+import java.sql.Time
+import java.sql.Timestamp
+import java.sql.Types
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.*
 
-object ExcelUtil  {
+object ExcelUtil {
 
     val logger: KLogger = KotlinLogging.logger {}
 
-    const val DEFAULT_MAX_CHAR_IN_CELL : Int = 512
+    const val DEFAULT_MAX_CHAR_IN_CELL: Int = 512
+    const val APP_NAME: String = "KSL"
+    const val APP_VERSION: String = "1.0"
+
+    /** Excel's hard limit on worksheet-name length. */
+    const val MAX_SHEET_NAME_LENGTH: Int = 31
 
     val DATE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         .withZone(ZoneId.systemDefault())
 
-    /** Creates a sheet within the workbook with the name.  If a sheet already exists with the
-     * same name then a new sheet with name sheetName_n, where n is the current number of sheets
-     * in the workbook is created. Sheet names must follow Excel naming conventions.
-     *
-     * @param workbook the workbook, must not be null
-     * @param sheetName the name of the sheet
-     * @return the created sheet
+    private val INVALID_SHEET_CHARS = charArrayOf('\\', '/', '?', '*', '[', ']', ':')
+
+    /**
+     * Classification of a cell's data format with respect to date vs. time
+     * components. Used by both [readCellAsObject] (to choose the right
+     * java.sql type) and [readCellAsString] (to format consistently).
      */
-    fun createSheet(workbook: Workbook, sheetName: String): Sheet {
-        var sheet = workbook.getSheet(sheetName)
-        sheet = if (sheet == null) {
-            workbook.createSheet(WorkbookUtil.createSafeSheetName(sheetName))
-        } else {
-            // sheet already exists
-            val n = workbook.numberOfSheets
-            val name = sheetName + "_" + n
-            workbook.createSheet(WorkbookUtil.createSafeSheetName(name))
-        }
-        logger.info { "Created new sheet $sheetName in workbook" }
+    private data class DateFormatKind(val hasDate: Boolean, val hasTime: Boolean) {
+        val isAnyDate: Boolean get() = hasDate || hasTime
+    }
+
+    /**
+     * Replacement for POI's WorkbookUtil.createSafeSheetName.
+     * Replaces invalid characters with spaces and truncates to 31 chars.
+     */
+    fun createSafeSheetName(name: String): String {
+        var safe = name
+        for (c in INVALID_SHEET_CHARS) safe = safe.replace(c, ' ')
+        safe = safe.trim()
+        if (safe.length > MAX_SHEET_NAME_LENGTH) safe = safe.substring(0, MAX_SHEET_NAME_LENGTH)
+        if (safe.isEmpty()) safe = "Sheet"
+        return safe
+    }
+
+    /**
+     * Creates a new worksheet with a safe name. fastexcel does not expose an
+     * "already exists" check, so callers needing collision-free names should
+     * track the names they have used and pass a unique value.
+     */
+    fun createSheet(workbook: Workbook, sheetName: String): Worksheet {
+        val safe = createSafeSheetName(sheetName)
+        val sheet = workbook.newWorksheet(safe)
+        logger.info { "Created new sheet $safe in workbook" }
         return sheet
     }
 
     /**
-     * Writes the Object to the Excel cell
-     *
-     * @param cell   the cell to write
-     * @param `object` a Java object
+     * Writes a value to (row, col) of the worksheet. Date/time types receive
+     * an Excel format style. fastexcel deduplicates styles internally, so the
+     * per-cell style call is cheap (unlike POI).
      */
-    fun writeCell(cell: Cell, value: Any?) {
+    fun writeCell(ws: Worksheet, row: Int, col: Int, value: Any?) {
         when (value) {
-            null -> { // nothing to write
+            null -> { /* nothing to write */ }
+            is String       -> ws.value(row, col, value.trim())
+            is Boolean      -> ws.value(row, col, value)
+            is Int          -> ws.value(row, col, value)
+            is Long         -> ws.value(row, col, value)
+            is Short        -> ws.value(row, col, value.toInt())
+            is Float        -> ws.value(row, col, value.toDouble())
+            is Double       -> ws.value(row, col, value)
+            is BigDecimal   -> ws.value(row, col, value)
+            is java.sql.Date -> {
+                ws.value(row, col, value.toLocalDate())
+                ws.style(row, col).format("m/d/yy").set()
             }
-
-            is String -> {
-                cell.setCellValue(value.trim())
-            }
-
-            is Boolean -> {
-                cell.setCellValue(value)
-            }
-
-            is Int -> {
-                cell.setCellValue(value.toDouble())
-            }
-
-            is Double -> {
-                cell.setCellValue(value)
-            }
-
-            is Float -> {
-                cell.setCellValue(value.toDouble())
-            }
-
-            is BigDecimal -> {
-                cell.setCellValue(value.toDouble())
-            }
-
-            is Long -> {
-                cell.setCellValue(value.toDouble())
-            }
-
-            is Short -> {
-                cell.setCellValue(value.toDouble())
-            }
-
-            is Date -> {
-                cell.setCellValue(value)
-                val wb = cell.sheet.workbook
-                val cellStyle = wb.createCellStyle()
-                val createHelper = wb.creationHelper
-                cellStyle.dataFormat = createHelper.createDataFormat().getFormat("m/d/yy")
-                cell.cellStyle = cellStyle
-            }
-
             is Time -> {
-                cell.setCellValue(value)
-                val wb = cell.sheet.workbook
-                val cellStyle = wb.createCellStyle()
-                val createHelper = wb.creationHelper
-                cellStyle.dataFormat = createHelper.createDataFormat().getFormat("h:mm:ss AM/PM")
-                cell.cellStyle = cellStyle
+                // fastexcel has no java.sql.Time overload, so we anchor the
+                // time at a modern date and rely on the reader/import path to
+                // strip the date component. Pre-1900 anchors don't work:
+                // fastexcel-writer encodes any LocalDateTime before
+                // 1900-01-01 as the integer day number with the time fraction
+                // dropped, which would lose the time value. The display style
+                // "h:mm:ss AM/PM" hides the date portion in Excel.
+                val ldt = value.toLocalTime().atDate(LocalDate.of(1900, 1, 1))
+                ws.value(row, col, ldt)
+                ws.style(row, col).format("h:mm:ss AM/PM").set()
             }
-
             is Timestamp -> {
-                val dateFromTimeStamp = java.util.Date.from(value.toInstant())
-                val excelDate = DateUtil.getExcelDate(dateFromTimeStamp)
-                cell.setCellValue(excelDate)
-                val wb = cell.sheet.workbook
-                val cellStyle = wb.createCellStyle()
-                val createHelper = wb.creationHelper
-                cellStyle.dataFormat = createHelper.createDataFormat().getFormat("yyyy-MM-dd HH:mm:ss")
-                cell.cellStyle = cellStyle
+                ws.value(row, col, value.toLocalDateTime())
+                ws.style(row, col).format("yyyy-MM-dd HH:mm:ss").set()
             }
-
+            is LocalDateTime -> {
+                ws.value(row, col, value)
+                ws.style(row, col).format("yyyy-MM-dd HH:mm:ss").set()
+            }
+            is LocalDate -> {
+                ws.value(row, col, value)
+                ws.style(row, col).format("yyyy-MM-dd").set()
+            }
+            is java.util.Date -> {
+                ws.value(row, col, value)
+                ws.style(row, col).format("yyyy-MM-dd HH:mm:ss").set()
+            }
             else -> {
                 logger.error { "Could not cast type ${value.javaClass.name} to Excel type." }
                 throw ClassCastException("Could not cast database type to Excel type: ${value.javaClass.name}")
@@ -159,147 +153,221 @@ object ExcelUtil  {
     }
 
     /**
-     * IO exceptions are squelched in this method.  If there is a problem, then null is returned.
-     * Opens an Apache POI XSSFWorkbook instance. The user is responsible for closing the workbook
-     * when done. Do not try to write to the returned workbook.
-     *
-     * @param pathToWorkbook the path to a valid Excel xlsx workbook
-     * @return an Apache POI XSSFWorkbook or null if there was a problem opening the workbook.
+     * Opens an .xlsx workbook for reading. Returns null on missing file or read error.
+     * Caller is responsible for closing the returned ReadableWorkbook.
      */
-    fun openExistingXSSFWorkbookReadOnly(pathToWorkbook: Path): XSSFWorkbook? {
+    fun openReadableWorkbook(pathToWorkbook: Path): ReadableWorkbook? {
         val file = pathToWorkbook.toFile()
         if (!file.exists()) {
             logger.warn { "The file at $pathToWorkbook does not exist" }
             return null
         }
-        val pkg: OPCPackage? = try {
-            OPCPackage.open(file, PackageAccess.READ)
-        } catch (e: InvalidFormatException) {
-            logger.error { "The workbook has an invalid format. See Apache POI InvalidFormatException" }
-            return null
-        }
-        var wb: XSSFWorkbook? = null
-        try {
-            wb = XSSFWorkbook(pkg)
+        return try {
+            val wb = ReadableWorkbook(file)
             logger.info { "Opened workbook for reading only at: $pathToWorkbook" }
+            wb
         } catch (e: IOException) {
             logger.error { "There was an IO error when trying to open the workbook at: $pathToWorkbook" }
+            null
         }
-        return wb
     }
 
     /**
-     * @param sheet  the sheet to process
-     * @param numColumns the number of columns for each row
-     * @param skipFirstRow true means first row is skipped
-     * @return a list of lists of the objects representing each cell of each row of the sheet
+     * Reads an entire sheet as a list of object lists.
+     * fastexcel streams rows; the stream is closed when this returns.
      */
     fun readSheetAsObjects(
         sheet: Sheet,
         numColumns: Int = numberColumnsForCSVHeader(sheet),
         skipFirstRow: Boolean = false
     ): List<List<Any?>> {
-        val rowIterator = sheet.rowIterator()
-        if (skipFirstRow) {
-            if (rowIterator.hasNext()) {
-                rowIterator.next()
+        val list = mutableListOf<List<Any?>>()
+        sheet.openStream().use { stream ->
+            val iter = stream.iterator()
+            if (skipFirstRow && iter.hasNext()) iter.next()
+            while (iter.hasNext()) {
+                list.add(readRowAsObjectList(iter.next(), numColumns))
             }
-        }
-        val list: MutableList<List<Any?>> = ArrayList()
-        while (rowIterator.hasNext()) {
-            list.add(readRowAsObjectList(rowIterator.next(), numColumns))
         }
         return list
     }
 
     /**
-     * Read a row assuming a fixed number of columns.  Cells that
-     * are missing/null in the row are read as null objects.
-     *
-     * @param row    the Excel row
-     * @param numColumns the number of columns to read in the row
-     * @return a list of objects representing the contents of the cells for each column
+     * Reads a row into a fixed-length list, padding missing cells with null.
+     * fastexcel's Row.getCell throws on out-of-bounds indices (POI returned
+     * null), so we bounds-check before reading.
      */
-    fun readRowAsObjectList(row: Row, numColumns: Int = numberColumns(row)): List<Any?> {
+    fun readRowAsObjectList(row: Row, numColumns: Int = row.cellCount): List<Any?> {
         val list = mutableListOf<Any?>()
+        val rowCells = row.cellCount
         for (i in 0 until numColumns) {
-            val cell = row.getCell(i)
-            if (cell == null) {
-                list.add(null)
-            } else {
-                list.add(readCellAsObject(cell))
-            }
+            val cell: Cell? = if (i < rowCells) row.getCell(i) else null
+            list.add(if (cell == null) null else readCellAsObject(cell))
         }
         return list
     }
 
     /**
-     * Reads the Excel cell and translates it into a Java object
+     * Translates a fastexcel cell into a "best fit" Java object.
      *
-     * @param cell the Excel cell to read data from
-     * @return the data in the form of a Java object
+     *  - String/Boolean cells map to String/Boolean.
+     *  - Numeric cells with a date format map to a java.sql.* type chosen by
+     *    inspecting the format string: date-and-time → [Timestamp],
+     *    date-only → [java.sql.Date], time-only → [Time]. Returning java.sql
+     *    types keeps the DB round trip (export → re-import via
+     *    PreparedStatement.setObject) portable across JDBC drivers and strips
+     *    the 1899-12-30 anchor used when writing TIME values.
+     *  - Other numeric cells map to BigDecimal (fastexcel's native numeric
+     *    representation).
      */
     fun readCellAsObject(cell: Cell): Any? {
-        return when (cell.cellType) {
-            CellType.STRING -> cell.stringCellValue.trim()
-            CellType.NUMERIC -> if (DateUtil.isCellDateFormatted(cell)) {
-                cell.dateCellValue
-            } else {
-                cell.numericCellValue
+        return when (cell.type) {
+            CellType.STRING -> cell.asString().trim()
+            CellType.NUMBER -> {
+                val kind = dateFormatKind(cell)
+                val ldt: LocalDateTime? = if (kind.isAnyDate) cell.asDate() else null
+                when {
+                    kind.hasDate && kind.hasTime -> Timestamp.valueOf(ldt)
+                    kind.hasDate                 -> java.sql.Date.valueOf(ldt!!.toLocalDate())
+                    kind.hasTime                 -> Time.valueOf(ldt!!.toLocalTime())
+                    else                         -> cell.asNumber()
+                }
             }
-
-            CellType.BOOLEAN -> cell.booleanCellValue
-            CellType.FORMULA -> cell.cellFormula
+            CellType.BOOLEAN -> cell.asBoolean()
+            CellType.FORMULA -> cell.formula
+            CellType.EMPTY, CellType.ERROR -> null
             else -> null
         }
     }
 
     /**
-     * Reads the Excel cell and translates it into a String
+     * Translates a fastexcel cell into a value compatible with
+     * PreparedStatement.setObject(idx, value) for a column whose JDBC type
+     * is [jdbcType] (a constant from [java.sql.Types]).
      *
-     * @param cell the Excel cell to read data from
-     * @return the data in the form of a String
+     * This is the path used by the database-import flow. Going through
+     * the target column's JDBC type — rather than through the cell's data
+     * format string — is necessary because fastexcel-writer's format
+     * styles do not round trip through fastexcel-reader (the reader exposes
+     * neither dataFormatId nor dataFormatString for cells styled via the
+     * writer, as of fastexcel 0.18.4). For workbooks produced by other
+     * tools whose format info survives, [readCellAsObject] is sufficient.
+     */
+    fun readCellForJdbcType(cell: Cell?, jdbcType: Int): Any? {
+        if (cell == null) return null
+        if (cell.type == CellType.EMPTY || cell.type == CellType.ERROR) return null
+        return when (jdbcType) {
+            Types.BIT, Types.BOOLEAN -> when (cell.type) {
+                CellType.BOOLEAN -> cell.asBoolean()
+                CellType.NUMBER  -> cell.asNumber().signum() != 0
+                CellType.STRING  -> cell.asString().trim().equals("true", ignoreCase = true)
+                else             -> null
+            }
+            Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR,
+            Types.NCHAR, Types.NVARCHAR, Types.LONGNVARCHAR -> when (cell.type) {
+                CellType.STRING  -> cell.asString().trim()
+                CellType.NUMBER  -> cell.asNumber().toPlainString()
+                CellType.BOOLEAN -> cell.asBoolean().toString()
+                CellType.FORMULA -> cell.formula
+                else             -> null
+            }
+            Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT,
+            Types.FLOAT, Types.REAL, Types.DOUBLE,
+            Types.NUMERIC, Types.DECIMAL -> when (cell.type) {
+                CellType.NUMBER  -> cell.asNumber()
+                CellType.STRING  -> runCatching { BigDecimal(cell.asString().trim()) }.getOrNull()
+                CellType.BOOLEAN -> if (cell.asBoolean()) BigDecimal.ONE else BigDecimal.ZERO
+                else             -> null
+            }
+            Types.DATE -> when (cell.type) {
+                CellType.NUMBER -> java.sql.Date.valueOf(cell.asDate().toLocalDate())
+                CellType.STRING -> runCatching { java.sql.Date.valueOf(cell.asString().trim()) }.getOrNull()
+                else            -> null
+            }
+            Types.TIME, Types.TIME_WITH_TIMEZONE -> when (cell.type) {
+                CellType.NUMBER -> Time.valueOf(cell.asDate().toLocalTime())
+                CellType.STRING -> runCatching { Time.valueOf(cell.asString().trim()) }.getOrNull()
+                else            -> null
+            }
+            Types.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE -> when (cell.type) {
+                CellType.NUMBER -> Timestamp.valueOf(cell.asDate())
+                CellType.STRING -> runCatching { Timestamp.valueOf(cell.asString().trim()) }.getOrNull()
+                else            -> null
+            }
+            else -> readCellAsObject(cell)
+        }
+    }
+
+    /**
+     * Reads a row coerced to the supplied per-column JDBC types. Cells beyond
+     * the row's [Row.cellCount] are read as null.
+     */
+    fun readRowForJdbcTypes(row: Row, jdbcTypes: List<Int>): List<Any?> {
+        val list = mutableListOf<Any?>()
+        val rowCells = row.cellCount
+        for (i in jdbcTypes.indices) {
+            val cell: Cell? = if (i < rowCells) row.getCell(i) else null
+            list.add(readCellForJdbcType(cell, jdbcTypes[i]))
+        }
+        return list
+    }
+
+    /**
+     * Translates a fastexcel cell into a String.
      */
     fun readCellAsString(cell: Cell): String {
-        return when (cell.cellType) {
-            CellType.STRING -> cell.stringCellValue
-            CellType.NUMERIC -> if (DateUtil.isCellDateFormatted(cell)) {
-                val date = cell.dateCellValue
-                DATE_TIME_FORMATTER.format(date.toInstant())
-            } else {
-                val value = cell.numericCellValue
-                value.toString()
+        return when (cell.type) {
+            CellType.STRING -> cell.asString()
+            CellType.NUMBER -> {
+                if (isDateFormatted(cell)) {
+                    DATE_TIME_FORMATTER.format(
+                        cell.asDate().atZone(ZoneId.systemDefault()).toInstant()
+                    )
+                } else {
+                    cell.asNumber().toString()
+                }
             }
-            CellType.BOOLEAN -> {
-                val value = cell.booleanCellValue
-                value.toString()
-            }
-            CellType.FORMULA -> cell.cellFormula
+            CellType.BOOLEAN -> cell.asBoolean().toString()
+            CellType.FORMULA -> cell.formula
             else -> ""
         }
     }
 
     /**
-     * Read a row assuming a fixed number of columns.  Cells that
-     * are missing/null in the row are read as null Strings.
-     *
-     * @param row     the Excel row
-     * @param numCol  the number of columns in the row
-     * @param maxChar the maximum number of characters permitted for any string
-     * @return a list of java Strings representing the contents of the cells
+     * Detects whether a numeric cell carries a date/time number format.
+     * fastexcel exposes the raw format string via Cell.dataFormatString.
      */
+    private fun isDateFormatted(cell: Cell): Boolean = dateFormatKind(cell).isAnyDate
+
+    /**
+     * Inspects a cell's format string and classifies it as containing a date
+     * component, a time component, both, or neither. Quoted literals and
+     * escaped characters are stripped so that a literal 'd' inside text
+     * doesn't false-positive.
+     */
+    private fun dateFormatKind(cell: Cell): DateFormatKind {
+        if (cell.type != CellType.NUMBER) return DateFormatKind(false, false)
+        val fmt = cell.dataFormatString ?: return DateFormatKind(false, false)
+        val stripped = fmt.replace(Regex("\"[^\"]*\""), "")
+            .replace(Regex("\\\\."), "")
+        val hasDate = stripped.any { it in "yMd" }
+        val hasTime = stripped.any { it in "hHmsS" }
+        return DateFormatKind(hasDate, hasTime)
+    }
+
     fun readRowAsStringList(row: Row, numCol: Int, maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL): List<String?> {
         require(numCol > 0) { "The number of columns must be >= 1" }
         require(maxChar > 0) { "The maximum number of characters must be >= 1" }
-        val list: MutableList<String?> = ArrayList()
+        val list = mutableListOf<String?>()
+        val rowCells = row.cellCount
         for (i in 0 until numCol) {
-            val cell = row.getCell(i)
+            val cell: Cell? = if (i < rowCells) row.getCell(i) else null
             var s: String? = null
             if (cell != null) {
                 s = readCellAsString(cell)
                 if (s.length > maxChar) {
                     s = s.substring(0, maxChar - 1)
-                    logger.warn { "The cell ${cell.stringCellValue} was truncated to $maxChar characters" }
+                    logger.warn { "The cell ${cell.rawValue} was truncated to $maxChar characters" }
                 }
             }
             list.add(s)
@@ -307,122 +375,71 @@ object ExcelUtil  {
         return list
     }
 
-    /**
-     * Read a row assuming a fixed number of columns.  Cells that
-     * are missing/null in the row are read as null Strings.
-     *
-     * @param row     the Excel row
-     * @param numCol  the number of columns in the row
-     * @param maxChar the maximum number of characters permitted for any string
-     * @return an array of java Strings representing the contents of the cells
-     */
     fun readRowAsStringArray(row: Row, numCol: Int, maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL): Array<String?> {
         return readRowAsStringList(row, numCol, maxChar).toTypedArray()
     }
 
     /**
-     * Starts as the last row number of the sheet and looks up in the column to find the first non-null cell
-     *
-     * @param sheet       the sheet holding the column, must not be null
-     * @param columnIndex the column index, must be 0 or greater, since POI is 0 based columns
-     * @return the number of rows that have data in the particular column as defined by not having
-     * a null cell.
+     * fastexcel has no random row access, so we materialize the sheet to walk
+     * up from the bottom. Acceptable since this is used only for sizing.
      */
     fun columnSize(sheet: Sheet, columnIndex: Int): Int {
-        var lastRow = sheet.lastRowNum
-        while (lastRow >= 0 && isCellEmpty(sheet.getRow(lastRow).getCell(columnIndex))) {
+        val rows = sheet.read()
+        var lastRow = rows.size - 1
+        while (lastRow >= 0 && isCellEmpty(rows[lastRow].getCell(columnIndex))) {
             lastRow--
         }
         return lastRow + 1
     }
 
-    /**
-     * @param cell the cell to check
-     * @return true if it null or blank or string and empty
-     */
-    fun isCellEmpty(cell: Cell): Boolean {
-        return if (cell.cellType == CellType.BLANK) {
-            true
-        } else cell.cellType == CellType.STRING && cell.stringCellValue.isEmpty()
+    fun isCellEmpty(cell: Cell?): Boolean {
+        if (cell == null) return true
+        return when (cell.type) {
+            CellType.EMPTY -> true
+            CellType.STRING -> cell.asString().isEmpty()
+            else -> false
+        }
     }
 
-    /**
-     * Treats the columns as fields in a csv file, writes each row as a separate csv row
-     * in the resulting csv file
-     *
-     * @param sheet        the sheet to write, must not be null
-     * @param skipFirstRow if true, the first row is skipped in the sheet
-     * @param pathToCSV    a Path to the file to write as csv, must not be null
-     * @param numCol       the number of columns to write from each row, must be at least 1
-     * @param maxChar      the maximum number of characters that can be in any cell, must be at least 1
-     * @throws IOException an IO exception
-     */
     fun writeSheetToCSV(
         sheet: Sheet,
         numCol: Int = numberColumnsForCSVHeader(sheet),
         skipFirstRow: Boolean = false,
-        pathToCSV: Path = KSL.outDir.resolve("${sheet.sheetName}.csv"),
+        pathToCSV: Path = KSL.outDir.resolve("${sheet.name}.csv"),
         maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL
     ) {
         require(numCol > 0) { "The number of columns must be >= 1" }
         require(maxChar > 0) { "The maximum number of characters must be >= 1" }
-        val rowIterator = sheet.rowIterator()
-        if (skipFirstRow) {
-            if (rowIterator.hasNext()) {
-                rowIterator.next()
+        FileWriter(pathToCSV.toFile()).use { fileWriter ->
+            CSVFormat.DEFAULT.builder().build().print(fileWriter).use { writer ->
+                sheet.openStream().use { stream ->
+                    val iter = stream.iterator()
+                    if (skipFirstRow && iter.hasNext()) iter.next()
+                    while (iter.hasNext()) {
+                        val row = iter.next()
+                        val strings = readRowAsStringArray(row, numCol, maxChar)
+                        writer.printRecord(*strings)
+                    }
+                }
             }
         }
-        val fileWriter = FileWriter(pathToCSV.toFile())
-        val writer = CSVFormat.DEFAULT.builder().build().print(fileWriter)
-        while (rowIterator.hasNext()) {
-            val row = rowIterator.next()
-            val strings = readRowAsStringArray(row, numCol, maxChar)
-            writer.printRecord(strings)
-        }
-        writer.close()
     }
 
     /**
-     * Assumes that the first row is a header for a CSV like file and
-     * returns the number of columns (1 for each header)
-     *
-     * @param sheet the sheet to write, must not be null
-     * @return the number of header columns
+     * Opens a one-row stream just to size the header.
      */
     fun numberColumnsForCSVHeader(sheet: Sheet): Int {
-        val row = sheet.getRow(0)
-        return row?.lastCellNum?.toInt() ?: 0
+        sheet.openStream().use { stream ->
+            val first = stream.findFirst()
+            return if (first.isPresent) first.get().cellCount else 0
+        }
     }
+
+    fun numberColumns(row: Row): Int = row.cellCount
 
     /**
-     * Assumes that the first row is a header for a CSV like file and
-     * returns the number of columns (1 for each header)
-     *
-     * @param sheet the sheet to write, must not be null
-     * @return the number of header columns
-     */
-    fun numberColumns(row: Row): Int {
-        return row.lastCellNum.toInt()
-    }
-
-    /** Writes each entry in the map to an Excel workbook. The mapping
-     * of problematic double values is as follows:
-     *
-     *  - Double.NaN is written as the string "NaN"
-     *  - Double.POSITIVE_INFINITY is written as a string "+Infinity"
-     *  - Double.NEGATIVE_INFINITY is written as a string "-Infinity"
-     *
-     * Note that NULL is not a possible value in the map.
-     *
-     * @param sheetName the name of the sheet within the workbook. This should
-     * follow the sheet naming conventions of Excel
-     * @param map the map of information to export
-     * @param wbName the name of the workbook. By default, assumes that
-     * the workbook name is the same as the sheet name.
-     * @param wbDirectory the directory to store the workbook. By default,
-     * this is KSL.excelDir.
-     * @param header if true a header of (Element Name, Element Value) is the first
-     * row in the sheet. By default, no header is written.
+     * Writes a Map<String,Double> to a single-sheet workbook.
+     * NaN / +Infinity / -Infinity are written as the corresponding strings.
      */
     fun writeToExcel(
         map: Map<String, Double>,
@@ -431,188 +448,157 @@ object ExcelUtil  {
         wbDirectory: Path = KSL.excelDir,
         header: Boolean = false
     ) {
-        val wbn = if (!wbName.endsWith(".xlsx")) {
-            "$wbName.xlsx"
-        } else {
-            wbName
-        }
+        val wbn = if (!wbName.endsWith(".xlsx")) "$wbName.xlsx" else wbName
         val path = wbDirectory.resolve(wbn)
-        FileOutputStream(path.toFile()).use {
+        FileOutputStream(path.toFile()).use { fos ->
             logger.info { "Opened workbook $path for writing map $sheetName to Excel" }
-            var rowCnt = 0
-            val workbook = SXSSFWorkbook(100)
-            val sheet = workbook.createSheet(sheetName)
-            if (header) {
-                val headerRow = sheet.createRow(0)
-                val nameHeader = headerRow.createCell(0)
-                nameHeader.setCellValue("Element Name")
-                val valueHeader = headerRow.createCell(1)
-                valueHeader.setCellValue("Element Value")
-                rowCnt++
-            }
-            for((n,v) in map) {
-                val nextRow = sheet.createRow(rowCnt)
-                val nameCell = nextRow.createCell(0)
-                nameCell.setCellValue(n)
-                val valueCell = nextRow.createCell(1)
-                if (v.isNaN()){
-                    valueCell.setCellValue("NaN")
-                } else if (v == Double.POSITIVE_INFINITY){
-                    valueCell.setCellValue("+Infinity")
-                } else if (v == Double.NEGATIVE_INFINITY){
-                    valueCell.setCellValue("-Infinity")
-                } else {
-                    writeCell(valueCell, v)
+            Workbook(fos, APP_NAME, APP_VERSION).use { wb ->
+                val ws = wb.newWorksheet(createSafeSheetName(sheetName))
+                var rowCnt = 0
+                if (header) {
+                    ws.value(0, 0, "Element Name")
+                    ws.value(0, 1, "Element Value")
+                    rowCnt++
                 }
-                rowCnt++
+                for ((n, v) in map) {
+                    ws.value(rowCnt, 0, n)
+                    when {
+                        v.isNaN()                     -> ws.value(rowCnt, 1, "NaN")
+                        v == Double.POSITIVE_INFINITY -> ws.value(rowCnt, 1, "+Infinity")
+                        v == Double.NEGATIVE_INFINITY -> ws.value(rowCnt, 1, "-Infinity")
+                        else                          -> ws.value(rowCnt, 1, v)
+                    }
+                    rowCnt++
+                }
             }
-            workbook.write(it)
-            workbook.close()
-           // workbook.dispose()
             logger.info { "Closed workbook $path after writing map $sheetName to Excel" }
         }
     }
 
-    /** This is the reverse operation to the function writeToExcel() for a Map<String, Double>
-     *  The strings "+Infinity", "-Infinity", and "NaN" in the value column are correctly converted
-     *  to the appropriate double representation.  Any rows that have empty cells (null) are skipped in the
-     *  processing.
-     *
-     *  @param sheetName the name of the sheet holding the map. If the workbook does not
-     *  contain the named sheet then an empty map is returned
-     *  @param pathToWorkbook the path to the workbook file. By default, this is assumed
-     *  to be a workbook in the KSL.excelDir directory with the name "sheetName.xlsx"
-     *  @param skipFirstRow if true the first row of the sheet is skipped because it
-     *  contains a header. The default is false.
+    /**
+     * Inverse of writeToExcel(Map<String,Double>).
      */
     fun readToMap(
         sheetName: String,
         pathToWorkbook: Path = KSL.excelDir.resolve("${sheetName}.xlsx"),
         skipFirstRow: Boolean = false,
     ): Map<String, Double> {
-        val workbook: XSSFWorkbook = openExistingXSSFWorkbookReadOnly(pathToWorkbook)
+        val workbook = openReadableWorkbook(pathToWorkbook)
             ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
-        val sheet = workbook.getSheet(sheetName)
-        if (sheet == null) {
-            logger.info { "No corresponding sheet named $sheetName in workbook $pathToWorkbook" }
-            return emptyMap()
-        }
-        val rowIterator = sheet.rowIterator()
-        if (skipFirstRow) {
-            if (rowIterator.hasNext()) {
-                rowIterator.next()
+        workbook.use { wb ->
+            val sheet = wb.findSheet(sheetName).orElse(null)
+            if (sheet == null) {
+                logger.info { "No corresponding sheet named $sheetName in workbook $pathToWorkbook" }
+                return emptyMap()
             }
-        }
-        val map = mutableMapOf<String, Double>()
-        while (rowIterator.hasNext()) {
-            val row = rowIterator.next()
-            val rowData = readRowAsStringList(row, 2)
-            if (rowData[0] != null) {
-                val sn = rowData[0]!!
-                if (rowData[1] != null) {
-                    if (rowData[1].equals("NaN")){
-                        map[sn] = Double.NaN
-                    } else if (rowData[1].equals("+Infinity")){
-                        map[sn] = Double.POSITIVE_INFINITY
-                    } else if (rowData[1].equals("-Infinity")){
-                        map[sn] = Double.NEGATIVE_INFINITY
-                    } else {
-                        map[sn] = rowData[1]!!.toDouble()
+            val map = mutableMapOf<String, Double>()
+            sheet.openStream().use { stream ->
+                val iter = stream.iterator()
+                if (skipFirstRow && iter.hasNext()) iter.next()
+                while (iter.hasNext()) {
+                    val row = iter.next()
+                    val rowData = readRowAsStringList(row, 2)
+                    val key = rowData[0] ?: continue
+                    val raw = rowData[1] ?: continue
+                    map[key] = when (raw) {
+                        "NaN"       -> Double.NaN
+                        "+Infinity" -> Double.POSITIVE_INFINITY
+                        "-Infinity" -> Double.NEGATIVE_INFINITY
+                        else        -> raw.toDouble()
                     }
                 }
             }
+            return map
         }
-        return map
     }
 
-    /** Exports the data in the ResultSet to an Excel worksheet. The ResultSet is assumed to be forward
-     * only and each row is processed until all rows are exported. The ResultSet is closed after
-     * the processing.
-     *
-     * @param resultSet the result set to copy from
-     * @param sheet the sheet in the workbook to hold the results set values
-     * @param writeHeader whether to write a header of the column names into the sheet. The default is true
+    /**
+     * Streams a JDBC ResultSet to a worksheet. The ResultSet is closed when done.
      */
-    fun exportAsWorkSheet(resultSet: ResultSet, sheet: Sheet, writeHeader: Boolean = true) {
-        require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
-        // write the header
+    fun exportAsWorkSheet(resultSet: ResultSet, ws: Worksheet, writeHeader: Boolean = true) {
+        require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${ws.name}" }
         var rowCnt = 0
         val names = DatabaseIfc.columnNames(resultSet)
         if (writeHeader) {
-            val header = sheet.createRow(0)
             for (col in names.indices) {
-                val cell = header.createCell(col)
-                cell.setCellValue(names[col])
-                sheet.setColumnWidth(col, ((names[col].length + 2) * 256))
+                ws.value(0, col, names[col])
+                // fastexcel width is in characters, not POI's 1/256ths.
+                ws.width(col, (names[col].length + 2).toDouble())
             }
             rowCnt++
         }
-        // write all the rows
         val iterator = ResultSetRowIterator(resultSet)
         while (iterator.hasNext()) {
             val list = iterator.next()
-            val row = sheet.createRow(rowCnt)
             for (col in list.indices) {
-                writeCell(row.createCell(col), list[col])
+                writeCell(ws, rowCnt, col, list[col])
             }
             rowCnt++
         }
         resultSet.close()
-        val s = sheet as SXSSFSheet
-        s.flushRows()
-        DatabaseIfc.logger.info { "Completed exporting ResultSet to Excel worksheet ${sheet.sheetName}" }
+        // finish() (not flush()) closes this worksheet's zip entry before the
+        // caller opens the next sheet. fastexcel streams into a single OPC zip
+        // that allows only one open entry at a time; flush() opens the entry
+        // but never closes it, so a multi-sheet export corrupts entry ordering
+        // and Workbook.close() throws "not current zip current". finish() is
+        // idempotent, so the later Workbook.close() -> ws.finish() is a no-op.
+        ws.finish()
+        DatabaseIfc.logger.info { "Completed exporting ResultSet to Excel worksheet ${ws.name}" }
     }
 
-    /** Writes each table in the list to an Excel workbook with each table being placed
-     *  in a new sheet with the sheet name equal to the name of the table. The column names
-     *  for each table are written as the first row of each sheet.
+    /**
+     * Returns a sheet name derived from [rawName] that is safe (see
+     * createSafeSheetName) and not already present in [usedNames], adding the
+     * chosen name to [usedNames] before returning.
      *
-     *  Uses the longLastingConnection property for the connection.
-     *
-     * @param schemaName the name of the schema containing the tables or null
-     * @param tableNames the names of the tables to write to a workbook
-     * @param path the path to the workbook
-     * @param db the database containing the tables
+     * On collision a "_n" counter is appended, but — unlike a naive
+     * "${rawName}_n" then truncate — the base is first shortened so that
+     * base + suffix still fits within Excel's 31-character limit. Appending the
+     * suffix before truncation would discard it for names that already reach 31
+     * characters, so two identifiers sharing a 31-character prefix would
+     * collapse to the same value on every attempt and the loop would never
+     * terminate. Reserving room for the suffix guarantees each attempt is
+     * distinct, so the loop ends within usedNames.size + 1 iterations.
+     */
+    private fun uniqueSheetName(rawName: String, usedNames: MutableSet<String>): String {
+        val base = createSafeSheetName(rawName)
+        if (usedNames.add(base)) return base
+        var i = 1
+        while (true) {
+            val suffix = "_$i"
+            val room = (MAX_SHEET_NAME_LENGTH - suffix.length).coerceAtLeast(0)
+            val head = if (base.length > room) base.substring(0, room) else base
+            val candidate = head.trimEnd() + suffix
+            if (usedNames.add(candidate)) return candidate
+            i++
+        }
+    }
+
+    /**
+     * Writes the supplied tables of a database to one workbook, one sheet per table.
      */
     fun exportTablesToExcel(db: DatabaseIfc, path: Path, tableNames: List<String>, schemaName: String?) {
-        FileOutputStream(path.toFile()).use {
+        FileOutputStream(path.toFile()).use { fos ->
             logger.info { "Opened workbook $path for writing database ${db.label} output" }
             DatabaseIfc.logger.info { "Writing database ${db.label} to workbook at $path" }
-            val workbook = SXSSFWorkbook(100)
-            for (tableName in tableNames) {
-                // get result set
-                val rs = db.selectAllIntoOpenResultSet(tableName, schemaName)
-                if (rs != null) {
-                    // write result set to workbook
-                    val sheet = createSheet(workbook, tableName)
-                    exportAsWorkSheet(rs, sheet)
-                    // close result set
+            Workbook(fos, APP_NAME, APP_VERSION).use { wb ->
+                val usedNames = mutableSetOf<String>()
+                for (tableName in tableNames) {
+                    val rs = db.selectAllIntoOpenResultSet(tableName, schemaName) ?: continue
+                    val safe = uniqueSheetName(tableName, usedNames)
+                    val ws = wb.newWorksheet(safe)
+                    exportAsWorkSheet(rs, ws)
                     rs.close()
                 }
             }
-            workbook.write(it)
-            workbook.close()
-           // workbook.dispose()
             logger.info { "Closed workbook $path after writing database ${db.label} output" }
             DatabaseIfc.logger.info { "Completed database ${db.label} export to workbook at $path" }
         }
     }
 
     /**
-     * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
-     * The list of names is the names of the
-     * sheets in the workbook and the names of the tables that need to be written. They are in the
-     * order required for entering data so that no integrity constraints are violated. The
-     * underlying workbook is closed after the operation.
-     *
-     *  Uses the longLastingConnection property for the connection for metadata checking.
-     *
-     * @param db the database containing the tables
-     * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
-     * @param skipFirstRow   if true the first row of each sheet is skipped
-     * @param schemaName the name of the schema containing the named tables
-     * @param tableNames     the names of the sheets and tables in the order that needs to be written
-     * @throws IOException an io exception
+     * Imports each named sheet of the workbook into the table of the same name.
+     * Sheets are processed in the supplied order to satisfy referential constraints.
      */
     fun importWorkbookToSchema(
         db: DatabaseIfc,
@@ -621,128 +607,107 @@ object ExcelUtil  {
         schemaName: String?,
         skipFirstRow: Boolean
     ) {
-        val workbook: XSSFWorkbook = openExistingXSSFWorkbookReadOnly(pathToWorkbook)
+        val workbook = openReadableWorkbook(pathToWorkbook)
             ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
-
-        DatabaseIfc.logger.info { "Writing workbook $pathToWorkbook to database ${db.label}" }
-        for (tableName in tableNames) {
-            val sheet = workbook.getSheet(tableName)
-            if (sheet == null) {
-                DatabaseIfc.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
-                continue
+        workbook.use { wb ->
+            DatabaseIfc.logger.info { "Writing workbook $pathToWorkbook to database ${db.label}" }
+            for (tableName in tableNames) {
+                val sheet = wb.findSheet(tableName).orElse(null)
+                if (sheet == null) {
+                    DatabaseIfc.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
+                    continue
+                }
+                DatabaseIfc.logger.trace { "Processing the sheet for table $tableName." }
+                val tblMetaData = db.tableMetaData(tableName, schemaName)
+                val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
+                val pathToBadRows = Path.of(dirStr).resolve("${tableName}_MissingRows.txt")
+                DatabaseIfc.logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
+                val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
+                val numToSkip = if (skipFirstRow) 1 else 0
+                val success = importSheetToTable(
+                    db, sheet, tableName, tblMetaData, schemaName, numToSkip,
+                    unCompatibleRows = badRowsFile
+                )
+                if (!success) {
+                    DatabaseIfc.logger.info { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
+                } else {
+                    DatabaseIfc.logger.info { "Wrote sheet $tableName to database ${db.label}." }
+                }
             }
-            DatabaseIfc.logger.trace { "Processing the sheet for table $tableName." }
-            val tblMetaData = db.tableMetaData(tableName, schemaName)
-            DatabaseIfc.logger.trace { "Constructing path for bad rows file for table $tableName." }
-            val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
-            val path = Path.of(dirStr)
-            val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
-            DatabaseIfc.logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
-            val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
-            val numToSkip = if (skipFirstRow) 1 else 0
-            val success = importSheetToTable(db,
-                sheet,
-                tableName,
-                tblMetaData.size,
-                schemaName,
-                numToSkip,
-                unCompatibleRows = badRowsFile
-            )
-            if (!success) {
-                DatabaseIfc.logger.info { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
-            } else {
-                DatabaseIfc.logger.info { "Wrote sheet $tableName to database ${db.label}." }
-            }
+            DatabaseIfc.logger.info { "Completed writing workbook $pathToWorkbook to database ${db.label}" }
         }
-        workbook.close()
-        DatabaseIfc.logger.info { "Closed workbook $pathToWorkbook " }
-        DatabaseIfc.logger.info { "Completed writing workbook $pathToWorkbook to database ${db.label}" }
     }
 
-    /** Copies the rows from the sheet to the table.  The copy is assumed to start
-     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
-     * table and the number of rows of the sheet.  The copy is from the perspective of the table.
-     * That is, all columns of a row of the table are attempted to be filled from a corresponding
-     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
-     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
-     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
-     * in the table.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
-     *
-     * @param db the database holding the table
-     * @param sheet the sheet that has the data to transfer to the ResultSet
-     * @param tableName the table to copy into
-     * @param numColumns the number of columns in the sheet to copy into the table
-     * @param schemaName the name of the schema containing the tabel
-     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
-     * a header row
-     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
-     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
-     */
     fun importSheetToTable(
         db: DatabaseIfc,
         sheet: Sheet,
         tableName: String,
-        numColumns: Int,
+        tblMetaData: List<ColumnMetaData>,
         schemaName: String?,
         numRowsToSkip: Int,
         rowBatchSize: Int = 100,
         unCompatibleRows: PrintWriter
     ): Boolean {
+        val numColumns = tblMetaData.size
+        val jdbcTypes = tblMetaData.map { it.type }
         return try {
-            val rowIterator = sheet.rowIterator()
-            for (i in 1..numRowsToSkip) {
-                if (rowIterator.hasNext()) {
-                    rowIterator.next()
+            sheet.openStream().use { stream ->
+                val iter = stream.iterator()
+                for (i in 1..numRowsToSkip) {
+                    if (iter.hasNext()) iter.next()
                 }
-            }
-            DatabaseIfc.logger.trace { "Getting connection to import ${sheet.sheetName} into table $tableName of schema $schemaName of database ${db.label}" }
-            DatabaseIfc.logger.trace { "Table $tableName to hold data for sheet ${sheet.sheetName} has $numColumns columns to fill." }
-            db.getConnection().use { con ->
-                con.autoCommit = false
-                // make prepared statement for inserts
-                val insertStatement = DatabaseIfc.makeInsertPreparedStatement(con, tableName, numColumns, schemaName)
-                var batchCnt = 0
-                var cntBad = 0
-                var rowCnt = 0
-                var cntGood = 0
-                while (rowIterator.hasNext()) {
-                    val row = rowIterator.next()
-                    val rowData = readRowAsObjectList(row, numColumns)
-                    rowCnt++
-                    DatabaseIfc.logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
-                    DatabaseIfc.logger.trace { "Sheet Data: $rowData" }
-                    // rowData needs to be placed into insert statement
-                    val success = DatabaseIfc.addBatch(rowData, numColumns, insertStatement)
-                    if (!success) {
-                        DatabaseIfc.logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
-                        unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
-                        cntBad++
-                    } else {
-                        DatabaseIfc.logger.trace { "Inserted data into batch for insertion" }
-                        batchCnt++
-                        if (batchCnt.mod(rowBatchSize) == 0) {
-                            val ni = insertStatement.executeBatch()
-                            con.commit()
-                            DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
-                            batchCnt = 0
+                DatabaseIfc.logger.trace {
+                    "Getting connection to import ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}"
+                }
+                DatabaseIfc.logger.trace {
+                    "Table $tableName to hold data for sheet ${sheet.name} has $numColumns columns to fill."
+                }
+                db.getConnection().use { con ->
+                    con.autoCommit = false
+                    val insertStatement = DatabaseIfc.makeInsertPreparedStatement(con, tableName, numColumns, schemaName)
+                    var batchCnt = 0
+                    var cntBad = 0
+                    var rowCnt = 0
+                    var cntGood = 0
+                    while (iter.hasNext()) {
+                        val row = iter.next()
+                        val rowData = readRowForJdbcTypes(row, jdbcTypes)
+                        rowCnt++
+                        DatabaseIfc.logger.trace { "Read ${rowData.size} elements from sheet ${sheet.name}" }
+                        DatabaseIfc.logger.trace { "Sheet Data: $rowData" }
+                        val success = DatabaseIfc.addBatch(rowData, numColumns, insertStatement)
+                        if (!success) {
+                            DatabaseIfc.logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.name} to bad data file" }
+                            unCompatibleRows.println("Sheet: ${sheet.name} row: ${row.rowNum} not written: $rowData")
+                            cntBad++
+                        } else {
+                            DatabaseIfc.logger.trace { "Inserted data into batch for insertion" }
+                            batchCnt++
+                            if (batchCnt.mod(rowBatchSize) == 0) {
+                                val ni = insertStatement.executeBatch()
+                                con.commit()
+                                DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                                batchCnt = 0
+                            }
+                            cntGood++
                         }
-                        cntGood++
+                    }
+                    if (batchCnt > 0) {
+                        val ni = insertStatement.executeBatch()
+                        con.commit()
+                        DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                    }
+                    DatabaseIfc.logger.info {
+                        "Transferred $cntGood out of $rowCnt rows for ${sheet.name}. There were $cntBad incompatible rows written."
                     }
                 }
-                if (batchCnt > 0) {
-                    val ni = insertStatement.executeBatch()
-                    con.commit()
-                    DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
-                }
-                DatabaseIfc.logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
             }
             true
         } catch (ex: SQLException) {
-            DatabaseIfc.logger.error(
-                ex
-            ) { "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database ${db.label}" }
+            DatabaseIfc.logger.error(ex) {
+                "SQLException when importing ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}"
+            }
             false
         }
     }
-
 }

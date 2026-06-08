@@ -46,9 +46,6 @@ dependencies {
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
     implementation("ch.qos.logback:logback-core:1.5.32")
 
-    // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
-    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.25.0")
-
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") //TODO fix later, 0.7.0 has code breaking changes
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0")
@@ -61,7 +58,9 @@ dependencies {
     api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1") //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
-    api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2")//TODO update when version 1.0 stabilizes
+    api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2") {//TODO update when version 1.0 stabilizes
+        exclude(group = "org.jetbrains.kotlinx", module = "dataframe-excel")
+    }
 
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
 
@@ -82,11 +81,11 @@ dependencies {
 
     implementation("com.zaxxer:HikariCP:6.3.0")
 
-    // https://mvnrepository.com/artifact/org.apache.poi/poi
-    implementation("org.apache.poi:poi:5.5.1")
-    // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
-    implementation("org.apache.poi:poi-ooxml:5.5.1")
-    // required POI to update their dependencies to remove the vulnerability
+    // fastexcel — streaming xlsx writer/reader used by ExcelUtil
+    // https://mvnrepository.com/artifact/org.dhatim/fastexcel
+    implementation("org.dhatim:fastexcel:0.20.1")
+    // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
+    implementation("org.dhatim:fastexcel-reader:0.20.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-html-jvm
     implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")

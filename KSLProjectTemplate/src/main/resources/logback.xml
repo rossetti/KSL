@@ -357,10 +357,6 @@
         <appender-ref ref="JOOQFILE" />
     </logger>-->
 
-    <logger name="org.apache.poi" level="OFF" additivity="false">
-        <appender-ref ref="FILE" />
-    </logger>
-
     <root level="DEBUG">
         <appender-ref ref="consoleAppender" />
         <appender-ref ref="FILE"/>
