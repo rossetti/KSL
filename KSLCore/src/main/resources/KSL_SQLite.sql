@@ -455,7 +455,7 @@ where EA.EXP_NAME = A.EXP_NAME
   and A.REP_ID = B.REP_ID
   and EA.EXP_ID > EB.EXP_ID;
 
--- TIME_SERIES_RESPONSE_ACROSS_REP_VIEW computes the average, count, min, max for each period
+-- TIME_SERIES_RESPONSE_ACROSS_REP_VIEW computes the count, average, std dev, min, max for each period
 -- of the time series across the simulation replications.
 
 CREATE VIEW TIME_SERIES_RESPONSE_ACROSS_REP_VIEW
@@ -463,7 +463,9 @@ AS
 SELECT EXP_NAME, ELEMENT_ID_FK, SIM_RUN_ID_FK, STAT_NAME, PERIOD, START_TIME, END_TIME,
        COUNT(VALUE) as "STAT_COUNT",
        AVG(VALUE) as "AVERAGE",
-       NULL as "STD_DEV",
+       CASE WHEN COUNT(VALUE) > 1
+            THEN SQRT((SUM(VALUE * VALUE) - SUM(VALUE) * SUM(VALUE) / COUNT(VALUE)) / (COUNT(VALUE) - 1))
+            ELSE NULL END as "STD_DEV",
        MIN(VALUE) as "MINIMUM",
        MAX(VALUE) as "MAXIMUM"
 from TIME_SERIES_RESPONSE, EXPERIMENT, SIMULATION_RUN, MODEL_ELEMENT
