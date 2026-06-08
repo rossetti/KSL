@@ -37,7 +37,6 @@ repositories {
 
 dependencies {
 
-
     api("io.github.oshai:kotlin-logging-jvm:7.0.7")  //TODO consider making implementation
     api("org.slf4j:slf4j-api:2.0.17")  //TODO consider making implementation
 
