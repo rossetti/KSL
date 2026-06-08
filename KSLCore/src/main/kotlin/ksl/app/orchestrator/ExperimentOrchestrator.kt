@@ -67,6 +67,7 @@ class ExperimentOrchestrator {
      * @param scope               coroutine scope that owns the orchestrator coroutine
      * @return a [RunHandle] for observing progress and obtaining the result
      */
+    @OptIn(DelicateCoroutinesApi::class)
     fun submit(
         experiment: DesignedExperimentIfc,
         numRepsPerDesignPoint: Int? = null,

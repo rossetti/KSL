@@ -65,6 +65,7 @@ class OptimizationOrchestrator {
      * @param scope   coroutine scope that owns the orchestrator coroutine
      * @return a [RunHandle] for observing progress and obtaining the result
      */
+    @OptIn(DelicateCoroutinesApi::class)
     fun submit(
         solver: Solver,
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),

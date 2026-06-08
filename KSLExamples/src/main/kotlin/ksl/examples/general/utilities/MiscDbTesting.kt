@@ -2,7 +2,6 @@ package ksl.examples.general.utilities
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.*
-import ksl.utilities.io.dbutil.DuckDb
 import java.nio.file.Path
 import javax.sql.DataSource
 
@@ -14,7 +13,6 @@ fun main() {
 //    testDerbyDb()
 
 //    testPostgres()
-    testDuckDb()
 
 //    testDuckDbParquetFiles()
 //    testConvertToDuckDb()
@@ -104,70 +102,6 @@ fun testDerbyDb(){
     db.printAllTablesAsText()
     println()
     db.tableNames("APP").forEach(::println)
-}
-
-fun testDuckDb(){
-    val td = setOf(Person(), City())
-    val db = DuckDb(td, "TestDuckDb")
-    println(db)
-    println()
-    db.userDefinedTables.forEach(::println)
-    println()
-    val p = Person(1, "manuel", age = 10)
-    val c = City(1, "London", population = 1000)
-    db.insertDbDataIntoTable(p)
-    db.insertDbDataIntoTable(c)
-    val p2 = Person(2, "amy", age = 10)
-    val p3 = Person(3, "joe", age = 10)
-    db.appendDbDataToTable(listOf(p2,p3), "Persons")
-    db.printAllTablesAsText()
-    println()
-    db.tableNames("main").forEach(::println)
-    println()
-
-    val exportPath = db.exportAsLoadableCSV("testDuckDbExport")
-    val nDb = DuckDb.importFromLoadableCSV(exportPath, "ImportedDuckDb")
-    println(nDb)
-    nDb.printAllTablesAsText()
-
-}
-
-fun testDuckDbParquetFiles(){
-    val td = setOf(Person(), City())
-    val db = DuckDb(td, "TestDuckDb")
-    println(db)
-    println()
-    db.userDefinedTables.forEach(::println)
-    println()
-    val p = Person(1, "manuel", age = 10)
-    val c = City(1, "London", population = 1000)
-    db.insertDbDataIntoTable(p)
-    db.insertDbDataIntoTable(c)
-    db.printAllTablesAsText()
-    println()
-    db.tableNames("main").forEach(::println)
-    println()
-
-    val exportPath = db.exportAsLoadableParquetFiles("testDuckDbExport")
-//    val nDb = DuckDb.importFromLoadableCSV(exportPath, "ImportedDuckDb")
-//    println(nDb)
- //   nDb.printAllTablesAsText()
-
-}
-fun testConvertToDuckDb(){
-    val sPath = KSL.dbDir.resolve("someDB.db")
-    val ds = SQLiteDb.createDataSource(sPath)
-    val database = Database(ds, "someDB.db")
-    database.executeCommand("drop table if exists person")
-    database.executeCommand("create table person (id integer, name string)")
-    println(database)
-    database.executeCommand("insert into person values(1, 'PersonA')")
-    database.executeCommand("insert into person values(2, 'PersonB')")
-    database.printTableAsText(tableName = "person")
-
-    val ddb = DuckDb.convertFromSQLiteToDuckDb(sPath, "someDBAsDuck")
-    println(ddb)
-    ddb.printAllTablesAsText()
 }
 
 fun testPostgres(){

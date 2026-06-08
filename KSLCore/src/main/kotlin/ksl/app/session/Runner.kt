@@ -147,6 +147,7 @@ class Runner {
      *        [SimulationDispatcher.default]
      * @return a [RunHandle] for observing progress and obtaining the result
      */
+    @OptIn(DelicateCoroutinesApi::class)
     fun submit(
         request: RunRequest.SingleRun,
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
