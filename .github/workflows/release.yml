@@ -1,0 +1,85 @@
+# Builds native installers for the KSL Swing apps and publishes them to a
+# GitHub Release. Currently scoped to the KSLAppSwingResults "canary" only;
+# it broadens to all six apps (packageAllApps) once the packaging convention
+# is templatized. See .claude/plans/app-packaging-plan.md.
+#
+# GitHub Actions is built in — committing this file under .github/workflows/
+# on the default branch (main) is all the "setup" required.
+name: Release installers
+
+# WHEN this runs (the "triggers"):
+on:
+  # 1) Automatically, when a version tag like v1.3.0 (or v1.3.0-rc1) is pushed.
+  #    This is the real-release path: `git tag v1.3.0 && git push origin v1.3.0`.
+  push:
+    tags: ['v*']
+  # 2) Manually, via the "Run workflow" button on the repo's Actions tab.
+  #    Lets you rehearse the BUILD on all three OSes without publishing a
+  #    Release (the publish step below is skipped unless a tag triggered it).
+  workflow_dispatch: {}
+
+# The default GITHUB_TOKEN is read-only; creating/editing a Release needs write.
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      # One OS failing must not cancel the others — each builds its own installer.
+      fail-fast: false
+      matrix:
+        # jpackage is OS-native: each runner builds only ITS platform's installer
+        # (mac -> .dmg/.pkg, Windows -> .msi/.exe, Linux -> .deb).
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # Use bash on every runner (incl. Windows) so the one ./gradlew line
+        # behaves identically and we avoid PowerShell/gradlew.bat differences.
+        shell: bash
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Supply-chain guard: verifies every committed gradle-wrapper.jar against
+      # Gradle's published checksums (the automated form of the manual SHA-256
+      # check we did when adding the root wrapper).
+      - name: Validate Gradle wrapper(s)
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle          # cache ~/.gradle so matrix runs stay fast
+
+      # On Windows, jpackage shells out to the WiX Toolset to assemble the
+      # installer. It isn't reliably preinstalled on windows-latest, so install
+      # it here. (macOS/Linux build .dmg/.pkg/.deb with tools already present.)
+      - name: Install WiX Toolset (Windows only)
+        if: runner.os == 'Windows'
+        run: choco install wixtoolset --no-progress -y
+
+      # The exact command proven locally, now run per-OS. --no-daemon keeps CI
+      # clean; --stacktrace gives useful diagnostics while the pipeline is new.
+      - name: Build the Results installer for ${{ matrix.os }}
+        run: ./gradlew :KSLAppSwingResults:jpackage --no-daemon --stacktrace
+
+      # Publish ONLY for a real tag push (skipped on manual workflow_dispatch
+      # runs, which are build-only rehearsals). Each OS job appends its files to
+      # the single Release for the tag.
+      - name: Upload installer(s) to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          # Tags containing a hyphen (v1.3.0-rc1) are marked as pre-releases.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # A glob that matches nothing on a given OS is a no-op, not an error.
+          fail_on_unmatched_files: false
+          files: |
+            KSLAppSwingResults/build/jpackage/*.dmg
+            KSLAppSwingResults/build/jpackage/*.pkg
+            KSLAppSwingResults/build/jpackage/*.msi
+            KSLAppSwingResults/build/jpackage/*.exe
+            KSLAppSwingResults/build/jpackage/*.deb
