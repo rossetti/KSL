@@ -1,8 +1,8 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.solvers.Solver
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * A class that implements the Random Restart optimization algorithm.
@@ -18,7 +18,7 @@ class RandomRestartSolver(
     val restartingSolver: Solver,
     maxNumRestarts: Int = defaultMaxRestarts,
     streamNum: Int = 0,
-    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
 ) : StochasticSolver(
     restartingSolver.problemDefinition, restartingSolver.evaluator, maxNumRestarts,

@@ -7,8 +7,8 @@ import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
 import kotlin.math.ln
 
@@ -47,7 +47,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
-    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
 ) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
@@ -140,7 +140,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
      * @param replicationsPerEvaluation The number of replications to be performed for each evaluation of the objective function.
      * Ensures robustness in the evaluation process.
      * @param streamNum The stream number used for managing random number generation streams. Defaults to 0.
-     * @param streamProvider Provides the random number generator streams. Defaults to the KSLRandom.DefaultRNStreamProvider.
+     * @param streamProvider Provides the random number generator streams. Defaults to a fresh RNStreamProvider, so the solver has its own streams.
      * @param name An optional name for the simulated annealing process, useful for identification or debugging. Defaults to null.
      */
     @JvmOverloads
@@ -153,7 +153,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         name: String? = null
     ) : this(
         problemDefinition = problemDefinition,

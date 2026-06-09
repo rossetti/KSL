@@ -9,8 +9,8 @@ import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * Represents an abstract base class for stochastic solvers.
@@ -23,7 +23,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param maxIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
- * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
  * @param name Optional name identifier for this instance of the solver.
  */
 abstract class StochasticSolver(
@@ -32,7 +32,7 @@ abstract class StochasticSolver(
     maxIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
-    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    val streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
 ) : Solver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, name), RNStreamControlIfc {
 
@@ -173,7 +173,9 @@ abstract class StochasticSolver(
             evaluator = evaluator,
             maxIterations = maxRandomStartingPoints,
             replicationsPerEvaluation = replicationsPerRandomStartingPoint,
-            streamNum = streamNumber,
+            // Take a distinct stream from the parent's provider (not the parent's own stream)
+            // so the inner search does not collide with the parent solver's stream.
+            streamNum = 0,
             streamProvider = streamProvider,
             name = "Randomly Generated Best Solution"
         )

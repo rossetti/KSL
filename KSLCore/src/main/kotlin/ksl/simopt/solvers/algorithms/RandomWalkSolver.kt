@@ -3,8 +3,8 @@ package ksl.simopt.solvers.algorithms
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * A class that implements an unbiased Random Walk solver.
@@ -20,7 +20,7 @@ class RandomWalkSolver(
     maxIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
-    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String = "RandomWalk"
 ) : StochasticSolver(problemDefinition, evaluator, maxIterations,
     replicationsPerEvaluation,

@@ -2,8 +2,8 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import kotlin.isFinite
@@ -15,7 +15,7 @@ class CENormalSampler(
     sdSmoother: Double = defaultStdDevSmoother,
     coefficientOfVariationThreshold: Double = defaultCoefficientOfVariationThreshold,
     streamNum: Int = 0,
-    override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    override val streamProvider: RNStreamProviderIfc = RNStreamProvider(),
 ) : CESamplerIfc {
 
     override val dimension: Int = problemDefinition.inputSize

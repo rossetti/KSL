@@ -15,8 +15,8 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.collections.pow
 import ksl.utilities.direction
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.sortIndices
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -54,7 +54,7 @@ import kotlin.math.floor
  * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and there
  * is no statistical difference between the solutions
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
- * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
  * @param name Optional name identifier for this instance of the solver.
  */
 class RSplineSolver @JvmOverloads constructor(
@@ -64,7 +64,7 @@ class RSplineSolver @JvmOverloads constructor(
     replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     streamNum: Int = 0,
-    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
 ) : StochasticSolver(problemDefinition, evaluator, maxIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name) {
@@ -95,7 +95,7 @@ class RSplineSolver @JvmOverloads constructor(
      * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and there
      * is no statistical difference between the solutions
      * @param streamNum the random number stream number, defaults to 0, which means the next stream
-     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+     * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
      * @param name Optional name identifier for this instance of the solver.
      */
     @Suppress("unused")
@@ -109,7 +109,7 @@ class RSplineSolver @JvmOverloads constructor(
         maxNumReplications: Int = defaultMaxNumReplications,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         streamNum: Int = 0,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         name: String? = null
     ) : this(problemDefinition,
         evaluator, maxIterations, FixedGrowthRateReplicationSchedule(

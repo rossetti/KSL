@@ -7,8 +7,8 @@ import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * A class that implements the Stochastic Hill Climbing optimization algorithm.
@@ -28,7 +28,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
  * defining the strategy for determining the number of replications per evaluation.
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
- * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
  * @param name An optional name for this solver instance.
  */
 open class StochasticHillClimber @JvmOverloads constructor(
@@ -37,7 +37,7 @@ open class StochasticHillClimber @JvmOverloads constructor(
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
-    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
 ) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
@@ -48,7 +48,7 @@ open class StochasticHillClimber @JvmOverloads constructor(
      * @param maxIterations The maximum number of iterations allowed for the hill climbing process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
      * @param streamNum the random number stream number, defaults to 0, which means the next stream
-     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+     * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
      * @param name Optional name identifier for this instance of StochasticHillClimber.
      */
     @JvmOverloads
@@ -58,7 +58,7 @@ open class StochasticHillClimber @JvmOverloads constructor(
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         name: String? = null
     ) : this(problemDefinition, evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         streamNum, streamProvider, name)
