@@ -109,4 +109,27 @@ class ParallelEvaluationWiringTest {
             "Cross-Entropy via parallel evaluation should yield a finite best objective"
         )
     }
+
+    @Test
+    fun identicalConfigCrossEntropyRunsAreReproducible() {
+        val name = "REPRO_${System.nanoTime()}"
+        fun runBestObjective(): Double {
+            val solver = Solver.createCrossEntropySolver(
+                problemDefinition = problem(name),
+                modelBuilder = modelBuilder(name),
+                maxIterations = 3,
+                replicationsPerEvaluation = 2
+            )
+            solver.runAllIterations()
+            return solver.bestSolution.estimatedObjFncValue
+        }
+        // Each solver/sampler now defaults to its own fresh RNStreamProvider (seeded identically),
+        // so two runs of the same configuration draw the same streams and must match. Before the
+        // per-solver-provider change this would diverge, because both runs drew successive streams
+        // from the shared global provider.
+        assertEquals(
+            runBestObjective(), runBestObjective(), 1e-10,
+            "identical-configuration Cross-Entropy runs should be reproducible"
+        )
+    }
 }
