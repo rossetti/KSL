@@ -7,6 +7,8 @@ import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 class ParallelSimulationProviderTest {
@@ -138,6 +140,39 @@ class ParallelSimulationProviderTest {
         val rSingle = single.simulate(request)
         for (mi in rMulti.keys) {
             assertEquals(rMulti.estimate(mi).average, rSingle.estimate(mi).average, 1e-12, "order-independent for $mi")
+        }
+    }
+
+    /**
+     * Reproduces the multi-iteration divergence reported on the LK Inventory model: a solver
+     * (e.g. Cross-Entropy) issues many independent multi-point requests in sequence. The
+     * sequential provider advances its single model's streams continuously across requests, so
+     * each request draws fresh random numbers. The parallel provider must reproduce that. This
+     * test FAILS against the current implementation because buildPlans resets its stream-advance
+     * offset to 0 on every request, so the parallel path reuses the same streams every request.
+     */
+    @Test
+    @Disabled("Tracks the parallel cross-request stream-reuse bug; re-enabled when Phase C lands.")
+    fun parallelMatchesSequentialAcrossConsecutiveRequests() {
+        val name = "PSP_MultiReq_${System.nanoTime()}"
+        val request = EvaluationRequest(
+            name, listOf(point(name, 1.0), point(name, 2.0)), crnOption = false, cachingAllowed = false
+        )
+        val sequential = SimulationProvider({ buildModel(name) })
+        val parallel = ParallelSimulationProvider(modelBuilder(name))
+
+        val seq1 = sequential.simulate(request)
+        val seq2 = sequential.simulate(request)   // sequential advances its streams across requests
+        val par1 = parallel.simulate(request)
+        val par2 = parallel.simulate(request)     // parallel must advance the same way
+
+        for (mi in request.modelInputs) {
+            assertEquals(seq1.estimate(mi).average, par1.estimate(mi).average, 1e-10, "request 1 $mi")
+            assertNotEquals(
+                seq1.estimate(mi).average, seq2.estimate(mi).average,
+                "sequential should draw fresh streams on the 2nd request for $mi"
+            )
+            assertEquals(seq2.estimate(mi).average, par2.estimate(mi).average, 1e-10, "request 2 $mi")
         }
     }
 }
