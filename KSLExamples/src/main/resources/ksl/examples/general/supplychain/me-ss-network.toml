@@ -1,0 +1,586 @@
+name = "ME-Inventory-Network"
+
+[transportStrategy]
+type = "perIHP"
+
+[[items]]
+name = "Type-1"
+weight = 1.0
+cube = 1.0
+unitCost = 1.0
+
+[items.leadTime]
+type = "exponential"
+mean = 1.0
+stream = 1
+
+[[items]]
+name = "Type-2"
+weight = 1.0
+cube = 1.0
+unitCost = 1.0
+
+[items.leadTime]
+type = "exponential"
+mean = 0.5
+stream = 2
+
+[[items]]
+name = "Type-3"
+weight = 1.0
+cube = 1.0
+unitCost = 1.0
+
+[items.leadTime]
+type = "exponential"
+mean = 1.5
+stream = 3
+
+[[items]]
+name = "Type-4"
+weight = 1.0
+cube = 1.0
+unitCost = 1.0
+
+[items.leadTime]
+type = "exponential"
+mean = 2.0
+stream = 4
+
+[[nodes]]
+name = "Warehouse"
+type = "IHP"
+parent = "EXTERNAL_SUPPLIER"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 3.0
+
+[[nodes.inventory]]
+itemTypeName = "Type-1"
+initialOnHand = 20
+
+[nodes.inventory.policy]
+type = "sQ"
+reorderPoint = 4
+reorderQty = 1
+
+[[nodes.inventory]]
+itemTypeName = "Type-2"
+initialOnHand = 20
+
+[nodes.inventory.policy]
+type = "sQ"
+reorderPoint = 5
+reorderQty = 1
+
+[[nodes.inventory]]
+itemTypeName = "Type-3"
+initialOnHand = 20
+
+[nodes.inventory.policy]
+type = "sQ"
+reorderPoint = 3
+reorderQty = 2
+
+[[nodes.inventory]]
+itemTypeName = "Type-4"
+initialOnHand = 20
+
+[nodes.inventory.policy]
+type = "sQ"
+reorderPoint = 4
+reorderQty = 2
+
+[[nodes]]
+name = "R1"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Type-1"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 3
+
+[[nodes.inventory]]
+itemTypeName = "Type-2"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 1
+orderUpToLevel = 2
+
+[[nodes.inventory]]
+itemTypeName = "Type-3"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 4
+
+[[nodes.inventory]]
+itemTypeName = "Type-4"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 3
+orderUpToLevel = 6
+
+[[nodes]]
+name = "R2"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Type-1"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 1
+orderUpToLevel = 3
+
+[[nodes.inventory]]
+itemTypeName = "Type-2"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 4
+
+[[nodes.inventory]]
+itemTypeName = "Type-3"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 5
+
+[[nodes.inventory]]
+itemTypeName = "Type-4"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 3
+
+[[nodes]]
+name = "R3"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Type-1"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 4
+
+[[nodes.inventory]]
+itemTypeName = "Type-2"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 1
+orderUpToLevel = 2
+
+[[nodes.inventory]]
+itemTypeName = "Type-3"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 3
+
+[[nodes.inventory]]
+itemTypeName = "Type-4"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 3
+
+[[nodes]]
+name = "R4"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Type-1"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 3
+orderUpToLevel = 6
+
+[[nodes.inventory]]
+itemTypeName = "Type-2"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 3
+orderUpToLevel = 4
+
+[[nodes.inventory]]
+itemTypeName = "Type-3"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 1
+orderUpToLevel = 2
+
+[[nodes.inventory]]
+itemTypeName = "Type-4"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 3
+
+[[nodes]]
+name = "R5"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Type-1"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 3
+
+[[nodes.inventory]]
+itemTypeName = "Type-2"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 0
+orderUpToLevel = 1
+
+[[nodes.inventory]]
+itemTypeName = "Type-3"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 3
+orderUpToLevel = 6
+
+[[nodes.inventory]]
+itemTypeName = "Type-4"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 1
+orderUpToLevel = 2
+
+[[demandGenerators]]
+node = "R1"
+itemTypeName = "Type-1"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.0
+stream = 10
+
+[[demandGenerators]]
+node = "R1"
+itemTypeName = "Type-2"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.0
+stream = 11
+
+[[demandGenerators]]
+node = "R1"
+itemTypeName = "Type-3"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.5
+stream = 12
+
+[[demandGenerators]]
+node = "R1"
+itemTypeName = "Type-4"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 3.0
+stream = 13
+
+[[demandGenerators]]
+node = "R2"
+itemTypeName = "Type-1"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.0
+stream = 14
+
+[[demandGenerators]]
+node = "R2"
+itemTypeName = "Type-2"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.0
+stream = 15
+
+[[demandGenerators]]
+node = "R2"
+itemTypeName = "Type-3"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.5
+stream = 16
+
+[[demandGenerators]]
+node = "R2"
+itemTypeName = "Type-4"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.5
+stream = 17
+
+[[demandGenerators]]
+node = "R3"
+itemTypeName = "Type-1"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.5
+stream = 18
+
+[[demandGenerators]]
+node = "R3"
+itemTypeName = "Type-2"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.5
+stream = 19
+
+[[demandGenerators]]
+node = "R3"
+itemTypeName = "Type-3"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.0
+stream = 20
+
+[[demandGenerators]]
+node = "R3"
+itemTypeName = "Type-4"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.0
+stream = 21
+
+[[demandGenerators]]
+node = "R4"
+itemTypeName = "Type-1"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 3.0
+stream = 22
+
+[[demandGenerators]]
+node = "R4"
+itemTypeName = "Type-2"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.5
+stream = 23
+
+[[demandGenerators]]
+node = "R4"
+itemTypeName = "Type-3"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.0
+stream = 24
+
+[[demandGenerators]]
+node = "R4"
+itemTypeName = "Type-4"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.5
+stream = 25
+
+[[demandGenerators]]
+node = "R5"
+itemTypeName = "Type-1"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.5
+stream = 26
+
+[[demandGenerators]]
+node = "R5"
+itemTypeName = "Type-2"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 0.5
+stream = 27
+
+[[demandGenerators]]
+node = "R5"
+itemTypeName = "Type-3"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 3.0
+stream = 28
+
+[[demandGenerators]]
+node = "R5"
+itemTypeName = "Type-4"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 0.5
+stream = 29
+
+[[costFormulations]]
+type = "default"
+name = null
+
+[costFormulations.params]
+carryingRate = 0.1
+backorderRate = 0.0
+orderingCost = 5.5
+unloadingCost = 30.0
+loadingCost = 40.0
+shippingCost = 15.0
+stockoutCost = 0.0
+lostSaleCost = 0.0
+unitShortageCost = 0.0
+esLoadingCost = 40.0

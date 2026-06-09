@@ -1,0 +1,511 @@
+{
+    "name": "ME-Inventory-Network",
+    "transportStrategy": {
+        "type": "perIHP"
+    },
+    "items": [
+        {
+            "name": "Type-1",
+            "leadTime": {
+                "type": "exponential",
+                "mean": 1.0,
+                "stream": 1
+            }
+        },
+        {
+            "name": "Type-2",
+            "leadTime": {
+                "type": "exponential",
+                "mean": 0.5,
+                "stream": 2
+            }
+        },
+        {
+            "name": "Type-3",
+            "leadTime": {
+                "type": "exponential",
+                "mean": 1.5,
+                "stream": 3
+            }
+        },
+        {
+            "name": "Type-4",
+            "leadTime": {
+                "type": "exponential",
+                "mean": 2.0,
+                "stream": 4
+            }
+        }
+    ],
+    "nodes": [
+        {
+            "name": "Warehouse",
+            "type": "IHP",
+            "parent": "EXTERNAL_SUPPLIER",
+            "transportTimeFromParent": {
+                "type": "constant",
+                "value": 3.0
+            },
+            "inventory": [
+                {
+                    "itemTypeName": "Type-1",
+                    "policy": {
+                        "type": "sQ",
+                        "reorderPoint": 4,
+                        "reorderQty": 1
+                    },
+                    "initialOnHand": 20
+                },
+                {
+                    "itemTypeName": "Type-2",
+                    "policy": {
+                        "type": "sQ",
+                        "reorderPoint": 5,
+                        "reorderQty": 1
+                    },
+                    "initialOnHand": 20
+                },
+                {
+                    "itemTypeName": "Type-3",
+                    "policy": {
+                        "type": "sQ",
+                        "reorderPoint": 3,
+                        "reorderQty": 2
+                    },
+                    "initialOnHand": 20
+                },
+                {
+                    "itemTypeName": "Type-4",
+                    "policy": {
+                        "type": "sQ",
+                        "reorderPoint": 4,
+                        "reorderQty": 2
+                    },
+                    "initialOnHand": 20
+                }
+            ]
+        },
+        {
+            "name": "R1",
+            "type": "IHP",
+            "parent": "Warehouse",
+            "transportTimeFromParent": {
+                "type": "constant",
+                "value": 1.0
+            },
+            "inventory": [
+                {
+                    "itemTypeName": "Type-1",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-2",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 1,
+                        "orderUpToLevel": 2
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-3",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 4
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-4",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 3,
+                        "orderUpToLevel": 6
+                    },
+                    "initialOnHand": 10
+                }
+            ]
+        },
+        {
+            "name": "R2",
+            "type": "IHP",
+            "parent": "Warehouse",
+            "transportTimeFromParent": {
+                "type": "constant",
+                "value": 1.0
+            },
+            "inventory": [
+                {
+                    "itemTypeName": "Type-1",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 1,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-2",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 4
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-3",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 5
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-4",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                }
+            ]
+        },
+        {
+            "name": "R3",
+            "type": "IHP",
+            "parent": "Warehouse",
+            "transportTimeFromParent": {
+                "type": "constant",
+                "value": 1.0
+            },
+            "inventory": [
+                {
+                    "itemTypeName": "Type-1",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 4
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-2",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 1,
+                        "orderUpToLevel": 2
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-3",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-4",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                }
+            ]
+        },
+        {
+            "name": "R4",
+            "type": "IHP",
+            "parent": "Warehouse",
+            "transportTimeFromParent": {
+                "type": "constant",
+                "value": 1.0
+            },
+            "inventory": [
+                {
+                    "itemTypeName": "Type-1",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 3,
+                        "orderUpToLevel": 6
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-2",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 3,
+                        "orderUpToLevel": 4
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-3",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 1,
+                        "orderUpToLevel": 2
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-4",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                }
+            ]
+        },
+        {
+            "name": "R5",
+            "type": "IHP",
+            "parent": "Warehouse",
+            "transportTimeFromParent": {
+                "type": "constant",
+                "value": 1.0
+            },
+            "inventory": [
+                {
+                    "itemTypeName": "Type-1",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 2,
+                        "orderUpToLevel": 3
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-2",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 0,
+                        "orderUpToLevel": 1
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-3",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 3,
+                        "orderUpToLevel": 6
+                    },
+                    "initialOnHand": 10
+                },
+                {
+                    "itemTypeName": "Type-4",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 1,
+                        "orderUpToLevel": 2
+                    },
+                    "initialOnHand": 10
+                }
+            ]
+        }
+    ],
+    "demandGenerators": [
+        {
+            "node": "R1",
+            "itemTypeName": "Type-1",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.0,
+                "stream": 10
+            }
+        },
+        {
+            "node": "R1",
+            "itemTypeName": "Type-2",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.0,
+                "stream": 11
+            }
+        },
+        {
+            "node": "R1",
+            "itemTypeName": "Type-3",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.5,
+                "stream": 12
+            }
+        },
+        {
+            "node": "R1",
+            "itemTypeName": "Type-4",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 3.0,
+                "stream": 13
+            }
+        },
+        {
+            "node": "R2",
+            "itemTypeName": "Type-1",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.0,
+                "stream": 14
+            }
+        },
+        {
+            "node": "R2",
+            "itemTypeName": "Type-2",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.0,
+                "stream": 15
+            }
+        },
+        {
+            "node": "R2",
+            "itemTypeName": "Type-3",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.5,
+                "stream": 16
+            }
+        },
+        {
+            "node": "R2",
+            "itemTypeName": "Type-4",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.5,
+                "stream": 17
+            }
+        },
+        {
+            "node": "R3",
+            "itemTypeName": "Type-1",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.5,
+                "stream": 18
+            }
+        },
+        {
+            "node": "R3",
+            "itemTypeName": "Type-2",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.5,
+                "stream": 19
+            }
+        },
+        {
+            "node": "R3",
+            "itemTypeName": "Type-3",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.0,
+                "stream": 20
+            }
+        },
+        {
+            "node": "R3",
+            "itemTypeName": "Type-4",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.0,
+                "stream": 21
+            }
+        },
+        {
+            "node": "R4",
+            "itemTypeName": "Type-1",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 3.0,
+                "stream": 22
+            }
+        },
+        {
+            "node": "R4",
+            "itemTypeName": "Type-2",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.5,
+                "stream": 23
+            }
+        },
+        {
+            "node": "R4",
+            "itemTypeName": "Type-3",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.0,
+                "stream": 24
+            }
+        },
+        {
+            "node": "R4",
+            "itemTypeName": "Type-4",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.5,
+                "stream": 25
+            }
+        },
+        {
+            "node": "R5",
+            "itemTypeName": "Type-1",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 1.5,
+                "stream": 26
+            }
+        },
+        {
+            "node": "R5",
+            "itemTypeName": "Type-2",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 0.5,
+                "stream": 27
+            }
+        },
+        {
+            "node": "R5",
+            "itemTypeName": "Type-3",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 3.0,
+                "stream": 28
+            }
+        },
+        {
+            "node": "R5",
+            "itemTypeName": "Type-4",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 0.5,
+                "stream": 29
+            }
+        }
+    ],
+    "costFormulations": [
+        {
+            "type": "default"
+        }
+    ]
+}

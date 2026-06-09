@@ -1,0 +1,69 @@
+{
+    "name": "CrossDock-Network",
+    "items": [
+        {
+            "name": "Widget",
+            "leadTime": {
+                "type": "exponential",
+                "mean": 1.0,
+                "stream": 1
+            },
+            "unitCost": 10.0
+        }
+    ],
+    "nodes": [
+        {
+            "name": "Warehouse",
+            "type": "IHP",
+            "parent": "EXTERNAL_SUPPLIER",
+            "inventory": [
+                {
+                    "itemTypeName": "Widget",
+                    "policy": {
+                        "type": "sQ",
+                        "reorderPoint": 5,
+                        "reorderQty": 20
+                    },
+                    "initialOnHand": 30
+                }
+            ]
+        },
+        {
+            "name": "CrossDock",
+            "type": "CD",
+            "parent": "Warehouse"
+        },
+        {
+            "name": "Retailer",
+            "type": "IHP",
+            "parent": "CrossDock",
+            "inventory": [
+                {
+                    "itemTypeName": "Widget",
+                    "policy": {
+                        "type": "sS",
+                        "reorderPoint": 3,
+                        "orderUpToLevel": 10
+                    },
+                    "initialOnHand": 10
+                }
+            ]
+        }
+    ],
+    "demandGenerators": [
+        {
+            "node": "Retailer",
+            "itemTypeName": "Widget",
+            "interArrival": {
+                "type": "exponential",
+                "mean": 2.0,
+                "stream": 5
+            }
+        }
+    ],
+    "costFormulations": [
+        {
+            "type": "default"
+        }
+    ]
+}

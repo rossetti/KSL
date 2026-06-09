@@ -1,0 +1,86 @@
+name = "CrossDock-Network"
+
+[transportStrategy]
+type = "shared"
+
+[[items]]
+name = "Widget"
+weight = 1.0
+cube = 1.0
+unitCost = 10.0
+
+[items.leadTime]
+type = "exponential"
+mean = 1.0
+stream = 1
+
+[[nodes]]
+name = "Warehouse"
+type = "IHP"
+parent = "EXTERNAL_SUPPLIER"
+transportTimeFromParent = null
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[[nodes.inventory]]
+itemTypeName = "Widget"
+initialOnHand = 30
+
+[nodes.inventory.policy]
+type = "sQ"
+reorderPoint = 5
+reorderQty = 20
+
+[[nodes]]
+name = "CrossDock"
+type = "CD"
+parent = "Warehouse"
+transportTimeFromParent = null
+inventory = [  ]
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[[nodes]]
+name = "Retailer"
+type = "IHP"
+parent = "CrossDock"
+transportTimeFromParent = null
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[[nodes.inventory]]
+itemTypeName = "Widget"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 3
+orderUpToLevel = 10
+
+[[demandGenerators]]
+node = "Retailer"
+itemTypeName = "Widget"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.0
+stream = 5
+
+[[costFormulations]]
+type = "default"
+name = null
+
+[costFormulations.params]
+carryingRate = 0.1
+backorderRate = 0.0
+orderingCost = 5.5
+unloadingCost = 30.0
+loadingCost = 40.0
+shippingCost = 15.0
+stockoutCost = 0.0
+lostSaleCost = 0.0
+unitShortageCost = 0.0
+esLoadingCost = 40.0

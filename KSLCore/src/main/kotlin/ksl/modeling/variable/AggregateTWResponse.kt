@@ -38,6 +38,31 @@ class AggregateTWResponse @JvmOverloads constructor(
     private val responses = mutableSetOf<TWResponse>()
     private val myObserver = ResponseObserver()
 
+    /**
+     * At the start of each replication, KSL's `beforeReplication` has
+     * already reset every TWResponse (including this aggregate and
+     * every observed source) to its `initialValue`.  But the
+     * aggregate's `initialValue` is independent of its sources, so
+     * the aggregate restarts at 0 (or its declared value) even when
+     * sources start positive — and the first delta-tracking
+     * observation on a source's decrement then takes the aggregate
+     * negative, violating [TWResponse]'s `[0, ∞)` domain.
+     *
+     * This override re-syncs the aggregate's value to the sum of its
+     * sources' current values during `initialize()`.  Assigning
+     * `value = sum` fires this aggregate's own observers, so the same
+     * re-sync propagates upward through any chain of
+     * `AggregateTWResponse`s observing one another — order-independent
+     * because the chain self-corrects via successive observer firings.
+     */
+    override fun initialize() {
+        super.initialize()
+        if (responses.isEmpty()) return
+        var sum = 0.0
+        for (source in responses) sum += source.value
+        if (sum != value) value = sum
+    }
+
     private inner class ResponseObserver: ModelElementObserver(){
         override fun update(modelElement: ModelElement) {
             // must be a TWResponse because only attached to TWResponse

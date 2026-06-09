@@ -1,0 +1,161 @@
+name = "Comparative-Cost-Network"
+
+[transportStrategy]
+type = "perIHP"
+
+[[items]]
+name = "Widget"
+weight = 1.0
+cube = 1.0
+unitCost = 12.5
+
+[items.leadTime]
+type = "exponential"
+mean = 1.0
+stream = 1
+
+[[nodes]]
+name = "Warehouse"
+type = "IHP"
+parent = "EXTERNAL_SUPPLIER"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 3.0
+
+[[nodes.inventory]]
+itemTypeName = "Widget"
+initialOnHand = 30
+
+[nodes.inventory.policy]
+type = "sQ"
+reorderPoint = 5
+reorderQty = 20
+
+[[nodes]]
+name = "R1"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Widget"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 3
+orderUpToLevel = 10
+
+[[nodes]]
+name = "R2"
+type = "IHP"
+parent = "Warehouse"
+enableShipmentFormation = false
+shipmentFormationFromParent = null
+
+[nodes.transportTimeFromParent]
+type = "constant"
+value = 1.0
+
+[[nodes.inventory]]
+itemTypeName = "Widget"
+initialOnHand = 10
+
+[nodes.inventory.policy]
+type = "sS"
+reorderPoint = 2
+orderUpToLevel = 8
+
+[[demandGenerators]]
+node = "R1"
+itemTypeName = "Widget"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 2.0
+stream = 10
+
+[[demandGenerators]]
+node = "R2"
+itemTypeName = "Widget"
+name = null
+transportTime = null
+shipmentFormation = null
+
+[demandGenerators.interArrival]
+type = "exponential"
+mean = 1.5
+stream = 11
+
+[[costFormulations]]
+type = "default"
+name = "standard"
+
+[costFormulations.params]
+carryingRate = 0.1
+backorderRate = 0.0
+orderingCost = 5.5
+unloadingCost = 30.0
+loadingCost = 40.0
+shippingCost = 15.0
+stockoutCost = 0.0
+lostSaleCost = 0.0
+unitShortageCost = 0.0
+esLoadingCost = 40.0
+
+[[costFormulations]]
+type = "default"
+name = "highCarrying"
+
+[costFormulations.params]
+carryingRate = 0.3
+backorderRate = 0.0
+orderingCost = 5.5
+unloadingCost = 30.0
+loadingCost = 40.0
+shippingCost = 15.0
+stockoutCost = 0.0
+lostSaleCost = 0.0
+unitShortageCost = 0.0
+esLoadingCost = 40.0
+
+[[costFormulations]]
+type = "perNodeIHP"
+name = "warehouseHeavy"
+
+[costFormulations.default]
+carryingRate = 0.1
+backorderRate = 0.0
+orderingCost = 5.5
+unloadingCost = 30.0
+loadingCost = 40.0
+shippingCost = 15.0
+stockoutCost = 0.0
+lostSaleCost = 0.0
+unitShortageCost = 0.0
+esLoadingCost = 40.0
+
+[costFormulations.overrides]
+
+[costFormulations.overrides.Warehouse]
+carryingRate = 0.4
+backorderRate = 0.0
+orderingCost = 5.5
+unloadingCost = 30.0
+loadingCost = 40.0
+shippingCost = 15.0
+stockoutCost = 0.0
+lostSaleCost = 0.0
+unitShortageCost = 0.0
+esLoadingCost = 40.0

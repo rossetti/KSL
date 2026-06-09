@@ -97,7 +97,7 @@ class AggregateCounter @JvmOverloads constructor(
      * @param counter the counter to stop observing
      */
     fun remove(counter: CounterCIfc){
-        if (counter is TWResponse){
+        if (counter is Counter){
             remove(counter)
         }
     }
