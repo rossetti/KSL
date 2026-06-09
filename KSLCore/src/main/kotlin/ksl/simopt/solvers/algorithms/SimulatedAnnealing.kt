@@ -33,8 +33,9 @@ import kotlin.math.ln
  * @param maxIterations the maximum number of iterations permitted for the search process
  * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
  * defining the strategy for determining the number of replications per evaluation.
- * @param rnStream An optional random number stream used for stochastic behavior.
- * Defaults to `KSLRandom.defaultRNStream()`.
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider,
+ * so the solver has its own streams
  * @param name An optional name for this solver instance.
  *
  */

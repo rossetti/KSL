@@ -1111,6 +1111,8 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
          * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
          */
         @Suppress("unused")
@@ -1166,6 +1168,8 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams for the outer driver; defaults to a fresh RNStreamProvider
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1234,6 +1238,8 @@ abstract class Solver(
          * @param solutionCache A cache to store evaluated solutions and prevent redundant simulation runs.
          * @param simulationRunCache An optional cache for individual simulation replication data.
          * @param experimentRunParameters Optional parameters defining the simulation run lengths, warmups, etc.
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
          * @return A fully configured [SimulatedAnnealing] solver instance.
          */
         @Suppress("unused")
@@ -1303,6 +1309,8 @@ abstract class Solver(
          * @param solutionCache A cache to store evaluated solutions across all restarts.
          * @param simulationRunCache An optional cache for individual simulation replication data.
          * @param experimentRunParameters Optional parameters defining the simulation run properties.
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams for the outer driver; defaults to a fresh RNStreamProvider
          * @return A [RandomRestartSolver] wrapping a dynamically configuring [SimulatedAnnealing] inner solver.
          */
         @Suppress("unused")
@@ -1371,7 +1379,7 @@ abstract class Solver(
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param startingPoint Optional initial coordinates to start the optimization.
          * If left null, the solver will automatically generate a random feasible starting point upon initialization.
-         * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
+         * @param ceSampler The cross-entropy sampler. When null (the default), a [CENormalSampler] bound to the solver's provider is created.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
@@ -1379,6 +1387,8 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the solver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; the cross-entropy sampler draws its stream from this same provider, so the solver and sampler share one provider (distinct streams)
          * @return An instance of CrossEntropySolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1433,7 +1443,7 @@ abstract class Solver(
          * @param maxNumRestarts The maximum number of restarts to be performed.
          * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
          * All subsequent restarts will begin at purely random, auto-generated coordinates
-         * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
+         * @param ceSampler The cross-entropy sampler. When null (the default), a [CENormalSampler] bound to the solver's provider is created.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
@@ -1441,6 +1451,8 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver (the returned solver); 0 (the default) means the next available stream. The inner Cross-Entropy solver and its sampler take distinct streams from the same provider.
+         * @param streamProvider the provider of random number streams shared by the inner Cross-Entropy solver, its sampler, and the outer driver; defaults to a fresh RNStreamProvider
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1511,6 +1523,8 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
          * @return An instance of RSplineSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1573,6 +1587,8 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams for the outer driver; defaults to a fresh RNStreamProvider
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
