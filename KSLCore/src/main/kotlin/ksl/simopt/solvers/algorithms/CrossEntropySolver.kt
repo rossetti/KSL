@@ -9,6 +9,8 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.distributions.Normal
+import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.ceil
 
 /**
@@ -35,7 +37,13 @@ fun interface SampleSizeFnIfc {
  * Constructs an instance of CrossEntropySolver with specified parameters.
  *
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
- * @param ceSampler the cross-entropy sampler for the cross-entropy distribution
+ * @param streamNum the random number stream number for the solver, defaults to 0, which means the next available stream
+ * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has
+ * its own streams. The cross-entropy sampler draws its stream from this same provider so that the solver and its sampler
+ * share one provider (with distinct streams).
+ * @param ceSampler the cross-entropy sampler for the cross-entropy distribution. By default this is a [CENormalSampler]
+ * bound to the solver's provider; when supplying a custom sampler, build it on the same provider to keep the solver and
+ * sampler coordinated.
  * @param maxIterations The maximum number of iterations allowed for the search process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
@@ -46,22 +54,28 @@ fun interface SampleSizeFnIfc {
 class CrossEntropySolver @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    val ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+    val ceSampler: CESamplerIfc = CENormalSampler(problemDefinition, streamProvider = streamProvider),
     maxIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     name: String? = null
 ) : StochasticSolver(problemDefinition,
     evaluator, maxIterations,
-    replicationsPerEvaluation, ceSampler.streamNumber,
-    ceSampler.streamProvider, name
+    replicationsPerEvaluation, streamNum,
+    streamProvider, name
 ) {
 
     /**
      * Constructs an instance of CrossEntropySolver with specified parameters.
      *
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
-     * @param ceSampler the cross-entropy sampler for the cross-entropy distribution
+     * @param streamNum the random number stream number for the solver, defaults to 0, which means the next available stream
+     * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has
+     * its own streams. The cross-entropy sampler draws its stream from this same provider.
+     * @param ceSampler the cross-entropy sampler for the cross-entropy distribution. By default this is a [CENormalSampler]
+     * bound to the solver's provider.
      * @param maxIterations The maximum number of iterations allowed for the search process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
      * @param name Optional name identifier for this instance of the solver.
@@ -71,13 +85,15 @@ class CrossEntropySolver @JvmOverloads constructor(
     constructor(
         problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
-        ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+        ceSampler: CESamplerIfc = CENormalSampler(problemDefinition, streamProvider = streamProvider),
         maxIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         name: String? = null
     ) : this(problemDefinition,
-        evaluator, ceSampler, maxIterations,
+        evaluator, streamNum, streamProvider, ceSampler, maxIterations,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         solutionEqualityChecker, name
     )

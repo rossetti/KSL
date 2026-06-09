@@ -37,6 +37,8 @@ import ksl.simopt.solvers.algorithms.LinearCoolingSchedule
 import ksl.simopt.solvers.algorithms.LogarithmicCoolingSchedule
 import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simulation.ModelProviderIfc
+import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.simopt.problem.InequalityType as EngineInequalityType
 import ksl.simopt.problem.OptimizationType as EngineOptimizationType
 
@@ -184,6 +186,7 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -198,6 +201,7 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -218,6 +222,7 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -235,24 +240,30 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
             }
 
             is SolverSpec.CrossEntropy -> {
-                val sampler: CESamplerIfc = spec.sampler.toEngine(problem)
+                // One provider shared by the CE solver and its sampler so they draw distinct
+                // streams from a single provider (see CrossEntropySolver / Solver.createCrossEntropySolver).
+                val provider = RNStreamProvider()
+                val sampler: CESamplerIfc = spec.sampler.toEngine(problem, provider)
                 val solver = if (spec.randomRestart == null)
                     Solver.createCrossEntropySolver(
                         problemDefinition         = problem,
                         modelBuilder              = builder,
                         ceSampler                 = sampler,
+                        streamProvider            = provider,
                         startingPoint             = starting,
                         maxIterations             = spec.maxIterations,
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -263,11 +274,13 @@ class OptimizationSolverFactory(
                         maxNumRestarts            = spec.randomRestart.maxNumRestarts,
                         startingPoint             = starting,
                         ceSampler                 = sampler,
+                        streamProvider            = provider,
                         maxIterations             = spec.maxIterations,
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -289,6 +302,7 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -305,6 +319,7 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
+                        streamNum                 = spec.streamNum,
                         name                      = spec.name,
                         parallelOptions           = parallelOptions
                     )
@@ -364,13 +379,17 @@ class OptimizationSolverFactory(
             LogarithmicCoolingSchedule(initialTemperature)
     }
 
-    private fun CESamplerSpec.toEngine(problem: ProblemDefinition): CESamplerIfc = when (this) {
+    private fun CESamplerSpec.toEngine(
+        problem: ProblemDefinition,
+        streamProvider: RNStreamProviderIfc
+    ): CESamplerIfc = when (this) {
         is CESamplerSpec.Normal -> CENormalSampler(
             problemDefinition               = problem,
             meanSmoother                    = meanSmoother,
             sdSmoother                      = sdSmoother,
             coefficientOfVariationThreshold = coefficientOfVariationThreshold,
-            streamNum                       = streamNum
+            streamNum                       = streamNum,
+            streamProvider                  = streamProvider
         )
     }
 

@@ -6,8 +6,11 @@ import ksl.simopt.solvers.Solver
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -131,5 +134,51 @@ class ParallelEvaluationWiringTest {
             runBestObjective(), runBestObjective(), 1e-10,
             "identical-configuration Cross-Entropy runs should be reproducible"
         )
+    }
+
+    /**
+     * Cross-Entropy now owns its stream provider (like the other StochasticSolvers) and the
+     * default sampler draws from that same provider. The two must end up on distinct streams:
+     * the sampler is allocated first (stream 1) and the solver's base stream takes the next (stream 2).
+     */
+    @Test
+    fun crossEntropySolverAndSamplerShareProviderWithDistinctStreams() {
+        val name = "STREAMS_${System.nanoTime()}"
+        val provider = RNStreamProvider()
+        val solver = Solver.createCrossEntropySolver(
+            problemDefinition = problem(name),
+            modelBuilder = modelBuilder(name),
+            maxIterations = 2,
+            replicationsPerEvaluation = 2,
+            streamProvider = provider
+        )
+        assertSame(provider, solver.streamProvider, "solver should own the supplied provider")
+        assertSame(provider, solver.ceSampler.streamProvider, "sampler should use the solver's provider")
+        assertEquals(1, solver.ceSampler.streamNumber, "sampler should bind to the first stream of the provider")
+        assertEquals(2, solver.streamNumber, "solver base should take the next stream of the provider")
+        assertNotEquals(
+            solver.streamNumber, solver.ceSampler.streamNumber,
+            "solver and sampler must use distinct streams"
+        )
+    }
+
+    /**
+     * An explicit solver streamNum selects the solver's base stream from the shared provider while
+     * the default sampler still takes the first available stream.
+     */
+    @Test
+    fun crossEntropyStreamNumSelectsSolverBaseStream() {
+        val name = "STREAMSEL_${System.nanoTime()}"
+        val provider = RNStreamProvider()
+        val solver = Solver.createCrossEntropySolver(
+            problemDefinition = problem(name),
+            modelBuilder = modelBuilder(name),
+            maxIterations = 2,
+            replicationsPerEvaluation = 2,
+            streamNum = 5,
+            streamProvider = provider
+        )
+        assertEquals(5, solver.streamNumber, "explicit streamNum should select the solver's base stream")
+        assertEquals(1, solver.ceSampler.streamNumber, "default sampler should take the first available stream")
     }
 }

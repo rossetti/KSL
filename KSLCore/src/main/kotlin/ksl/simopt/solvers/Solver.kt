@@ -32,6 +32,8 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 enum class SolverStatus {
     INITIALIZED, // Emitted after state reset, right before iteration 0
@@ -1123,6 +1125,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): StochasticHillClimber {
@@ -1136,6 +1140,8 @@ abstract class Solver(
                 evaluator = evaluator,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
                 name = name
             )
             // Inject the specific starting point if the user provided one
@@ -1175,6 +1181,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
@@ -1190,8 +1198,11 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
+            // streamNum/streamProvider configure the outer random-restart driver (the returned solver);
+            // the inner solver keeps its own provider.
             val restartSolver = RandomRestartSolver(
-                restartingSolver = shc, maxNumRestarts = maxNumRestarts, name = name
+                restartingSolver = shc, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
@@ -1240,6 +1251,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): SimulatedAnnealing {
@@ -1259,6 +1272,8 @@ abstract class Solver(
                 stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
                 name = name
             )
             // Inject the specific starting point if the user provided one
@@ -1306,6 +1321,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
@@ -1332,8 +1349,11 @@ abstract class Solver(
                 name = name
             )
 
+            // streamNum/streamProvider configure the outer random-restart driver (the returned solver);
+            // the inner solver keeps its own provider.
             val restartSolver = RandomRestartSolver(
-                restartingSolver = saSolver, maxNumRestarts = maxNumRestarts, name = name
+                restartingSolver = saSolver, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
             )
 
             // The random restart solver orchestrates the starting points. We pass the user's
@@ -1367,13 +1387,15 @@ abstract class Solver(
         fun createCrossEntropySolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
-            ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
+            ceSampler: CESamplerIfc? = null,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): CrossEntropySolver {
@@ -1382,10 +1404,16 @@ abstract class Solver(
                 simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
                 parallelOptions = parallelOptions
             )
+            // Bind the default sampler to the solver's provider so the solver base stream and the
+            // sampler stream both come from one provider (distinct streams). A supplied sampler is
+            // trusted to already use the intended provider.
+            val sampler = ceSampler ?: CENormalSampler(problemDefinition, streamProvider = streamProvider)
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                ceSampler = ceSampler,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                ceSampler = sampler,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
@@ -1423,12 +1451,14 @@ abstract class Solver(
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
             startingPoint: MutableMap<String, Double>? = null,
-            ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
+            ceSampler: CESamplerIfc? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
@@ -1440,16 +1470,23 @@ abstract class Solver(
                 experimentRunParameters = experimentRunParameters,
                 parallelOptions = parallelOptions
             )
+            // The inner Cross-Entropy solver and its sampler share streamProvider (distinct streams);
+            // the outer random-restart driver (the returned solver) takes the user's streamNum from the
+            // same provider. Keep streamNum and the sampler's streamNum distinct (or 0 for auto) to avoid aliasing.
+            val sampler = ceSampler ?: CENormalSampler(problemDefinition, streamProvider = streamProvider)
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                ceSampler = ceSampler,
+                streamNum = 0,
+                streamProvider = streamProvider,
+                ceSampler = sampler,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
             val restartSolver = RandomRestartSolver(
-                restartingSolver = ce, maxNumRestarts = maxNumRestarts, name = name
+                restartingSolver = ce, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
@@ -1490,6 +1527,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RSplineSolver {
@@ -1505,6 +1544,8 @@ abstract class Solver(
                 initialNumReps = initialNumReps,
                 sampleSizeGrowthRate = sampleSizeGrowthRate,
                 maxNumReplications = maxNumReplications,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
                 name = name
             )
             if (startingPoint != null) {
@@ -1550,6 +1591,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
             parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
@@ -1567,8 +1610,11 @@ abstract class Solver(
                 maxNumReplications = maxNumReplications,
                 name = name
             )
+            // streamNum/streamProvider configure the outer random-restart driver (the returned solver);
+            // the inner solver keeps its own provider.
             val restartSolver = RandomRestartSolver(
-                restartingSolver = solver, maxNumRestarts = maxNumRestarts, name = name
+                restartingSolver = solver, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
