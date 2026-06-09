@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import kotlinx.coroutines.Dispatchers
 import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.cache.SolutionCacheIfc
@@ -7,6 +8,7 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.ModelBuilderIfc
+import ksl.simulation.SimulationDispatcher
 
 /**
  *  An evaluator should communicate with the simulation oracle to determine
@@ -318,6 +320,7 @@ class Evaluator @JvmOverloads constructor(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param parallelOptions selects and configures parallel evaluation; the default is sequential (disabled)
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
          * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible,
@@ -332,12 +335,28 @@ class Evaluator @JvmOverloads constructor(
             modelConfiguration: Map<String, String>? = null,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): Evaluator {
             val model = modelBuilder.build(modelConfiguration, experimentRunParameters)
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
-            val simulationProvider = SimulationProvider(model, simulationRunCache)
-            return Evaluator(problemDefinition, simulationProvider, solutionCache)
+            val oracle: SimulationOracleIfc = if (parallelOptions.enabled) {
+                val workers = parallelOptions.numWorkers ?: SimulationDispatcher.availableProcessors
+                // Reuse the just-built (validation) model as the template / single-point reuse model
+                // so construction performs only one build. The builder must yield fresh instances.
+                ParallelSimulationProvider(
+                    modelBuilder = modelBuilder,
+                    modelConfiguration = modelConfiguration,
+                    baseRunParameters = experimentRunParameters,
+                    templateModel = model,
+                    simulationRunCache = simulationRunCache,
+                    shortCircuitSinglePoint = parallelOptions.shortCircuitSinglePoint,
+                    dispatcher = Dispatchers.IO.limitedParallelism(workers)
+                )
+            } else {
+                SimulationProvider(model, simulationRunCache)
+            }
+            return Evaluator(problemDefinition, oracle, solutionCache)
         }
 
     }

@@ -1123,11 +1123,13 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val solver = StochasticHillClimber(
                 problemDefinition = problemDefinition,
@@ -1173,11 +1175,13 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val shc = StochasticHillClimber(
                 problemDefinition = problemDefinition,
@@ -1236,14 +1240,16 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
+                experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val solver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
@@ -1300,7 +1306,8 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
 
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1308,7 +1315,8 @@ abstract class Solver(
                 modelBuilder = modelBuilder,
                 solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
+                experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
 
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
@@ -1366,11 +1374,13 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1419,14 +1429,16 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
+                experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1478,11 +1490,13 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RSplineSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
@@ -1536,11 +1550,13 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
-            name: String? = null
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
