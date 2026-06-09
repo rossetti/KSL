@@ -41,6 +41,23 @@ interface RNStreamControlIfc : StreamOptionIfc {
     fun advanceToNextSubStream()
 
     /**
+     * Advances the stream by n sub-streams, leaving it at the start of the sub-stream that
+     * n successive calls to advanceToNextSubStream would reach. A value of 0 leaves the stream
+     * unchanged. The default implementation advances one sub-stream at a time; generators with
+     * jump-ahead support should override with an O(log n) skip-ahead.
+     *
+     * @param n the number of sub-streams to advance; must be >= 0
+     */
+    fun advanceSubStreams(n: Long) {
+        require(n >= 0) { "The number of sub-streams to advance must be >= 0; was $n" }
+        var i = 0L
+        while (i < n) {
+            advanceToNextSubStream()
+            i++
+        }
+    }
+
+    /**
      * Tells the stream to start producing antithetic variates
      */
     var antithetic: Boolean

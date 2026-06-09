@@ -212,6 +212,24 @@ interface RNStreamProviderIfc : IdentityIfc {
     }
 
     /**
+     * Causes all streams that have been provided (and that permit advancing) to advance by n
+     * sub-streams. Equivalent to n calls of [advanceAllStreamsToNextSubStream], but performed via
+     * each stream's O(log n) skip-ahead. Note: This call only affects previously provided streams.
+     * @param n the number of sub-streams to advance; must be >= 0
+     */
+    fun advanceAllStreamsBySubStreams(n: Long) {
+        require(n >= 0) { "The number of sub-streams to advance must be >= 0; was $n" }
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            if (stream.advanceToNextSubStreamOption) {
+                stream.advanceSubStreams(n)
+            }
+        }
+        logger.info { "RNStreamProvider($name) : advance all streams by $n sub-streams"}
+    }
+
+    /**
      * Causes all streams that have been provided to change their antithetic option to the supplied
      * value.  Any new streams provided after this call will not necessarily have the same antithetic
      * option as previous streams if this method is called in the interim.

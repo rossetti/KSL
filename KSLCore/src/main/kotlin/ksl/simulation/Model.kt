@@ -774,10 +774,8 @@ class Model @JvmOverloads constructor(
         if (n <= 0) {
             return
         }
-        @Suppress("unused")
-        for (i in 1..n) {
-            advanceToNextSubStream()
-        }
+        // O(log n) skip-ahead per stream rather than n single-sub-stream advances.
+        myRNStreamProvider.advanceAllStreamsBySubStreams(n.toLong())
     }
 
     /**

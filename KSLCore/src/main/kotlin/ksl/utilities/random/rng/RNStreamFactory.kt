@@ -71,6 +71,25 @@ class RNStreamFactory {
         }
 
         /**
+         * Returns (A raised to n) mod m for a 3x3 matrix A, using binary exponentiation.
+         * Requires n >= 1. Because A here is always a power of a single jump matrix, the
+         * accumulated factors commute, so multiplication order does not matter.
+         */
+        private fun subStreamJumpPower(A: Array<DoubleArray>, m: Double, n: Long): Array<DoubleArray> {
+            val result = Array(3) { i -> DoubleArray(3) { j -> if (i == j) 1.0 else 0.0 } }
+            val base = Array(3) { i -> A[i].copyOf() }
+            var e = n
+            while (e > 0L) {
+                if (e and 1L == 1L) {
+                    matMatModM(base, result, result, m) // result = base * result (mod m)
+                }
+                matMatModM(base, base, base, m)         // base = base * base (mod m)
+                e = e shr 1
+            }
+            return result
+        }
+
+        /**
          * Throws IllegalArgument exception if seed is not valid
          *
          * @param seed the seed to check
@@ -278,6 +297,24 @@ class RNStreamFactory {
             multMatVect(Bg, A1p76, m1, A2p76, m2)
             resetStartSubStream()
             RNStreamProvider.logger.trace{"Advancing $this to its next sub-stream."}
+        }
+
+        override fun advanceSubStreams(n: Long) {
+            require(n >= 0) { "The number of sub-streams to advance must be >= 0; was $n" }
+            if (n == 0L) return
+            // Apply the n-fold 2^76 sub-stream jump to Bg in O(log n): Bg = (A^n) * Bg (mod m),
+            // for each half under its modulus. Equivalent to n calls of advanceToNextSubStream().
+            val p1 = subStreamJumpPower(A1p76, m1, n)
+            val p2 = subStreamJumpPower(A2p76, m2, n)
+            val half = DoubleArray(3)
+            for (i in 0..2) half[i] = Bg[i]
+            matVecModM(p1, half, half, m1)
+            for (i in 0..2) Bg[i] = half[i]
+            for (i in 0..2) half[i] = Bg[i + 3]
+            matVecModM(p2, half, half, m2)
+            for (i in 0..2) Bg[i + 3] = half[i]
+            resetStartSubStream()
+            RNStreamProvider.logger.trace{"Advancing $this by $n sub-streams."}
         }
 
         /**
