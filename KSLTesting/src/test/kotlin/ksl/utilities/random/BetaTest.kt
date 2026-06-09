@@ -44,6 +44,10 @@ class BetaTest {
 
     @Test
     fun rBetaMatchesFrozenStream() {
+        // Frozen values were captured from a freshly-created stream 1.
+        // DefaultRNStreamProvider's stream 1 is a JVM-wide singleton, so any
+        // earlier test in the suite that touches it would shift the position.
+        KSLRandom.rnStream(1).resetStartStream()
         for (i in expected.indices) {
             val a = KSLRandom.rBeta(2.4, 5.5, 1)
             assertEquals(expected[i], a, "iteration ${i + 1}")

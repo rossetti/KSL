@@ -20,11 +20,13 @@ package ksl.modeling.station
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
+import ksl.modeling.entity.CapacitySchedule
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
@@ -110,6 +112,42 @@ open class SingleQStation @JvmOverloads constructor(
         get() = myWaitingQ
 
     /**
+     *  Optional sequence-dependent setup (changeover) rule. When set, a setup time
+     *  is incurred before serving each QObject, based on the previously served type
+     *  and the arriving type. The setup precedes the activity time within the same
+     *  service.
+     */
+    var setupTimeRule: SetupTimeIfc? = null
+
+    private var myLastServedType: Int? = null
+
+    private val mySetupTime: Response = Response(this, "${this.name}:SetupTime")
+
+    /** The setup time incurred per served QObject (zero when no changeover occurs). */
+    val setupTimeResponse: ResponseCIfc
+        get() = mySetupTime
+
+    /**
+     *  Optional patience (reneging) time. When set, each enqueued QObject will
+     *  leave the queue if it has not begun service within a sampled patience time,
+     *  and is routed to [renegeReceiver] (or dropped if that is null). Note: if
+     *  reneged instances are dropped rather than routed to a sink, the owning
+     *  network's number-in-system will not reflect their departure.
+     */
+    var renegeTime: GetValueIfc? = null
+
+    /** Where reneging (impatient) instances are sent; null drops them. */
+    var renegeReceiver: QObjectReceiverIfc? = null
+
+    private val myRenegeEvents = mutableMapOf<QObject, KSLEvent<QObject>>()
+
+    private val myNumReneged: Counter = Counter(this, "${this.name}:NumReneged")
+
+    /** The number of instances that reneged (left the queue out of impatience). */
+    val numReneged: CounterCIfc
+        get() = myNumReneged
+
+    /**
      *  Indicates if the resource has units available.
      */
     override val isResourceAvailable: Boolean
@@ -127,6 +165,98 @@ open class SingleQStation @JvmOverloads constructor(
     override val isQueueNotEmpty: Boolean
         get() = myWaitingQ.isNotEmpty
 
+    // tracks in-service jobs so they can be preempted on a failure
+    private class ServiceSlot(val event: KSLEvent<QObject>, val endTime: Double)
+    private val myInService = mutableMapOf<QObject, ServiceSlot>()
+
+    // jobs preempted by a failure, awaiting resumption with their remaining time
+    private class PreemptedJob(val qObject: QObject, val remaining: Double)
+    private val myPreempted = ArrayDeque<PreemptedJob>()
+
+    init {
+        // When the resource gains units (e.g., a capacity increase from a schedule
+        // or after a repair), resume any preempted jobs and serve the waiting queue.
+        myResource.attachUnitsAvailableListener { serveWaitingCustomers() }
+        // When the resource fails under preempt-resume, interrupt in-service work.
+        myResource.attachResourceFailureListener { preemptInService() }
+    }
+
+    /** Sets the failure effect to preempt-resume (the default). */
+    fun usePreemptResumeEffect() {
+        myResource.failureEffect = FailureEffect.PREEMPT_RESUME
+    }
+
+    /** Sets the failure effect to finish-then-fail (in-service work completes first). */
+    fun useFinishThenFailEffect() {
+        myResource.failureEffect = FailureEffect.FINISH_THEN_FAIL
+    }
+
+    /**
+     *  Preempts all in-service jobs: cancels each scheduled completion, banks the
+     *  remaining service time, and frees the unit (without counting a completion).
+     *  Resumption occurs after repair via [serveWaitingCustomers].
+     */
+    private fun preemptInService() {
+        if (myInService.isEmpty()) return
+        val now = time
+        for ((job, slot) in myInService.toList()) {
+            if (slot.event.isScheduled) {
+                slot.event.cancel = true
+            }
+            val remaining = (slot.endTime - now).coerceAtLeast(0.0)
+            myPreempted.addLast(PreemptedJob(job, remaining))
+            myResource.preemptRelease()
+        }
+        myInService.clear()
+    }
+
+    /** Resumes preempted jobs (for their remaining time) while units are available. */
+    private fun resumePreempted() {
+        while (myPreempted.isNotEmpty() && isResourceAvailable) {
+            val pj = myPreempted.removeFirst()
+            myResource.seize()
+            val event = schedule(this::endOfProcessing, pj.remaining, pj.qObject)
+            myInService[pj.qObject] = ServiceSlot(event, time + pj.remaining)
+        }
+    }
+
+    /**
+     *  Drives this station's resource capacity from a [CapacitySchedule], enabling
+     *  shift/availability modeling. Decreases use IGNORE-rule semantics (in-service
+     *  units are not interrupted); increases immediately serve the waiting queue.
+     */
+    fun useCapacitySchedule(schedule: CapacitySchedule) {
+        myResource.useSchedule(schedule)
+    }
+
+    /**
+     *  Configures time-based (calendar-clock) failures for this station's resource:
+     *  time-to-failure and time-to-repair are sampled from the supplied random
+     *  variables. Failures are finish-then-fail and take the whole resource down.
+     */
+    fun useTimeBasedFailures(timeToFailure: RVariableIfc, timeToRepair: RVariableIfc) {
+        myResource.useTimeBasedFailures(timeToFailure, timeToRepair)
+    }
+
+    /**
+     *  Configures usage (count) based failures for this station's resource: the
+     *  resource fails after a sampled number of completed services, then is down
+     *  for a sampled repair time. Failures are finish-then-fail and full-down.
+     */
+    fun useCountBasedFailures(countToFailure: RVariableIfc, timeToRepair: RVariableIfc) {
+        myResource.useCountBasedFailures(countToFailure, timeToRepair)
+    }
+
+    /**
+     *  Configures operating-time (usage) based failures for this station's resource:
+     *  the resource fails after a sampled amount of accumulated *busy* time and is
+     *  down for a sampled repair time. The operating clock pauses while the station
+     *  is idle, off-shift, or failed.
+     */
+    fun useOperatingTimeBasedFailures(operatingTimeToFailure: RVariableIfc, timeToRepair: RVariableIfc) {
+        myResource.useOperatingTimeBasedFailures(operatingTimeToFailure, timeToRepair)
+    }
+
     /**
      *  Receives the qObject instance for processing. Handle the queuing
      *  if the resource is not available and begins service for the next customer.
@@ -134,7 +264,34 @@ open class SingleQStation @JvmOverloads constructor(
     override fun process(arrivingQObject: QObject) {
         // enqueue the newly arriving qObject
         myWaitingQ.enqueue(arrivingQObject)
+        // schedule reneging (patience) if configured; cancelled when service begins
+        renegeTime?.let { rt ->
+            myRenegeEvents[arrivingQObject] = schedule(this::renegeAction, rt.value, arrivingQObject)
+        }
         if (isResourceAvailable) {
+            serveNext()
+        }
+    }
+
+    private fun renegeAction(event: KSLEvent<QObject>) {
+        val qObject: QObject = event.message!!
+        myRenegeEvents.remove(qObject)
+        if (myWaitingQ.contains(qObject)) {
+            myWaitingQ.remove(qObject)
+            myNS.decrement() // left the station without being processed
+            myNumReneged.increment()
+            renegeReceiver?.receive(qObject)
+        }
+    }
+
+    /**
+     * Serves waiting customers while the resource has available units and the
+     * queue is not empty. Invoked when the resource's capacity increases.
+     */
+    protected fun serveWaitingCustomers() {
+        // resume any preempted work first, then serve the queue with leftover capacity
+        resumePreempted()
+        while (isResourceAvailable && isQueueNotEmpty) {
             serveNext()
         }
     }
@@ -147,10 +304,21 @@ open class SingleQStation @JvmOverloads constructor(
     protected fun serveNext() {
         //remove the next customer
         val nextCustomer = myWaitingQ.removeNext()!!
+        // service is beginning: cancel any pending reneging for this customer
+        myRenegeEvents.remove(nextCustomer)?.let { if (it.isScheduled) it.cancel = true }
         myResource.seize()
+        // optional sequence-dependent setup precedes the activity within the service
+        var setup = 0.0
+        setupTimeRule?.let { rule ->
+            setup = rule.setupTime(myLastServedType, nextCustomer.qObjectType, nextCustomer)
+            mySetupTime.value = setup
+        }
+        myLastServedType = nextCustomer.qObjectType
         // schedule end of service, if the customer can supply a value,
         // use it otherwise use the processing time RV
-        schedule(this::endOfProcessing, activityTime(nextCustomer), nextCustomer)
+        val st = setup + activityTime(nextCustomer)
+        val event = schedule(this::endOfProcessing, st, nextCustomer)
+        myInService[nextCustomer] = ServiceSlot(event, time + st)
     }
 
     /**
@@ -179,11 +347,23 @@ open class SingleQStation @JvmOverloads constructor(
      */
     private fun endOfProcessing(event: KSLEvent<QObject>) {
         val leaving: QObject = event.message!!
+        myInService.remove(leaving)
         myResource.release()
-        if (isQueueNotEmpty) { // queue is not empty
+        // The just-freed unit may be unavailable (failed, or capacity reduced by a
+        // schedule), so re-check availability before serving the next customer.
+        if (isResourceAvailable && isQueueNotEmpty) {
             serveNext()
         }
         sendToNextReceiver(leaving)
+    }
+
+    override fun initialize() {
+        super.initialize()
+        // clear per-replication service/preemption bookkeeping (events are cleared by the executive)
+        myInService.clear()
+        myPreempted.clear()
+        myRenegeEvents.clear()
+        myLastServedType = null
     }
 
 }

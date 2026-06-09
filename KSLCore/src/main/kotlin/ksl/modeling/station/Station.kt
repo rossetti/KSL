@@ -58,7 +58,26 @@ abstract class Station(
     parent: ModelElement,
     private var nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
-) : ModelElement(parent, name), QObjectReceiverIfc, StationCIfc, Comparable<Station> {
+) : ModelElement(parent, name), QObjectReceiverIfc, StationCIfc, Comparable<Station>, RoutingOutletsIfc {
+
+    /**
+     *  The statically known receivers this station routes to. If a station-level
+     *  [Router] sender is set, its destinations are reported; otherwise the
+     *  configured next receiver is reported (empty if none). Per-instance routes
+     *  carried on a QObject are dynamic and not reported here.
+     */
+    override fun outlets(): List<QObjectReceiverIfc> {
+        val s = sender
+        return when {
+            s is Router -> s.destinations()
+            s != null -> emptyList()
+            nextReceiver === NotImplementedReceiver -> emptyList()
+            else -> listOf(nextReceiver)
+        }
+    }
+
+    override val hasOnwardRouting: Boolean
+        get() = sender != null || nextReceiver !== NotImplementedReceiver
 
     /**
      *  Sets the receiver of qObject instances from this station
