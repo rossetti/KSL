@@ -74,7 +74,7 @@ private var simCounter: Int = 0
  */
 class Model @JvmOverloads constructor(
     val simulationName: String = "Simulation${++simCounter}",
-    pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
+    private val pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     var autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
@@ -105,11 +105,26 @@ class Model @JvmOverloads constructor(
      */
     var modelIdentifier: String = this.name
 
+    private var myOutputDirectory: OutputDirectory? = null
+
     /**
+     * The output directory for the simulation, created lazily on first access. Deferring
+     * construction means runs that never produce file output (for example, parallel
+     * simulation-optimization evaluations, or per-point and per-scenario models that
+     * immediately redirect their output) never open a `kslOutput.txt` log file and never
+     * hold its file handle. The property stays reassignable: assigning a value before the
+     * first read replaces the default outright, so no default log file is ever opened. The
+     * base directory `pathToOutputDirectory` is still created eagerly at construction; only
+     * the OutputDirectory (and its log file) is deferred.
      *
-     * @return the defined OutputDirectory for the simulation
+     * @return the OutputDirectory for the simulation
      */
-    var outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
+    var outputDirectory: OutputDirectory
+        get() = myOutputDirectory
+            ?: OutputDirectory(pathToOutputDirectory, "kslOutput.txt").also { myOutputDirectory = it }
+        set(value) {
+            myOutputDirectory = value
+        }
 
     private var myCSVRepReport: CSVReplicationReport? = null
     private var myCSVExpReport: CSVExperimentReport? = null
