@@ -36,13 +36,15 @@ import javax.swing.JTextField
 /**
  * Editor for [EvaluationSpec].
  *
- * Six fields:
+ * Fields:
  *   - `useSolutionCache` (default true)
  *   - `useSimulationRunCache` (default false)
  *   - `snapshotFrequency` (default 1)
  *   - `ensureProblemFeasibleRequests` (default false)
  *   - `maxFeasibleSamplingIterations`: `Int?` (default null = "solver default")
  *   - `solutionPrecision`: `Double?` (default null = "solver default")
+ *   - `parallelEvaluation` (default false)
+ *   - `numEvaluationWorkers`: `Int?` (default null = "available processors")
  *
  * The two nullable fields are presented as "override" checkboxes
  * paired with numeric input — unchecked = `null`, checked = the
@@ -63,6 +65,10 @@ class EvaluationSettingsPanel(
     private val maxFeasibleField = JTextField(10)
     private val overrideSolutionPrecisionCheckbox = JCheckBox("Override solution precision")
     private val solutionPrecisionField = JTextField(10)
+
+    private val parallelCheckbox = JCheckBox("Run evaluations in parallel")
+    private val overrideWorkersCheckbox = JCheckBox("Override number of evaluation workers")
+    private val workersField = JTextField(10)
 
     @Volatile private var suppress = false
 
@@ -86,11 +92,15 @@ class EvaluationSettingsPanel(
         add(overrideSolutionPrecisionCheckbox, gbc(0, 5, anchor = GridBagConstraints.WEST))
         add(solutionPrecisionField, gbc(1, 5, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
+        add(parallelCheckbox, gbc(0, 6, width = 2, anchor = GridBagConstraints.WEST))
+        add(overrideWorkersCheckbox, gbc(0, 7, anchor = GridBagConstraints.WEST))
+        add(workersField, gbc(1, 7, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+
         val help = JLabel(
             "<html><i>Evaluation settings are a preference — editing them marks the " +
                 "document dirty but does NOT invalidate the previous run's results.</i></html>"
         ).apply { foreground = Color(0x55, 0x55, 0x55); font = font.deriveFont(Font.PLAIN, 11f) }
-        add(help, gbc(0, 6, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        add(help, gbc(0, 8, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(6, 4, 2, 4)))
 
         wireCheckboxes()
@@ -105,6 +115,7 @@ class EvaluationSettingsPanel(
         solutionCacheCheckbox.addActionListener { commitBoolean() }
         simulationRunCacheCheckbox.addActionListener { commitBoolean() }
         ensureFeasibleCheckbox.addActionListener { commitBoolean() }
+        parallelCheckbox.addActionListener { commitBoolean() }
     }
 
     private fun wireFields() {
@@ -120,6 +131,10 @@ class EvaluationSettingsPanel(
         solutionPrecisionField.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusLost(e: java.awt.event.FocusEvent) { commitSolutionPrecision() }
         })
+        workersField.addActionListener { commitWorkers() }
+        workersField.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusLost(e: java.awt.event.FocusEvent) { commitWorkers() }
+        })
     }
 
     private fun wireOverrideToggles() {
@@ -130,6 +145,10 @@ class EvaluationSettingsPanel(
         overrideSolutionPrecisionCheckbox.addActionListener {
             solutionPrecisionField.isEnabled = overrideSolutionPrecisionCheckbox.isSelected
             commitSolutionPrecision()
+        }
+        overrideWorkersCheckbox.addActionListener {
+            workersField.isEnabled = overrideWorkersCheckbox.isSelected
+            commitWorkers()
         }
     }
 
@@ -146,7 +165,8 @@ class EvaluationSettingsPanel(
         controller.setEvaluationSpec(cur.copy(
             useSolutionCache = solutionCacheCheckbox.isSelected,
             useSimulationRunCache = simulationRunCacheCheckbox.isSelected,
-            ensureProblemFeasibleRequests = ensureFeasibleCheckbox.isSelected
+            ensureProblemFeasibleRequests = ensureFeasibleCheckbox.isSelected,
+            parallelEvaluation = parallelCheckbox.isSelected
         ))
     }
 
@@ -188,6 +208,19 @@ class EvaluationSettingsPanel(
         controller.setEvaluationSpec(cur.copy(solutionPrecision = newValue))
     }
 
+    private fun commitWorkers() {
+        if (suppress) return
+        val cur = controller.evaluationSpec.value
+        val newValue: Int? = if (overrideWorkersCheckbox.isSelected) {
+            workersField.text.trim().toIntOrNull()?.takeIf { it > 0 } ?: run {
+                refreshFromController()
+                return
+            }
+        } else null
+        if (cur.numEvaluationWorkers == newValue) return
+        controller.setEvaluationSpec(cur.copy(numEvaluationWorkers = newValue))
+    }
+
     // ── Refresh ───────────────────────────────────────────────────────────
 
     private fun refreshFromController() {
@@ -209,6 +242,12 @@ class EvaluationSettingsPanel(
             solutionPrecisionField.isEnabled = overrideSolutionPrecisionCheckbox.isSelected
             if (!solutionPrecisionField.hasFocus()) {
                 solutionPrecisionField.text = s.solutionPrecision?.toString().orEmpty()
+            }
+            parallelCheckbox.isSelected = s.parallelEvaluation
+            overrideWorkersCheckbox.isSelected = s.numEvaluationWorkers != null
+            workersField.isEnabled = overrideWorkersCheckbox.isSelected
+            if (!workersField.hasFocus()) {
+                workersField.text = s.numEvaluationWorkers?.toString().orEmpty()
             }
         } finally { suppress = false }
     }

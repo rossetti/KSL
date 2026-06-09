@@ -27,6 +27,7 @@ import ksl.simopt.problem.DynamicPolynomialPenalty
 import ksl.simopt.problem.PenaltyFunctionIfc
 import ksl.simopt.problem.PenaltyFunctionWithMemory
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.evaluator.ParallelEvaluationOptions
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
@@ -111,7 +112,8 @@ class OptimizationSolverFactory(
             builder            = builder,
             solutionCache      = solutionCache,
             simulationRunCache = simulationRunCache,
-            templateRunParameters = config.model.runParameters
+            templateRunParameters = config.model.runParameters,
+            parallelOptions = makeParallelOptions(config.evaluation)
         )
         applyEvaluationSettings(solver, config.evaluation)
         return solver
@@ -166,7 +168,8 @@ class OptimizationSolverFactory(
         builder: ConfiguredModelBuilder,
         solutionCache: SolutionCacheIfc,
         simulationRunCache: SimulationRunCacheIfc?,
-        templateRunParameters: ExperimentRunParameters
+        templateRunParameters: ExperimentRunParameters,
+        parallelOptions: ParallelEvaluationOptions
     ): Solver {
         val starting: MutableMap<String, Double>? = spec.startingPoint?.toMutableMap()
         return when (spec) {
@@ -181,7 +184,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
                 else
                     Solver.createRandomRestartStochasticHillClimbingSolver(
@@ -194,7 +198,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
 
             is SolverSpec.SimulatedAnnealing -> {
@@ -213,7 +218,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
                 else
                     Solver.createRandomRestartSimulatedAnnealingSolver(
@@ -229,7 +235,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
             }
 
@@ -246,7 +253,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
                 else
                     Solver.createRandomRestartCrossEntropySolver(
@@ -260,7 +268,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
                 // CE-specific post-construction settings (defaults preserved when null)
                 applyCrossEntropyExtras(solver, spec)
@@ -280,7 +289,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
                 else
                     Solver.createRandomRestartRsplineSolver(
@@ -295,7 +305,8 @@ class OptimizationSolverFactory(
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
                         experimentRunParameters   = templateRunParameters,
-                        name                      = spec.name
+                        name                      = spec.name,
+                        parallelOptions           = parallelOptions
                     )
         }
     }
@@ -405,5 +416,16 @@ class OptimizationSolverFactory(
          */
         fun makeSimulationRunCache(eval: EvaluationSpec): SimulationRunCacheIfc? =
             if (eval.useSimulationRunCache) MemorySimulationRunCache() else null
+
+        /**
+         * Maps the parallel-evaluation settings of [eval] to a [ParallelEvaluationOptions].
+         * Exposed so module-external tests can verify the spec → engine mapping without
+         * observing the constructed `Evaluator`'s (private) oracle.
+         */
+        fun makeParallelOptions(eval: EvaluationSpec): ParallelEvaluationOptions =
+            ParallelEvaluationOptions(
+                enabled = eval.parallelEvaluation,
+                numWorkers = eval.numEvaluationWorkers
+            )
     }
 }

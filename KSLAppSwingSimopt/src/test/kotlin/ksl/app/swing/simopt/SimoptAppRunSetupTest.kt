@@ -109,6 +109,18 @@ class SimoptAppRunSetupTest {
         }
     }
 
+    @Test
+    fun `setEvaluationSpec persists parallel evaluation settings`() {
+        SimoptAppController("Test").use { c ->
+            c.setEvaluationSpec(EvaluationSpec(
+                parallelEvaluation = true,
+                numEvaluationWorkers = 4
+            ))
+            assertTrue(c.evaluationSpec.value.parallelEvaluation)
+            assertEquals(4, c.evaluationSpec.value.numEvaluationWorkers)
+        }
+    }
+
     // ── Tracking: preference semantics + invariants ────────────────────
 
     @Test
@@ -167,7 +179,9 @@ class SimoptAppRunSetupTest {
                 snapshotFrequency = 3,
                 ensureProblemFeasibleRequests = true,
                 maxFeasibleSamplingIterations = 50,
-                solutionPrecision = 0.001
+                solutionPrecision = 0.001,
+                parallelEvaluation = true,
+                numEvaluationWorkers = 4
             ))
             writer.setTrackingSpec(SolverTrackingSpec(
                 enableCsvTrace = true,
@@ -184,6 +198,8 @@ class SimoptAppRunSetupTest {
             assertEquals(50, reader.evaluationSpec.value.maxFeasibleSamplingIterations)
             assertEquals(0.001, reader.evaluationSpec.value.solutionPrecision)
             assertTrue(reader.evaluationSpec.value.ensureProblemFeasibleRequests)
+            assertTrue(reader.evaluationSpec.value.parallelEvaluation)
+            assertEquals(4, reader.evaluationSpec.value.numEvaluationWorkers)
             assertEquals("my-trace", reader.trackingSpec.value.csvFileName)
             assertEquals("RoundTrip", reader.trackingSpec.value.experimentLabel)
             assertTrue(reader.trackingSpec.value.enableCsvTrace)

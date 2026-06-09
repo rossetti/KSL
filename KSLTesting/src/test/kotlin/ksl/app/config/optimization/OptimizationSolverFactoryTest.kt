@@ -297,6 +297,22 @@ class OptimizationSolverFactoryTest {
         assertEquals(false, cache.allowCachePuts)
     }
 
+    @Test
+    fun `makeParallelOptions maps the EvaluationSpec parallel settings`() {
+        val opts = OptimizationSolverFactory.makeParallelOptions(
+            EvaluationSpec(parallelEvaluation = true, numEvaluationWorkers = 4)
+        )
+        assertEquals(true, opts.enabled)
+        assertEquals(4, opts.numWorkers)
+    }
+
+    @Test
+    fun `makeParallelOptions defaults to disabled with no worker override`() {
+        val opts = OptimizationSolverFactory.makeParallelOptions(EvaluationSpec())
+        assertEquals(false, opts.enabled)
+        assertNull(opts.numWorkers)
+    }
+
     // ── 10. ByProviderId without a provider throws ──────────────────────────
 
     @Test

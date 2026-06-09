@@ -32,7 +32,9 @@ import net.peanuuutz.tomlkt.TomlComment
  *   into the evaluator;
  * - [snapshotFrequency], [ensureProblemFeasibleRequests],
  *   [maxFeasibleSamplingIterations], and [solutionPrecision] are set
- *   directly on the [ksl.simopt.solvers.Solver] base class.
+ *   directly on the [ksl.simopt.solvers.Solver] base class;
+ * - [parallelEvaluation] and [numEvaluationWorkers] select and size the
+ *   evaluator's parallel oracle.
  *
  * Domain invariants are enforced in `init`.
  *
@@ -52,6 +54,10 @@ import net.peanuuutz.tomlkt.TomlComment
  *           `null` keeps the solver default
  * @property solutionPrecision optional precision used by some convergence
  *           tests; `null` keeps the solver default
+ * @property parallelEvaluation when `true`, evaluate the points of a multi-point
+ *           request concurrently; defaults to `false` (sequential)
+ * @property numEvaluationWorkers maximum concurrent model evaluations when
+ *           [parallelEvaluation] is `true`; `null` uses the available processors
  */
 @Serializable
 data class EvaluationSpec(
@@ -95,7 +101,21 @@ data class EvaluationSpec(
         "Omit to keep the solver default.  Must be > 0 and finite when\n" +
         "present."
     )
-    val solutionPrecision: Double? = null
+    val solutionPrecision: Double? = null,
+
+    @TomlComment(
+        "Boolean. When true, the evaluator runs the points of a multi-point\n" +
+        "evaluation request concurrently, each on its own freshly built model.\n" +
+        "Single-point requests still run on one reused model.  Default: false."
+    )
+    val parallelEvaluation: Boolean = false,
+
+    @TomlComment(
+        "Integer or omitted. Maximum number of concurrent model evaluations\n" +
+        "when parallelEvaluation is true.  Omit to use the number of available\n" +
+        "processors.  Must be > 0 when present."
+    )
+    val numEvaluationWorkers: Int? = null
 ) {
     init {
         require(snapshotFrequency > 0) {
@@ -106,6 +126,9 @@ data class EvaluationSpec(
         }
         require(solutionPrecision == null || (solutionPrecision > 0.0 && solutionPrecision.isFinite())) {
             "solutionPrecision must be > 0 and finite when non-null; was $solutionPrecision"
+        }
+        require(numEvaluationWorkers == null || numEvaluationWorkers > 0) {
+            "numEvaluationWorkers must be > 0 when non-null; was $numEvaluationWorkers"
         }
     }
 }
