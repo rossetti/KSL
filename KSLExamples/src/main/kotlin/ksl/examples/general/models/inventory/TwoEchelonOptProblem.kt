@@ -281,7 +281,6 @@ object BuildTwoEchelonModel : ModelBuilderIfc {
         val baseFillRateRequirement = 0.95
         tem.inventoryBase.unitBackOrderCost =
             (baseFillRateRequirement / (1.0 - baseFillRateRequirement)) * tem.inventoryBase.unitHoldingCost
-        println(tem)
         m.lengthOfReplication = 110000.0
         m.lengthOfReplicationWarmUp = 10000.0
         m.numberOfReplications = 40

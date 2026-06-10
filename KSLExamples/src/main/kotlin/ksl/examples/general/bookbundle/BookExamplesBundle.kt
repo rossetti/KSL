@@ -21,6 +21,7 @@ package ksl.examples.general.bookbundle
 import ksl.app.bundle.KSLAppKind
 import ksl.app.bundle.KSLBundledModel
 import ksl.app.bundle.KSLModelBundle
+import ksl.examples.general.models.inventory.BuildTwoEchelonModel
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
@@ -64,6 +65,16 @@ class BookExamplesBundle : KSLModelBundle {
         const val STEM_FAIR_MIXER_ENHANCED: String = "StemFairMixerEnhanced"
         const val STEM_FAIR_MIXER_ENHANCED_SCHED: String = "StemFairMixerEnhancedSched"
         const val RQ_INVENTORY_SYSTEM: String = "RQInventorySystem"
+
+        // ── Chapter 8 model ids ──
+        const val TEST_AND_REPAIR_RESOURCE_CONSTRAINED: String = "TestAndRepairShopResourceConstrained"
+        const val TANDEM_QUEUE_CONSTRAINED_MOVEMENT: String = "TandemQueueWithConstrainedMovement"
+        const val TANDEM_QUEUE_UNCONSTRAINED_MOVEMENT: String = "TandemQueueWithUnconstrainedMovement"
+        const val TEST_AND_REPAIR_MOVABLE_RESOURCES: String = "TestAndRepairShopWithMovableResources"
+        const val TEST_AND_REPAIR_CONVEYOR: String = "TestAndRepairShopWithConveyor"
+
+        // ── Capstone (general inventory optimization) ──
+        const val TWO_ECHELON_INVENTORY: String = "TwoEchelonInventory"
     }
 
     override val bundleId: String = BUNDLE_ID
@@ -94,6 +105,14 @@ class BookExamplesBundle : KSLModelBundle {
         StemFairMixerEnhancedModel,
         StemFairMixerEnhancedSchedModel,
         RQInventorySystemModel,
+        // Chapter 8
+        TestAndRepairShopResourceConstrainedModel,
+        TandemQueueWithConstrainedMovementModel,
+        TandemQueueWithUnconstrainedMovementModel,
+        TestAndRepairShopWithMovableResourcesModel,
+        TestAndRepairShopWithConveyorModel,
+        // Capstone
+        TwoEchelonInventoryModel,
     )
 
     // ════════════════════════════════ Chapter 4 ════════════════════════════════
@@ -598,6 +617,305 @@ class BookExamplesBundle : KSLModelBundle {
                     output("RQInventory:Item:OrderingFrequency") { displayName = "Ordering Frequency" }
                     output("RQInventory:Item:OnHand") { displayName = "Avg On-Hand Inventory"; unit = "units" }
                     output("RQInventory:Item:AmountBackOrdered") { displayName = "Avg Backorders"; unit = "units" }
+                }
+                return model
+            }
+        }
+    }
+
+    // ════════════════════════════════ Chapter 8 ════════════════════════════════
+    //
+    // Material-handling variants of the test-and-repair shop share a common
+    // "ProbWithinLimit" (P of meeting the 480-minute contract) output, so the
+    // three designs (resource-constrained, movable resources, conveyor) make a
+    // natural Scenario comparison.
+
+    /**
+     * Test-and-repair job shop with worker pools constraining both processing
+     * and transport.  Machine capacities are the decision inputs; the headline
+     * output is the probability a job meets the 480-minute contract.
+     */
+    private object TestAndRepairShopResourceConstrainedModel : KSLBundledModel {
+
+        override val modelId: String = TEST_AND_REPAIR_RESOURCE_CONSTRAINED
+
+        override val displayName: String = "Test & Repair Shop (resource-constrained)"
+
+        override val description: String =
+            "Test-and-repair job shop where shared worker pools constrain processing " +
+                "and transport; machine capacities are the inputs and P(within the " +
+                "480-minute contract) is the headline output."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("TestRepairRC") must differ from the Model name.
+                // Bundle default is shorter than the book's one-year run for interactive
+                // responsiveness (same means, wider confidence intervals).
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = TestAndRepairShopResourceConstrained(model, name = "TestRepairRC")
+                model.numberOfReplications = 10
+                model.lengthOfReplication = 30000.0
+                model.lengthOfReplicationWarmUp = 5000.0
+                model.curateCatalog {
+                    input("DiagnosticMachines.initialCapacity") { displayName = "Diagnostic Machines"; unit = "machines" }
+                    input("Test1.initialCapacity") { displayName = "Test-1 Machines"; unit = "machines" }
+                    input("Test2.initialCapacity") { displayName = "Test-2 Machines"; unit = "machines" }
+                    input("Test3.initialCapacity") { displayName = "Test-3 Machines"; unit = "machines" }
+                    output(sim.numInSystem) { displayName = "Avg Number in System" }
+                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                    output(sim.probWithinLimit) { displayName = "P(Within 480-min Contract)" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * Two-station tandem queue with constrained movement: dedicated movable
+     * resources carry parts between stations.  Station worker counts and mean
+     * service times are the inputs.
+     */
+    private object TandemQueueWithConstrainedMovementModel : KSLBundledModel {
+
+        override val modelId: String = TANDEM_QUEUE_CONSTRAINED_MOVEMENT
+
+        override val displayName: String = "Tandem Queue (constrained movement)"
+
+        override val description: String =
+            "Two-station tandem queue where movable resources (carts) carry parts " +
+                "between stations; station worker counts and mean service times are inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("TandemConstrained") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = TandemQueueWithConstrainedMovement(model, name = "TandemConstrained")
+                model.numberOfReplications = 30
+                model.lengthOfReplication = 20000.0
+                model.lengthOfReplicationWarmUp = 5000.0
+                model.curateCatalog {
+                    input("worker1.initialCapacity") { displayName = "Station-1 Workers"; unit = "workers" }
+                    input("worker2.initialCapacity") { displayName = "Station-2 Workers"; unit = "workers" }
+                    rvParameter(sim.service1RV, "mean") { displayName = "Station-1 Mean Service Time"; unit = "min" }
+                    rvParameter(sim.service2RV, "mean") { displayName = "Station-2 Mean Service Time"; unit = "min" }
+                    output(sim.numInSystem) { displayName = "Avg Number in System" }
+                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * The same tandem queue with unconstrained movement: parts move themselves
+     * between stations (no transport resource).  Station worker counts and mean
+     * service times are the inputs.
+     */
+    private object TandemQueueWithUnconstrainedMovementModel : KSLBundledModel {
+
+        override val modelId: String = TANDEM_QUEUE_UNCONSTRAINED_MOVEMENT
+
+        override val displayName: String = "Tandem Queue (unconstrained movement)"
+
+        override val description: String =
+            "Two-station tandem queue where parts move themselves between stations " +
+                "(no transport resource); station worker counts and mean service times are inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("TandemUnconstrained") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = TandemQueueWithUnconstrainedMovement(model, name = "TandemUnconstrained")
+                model.numberOfReplications = 30
+                model.lengthOfReplication = 20000.0
+                model.lengthOfReplicationWarmUp = 5000.0
+                model.curateCatalog {
+                    input("worker1.initialCapacity") { displayName = "Station-1 Workers"; unit = "workers" }
+                    input("worker2.initialCapacity") { displayName = "Station-2 Workers"; unit = "workers" }
+                    rvParameter(sim.service1RV, "mean") { displayName = "Station-1 Mean Service Time"; unit = "min" }
+                    rvParameter(sim.service2RV, "mean") { displayName = "Station-2 Mean Service Time"; unit = "min" }
+                    output(sim.numInSystem) { displayName = "Avg Number in System" }
+                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * Test-and-repair shop where a pool of movable resources transports parts
+     * over a distance network between stations.  Worker and machine capacities
+     * are the inputs; the 480-minute contract probability is the headline output.
+     */
+    private object TestAndRepairShopWithMovableResourcesModel : KSLBundledModel {
+
+        override val modelId: String = TEST_AND_REPAIR_MOVABLE_RESOURCES
+
+        override val displayName: String = "Test & Repair Shop (movable resources)"
+
+        override val description: String =
+            "Test-and-repair shop where a pool of movable resources transports parts " +
+                "over a distance network; worker and machine capacities are the inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("TestRepairMR") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = TestAndRepairShopWithMovableResources(model, name = "TestRepairMR")
+                model.numberOfReplications = 10
+                model.lengthOfReplication = 30000.0
+                model.lengthOfReplicationWarmUp = 5000.0
+                model.curateCatalog {
+                    input("DiagnosticWorkers.initialCapacity") { displayName = "Diagnostic Workers"; unit = "workers" }
+                    input("RepairWorkers.initialCapacity") { displayName = "Repair Workers"; unit = "workers" }
+                    input("Test1.initialCapacity") { displayName = "Test-1 Machines"; unit = "machines" }
+                    input("Test2.initialCapacity") { displayName = "Test-2 Machines"; unit = "machines" }
+                    input("Test3.initialCapacity") { displayName = "Test-3 Machines"; unit = "machines" }
+                    output(sim.numInSystem) { displayName = "Avg Number in System" }
+                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                    output(sim.probWithinLimit) { displayName = "P(Within 480-min Contract)" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * Test-and-repair shop where an accumulating loop conveyor moves parts
+     * between stations.  Station capacities are the inputs; the 480-minute
+     * contract probability is the headline output.
+     */
+    private object TestAndRepairShopWithConveyorModel : KSLBundledModel {
+
+        override val modelId: String = TEST_AND_REPAIR_CONVEYOR
+
+        override val displayName: String = "Test & Repair Shop (conveyor)"
+
+        override val description: String =
+            "Test-and-repair shop where an accumulating loop conveyor moves parts " +
+                "between stations; station capacities are the inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("TestRepairConv") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = TestAndRepairShopWithConveyor(model, name = "TestRepairConv")
+                model.numberOfReplications = 10
+                model.lengthOfReplication = 30000.0
+                model.lengthOfReplicationWarmUp = 5000.0
+                model.curateCatalog {
+                    input("Diagnostics.initialCapacity") { displayName = "Diagnostic Stations"; unit = "stations" }
+                    input("Repair.initialCapacity") { displayName = "Repair Stations"; unit = "stations" }
+                    input("Test1.initialCapacity") { displayName = "Test-1 Stations"; unit = "stations" }
+                    input("Test2.initialCapacity") { displayName = "Test-2 Stations"; unit = "stations" }
+                    input("Test3.initialCapacity") { displayName = "Test-3 Stations"; unit = "stations" }
+                    output(sim.numInSystem) { displayName = "Avg Number in System" }
+                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                    output(sim.probWithinLimit) { displayName = "P(Within 480-min Contract)" }
+                }
+                return model
+            }
+        }
+    }
+
+    // ═══════════════════════════════ Capstone ═══════════════════════════════
+    //
+    // Not a book chapter: the bundle's flagship simulation-optimization model,
+    // reused in place from the general inventory package rather than copied
+    // (its constructor needs many random variables and costs, and the package
+    // already ships ready-made optimization problem definitions).
+
+    /**
+     * Two-echelon (R, Q) inventory system: a distribution center feeding a base.
+     * The four reorder-point/quantity decision variables and the cost / fill-rate
+     * outputs are nominated here.  The general package's
+     * constrained/unconstrainedTwoEchelonProblemDefinition() functions provide a
+     * ready-made optimization problem over the same keys.
+     */
+    private object TwoEchelonInventoryModel : KSLBundledModel {
+
+        override val modelId: String = TWO_ECHELON_INVENTORY
+
+        override val displayName: String = "Two-Echelon (R, Q) Inventory"
+
+        override val description: String =
+            "Two-echelon (R, Q) inventory system (a distribution center feeding a base); " +
+                "four reorder point/quantity decision variables with total cost and " +
+                "fill-rate outputs.  Reused from BuildTwoEchelonModel; pairs with the " +
+                "package's ready-made optimization problem definitions."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Reuse the existing general builder, then nominate the
+                // optimization-relevant catalog.  Keys match the
+                // constrained/unconstrainedTwoEchelonProblemDefinition() functions.
+                val model = BuildTwoEchelonModel.build(modelConfiguration, experimentRunParameters)
+                model.curateCatalog {
+                    input("TwoEchelon:DCInventory.initialReorderPoint") { displayName = "DC Reorder Point (R)"; unit = "units" }
+                    input("TwoEchelon:DCInventory.initialReorderQty") { displayName = "DC Reorder Quantity (Q)"; unit = "units" }
+                    input("TwoEchelon:BaseInventory.initialReorderPoint") { displayName = "Base Reorder Point (R)"; unit = "units" }
+                    input("TwoEchelon:BaseInventory.initialReorderQty") { displayName = "Base Reorder Quantity (Q)"; unit = "units" }
+                    output("TwoEchelon:TotalCost") { displayName = "Avg Total Cost"; unit = "\$/period" }
+                    output("TwoEchelon:TotalOrderingAndHoldingCost") { displayName = "Avg Ordering + Holding Cost"; unit = "\$/period" }
+                    output("TwoEchelon:DCInventory:ItemA:FillRate") { displayName = "DC Fill Rate" }
+                    output("TwoEchelon:BaseInventory:ItemA:FillRate") { displayName = "Base Fill Rate" }
                 }
                 return model
             }

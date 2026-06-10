@@ -1,0 +1,167 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.examples.general.bookbundle
+
+// Adapted from ksl.examples.book.chapter8.TestAndRepairShopWithConveyor for the "KSL Book Examples" bundle
+// (edu.uark.ksl.book-examples). Behaviorally identical to the chapter version
+// unless noted; the bundle wraps it in BookExamplesBundle.kt.
+
+import ksl.modeling.elements.EventGeneratorRVCIfc
+import ksl.modeling.elements.REmpiricalList
+import ksl.modeling.entity.Conveyor
+import ksl.modeling.entity.KSLProcess
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.variable.*
+import ksl.simulation.ModelElement
+
+class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+
+    // test plan 1, distribution j
+    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1 * 4.1))
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2 * 4.2))
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3 * 4.3))
+    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0 * 4.0))
+
+    // test plan 2, distribution j
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0 * 4.0))
+    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0 * 4.0))
+
+    // test plan 3, distribution j
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2 * 4.2))
+    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4 * 4.4))
+    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3 * 4.3))
+
+    // test plan 4, distribution j
+    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0 * 4.0))
+    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0 * 4.0))
+
+    private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
+    private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
+    private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
+    private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0))
+    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
+    private val moveTime = RandomVariable(this, UniformRV(2.0, 4.0))
+
+    // define the resources
+    private val myDiagnostics: ResourceWithQ = ResourceWithQ(this, "Diagnostics", capacity = 2)
+    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1")
+    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2")
+    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3")
+    private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
+
+    // define steps to represent a plan
+    inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomVariable)
+
+    // make all the plans
+    private val testPlan1 = listOf(
+        TestPlanStep(myTest2, t11), TestPlanStep(myTest3, t12),
+        TestPlanStep(myTest2, t13), TestPlanStep(myTest1, t14), TestPlanStep(myRepair, r1)
+    )
+    private val testPlan2 = listOf(
+        TestPlanStep(myTest3, t21),
+        TestPlanStep(myTest1, t22), TestPlanStep(myRepair, r2)
+    )
+    private val testPlan3 = listOf(
+        TestPlanStep(myTest1, t31), TestPlanStep(myTest3, t32),
+        TestPlanStep(myTest1, t33), TestPlanStep(myRepair, r3)
+    )
+    private val testPlan4 = listOf(
+        TestPlanStep(myTest2, t41),
+        TestPlanStep(myTest3, t42), TestPlanStep(myRepair, r4)
+    )
+
+    // set up the sequences and the random selection of the plan
+    private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
+    private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
+    private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
+
+    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 2, testPlan4 to 2)
+
+    // define the random variables
+    private val tba = ExponentialRV(20.0)
+
+    private val myArrivalGenerator = EntityGenerator(this::Part, tba, tba)
+
+    val generator: EventGeneratorRVCIfc
+        get() = myArrivalGenerator
+
+    // define the responses
+    private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
+    val numInSystem: TWResponseCIfc
+        get() = wip
+    private val timeInSystem: Response = Response(this, "${this.name}:TimeInSystem")
+    val systemTime: ResponseCIfc
+        get() = timeInSystem
+    private val myContractLimit: IndicatorResponse =
+        IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
+    val probWithinLimit: ResponseCIfc
+        get() = myContractLimit
+
+    private val loopConveyor: Conveyor = Conveyor.builder(this, "LoopConveyor")
+        .conveyorType(Conveyor.Type.ACCUMULATING)
+        .velocity(10.0)
+        .cellSize(1)
+        .maxCellsAllowed(2)
+        .firstSegment(myDiagnostics.name, myTest1.name, 20)
+        .nextSegment(myTest2.name, 20)
+        .nextSegment(myRepair.name, 15)
+        .nextSegment(myTest3.name, 45)
+        .nextSegment(myDiagnostics.name, 30)
+        .build()
+
+    init {
+        loopConveyor.accessQueueAt(myRepair.name).defaultReportingOption = false
+        // (chapter original printed the conveyor here; dropped to avoid console
+        //  noise when the bundle builds the model repeatedly)
+    }
+
+    // define the process
+    private inner class Part : Entity() {
+
+        // determine the test plan
+        val plan: List<TestPlanStep> = planList.randomElement
+        val cellsNeeded = cellSizes[plan]!!
+
+        val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {
+            wip.increment()
+            timeStamp = time
+            //every part goes to diagnostics
+            use(resource = myDiagnostics, delayDuration = diagnosticTime)
+            // get the iterator
+            val itr = plan.iterator()
+            // iterate through the plan
+            var entryLocation = myDiagnostics.name
+            while (itr.hasNext()) {
+                val tp = itr.next()
+                convey(
+                    conveyor = loopConveyor,
+                    entryLocation = entryLocation,
+                    destination = tp.resource.name,
+                    numCellsNeeded = cellsNeeded
+                )
+                use(resource = tp.resource, delayDuration = tp.processTime)
+                entryLocation = tp.resource.name
+            }
+            timeInSystem.value = time - timeStamp
+            wip.decrement()
+        }
+    }
+
+}

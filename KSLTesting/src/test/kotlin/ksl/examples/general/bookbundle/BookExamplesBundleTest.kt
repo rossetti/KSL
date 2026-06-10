@@ -59,9 +59,22 @@ class BookExamplesBundleTest {
         BookExamplesBundle.RQ_INVENTORY_SYSTEM,
     )
 
+    private val chapter8ModelIds = listOf(
+        BookExamplesBundle.TEST_AND_REPAIR_RESOURCE_CONSTRAINED,
+        BookExamplesBundle.TANDEM_QUEUE_CONSTRAINED_MOVEMENT,
+        BookExamplesBundle.TANDEM_QUEUE_UNCONSTRAINED_MOVEMENT,
+        BookExamplesBundle.TEST_AND_REPAIR_MOVABLE_RESOURCES,
+        BookExamplesBundle.TEST_AND_REPAIR_CONVEYOR,
+    )
+
+    private val capstoneModelIds = listOf(
+        BookExamplesBundle.TWO_ECHELON_INVENTORY,
+    )
+
     /** Every model the bundle is expected to expose so far. */
     private val allModelIds =
-        chapter4ModelIds + chapter5ModelIds + chapter6ModelIds + chapter7ModelIds
+        chapter4ModelIds + chapter5ModelIds + chapter6ModelIds +
+            chapter7ModelIds + chapter8ModelIds + capstoneModelIds
 
     private fun withBookBundle(block: (LoadedBundle) -> Unit) {
         val bundles = BundleLoader.loadFromClasspath()
@@ -122,9 +135,15 @@ class BookExamplesBundleTest {
             for (id in allModelIds) {
                 val bundled = match.bundle.models.first { it.modelId == id }
                 val model = bundled.builder().build(null, null)
-                // Shrink only the replication count; keep each builder's natural
-                // run configuration (some models are terminating and set no length).
+                // Shrink the run so the smoke stays fast: two replications, and cap
+                // any long finite horizon (the steady-state job shops run a simulated
+                // year by default).  Terminating models keep their natural (infinite)
+                // length and simply run to completion.
                 model.numberOfReplications = 2
+                if (model.lengthOfReplication.isFinite() && model.lengthOfReplication > 2000.0) {
+                    model.lengthOfReplication = 2000.0
+                    model.lengthOfReplicationWarmUp = 0.0
+                }
                 model.simulate()
                 assertTrue(
                     model.responses.isNotEmpty() || model.counters.isNotEmpty(),
