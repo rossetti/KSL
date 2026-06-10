@@ -808,6 +808,15 @@ class FactorsTabPanel(
     /** Reload the editor from controller state for the factor at [index].
      *  Clears the dirty flag. */
     private fun loadEditorFromController(index: Int) {
+        // Don't clobber a field the user is actively editing.  Same
+        // re-entrancy class fixed for the run-parameter fields in
+        // ModelTabPanel (commit 3eac03488): loadEditorFromController is
+        // reachable from the factors / selectedFactorIndex collectors via
+        // syncSelectionFromController, and overwriting the text mid-keystroke
+        // resets the caret, making the field look like it accepts only one
+        // character.  The legitimate selection-load runs with focus on the
+        // table, so it is unaffected.
+        if (nameField.hasFocus() || levelsField.hasFocus()) return
         val spec = controller.factors.value.getOrNull(index) ?: run {
             clearEditorFields()
             return

@@ -462,8 +462,12 @@ class SimulateTabPanel(
                     when (policy) {
                         is StreamPolicy.Independent -> {
                             indepRadio.isSelected = true
-                            startingAdvanceField.text = policy.startingStreamAdvance.toString()
-                            spacingField.text = policy.streamAdvanceSpacing?.toString() ?: ""
+                            // Don't clobber a field the user is mid-edit (caret
+                            // reset / "one character" bug, see commit 3eac03488).
+                            if (!startingAdvanceField.hasFocus())
+                                startingAdvanceField.text = policy.startingStreamAdvance.toString()
+                            if (!spacingField.hasFocus())
+                                spacingField.text = policy.streamAdvanceSpacing?.toString() ?: ""
                             advancedStreamsToggle.isEnabled = true
                             crnHelpLabel.isVisible = false
                         }

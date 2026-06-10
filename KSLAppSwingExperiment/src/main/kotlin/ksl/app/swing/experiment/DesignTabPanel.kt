@@ -767,7 +767,8 @@ class DesignTabPanel(
                 AxialSpacing.Rotatable -> rotatableRadio.isSelected = true
                 is AxialSpacing.Explicit -> {
                     explicitRadio.isSelected = true
-                    explicitField.text = s.value.toString()
+                    // Don't clobber the field mid-edit (caret reset, commit 3eac03488).
+                    if (!explicitField.hasFocus()) explicitField.text = s.value.toString()
                 }
             }
             numFactorialSpinner.value = spec.numFactorialReps
