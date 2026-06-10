@@ -304,9 +304,6 @@ class OptimizationInvariantsTest {
         assertThrows<IllegalArgumentException> { CESamplerSpec.Normal(meanSmoother = 1.5) }
         assertThrows<IllegalArgumentException> { CESamplerSpec.Normal(sdSmoother = 0.0) }
     }
-    @Test fun `CESamplerSpec_Normal rejects negative streamNum`() {
-        assertThrows<IllegalArgumentException> { CESamplerSpec.Normal(streamNum = -1) }
-    }
 
     // ── SolverSpec variants ──────────────────────────────────────────────────
 

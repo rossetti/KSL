@@ -90,8 +90,7 @@ class OptimizationRunConfigurationTest {
                 sampler = CESamplerSpec.Normal(
                     meanSmoother = 0.7,
                     sdSmoother = 0.7,
-                    coefficientOfVariationThreshold = 0.05,
-                    streamNum = 21
+                    coefficientOfVariationThreshold = 0.05
                 ),
                 elitePct = 0.15,
                 ceSampleSize = 75,

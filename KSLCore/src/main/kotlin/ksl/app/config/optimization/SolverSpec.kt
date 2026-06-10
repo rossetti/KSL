@@ -244,10 +244,6 @@ sealed class CESamplerSpec {
      *           standard-deviation estimate
      * @property coefficientOfVariationThreshold convergence threshold on the
      *           coefficient of variation of the sampling distribution
-     * @property streamNum ignored. Cross-Entropy uses the single solver-level stream number
-     *           (SolverSpec.streamNum); the sampler is attached by the solver onto a distinct stream.
-     *           Retained (and still validated as >= 0) so existing persisted documents keep
-     *           deserializing.
      */
     @Serializable
     @SerialName("normal")
@@ -270,14 +266,7 @@ sealed class CESamplerSpec {
             "of the sampling distribution.  Must be > 0 and finite.\n" +
             "Default: 0.03."
         )
-        val coefficientOfVariationThreshold: Double = 0.03,
-
-        @TomlComment(
-            "Integer. Ignored: Cross-Entropy uses the single solver-level streamNum, and the\n" +
-            "sampler is attached by the solver onto a distinct stream.  Retained for backward\n" +
-            "compatibility with existing documents; must be >= 0."
-        )
-        val streamNum: Int = 0
+        val coefficientOfVariationThreshold: Double = 0.03
     ) : CESamplerSpec() {
         init {
             require(meanSmoother > 0.0 && meanSmoother <= 1.0) {
@@ -288,9 +277,6 @@ sealed class CESamplerSpec {
             }
             require(coefficientOfVariationThreshold > 0.0 && coefficientOfVariationThreshold.isFinite()) {
                 "coefficientOfVariationThreshold must be > 0 and finite; was $coefficientOfVariationThreshold"
-            }
-            require(streamNum >= 0) {
-                "streamNum must be >= 0; was $streamNum"
             }
         }
     }

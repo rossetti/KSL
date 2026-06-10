@@ -376,7 +376,8 @@ class OptimizationSolverFactory(
     }
 
     // The sampler is built with its own (default) provider; CrossEntropySolver re-homes it onto the
-    // solver's provider, so the sampler's own stream number (CESamplerSpec.Normal.streamNum) is not used.
+    // solver's provider. Cross-Entropy is controlled by the single solver-level streamNum, so the
+    // sampler spec carries no stream number of its own.
     private fun CESamplerSpec.toEngine(problem: ProblemDefinition): CESampler = when (this) {
         is CESamplerSpec.Normal -> CENormalSampler(
             problemDefinition               = problem,
