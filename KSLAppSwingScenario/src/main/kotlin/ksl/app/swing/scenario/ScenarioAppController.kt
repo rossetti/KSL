@@ -203,11 +203,13 @@ class ScenarioAppController(
     val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     init {
-        // Auto-discover bundles already on the JVM classpath so analysts
-        // who launch a packaged scenario app immediately see the
-        // available models in the picker.  JAR-loaded bundles join this
-        // list later via [loadBundleJar].
+        // Discover available bundles two ways: any already on the JVM
+        // classpath (none in a released app — KSLExamples is test-only —
+        // but present for tests), plus whatever the user installed into
+        // ~/.ksl/bundles/.  JAR-loaded bundles join the list later via
+        // [loadBundleJar].
         bundleLibrary.discoverFromClasspath()
+        bundleLibrary.discoverFromUserBundlesDir()
     }
 
     /**

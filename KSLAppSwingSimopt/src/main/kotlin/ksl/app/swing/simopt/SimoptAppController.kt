@@ -571,10 +571,11 @@ class SimoptAppController(
     )
 
     init {
-        // Auto-discover classpath bundles so a packaged app shows
-        // available models immediately.  Mirrors Experiment / Scenario
-        // controllers.
+        // Classpath (none in a released app — KSLExamples is test-only —
+        // but present for tests) plus the user's ~/.ksl/bundles/.  Mirrors
+        // the Experiment / Scenario controllers.
         bundleLibrary.discoverFromClasspath()
+        bundleLibrary.discoverFromUserBundlesDir()
         // Seed validation so the Execute step sees a populated flow
         // even before the first user edit.
         refreshDocumentValidation()

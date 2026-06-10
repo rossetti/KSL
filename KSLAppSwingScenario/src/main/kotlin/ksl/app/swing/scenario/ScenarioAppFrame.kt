@@ -349,7 +349,9 @@ class ScenarioAppFrame(
         }).apply { toolTipText = "Load a JAR that ships one or more KSLModelBundle service registrations." }
         val loadedBundlesItem = JMenuItem(object : AbstractAction("Loaded Bundles…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) {
-                LoadedBundlesDialog.show(this@ScenarioAppFrame, controller.loadedBundles.value)
+                ksl.app.swing.common.bundle.LoadedBundlesDialog.show(
+                    this@ScenarioAppFrame, controller.loadedBundles.value
+                )
             }
         })
         return JMenuBar().apply {

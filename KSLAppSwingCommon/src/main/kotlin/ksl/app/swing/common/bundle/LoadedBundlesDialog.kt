@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.scenario
+package ksl.app.swing.common.bundle
 
 import ksl.app.bundle.LoadedBundle
 import java.awt.BorderLayout
@@ -36,9 +36,14 @@ import javax.swing.WindowConstants
 
 /**
  *  Read-only modal listing of every loaded bundle and its models.
- *  Each bundle block shows: bundle id, source ("classpath" or the JAR
- *  path), and one indented row per model with `displayName`, `modelId`,
- *  `description`, and the `supportedApps` set.
+ *  Each bundle block shows: bundle id, source (the JAR path, or
+ *  "classpath" for a classpath-discovered bundle) and one indented row
+ *  per model with `displayName`, `modelId`, `description`, and the
+ *  `supportedApps` set.
+ *
+ *  Shared by every bundle-driven app (Single / Scenario / Experiment /
+ *  Simopt) so the *Bundles → Loaded Bundles…* menu item is identical
+ *  across them.
  */
 object LoadedBundlesDialog {
 

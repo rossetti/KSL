@@ -300,6 +300,13 @@ class SimoptAppFrame(
             })
             add(JMenu("Bundles").apply {
                 add(loadBundleItem)
+                add(JMenuItem(object : AbstractAction("Loaded Bundles…") {
+                    override fun actionPerformed(e: ActionEvent?) {
+                        ksl.app.swing.common.bundle.LoadedBundlesDialog.show(
+                            this@SimoptAppFrame, controller.loadedBundles.value
+                        )
+                    }
+                }))
             })
             add(JMenu("Help").apply {
                 add(JMenuItem("About KSL SimOpt").apply {

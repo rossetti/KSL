@@ -17,11 +17,11 @@ dependencies {
     // editor panels, ConsoleLogPanel + drawer, workspace status bar,
     // notifications, validation banner, etc.
     implementation(project(":KSLAppSwingCommon"))
-    // KSLExamples hosts the KSLModelBundle implementations for the
-    // bundled example models (MM1Bundle, LKInventoryBundle wrapping
-    // GIGcQueue and LKInventoryModel) — these are reference models,
-    // not engine internals.
-    implementation(project(":KSLExamples"))
+    // KSLExamples is a TEST-ONLY dependency: the released app ships no
+    // baked-in bundles (it discovers them from ~/.ksl/bundles/), but the
+    // tests load the example bundles off the test classpath.  Keeping it
+    // out of `implementation` keeps KSLExamples out of the distribution.
+    testImplementation(project(":KSLExamples"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
 

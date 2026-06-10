@@ -268,9 +268,11 @@ class ExperimentAppController(
     val currentModelDescriptor: StateFlow<ModelDescriptor?> = myCurrentModelDescriptor.asStateFlow()
 
     init {
-        // Auto-discover classpath bundles so a packaged app shows
-        // available models immediately.  Mirrors Scenario controller.
+        // Classpath (none in a released app — KSLExamples is test-only —
+        // but present for tests) plus the user's ~/.ksl/bundles/.  Mirrors
+        // the Scenario controller.
         bundleLibrary.discoverFromClasspath()
+        bundleLibrary.discoverFromUserBundlesDir()
     }
 
     /**

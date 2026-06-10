@@ -478,20 +478,28 @@ class SingleAppFrame(
             )
             toolTipText = CONFIG_TOOLTIP
         }
-        // Bundle-mode only: a *Load JAR…* item that extends the
-        // controller's bundle library mid-session.  Useful when a
-        // configuration the user wants to open references a bundle
-        // they haven't loaded yet.  Builder-mode launches leave
-        // [SingleAppController.bundleLibrary] null, in which case
-        // this item is not added.
-        val loadJarItem: JMenuItem? = controller.bundleLibrary?.let { lib ->
-            JMenuItem(object : AbstractAction("Load JAR…") {
-                override fun actionPerformed(e: java.awt.event.ActionEvent?) {
-                    handleLoadJar(lib)
-                }
-            }).apply {
-                toolTipText = "Load a KSL Bundle JAR so its models become resolvable for " +
-                    "open / save."
+        // Bundle-mode only: a *Bundles* menu mirroring the other apps —
+        // *Load JAR…* extends the controller's bundle library mid-session,
+        // *Loaded Bundles…* summarizes what is loaded.  Builder-mode
+        // launches leave [SingleAppController.bundleLibrary] null, in which
+        // case the menu is omitted.
+        val bundlesMenu: JMenu? = controller.bundleLibrary?.let { lib ->
+            JMenu("Bundles").apply {
+                add(JMenuItem(object : AbstractAction("Load JAR…") {
+                    override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                        handleLoadJar(lib)
+                    }
+                }).apply {
+                    toolTipText = "Load a KSL Bundle JAR so its models become resolvable for " +
+                        "open / save."
+                })
+                add(JMenuItem(object : AbstractAction("Loaded Bundles…") {
+                    override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                        ksl.app.swing.common.bundle.LoadedBundlesDialog.show(
+                            this@SingleAppFrame, lib.loadedBundles.value
+                        )
+                    }
+                }))
             }
         }
         return JMenuBar().apply {
@@ -499,10 +507,6 @@ class SingleAppFrame(
                 add(newItem)
                 add(openItem)
                 add(recentConfigsMenu)
-                if (loadJarItem != null) {
-                    addSeparator()
-                    add(loadJarItem)
-                }
                 addSeparator()
                 add(saveItem)
                 add(saveAsItem)
@@ -512,6 +516,7 @@ class SingleAppFrame(
                 addSeparator()
                 add(JMenuItem("Exit").apply { addActionListener { dispose() } })
             })
+            if (bundlesMenu != null) add(bundlesMenu)
             add(JMenu("View").apply {
                 add(ksl.app.swing.common.appearance.ThemeMenu.build(controller.edtScope))
             })

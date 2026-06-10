@@ -407,6 +407,13 @@ class ExperimentAppFrame(
             })
             add(JMenu("Bundles").apply {
                 add(loadBundleItem)
+                add(JMenuItem(object : AbstractAction("Loaded Bundles…") {
+                    override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                        ksl.app.swing.common.bundle.LoadedBundlesDialog.show(
+                            this@ExperimentAppFrame, controller.loadedBundles.value
+                        )
+                    }
+                }))
             })
             add(JMenu("View").apply {
                 add(ksl.app.swing.common.appearance.ThemeMenu.build(controller.edtScope))

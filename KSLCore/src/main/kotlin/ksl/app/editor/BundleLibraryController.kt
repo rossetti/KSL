@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
+import ksl.app.settings.UserSettingsStore
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -148,6 +150,25 @@ class BundleLibraryController(
     fun discoverFromClasspath() {
         val classpathBundles = BundleLoader.loadFromClasspath()
         if (classpathBundles.isNotEmpty()) commit(myLoadedBundles.value + classpathBundles)
+    }
+
+    /**
+     *  Discover bundles the user has installed into `~/.ksl/bundles/` via
+     *  [BundleLoader.loadDirectory] and append them to [loadedBundles].
+     *  The directory is created if it does not yet exist, giving users a
+     *  well-known place to drop bundle JARs (e.g. the KSL Book Examples
+     *  bundle).  Typically called once from the host's `init {}` block in
+     *  place of [discoverFromClasspath], so a released app ships with no
+     *  baked-in bundles yet still loads whatever the user installed.
+     *
+     *  No-op when the directory holds no loadable `KSLModelBundle` JARs.
+     *  When at least one is found, [onBundlesChanged] fires after the append.
+     */
+    fun discoverFromUserBundlesDir() {
+        val dir = UserSettingsStore.defaultSettingsDir().resolve("bundles")
+        runCatching { Files.createDirectories(dir) }
+        val dirBundles = BundleLoader.loadDirectory(dir)
+        if (dirBundles.isNotEmpty()) commit(myLoadedBundles.value + dirBundles)
     }
 
     /**

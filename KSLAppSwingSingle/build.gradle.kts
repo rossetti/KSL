@@ -13,11 +13,12 @@ repositories {
 dependencies {
     implementation(project(":KSLCore"))
     implementation(project(":KSLAppSwingCommon"))
-    // KSLExamples hosts the KSLModelBundle implementations for the
-    // bundled example models (MM1Bundle, LKInventoryBundle wrapping
-    // GIGcQueue and LKInventoryModel) — these are reference models,
-    // not engine internals.
-    implementation(project(":KSLExamples"))
+    // KSLExamples is a TEST-ONLY dependency: the released app ships no
+    // baked-in bundles (it discovers them from ~/.ksl/bundles/), but the
+    // tests load the example bundles off the test classpath.  Keeping it
+    // out of `implementation` keeps KSLExamples (and its dogfood bundles)
+    // out of the distribution's lib/.
+    testImplementation(project(":KSLExamples"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
 
@@ -26,11 +27,11 @@ dependencies {
 }
 
 application {
-    // Points at the example app's main() so :KSLAppSwingSingle:run launches
-    // the M/M/1 demo against the new kslSingleApp framework.  Real developers
-    // ship their own main() that calls kslSingleApp(appName) { modelBuilder(...) };
-    // this entry exists only as a smoke-test for Phase 6D.
-    mainClass.set("ksl.app.swing.single.example.MM1SingleAppKt")
+    // Bundle-mode entry point for the released app: starts with no baked-in
+    // model and discovers bundles the user installed into ~/.ksl/bundles/
+    // (or loaded via Bundles → Load JAR…).  The M/M/1 demo (MM1SingleApp,
+    // which uses KSLExamples) now lives in the test source set.
+    mainClass.set("ksl.app.swing.single.example.BundleLaunchedSingleAppKt")
 }
 
 kotlin {
