@@ -52,8 +52,16 @@ class BookExamplesBundleTest {
         BookExamplesBundle.TIE_DYE_TSHIRTS,
     )
 
+    private val chapter7ModelIds = listOf(
+        BookExamplesBundle.WALK_IN_HEALTH_CLINIC,
+        BookExamplesBundle.STEM_FAIR_MIXER_ENHANCED,
+        BookExamplesBundle.STEM_FAIR_MIXER_ENHANCED_SCHED,
+        BookExamplesBundle.RQ_INVENTORY_SYSTEM,
+    )
+
     /** Every model the bundle is expected to expose so far. */
-    private val allModelIds = chapter4ModelIds + chapter5ModelIds + chapter6ModelIds
+    private val allModelIds =
+        chapter4ModelIds + chapter5ModelIds + chapter6ModelIds + chapter7ModelIds
 
     private fun withBookBundle(block: (LoadedBundle) -> Unit) {
         val bundles = BundleLoader.loadFromClasspath()

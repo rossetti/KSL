@@ -58,6 +58,12 @@ class BookExamplesBundle : KSLModelBundle {
         // ── Chapter 6 model ids ──
         const val STEM_FAIR_MIXER: String = "StemFairMixer"
         const val TIE_DYE_TSHIRTS: String = "TieDyeTShirts"
+
+        // ── Chapter 7 model ids ──
+        const val WALK_IN_HEALTH_CLINIC: String = "WalkInHealthClinic"
+        const val STEM_FAIR_MIXER_ENHANCED: String = "StemFairMixerEnhanced"
+        const val STEM_FAIR_MIXER_ENHANCED_SCHED: String = "StemFairMixerEnhancedSched"
+        const val RQ_INVENTORY_SYSTEM: String = "RQInventorySystem"
     }
 
     override val bundleId: String = BUNDLE_ID
@@ -83,6 +89,11 @@ class BookExamplesBundle : KSLModelBundle {
         // Chapter 6
         StemFairMixerModel,
         TieDyeTShirtsModel,
+        // Chapter 7
+        WalkInHealthClinicModel,
+        StemFairMixerEnhancedModel,
+        StemFairMixerEnhancedSchedModel,
+        RQInventorySystemModel,
     )
 
     // ════════════════════════════════ Chapter 4 ════════════════════════════════
@@ -383,6 +394,210 @@ class BookExamplesBundle : KSLModelBundle {
                     }
                     output("System Time") { displayName = "Avg Order Time in System"; unit = "min" }
                     output("Num in System") { displayName = "Avg Number of Orders in System" }
+                }
+                return model
+            }
+        }
+    }
+
+    // ════════════════════════════════ Chapter 7 ════════════════════════════════
+
+    /**
+     * A walk-in health clinic with triage, priority (ranked) doctor queue,
+     * balking by low-priority patients, and reneging.  Doctor and triage-nurse
+     * capacities plus the balk threshold are the decision inputs; time-in-system
+     * (overall and by priority) and the balk/renege probabilities are outputs.
+     */
+    private object WalkInHealthClinicModel : KSLBundledModel {
+
+        override val modelId: String = WALK_IN_HEALTH_CLINIC
+
+        override val displayName: String = "Walk-In Health Clinic"
+
+        override val description: String =
+            "Walk-in clinic with triage, a ranked doctor queue, balking, and reneging; " +
+                "doctor and triage capacities and the balk threshold are the inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("WalkInClinic") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = WalkInHealthClinic(model, name = "WalkInClinic")
+                model.numberOfReplications = 30
+                model.lengthOfReplication = 10.0 * 60.0   // a 10-hour clinic day
+                model.curateCatalog {
+                    input("Doctors.initialCapacity") { displayName = "Number of Doctors"; unit = "doctors" }
+                    input("TriageNurse.initialCapacity") { displayName = "Number of Triage Nurses"; unit = "nurses" }
+                    input(sim, WalkInHealthClinic::balkCriteria) {
+                        displayName = "Balk Threshold (queue length)"; unit = "patients"
+                    }
+                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                    output("WalkInClinic:TimeInSystemHigh") { displayName = "Avg Time in System (high priority)"; unit = "min" }
+                    output("WalkInClinic:TimeInSystemMedium") { displayName = "Avg Time in System (medium priority)"; unit = "min" }
+                    output("WalkInClinic:TimeInSystemLow") { displayName = "Avg Time in System (low priority)"; unit = "min" }
+                    output(sim.probBalking) { displayName = "P(Balk)" }
+                    output(sim.probReneging) { displayName = "P(Renege)" }
+                    output("WalkInClinic:NumServed") { displayName = "Number Served" }
+                    output("WalkInClinic:NumBalked") { displayName = "Number Balked" }
+                    output("WalkInClinic:NumReneged") { displayName = "Number Reneged" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * The enhanced STEM mixer: NHPP arrivals over a 6-hour horizon, walking
+     * times, conversation area, and a closing-time rush.  The two recruiter-team
+     * capacities are the (static) decision inputs.
+     */
+    private object StemFairMixerEnhancedModel : KSLBundledModel {
+
+        override val modelId: String = STEM_FAIR_MIXER_ENHANCED
+
+        override val displayName: String = "STEM Fair Mixer (enhanced)"
+
+        override val description: String =
+            "Enhanced STEM mixer with non-stationary arrivals, walking times, and a " +
+                "closing rush; the JH-Bunt and Mal-Wart recruiter capacities are the inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("StemFairEnhanced") must differ from the Model name.
+                // Terminating: arrivals stop when the mixer closes, then students finish.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = StemFairMixerEnhanced(model, name = "StemFairEnhanced")
+                model.numberOfReplications = 400
+                model.curateCatalog {
+                    input("JHBuntR.initialCapacity") { displayName = "JH-Bunt Recruiters"; unit = "recruiters" }
+                    input("MalWartR.initialCapacity") { displayName = "Mal-Wart Recruiters"; unit = "recruiters" }
+                    output("OverallSystemTime") { displayName = "Avg Time in System"; unit = "min" }
+                    output("RecruitingOnlySystemTime") { displayName = "Avg Time in System (recruiting only)"; unit = "min" }
+                    output("MixingStudentSystemTime") { displayName = "Avg Time in System (mixers)"; unit = "min" }
+                    output("NumInSystem") { displayName = "Avg Number in System" }
+                    output("NumInSystemAtClosing") { displayName = "Number in System at Closing" }
+                    output("TotalNumberArrivals") { displayName = "Total Arrivals" }
+                    output("Mixer Ending Time") { displayName = "Mixer Ending Time"; unit = "min" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * The scheduled-capacity variant of the enhanced mixer: recruiter capacities
+     * follow hourly schedules and a time-series response records staffing over
+     * the evening.  Because the capacities are schedule-driven, the mixer length
+     * and warning time are this variant's decision inputs.
+     */
+    private object StemFairMixerEnhancedSchedModel : KSLBundledModel {
+
+        override val modelId: String = STEM_FAIR_MIXER_ENHANCED_SCHED
+
+        override val displayName: String = "STEM Fair Mixer (enhanced + schedule)"
+
+        override val description: String =
+            "Enhanced STEM mixer with hourly recruiter-capacity schedules and a " +
+                "time-series response; the mixer length and warning time are the inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("StemFairScheduled") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = StemFairMixerEnhancedSched(model, name = "StemFairScheduled")
+                model.numberOfReplications = 400
+                model.curateCatalog {
+                    input(sim, StemFairMixerEnhancedSched::lengthOfMixer) {
+                        displayName = "Mixer Length"; unit = "min"
+                    }
+                    input(sim, StemFairMixerEnhancedSched::warningTime) {
+                        displayName = "Warning Time Before Close"; unit = "min"
+                    }
+                    output("OverallSystemTime") { displayName = "Avg Time in System"; unit = "min" }
+                    output("RecruitingOnlySystemTime") { displayName = "Avg Time in System (recruiting only)"; unit = "min" }
+                    output("MixingStudentSystemTime") { displayName = "Avg Time in System (mixers)"; unit = "min" }
+                    output("NumInSystem") { displayName = "Avg Number in System" }
+                    output("NumInSystemAtClosing") { displayName = "Number in System at Closing" }
+                    output("Mixer Ending Time") { displayName = "Mixer Ending Time"; unit = "min" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * A single-stage (R, Q) inventory system with constant demand and lead time.
+     * The reorder point (R) and reorder quantity (Q) are the decision variables;
+     * total cost, fill rate, ordering frequency, and inventory levels are the
+     * outputs.  This is the curriculum (R, Q) optimization example.
+     */
+    private object RQInventorySystemModel : KSLBundledModel {
+
+        override val modelId: String = RQ_INVENTORY_SYSTEM
+
+        override val displayName: String = "(R, Q) Inventory System"
+
+        override val description: String =
+            "Single-stage (R, Q) inventory model; reorder point (R) and reorder " +
+                "quantity (Q) are the decision variables, with total cost, fill rate, " +
+                "and inventory levels as outputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("RQInventory") must differ from the Model name;
+                // the (R,Q) controls/responses live on its inner "RQInventory:Item".
+                val model = Model(modelId, autoCSVReports = false)
+                RQInventorySystem(model, reorderPt = 1, reorderQty = 2, name = "RQInventory")
+                model.lengthOfReplication = 20000.0
+                model.lengthOfReplicationWarmUp = 10000.0
+                model.numberOfReplications = 40
+                model.curateCatalog {
+                    input("RQInventory:Item.initialReorderPoint") { displayName = "Reorder Point (R)"; unit = "units" }
+                    input("RQInventory:Item.initialReorderQty") { displayName = "Reorder Quantity (Q)"; unit = "units" }
+                    output("RQInventory:Item:TotalCost") { displayName = "Avg Total Cost"; unit = "\$/period" }
+                    output("RQInventory:Item:FillRate") { displayName = "Fill Rate" }
+                    output("RQInventory:Item:OrderingFrequency") { displayName = "Ordering Frequency" }
+                    output("RQInventory:Item:OnHand") { displayName = "Avg On-Hand Inventory"; unit = "units" }
+                    output("RQInventory:Item:AmountBackOrdered") { displayName = "Avg Backorders"; unit = "units" }
                 }
                 return model
             }
