@@ -3,6 +3,7 @@ package ksl.simopt.evaluator
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
@@ -137,12 +138,12 @@ class ParallelEvaluationWiringTest {
     }
 
     /**
-     * Cross-Entropy now owns its stream provider (like the other StochasticSolvers) and the
-     * default sampler draws from that same provider. The two must end up on distinct streams:
-     * the sampler is allocated first (stream 1) and the solver's base stream takes the next (stream 2).
+     * Single stream number: the solver's base stream uses streamNum (default 0 -> stream 1) and the
+     * solver attaches the sampler onto the SAME provider on the next available stream (stream 2), so
+     * the two are distinct by construction.
      */
     @Test
-    fun crossEntropySolverAndSamplerShareProviderWithDistinctStreams() {
+    fun crossEntropySolverOwnsBaseStreamAndAttachesSamplerToNext() {
         val name = "STREAMS_${System.nanoTime()}"
         val provider = RNStreamProvider()
         val solver = Solver.createCrossEntropySolver(
@@ -153,9 +154,9 @@ class ParallelEvaluationWiringTest {
             streamProvider = provider
         )
         assertSame(provider, solver.streamProvider, "solver should own the supplied provider")
-        assertSame(provider, solver.ceSampler.streamProvider, "sampler should use the solver's provider")
-        assertEquals(1, solver.ceSampler.streamNumber, "sampler should bind to the first stream of the provider")
-        assertEquals(2, solver.streamNumber, "solver base should take the next stream of the provider")
+        assertSame(provider, solver.ceSampler.streamProvider, "attached sampler should use the solver's provider")
+        assertEquals(1, solver.streamNumber, "solver base should take the first stream of the provider")
+        assertEquals(2, solver.ceSampler.streamNumber, "attached sampler should take the next stream")
         assertNotEquals(
             solver.streamNumber, solver.ceSampler.streamNumber,
             "solver and sampler must use distinct streams"
@@ -163,11 +164,11 @@ class ParallelEvaluationWiringTest {
     }
 
     /**
-     * An explicit solver streamNum selects the solver's base stream from the shared provider while
-     * the default sampler still takes the first available stream.
+     * An explicit solver streamNum selects the solver's base stream; the attached sampler follows on
+     * the next available stream — for any streamNum, so they never alias.
      */
     @Test
-    fun crossEntropyStreamNumSelectsSolverBaseStream() {
+    fun crossEntropyStreamNumSelectsBaseStreamAndSamplerFollows() {
         val name = "STREAMSEL_${System.nanoTime()}"
         val provider = RNStreamProvider()
         val solver = Solver.createCrossEntropySolver(
@@ -179,6 +180,32 @@ class ParallelEvaluationWiringTest {
             streamProvider = provider
         )
         assertEquals(5, solver.streamNumber, "explicit streamNum should select the solver's base stream")
-        assertEquals(1, solver.ceSampler.streamNumber, "default sampler should take the first available stream")
+        assertEquals(6, solver.ceSampler.streamNumber, "attached sampler should take the next stream after the base")
+    }
+
+    /**
+     * Assigning a new sampler re-attaches it onto the solver's provider (a distinct stream), so a
+     * standalone-built sampler can be handed to the solver and is correctly re-homed.
+     */
+    @Test
+    fun assigningANewSamplerReattachesItToTheSolverProvider() {
+        val name = "REATTACH_${System.nanoTime()}"
+        val provider = RNStreamProvider()
+        val solver = Solver.createCrossEntropySolver(
+            problemDefinition = problem(name),
+            modelBuilder = modelBuilder(name),
+            maxIterations = 2,
+            replicationsPerEvaluation = 2,
+            streamProvider = provider
+        )
+        // A sampler built standalone with its own provider.
+        val replacement = CENormalSampler(problem(name))
+        solver.ceSampler = replacement
+        assertSame(replacement, solver.ceSampler, "the solver should hold the assigned sampler")
+        assertSame(provider, solver.ceSampler.streamProvider, "the assigned sampler should be re-homed onto the solver's provider")
+        assertNotEquals(
+            solver.streamNumber, solver.ceSampler.streamNumber,
+            "the re-attached sampler must use a stream distinct from the solver base"
+        )
     }
 }

@@ -49,7 +49,8 @@ class CeSamplerEditor(
     private val meanSmootherField = JTextField(initial.meanSmoother.toString(), 10)
     private val sdSmootherField = JTextField(initial.sdSmoother.toString(), 10)
     private val cvThresholdField = JTextField(initial.coefficientOfVariationThreshold.toString(), 10)
-    private val streamNumField = JTextField(initial.streamNum.toString(), 10)
+    // The sampler no longer carries its own stream number: Cross-Entropy uses the single solver-level
+    // stream number, and the solver attaches the sampler onto a distinct stream automatically.
 
     @Volatile private var suppress = false
 
@@ -63,9 +64,6 @@ class CeSamplerEditor(
         add(JLabel("CV threshold:"), gbc(0, 2))
         add(cvThresholdField, gbc(1, 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        add(JLabel("Sampler stream number:"), gbc(0, 3))
-        add(streamNumField, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
-
         val docListener = object : DocumentListener {
             override fun insertUpdate(e: DocumentEvent?) { if (!suppress) onChanged(value) }
             override fun removeUpdate(e: DocumentEvent?) { if (!suppress) onChanged(value) }
@@ -74,7 +72,6 @@ class CeSamplerEditor(
         meanSmootherField.document.addDocumentListener(docListener)
         sdSmootherField.document.addDocumentListener(docListener)
         cvThresholdField.document.addDocumentListener(docListener)
-        streamNumField.document.addDocumentListener(docListener)
     }
 
     val value: CESamplerSpec?
@@ -82,9 +79,8 @@ class CeSamplerEditor(
             val m = meanSmootherField.text.trim().toDoubleOrNull() ?: return null
             val s = sdSmootherField.text.trim().toDoubleOrNull() ?: return null
             val cv = cvThresholdField.text.trim().toDoubleOrNull() ?: return null
-            val sn = streamNumField.text.trim().toIntOrNull() ?: return null
             return try {
-                CESamplerSpec.Normal(m, s, cv, sn)
+                CESamplerSpec.Normal(m, s, cv)
             } catch (_: IllegalArgumentException) { null }
         }
 
@@ -95,7 +91,6 @@ class CeSamplerEditor(
             meanSmootherField.text = spec.meanSmoother.toString()
             sdSmootherField.text = spec.sdSmoother.toString()
             cvThresholdField.text = spec.coefficientOfVariationThreshold.toString()
-            streamNumField.text = spec.streamNum.toString()
         } finally { suppress = false }
     }
 
@@ -109,9 +104,6 @@ class CeSamplerEditor(
         val cv = cvThresholdField.text.trim().toDoubleOrNull()
             ?: return "CV threshold must be a number"
         if (!cv.isFinite() || cv <= 0.0) return "CV threshold must be > 0 and finite"
-        val sn = streamNumField.text.trim().toIntOrNull()
-            ?: return "Stream number must be an integer"
-        if (sn < 0) return "Stream number must be >= 0"
         return null
     }
 
@@ -120,7 +112,6 @@ class CeSamplerEditor(
         meanSmootherField.isEnabled = enabled
         sdSmootherField.isEnabled = enabled
         cvThresholdField.isEnabled = enabled
-        streamNumField.isEnabled = enabled
     }
 
     private fun gbc(

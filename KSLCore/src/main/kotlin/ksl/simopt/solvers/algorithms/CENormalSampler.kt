@@ -1,7 +1,6 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.problem.ProblemDefinition
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.statistic.Statistic
@@ -10,13 +9,13 @@ import kotlin.isFinite
 import kotlin.math.abs
 
 class CENormalSampler(
-    override val problemDefinition: ProblemDefinition,
+    problemDefinition: ProblemDefinition,
     meanSmoother: Double = defaultMeanSmoother,
     sdSmoother: Double = defaultStdDevSmoother,
     coefficientOfVariationThreshold: Double = defaultCoefficientOfVariationThreshold,
     streamNum: Int = 0,
-    override val streamProvider: RNStreamProviderIfc = RNStreamProvider(),
-) : CESamplerIfc {
+    streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+) : CESampler(problemDefinition, streamNum, streamProvider) {
 
     override val dimension: Int = problemDefinition.inputSize
 
@@ -100,17 +99,6 @@ class CENormalSampler(
     init {
         initializeParameters(problemDefinition.inputMidPoints)
     }
-
-    /**
-     * rnStream provides a reference to the underlying stream of random numbers.
-     */
-    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
-
-    /**
-     *  The assigned stream number for the generation process
-     */
-    override val streamNumber: Int
-        get() = streamProvider.streamNumber(rnStream)
 
     /**
      *  Returns a sample from the current cross-entropy distribution.

@@ -12,7 +12,7 @@ import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamp
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultReplicationGrowthRate
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.algorithms.CENormalSampler
-import ksl.simopt.solvers.algorithms.CESamplerIfc
+import ksl.simopt.solvers.algorithms.CESampler
 import ksl.simopt.solvers.algorithms.CoolingScheduleIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
 import ksl.simopt.solvers.algorithms.ExponentialCoolingSchedule
@@ -1379,7 +1379,7 @@ abstract class Solver(
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param startingPoint Optional initial coordinates to start the optimization.
          * If left null, the solver will automatically generate a random feasible starting point upon initialization.
-         * @param ceSampler The cross-entropy sampler. When null (the default), a [CENormalSampler] bound to the solver's provider is created.
+         * @param ceSampler The cross-entropy sampler (reference distribution). When null (the default), a [CENormalSampler] is created. The solver attaches the sampler onto its own stream provider.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
@@ -1397,7 +1397,7 @@ abstract class Solver(
         fun createCrossEntropySolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
-            ceSampler: CESamplerIfc? = null,
+            ceSampler: CESampler? = null,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
@@ -1414,10 +1414,9 @@ abstract class Solver(
                 simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
                 parallelOptions = parallelOptions
             )
-            // Bind the default sampler to the solver's provider so the solver base stream and the
-            // sampler stream both come from one provider (distinct streams). A supplied sampler is
-            // trusted to already use the intended provider.
-            val sampler = ceSampler ?: CENormalSampler(problemDefinition, streamProvider = streamProvider)
+            // The default sampler owns its own provider; CrossEntropySolver attaches whatever sampler it
+            // is given onto the solver's provider (on a stream distinct from the solver's base stream).
+            val sampler = ceSampler ?: CENormalSampler(problemDefinition)
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
@@ -1443,7 +1442,7 @@ abstract class Solver(
          * @param maxNumRestarts The maximum number of restarts to be performed.
          * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
          * All subsequent restarts will begin at purely random, auto-generated coordinates
-         * @param ceSampler The cross-entropy sampler. When null (the default), a [CENormalSampler] bound to the solver's provider is created.
+         * @param ceSampler The cross-entropy sampler (reference distribution). When null (the default), a [CENormalSampler] is created. The solver attaches the sampler onto its own stream provider.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
@@ -1463,7 +1462,7 @@ abstract class Solver(
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
             startingPoint: MutableMap<String, Double>? = null,
-            ceSampler: CESamplerIfc? = null,
+            ceSampler: CESampler? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
@@ -1482,10 +1481,10 @@ abstract class Solver(
                 experimentRunParameters = experimentRunParameters,
                 parallelOptions = parallelOptions
             )
-            // The inner Cross-Entropy solver and its sampler share streamProvider (distinct streams);
+            // The inner Cross-Entropy solver attaches its sampler onto streamProvider (a distinct stream);
             // the outer random-restart driver (the returned solver) takes the user's streamNum from the
-            // same provider. Keep streamNum and the sampler's streamNum distinct (or 0 for auto) to avoid aliasing.
-            val sampler = ceSampler ?: CENormalSampler(problemDefinition, streamProvider = streamProvider)
+            // same provider.
+            val sampler = ceSampler ?: CENormalSampler(problemDefinition)
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,

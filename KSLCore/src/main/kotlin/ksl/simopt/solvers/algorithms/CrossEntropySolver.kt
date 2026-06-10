@@ -37,13 +37,14 @@ fun interface SampleSizeFnIfc {
  * Constructs an instance of CrossEntropySolver with specified parameters.
  *
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
- * @param streamNum the random number stream number for the solver, defaults to 0, which means the next available stream
+ * @param streamNum the single random number stream number for the solver; defaults to 0 (the next available stream).
+ * The solver's base stream uses this number, and the attached sampler is given the next available stream from the same
+ * provider, so the base and the sampler are distinct.
  * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has
- * its own streams. The cross-entropy sampler draws its stream from this same provider so that the solver and its sampler
- * share one provider (with distinct streams).
- * @param ceSampler the cross-entropy sampler for the cross-entropy distribution. By default this is a [CENormalSampler]
- * bound to the solver's provider; when supplying a custom sampler, build it on the same provider to keep the solver and
- * sampler coordinated.
+ * its own streams.
+ * @param ceSampler the cross-entropy sampler (reference distribution). By default this is a [CENormalSampler]. The
+ * supplied sampler is attached to this solver (adopted onto the solver's provider), so a sampler can be built and
+ * exercised standalone and then handed to the solver. The sampler cannot be changed while the solver is running.
  * @param maxIterations The maximum number of iterations allowed for the search process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
@@ -56,7 +57,7 @@ class CrossEntropySolver @JvmOverloads constructor(
     evaluator: EvaluatorIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
-    val ceSampler: CESamplerIfc = CENormalSampler(problemDefinition, streamProvider = streamProvider),
+    ceSampler: CESampler = CENormalSampler(problemDefinition),
     maxIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
@@ -71,11 +72,11 @@ class CrossEntropySolver @JvmOverloads constructor(
      * Constructs an instance of CrossEntropySolver with specified parameters.
      *
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
-     * @param streamNum the random number stream number for the solver, defaults to 0, which means the next available stream
-     * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has
-     * its own streams. The cross-entropy sampler draws its stream from this same provider.
-     * @param ceSampler the cross-entropy sampler for the cross-entropy distribution. By default this is a [CENormalSampler]
-     * bound to the solver's provider.
+     * @param streamNum the single random number stream number for the solver; defaults to 0 (the next available stream).
+     * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver
+     * has its own streams.
+     * @param ceSampler the cross-entropy sampler (reference distribution). By default this is a [CENormalSampler]; it is
+     * attached to this solver (adopted onto the solver's provider).
      * @param maxIterations The maximum number of iterations allowed for the search process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
      * @param name Optional name identifier for this instance of the solver.
@@ -87,7 +88,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         evaluator: EvaluatorIfc,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = RNStreamProvider(),
-        ceSampler: CESamplerIfc = CENormalSampler(problemDefinition, streamProvider = streamProvider),
+        ceSampler: CESampler = CENormalSampler(problemDefinition),
         maxIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
@@ -97,6 +98,40 @@ class CrossEntropySolver @JvmOverloads constructor(
         FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         solutionEqualityChecker, name
     )
+
+    /**
+     *  The cross-entropy sampler (reference distribution). The Cross-Entropy method permits different
+     *  reference distributions; assigning a new sampler attaches it to this solver — adopting it onto
+     *  the solver's stream provider on a stream distinct from the solver's base stream. A sampler
+     *  cannot be changed while the solver is running.
+     */
+    var ceSampler: CESampler = ceSampler
+        set(value) {
+            attachSampler(value)
+            field = value
+        }
+
+    init {
+        // The property initializer above set the backing field directly (Kotlin bypasses the custom
+        // setter for initializers), so attach the initial sampler here — after StochasticSolver has
+        // allocated the base stream — onto this solver's provider.
+        attachSampler(ceSampler)
+    }
+
+    /**
+     *  Attaches [sampler] to this solver: validates its dimension against the problem and adopts it onto
+     *  the solver's stream provider (on a distinct stream). Changing the sampler is rejected while a run
+     *  is in progress, using the solver's iterative-process lifecycle.
+     */
+    private fun attachSampler(sampler: CESampler) {
+        require(!iterativeProcess.isRunning) {
+            "The cross-entropy sampler cannot be changed while the solver is running."
+        }
+        require(sampler.dimension == problemDefinition.inputSize) {
+            "The sampler dimension (${sampler.dimension}) must equal the problem input size (${problemDefinition.inputSize})."
+        }
+        sampler.attachStreamProvider(streamProvider)
+    }
 
     /**
      *  If supplied, this function will be used to determine the size of the elite sample

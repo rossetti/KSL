@@ -30,15 +30,13 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.evaluator.ParallelEvaluationOptions
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.CENormalSampler
-import ksl.simopt.solvers.algorithms.CESamplerIfc
+import ksl.simopt.solvers.algorithms.CESampler
 import ksl.simopt.solvers.algorithms.CoolingScheduleIfc
 import ksl.simopt.solvers.algorithms.ExponentialCoolingSchedule
 import ksl.simopt.solvers.algorithms.LinearCoolingSchedule
 import ksl.simopt.solvers.algorithms.LogarithmicCoolingSchedule
 import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simulation.ModelProviderIfc
-import ksl.utilities.random.rng.RNStreamProvider
-import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.simopt.problem.InequalityType as EngineInequalityType
 import ksl.simopt.problem.OptimizationType as EngineOptimizationType
 
@@ -247,16 +245,15 @@ class OptimizationSolverFactory(
             }
 
             is SolverSpec.CrossEntropy -> {
-                // One provider shared by the CE solver and its sampler so they draw distinct
-                // streams from a single provider (see CrossEntropySolver / Solver.createCrossEntropySolver).
-                val provider = RNStreamProvider()
-                val sampler: CESamplerIfc = spec.sampler.toEngine(problem, provider)
+                // The sampler is built with its own provider; CrossEntropySolver attaches it onto the
+                // solver's provider (on a stream distinct from the solver's base stream), so the factory
+                // does not manage the stream provider for the sampler here.
+                val sampler: CESampler = spec.sampler.toEngine(problem)
                 val solver = if (spec.randomRestart == null)
                     Solver.createCrossEntropySolver(
                         problemDefinition         = problem,
                         modelBuilder              = builder,
                         ceSampler                 = sampler,
-                        streamProvider            = provider,
                         startingPoint             = starting,
                         maxIterations             = spec.maxIterations,
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
@@ -274,7 +271,6 @@ class OptimizationSolverFactory(
                         maxNumRestarts            = spec.randomRestart.maxNumRestarts,
                         startingPoint             = starting,
                         ceSampler                 = sampler,
-                        streamProvider            = provider,
                         maxIterations             = spec.maxIterations,
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
@@ -379,17 +375,14 @@ class OptimizationSolverFactory(
             LogarithmicCoolingSchedule(initialTemperature)
     }
 
-    private fun CESamplerSpec.toEngine(
-        problem: ProblemDefinition,
-        streamProvider: RNStreamProviderIfc
-    ): CESamplerIfc = when (this) {
+    // The sampler is built with its own (default) provider; CrossEntropySolver re-homes it onto the
+    // solver's provider, so the sampler's own stream number (CESamplerSpec.Normal.streamNum) is not used.
+    private fun CESamplerSpec.toEngine(problem: ProblemDefinition): CESampler = when (this) {
         is CESamplerSpec.Normal -> CENormalSampler(
             problemDefinition               = problem,
             meanSmoother                    = meanSmoother,
             sdSmoother                      = sdSmoother,
-            coefficientOfVariationThreshold = coefficientOfVariationThreshold,
-            streamNum                       = streamNum,
-            streamProvider                  = streamProvider
+            coefficientOfVariationThreshold = coefficientOfVariationThreshold
         )
     }
 
