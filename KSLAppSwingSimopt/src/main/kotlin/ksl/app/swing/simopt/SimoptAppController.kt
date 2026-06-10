@@ -321,10 +321,17 @@ class SimoptAppController(
      *  gate. */
     val solverSpec: StateFlow<SolverSpec?> = mySolverSpec.asStateFlow()
 
-    private val myEvaluationSpec = MutableStateFlow(EvaluationSpec())
+    private val myEvaluationSpec = MutableStateFlow(defaultEvaluationSpec())
     /** Cross-cutting evaluator/solver settings.  Always non-null
      *  (defaults are well-defined). */
     val evaluationSpec: StateFlow<EvaluationSpec> = myEvaluationSpec.asStateFlow()
+
+    /**
+     *  The app's default evaluation settings for a new or reset document. Parallel evaluation defaults
+     *  to on (the parallel path matches the sequential path at parity); loading a saved configuration
+     *  keeps its stored value, so only new/blank documents start parallel.
+     */
+    private fun defaultEvaluationSpec(): EvaluationSpec = EvaluationSpec(parallelEvaluation = true)
 
     private val myTrackingSpec = MutableStateFlow(SolverTrackingSpec())
     /** Optional CSV / console trace settings.  Always non-null
@@ -706,7 +713,7 @@ class SimoptAppController(
         myModelTemplate.value = template
         setProblemSpec(null)             // fan-out clear of every problem-piece
         setSolverSpec(null)              // fan-out clear of every solver-piece
-        myEvaluationSpec.value = EvaluationSpec()
+        myEvaluationSpec.value = defaultEvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
         refreshModelDescriptor()
         markDirtyStructural()
@@ -1701,7 +1708,7 @@ class SimoptAppController(
         myRsplineMaxNumReplications.value = 30
         myRandomRestart.value = null
         mySolverSpec.value = null
-        myEvaluationSpec.value = EvaluationSpec()
+        myEvaluationSpec.value = defaultEvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
         documentLifecycle.reset()
         runLifecycle.reset()

@@ -121,6 +121,16 @@ class SimoptAppRunSetupTest {
         }
     }
 
+    @Test
+    fun `a new document defaults to parallel evaluation`() {
+        SimoptAppController("Test").use { c ->
+            assertTrue(
+                c.evaluationSpec.value.parallelEvaluation,
+                "the Run Step tab should default to parallel evaluation for a new document"
+            )
+        }
+    }
+
     // ── Tracking: preference semantics + invariants ────────────────────
 
     @Test
