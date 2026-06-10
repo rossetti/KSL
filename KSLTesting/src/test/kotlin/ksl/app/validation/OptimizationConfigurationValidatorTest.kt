@@ -95,6 +95,48 @@ class OptimizationConfigurationValidatorTest {
         assertTrue(result.warnings.isEmpty(), "Expected no warnings; got ${result.warnings}")
     }
 
+    @Test
+    fun `R-SPLINE on a non-integer-ordered problem is reported`() {
+        // The default fixture problem has a continuous input (granularity 0.0), which is not integer ordered.
+        val config = mm1Config(
+            solver = SolverSpec.RSpline(
+                maxIterations = 5,
+                initialNumReps = 2,
+                sampleSizeGrowthRate = 1.5,
+                maxNumReplications = 10
+            )
+        )
+        val result = OptimizationConfigurationValidator.validate(config)
+        assertFalse(result.isValid)
+        assertTrue(result.hasError("problem.inputs", "RSPLINE_REQUIRES_INTEGER_ORDERED"))
+    }
+
+    @Test
+    fun `R-SPLINE on an integer-ordered problem is accepted`() {
+        val config = mm1Config(
+            problem = OptimizationProblemSpec(
+                objectiveResponseName = mm1Responses().first(),
+                inputs = listOf(
+                    OptimizationInputSpec(
+                        name = mm1Inputs().first(),
+                        lowerBound = 1.0,
+                        upperBound = 10.0,
+                        granularity = 1.0
+                    )
+                )
+            ),
+            solver = SolverSpec.RSpline(
+                maxIterations = 5,
+                initialNumReps = 2,
+                sampleSizeGrowthRate = 1.5,
+                maxNumReplications = 10
+            )
+        )
+        val result = OptimizationConfigurationValidator.validate(config)
+        assertTrue(result.isValid, "Expected valid; errors: ${result.errors}")
+        assertFalse(result.hasError("problem.inputs", "RSPLINE_REQUIRES_INTEGER_ORDERED"))
+    }
+
     // ── Document-only negative cases ─────────────────────────────────────────
 
     @Test

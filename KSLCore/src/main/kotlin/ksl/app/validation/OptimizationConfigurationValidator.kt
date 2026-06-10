@@ -28,6 +28,7 @@ import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.TemperatureSpec
 import ksl.simulation.Model
 import ksl.simulation.ModelProviderIfc
+import ksl.utilities.math.KSLMath
 
 /**
  * Pre-run validator for [OptimizationRunConfiguration].
@@ -106,6 +107,7 @@ object OptimizationConfigurationValidator {
             builder
         )
         validateSimulatedAnnealing(solver, builder)
+        validateRSpline(solver, problem.inputs, builder)
         return builder.build()
     }
 
@@ -245,6 +247,31 @@ object OptimizationConfigurationValidator {
                 path = "solver.coolingSchedule.initialTemperature",
                 code = "SA_COOLING_INITIAL_TEMP_MISMATCH",
                 message = "Cooling-schedule initialTemperature ($coolingInitialTemperature) does not match the fixed initial temperature (${fixed.temperature}); the engine will overwrite the schedule's value at runtime."
+            )
+        }
+    }
+
+    /**
+     * R-SPLINE operates on an integer-ordered feasible region, so every decision variable must have a
+     * granularity of 1.0 (matching `InputDefinition.isIntegerOrdered`). The engine's RSplineSolver
+     * enforces this with a hard `require`; this document-level check surfaces it as a graceful
+     * validation error before the run is launched. Also covers random-restart R-SPLINE, since
+     * `randomRestart` is a field on the [SolverSpec.RSpline] variant.
+     */
+    private fun validateRSpline(
+        solver: SolverSpec,
+        declaredInputs: List<OptimizationInputSpec>,
+        builder: RunConfigurationValidator.ValidationResultBuilder
+    ) {
+        if (solver !is SolverSpec.RSpline) return
+        val nonIntegerOrdered = declaredInputs.filterNot { KSLMath.equal(it.granularity, 1.0) }
+        if (nonIntegerOrdered.isNotEmpty()) {
+            val offenders = nonIntegerOrdered.joinToString(", ") { "${it.name} (granularity ${it.granularity})" }
+            builder.error(
+                path = "problem.inputs",
+                code = "RSPLINE_REQUIRES_INTEGER_ORDERED",
+                message = "R-SPLINE requires an integer-ordered problem: every decision variable must " +
+                    "have granularity = 1.0.  The following do not: $offenders."
             )
         }
     }
