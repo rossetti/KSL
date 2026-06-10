@@ -43,6 +43,18 @@ class BookExamplesBundleTest {
         BookExamplesBundle.TANDEM_QUEUE,
     )
 
+    private val chapter5ModelIds = listOf(
+        BookExamplesBundle.PALLET_WORK_CENTER,
+    )
+
+    private val chapter6ModelIds = listOf(
+        BookExamplesBundle.STEM_FAIR_MIXER,
+        BookExamplesBundle.TIE_DYE_TSHIRTS,
+    )
+
+    /** Every model the bundle is expected to expose so far. */
+    private val allModelIds = chapter4ModelIds + chapter5ModelIds + chapter6ModelIds
+
     private fun withBookBundle(block: (LoadedBundle) -> Unit) {
         val bundles = BundleLoader.loadFromClasspath()
         try {
@@ -59,20 +71,20 @@ class BookExamplesBundleTest {
     }
 
     @Test
-    fun `bundle is discovered with all three chapter-4 models`() {
+    fun `bundle is discovered with all expected models`() {
         withBookBundle { match ->
             val ids = match.bundle.models.map { it.modelId }
             assertTrue(
-                ids.containsAll(chapter4ModelIds),
-                "Bundle must expose every chapter-4 model; got $ids"
+                ids.containsAll(allModelIds),
+                "Bundle must expose every expected model; got $ids"
             )
         }
     }
 
     @Test
-    fun `every chapter-4 catalog input and output resolves against the model surface`() {
+    fun `every catalog input and output resolves against the model surface`() {
         withBookBundle { match ->
-            for (id in chapter4ModelIds) {
+            for (id in allModelIds) {
                 val descriptor = match.descriptorFor(id)
                 val catalog = descriptor.catalog
                 assertNotNull(catalog, "Model '$id' must carry a catalog")
@@ -97,15 +109,14 @@ class BookExamplesBundleTest {
     }
 
     @Test
-    fun `every chapter-4 model builds and runs`() {
+    fun `every model builds and runs`() {
         withBookBundle { match ->
-            for (id in chapter4ModelIds) {
+            for (id in allModelIds) {
                 val bundled = match.bundle.models.first { it.modelId == id }
                 val model = bundled.builder().build(null, null)
-                // Shrink the run so the smoke test stays fast.
+                // Shrink only the replication count; keep each builder's natural
+                // run configuration (some models are terminating and set no length).
                 model.numberOfReplications = 2
-                model.lengthOfReplication = 200.0
-                model.lengthOfReplicationWarmUp = 50.0
                 model.simulate()
                 assertTrue(
                     model.responses.isNotEmpty() || model.counters.isNotEmpty(),

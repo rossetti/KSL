@@ -51,6 +51,13 @@ class BookExamplesBundle : KSLModelBundle {
         const val DRIVE_THROUGH_PHARMACY_RESOURCE: String = "DriveThroughPharmacyWithResource"
         const val DRIVE_THROUGH_PHARMACY_QUEUE: String = "DriveThroughPharmacyWithQ"
         const val TANDEM_QUEUE: String = "TandemQueue"
+
+        // ── Chapter 5 model ids ──
+        const val PALLET_WORK_CENTER: String = "PalletWorkCenter"
+
+        // ── Chapter 6 model ids ──
+        const val STEM_FAIR_MIXER: String = "StemFairMixer"
+        const val TIE_DYE_TSHIRTS: String = "TieDyeTShirts"
     }
 
     override val bundleId: String = BUNDLE_ID
@@ -71,6 +78,11 @@ class BookExamplesBundle : KSLModelBundle {
         DriveThroughPharmacyWithResourceModel,
         DriveThroughPharmacyWithQModel,
         TandemQueueModel,
+        // Chapter 5
+        PalletWorkCenterModel,
+        // Chapter 6
+        StemFairMixerModel,
+        TieDyeTShirtsModel,
     )
 
     // ════════════════════════════════ Chapter 4 ════════════════════════════════
@@ -211,6 +223,166 @@ class BookExamplesBundle : KSLModelBundle {
                     output(sim.numInSystem) { displayName = "Avg Number in System" }
                     output(sim.totalSystemTime) { displayName = "Avg Total Time in System"; unit = "min" }
                     output(sim.totalProcessed) { displayName = "Number Processed" }
+                }
+                return model
+            }
+        }
+    }
+
+    // ════════════════════════════════ Chapter 5 ════════════════════════════════
+
+    /**
+     * A pallet work center staffed by a controllable number of workers.  Each
+     * replication is a terminating "day" that processes a random number of
+     * pallets; the staffing level and mean transport time are the decision
+     * inputs, with worker utilization and the probability of overtime (a day
+     * exceeding 480 minutes) as the headline outputs.
+     */
+    private object PalletWorkCenterModel : KSLBundledModel {
+
+        override val modelId: String = PALLET_WORK_CENTER
+
+        override val displayName: String = "Pallet Work Center"
+
+        override val description: String =
+            "Terminating pallet-processing work center; the worker count (staffing " +
+                "decision) and mean transport time are the inputs, with utilization and " +
+                "P(overtime) as headline outputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("PWC") must differ from the Model name.
+                // Terminating simulation: set only the replication count (each
+                // replication ends when the day's pallets are processed).
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = PalletWorkCenter(model, numWorkers = 2, name = "PWC")
+                model.numberOfReplications = 30
+                model.curateCatalog {
+                    input(sim, PalletWorkCenter::numWorkers) {
+                        displayName = "Number of Workers"; unit = "workers"
+                    }
+                    rvParameter(sim.transportTimeRV, "mean") {
+                        displayName = "Mean Transport Time"; unit = "min"
+                    }
+                    output(sim.workerUtilization) { displayName = "Worker Utilization" }
+                    output(sim.probOfOverTime) { displayName = "P(Overtime > 480 min)" }
+                    output(sim.totalProcessingTime) { displayName = "Total Processing Time"; unit = "min" }
+                    output(sim.numInSystem) { displayName = "Avg Pallets at Work Center" }
+                    output(sim.numPalletsProcessed) { displayName = "Pallets Processed" }
+                }
+                return model
+            }
+        }
+    }
+
+    // ════════════════════════════════ Chapter 6 ════════════════════════════════
+
+    /**
+     * The STEM career-fair mixer (process-view): students arrive, optionally
+     * wander, and may talk with two recruiter teams.  The two recruiter-team
+     * capacities are the decision inputs; overall and by-type time-in-system
+     * are the headline outputs.  The mixer runs for a fixed 6-hour horizon.
+     */
+    private object StemFairMixerModel : KSLBundledModel {
+
+        override val modelId: String = STEM_FAIR_MIXER
+
+        override val displayName: String = "STEM Fair Mixer (basic)"
+
+        override val description: String =
+            "Process-view STEM career-fair mixer; the JH-Bunt and Mal-Wart recruiter " +
+                "capacities are the decision inputs, with overall and by-type student " +
+                "time-in-system as outputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("StemFair") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = StemFairMixer(model, name = "StemFair")
+                model.numberOfReplications = 400
+                model.lengthOfReplication = 6.0 * 60.0   // a single 6-hour mixer
+                model.curateCatalog {
+                    // Recruiter-team capacities (ResourceWithQ initialCapacity controls).
+                    input("JHBuntR.initialCapacity") {
+                        displayName = "JH-Bunt Recruiters"; unit = "recruiters"
+                    }
+                    input("MalWartR.initialCapacity") {
+                        displayName = "Mal-Wart Recruiters"; unit = "recruiters"
+                    }
+                    output("OverallSystemTime") { displayName = "Avg Time in System"; unit = "min" }
+                    output("NumInSystem") { displayName = "Avg Number in System" }
+                    output("NonWanderSystemTime") { displayName = "Avg Time in System (non-wanderers)"; unit = "min" }
+                    output("WanderSystemTime") { displayName = "Avg Time in System (wanderers)"; unit = "min" }
+                    output("LeaverSystemTime") { displayName = "Avg Time in System (leavers)"; unit = "min" }
+                }
+                return model
+            }
+        }
+    }
+
+    /**
+     * A tie-dye T-shirt shop (process-view with a blocking queue): orders spawn
+     * shirts that are made in parallel, then collected and packaged.  The
+     * shirt-maker and packager capacities are the decision inputs; order
+     * time-in-system and number in system are the outputs.
+     */
+    private object TieDyeTShirtsModel : KSLBundledModel {
+
+        override val modelId: String = TIE_DYE_TSHIRTS
+
+        override val displayName: String = "Tie-Dye T-Shirts"
+
+        override val description: String =
+            "Process-view tie-dye T-shirt shop using a blocking queue to coordinate " +
+                "shirt-making and packaging; the shirt-maker and packager capacities " +
+                "are the decision inputs."
+
+        override val supportedApps: Set<KSLAppKind> = setOf(
+            KSLAppKind.SINGLE,
+            KSLAppKind.SCENARIO,
+            KSLAppKind.EXPERIMENT,
+            KSLAppKind.SIMOPT
+        )
+
+        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                // Child element name ("TieDye") must differ from the Model name.
+                val model = Model(modelId, autoCSVReports = false)
+                val sim = TieDyeTShirts(model, name = "TieDye")
+                model.numberOfReplications = 30
+                model.lengthOfReplication = 480.0
+                model.curateCatalog {
+                    input("ShirtMakers_R.initialCapacity") {
+                        displayName = "Shirt Makers"; unit = "workers"
+                    }
+                    input("Packager_R.initialCapacity") {
+                        displayName = "Packagers"; unit = "workers"
+                    }
+                    output("System Time") { displayName = "Avg Order Time in System"; unit = "min" }
+                    output("Num in System") { displayName = "Avg Number of Orders in System" }
                 }
                 return model
             }
