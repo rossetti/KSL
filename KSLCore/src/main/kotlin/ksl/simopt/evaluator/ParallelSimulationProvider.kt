@@ -15,6 +15,7 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.simulation.SimulationDispatcher
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * A `SimulationOracleIfc` that executes the points of an `EvaluationRequest` concurrently,
@@ -67,9 +68,21 @@ class ParallelSimulationProvider @JvmOverloads constructor(
 
     private val myBaseRunParameters: ExperimentRunParameters = myTemplateModel.extractRunParameters()
 
+    // One stream tape shared by the short-circuit delegate and the multi-point path, so a mix of
+    // single-point and multi-point requests advances a single continuous tape — exactly as one reused
+    // sequential model would. This is what makes parallel results match the sequential provider across
+    // consecutive requests.
+    private val myTapePolicy = StreamTapePolicy()
+
+    // Lazily-filled pool of reused, silenced models for the multi-point path. Each run positions its
+    // model absolutely (reset + advance via the run parameters), so a reused model yields identical
+    // results to a fresh one; borrow/return is thread-safe across workers.
+    private val myModelPool = ConcurrentLinkedQueue<Model>()
+
     // Reused, single-threaded oracle for the single-point short-circuit. Runs on the calling
-    // thread against the one template model, exactly like the sequential SimulationProvider.
-    private val mySequentialDelegate = SimulationProvider(myTemplateModel, simulationRunCache)
+    // thread against the one template model, exactly like the sequential SimulationProvider, and
+    // shares the tape policy so single-point requests advance the same tape as multi-point ones.
+    private val mySequentialDelegate = SimulationProvider(myTemplateModel, simulationRunCache, myTapePolicy)
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
         require(modelIdentifier == evaluationRequest.modelIdentifier) {
@@ -103,19 +116,15 @@ class ParallelSimulationProvider @JvmOverloads constructor(
     }
 
     private fun buildPlans(inputs: List<ModelInputs>, crnOption: Boolean): List<PointPlan> {
-        var nextAdvance = 0
+        // Persistent tape: independent => cumulative non-overlapping blocks; CRN => all points at the
+        // current block, then the tape advances by the request's max replications. Shared with the
+        // short-circuit delegate so the tape stays continuous across single- and multi-point requests.
+        val advances = myTapePolicy.advancesFor(inputs, crnOption)
         return inputs.mapIndexed { index, modelInputs ->
-            // CRN: every point starts from the same stream block (advance 0).
-            // Independent: cumulative replication-count advances => non-overlapping stream blocks.
-            val advances = if (crnOption) {
-                0
-            } else {
-                nextAdvance.also { nextAdvance += modelInputs.numReplications }
-            }
             val runParameters = myBaseRunParameters.copy(
                 experimentName = "${modelInputs.modelIdentifier}_DP_${index}_${modelInputs.requestTime}",
                 numberOfReplications = modelInputs.numReplications,
-                numberOfStreamAdvancesPriorToRunning = advances,
+                numberOfStreamAdvancesPriorToRunning = advances[index],
                 resetStartStreamOption = true
             )
             PointPlan(modelInputs, runParameters)
@@ -123,21 +132,27 @@ class ParallelSimulationProvider @JvmOverloads constructor(
     }
 
     private suspend fun runOnePoint(plan: PointPlan): Pair<ModelInputs, Result<SimulationRun>> {
+        val model = borrowModel()
         return try {
-            val model = modelBuilder.build(modelConfiguration)
-            silence(model)
             val simulationRun = ConcurrentSimulationRunner(model).simulate(
                 modelIdentifier = plan.modelInputs.modelIdentifier,
                 inputs = plan.modelInputs.inputs,
                 experimentRunParameters = plan.runParameters
             )
+            myModelPool.offer(model)   // return to the pool only on success; mid-failure models are discarded
             plan.modelInputs to Result.success(simulationRun)
         } catch (e: CancellationException) {
-            throw e   // cooperative cancellation: let coroutineScope cancel siblings
+            throw e   // cooperative cancellation: let coroutineScope cancel siblings (model discarded)
         } catch (e: RuntimeException) {
-            plan.modelInputs to Result.failure(e)   // per-point failure; siblings unaffected
+            plan.modelInputs to Result.failure(e)   // per-point failure; siblings unaffected (model discarded)
         }
     }
+
+    // Borrow a silenced model from the pool, or build (and silence) a fresh one when the pool is empty.
+    // Concurrency is bounded by the dispatcher, so the number of live (borrowed) models stays at or
+    // below the worker count; over a run the pool settles at that many reused models.
+    private fun borrowModel(): Model =
+        myModelPool.poll() ?: modelBuilder.build(modelConfiguration).also { silence(it) }
 
     private data class PointPlan(
         val modelInputs: ModelInputs,

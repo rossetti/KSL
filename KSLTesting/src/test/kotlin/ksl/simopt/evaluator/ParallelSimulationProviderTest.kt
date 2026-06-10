@@ -8,7 +8,6 @@ import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 class ParallelSimulationProviderTest {
@@ -117,12 +116,34 @@ class ParallelSimulationProviderTest {
         val request = EvaluationRequest(
             name, listOf(point(name, 1.0), point(name, 2.0)), crnOption = false, cachingAllowed = false
         )
+        // Reproducibility = two FRESH providers (each with a fresh stream tape) give identical results
+        // for the same request. (Re-running on the SAME provider intentionally draws fresh streams; see
+        // parallelAdvancesStreamsAcrossConsecutiveRequests.)
+        val p1 = ParallelSimulationProvider(modelBuilder(name))
+        val p2 = ParallelSimulationProvider(modelBuilder(name))
+
+        val r1 = p1.simulate(request)
+        val r2 = p2.simulate(request)
+        for (mi in r1.keys) {
+            assertEquals(r1.estimate(mi).average, r2.estimate(mi).average, 1e-12, "reproducible average for $mi")
+        }
+    }
+
+    @Test
+    fun parallelAdvancesStreamsAcrossConsecutiveRequests() {
+        val name = "PSP_Advance_${System.nanoTime()}"
+        val request = EvaluationRequest(
+            name, listOf(point(name, 1.0), point(name, 2.0)), crnOption = false, cachingAllowed = false
+        )
         val provider = ParallelSimulationProvider(modelBuilder(name))
 
         val r1 = provider.simulate(request)
-        val r2 = provider.simulate(request)
-        for (mi in r1.keys) {
-            assertEquals(r1.estimate(mi).average, r2.estimate(mi).average, 1e-12, "reproducible average for $mi")
+        val r2 = provider.simulate(request)   // same provider: the persistent tape advances => fresh streams
+        for (mi in request.modelInputs) {
+            assertNotEquals(
+                r1.estimate(mi).average, r2.estimate(mi).average,
+                "consecutive requests on one provider must draw fresh streams for $mi"
+            )
         }
     }
 
@@ -147,12 +168,11 @@ class ParallelSimulationProviderTest {
      * Reproduces the multi-iteration divergence reported on the LK Inventory model: a solver
      * (e.g. Cross-Entropy) issues many independent multi-point requests in sequence. The
      * sequential provider advances its single model's streams continuously across requests, so
-     * each request draws fresh random numbers. The parallel provider must reproduce that. This
-     * test FAILS against the current implementation because buildPlans resets its stream-advance
-     * offset to 0 on every request, so the parallel path reuses the same streams every request.
+     * each request draws fresh random numbers, and the parallel provider must reproduce that.
+     * Phase C's shared StreamTapePolicy makes both providers position each point absolutely from
+     * one persistent tape, so they now match request-for-request.
      */
     @Test
-    @Disabled("Tracks the parallel cross-request stream-reuse bug; re-enabled when Phase C lands.")
     fun parallelMatchesSequentialAcrossConsecutiveRequests() {
         val name = "PSP_MultiReq_${System.nanoTime()}"
         val request = EvaluationRequest(
@@ -173,6 +193,32 @@ class ParallelSimulationProviderTest {
                 "sequential should draw fresh streams on the 2nd request for $mi"
             )
             assertEquals(seq2.estimate(mi).average, par2.estimate(mi).average, 1e-10, "request 2 $mi")
+        }
+    }
+
+    /**
+     * Common random numbers under the unified tape policy: both providers place every point of a
+     * request on the same block, then advance the tape by the request's max replications. The
+     * parallel provider must therefore match the sequential provider request-for-request, including
+     * across consecutive CRN requests.
+     */
+    @Test
+    fun parallelMatchesSequentialCrnAcrossConsecutiveRequests() {
+        val name = "PSP_CRNMulti_${System.nanoTime()}"
+        val request = EvaluationRequest(
+            name, listOf(point(name, 1.0), point(name, 2.0)), crnOption = true, cachingAllowed = false
+        )
+        val sequential = SimulationProvider({ buildModel(name) })
+        val parallel = ParallelSimulationProvider(modelBuilder(name))
+
+        val seq1 = sequential.simulate(request)
+        val seq2 = sequential.simulate(request)
+        val par1 = parallel.simulate(request)
+        val par2 = parallel.simulate(request)
+
+        for (mi in request.modelInputs) {
+            assertEquals(seq1.estimate(mi).average, par1.estimate(mi).average, 1e-10, "CRN request 1 $mi")
+            assertEquals(seq2.estimate(mi).average, par2.estimate(mi).average, 1e-10, "CRN request 2 $mi")
         }
     }
 }

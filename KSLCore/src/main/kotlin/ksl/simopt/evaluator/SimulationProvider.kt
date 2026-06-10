@@ -27,6 +27,7 @@ import java.nio.file.Path
 class SimulationProvider internal constructor(
     val model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
+    private val streamTapePolicy: StreamTapePolicy = StreamTapePolicy(),
 ) : SimulationProviderIfc {
 
     /**
@@ -86,10 +87,9 @@ class SimulationProvider internal constructor(
             // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
             // in the cache used CRN and saving dependent samples in the cache is problematic.
             // If there is no caching allowed or there isn't a cache, we just do the simulations.
-            if (evaluationRequest.crnOption) {
-                model.resetStartStreamOption = true
-            }
-            val results = simulateWithoutCache(evaluationRequest.modelInputs)
+            // The stream tape policy positions each point absolutely (reset + advance), so consecutive
+            // requests draw fresh streams and CRN points share a block, matching ParallelSimulationProvider.
+            val results = simulateWithoutCache(evaluationRequest.modelInputs, evaluationRequest.crnOption)
             model.changeRunParameters(originalExpRunParams)
             return results
         }
@@ -110,9 +110,17 @@ class SimulationProvider internal constructor(
         return allResults
     }
 
-    private fun simulateWithoutCache(modelInputs: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
+    private fun simulateWithoutCache(
+        modelInputsList: List<ModelInputs>,
+        crnOption: Boolean
+    ): Map<ModelInputs, Result<ResponseMap>> {
+        val advances = streamTapePolicy.advancesFor(modelInputsList, crnOption)
         val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
-        for (modelInputs in modelInputs) {
+        for ((index, modelInputs) in modelInputsList.withIndex()) {
+            // Position the (reused) model absolutely before the run: reset to the start stream and
+            // advance to this point's tape block. executeSimulation extracts these run parameters.
+            model.resetStartStreamOption = true
+            model.numberOfStreamAdvancesPriorToRunning = advances[index]
             val simulationRun = executeSimulation(modelInputs, model)
             val results = captureResultFromSimulationRun(modelInputs, simulationRun)
             allResults[modelInputs] = results
