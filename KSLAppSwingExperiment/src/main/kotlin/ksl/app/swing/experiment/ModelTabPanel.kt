@@ -19,11 +19,8 @@
 package ksl.app.swing.experiment
 
 import kotlinx.coroutines.launch
-import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.notification.NotificationSink
-import ksl.simulation.ModelDescriptor
-import javax.swing.JScrollPane
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -32,8 +29,6 @@ import java.awt.Font
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
-import javax.swing.DefaultComboBoxModel
-import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
@@ -83,56 +78,22 @@ class ModelTabPanel(
     private val pickerCard = JPanel(BorderLayout())
     private val unresolvedCard = JPanel(BorderLayout())
 
-    /** One row in the bundle dropdown.  Carries version + source so copies
-     *  of the same `bundleId` loaded from different JARs render as distinct,
-     *  pickable rows. */
-    private data class BundleChoice(
-        val bundleId: String,
-        val bundleDisplayName: String,
-        val version: String,
-        val sourceLabel: String
-    ) {
-        override fun toString(): String =
-            ksl.app.swing.common.bundle.bundlePickerLabel(
-                bundleDisplayName.ifBlank { bundleId }, version, sourceLabel
-            )
-    }
-
-    /** One row in the model dropdown, scoped to the selected bundle.
-     *  `toString()` is what the combo renders to the user. */
-    private data class ModelChoice(
-        val bundleId: String,
-        val modelId: String,
-        val displayName: String
-    ) {
-        override fun toString(): String =
-            if (displayName.isBlank() || displayName.equals(modelId, ignoreCase = true)) modelId
-            else "$displayName ($modelId)"
-    }
-
-    private val bundleCombo: JComboBox<BundleChoice> = JComboBox()
-    private val modelCombo: JComboBox<ModelChoice> = JComboBox()
-
-    /** Bundle row (label + combo) in the picker; hidden when ≤ 1 bundle
-     *  is loaded so a single-bundle setup shows only the model picker. */
-    private val bundleRow: JPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
-        add(JLabel("Bundle: ").apply { font = font.deriveFont(Font.BOLD) })
-        add(Box.createHorizontalStrut(8))
-        add(bundleCombo)
-        add(Box.createHorizontalGlue())
-    }
-
-    private val summaryArea = SummaryPanel()
+    /** The shared two-step bundle → model picker: a bundle combo + a model
+     *  combo scoped to it + a model-info table.  This panel owns the
+     *  surrounding empty/unresolved cards, the run-parameter overrides, and the
+     *  switch-prompt; the picker just reports the user's choice through
+     *  [handleUserModelSelection]. */
+    private val pickerPanel = ksl.app.swing.common.bundle.BundleModelPickerPanel(
+        loadedBundles = controller.loadedBundles,
+        currentReference = controller.modelReference,
+        currentDescriptor = controller.currentModelDescriptor,
+        scope = controller.edtScope,
+        onSelect = ::handleUserModelSelection
+    )
     private val unresolvedLabel: JLabel = JLabel().apply {
         horizontalAlignment = SwingConstants.CENTER
         foreground = Color(0xCC, 0x77, 0x00)
     }
-
-    /** Guards the dropdown's ActionListener so the controller's
-     *  collector-driven `setSelectedItem(...)` doesn't fire a no-op
-     *  setModelReference call. */
-    private var programmaticComboUpdate: Boolean = false
 
     // Run parameter defaults widgets — declared BEFORE init {}
     // because Kotlin executes property initializers and init blocks
@@ -181,7 +142,6 @@ class ModelTabPanel(
         footer.add(DocumentStateLabel(controller.isDirty, controller.edtScope))
         add(footer, BorderLayout.SOUTH)
 
-        wireDropdownListener()
         wireCollectors()
         wireRunDefaultsCollectors()
         refreshCardSelection()
@@ -189,50 +149,11 @@ class ModelTabPanel(
 
     // ── Layout builders ────────────────────────────────────────────────────
 
-    private fun buildPickerCard(): JPanel = JPanel(BorderLayout(0, 12)).apply {
-        // BorderLayout (E7.10) — fixes a layout problem where the
-        // BoxLayout used here previously squished the run-defaults
-        // SOUTH panel against the picker and ignored its constraint.
-        // Now: picker row in NORTH, summary in CENTER (gets all
-        // remaining space), run defaults panel goes in pickerCard's
-        // SOUTH from init {}.
+    private fun buildPickerCard(): JPanel = JPanel(BorderLayout()).apply {
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
-
-        val modelRow = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.X_AXIS)
-            add(JLabel("Model: ").apply { font = font.deriveFont(Font.BOLD) })
-            add(Box.createHorizontalStrut(8))
-            add(modelCombo)
-            add(Box.createHorizontalGlue())
-        }
-        // Two-step picker: a Bundle row (hidden when only one bundle is
-        // loaded) above the Model row, so models stay scoped to their bundle
-        // and copies of the same bundle from different JARs are individually
-        // pickable.
-        val pickerRows = JPanel(java.awt.GridBagLayout()).apply {
-            val gbc = java.awt.GridBagConstraints().apply {
-                gridx = 0; weightx = 1.0
-                fill = java.awt.GridBagConstraints.HORIZONTAL
-                anchor = java.awt.GridBagConstraints.NORTHWEST
-                insets = java.awt.Insets(0, 0, 6, 0)
-            }
-            gbc.gridy = 0; add(bundleRow, gbc)
-            gbc.gridy = 1; add(modelRow, gbc)
-        }
-        add(pickerRows, BorderLayout.NORTH)
-
-        // Summary area takes the remaining vertical space.  Wrap in
-        // a scroll pane in case the model has a lot of controls /
-        // RVs and the summary grows long.
-        val summaryScroll = JScrollPane(
-            summaryArea,
-            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        ).apply {
-            border = BorderFactory.createEmptyBorder()
-            verticalScrollBar.unitIncrement = 16
-        }
-        add(summaryScroll, BorderLayout.CENTER)
+        // The shared picker provides the bundle/model rows + the model-info
+        // table; run-parameter defaults go in pickerCard's SOUTH (see init).
+        add(pickerPanel, BorderLayout.CENTER)
     }
 
     private fun buildUnresolvedCard(): JPanel = JPanel(BorderLayout()).apply {
@@ -447,24 +368,8 @@ class ModelTabPanel(
 
     // ── Wiring ─────────────────────────────────────────────────────────────
 
-    private fun wireDropdownListener() {
-        bundleCombo.addActionListener {
-            if (programmaticComboUpdate) return@addActionListener
-            rebuildModelDropdownForSelectedBundle()
-            // Picking a new bundle auto-selects its first model; commit it.
-            (modelCombo.selectedItem as? ModelChoice)?.let { handleUserModelSelection(it) }
-        }
-        modelCombo.addActionListener {
-            if (programmaticComboUpdate) return@addActionListener
-            (modelCombo.selectedItem as? ModelChoice)?.let { handleUserModelSelection(it) }
-        }
-    }
-
-    private fun handleUserModelSelection(choice: ModelChoice) {
-        val newRef = ModelReference.ByBundleAndModelId(
-            bundleId = choice.bundleId,
-            modelId = choice.modelId
-        )
+    private fun handleUserModelSelection(bundleId: String, modelId: String) {
+        val newRef = ModelReference.ByBundleAndModelId(bundleId = bundleId, modelId = modelId)
         val currentRef = controller.modelReference.value
         // Switching to a different model: prompt the user.  Same-model
         // re-selection is a no-op and skips the prompt.
@@ -507,118 +412,26 @@ class ModelTabPanel(
             0 -> controller.setModelReferenceAndClear(newRef)
             1 -> controller.setModelReference(newRef)
             else -> {
-                // Cancel — revert both dropdowns to the unchanged controller
-                // reference.  syncDropdownsToController re-selects the prior
-                // bundle and model (so a reverted bundle change is undone too).
-                syncDropdownsToController()
+                // Cancel — revert the picker to the unchanged controller
+                // reference (re-selects the prior bundle + model).
+                pickerPanel.syncToReference()
             }
         }
     }
 
     private fun wireCollectors() {
+        // The shared picker rebuilds / syncs its own dropdowns and renders its
+        // own summary off loadedBundles, modelReference, and
+        // currentModelDescriptor.  This panel only needs those signals to pick
+        // the empty / picker / unresolved card.
         controller.edtScope.launch {
-            controller.loadedBundles.collect { _ -> rebuildBundleDropdown() }
-        }
-        controller.edtScope.launch {
-            controller.modelReference.collect { _ ->
-                syncDropdownsToController()
-                refreshCardSelection()
-            }
+            controller.loadedBundles.collect { _ -> refreshCardSelection() }
         }
         controller.edtScope.launch {
-            controller.currentModelDescriptor.collect { descriptor ->
-                summaryArea.render(descriptor, controller.modelReference.value)
-                refreshCardSelection()
-            }
+            controller.modelReference.collect { _ -> refreshCardSelection() }
         }
-    }
-
-    // ── State synchronisation ──────────────────────────────────────────────
-
-    private fun rebuildBundleDropdown() {
-        val bundles = controller.loadedBundles.value
-        val choices = bundles.map { lb ->
-            BundleChoice(
-                bundleId = lb.bundle.bundleId,
-                bundleDisplayName = lb.bundle.displayName,
-                version = lb.bundle.version,
-                sourceLabel = ksl.app.bundle.bundleSourceLabel(lb)
-            )
-        }
-        programmaticComboUpdate = true
-        try {
-            bundleCombo.model = DefaultComboBoxModel(choices.toTypedArray())
-            // A bundle picker only earns its space when > 1 is loaded.
-            bundleRow.isVisible = choices.size > 1
-        } finally {
-            programmaticComboUpdate = false
-        }
-        rebuildModelDropdownForSelectedBundle()
-        syncDropdownsToController()
-        refreshCardSelection()
-    }
-
-    private fun rebuildModelDropdownForSelectedBundle() {
-        val bundles = controller.loadedBundles.value
-        val selected = bundleCombo.selectedItem as? BundleChoice
-        val targetBundle: LoadedBundle? = when {
-            selected != null ->
-                // Match the specific source so the model list follows the
-                // exact bundle copy the user picked, not just the bundleId.
-                bundles.firstOrNull {
-                    it.bundle.bundleId == selected.bundleId &&
-                        ksl.app.bundle.bundleSourceLabel(it) == selected.sourceLabel
-                }
-            bundles.size == 1 -> bundles.first()
-            else -> null
-        }
-        val modelChoices = targetBundle?.bundle?.models?.map { m ->
-            ModelChoice(
-                bundleId = targetBundle.bundle.bundleId,
-                modelId = m.modelId,
-                displayName = m.displayName
-            )
-        }.orEmpty()
-        programmaticComboUpdate = true
-        try {
-            modelCombo.model = DefaultComboBoxModel(modelChoices.toTypedArray())
-        } finally {
-            programmaticComboUpdate = false
-        }
-    }
-
-    private fun syncDropdownsToController() {
-        val ref = controller.modelReference.value as? ModelReference.ByBundleAndModelId
-            ?: return run {
-                programmaticComboUpdate = true
-                try { modelCombo.selectedItem = null } finally { programmaticComboUpdate = false }
-            }
-        // Bundle selection.  The reference isn't source-aware (Part 3 defers
-        // that), so if the current selection already matches the referenced
-        // bundleId keep the user's chosen source rather than snapping to the
-        // first same-id entry.
-        val currentBundle = bundleCombo.selectedItem as? BundleChoice
-        val targetBundle = (0 until bundleCombo.itemCount)
-            .map { bundleCombo.getItemAt(it) }
-            .firstOrNull { it.bundleId == ref.bundleId }
-        if (targetBundle != null &&
-            currentBundle?.bundleId != ref.bundleId &&
-            bundleCombo.selectedItem != targetBundle
-        ) {
-            programmaticComboUpdate = true
-            try {
-                bundleCombo.selectedItem = targetBundle
-                rebuildModelDropdownForSelectedBundle()
-            } finally { programmaticComboUpdate = false }
-        }
-        // Model selection.
-        val targetModel = (0 until modelCombo.itemCount)
-            .map { modelCombo.getItemAt(it) }
-            .firstOrNull { it.bundleId == ref.bundleId && it.modelId == ref.modelId }
-            ?: return
-        if (modelCombo.selectedItem != targetModel) {
-            programmaticComboUpdate = true
-            try { modelCombo.selectedItem = targetModel } finally { programmaticComboUpdate = false }
+        controller.edtScope.launch {
+            controller.currentModelDescriptor.collect { _ -> refreshCardSelection() }
         }
     }
 
@@ -666,93 +479,6 @@ class ModelTabPanel(
                 "ByJar references are not supported by the Experiment app.<br>" +
                 "Use <b>File → New Experiment</b> to start fresh." +
                 "</div></html>"
-    }
-
-    // ── Summary card ───────────────────────────────────────────────────────
-
-    /** Read-only summary of the current model descriptor.  Lays out
-     *  bundle identity + a four-row stats table; falls back to a
-     *  greyed-out empty-state when no descriptor is available. */
-    private class SummaryPanel : JPanel(BorderLayout()) {
-
-        private val emptyState: JLabel = JLabel(
-            "Pick a model above to see its controls, RV parameters, and responses."
-        ).apply {
-            foreground = Color(0x66, 0x66, 0x66)
-            border = BorderFactory.createEmptyBorder(12, 12, 12, 12)
-        }
-
-        // E7.12 #1B.1 — the TitledBorder moved here so the
-        // SummaryPanel gets visual heft equal to the Run-defaults
-        // panel that sits below it (which also has a TitledBorder).
-        // The inner content panel keeps only the inset padding.
-        private val content: JPanel = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
-        }
-
-        init {
-            border = BorderFactory.createTitledBorder("Selected model")
-            add(emptyState, BorderLayout.CENTER)
-        }
-
-        fun render(descriptor: ModelDescriptor?, ref: ModelReference?) {
-            removeAll()
-            if (descriptor == null) {
-                add(emptyState, BorderLayout.CENTER)
-                revalidate(); repaint()
-                return
-            }
-            content.removeAll()
-
-            val title = (ref as? ModelReference.ByBundleAndModelId)?.let {
-                "${it.bundleId} / ${it.modelId}"
-            } ?: descriptor.modelName
-
-            content.add(row("Model:", title))
-            val nc = descriptor.controls.numericControls.size
-            val sc = descriptor.controls.stringControls.size
-            val jc = descriptor.controls.jsonControls.size
-            content.add(row(
-                "Controls:",
-                "${nc + sc + jc} total · numeric: $nc · string: $sc · JSON: $jc"
-            ))
-            val rvCount = descriptor.rvParameterMap.size
-            val paramCount = descriptor.rvParameterMap.values.sumOf { it.size }
-            content.add(row(
-                "RV parameters:",
-                "$rvCount random variable${if (rvCount == 1) "" else "s"} · " +
-                    "$paramCount tunable parameter${if (paramCount == 1) "" else "s"}"
-            ))
-            content.add(row(
-                "Responses:",
-                "${descriptor.responseNames.size} response${if (descriptor.responseNames.size == 1) "" else "s"}"
-            ))
-            val rd = descriptor.experimentRunDefaults
-            content.add(row(
-                "Run defaults:",
-                "replications=${rd.numberOfReplications}, " +
-                    "length=${rd.lengthOfReplication}, " +
-                    "warmUp=${rd.lengthOfReplicationWarmUp}"
-            ))
-
-            add(content, BorderLayout.NORTH)
-            revalidate(); repaint()
-        }
-
-        private fun row(label: String, value: String): JPanel = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.X_AXIS)
-            alignmentX = Component.LEFT_ALIGNMENT
-            border = BorderFactory.createEmptyBorder(2, 0, 2, 0)
-            add(JLabel(label).apply {
-                font = font.deriveFont(Font.BOLD)
-                preferredSize = java.awt.Dimension(110, preferredSize.height)
-                maximumSize = java.awt.Dimension(110, preferredSize.height)
-            })
-            add(Box.createHorizontalStrut(8))
-            add(JLabel(value).apply { foreground = Color(0x33, 0x33, 0x33) })
-            add(Box.createHorizontalGlue())
-        }
     }
 
     companion object {
