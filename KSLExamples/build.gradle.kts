@@ -16,6 +16,8 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import java.time.Instant
+
 plugins {
     kotlin("jvm") version "2.2.0"
 }
@@ -92,6 +94,13 @@ tasks.register<Jar>("bookExamplesBundleJar") {
     archiveBaseName.set("book-examples")
     archiveVersion.set("")   // clean drop-in name: book-examples.jar
     dependsOn(tasks.named("classes"))
+
+    // Stamp the build time so newest-wins dedup can resolve same-(bundleId,
+    // version) duplicates in ~/.ksl/bundles/ to the most recently packaged
+    // copy.  The loader falls back to the JAR file's mtime when this is absent.
+    manifest {
+        attributes("Build-Time" to Instant.now().toString())
+    }
 
     // Only the two class packages that make up the bundle's closure.  The
     // include filter also excludes the full jar's 4-bundle META-INF/services.

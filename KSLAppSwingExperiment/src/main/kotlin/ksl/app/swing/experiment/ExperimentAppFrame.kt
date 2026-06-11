@@ -342,10 +342,11 @@ class ExperimentAppFrame(
         wireEventNotifications()
         wireDesignSummaryLabel()
 
-        // Surface (never silently shadow) duplicate bundle ids discovered in
-        // ~/.ksl/bundles or on the classpath, so the user can tell the copies
-        // apart and pick the source they want when selecting a model.
-        ksl.app.swing.common.bundle.emitBundleConflicts(notifications, controller.loadedBundles.value)
+        // Short, auto-dismissing FYI if newest-wins dedup collapsed redundant
+        // bundle copies at startup; details live in Bundles → Loaded Bundles.
+        javax.swing.SwingUtilities.invokeLater {
+            ksl.app.swing.common.bundle.emitDedupNotice(notifications, controller.ignoredCopies.value)
+        }
 
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {
@@ -415,7 +416,7 @@ class ExperimentAppFrame(
                 add(JMenuItem(object : AbstractAction("Loaded Bundles…") {
                     override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                         ksl.app.swing.common.bundle.LoadedBundlesDialog.show(
-                            this@ExperimentAppFrame, controller.loadedBundles.value
+                            this@ExperimentAppFrame, controller.loadedBundles.value, controller.ignoredCopies.value
                         )
                     }
                 }))

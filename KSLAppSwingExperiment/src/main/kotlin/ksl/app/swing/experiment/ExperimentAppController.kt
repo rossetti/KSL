@@ -46,6 +46,7 @@ import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.RunParameterOverridesSpec
 import ksl.app.editor.BundleLibraryController
+import ksl.app.editor.IgnoredBundleCopy
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.experiment.regression.RegressionFitRecord
@@ -248,6 +249,10 @@ class ExperimentAppController(
     )
 
     val loadedBundles: StateFlow<List<LoadedBundle>> = bundleLibrary.loadedBundles
+
+    /** Same-(bundleId, version) duplicate copies that newest-wins dedup
+     *  dropped from [loadedBundles]; surfaced passively in Loaded Bundles. */
+    val ignoredCopies: StateFlow<List<IgnoredBundleCopy>> = bundleLibrary.ignoredCopies
 
     val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 

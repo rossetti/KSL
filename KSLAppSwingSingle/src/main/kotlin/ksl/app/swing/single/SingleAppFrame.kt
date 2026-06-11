@@ -496,7 +496,7 @@ class SingleAppFrame(
                 add(JMenuItem(object : AbstractAction("Loaded Bundles…") {
                     override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                         ksl.app.swing.common.bundle.LoadedBundlesDialog.show(
-                            this@SingleAppFrame, lib.loadedBundles.value
+                            this@SingleAppFrame, lib.loadedBundles.value, lib.ignoredCopies.value
                         )
                     }
                 }))

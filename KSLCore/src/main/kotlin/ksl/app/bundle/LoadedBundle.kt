@@ -41,7 +41,15 @@ class LoadedBundle internal constructor(
     private val classLoader: ClassLoader,
     private val ownedResources: AutoCloseable?,
     private val jarSha256: String?,
-    private val cache: BundleDescriptorCache
+    private val cache: BundleDescriptorCache,
+    /**
+     *  When this bundle was built/packaged: the JAR manifest's `Build-Time`
+     *  attribute if present, else the JAR file's last-modified time; `null`
+     *  for classpath-loaded bundles.  Used to resolve same-`(bundleId, version)`
+     *  duplicates **newest-wins**, so a rebuilt-but-not-reversioned bundle's
+     *  most recent copy is the one that stays loaded.
+     */
+    val builtAt: java.time.Instant? = null
 ) : AutoCloseable {
 
     private val myJson = Json {

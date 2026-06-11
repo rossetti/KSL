@@ -18,15 +18,36 @@
 
 package ksl.app.editor
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
+import ksl.app.bundle.bundleSourceLabel
 import ksl.app.settings.UserSettingsStore
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
+
+private val logger = KotlinLogging.logger {}
+
+/**
+ *  Metadata for a bundle copy that newest-wins dedup dropped from the active
+ *  set — a same-`(bundleId, version)` duplicate of a copy that was built more
+ *  recently.  Kept only for passive disclosure (the Loaded Bundles dialog and
+ *  an INFO log line), so a user can see which copies were ignored and when each
+ *  was built, without the duplicates cluttering the pickers.
+ */
+data class IgnoredBundleCopy(
+    val bundleId: String,
+    val displayName: String,
+    val version: String,
+    /** JAR file name, or `"classpath"`. */
+    val source: String,
+    val builtAt: Instant?
+)
 
 /**
  *  Substrate-level bundle-library bookkeeping shared by every
@@ -108,13 +129,13 @@ class BundleLibraryController(
 
     private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
     /**
-     *  All bundles currently in scope — classpath-discovered +
-     *  every JAR successfully loaded via [loadJar].  Bundles are
-     *  removed only by a reload that replaces a whole JAR's prior
-     *  entries (keyed on [`sourceJar`][LoadedBundle.sourceJar], the
-     *  atomic classloader unit) or by [close].  A single bundle is
-     *  never removed in isolation, since [LoadedBundle]s from the same
-     *  JAR share a classloader.
+     *  All bundles currently in scope — discovered (classpath /
+     *  `~/.ksl/bundles/`) + every JAR successfully loaded via [loadJar],
+     *  **newest-wins-deduped** so each `(bundleId, version)` appears once: the
+     *  most recently built copy stays, the rest move to [ignoredCopies].  Apart
+     *  from that dedup, bundles are removed only by a reload that replaces a
+     *  whole JAR's prior entries (keyed on [`sourceJar`][LoadedBundle.sourceJar],
+     *  the atomic classloader unit) or by [close].
      */
     val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
 
@@ -125,6 +146,16 @@ class BundleLibraryController(
      *  empty; non-null and rebuilt on every successful add.
      */
     val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+
+    private val myIgnoredCopies = MutableStateFlow<List<IgnoredBundleCopy>>(emptyList())
+    /**
+     *  Same-`(bundleId, version)` duplicates that newest-wins dedup dropped from
+     *  [loadedBundles] (a copy built more recently won).  Surfaced passively —
+     *  the Loaded Bundles dialog lists these so a user can see redundant JARs
+     *  were collapsed and which one is active — never as a startup interruption.
+     *  Empty when no `(bundleId, version)` is loaded more than once.
+     */
+    val ignoredCopies: StateFlow<List<IgnoredBundleCopy>> = myIgnoredCopies.asStateFlow()
 
     /**
      *  Bundles displaced by a reload (a JAR re-loaded from a path whose
@@ -259,6 +290,7 @@ class BundleLibraryController(
         retired.clear()
         myLoadedBundles.value = emptyList()
         myBundleProvider.value = null
+        myIgnoredCopies.value = emptyList()
     }
 
     /**
@@ -278,9 +310,66 @@ class BundleLibraryController(
     }
 
     private fun commit(live: List<LoadedBundle>) {
-        myLoadedBundles.value = live
-        myBundleProvider.value = if (live.isEmpty()) null else BundleModelProvider(live)
+        val (kept, dropped) = dedupNewestWins(live)
+        if (dropped.isNotEmpty()) {
+            // Deferred close at shutdown (a model may already have been built
+            // from a now-dropped copy); see [retired].
+            retired += dropped
+            recordIgnored(kept, dropped)
+        }
+        myLoadedBundles.value = kept
+        myBundleProvider.value = if (kept.isEmpty()) null else BundleModelProvider(kept)
         onBundlesChanged()
+    }
+
+    /**
+     *  Split [live] into the bundles to keep and the duplicates to drop.  For
+     *  each `(bundleId, version)` the copy with the newest [`builtAt`][LoadedBundle.builtAt]
+     *  wins (a `null` build time sorts oldest; ties keep the first seen); every
+     *  other copy of that exact id+version is dropped.  *Different* versions of
+     *  the same `bundleId` are all kept — that is a meaningful choice the user
+     *  makes in the picker, not a redundant duplicate.
+     */
+    private fun dedupNewestWins(
+        live: List<LoadedBundle>
+    ): Pair<List<LoadedBundle>, List<LoadedBundle>> {
+        val winners = live.groupBy { it.bundle.bundleId to it.bundle.version }
+            .mapValues { (_, copies) -> copies.maxByOrNull { it.builtAt ?: Instant.MIN }!! }
+        val kept = mutableListOf<LoadedBundle>()
+        val dropped = mutableListOf<LoadedBundle>()
+        for (lb in live) {
+            if (winners[lb.bundle.bundleId to lb.bundle.version] === lb) kept += lb else dropped += lb
+        }
+        return kept to dropped
+    }
+
+    private fun recordIgnored(kept: List<LoadedBundle>, dropped: List<LoadedBundle>) {
+        val newRecords = dropped.map { lb ->
+            IgnoredBundleCopy(
+                bundleId = lb.bundle.bundleId,
+                displayName = lb.bundle.displayName,
+                version = lb.bundle.version,
+                source = bundleSourceLabel(lb),
+                builtAt = lb.builtAt
+            )
+        }
+        // Accumulate, de-duped by (bundleId, version, source), so re-committing
+        // an already-clean set never piles up entries.
+        myIgnoredCopies.value = (myIgnoredCopies.value + newRecords)
+            .distinctBy { Triple(it.bundleId, it.version, it.source) }
+        // One INFO line per collapsed group — passive, no UI interruption.
+        dropped.groupBy { it.bundle.bundleId to it.bundle.version }.forEach { (key, copies) ->
+            val (id, version) = key
+            val winner = kept.firstOrNull { it.bundle.bundleId == id && it.bundle.version == version }
+            val builtNote = winner?.builtAt?.let { " (built $it)" } ?: ""
+            val ignoredFrom = copies.joinToString(", ") { bundleSourceLabel(it) }
+            logger.info {
+                "Bundle '$id' v$version: using newest copy from " +
+                        "${winner?.let { bundleSourceLabel(it) } ?: "?"}$builtNote; " +
+                        "ignored ${copies.size} older " +
+                        "cop${if (copies.size == 1) "y" else "ies"}: $ignoredFrom"
+            }
+        }
     }
 
     /**

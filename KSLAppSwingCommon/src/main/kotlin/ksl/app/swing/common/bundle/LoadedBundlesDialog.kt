@@ -19,6 +19,7 @@
 package ksl.app.swing.common.bundle
 
 import ksl.app.bundle.LoadedBundle
+import ksl.app.editor.IgnoredBundleCopy
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Dimension
@@ -36,11 +37,12 @@ import javax.swing.WindowConstants
 
 /**
  *  Read-only modal listing of every loaded bundle and its models.
- *  Each bundle block shows: display name + bundle id, version, source
- *  (the JAR path, or "classpath" for a classpath-discovered bundle) and
- *  one indented row per model with `displayName`, `modelId`,
- *  `description`, and the `supportedApps` set.  The version + source
- *  disambiguate copies of the same bundle loaded from more than one JAR.
+ *  Each bundle block shows: display name + bundle id, version, build time,
+ *  source (the JAR path, or "classpath" for a classpath-discovered bundle)
+ *  and one indented row per model with `displayName`, `modelId`,
+ *  `description`, and the `supportedApps` set.  A trailing section lists any
+ *  ignored copies — same-(bundleId, version) duplicates that newest-wins
+ *  dedup collapsed — with their build times, so redundant JARs stay visible.
  *
  *  Shared by every bundle-driven app (Single / Scenario / Experiment /
  *  Simopt) so the *Bundles → Loaded Bundles…* menu item is identical
@@ -48,12 +50,16 @@ import javax.swing.WindowConstants
  */
 object LoadedBundlesDialog {
 
-    fun show(parent: Component, bundles: List<LoadedBundle>) {
+    fun show(
+        parent: Component,
+        bundles: List<LoadedBundle>,
+        ignoredCopies: List<IgnoredBundleCopy> = emptyList()
+    ) {
         val owner = SwingUtilities.getWindowAncestor(parent)
         val dlg = JDialog(owner, "Loaded Bundles", java.awt.Dialog.ModalityType.APPLICATION_MODAL)
         dlg.defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
         dlg.contentPane.layout = BorderLayout()
-        dlg.contentPane.add(buildBody(bundles), BorderLayout.CENTER)
+        dlg.contentPane.add(buildBody(bundles, ignoredCopies), BorderLayout.CENTER)
         dlg.contentPane.add(buildButtons(dlg), BorderLayout.SOUTH)
         dlg.pack()
         dlg.minimumSize = Dimension(480, 320)
@@ -61,11 +67,11 @@ object LoadedBundlesDialog {
         dlg.isVisible = true
     }
 
-    private fun buildBody(bundles: List<LoadedBundle>): JPanel {
+    private fun buildBody(bundles: List<LoadedBundle>, ignoredCopies: List<IgnoredBundleCopy>): JPanel {
         val text = JTextArea().apply {
             isEditable = false
             lineWrap = false
-            text = renderText(bundles)
+            text = renderText(bundles, ignoredCopies)
             caretPosition = 0
             font = font.deriveFont(font.size2D)
         }
@@ -91,13 +97,14 @@ object LoadedBundlesDialog {
             "$totalModels model${if (totalModels == 1) "" else "s"}"
     }
 
-    private fun renderText(bundles: List<LoadedBundle>): String {
+    private fun renderText(bundles: List<LoadedBundle>, ignoredCopies: List<IgnoredBundleCopy>): String {
         if (bundles.isEmpty()) return "No bundles loaded."
         return buildString {
             for ((i, lb) in bundles.withIndex()) {
                 if (i > 0) appendLine()
                 appendLine("Bundle: ${lb.bundle.displayName}  [${lb.bundle.bundleId}]")
                 appendLine("  Version: ${lb.bundle.version}")
+                appendLine("  Built:   ${lb.builtAt ?: "unknown"}")
                 appendLine("  Source: ${lb.sourceJar?.toString() ?: "classpath"}")
                 if (lb.bundle.models.isEmpty()) {
                     appendLine("  (no models declared)")
@@ -110,6 +117,14 @@ object LoadedBundlesDialog {
                         }
                         appendLine("        supports: ${m.supportedApps.joinToString(", ")}")
                     }
+                }
+            }
+            if (ignoredCopies.isNotEmpty()) {
+                appendLine()
+                appendLine("Ignored copies (same id + version, superseded by a newer build):")
+                for (ic in ignoredCopies) {
+                    appendLine("    • ${ic.displayName}  [${ic.bundleId}]  v${ic.version}")
+                    appendLine("        from ${ic.source}, built ${ic.builtAt ?: "unknown"}")
                 }
             }
         }

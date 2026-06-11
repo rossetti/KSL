@@ -297,6 +297,14 @@
         <appender-ref ref="KSL_APP" />
     </logger>
 
+    <!-- Bundle discovery/loading is INFO for apps.  The redundant-copy and
+         duplicate-modelId diagnostics are debug detail that would otherwise
+         spam the console of any app inheriting ksl.app=DEBUG (the Swing apps
+         ship no logback of their own).  Overrides the ksl.app parent above. -->
+    <logger name="ksl.app.bundle" level="INFO" additivity="false">
+        <appender-ref ref="KSL_APP" />
+    </logger>
+
     <logger name="ksl.utilities.io.dbutil.DatabaseIfc" level="INFO" additivity="false">
         <appender-ref ref="KSLDB" />
     </logger>

@@ -4,7 +4,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.util.ServiceLoader
+import java.util.jar.JarFile
 import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
@@ -54,6 +56,7 @@ object BundleLoader {
         require(jarPath.isRegularFile()) { "Not a regular file: $jarPath" }
         val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parent)
         val sha = BundleDescriptorCache.sha256OfFile(jarPath)
+        val builtAt = readBuiltAt(jarPath)
         val discovered = ServiceLoader.load(KSLModelBundle::class.java, classLoader).toList()
 
         if (discovered.isEmpty()) {
@@ -69,9 +72,28 @@ object BundleLoader {
                 classLoader = classLoader,
                 ownedResources = classLoader,
                 jarSha256 = sha,
-                cache = cache
+                cache = cache,
+                builtAt = builtAt
             )
         }
+    }
+
+    /**
+     *  Best-effort build timestamp for a bundle JAR: the manifest's
+     *  `Build-Time` attribute (written by the KSL bundle-packaging tasks) when
+     *  present and parseable, otherwise the JAR file's last-modified time.
+     *  `null` only if the file cannot be read at all.  Drives newest-wins
+     *  resolution of same-`(bundleId, version)` duplicates.
+     */
+    private fun readBuiltAt(jarPath: Path): Instant? {
+        runCatching {
+            JarFile(jarPath.toFile()).use { jar ->
+                jar.manifest?.mainAttributes?.getValue("Build-Time")
+            }
+        }.getOrNull()?.let { stamp ->
+            runCatching { Instant.parse(stamp) }.getOrNull()?.let { return it }
+        }
+        return runCatching { Files.getLastModifiedTime(jarPath).toInstant() }.getOrNull()
     }
 
     /**
