@@ -18,7 +18,16 @@
 
 package ksl.app.swing.single
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import ksl.app.bundle.LoadedBundle
+import ksl.app.config.ModelReference
 import ksl.app.editor.BundleLibraryController
+import ksl.app.swing.common.bundle.BundleModelPickerPanel
+import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -33,46 +42,38 @@ import javax.swing.JDialog
 import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.JScrollPane
-import javax.swing.JTable
-import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
+import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 import javax.swing.filechooser.FileNameExtensionFilter
-import javax.swing.table.AbstractTableModel
 
 /**
- *  Modal bundle-model picker shown by [KSLSingleApp.launch] when the
- *  developer omits `modelBuilder(...)` from the `kslSingleApp { … }`
- *  DSL.  Drives the controller's bundle-mode launch path.
+ *  Modal bundle-model picker shown by [KSLSingleApp.launch] when the developer
+ *  omits `modelBuilder(...)` from the `kslSingleApp { … }` DSL.  Drives the
+ *  controller's bundle-mode launch path.
  *
- *  The dialog presents every `(bundleId, modelId)` pair across every
- *  loaded bundle in a single flat table.  The user can:
+ *  Presents the shared [BundleModelPickerPanel] — the same bundle → model
+ *  two-step + model-info table the Experiment / Simopt / Scenario apps use — so
+ *  picking a model looks and feels identical across the apps.  The user can:
  *
- *  - Pick a row and click **Pick** to confirm — returns
- *    [Result.Selected].
+ *  - Pick a bundle then a model and click **Pick** — returns [Result.Selected].
  *  - Click **Load JAR…** to extend [BundleLibraryController] with a
- *    user-supplied JAR; the table refreshes on a successful add.
+ *    user-supplied JAR; the picker refreshes automatically.
  *  - Click **Cancel** (or close the window) — returns [Result.Cancelled].
  *    The caller is responsible for exiting the JVM in that case.
  *
- *  Because the dialog runs before [SingleAppController] exists, it
- *  has no parent window.  It centers itself on the screen and uses
- *  the application's installed Look-and-Feel (see
- *  [ksl.app.swing.common.appearance.LookAndFeel.install]).
- *
- *  Threading: must be constructed and shown on the Swing EDT.
- *  [show] blocks the EDT until the user dismisses the dialog
- *  (standard modal semantics).
+ *  Because the dialog runs before [SingleAppController] exists, it has no parent
+ *  window.  Threading: construct and show on the Swing EDT; [show] blocks the
+ *  EDT until the user dismisses the dialog (standard modal semantics).
  */
 object BundleModelPickerDialog {
 
     /**
      *  Outcome of the picker.
      *
-     *  - [Selected] — the user picked a `(bundleId, modelId)` pair.
-     *    The caller resolves the matching [ksl.simulation.ModelBuilderIfc]
-     *    via `bundleLibrary.bundleProvider.value!!.builderFor(bundleId, modelId)`.
+     *  - [Selected] — the user picked a `(bundleId, modelId)` pair.  The caller
+     *    resolves the matching `ksl.simulation.ModelBuilderIfc` via
+     *    `bundleLibrary.bundleProvider.value!!.builderFor(bundleId, modelId)`.
      *  - [Cancelled] — the user dismissed the dialog without picking.
      */
     sealed class Result {
@@ -81,14 +82,13 @@ object BundleModelPickerDialog {
     }
 
     /**
-     *  Present the picker modally.  Returns the user's choice.
-     *  Must be called on the Swing EDT.
+     *  Present the picker modally.  Returns the user's choice.  Must be called
+     *  on the Swing EDT.
      *
-     *  @param bundleLibrary the (already classpath-probed) library
-     *  the picker reads its rows from.  The dialog calls
-     *  [BundleLibraryController.loadJar] on the user's behalf when
-     *  they click *Load JAR…*; passing the same library instance to
-     *  the eventual [SingleAppController] preserves any JARs loaded
+     *  @param bundleLibrary the (already discovery-probed) library the picker
+     *  reads from.  The dialog calls [BundleLibraryController.loadJar] on the
+     *  user's behalf when they click *Load JAR…*; passing the same library
+     *  instance to the eventual [SingleAppController] preserves any JARs loaded
      *  during picker interaction.
      *  @param dialogTitle the modal's title.  Defaults to "Pick a Model".
      */
@@ -104,27 +104,36 @@ object BundleModelPickerDialog {
 
 /**
  *  The actual `JDialog` — non-public so callers go through
- *  [BundleModelPickerDialog.show].  Lives outside the object so its
- *  state-bearing fields can be `private` without leaking through the
- *  object API.
+ *  [BundleModelPickerDialog.show].
  */
 private class PickerDialog(
-    private val bundleLibrary: ksl.app.editor.BundleLibraryController,
+    private val bundleLibrary: BundleLibraryController,
     title: String
 ) : JDialog(null as java.awt.Frame?, title, /* modal = */ true) {
 
-    /** Captured choice; read by [BundleModelPickerDialog.show] after the
-     *  dialog is dismissed.  Initialized to Cancelled so a window-close
-     *  via the [X] button is treated as Cancel. */
+    /** Captured choice; read by [BundleModelPickerDialog.show] after the dialog
+     *  is dismissed.  Initialized to Cancelled so a window-close via the [X]
+     *  button is treated as Cancel. */
     var result: BundleModelPickerDialog.Result = BundleModelPickerDialog.Result.Cancelled
         private set
 
-    private val tableModel = BundleTableModel(buildRows())
-    private val table = JTable(tableModel).apply {
-        selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
-        autoCreateRowSorter = true
-        rowHeight = (rowHeight * 1.2).toInt()
-    }
+    /** Dialog-lifetime scope for the picker's flow collectors, the loaded-bundle
+     *  watcher, and off-EDT descriptor resolution; cancelled on close.  The
+     *  default dispatcher is fine — the picker re-dispatches its own UI work to
+     *  the EDT, and the descriptor build wants to be off the EDT. */
+    private val scope = CoroutineScope(SupervisorJob())
+
+    private val referenceFlow =
+        MutableStateFlow<ModelReference?>(firstModelRef(bundleLibrary.loadedBundles.value))
+    private val descriptorFlow = MutableStateFlow<ModelDescriptor?>(null)
+
+    private val picker = BundleModelPickerPanel(
+        loadedBundles = bundleLibrary.loadedBundles,
+        currentReference = referenceFlow,
+        currentDescriptor = descriptorFlow,
+        scope = scope,
+        onSelect = ::onModelSelected
+    )
 
     private val pickButton = JButton(object : AbstractAction("Pick") {
         override fun actionPerformed(e: java.awt.event.ActionEvent?) = onPick()
@@ -138,7 +147,7 @@ private class PickerDialog(
         override fun actionPerformed(e: java.awt.event.ActionEvent?) = onCancel()
     })
 
-    /** Banner area for empty-state guidance + Load JAR error messages. */
+    /** Banner area for empty-state guidance + Load JAR result messages. */
     private val banner = JLabel(" ").apply {
         border = BorderFactory.createEmptyBorder(8, 12, 0, 12)
         horizontalAlignment = SwingConstants.LEFT
@@ -147,66 +156,118 @@ private class PickerDialog(
     init {
         defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
         addWindowListener(object : WindowAdapter() {
-            override fun windowClosing(e: WindowEvent?) {
-                // [X] button is equivalent to Cancel.
-                onCancel()
-            }
+            override fun windowClosing(e: WindowEvent?) = onCancel()  // [X] == Cancel
         })
 
-        // Selection listener drives Pick-button enablement.
-        table.selectionModel.addListSelectionListener {
-            if (!it.valueIsAdjusting) {
-                pickButton.isEnabled = table.selectedRow >= 0
+        contentPane.layout = BorderLayout()
+        contentPane.add(banner, BorderLayout.NORTH)
+        contentPane.add(JPanel(BorderLayout()).apply {
+            border = BorderFactory.createEmptyBorder(8, 12, 8, 12)
+            add(picker, BorderLayout.CENTER)
+        }, BorderLayout.CENTER)
+        contentPane.add(buildButtonRow(), BorderLayout.SOUTH)
+        rootPane.defaultButton = pickButton
+
+        // Prime the model-info + Pick state for the initial selection (the
+        // picker's programmatic sync to the seed doesn't fire onSelect).
+        (referenceFlow.value as? ModelReference.ByBundleAndModelId)?.let {
+            onModelSelected(it.bundleId, it.modelId)
+        }
+
+        // React to bundles loaded via Load JAR…: default to a model when one
+        // appears, drive Pick enablement, and refresh the empty-state banner.
+        scope.launch {
+            bundleLibrary.loadedBundles.collect { bundles ->
+                SwingUtilities.invokeLater { onBundlesChanged(bundles) }
             }
         }
 
-        // Layout
-        contentPane.layout = BorderLayout()
-        contentPane.add(banner, BorderLayout.NORTH)
-        contentPane.add(JScrollPane(table).apply {
-            border = BorderFactory.createEmptyBorder(8, 12, 8, 12)
-            preferredSize = Dimension(700, 280)
-        }, BorderLayout.CENTER)
-        contentPane.add(buildButtonRow(), BorderLayout.SOUTH)
-
-        refreshBannerForEmptyState()
-
         pack()
+        size = Dimension(640, 460)
         setLocationRelativeTo(null)
     }
 
     private fun buildButtonRow(): JPanel = JPanel(BorderLayout()).apply {
         border = BorderFactory.createEmptyBorder(0, 12, 12, 12)
-        val left = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
-            add(loadJarButton)
-        }
-        val right = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+        add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply { add(loadJarButton) }, BorderLayout.WEST)
+        add(JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             add(cancelButton)
             add(pickButton)
-        }
-        add(left, BorderLayout.WEST)
-        add(right, BorderLayout.EAST)
+        }, BorderLayout.EAST)
     }
 
-    private fun buildRows(): List<BundleRow> =
-        bundleLibrary.loadedBundles.value.flatMap { lb ->
-            val source = ksl.app.bundle.bundleSourceLabel(lb)
-            lb.bundle.models.map { m ->
-                BundleRow(
-                    bundleId = lb.bundle.bundleId,
-                    modelId = m.modelId,
-                    displayName = m.displayName,
-                    description = m.description,
-                    source = source
-                )
-            }
-        }
+    /** First model of the first loaded bundle, or `null` when none are loaded. */
+    private fun firstModelRef(bundles: List<LoadedBundle>): ModelReference.ByBundleAndModelId? {
+        val bundle = bundles.firstOrNull() ?: return null
+        val model = bundle.bundle.models.firstOrNull() ?: return null
+        return ModelReference.ByBundleAndModelId(bundle.bundle.bundleId, model.modelId)
+    }
 
-    private fun refreshBannerForEmptyState() {
-        if (tableModel.rowCount == 0) {
+    private fun onBundlesChanged(bundles: List<LoadedBundle>) {
+        // First bundle just arrived (e.g. via Load JAR…) with nothing selected:
+        // default to its first model so the user can Pick immediately.
+        if (referenceFlow.value == null) {
+            firstModelRef(bundles)?.let { onModelSelected(it.bundleId, it.modelId) }
+        }
+        pickButton.isEnabled = bundles.isNotEmpty()
+        refreshBannerForEmptyState(bundles)
+    }
+
+    /** A model was picked (by the user or a default): track it, enable Pick,
+     *  and resolve the model-info descriptor off the EDT. */
+    private fun onModelSelected(bundleId: String, modelId: String) {
+        referenceFlow.value = ModelReference.ByBundleAndModelId(bundleId, modelId)
+        pickButton.isEnabled = true
+        descriptorFlow.value = null
+        scope.launch {
+            descriptorFlow.value =
+                runCatching { bundleLibrary.findBundle(bundleId)?.descriptorFor(modelId) }.getOrNull()
+        }
+    }
+
+    private fun onPick() {
+        val selection = picker.selectedModel() ?: return
+        result = BundleModelPickerDialog.Result.Selected(selection.first, selection.second)
+        scope.cancel()
+        dispose()
+    }
+
+    private fun onCancel() {
+        result = BundleModelPickerDialog.Result.Cancelled
+        scope.cancel()
+        dispose()
+    }
+
+    private fun onLoadJar() {
+        val chooser = JFileChooser().apply {
+            dialogTitle = "Load Bundle JAR"
+            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val path: Path = chooser.selectedFile?.toPath() ?: return
+        // loadedBundles changes propagate to the picker and onBundlesChanged
+        // automatically; here we just surface the outcome message.
+        when (val outcome = bundleLibrary.loadJar(path)) {
+            is BundleLibraryController.LoadBundleResult.Loaded ->
+                showBannerInfo("Loaded ${outcome.newBundleIds.size} bundle(s): " +
+                    outcome.newBundleIds.joinToString(", "))
+            is BundleLibraryController.LoadBundleResult.Reloaded ->
+                showBannerInfo("Reloaded from disk: " + outcome.bundleIds.joinToString(", "))
+            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
+                showBannerInfo("Already loaded (no change): " + outcome.bundleIds.joinToString(", "))
+            BundleLibraryController.LoadBundleResult.NoBundles ->
+                showBannerError("$path declares no KSLModelBundle service.")
+            is BundleLibraryController.LoadBundleResult.Failed ->
+                showBannerError("Could not load $path: ${outcome.reason}")
+        }
+    }
+
+    private fun refreshBannerForEmptyState(bundles: List<LoadedBundle>) {
+        if (bundles.isEmpty()) {
             banner.foreground = Color(0x6B, 0x6B, 0x6B)
-            banner.text = "No bundles on the classpath.  Click Load JAR… to load one."
-        } else {
+            banner.text = "No bundles loaded.  Click Load JAR… to load one, " +
+                "or drop a bundle JAR into ~/.ksl/bundles/."
+        } else if (banner.text.isBlank()) {
             banner.text = " "
         }
     }
@@ -220,93 +281,4 @@ private class PickerDialog(
         banner.foreground = Color(0x6B, 0x6B, 0x6B)
         banner.text = message
     }
-
-    private fun onPick() {
-        val selectedView = table.selectedRow
-        if (selectedView < 0) return
-        // Convert view row index to model row index in case the user
-        // has sorted the table.
-        val selectedModelRow = table.convertRowIndexToModel(selectedView)
-        val row = tableModel.rowAt(selectedModelRow)
-        result = BundleModelPickerDialog.Result.Selected(row.bundleId, row.modelId)
-        dispose()
-    }
-
-    private fun onCancel() {
-        result = BundleModelPickerDialog.Result.Cancelled
-        dispose()
-    }
-
-    private fun onLoadJar() {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Load Bundle JAR"
-            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val path: Path = chooser.selectedFile?.toPath() ?: return
-        when (val outcome = bundleLibrary.loadJar(path)) {
-            is BundleLibraryController.LoadBundleResult.Loaded -> {
-                tableModel.replaceRows(buildRows())
-                refreshBannerForEmptyState()
-                if (banner.text == " " || tableModel.rowCount > 0) {
-                    showBannerInfo(
-                        "Loaded ${outcome.newBundleIds.size} bundle(s): " +
-                            outcome.newBundleIds.joinToString(", ")
-                    )
-                }
-            }
-            is BundleLibraryController.LoadBundleResult.Reloaded -> {
-                tableModel.replaceRows(buildRows())
-                refreshBannerForEmptyState()
-                showBannerInfo("Reloaded from disk: " + outcome.bundleIds.joinToString(", "))
-            }
-            is BundleLibraryController.LoadBundleResult.AlreadyLoaded -> {
-                showBannerInfo("Already loaded (no change): " + outcome.bundleIds.joinToString(", "))
-            }
-            BundleLibraryController.LoadBundleResult.NoBundles -> {
-                showBannerError("$path declares no KSLModelBundle service.")
-            }
-            is BundleLibraryController.LoadBundleResult.Failed -> {
-                showBannerError("Could not load $path: ${outcome.reason}")
-            }
-        }
-    }
-
-    /** One row in the picker — one (bundle, model) pair. */
-    private data class BundleRow(
-        val bundleId: String,
-        val modelId: String,
-        val displayName: String,
-        val description: String,
-        val source: String
-    )
-
-    /** Editable-by-replacement table model.  Rows are not user-editable
-     *  in-place; [replaceRows] is the only mutator. */
-    private class BundleTableModel(initial: List<BundleRow>) : AbstractTableModel() {
-
-        private val columns = arrayOf("Bundle", "Model ID", "Display Name", "Source")
-        private var rows: List<BundleRow> = initial
-
-        override fun getRowCount(): Int = rows.size
-        override fun getColumnCount(): Int = columns.size
-        override fun getColumnName(column: Int): String = columns[column]
-        override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean = false
-
-        override fun getValueAt(rowIndex: Int, columnIndex: Int): Any = when (columnIndex) {
-            0 -> rows[rowIndex].bundleId
-            1 -> rows[rowIndex].modelId
-            2 -> rows[rowIndex].displayName
-            3 -> rows[rowIndex].source
-            else -> ""
-        }
-
-        fun rowAt(rowIndex: Int): BundleRow = rows[rowIndex]
-
-        fun replaceRows(newRows: List<BundleRow>) {
-            rows = newRows
-            fireTableDataChanged()
-        }
-    }
 }
-
