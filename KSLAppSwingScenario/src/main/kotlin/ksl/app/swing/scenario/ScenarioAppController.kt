@@ -55,7 +55,7 @@ import ksl.app.settings.UserSettingsStore
 import java.nio.file.Path
 
 /**
- *  Document state-holder for one `kslScenarioApp(...)` instance.
+ *  Document state-holder for one Scenario app instance.
  *
  *  Owns the in-memory [RunConfiguration] that represents the
  *  scenarios document the analyst is editing: its list of

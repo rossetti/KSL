@@ -58,7 +58,7 @@ import javax.swing.WindowConstants
 import javax.swing.filechooser.FileNameExtensionFilter
 
 /**
- * Default top-level frame for a `kslScenarioApp(...)` instance.
+ * Default top-level frame for the Scenario app.
  *
  * **Phase D scope.**  File menu (New / Open / Save / Save As /
  * Set Working Directory / Recent / Exit), notifications overlay,

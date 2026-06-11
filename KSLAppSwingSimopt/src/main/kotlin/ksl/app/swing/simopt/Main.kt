@@ -18,21 +18,11 @@
 
 package ksl.app.swing.simopt
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
-
-private const val APP_NAME = "KSL Simopt"
+import ksl.app.swing.common.app.launchKslSwingApp
 
 /** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+fun main() = launchKslSwingApp(
+    appName = "KSL Simopt",
+    controller = { SimoptAppController(it) },
+    frame = { SimoptAppFrame(it) },
+)

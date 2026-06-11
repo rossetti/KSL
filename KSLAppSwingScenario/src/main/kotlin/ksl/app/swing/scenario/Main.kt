@@ -16,22 +16,13 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.scenario.example
+package ksl.app.swing.scenario
 
-import ksl.app.swing.scenario.kslScenarioApp
+import ksl.app.swing.common.app.launchKslSwingApp
 
-/**
- * Minimal runnable example of `kslScenarioApp(...)`.  Run from
- * IntelliJ via right-click `main` → Run, or from Gradle via
- * `./gradlew :KSLAppSwingScenario:run`.
- *
- * Phase A only opens the placeholder frame — no scenarios document,
- * no file menu, no editor.  This file exists so the module's
- * `application` plugin has a `mainClass` to target end-to-end.
- *
- * Once Phases C–I land, this entry point will host a scenarios
- * document the analyst can populate from any bundled model on the
- * JVM classpath (e.g. `MM1Bundle`, `LKInventoryBundle` from
- * `KSLExamples`).
- */
-fun main() = kslScenarioApp(appName = "KSL Scenario Analyzer")
+/** Entry point for the multi-scenario reference Swing application. */
+fun main() = launchKslSwingApp(
+    appName = "KSL Scenario Analyzer",
+    controller = { ScenarioAppController(it) },
+    frame = { ScenarioAppFrame(it) },
+)

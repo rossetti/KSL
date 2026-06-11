@@ -18,20 +18,11 @@
 
 package ksl.app.swing.experiment
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.common.app.launchKslSwingApp
 
 /** Entry point for the designed-experiment reference Swing application. */
-fun main() {
-    val appName = "KSL Experiment"
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = appName)
-    SwingUtilities.invokeLater {
-        val controller = ExperimentAppController(appName)
-        ExperimentAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+fun main() = launchKslSwingApp(
+    appName = "KSL Experiment",
+    controller = { ExperimentAppController(it) },
+    frame = { ExperimentAppFrame(it) },
+)
