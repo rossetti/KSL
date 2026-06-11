@@ -305,6 +305,11 @@ class ScenarioAppFrame(
         wireRunIndicators()
         wireStaleResultsBanner()
 
+        // Surface (never silently shadow) duplicate bundle ids discovered in
+        // ~/.ksl/bundles or on the classpath, so the user can tell the copies
+        // apart and pick the source they want when selecting a model.
+        ksl.app.swing.common.bundle.emitBundleConflicts(notifications, controller.loadedBundles.value)
+
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {
                 controller.close()

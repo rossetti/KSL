@@ -173,6 +173,11 @@ class SimoptAppFrame(
         wireDirtyMarkerInTitle()
         wireMismatchAckReset()
 
+        // Surface (never silently shadow) duplicate bundle ids discovered in
+        // ~/.ksl/bundles or on the classpath, so the user can tell the copies
+        // apart and pick the source they want when selecting a model.
+        ksl.app.swing.common.bundle.emitBundleConflicts(notifications, controller.loadedBundles.value)
+
         // Window-close → close the controller (cancels coroutine scope).
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {

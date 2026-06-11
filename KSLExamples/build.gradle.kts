@@ -68,3 +68,37 @@ tasks.register<JavaExec>("enrichExampleBundle") {
         args = listOf("enrich", inputJar, "--force")
     }
 }
+
+// Produces the slim, distributable "KSL Book Examples" bundle JAR meant to be
+// dropped into ~/.ksl/bundles/ (or loaded via Bundles -> Load JAR...).  It
+// carries ONLY:
+//   - the curated book models + their copied framework
+//     (package ksl.examples.general.bookbundle), and
+//   - the reused two-echelon inventory closure
+//     (package ksl.examples.general.models.inventory, which BookExamplesBundle's
+//      Two-Echelon entry delegates to via BuildTwoEchelonModel).
+// plus a BOOK-ONLY META-INF/services registration, so loading it surfaces only
+// the 16 book models — not the three dogfood bundles (MM1 / LKInventory /
+// SimoptTestModels) that the full KSLExamples jar also registers.
+//
+// It deliberately does NOT bundle KSLCore: a bundle JAR is loaded under the
+// host app's classloader, which already provides KSLCore.
+//
+//     ./gradlew :KSLExamples:bookExamplesBundleJar
+//     -> KSLExamples/build/libs/book-examples.jar
+tasks.register<Jar>("bookExamplesBundleJar") {
+    group = "ksl bundle"
+    description = "Slim KSL Book Examples bundle JAR for ~/.ksl/bundles/."
+    archiveBaseName.set("book-examples")
+    archiveVersion.set("")   // clean drop-in name: book-examples.jar
+    dependsOn(tasks.named("classes"))
+
+    // Only the two class packages that make up the bundle's closure.  The
+    // include filter also excludes the full jar's 4-bundle META-INF/services.
+    from(sourceSets["main"].output) {
+        include("ksl/examples/general/bookbundle/**")
+        include("ksl/examples/general/models/inventory/**")
+    }
+    // Book-only ServiceLoader registration (single bundle).
+    from("bundle-meta/book-examples")
+}
