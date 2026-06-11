@@ -11,7 +11,4 @@ include(":KSLAppSwingDistribution")
 include(":KSLAppSwingResults")
 include(":KSLBundleTools")
 include(":KSLTesting")
-
-//project(":KSLCore").projectDir = file("../KSLCore")
-//project(":KSLExamples").projectDir = file("../KSLExamples")
-//project(":KSLExtensions").projectDir = file("../KSLExtensions")
+include(":KSLProjectTemplate")
