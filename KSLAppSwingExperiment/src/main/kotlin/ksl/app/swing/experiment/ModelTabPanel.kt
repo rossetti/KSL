@@ -83,20 +83,46 @@ class ModelTabPanel(
     private val pickerCard = JPanel(BorderLayout())
     private val unresolvedCard = JPanel(BorderLayout())
 
-    /** One row in the model dropdown.  `toString()` is what the
-     *  combo renders to the user. */
+    /** One row in the bundle dropdown.  Carries version + source so copies
+     *  of the same `bundleId` loaded from different JARs render as distinct,
+     *  pickable rows. */
+    private data class BundleChoice(
+        val bundleId: String,
+        val bundleDisplayName: String,
+        val version: String,
+        val sourceLabel: String
+    ) {
+        override fun toString(): String =
+            ksl.app.swing.common.bundle.bundlePickerLabel(
+                bundleDisplayName.ifBlank { bundleId }, version, sourceLabel
+            )
+    }
+
+    /** One row in the model dropdown, scoped to the selected bundle.
+     *  `toString()` is what the combo renders to the user. */
     private data class ModelChoice(
         val bundleId: String,
         val modelId: String,
-        val displayName: String,
-        val bundleDisplayName: String
+        val displayName: String
     ) {
         override fun toString(): String =
-            if (bundleDisplayName.isBlank()) "$displayName ($bundleId/$modelId)"
-            else "$displayName · $bundleDisplayName"
+            if (displayName.isBlank() || displayName.equals(modelId, ignoreCase = true)) modelId
+            else "$displayName ($modelId)"
     }
 
+    private val bundleCombo: JComboBox<BundleChoice> = JComboBox()
     private val modelCombo: JComboBox<ModelChoice> = JComboBox()
+
+    /** Bundle row (label + combo) in the picker; hidden when ≤ 1 bundle
+     *  is loaded so a single-bundle setup shows only the model picker. */
+    private val bundleRow: JPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.X_AXIS)
+        add(JLabel("Bundle: ").apply { font = font.deriveFont(Font.BOLD) })
+        add(Box.createHorizontalStrut(8))
+        add(bundleCombo)
+        add(Box.createHorizontalGlue())
+    }
+
     private val summaryArea = SummaryPanel()
     private val unresolvedLabel: JLabel = JLabel().apply {
         horizontalAlignment = SwingConstants.CENTER
@@ -172,14 +198,28 @@ class ModelTabPanel(
         // SOUTH from init {}.
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
 
-        val pickerRow = JPanel().apply {
+        val modelRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             add(JLabel("Model: ").apply { font = font.deriveFont(Font.BOLD) })
             add(Box.createHorizontalStrut(8))
             add(modelCombo)
             add(Box.createHorizontalGlue())
         }
-        add(pickerRow, BorderLayout.NORTH)
+        // Two-step picker: a Bundle row (hidden when only one bundle is
+        // loaded) above the Model row, so models stay scoped to their bundle
+        // and copies of the same bundle from different JARs are individually
+        // pickable.
+        val pickerRows = JPanel(java.awt.GridBagLayout()).apply {
+            val gbc = java.awt.GridBagConstraints().apply {
+                gridx = 0; weightx = 1.0
+                fill = java.awt.GridBagConstraints.HORIZONTAL
+                anchor = java.awt.GridBagConstraints.NORTHWEST
+                insets = java.awt.Insets(0, 0, 6, 0)
+            }
+            gbc.gridy = 0; add(bundleRow, gbc)
+            gbc.gridy = 1; add(modelRow, gbc)
+        }
+        add(pickerRows, BorderLayout.NORTH)
 
         // Summary area takes the remaining vertical space.  Wrap in
         // a scroll pane in case the model has a lot of controls /
@@ -408,22 +448,30 @@ class ModelTabPanel(
     // ── Wiring ─────────────────────────────────────────────────────────────
 
     private fun wireDropdownListener() {
+        bundleCombo.addActionListener {
+            if (programmaticComboUpdate) return@addActionListener
+            rebuildModelDropdownForSelectedBundle()
+            // Picking a new bundle auto-selects its first model; commit it.
+            (modelCombo.selectedItem as? ModelChoice)?.let { handleUserModelSelection(it) }
+        }
         modelCombo.addActionListener {
             if (programmaticComboUpdate) return@addActionListener
-            val choice = modelCombo.selectedItem as? ModelChoice ?: return@addActionListener
-            val newRef = ModelReference.ByBundleAndModelId(
-                bundleId = choice.bundleId,
-                modelId = choice.modelId
-            )
-            val currentRef = controller.modelReference.value
-            // Switching to a different model: prompt the user.
-            // Same-model "switch" (re-selecting from the dropdown) is
-            // a no-op and skips the prompt.
-            if (currentRef != null && currentRef != newRef && controller.factors.value.isNotEmpty()) {
-                handleModelSwitchPrompt(newRef)
-            } else {
-                controller.setModelReference(newRef)
-            }
+            (modelCombo.selectedItem as? ModelChoice)?.let { handleUserModelSelection(it) }
+        }
+    }
+
+    private fun handleUserModelSelection(choice: ModelChoice) {
+        val newRef = ModelReference.ByBundleAndModelId(
+            bundleId = choice.bundleId,
+            modelId = choice.modelId
+        )
+        val currentRef = controller.modelReference.value
+        // Switching to a different model: prompt the user.  Same-model
+        // re-selection is a no-op and skips the prompt.
+        if (currentRef != null && currentRef != newRef && controller.factors.value.isNotEmpty()) {
+            handleModelSwitchPrompt(newRef)
+        } else {
+            controller.setModelReference(newRef)
         }
     }
 
@@ -459,33 +507,21 @@ class ModelTabPanel(
             0 -> controller.setModelReferenceAndClear(newRef)
             1 -> controller.setModelReference(newRef)
             else -> {
-                // Cancel — revert the dropdown to the previous model.
-                // The collector that watches modelReference will
-                // re-select the prior choice on the next tick; do
-                // nothing here.
-                programmaticComboUpdate = true
-                try {
-                    val priorRef = controller.modelReference.value as? ModelReference.ByBundleAndModelId
-                    val priorChoice = (0 until modelCombo.itemCount)
-                        .map { modelCombo.getItemAt(it) }
-                        .firstOrNull {
-                            it != null &&
-                                it.bundleId == priorRef?.bundleId &&
-                                it.modelId == priorRef.modelId
-                        }
-                    modelCombo.selectedItem = priorChoice
-                } finally { programmaticComboUpdate = false }
+                // Cancel — revert both dropdowns to the unchanged controller
+                // reference.  syncDropdownsToController re-selects the prior
+                // bundle and model (so a reverted bundle change is undone too).
+                syncDropdownsToController()
             }
         }
     }
 
     private fun wireCollectors() {
         controller.edtScope.launch {
-            controller.loadedBundles.collect { _ -> rebuildDropdown() }
+            controller.loadedBundles.collect { _ -> rebuildBundleDropdown() }
         }
         controller.edtScope.launch {
             controller.modelReference.collect { _ ->
-                syncDropdownSelection()
+                syncDropdownsToController()
                 refreshCardSelection()
             }
         }
@@ -499,33 +535,90 @@ class ModelTabPanel(
 
     // ── State synchronisation ──────────────────────────────────────────────
 
-    private fun rebuildDropdown() {
-        val choices = controller.loadedBundles.value
-            .flatMap { lb -> lb.bundle.models.map { m -> choiceFor(lb, m.modelId) } }
-            .filterNotNull()
+    private fun rebuildBundleDropdown() {
+        val bundles = controller.loadedBundles.value
+        val choices = bundles.map { lb ->
+            BundleChoice(
+                bundleId = lb.bundle.bundleId,
+                bundleDisplayName = lb.bundle.displayName,
+                version = lb.bundle.version,
+                sourceLabel = ksl.app.bundle.bundleSourceLabel(lb)
+            )
+        }
         programmaticComboUpdate = true
         try {
-            modelCombo.model = DefaultComboBoxModel(choices.toTypedArray())
+            bundleCombo.model = DefaultComboBoxModel(choices.toTypedArray())
+            // A bundle picker only earns its space when > 1 is loaded.
+            bundleRow.isVisible = choices.size > 1
         } finally {
             programmaticComboUpdate = false
         }
-        syncDropdownSelection()
+        rebuildModelDropdownForSelectedBundle()
+        syncDropdownsToController()
         refreshCardSelection()
     }
 
-    private fun syncDropdownSelection() {
+    private fun rebuildModelDropdownForSelectedBundle() {
+        val bundles = controller.loadedBundles.value
+        val selected = bundleCombo.selectedItem as? BundleChoice
+        val targetBundle: LoadedBundle? = when {
+            selected != null ->
+                // Match the specific source so the model list follows the
+                // exact bundle copy the user picked, not just the bundleId.
+                bundles.firstOrNull {
+                    it.bundle.bundleId == selected.bundleId &&
+                        ksl.app.bundle.bundleSourceLabel(it) == selected.sourceLabel
+                }
+            bundles.size == 1 -> bundles.first()
+            else -> null
+        }
+        val modelChoices = targetBundle?.bundle?.models?.map { m ->
+            ModelChoice(
+                bundleId = targetBundle.bundle.bundleId,
+                modelId = m.modelId,
+                displayName = m.displayName
+            )
+        }.orEmpty()
+        programmaticComboUpdate = true
+        try {
+            modelCombo.model = DefaultComboBoxModel(modelChoices.toTypedArray())
+        } finally {
+            programmaticComboUpdate = false
+        }
+    }
+
+    private fun syncDropdownsToController() {
         val ref = controller.modelReference.value as? ModelReference.ByBundleAndModelId
             ?: return run {
                 programmaticComboUpdate = true
                 try { modelCombo.selectedItem = null } finally { programmaticComboUpdate = false }
             }
-        val target = (0 until modelCombo.itemCount)
+        // Bundle selection.  The reference isn't source-aware (Part 3 defers
+        // that), so if the current selection already matches the referenced
+        // bundleId keep the user's chosen source rather than snapping to the
+        // first same-id entry.
+        val currentBundle = bundleCombo.selectedItem as? BundleChoice
+        val targetBundle = (0 until bundleCombo.itemCount)
+            .map { bundleCombo.getItemAt(it) }
+            .firstOrNull { it.bundleId == ref.bundleId }
+        if (targetBundle != null &&
+            currentBundle?.bundleId != ref.bundleId &&
+            bundleCombo.selectedItem != targetBundle
+        ) {
+            programmaticComboUpdate = true
+            try {
+                bundleCombo.selectedItem = targetBundle
+                rebuildModelDropdownForSelectedBundle()
+            } finally { programmaticComboUpdate = false }
+        }
+        // Model selection.
+        val targetModel = (0 until modelCombo.itemCount)
             .map { modelCombo.getItemAt(it) }
             .firstOrNull { it.bundleId == ref.bundleId && it.modelId == ref.modelId }
             ?: return
-        if (modelCombo.selectedItem != target) {
+        if (modelCombo.selectedItem != targetModel) {
             programmaticComboUpdate = true
-            try { modelCombo.selectedItem = target } finally { programmaticComboUpdate = false }
+            try { modelCombo.selectedItem = targetModel } finally { programmaticComboUpdate = false }
         }
     }
 
@@ -573,19 +666,6 @@ class ModelTabPanel(
                 "ByJar references are not supported by the Experiment app.<br>" +
                 "Use <b>File → New Experiment</b> to start fresh." +
                 "</div></html>"
-    }
-
-    /** Build the dropdown choice for a (bundle, modelId) pair, or
-     *  `null` when the model isn't found (defensive — shouldn't
-     *  happen in practice). */
-    private fun choiceFor(bundle: LoadedBundle, modelId: String): ModelChoice? {
-        val model = bundle.bundle.models.firstOrNull { it.modelId == modelId } ?: return null
-        return ModelChoice(
-            bundleId = bundle.bundle.bundleId,
-            modelId = model.modelId,
-            displayName = model.displayName,
-            bundleDisplayName = bundle.bundle.displayName
-        )
     }
 
     // ── Summary card ───────────────────────────────────────────────────────

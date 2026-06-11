@@ -42,14 +42,29 @@ class BundleModelProvider(
 ) : ModelProviderIfc {
 
     private val byModelId: Map<String, KSLBundledModel> = buildMap {
+        // Track which bundleId first claimed each modelId so a later duplicate
+        // can be classified.  A clash between *different* bundleIds is a genuine
+        // namespace collision worth a warning.  A repeat of the *same* bundleId
+        // is just that bundle loaded from more than one source (e.g. several
+        // JARs in ~/.ksl/bundles) — already surfaced as a bundle-source
+        // conflict notice — so it logs at debug rather than crying wolf.
+        val ownerBundleId = mutableMapOf<String, String>()
         for (loaded in bundles) {
             for (model in loaded.bundle.models) {
                 val existing = putIfAbsent(model.modelId, model)
-                if (existing != null) {
+                if (existing == null) {
+                    ownerBundleId[model.modelId] = loaded.bundle.bundleId
+                } else if (ownerBundleId[model.modelId] == loaded.bundle.bundleId) {
+                    logger.debug {
+                        "Duplicate modelId '${model.modelId}' from a redundant copy of bundle " +
+                                "'${loaded.bundle.bundleId}' (loaded from more than one source); " +
+                                "the first occurrence wins."
+                    }
+                } else {
                     logger.warn {
                         "Duplicate modelId '${model.modelId}' from bundle " +
-                                "'${loaded.bundle.bundleId}' shadowed by earlier registration; " +
-                                "the first occurrence wins."
+                                "'${loaded.bundle.bundleId}' collides with bundle " +
+                                "'${ownerBundleId[model.modelId]}'; the first occurrence wins."
                     }
                 }
             }
