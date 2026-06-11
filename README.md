@@ -27,8 +27,7 @@ The KSL has the following functionality:
 Who knows what the future may bring! The KSL is a complex and extremely useful library for performing Monte Carlo and discrete event
 simulation experiments.  Here is some planned and potential future functionality.
 
-- Release 1.2.1 provides simulation optimization functionality. Future releases will extend this with additional solvers and the ability to execution models as a service. That is software as a service in the cloud.
-- A GUI-based simulation application framework is planned to enable the development of KSL based applications.
+- Release 1.3 provides significant new enhancements that are noted in [the release notes](docs/release-notes.md) This includes a simulation application framework to enable the development of KSL based applications.
 - Preliminary work has been performed to add animation capabilities. This is still under active investigation.
 
 ## Licensing
@@ -123,7 +122,13 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
+version = "R1.3"
 ```
+Just add:  
+```
+api("io.github.rossetti:KSLCore:R1.3")
+```
+To your build for the latest release.
 
 ## Release Notes
 
