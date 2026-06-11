@@ -2,12 +2,18 @@
 <!--
     App-owned logging config for the KSL Scenario Swing app.
 
-    Routes KSL logging to a file under ~/.ksl/logs/ and keeps the console
+    Logs to ~/.ksl/logs/ksl-scenario.log; the IntelliJ/Gradle console stays
     quiet (warnings + errors only).  Without this file the app falls back to
-    logback's built-in default (root -> console at DEBUG), which prints every
-    INFO line to the IntelliJ/Gradle console and writes no files at all.  The
-    apps ship their own config rather than rely on a library's logback.xml,
-    which is fragile when several are on the classpath.
+    logback's default (root -> console at DEBUG), which spams the console and
+    writes no files.
+
+    Volume is deliberately bounded so big runs never produce huge logs:
+      * Only ksl.app.* events (bundle discovery, newest-wins dedup, lifecycle)
+        are kept at INFO.  Everything else - the chatty per-stream /
+        per-replication / per-element KSL simulation logging - is left at WARN,
+        so a run with many models x many replications does not bloat the log.
+      * A hard rolling cap (2 MB per file, 10 MB total) means the log folder
+        can never surprise the user with a huge file.
 -->
 <configuration>
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
@@ -23,19 +29,20 @@
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${user.home}/.ksl/logs/ksl-scenario.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${user.home}/.ksl/logs/ksl-scenario.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>7</maxHistory>
-            <totalSizeCap>50MB</totalSizeCap>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/.ksl/logs/ksl-scenario.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>2MB</maxFileSize>
+            <maxHistory>5</maxHistory>
+            <totalSizeCap>10MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d %-5level [%thread] %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="ksl.app" level="INFO"/>
 
-    <root level="INFO">
+    <root level="WARN">
         <appender-ref ref="FILE"/>
         <appender-ref ref="CONSOLE"/>
     </root>
