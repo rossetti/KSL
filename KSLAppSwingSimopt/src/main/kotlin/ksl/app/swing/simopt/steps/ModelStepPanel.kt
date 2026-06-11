@@ -18,13 +18,15 @@
 
 package ksl.app.swing.simopt.steps
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import ksl.app.bundle.LoadedBundle
+import kotlinx.coroutines.flow.stateIn
 import ksl.app.config.ModelReference
 import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
-import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -35,8 +37,6 @@ import java.awt.Insets
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
-import javax.swing.DefaultComboBoxModel
-import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
@@ -83,38 +83,29 @@ class ModelStepPanel(
     private val pickerCard = JPanel(BorderLayout())
     private val unresolvedCard = JPanel(BorderLayout())
 
-    /** One row in the model dropdown.  `toString()` renders the
-     *  combo-box label. */
-    private data class ModelChoice(
-        val bundleId: String,
-        val modelId: String,
-        val modelDisplayName: String,
-        val bundleDisplayName: String
-    ) {
-        override fun toString(): String =
-            if (modelDisplayName.equals(modelId, ignoreCase = true)) modelId
-            else "$modelDisplayName ($modelId)"
-    }
-
-    /** One row in the bundle dropdown.  Carries the source label so copies
-     *  of the same `bundleId` loaded from different JARs render as distinct,
-     *  pickable rows. */
-    private data class BundleChoice(
-        val bundleId: String,
-        val bundleDisplayName: String,
-        val version: String,
-        val sourceLabel: String
-    ) {
-        override fun toString(): String =
-            ksl.app.swing.common.bundle.bundlePickerLabel(
-                bundleDisplayName.ifBlank { bundleId }, version, sourceLabel
+    /** Maps the controller's `modelTemplate` to the bare model reference the
+     *  shared picker consumes (the Simopt controller exposes the reference only
+     *  through the template). */
+    private val referenceFlow: StateFlow<ModelReference?> =
+        controller.modelTemplate
+            .map { it?.modelReference }
+            .stateIn(
+                controller.edtScope,
+                SharingStarted.Eagerly,
+                controller.modelTemplate.value?.modelReference
             )
-    }
 
-    private val bundleCombo: JComboBox<BundleChoice> = JComboBox()
-    private val modelCombo: JComboBox<ModelChoice> = JComboBox()
-
-    private val summaryPanel = SummaryPanel()
+    /** The shared two-step bundle → model picker (bundle combo + scoped model
+     *  combo + model-info table).  This panel keeps its own cards, run-parameter
+     *  baseline, advanced disclosure, and switch-prompt; the picker reports the
+     *  user's choice through [handleUserModelSelection]. */
+    private val pickerPanel = ksl.app.swing.common.bundle.BundleModelPickerPanel(
+        loadedBundles = controller.loadedBundles,
+        currentReference = referenceFlow,
+        currentDescriptor = controller.currentModelDescriptor,
+        scope = controller.edtScope,
+        onSelect = ::handleUserModelSelection
+    )
     private val unresolvedLabel: JLabel = JLabel().apply {
         horizontalAlignment = SwingConstants.CENTER
         foreground = Color(0xCC, 0x77, 0x00)
@@ -150,9 +141,6 @@ class ModelStepPanel(
         JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED
     ).apply { isVisible = false }
 
-    /** Guards the combo ActionListeners so collector-driven
-     *  `setSelectedItem(...)` doesn't loop back into the controller. */
-    @Volatile private var programmaticComboUpdate: Boolean = false
     @Volatile private var suppressRunDefaultsEvents: Boolean = false
 
     init {
@@ -164,12 +152,10 @@ class ModelStepPanel(
         cardsPanel.add(unresolvedCard, CARD_UNRESOLVED)
         add(cardsPanel, BorderLayout.CENTER)
 
-        wireBundleAndModelCombos()
         wireRunDefaultsCommit()
         wireCollectors()
         wireAdvancedDisclosure()
 
-        rebuildBundleDropdown()
         refreshCardSelection()
         refreshModelDefaultLabels()
         refreshAdvancedSummary()
@@ -193,48 +179,16 @@ class ModelStepPanel(
 
     private fun buildPickerCard(): JPanel = JPanel(BorderLayout(0, 12)).apply {
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
-        add(buildPickerRow(), BorderLayout.NORTH)
-
-        val center = JPanel().apply {
+        // The shared picker (bundle/model rows + model-info table) takes the
+        // top; the run-parameter baseline + advanced disclosure sit below.
+        add(pickerPanel, BorderLayout.CENTER)
+        val south = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(summaryScroll())
-            add(Box.createVerticalStrut(12))
             add(buildRunDefaultsPanel())
             add(Box.createVerticalStrut(12))
             add(buildAdvancedDisclosurePanel())
-            add(Box.createVerticalGlue())
         }
-        add(center, BorderLayout.CENTER)
-    }
-
-    private fun summaryScroll(): JScrollPane = JScrollPane(
-        summaryPanel,
-        JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-        JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-    ).apply {
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Selected model"),
-            BorderFactory.createEmptyBorder(2, 6, 2, 6)
-        )
-        preferredSize = java.awt.Dimension(640, 140)
-    }
-
-    private fun buildPickerRow(): JPanel = JPanel(GridBagLayout()).apply {
-        // Bundle row — hidden when only one bundle is loaded.
-        val bundleLabel = JLabel("Bundle: ").apply { font = font.deriveFont(Font.BOLD) }
-        val modelLabel = JLabel("Model: ").apply { font = font.deriveFont(Font.BOLD) }
-
-        // Row 0: bundle (toggled visible later).
-        add(bundleLabel, gbc(0, 0, anchor = GridBagConstraints.WEST))
-        add(bundleCombo, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
-
-        // Row 1: model.
-        add(modelLabel, gbc(0, 1, anchor = GridBagConstraints.WEST))
-        add(modelCombo, gbc(1, 1, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
-
-        // Hide bundle row until we know whether ≥ 2 bundles are loaded.
-        bundleLabel.isVisible = false
-        bundleCombo.isVisible = false
+        add(south, BorderLayout.SOUTH)
     }
 
     private fun buildUnresolvedCard(): JPanel = JPanel(BorderLayout()).apply {
@@ -284,24 +238,8 @@ class ModelStepPanel(
 
     // ── Wiring ─────────────────────────────────────────────────────────────
 
-    private fun wireBundleAndModelCombos() {
-        bundleCombo.addActionListener {
-            if (programmaticComboUpdate) return@addActionListener
-            rebuildModelDropdownForSelectedBundle()
-            // Auto-select the first model when the user picks a new bundle.
-            (modelCombo.selectedItem as? ModelChoice)?.let { handleUserModelSelection(it) }
-        }
-        modelCombo.addActionListener {
-            if (programmaticComboUpdate) return@addActionListener
-            (modelCombo.selectedItem as? ModelChoice)?.let { handleUserModelSelection(it) }
-        }
-    }
-
-    private fun handleUserModelSelection(choice: ModelChoice) {
-        val newRef = ModelReference.ByBundleAndModelId(
-            bundleId = choice.bundleId,
-            modelId = choice.modelId
-        )
+    private fun handleUserModelSelection(bundleId: String, modelId: String) {
+        val newRef = ModelReference.ByBundleAndModelId(bundleId = bundleId, modelId = modelId)
         val currentRef = controller.modelTemplate.value?.modelReference
         val hasDownstream = controller.problemSpec.value != null ||
             controller.solverSpec.value != null
@@ -338,8 +276,8 @@ class ModelStepPanel(
             0 -> controller.setModelReferenceAndClear(newRef)
             1 -> controller.setModelReference(newRef)
             else -> {
-                // Cancel — revert the dropdowns to the prior selection.
-                syncDropdownsToController()
+                // Cancel — revert the picker to the prior selection.
+                pickerPanel.syncToReference()
             }
         }
     }
@@ -399,20 +337,21 @@ class ModelStepPanel(
     }
 
     private fun wireCollectors() {
+        // The shared picker rebuilds / syncs its own dropdowns and renders its
+        // own summary off loadedBundles, the model reference, and
+        // currentModelDescriptor.  This panel keeps the rest: card selection,
+        // run-parameter baseline, and the advanced baseline-controls summary.
         controller.loadedBundles.onEach { _ ->
-            rebuildBundleDropdown()
             refreshCardSelection()
         }.launchIn(controller.edtScope)
 
         controller.modelTemplate.onEach { _ ->
-            syncDropdownsToController()
             refreshRunDefaultsFromController()
             refreshAdvancedSummary()
             refreshCardSelection()
         }.launchIn(controller.edtScope)
 
-        controller.currentModelDescriptor.onEach { descriptor ->
-            summaryPanel.render(descriptor, controller.modelTemplate.value?.modelReference)
+        controller.currentModelDescriptor.onEach { _ ->
             refreshModelDefaultLabels()
             refreshCardSelection()
         }.launchIn(controller.edtScope)
@@ -427,99 +366,6 @@ class ModelStepPanel(
                 repaint()
             }
         })
-    }
-
-    // ── State synchronisation ──────────────────────────────────────────────
-
-    private fun rebuildBundleDropdown() {
-        val bundles = controller.loadedBundles.value
-        val choices = bundles.map { lb ->
-            BundleChoice(
-                bundleId = lb.bundle.bundleId,
-                bundleDisplayName = lb.bundle.displayName,
-                version = lb.bundle.version,
-                sourceLabel = ksl.app.bundle.bundleSourceLabel(lb)
-            )
-        }
-        programmaticComboUpdate = true
-        try {
-            bundleCombo.model = DefaultComboBoxModel(choices.toTypedArray())
-            // Show bundle dropdown only when > 1 bundle is loaded.
-            val showBundle = choices.size > 1
-            bundleCombo.isVisible = showBundle
-            // The bundle's *label* is in the same panel; find it via parent.
-            (bundleCombo.parent as? JPanel)?.components?.forEach { comp ->
-                if (comp is JLabel && comp.text == "Bundle: ") comp.isVisible = showBundle
-            }
-        } finally {
-            programmaticComboUpdate = false
-        }
-        rebuildModelDropdownForSelectedBundle()
-        syncDropdownsToController()
-    }
-
-    private fun rebuildModelDropdownForSelectedBundle() {
-        val bundles = controller.loadedBundles.value
-        val selectedBundleChoice = bundleCombo.selectedItem as? BundleChoice
-        val targetBundle: LoadedBundle? = when {
-            selectedBundleChoice != null ->
-                // Match the specific source so the model list follows the
-                // exact bundle copy the user picked, not just the bundleId.
-                bundles.firstOrNull {
-                    it.bundle.bundleId == selectedBundleChoice.bundleId &&
-                        ksl.app.bundle.bundleSourceLabel(it) == selectedBundleChoice.sourceLabel
-                }
-            bundles.size == 1 -> bundles.first()
-            else -> null
-        }
-        val modelChoices = targetBundle?.bundle?.models?.map { m ->
-            ModelChoice(
-                bundleId = targetBundle.bundle.bundleId,
-                modelId = m.modelId,
-                modelDisplayName = m.displayName,
-                bundleDisplayName = targetBundle.bundle.displayName
-            )
-        }.orEmpty()
-        programmaticComboUpdate = true
-        try {
-            modelCombo.model = DefaultComboBoxModel(modelChoices.toTypedArray())
-        } finally {
-            programmaticComboUpdate = false
-        }
-    }
-
-    private fun syncDropdownsToController() {
-        val ref = controller.modelTemplate.value?.modelReference as? ModelReference.ByBundleAndModelId
-            ?: return run {
-                programmaticComboUpdate = true
-                try { modelCombo.selectedItem = null } finally { programmaticComboUpdate = false }
-            }
-        // Bundle dropdown selection.  The reference isn't source-aware yet
-        // (Part 3), so if the current selection already matches the referenced
-        // bundleId, keep the user's chosen source rather than snapping to the
-        // first same-id entry.
-        val currentBundleChoice = bundleCombo.selectedItem as? BundleChoice
-        val targetBundle = (0 until bundleCombo.itemCount)
-            .map { bundleCombo.getItemAt(it) }
-            .firstOrNull { it.bundleId == ref.bundleId }
-        if (targetBundle != null &&
-            currentBundleChoice?.bundleId != ref.bundleId &&
-            bundleCombo.selectedItem != targetBundle
-        ) {
-            programmaticComboUpdate = true
-            try {
-                bundleCombo.selectedItem = targetBundle
-                rebuildModelDropdownForSelectedBundle()
-            } finally { programmaticComboUpdate = false }
-        }
-        // Model dropdown selection.
-        val targetModel = (0 until modelCombo.itemCount)
-            .map { modelCombo.getItemAt(it) }
-            .firstOrNull { it.bundleId == ref.bundleId && it.modelId == ref.modelId }
-        if (targetModel != null && modelCombo.selectedItem != targetModel) {
-            programmaticComboUpdate = true
-            try { modelCombo.selectedItem = targetModel } finally { programmaticComboUpdate = false }
-        }
     }
 
     private fun refreshCardSelection() {
@@ -655,39 +501,6 @@ class ModelStepPanel(
         this.anchor = anchor
         this.fill = fill
         this.insets = insets
-    }
-
-    /** Summary card for the selected model.  Lightweight — just
-     *  control count / RV count / response count / time unit. */
-    private class SummaryPanel : JPanel(BorderLayout()) {
-        private val text = JTextArea().apply {
-            isEditable = false
-            lineWrap = false
-            background = this@SummaryPanel.background
-            font = Font(Font.MONOSPACED, Font.PLAIN, 12)
-        }
-
-        init {
-            add(text, BorderLayout.CENTER)
-            border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
-        }
-
-        fun render(descriptor: ModelDescriptor?, ref: ModelReference?) {
-            if (descriptor == null) {
-                text.text = if (ref == null) "Select a model from the dropdown above."
-                else "Descriptor not available for this reference."
-                return
-            }
-            val sb = StringBuilder()
-            sb.append("Model name        : ").appendLine(descriptor.modelName)
-            sb.append("Model identifier  : ").appendLine(descriptor.modelIdentifier)
-            sb.append("Controls          : ").appendLine(descriptor.controls.numericControls.size)
-            sb.append("RV parameters     : ").appendLine(descriptor.rvParameterData.size)
-            sb.append("Numeric inputs    : ").appendLine(descriptor.inputNames.size)
-            sb.append("Responses         : ").appendLine(descriptor.responseNames.size)
-            sb.append("Base time unit    : ").appendLine(descriptor.baseTimeUnit)
-            text.text = sb.toString().trimEnd()
-        }
     }
 
     private companion object {
