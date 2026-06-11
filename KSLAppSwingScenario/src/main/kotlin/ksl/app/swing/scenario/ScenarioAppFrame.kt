@@ -568,12 +568,22 @@ class ScenarioAppFrame(
         is ksl.app.session.KSLRuntimeError.ConfigurationError -> error.message
     }
 
-    private fun openAddScenarioDialog(): ksl.app.config.ScenarioSpec? =
-        AddScenarioDialog.prompt(
+    /** Last bundle picked in the Add Scenario dialog, so the next Add opens on
+     *  it instead of forcing a re-select for each additional model. */
+    private var lastAddBundleId: String? = null
+
+    private fun openAddScenarioDialog(): ksl.app.config.ScenarioSpec? {
+        val spec = AddScenarioDialog.prompt(
             this,
             controller.loadedBundles.value,
-            controller.scenarios.value.map { it.name }.toSet()
+            controller.scenarios.value.map { it.name }.toSet(),
+            lastAddBundleId
         )
+        (spec?.modelReference as? ksl.app.config.ModelReference.ByBundleAndModelId)?.let {
+            lastAddBundleId = it.bundleId
+        }
+        return spec
+    }
 
     private val openEditors: MutableMap<String, ScenarioEditorWindow> = mutableMapOf()
 

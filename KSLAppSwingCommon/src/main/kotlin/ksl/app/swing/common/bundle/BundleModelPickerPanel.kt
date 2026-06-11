@@ -183,6 +183,14 @@ class BundleModelPickerPanel(
      */
     fun syncToReference() = syncDropdownsToController()
 
+    /**
+     *  The currently selected `(bundleId, modelId)`, or `null` when no model is
+     *  selected.  Lets a one-shot host (e.g. a modal dialog) read the choice
+     *  directly instead of tracking every [onSelect].
+     */
+    fun selectedModel(): Pair<String, String>? =
+        (modelCombo.selectedItem as? ModelChoice)?.let { it.bundleId to it.modelId }
+
     // ── State synchronisation ──────────────────────────────────────────────
 
     private fun rebuildBundleDropdown() {

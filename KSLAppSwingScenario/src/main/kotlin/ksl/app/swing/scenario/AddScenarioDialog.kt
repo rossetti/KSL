@@ -18,10 +18,16 @@
 
 package ksl.app.swing.scenario
 
-import ksl.app.bundle.KSLBundledModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.config.ScenarioSpec
+import ksl.app.swing.common.bundle.BundleModelPickerPanel
+import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Dimension
@@ -30,56 +36,46 @@ import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
 import java.awt.Window
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
-import javax.swing.DefaultComboBoxModel
-import javax.swing.DefaultListModel
 import javax.swing.JButton
-import javax.swing.JComboBox
 import javax.swing.JDialog
 import javax.swing.JLabel
-import javax.swing.JList
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JScrollPane
-import javax.swing.JTextArea
 import javax.swing.JTextField
-import javax.swing.ListSelectionModel
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
 /**
- *  Modal *Add Scenario* dialog with cascading bundle / model picker.
+ *  Modal *Add Scenario* dialog built around the shared
+ *  [BundleModelPickerPanel] — the same bundle → model two-step + model-info
+ *  table the Experiment and Simopt apps use — plus a scenario *Name* field.
  *
- *  Layout:
+ *  Remembers the last-selected bundle across Adds: the caller passes the
+ *  previously-chosen `bundleId` so the picker opens on that bundle, instead of
+ *  forcing a re-select for each additional model.
  *
- *  ```
- *  Bundle:  [ combo of loaded bundles ▾ ]
- *  Model:   ┌─ list of models in the chosen bundle ─┐
- *           └────────────────────────────────────────┘
- *  Description: <selected model's description, read-only>
- *  Name:    [ text field, seeded from displayName ]
- *           [ Cancel ] [ Add ]
- *  ```
- *
- *  When no bundles are loaded, the dialog body is replaced with a
- *  short hint and an OK-only button; the caller surfaces this state
- *  to the user.
+ *  When no bundles are loaded, [prompt] shows a short hint and returns `null`.
  */
 object AddScenarioDialog {
 
     /**
-     *  Show the dialog over [parent], offering models from [bundles]
-     *  and rejecting names in [existingNames].  Returns the new
-     *  [ScenarioSpec] on Add, or `null` if the user cancelled.
+     *  Show the dialog over [parent], offering models from [bundles] and
+     *  rejecting names in [existingNames].  [rememberedBundleId], when it names
+     *  a loaded bundle, pre-selects that bundle.  Returns the new [ScenarioSpec]
+     *  on Add, or `null` if the user cancelled.
      */
     fun prompt(
         parent: Component,
         bundles: List<LoadedBundle>,
-        existingNames: Set<String>
+        existingNames: Set<String>,
+        rememberedBundleId: String? = null
     ): ScenarioSpec? {
         if (bundles.isEmpty()) {
             JOptionPane.showMessageDialog(
@@ -94,7 +90,7 @@ object AddScenarioDialog {
             is Window -> parent
             else -> SwingUtilities.getWindowAncestor(parent) ?: JOptionPane.getRootFrame() ?: Frame()
         }
-        val dialog = AddDialog(owner, bundles, existingNames)
+        val dialog = AddDialog(owner, bundles, existingNames, rememberedBundleId)
         dialog.isVisible = true
         return dialog.result
     }
@@ -102,97 +98,101 @@ object AddScenarioDialog {
     private class AddDialog(
         owner: Window,
         private val bundles: List<LoadedBundle>,
-        private val existingNames: Set<String>
+        private val existingNames: Set<String>,
+        rememberedBundleId: String?
     ) : JDialog(owner, "Add Scenario", ModalityType.APPLICATION_MODAL) {
 
         var result: ScenarioSpec? = null
             private set
 
-        /** `true` once the user has typed anything into the name field
-         *  themselves; suppresses auto-reseed when switching models. */
+        /** `true` once the user has typed a name themselves; suppresses
+         *  auto-reseed when switching models. */
         private var userEditedName: Boolean = false
 
-        /** Set to `true` while we update [nameField] programmatically
-         *  so the document listener doesn't mark it as user-edited. */
+        /** Set while updating [nameField] programmatically so the document
+         *  listener doesn't mark it as user-edited. */
         private var settingNameProgrammatically: Boolean = false
 
-        private val bundleCombo = JComboBox(DefaultComboBoxModel(bundles.toTypedArray())).apply {
-            renderer = BundleRenderer()
-        }
-        private val modelListModel = DefaultListModel<KSLBundledModel>()
-        private val modelList = JList(modelListModel).apply {
-            selectionMode = ListSelectionModel.SINGLE_SELECTION
-            cellRenderer = ModelRenderer()
-            visibleRowCount = 6
-        }
-        private val descriptionArea = JTextArea(3, 40).apply {
-            isEditable = false
-            lineWrap = true
-            wrapStyleWord = true
-            border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
-        }
+        /** Dialog-lifetime scope for the picker's flow collectors and the
+         *  off-EDT descriptor resolution; cancelled on close.  The default
+         *  dispatcher is fine — the picker re-dispatches its own UI work to the
+         *  EDT, and the descriptor build wants to be off the EDT anyway. */
+        private val scope = CoroutineScope(SupervisorJob())
+
+        private val bundlesFlow = MutableStateFlow(bundles)
+        private val referenceFlow = MutableStateFlow<ModelReference?>(seedReference(rememberedBundleId))
+        private val descriptorFlow = MutableStateFlow<ModelDescriptor?>(null)
+
+        private val picker = BundleModelPickerPanel(
+            loadedBundles = bundlesFlow,
+            currentReference = referenceFlow,
+            currentDescriptor = descriptorFlow,
+            scope = scope,
+            onSelect = ::onModelSelected
+        )
+
         private val nameField = JTextField(24)
         private val addButton = JButton("Add")
         private val cancelButton = JButton("Cancel")
 
         init {
             defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
+            addWindowListener(object : WindowAdapter() {
+                override fun windowClosed(e: WindowEvent?) = scope.cancel()
+            })
             contentPane.layout = BorderLayout()
             contentPane.add(buildForm(), BorderLayout.CENTER)
             contentPane.add(buildButtons(), BorderLayout.SOUTH)
             rootPane.defaultButton = addButton
 
-            bundleCombo.addActionListener { refreshModelsForBundle() }
-            modelList.addListSelectionListener { e ->
-                if (!e.valueIsAdjusting) refreshDescriptionAndName()
-            }
             nameField.document.addDocumentListener(object : DocumentListener {
                 override fun insertUpdate(e: DocumentEvent) = mark()
                 override fun removeUpdate(e: DocumentEvent) = mark()
                 override fun changedUpdate(e: DocumentEvent) = mark()
                 private fun mark() {
                     if (settingNameProgrammatically) return
-                    // If the user clears the field back to blank, resume
-                    // auto-tracking — they want the next model selection
-                    // to seed the name again.
+                    // Clearing the field back to blank resumes auto-tracking.
                     userEditedName = nameField.text.isNotBlank()
                 }
             })
             addButton.addActionListener { tryAccept() }
             cancelButton.addActionListener { dispose() }
 
-            refreshModelsForBundle()
+            // Seed the name + model-info for the initial (remembered / first)
+            // selection — the picker's programmatic sync to it doesn't fire
+            // onSelect, so prime it here.
+            (referenceFlow.value as? ModelReference.ByBundleAndModelId)?.let {
+                onModelSelected(it.bundleId, it.modelId)
+            }
+
             pack()
+            size = Dimension(560, 480)
             setLocationRelativeTo(owner)
         }
 
-        private fun buildForm(): JPanel = JPanel(GridBagLayout()).apply {
+        /** First model of the remembered bundle (or the first loaded bundle),
+         *  so the picker opens on a sensible default. */
+        private fun seedReference(rememberedBundleId: String?): ModelReference? {
+            val bundle = rememberedBundleId?.let { id -> bundles.firstOrNull { it.bundle.bundleId == id } }
+                ?: bundles.firstOrNull()
+            val model = bundle?.bundle?.models?.firstOrNull() ?: return null
+            return ModelReference.ByBundleAndModelId(bundle.bundle.bundleId, model.modelId)
+        }
+
+        private fun buildForm(): JPanel = JPanel(BorderLayout(0, 8)).apply {
             border = BorderFactory.createEmptyBorder(12, 12, 8, 12)
-            val gbc = GridBagConstraints().apply {
-                gridx = 0
-                gridy = 0
-                anchor = GridBagConstraints.LINE_START
-                insets = Insets(2, 2, 2, 8)
+            add(picker, BorderLayout.CENTER)
+            val nameRow = JPanel(GridBagLayout()).apply {
+                val gbc = GridBagConstraints().apply {
+                    gridx = 0; gridy = 0
+                    anchor = GridBagConstraints.LINE_START
+                    insets = Insets(2, 2, 2, 8)
+                }
+                add(JLabel("Name:"), gbc)
+                gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
+                add(nameField, gbc)
             }
-            add(JLabel("Bundle:"), gbc)
-            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
-            add(bundleCombo, gbc)
-
-            gbc.gridx = 0; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0.0
-            gbc.anchor = GridBagConstraints.FIRST_LINE_START
-            add(JLabel("Model:"), gbc)
-            gbc.gridx = 1; gbc.fill = GridBagConstraints.BOTH; gbc.weightx = 1.0; gbc.weighty = 1.0
-            add(JScrollPane(modelList).apply { preferredSize = Dimension(360, 140) }, gbc)
-
-            gbc.gridx = 0; gbc.gridy = 2; gbc.fill = GridBagConstraints.NONE; gbc.weighty = 0.0
-            add(JLabel("Description:"), gbc)
-            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL
-            add(JScrollPane(descriptionArea).apply { preferredSize = Dimension(360, 60) }, gbc)
-
-            gbc.gridx = 0; gbc.gridy = 3
-            add(JLabel("Name:"), gbc)
-            gbc.gridx = 1
-            add(nameField, gbc)
+            add(nameRow, BorderLayout.SOUTH)
         }
 
         private fun buildButtons(): JPanel = JPanel().apply {
@@ -204,29 +204,24 @@ object AddScenarioDialog {
             add(addButton)
         }
 
-        private fun refreshModelsForBundle() {
-            val bundle = bundleCombo.selectedItem as? LoadedBundle ?: return
-            modelListModel.clear()
-            bundle.bundle.models.forEach { modelListModel.addElement(it) }
-            if (modelListModel.size > 0) modelList.selectedIndex = 0
+        /** A model was picked (by the user or the initial seed): reseed the
+         *  name and resolve the model-info descriptor off the EDT. */
+        private fun onModelSelected(bundleId: String, modelId: String) {
+            if (!userEditedName) {
+                setNameFromModel(displayNameFor(bundleId, modelId))
+            }
+            descriptorFlow.value = null
+            scope.launch {
+                descriptorFlow.value =
+                    runCatching { bundleFor(bundleId)?.descriptorFor(modelId) }.getOrNull()
+            }
         }
 
-        private fun refreshDescriptionAndName() {
-            val model = modelList.selectedValue ?: run {
-                descriptionArea.text = ""
-                return
-            }
-            descriptionArea.text = model.description
-            descriptionArea.caretPosition = 0
-            // Reseed only when the user hasn't typed a custom name yet.
-            // The DocumentListener flips userEditedName=true on real
-            // input and back to false when the field is cleared, so a
-            // user who wants the auto-track behaviour can backspace to
-            // resume it.
-            if (!userEditedName) {
-                setNameFromModel(model.displayName)
-            }
-        }
+        private fun bundleFor(bundleId: String): LoadedBundle? =
+            bundles.firstOrNull { it.bundle.bundleId == bundleId }
+
+        private fun displayNameFor(bundleId: String, modelId: String): String =
+            bundleFor(bundleId)?.bundle?.models?.firstOrNull { it.modelId == modelId }?.displayName ?: modelId
 
         private fun setNameFromModel(displayName: String) {
             settingNameProgrammatically = true
@@ -248,8 +243,7 @@ object AddScenarioDialog {
         }
 
         private fun tryAccept() {
-            val bundle = bundleCombo.selectedItem as? LoadedBundle ?: return
-            val model = modelList.selectedValue ?: run {
+            val selection = picker.selectedModel() ?: run {
                 JOptionPane.showMessageDialog(
                     this, "Pick a model.", "Add Scenario", JOptionPane.WARNING_MESSAGE
                 )
@@ -273,35 +267,11 @@ object AddScenarioDialog {
             result = ScenarioSpec(
                 name = name,
                 modelReference = ModelReference.ByBundleAndModelId(
-                    bundleId = bundle.bundle.bundleId,
-                    modelId = model.modelId
+                    bundleId = selection.first,
+                    modelId = selection.second
                 )
             )
             dispose()
-        }
-    }
-
-    private class BundleRenderer : javax.swing.DefaultListCellRenderer() {
-        override fun getListCellRendererComponent(
-            list: JList<*>?, value: Any?, index: Int,
-            isSelected: Boolean, cellHasFocus: Boolean
-        ): Component {
-            val text = (value as? LoadedBundle)?.let {
-                val n = it.bundle.models.size
-                "${ksl.app.swing.common.bundle.bundlePickerLabel(it)}  ($n model${if (n == 1) "" else "s"})"
-            } ?: value?.toString().orEmpty()
-            return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus)
-        }
-    }
-
-    private class ModelRenderer : javax.swing.DefaultListCellRenderer() {
-        override fun getListCellRendererComponent(
-            list: JList<*>?, value: Any?, index: Int,
-            isSelected: Boolean, cellHasFocus: Boolean
-        ): Component {
-            val text = (value as? KSLBundledModel)?.let { "${it.displayName}  —  ${it.modelId}" }
-                ?: value?.toString().orEmpty()
-            return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus)
         }
     }
 }
