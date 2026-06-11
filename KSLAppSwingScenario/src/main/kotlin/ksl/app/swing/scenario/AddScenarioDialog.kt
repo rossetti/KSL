@@ -286,8 +286,10 @@ object AddScenarioDialog {
             list: JList<*>?, value: Any?, index: Int,
             isSelected: Boolean, cellHasFocus: Boolean
         ): Component {
-            val text = (value as? LoadedBundle)?.let { "${it.bundle.bundleId}  (${it.bundle.models.size} model${if (it.bundle.models.size == 1) "" else "s"})" }
-                ?: value?.toString().orEmpty()
+            val text = (value as? LoadedBundle)?.let {
+                val n = it.bundle.models.size
+                "${ksl.app.swing.common.bundle.bundlePickerLabel(it)}  ($n model${if (n == 1) "" else "s"})"
+            } ?: value?.toString().orEmpty()
             return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus)
         }
     }

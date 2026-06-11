@@ -36,6 +36,15 @@ data class BundleSourceConflict(
 )
 
 /**
+ *  The source a loaded bundle came from: its JAR file name, or `"classpath"`
+ *  for a classpath-discovered bundle.  This is the human-facing disambiguator
+ *  shown in pickers and conflict notices when several sources register the same
+ *  `bundleId`.
+ */
+fun bundleSourceLabel(bundle: LoadedBundle): String =
+    bundle.sourceJar?.fileName?.toString() ?: "classpath"
+
+/**
  *  Loaded bundles whose [`bundleId`][LoadedBundle.bundle] is registered by more
  *  than one source.  Used to surface overlap (e.g. the same bundle dropped into
  *  `~/.ksl/bundles/` from several JARs) rather than silently shadowing one copy.
@@ -48,6 +57,6 @@ fun bundleSourceConflicts(bundles: List<LoadedBundle>): List<BundleSourceConflic
             BundleSourceConflict(
                 bundleId = id,
                 displayName = group.first().bundle.displayName,
-                sources = group.map { it.sourceJar?.fileName?.toString() ?: "classpath" },
+                sources = group.map(::bundleSourceLabel),
             )
         }

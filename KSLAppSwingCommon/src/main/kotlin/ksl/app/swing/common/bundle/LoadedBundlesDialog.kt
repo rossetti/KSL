@@ -36,10 +36,11 @@ import javax.swing.WindowConstants
 
 /**
  *  Read-only modal listing of every loaded bundle and its models.
- *  Each bundle block shows: bundle id, source (the JAR path, or
- *  "classpath" for a classpath-discovered bundle) and one indented row
- *  per model with `displayName`, `modelId`, `description`, and the
- *  `supportedApps` set.
+ *  Each bundle block shows: display name + bundle id, version, source
+ *  (the JAR path, or "classpath" for a classpath-discovered bundle) and
+ *  one indented row per model with `displayName`, `modelId`,
+ *  `description`, and the `supportedApps` set.  The version + source
+ *  disambiguate copies of the same bundle loaded from more than one JAR.
  *
  *  Shared by every bundle-driven app (Single / Scenario / Experiment /
  *  Simopt) so the *Bundles → Loaded Bundles…* menu item is identical
@@ -95,7 +96,8 @@ object LoadedBundlesDialog {
         return buildString {
             for ((i, lb) in bundles.withIndex()) {
                 if (i > 0) appendLine()
-                appendLine("Bundle: ${lb.bundle.bundleId}")
+                appendLine("Bundle: ${lb.bundle.displayName}  [${lb.bundle.bundleId}]")
+                appendLine("  Version: ${lb.bundle.version}")
                 appendLine("  Source: ${lb.sourceJar?.toString() ?: "classpath"}")
                 if (lb.bundle.models.isEmpty()) {
                     appendLine("  (no models declared)")

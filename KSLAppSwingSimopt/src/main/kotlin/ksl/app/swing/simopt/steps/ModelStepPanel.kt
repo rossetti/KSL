@@ -96,14 +96,19 @@ class ModelStepPanel(
             else "$modelDisplayName ($modelId)"
     }
 
-    /** One row in the bundle dropdown. */
+    /** One row in the bundle dropdown.  Carries the source label so copies
+     *  of the same `bundleId` loaded from different JARs render as distinct,
+     *  pickable rows. */
     private data class BundleChoice(
         val bundleId: String,
-        val bundleDisplayName: String
+        val bundleDisplayName: String,
+        val version: String,
+        val sourceLabel: String
     ) {
         override fun toString(): String =
-            if (bundleDisplayName.isBlank() || bundleDisplayName == bundleId) bundleId
-            else "$bundleDisplayName ($bundleId)"
+            ksl.app.swing.common.bundle.bundlePickerLabel(
+                bundleDisplayName.ifBlank { bundleId }, version, sourceLabel
+            )
     }
 
     private val bundleCombo: JComboBox<BundleChoice> = JComboBox()
@@ -428,7 +433,14 @@ class ModelStepPanel(
 
     private fun rebuildBundleDropdown() {
         val bundles = controller.loadedBundles.value
-        val choices = bundles.map { lb -> BundleChoice(lb.bundle.bundleId, lb.bundle.displayName) }
+        val choices = bundles.map { lb ->
+            BundleChoice(
+                bundleId = lb.bundle.bundleId,
+                bundleDisplayName = lb.bundle.displayName,
+                version = lb.bundle.version,
+                sourceLabel = ksl.app.bundle.bundleSourceLabel(lb)
+            )
+        }
         programmaticComboUpdate = true
         try {
             bundleCombo.model = DefaultComboBoxModel(choices.toTypedArray())
@@ -451,7 +463,12 @@ class ModelStepPanel(
         val selectedBundleChoice = bundleCombo.selectedItem as? BundleChoice
         val targetBundle: LoadedBundle? = when {
             selectedBundleChoice != null ->
-                bundles.firstOrNull { it.bundle.bundleId == selectedBundleChoice.bundleId }
+                // Match the specific source so the model list follows the
+                // exact bundle copy the user picked, not just the bundleId.
+                bundles.firstOrNull {
+                    it.bundle.bundleId == selectedBundleChoice.bundleId &&
+                        ksl.app.bundle.bundleSourceLabel(it) == selectedBundleChoice.sourceLabel
+                }
             bundles.size == 1 -> bundles.first()
             else -> null
         }
@@ -477,11 +494,18 @@ class ModelStepPanel(
                 programmaticComboUpdate = true
                 try { modelCombo.selectedItem = null } finally { programmaticComboUpdate = false }
             }
-        // Bundle dropdown selection.
+        // Bundle dropdown selection.  The reference isn't source-aware yet
+        // (Part 3), so if the current selection already matches the referenced
+        // bundleId, keep the user's chosen source rather than snapping to the
+        // first same-id entry.
+        val currentBundleChoice = bundleCombo.selectedItem as? BundleChoice
         val targetBundle = (0 until bundleCombo.itemCount)
             .map { bundleCombo.getItemAt(it) }
             .firstOrNull { it.bundleId == ref.bundleId }
-        if (targetBundle != null && bundleCombo.selectedItem != targetBundle) {
+        if (targetBundle != null &&
+            currentBundleChoice?.bundleId != ref.bundleId &&
+            bundleCombo.selectedItem != targetBundle
+        ) {
             programmaticComboUpdate = true
             try {
                 bundleCombo.selectedItem = targetBundle

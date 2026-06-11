@@ -165,7 +165,7 @@ private class PickerDialog(
         contentPane.add(banner, BorderLayout.NORTH)
         contentPane.add(JScrollPane(table).apply {
             border = BorderFactory.createEmptyBorder(8, 12, 8, 12)
-            preferredSize = Dimension(560, 280)
+            preferredSize = Dimension(700, 280)
         }, BorderLayout.CENTER)
         contentPane.add(buildButtonRow(), BorderLayout.SOUTH)
 
@@ -190,12 +190,14 @@ private class PickerDialog(
 
     private fun buildRows(): List<BundleRow> =
         bundleLibrary.loadedBundles.value.flatMap { lb ->
+            val source = ksl.app.bundle.bundleSourceLabel(lb)
             lb.bundle.models.map { m ->
                 BundleRow(
                     bundleId = lb.bundle.bundleId,
                     modelId = m.modelId,
                     displayName = m.displayName,
-                    description = m.description
+                    description = m.description,
+                    source = source
                 )
             }
         }
@@ -275,14 +277,15 @@ private class PickerDialog(
         val bundleId: String,
         val modelId: String,
         val displayName: String,
-        val description: String
+        val description: String,
+        val source: String
     )
 
     /** Editable-by-replacement table model.  Rows are not user-editable
      *  in-place; [replaceRows] is the only mutator. */
     private class BundleTableModel(initial: List<BundleRow>) : AbstractTableModel() {
 
-        private val columns = arrayOf("Bundle", "Model ID", "Display Name")
+        private val columns = arrayOf("Bundle", "Model ID", "Display Name", "Source")
         private var rows: List<BundleRow> = initial
 
         override fun getRowCount(): Int = rows.size
@@ -294,6 +297,7 @@ private class PickerDialog(
             0 -> rows[rowIndex].bundleId
             1 -> rows[rowIndex].modelId
             2 -> rows[rowIndex].displayName
+            3 -> rows[rowIndex].source
             else -> ""
         }
 
