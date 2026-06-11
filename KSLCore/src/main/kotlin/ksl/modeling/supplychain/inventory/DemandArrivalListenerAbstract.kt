@@ -17,7 +17,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * JSL `ActionSchedule` of periodic events. KSL's idiom is a recurring
  * [EventAction] that re-schedules itself.
  *
- * @see sc.inventorylayer.DemandArrivalListenerAbstract
+ * See `sc.inventorylayer.DemandArrivalListenerAbstract`
  */
 abstract class DemandArrivalListenerAbstract @JvmOverloads constructor(
     val inventory: Inventory,

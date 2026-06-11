@@ -5,7 +5,7 @@ import ksl.utilities.IdentityIfc
 /**
  * Objects that can fill orders.
  *
- * @see sc.inventorylayer.OrderFillerIfc
+ * See `sc.inventorylayer.OrderFillerIfc`
  */
 interface OrderFillerIfc : IdentityIfc, AvailabilityIfc {
 

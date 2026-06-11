@@ -104,7 +104,7 @@ fun ReportBuilder.factor(factor: Factor, caption: String? = null) {
  *    axial point count (2k)
  * 3. **Factors** sub-section — `DataTable` (Factor | # Levels | Low | High |
  *    Mid Point | Half Range | Coded Levels), one row per factor
- * 4. **Design Points** sub-section — `DataTable` (Point | Reps | [Type] |
+ * 4. **Design Points** sub-section — `DataTable` (Point | Reps | `Type` |
  *    Factor₁ | … | Factorₙ); the `Type` column (Factorial / Axial / Center)
  *    is present only when [design] is a [CentralCompositeDesign]; factor values
  *    are on the [coded] scale when `coded = true`, otherwise the original scale

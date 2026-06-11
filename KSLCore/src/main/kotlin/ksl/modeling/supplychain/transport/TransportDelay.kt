@@ -26,7 +26,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *        Defaults to [ConstantRV.ZERO] for zero-delay transport.
  * @param name optional model-element name
  *
- * @see sc.transportlayer.TransportDelay
+ * See `sc.transportlayer.TransportDelay`
  */
 open class TransportDelay @JvmOverloads constructor(
     parent: ModelElement,

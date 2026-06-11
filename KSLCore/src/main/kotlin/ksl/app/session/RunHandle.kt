@@ -138,7 +138,7 @@ interface RunHandle {
  * [onCancelHook] is invoked synchronously after this handle claims the terminal
  * cancellation state and before the coroutine Job is cancelled.  Orchestrators
  * use this to signal domain-level stop mechanisms — for example,
- * [OptimizationOrchestrator] passes `solver::stopIterations` so the solver's
+ * `OptimizationOrchestrator` passes `solver::stopIterations` so the solver's
  * iteration loop exits at the next boundary rather than waiting for the blocking
  * call to complete.
  */

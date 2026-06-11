@@ -107,7 +107,7 @@ object GridHeuristics {
  *     values; neither owns the other.
  *
  *  Edge model:
- *   - Each cell has a [cellCost], default 1.0. Set via [setCellCost]
+ *   - Each cell has a `cellCost`, default 1.0. Set via [setCellCost]
  *     (and read via [cellCostOf]).
  *   - Edge cost from cell *u* to neighbor *v* is
  *     `cellCost(v) * stepLength`, where `stepLength` is 1.0 for

@@ -2,9 +2,9 @@ package ksl.modeling.supplychain
 
 /**
  * Strategy for locating an [OrderFillerIfc] that can fill a given order,
- * used by [OrderGenerator] when sending generated orders.
+ * used by `OrderGenerator` when sending generated orders.
  *
- * @see sc.inventorylayer.OrderFillerFinderIfc
+ * See `sc.inventorylayer.OrderFillerFinderIfc`
  */
 fun interface OrderFillerFinderIfc {
     /**

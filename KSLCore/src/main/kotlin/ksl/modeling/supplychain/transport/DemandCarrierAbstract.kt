@@ -9,7 +9,7 @@ import ksl.simulation.ModelElement
  * schedule events. Extends [ModelElement] so subclasses can use KSL's
  * `EventAction` pattern.
  *
- * @see sc.transportlayer.DemandCarrierAbstract
+ * See `sc.transportlayer.DemandCarrierAbstract`
  */
 abstract class DemandCarrierAbstract @JvmOverloads constructor(
     parent: ModelElement,

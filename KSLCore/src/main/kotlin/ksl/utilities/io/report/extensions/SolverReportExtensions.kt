@@ -175,7 +175,7 @@ fun ReportBuilder.solver(
 }
 
 /**
- * Appends a single [DataTable] enumerating the supplied solver's
+ * Appends a single `DataTable` enumerating the supplied solver's
  * configuration properties — the structured form of
  * [Solver.toString], usable in any [ReportBuilder]-built document.
  *

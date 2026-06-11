@@ -6,7 +6,7 @@ package ksl.modeling.supplychain
  * two-method shape and the same separation of *what* and
  * *whether*.
  *
- * @see sc.transportlayer.OrderCarrierIfc
+ * See `sc.transportlayer.OrderCarrierIfc`
  */
 interface OrderCarrierIfc {
     /** Transport [order] from its origin to its destination. */

@@ -48,15 +48,15 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  * evaluator's probe model.  This implementation treats those parameters as
  * **overrides**:
  *
- * - if [modelConfiguration] is non-null, it is used; otherwise
+ * - if `modelConfiguration` is non-null, it is used; otherwise
  *   [ModelRunTemplate.modelConfiguration] is used;
- * - if [experimentRunParameters] is non-null, it is used; otherwise
+ * - if `experimentRunParameters` is non-null, it is used; otherwise
  *   [ModelRunTemplate.runParameters] is used.
  *
  * After the model is built from the appropriate source, the template's
  * baseline [ModelRunTemplate.controls] and [ModelRunTemplate.rvOverrides]
  * are applied — matching
- * [ksl.app.config.RunConfiguration.buildModel]'s pattern.
+ * `ksl.app.config.RunConfiguration.buildModel`'s pattern.
  *
  * ## JAR resolution
  *

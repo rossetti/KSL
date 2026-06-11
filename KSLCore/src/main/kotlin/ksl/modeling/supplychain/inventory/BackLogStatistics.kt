@@ -16,7 +16,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  * are safe because [BackLogQueue] always constructs the concrete
  * KSL response types.
  *
- * @see sc.inventorylayer.BackLogStatistics
+ * See `sc.inventorylayer.BackLogStatistics`
  */
 class BackLogStatistics(private val backLogQueue: BackLogQueue) : BackLogStatisticsIfc {
 

@@ -6,7 +6,7 @@ package ksl.modeling.supplychain
  * at most one [DemandFillerIfc] (supplier); a supplier may serve many
  * customers.
  *
- * @see sc.inventorylayer.DemandFillerFinder
+ * See `sc.inventorylayer.DemandFillerFinder`
  */
 class DemandFillerFinder : DemandFillerFinderIfc {
 

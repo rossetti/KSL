@@ -13,10 +13,10 @@ import ksl.simulation.ModelElement
  * process-oriented modeling (entities, resources, KSL processes).
  *
  * Demands and orders are created via [createDemand] and
- * [createOrderPlaceholder]; their constructors are not exposed.
+ * `createOrderPlaceholder`; their constructors are not exposed.
  *
- * @see sc.inventorylayer.Demand
- * @see sc.inventorylayer.Order
+ * See `sc.inventorylayer.Demand`
+ * See `sc.inventorylayer.Order`
  */
 open class SupplyChainModel(
     parent: ModelElement,
@@ -96,7 +96,7 @@ open class SupplyChainModel(
      *
      * Created only via [SupplyChainModel.createDemand].
      *
-     * @see sc.inventorylayer.Demand
+     * See `sc.inventorylayer.Demand`
      */
     open inner class Demand internal constructor(
         itemType: ItemType,
@@ -431,7 +431,7 @@ open class SupplyChainModel(
      * legal transitions; an attempted illegal transition throws
      * [IllegalStateException] via [unsupported].
      *
-     * @see sc.inventorylayer.DemandState
+     * See `sc.inventorylayer.DemandState`
      */
     abstract inner class DemandState internal constructor(val stateId: DemandStateId) {
 
@@ -626,7 +626,7 @@ open class SupplyChainModel(
     /**
      * Demand has been integrated into the destination's inventory
      * (or otherwise finalised at the destination).  Terminal state.
-     * Accounting listeners (e.g. an [Inventory]'s replenishment
+     * Accounting listeners (e.g. an `Inventory`'s replenishment
      * handler) fire on this transition rather than on [delivered].
      *
      * See `docs/supply-chain-framework-design.md` §3.1.
@@ -645,7 +645,7 @@ open class SupplyChainModel(
      *
      * Created only via [SupplyChainModel.createOrder].
      *
-     * @see sc.inventorylayer.Order
+     * See `sc.inventorylayer.Order`
      */
     open inner class Order internal constructor(
         orderName: String? = null,
@@ -970,7 +970,7 @@ open class SupplyChainModel(
      * transitions; an attempted illegal transition throws
      * [IllegalStateException] via [unsupported].
      *
-     * @see sc.inventorylayer.OrderState
+     * See `sc.inventorylayer.OrderState`
      */
     abstract inner class OrderState internal constructor(val stateId: OrderStateId) {
 
@@ -1144,7 +1144,7 @@ open class SupplyChainModel(
      * Used by transportlayer load-builders and load carriers. Created
      * only via [SupplyChainModel.createDemandLoad].
      *
-     * @see sc.transportlayer.DemandLoad
+     * See `sc.transportlayer.DemandLoad`
      */
     open inner class DemandLoad internal constructor(
         loadName: String? = null,

@@ -14,7 +14,7 @@ package ksl.modeling.supplychain
  * @param mayPartiallyFillDemands see [DemandMessageIfc.mayPartiallyFillDemands]
  * @param mayBackLogDemands see [DemandMessageIfc.mayBackLogDemands]
  *
- * @see sc.inventorylayer.DemandMessage
+ * See `sc.inventorylayer.DemandMessage`
  */
 data class DemandMessage @JvmOverloads constructor(
     override val demandFiller: DemandFillerIfc,

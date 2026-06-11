@@ -52,9 +52,9 @@ import java.nio.file.Path
  * **Node rendering:**
  * - [ReportNode.Document]          — full LaTeX preamble + `\maketitle`; `\end{document}` on exit
  * - [ReportNode.Section]           — `\section`, `\subsection`, `\subsubsection` (depth-promoted)
- * - [ReportNode.Heading]           — mapped to `\section`…`\subsubsection` by [level]
+ * - [ReportNode.Heading]           — mapped to `\section`…`\subsubsection` by `level`
  * - [ReportNode.Paragraph]         — verbatim text + blank line
- * - [ReportNode.StatTable]         — [StatisticReporter.halfWidthSummaryReportAsLaTeXTables] wrapped in a
+ * - [ReportNode.StatTable]         — `StatisticReporter.halfWidthSummaryReportAsLaTeXTables` wrapped in a
  *                                    `table` + `caption` environment; detail=true appends a second tabular
  *                                    for diagnostic fields
  * - [ReportNode.WeightedStatTable] — manually constructed `longtable` with all weighted-statistic columns

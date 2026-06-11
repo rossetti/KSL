@@ -17,7 +17,7 @@ import ksl.simulation.ModelElement
  * [AggregateInventoryResponseIfc] (delegated to a member
  * [AggregateInventoryResponse]).
  *
- * @see sc.inventorylayer.InventoryHolderAbstract
+ * See `sc.inventorylayer.InventoryHolderAbstract`
  */
 abstract class InventoryHolderAbstract @JvmOverloads constructor(
     parent: ModelElement,

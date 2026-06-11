@@ -50,8 +50,8 @@ import ksl.simulation.ModelElement
  * @param initialAvailability availability at the start of each replication
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.CrossDock
- * @see ksl.modeling.supplychain.facility.CrossDockFacility
+ * See `sc.inventorylayer.CrossDock`
+ * See `ksl.modeling.supplychain.facility.CrossDockFacility`
  */
 open class InventoryCrossDock @JvmOverloads constructor(
     parent: ModelElement,

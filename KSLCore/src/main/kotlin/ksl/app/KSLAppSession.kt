@@ -76,7 +76,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  *   [SingleRunOrchestrator], [ScenarioOrchestrator], or
  *   [ExperimentOrchestrator] respectively.
  * - [RunSpec.Optimization] → validated by
- *   [OptimizationConfigurationValidator]; on success a [Solver] is built by
+ *   [OptimizationConfigurationValidator]; on success a `Solver` is built by
  *   [OptimizationSolverFactory] from the spec's
  *   [ksl.app.config.optimization.OptimizationRunConfiguration] and handed to
  *   [OptimizationOrchestrator].  Programmatic users who already hold a
@@ -114,7 +114,7 @@ class KSLAppSession(
      * combinations return an already-failed handle rather than throwing, so UI
      * code can handle all outcomes through the same event/result protocol.
      *
-     * For [RunSpec.Optimization], a [Solver] is built from
+     * For [RunSpec.Optimization], a `Solver` is built from
      * [ksl.app.config.optimization.OptimizationRunConfiguration] via
      * [OptimizationSolverFactory] and then submitted to
      * [OptimizationOrchestrator].

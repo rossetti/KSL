@@ -14,7 +14,7 @@ import ksl.simulation.ModelElement
  * @param initialAvailability availability at the start of each replication
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.DemandFillerAbstract
+ * See `sc.inventorylayer.DemandFillerAbstract`
  */
 abstract class DemandFillerAbstract @JvmOverloads constructor(
     parent: ModelElement,

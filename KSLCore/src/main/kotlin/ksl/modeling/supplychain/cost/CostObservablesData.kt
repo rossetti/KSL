@@ -7,7 +7,7 @@ import ksl.modeling.supplychain.inventory.NetworkNodeIfc
 import ksl.modeling.supplychain.transport.DemandLoadBuilder
 
 /**
- * Concrete snapshot of an [Inventory]'s cost observables at the
+ * Concrete snapshot of an `Inventory`'s cost observables at the
  * moment of construction.  Snapshot semantics: every field is read
  * eagerly so the object is immutable and safe to retain after the
  * replication ends.

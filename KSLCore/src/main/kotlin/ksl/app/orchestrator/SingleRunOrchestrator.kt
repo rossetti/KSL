@@ -40,7 +40,7 @@ import kotlinx.coroutines.SupervisorJob
  * all supported run modes. This orchestrator remains public so lower-level
  * tests and advanced integrations can exercise the single-run path directly.
  *
- * Accepts a [RunConfiguration], builds the model via [RunConfiguration.buildModel],
+ * Accepts a [RunConfiguration], builds the model via `RunConfiguration.buildModel`,
  * and delegates to [Runner.submit].  Returns the [RunHandle] directly so the caller
  * can observe lifecycle events and await the terminal [ksl.app.session.RunResult.Completed].
  *
@@ -57,9 +57,9 @@ import kotlinx.coroutines.SupervisorJob
  *
  * Pre-flight validation should be performed with
  * [ksl.app.validation.RunConfigurationValidator.validateForRun] before calling
- * [submit].  If [RunConfiguration.modelReference] is
- * [ksl.app.config.ModelReference.ByProviderId] and [provider] is `null`,
- * [RunConfiguration.buildModel] throws [IllegalStateException] synchronously —
+ * [submit].  If `RunConfiguration.modelReference` is
+ * [ksl.app.config.ModelReference.ByProviderId] and `provider` is `null`,
+ * `RunConfiguration.buildModel` throws [IllegalStateException] synchronously —
  * before the coroutine is launched.
  */
 object SingleRunOrchestrator {
@@ -69,7 +69,7 @@ object SingleRunOrchestrator {
      *
      * @param config      the run configuration describing the model, controls,
      *                    and experiment parameters
-     * @param provider    required when [RunConfiguration.modelReference] is
+     * @param provider    required when `RunConfiguration.modelReference` is
      *                    [ksl.app.config.ModelReference.ByProviderId]; ignored for
      *                    [ksl.app.config.ModelReference.ByJar]
      * @param attachments optional [RunAttachmentIfc] instances wired into the run
@@ -97,8 +97,8 @@ object SingleRunOrchestrator {
      * Builds the single scenario's model and applies its run parameters,
      * controls, RV overrides, and model configuration.  The shape mirrors
      * `ScenarioOrchestrator.buildScenario` but produces a configured
-     * [Model] directly (rather than a `Scenario` wrapper) because
-     * `RunRequest.SingleRun` consumes a [Model].
+     * `Model` directly (rather than a `Scenario` wrapper) because
+     * `RunRequest.SingleRun` consumes a `Model`.
      *
      * When [outputConfig].outputDirectory is non-null, the model's
      * [ksl.simulation.Model.outputDirectory] is replaced with a fresh

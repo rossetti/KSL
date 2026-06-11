@@ -28,7 +28,7 @@ import kotlinx.serialization.Serializable
  * `dataType`) that a config-file author cannot know — this type holds only the three
  * fields that need to be specified to override an RV's parameter.
  *
- * [RunConfiguration.buildModel] groups a list of overrides by [rvName] and applies them
+ * `RunConfiguration.buildModel` groups a list of overrides by [rvName] and applies them
  * via [ksl.utilities.random.rvariable.parameters.RVParameterSetter.changeParameters],
  * which accepts the `Map<rvName, Map<paramName, value>>` form that
  * [ksl.simulation.ModelDescriptor.rvParameterMap] also produces.

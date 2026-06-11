@@ -27,9 +27,9 @@ import java.io.PrintWriter
 import java.nio.file.Path
 
 /**
- * A [ReportVisitor] that renders a [ReportNode] tree to GitHub-flavoured Markdown.
+ * A `ReportVisitor` that renders a [ReportNode] tree to GitHub-flavoured Markdown.
  *
- * Delegates all statistical table formatting to [StatisticReporter] (reusing the
+ * Delegates all statistical table formatting to `StatisticReporter` (reusing the
  * existing half-width and summary report methods). Uses [MarkDown.Table] for
  * [ReportNode.DataTable] and [ReportNode.WeightedStatTable] nodes.
  *
@@ -45,7 +45,7 @@ import java.nio.file.Path
  * - [ReportNode.Section]           — `## title` (depth-promoted)
  * - [ReportNode.Heading]           — `#` × level + text
  * - [ReportNode.Paragraph]         — text + blank line
- * - [ReportNode.StatTable]         — [StatisticReporter.halfWidthSummaryReportAsMarkDown]
+ * - [ReportNode.StatTable]         — `StatisticReporter.halfWidthSummaryReportAsMarkDown`
  *                                    (detail=false); extended table appended for detail=true
  * - [ReportNode.WeightedStatTable] — [MarkDown.Table] (two-column key/value)
  * - [ReportNode.DataTable]         — [MarkDown.Table] with LEFT alignment

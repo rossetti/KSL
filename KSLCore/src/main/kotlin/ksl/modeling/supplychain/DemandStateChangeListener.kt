@@ -6,7 +6,7 @@ package ksl.modeling.supplychain
  * Replaces eight single-method listener interfaces in the legacy Java source
  * (`DemandListenerReceivedIfc`, `DemandListenerRejectedIfc`, …,
  * `DemandListenerDeliveredIfc`) plus the composite
- * `DemandStateChangeListenerIfc`. Discriminate on [to] (and optionally [from])
+ * `DemandStateChangeListenerIfc`. Discriminate on [to] (and optionally `from`)
  * to handle the transitions you care about.
  *
  * @see SupplyChainModel.Demand

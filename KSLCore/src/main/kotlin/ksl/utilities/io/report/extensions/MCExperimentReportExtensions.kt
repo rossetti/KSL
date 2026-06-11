@@ -37,7 +37,7 @@ import ksl.utilities.mcintegration.MCMultiVariateIntegration
  *   error gap, convergence status, optional history plot); shows a "not run" message
  *   when the experiment has not yet been executed
  * - [mcExperiment] — composite function that calls [mcExperimentConfig],
- *   [mcExperimentDiagnostics], and [statPropertyTable] in sequence; the standard
+ *   [mcExperimentDiagnostics], and `statPropertyTable` in sequence; the standard
  *   full-report building block for any [MCExperiment]
  * - [mc1DIntegration] — thin wrapper for [MC1DIntegration]; prepends a
  *   **Integration Problem Setup** section (function class, sampler class, antithetic
@@ -185,14 +185,14 @@ fun ReportBuilder.mcExperimentDiagnostics(
  * diagnostics, and statistical estimate for any [MCExperiment].
  *
  * Delegates to [mcExperimentConfig], [mcExperimentDiagnostics], and
- * [statPropertyTable] in sequence. Use the granular functions directly when
+ * `statPropertyTable` in sequence. Use the granular functions directly when
  * you need only a subset of these sections.
  *
  * **Produces (inside a section titled `caption` or `"Monte Carlo Experiment"`):**
  * 1. [mcExperimentConfig] section — setup parameters
  * 2. [mcExperimentDiagnostics] section — convergence status, HW gap, optional
  *    history plot; omitted when the experiment has not been run
- * 3. [statPropertyTable] — all 19 statistical fields via
+ * 3. `statPropertyTable` — all 19 statistical fields via
  *    [ksl.utilities.statistic.StatisticIfc]; omitted when the experiment has not
  *    been run
  *

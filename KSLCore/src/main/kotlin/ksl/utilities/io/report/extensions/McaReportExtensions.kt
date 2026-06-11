@@ -86,11 +86,11 @@ enum class MCBDirection { MAX, MIN, BOTH }
  * @param indifferenceZone    delta for MCB interval construction; defaults to
  *                            [mca.defaultIndifferenceZone][MultipleComparisonAnalyzer.defaultIndifferenceZone]
  * @param altConfidenceLevel  confidence level for the alternatives `StatTable`; defaults to
- *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
+ *                            `mca.defaultLevel`
  * @param diffConfidenceLevel confidence level for the pairwise differences table; defaults to
- *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
+ *                            `mca.defaultLevel`
  * @param probCorrectSelection probability of correct selection for screening; defaults to
- *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
+ *                            `mca.defaultLevel`
  * @param showAltCIPlot       `true` inserts an **"Alternative Confidence Intervals"**
  *                            sub-section immediately after the Alternative Statistics table;
  *                            the section contains a [ConfidenceIntervalsPlot] showing the
@@ -300,7 +300,7 @@ fun ReportBuilder.multipleComparison(
  * [xAxisLabel] / [yAxisLabel].
  *
  * @param mca             the analyzer whose per-alternative statistics supply the intervals
- * @param confidenceLevel confidence level for the intervals; defaults to [mca.defaultLevel]
+ * @param confidenceLevel confidence level for the intervals; defaults to `mca.defaultLevel`
  * @param referencePoint  optional x-intercept for a reference line; `null` suppresses it
  * @param caption         optional plot caption; defaults to
  *                        `"Alternative Confidence Intervals — <mca.name>"`

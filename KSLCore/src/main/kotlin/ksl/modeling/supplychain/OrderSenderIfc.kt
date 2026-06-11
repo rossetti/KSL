@@ -5,7 +5,7 @@ import ksl.utilities.IdentityIfc
 /**
  * Objects that send orders to an [OrderFillerIfc].
  *
- * @see sc.inventorylayer.OrderSenderIfc
+ * See `sc.inventorylayer.OrderSenderIfc`
  */
 interface OrderSenderIfc : IdentityIfc {
     /** True if this sender may produce orders containing [type]. */

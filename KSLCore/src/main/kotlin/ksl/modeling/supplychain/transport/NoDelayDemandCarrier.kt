@@ -13,7 +13,7 @@ import ksl.modeling.supplychain.*
  * `NoDelayDemandCarrier.DefaultNoDelayDemandCarrier` per porting plan
  * §4.2.
  *
- * @see sc.transportlayer.NoDelayDemandCarrier
+ * See `sc.transportlayer.NoDelayDemandCarrier`
  */
 object NoDelayDemandCarrier : DemandCarrierIfc, DemandStateChangeListener {
 

@@ -5,7 +5,7 @@ package ksl.modeling.supplychain
  * used by [OrderFillerAbstract] when assigning fillers to the demands
  * on an incoming order.
  *
- * @see sc.inventorylayer.DemandFillerFinderIfc
+ * See `sc.inventorylayer.DemandFillerFinderIfc`
  */
 fun interface DemandFillerFinderIfc {
     /**

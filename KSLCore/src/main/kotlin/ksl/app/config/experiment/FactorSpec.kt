@@ -43,7 +43,7 @@ import net.peanuuutz.tomlkt.TomlComment
  *    of at preview / submit time.
  *
  *  Cross-factor invariants (name uniqueness, count constraints per
- *  design family) are enforced in [ExperimentConfiguration.init].
+ *  design family) are enforced in `ExperimentConfiguration.init`.
  */
 @Serializable
 data class FactorSpec(

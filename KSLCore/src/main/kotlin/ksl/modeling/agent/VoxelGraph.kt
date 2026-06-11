@@ -91,7 +91,7 @@ object VoxelHeuristics {
  *     altitude / corridor / charging volume.
  *
  *  Edge model:
- *   - Each voxel has a [voxelCost], default 1.0. Set via
+ *   - Each voxel has a `voxelCost`, default 1.0. Set via
  *     [setVoxelCost] (and read via [voxelCostOf]).
  *   - Edge cost from voxel *u* to neighbor *v* is
  *     `voxelCost(v) * stepLength`, where `stepLength` is:

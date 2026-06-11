@@ -8,7 +8,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  * within-replication weighted statistics and across-replication
  * statistics for each tracked quantity.
  *
- * @see sc.inventorylayer.InventoryStatisticsIfc
+ * See `sc.inventorylayer.InventoryStatisticsIfc`
  */
 interface InventoryStatisticsIfc {
     val onHandWithinReplication: WeightedStatisticIfc

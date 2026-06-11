@@ -17,7 +17,7 @@ import kotlin.math.ceil
  * If [separateBatchOrders] is true the n batches are ordered as n
  * separate requests; otherwise they go in one consolidated order.
  *
- * @see sc.inventorylayer.InventoryPolicyReorderPointReorderQuantity
+ * See `sc.inventorylayer.InventoryPolicyReorderPointReorderQuantity`
  */
 open class InventoryPolicyReorderPointReorderQuantity @JvmOverloads constructor(
     parent: ModelElement,

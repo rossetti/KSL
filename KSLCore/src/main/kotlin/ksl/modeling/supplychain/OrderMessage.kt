@@ -7,7 +7,7 @@ package ksl.modeling.supplychain
  * @param orderFiller the filler producing this message
  * @param timeStamp simulation time at which the message was created
  *
- * @see sc.inventorylayer.OrderMessage
+ * See `sc.inventorylayer.OrderMessage`
  */
 class OrderMessage(
     override val orderFiller: OrderFillerIfc,

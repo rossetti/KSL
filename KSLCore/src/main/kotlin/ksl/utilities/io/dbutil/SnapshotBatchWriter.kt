@@ -19,7 +19,7 @@
 package ksl.utilities.io.dbutil
 
 /**
- * Writes a list of [SimulationSnapshot] objects produced by [InMemorySnapshotCollector]
+ * Writes a list of [SimulationSnapshot] objects produced by `InMemorySnapshotCollector`
  * into a [KSLDatabase] in a single sequential pass.
  *
  * The snapshots arrive with placeholder FK values (`exp_id = -1`, `run_id = -1`) set by

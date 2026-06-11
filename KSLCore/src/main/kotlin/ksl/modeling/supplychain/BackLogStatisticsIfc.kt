@@ -8,7 +8,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  * weighted statistics and across-replication summary statistics for
  * number-in-queue, time-in-queue, and amount-backlogged.
  *
- * @see sc.inventorylayer.BackLogStatisticsIfc
+ * See `sc.inventorylayer.BackLogStatisticsIfc`
  */
 interface BackLogStatisticsIfc {
     val numInQWithinReplication: WeightedStatisticIfc

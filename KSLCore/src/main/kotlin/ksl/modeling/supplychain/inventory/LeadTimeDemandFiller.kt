@@ -21,7 +21,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param parent the parent model element (typically a [SupplyChainModel])
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.LeadTimeDemandFiller
+ * See `sc.inventorylayer.LeadTimeDemandFiller`
  */
 open class LeadTimeDemandFiller @JvmOverloads constructor(
     parent: ModelElement,

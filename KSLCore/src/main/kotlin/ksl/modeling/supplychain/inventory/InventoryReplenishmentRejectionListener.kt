@@ -8,7 +8,7 @@ import ksl.modeling.supplychain.*
  * (inherited from [DemandRejectionListener]) throws; subclasses override
  * to react.
  *
- * @see sc.inventorylayer.InventoryReplenishmentRejectionListener
+ * See `sc.inventorylayer.InventoryReplenishmentRejectionListener`
  */
 open class InventoryReplenishmentRejectionListener(
     val inventory: Inventory,

@@ -170,7 +170,7 @@ fun HistogramIfc.toReport(
 /**
  * Overload of [histogram] that accepts a [HistogramIfc] reference.
  *
- * This is the variant used by [SimulationReportExtensions] when reporting histograms
+ * This is the variant used by `SimulationReportExtensions` when reporting histograms
  * obtained from a [ksl.simulation.Model] via
  * [ksl.modeling.variable.HistogramResponseCIfc.histogram], which returns
  * [ksl.utilities.statistic.CachedHistogram] (implements [HistogramIfc], not [Histogram]).

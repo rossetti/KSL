@@ -5,7 +5,7 @@ package ksl.modeling.supplychain
  * supply-chain activity, e.g., a demand filler accepting new demands or
  * a carrier accepting new shipments.
  *
- * @see sc.inventorylayer.AvailabilityIfc in the legacy Java source.
+ * See `sc.inventorylayer.AvailabilityIfc` in the legacy Java source.
  */
 interface AvailabilityIfc {
     /** True when this object can currently be selected for use. */

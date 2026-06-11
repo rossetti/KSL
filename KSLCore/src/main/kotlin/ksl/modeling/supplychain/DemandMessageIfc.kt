@@ -8,7 +8,7 @@ package ksl.modeling.supplychain
  *
  * All responses are relative to the demand instance handed to the filler.
  *
- * @see sc.inventorylayer.DemandMessageIfc
+ * See `sc.inventorylayer.DemandMessageIfc`
  */
 interface DemandMessageIfc {
     /** The filler that produced this message. */

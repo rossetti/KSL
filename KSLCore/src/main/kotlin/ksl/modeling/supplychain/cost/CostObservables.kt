@@ -15,7 +15,7 @@ import ksl.modeling.supplychain.transport.DemandLoadBuilder
  *
  * These are *typed snapshots*, not live views: every field value is
  * sampled at construction time.  Concrete data-class implementations
- * live in [CostObservablesData].
+ * live in `CostObservablesData`.
  *
  * **Warmup**: every field is sourced from KSL's within-replication
  * statistics (Counter.value, Response.average,
@@ -24,7 +24,7 @@ import ksl.modeling.supplychain.transport.DemandLoadBuilder
  * window, with no explicit time-arithmetic on the caller's part.
  */
 interface InventoryCostObservables {
-    /** Item type the source [Inventory] holds. */
+    /** Item type the source `Inventory` holds. */
     val item: ItemType
     /** Time-weighted on-hand units over the post-warmup window. */
     val avgOnHand: Double

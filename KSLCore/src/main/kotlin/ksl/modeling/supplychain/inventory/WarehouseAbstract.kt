@@ -16,7 +16,7 @@ import ksl.simulation.ModelElement
  * [orderFilled] (post-fill shipping), and [replenishmentOrderDelivered]
  * (cascade delivery to demands on a replenishment order).
  *
- * @see sc.inventorylayer.WarehouseAbstract
+ * See `sc.inventorylayer.WarehouseAbstract`
  */
 abstract class WarehouseAbstract @JvmOverloads constructor(
     parent: ModelElement,

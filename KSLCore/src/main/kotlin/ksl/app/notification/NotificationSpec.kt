@@ -22,7 +22,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Authoring shape for a notification handed to [Notifications.show].
+ * Authoring shape for a notification handed to `Notifications.show`.
  *
  * @property message human-readable text shown on the card.  Use a
  *   short one-liner; longer text wraps but the card is intended

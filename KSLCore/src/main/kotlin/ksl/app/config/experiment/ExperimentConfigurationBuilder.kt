@@ -349,7 +349,7 @@ private fun iteratorForFraction(
 
 /**
  *  Resolve an [AxialSpacing] to a concrete Double for the substrate
- *  CCD constructor.  [Rotatable] calls
+ *  CCD constructor.  `Rotatable` calls
  *  `CentralCompositeDesign.rotatableAxialSpacing(...)` with
  *  fraction = 0 (the spec always uses a full 2^k factorial core
  *  for v1; fractional cores are deferred to Phase E11 polish).

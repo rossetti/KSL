@@ -24,7 +24,7 @@ import ksl.simulation.ModelElement
  * @param baseName name prefix for the underlying responses; defaults
  *        to [parent]'s name
  *
- * @see sc.inventorylayer.AggregateInventoryResponse
+ * See `sc.inventorylayer.AggregateInventoryResponse`
  */
 class AggregateInventoryResponse @JvmOverloads constructor(
     parent: ModelElement,

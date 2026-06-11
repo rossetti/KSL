@@ -15,7 +15,7 @@ import ksl.modeling.variable.TWResponse
  * @param discipline the queue discipline; defaults to FIFO
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.BackLogQueue
+ * See `sc.inventorylayer.BackLogQueue`
  */
 open class BackLogQueue @JvmOverloads constructor(
     inventory: Inventory,

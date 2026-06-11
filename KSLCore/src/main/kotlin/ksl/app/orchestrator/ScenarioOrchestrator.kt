@@ -71,7 +71,7 @@ class ScenarioOrchestrator {
      * Submits the scenario sweep described by [config] for asynchronous execution.
      *
      * @param config   run configuration with a non-empty [RunConfiguration.scenarios] list
-     * @param provider required when [RunConfiguration.modelReference] is
+     * @param provider required when `RunConfiguration.modelReference` is
      *                 [ModelReference.ByProviderId]
      * @param scope    coroutine scope that owns the orchestrator coroutine
      * @return a [RunHandle] for observing progress and obtaining the result
@@ -350,7 +350,7 @@ class ScenarioOrchestrator {
     /**
      * Resolves a [ModelReference] to a freshly-built [Model], dispatching
      * on the sealed-class variant.  `ByBundleAndModelId` requires
-     * [provider] to be a [BundleModelProvider] (the only provider that
+     * [provider] to be a `BundleModelProvider` (the only provider that
      * supports two-key lookup); the other two variants accept any
      * [ModelProviderIfc] or none.
      */

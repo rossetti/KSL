@@ -10,7 +10,7 @@ import ksl.simulation.ModelElement
  * are shipped via [demandCarrier] (if set) or transitioned immediately
  * through ship → deliver.
  *
- * @see sc.inventorylayer.InventoryHoldingPoint
+ * See `sc.inventorylayer.InventoryHoldingPoint`
  */
 open class InventoryHoldingPoint @JvmOverloads constructor(
     parent: ModelElement,

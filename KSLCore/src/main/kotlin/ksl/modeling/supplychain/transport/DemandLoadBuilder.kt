@@ -46,7 +46,7 @@ import ksl.simulation.ModelElement
  *        construction time because KSL forbids adding stats
  *        elements once the simulation is running.
  *
- * @see sc.transportlayer.DemandLoadBuilder
+ * See `sc.transportlayer.DemandLoadBuilder`
  */
 open class DemandLoadBuilder @JvmOverloads constructor(
     val supplyChainModel: SupplyChainModel,

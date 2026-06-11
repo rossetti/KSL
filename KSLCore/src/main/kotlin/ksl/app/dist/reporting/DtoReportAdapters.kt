@@ -54,7 +54,7 @@ import ksl.utilities.statistic.StatisticIfc
  * raw replicate array is never transmitted, so the CI/bias/MSE/std-error
  * accessors return the carried summary values directly (the confidence
  * intervals are at the level the fit was run at, regardless of the requested
- * [level]).
+ * `level`).
  */
 internal class DtoBootstrapEstimate(
     private val dto: BootstrapEstimateDTO,

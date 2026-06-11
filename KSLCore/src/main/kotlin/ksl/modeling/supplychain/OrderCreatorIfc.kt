@@ -1,11 +1,11 @@
 package ksl.modeling.supplychain
 
 /**
- * Strategy for creating orders from scratch. Used by [OrderGenerator]
+ * Strategy for creating orders from scratch. Used by `OrderGenerator`
  * at each event firing. Implementations decide what item types and
  * quantities go on the order.
  *
- * @see sc.inventorylayer.OrderCreatorIfc
+ * See `sc.inventorylayer.OrderCreatorIfc`
  */
 fun interface OrderCreatorIfc {
     /**

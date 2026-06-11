@@ -13,7 +13,7 @@ import ksl.modeling.variable.AggregateTWResponse
  * chained from its per-inventory source(s) via the standard
  * `observe()` pattern.
  *
- * @see sc.inventorylayer.AggregateInventoryResponseIfc
+ * See `sc.inventorylayer.AggregateInventoryResponseIfc`
  */
 interface AggregateInventoryResponseIfc {
     val aggregateOnHandInventory: AggregateTWResponse

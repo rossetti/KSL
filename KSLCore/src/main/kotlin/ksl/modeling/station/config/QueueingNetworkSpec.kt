@@ -358,11 +358,11 @@ data class JoinStationSpec(
 /**
  * The send side of a fork-join pair, paired with the join named [join].
  * Behavior (count and child configuration) is supplied via named hooks resolved
- * at build time against the builder's [ChildFactoryIfc] / [ChildCountIfc]
+ * at build time against the builder's `ChildFactoryIfc` / `ChildCountIfc`
  * registries; an unknown hook fails the build loudly.
  *
- * @property childCount hook name for a [ChildCountIfc]; required
- * @property childFactory optional hook name for a [ChildFactoryIfc]; null means
+ * @property childCount hook name for a `ChildCountIfc`; required
+ * @property childFactory optional hook name for a `ChildFactoryIfc`; null means
  *                       children are unconfigured QObjects
  * @property childRouting optional routing for newly spawned children (where they go first)
  * @property routing optional routing for the parent's onward path

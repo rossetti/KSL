@@ -19,7 +19,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param weight the weight per unit, must be > 0; defaults to 1.0
  * @param cube the cube per unit, must be >= 0; defaults to 1.0
  * @param leadTime an optional replenishment lead-time source; may be null
- * @see sc.inventorylayer.ItemType
+ * See `sc.inventorylayer.ItemType`
  */
 class ItemType @JvmOverloads constructor(
     parent: ModelElement,

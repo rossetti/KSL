@@ -5,7 +5,7 @@ import ksl.modeling.supplychain.*
 /**
  * Thrown when no carrier option is available for transporting a demand.
  *
- * @see sc.transportlayer.NoCarrierOptionException
+ * See `sc.transportlayer.NoCarrierOptionException`
  */
 class NoCarrierOptionException(
     message: String = "NoCarrierOptionException",

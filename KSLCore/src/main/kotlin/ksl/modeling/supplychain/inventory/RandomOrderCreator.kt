@@ -17,7 +17,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *        `createDemand` factories are used
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.RandomOrderCreator
+ * See `sc.inventorylayer.RandomOrderCreator`
  */
 open class RandomOrderCreator @JvmOverloads constructor(
     val supplyChainModel: SupplyChainModel,

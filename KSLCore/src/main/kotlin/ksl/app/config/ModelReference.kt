@@ -28,7 +28,7 @@ import net.peanuuutz.tomlkt.TomlComment
  * [ModelReference] stores only string data; it contains no live object references and is
  * safe to persist and transport.  Resolving a reference to a live
  * [ksl.simulation.Model] is done at configuration-application time by
- * [RunConfiguration.buildModel].
+ * `RunConfiguration.buildModel`.
  *
  * Four variants:
  * - [ByProviderId]        — looks the model up in a caller-supplied [ksl.simulation.ModelProviderIfc]
@@ -61,7 +61,7 @@ sealed class ModelReference {
     /**
      * References a model registered in a [ksl.simulation.ModelProviderIfc] by its
      * identifier string.  The provider itself must be supplied at run time via
-     * [RunConfiguration.buildModel].
+     * `RunConfiguration.buildModel`.
      *
      * @property providerId the key passed to [ksl.simulation.ModelProviderIfc.provideModel]
      */

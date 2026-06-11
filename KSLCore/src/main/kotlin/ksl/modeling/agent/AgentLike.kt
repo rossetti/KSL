@@ -19,7 +19,7 @@
 package ksl.modeling.agent
 
 /**
- *  The minimal contract a [Statechart] needs from its owner. Both
+ *  The minimal contract a `Statechart` needs from its owner. Both
  *  [AgentModel.Agent] and [AgentResource] implement this interface, so a
  *  statechart can govern either kind of actor without the statechart
  *  runtime having to know which it is.

@@ -57,12 +57,12 @@ import ksl.simulation.Model
  *
  * ## Using the `scope` parameter for background work
  *
- * The [scope] passed to [onAttach] is the coroutine scope of the run itself.
+ * The `scope` passed to [onAttach] is the coroutine scope of the run itself.
  * Child coroutines launched in this scope are automatically cancelled when the
  * run ends (for any reason), preventing resource leaks.  For example, an
  * animation trace attachment that writes events asynchronously can create a
  * buffered [kotlinx.coroutines.channels.Channel] and launch a Dispatchers.IO
- * writer coroutine in [scope]:
+ * writer coroutine in `scope`:
  *
  * ```kotlin
  * override fun onAttach(model: Model, scope: CoroutineScope) {

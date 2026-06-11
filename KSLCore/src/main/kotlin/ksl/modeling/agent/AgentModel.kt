@@ -54,7 +54,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  same [Statechart] and [AgentMailbox] machinery serves both.
  *
  *  Messaging:
- *   - A single [BlockingQueue] *message bus* is pre-allocated at
+ *   - A single `BlockingQueue` *message bus* is pre-allocated at
  *     `AgentModel` construction. All sends route through it; mailboxes
  *     are POJOs that filter by recipient reference. This is what makes
  *     transient agents possible — agent construction no longer creates

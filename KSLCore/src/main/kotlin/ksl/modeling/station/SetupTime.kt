@@ -27,7 +27,7 @@ import ksl.simulation.ModelElement
  */
 fun interface SetupTimeIfc {
     /**
-     *  The setup time before serving [toType], given the type the server was last
+     *  The setup time before serving `toType`, given the type the server was last
      *  configured for ([fromType], null if nothing has been served yet).
      */
     fun setupTime(fromType: Int?, toType: Int, qObject: ModelElement.QObject): Double
@@ -48,7 +48,7 @@ class ChangeoverSetupTime(private val setup: Double) : SetupTimeIfc {
 }
 
 /**
- *  A sequence-dependent setup matrix: the setup before serving [toType] depends on
+ *  A sequence-dependent setup matrix: the setup before serving `toType` depends on
  *  the (fromType, toType) pair.
  *
  *  @param setups setup times keyed by (fromType, toType); missing pairs use [defaultSetup]

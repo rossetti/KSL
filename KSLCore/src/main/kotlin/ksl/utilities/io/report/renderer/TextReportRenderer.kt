@@ -25,18 +25,18 @@ import java.io.PrintWriter
 import java.nio.file.Path
 
 /**
- * A [ReportVisitor] that renders a [ReportNode] tree to plain text.
+ * A `ReportVisitor` that renders a [ReportNode] tree to plain text.
  *
  * This is the simplest renderer and serves as the end-to-end validation of the
  * visitor traversal pattern. It delegates all statistical table formatting to
- * [StatisticReporter], preserving the existing KSL console output experience.
+ * `StatisticReporter`, preserving the existing KSL console output experience.
  *
  * **Node rendering:**
  * - [ReportNode.Document]       — title underlined with `=`
  * - [ReportNode.Section]        — section title underlined with `-`, indented by depth
  * - [ReportNode.Heading]        — heading text prefixed with `#` × level
  * - [ReportNode.Paragraph]      — text followed by a blank line
- * - [ReportNode.StatTable]      — delegates to [StatisticReporter.halfWidthSummaryReport]
+ * - [ReportNode.StatTable]      — delegates to `StatisticReporter.halfWidthSummaryReport`
  *                                 (detail=false) or [StatisticReporter.summaryReport]
  *                                 followed by the full CSV statistics (detail=true)
  * - [ReportNode.WeightedStatTable] — key/value table of all [ksl.utilities.statistic.WeightedStatistic] properties

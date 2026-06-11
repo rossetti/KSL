@@ -56,7 +56,7 @@ import java.nio.file.Path
  *  emitters, and runs the simulation.  All database-bound data is captured in memory during
  *  this phase; no database writes occur.
  *
- *  **Phase 2 — sequential database commit.**  After all coroutines complete ([awaitAll]),
+ *  **Phase 2 — sequential database commit.**  After all coroutines complete (`awaitAll`),
  *  the collected snapshots are written to [kslDb] one scenario at a time via
  *  [SnapshotBatchWriter].  Serialising the writes avoids concurrent SQLite access while
  *  keeping simulation time fully parallel.
@@ -139,7 +139,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
      *  finished, or hasn't started yet.
      *
      *  Cancelled scenarios produce a `null` snapshot in the commit phase,
-     *  so [RunEvent.ScenarioCompleted] is emitted for them with
+     *  so `RunEvent.ScenarioCompleted` is emitted for them with
      *  `snapshot == null`.  Sibling scenarios continue to run because
      *  [simulate] wraps each scenario's `async` in a `supervisorScope`,
      *  preventing one child's cancellation from propagating to the others.

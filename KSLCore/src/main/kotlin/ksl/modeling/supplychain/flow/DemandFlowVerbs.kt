@@ -56,7 +56,7 @@ fun SupplyChainModel.Demand.receiveForProcessing(receiver: DemandFillerIfc) {
  * returns, and by lead-time fillers after the production delay
  * elapses. This helper consolidates all three.
  *
- * Fills the demand for its full [originalAmountDemanded] — the
+ * Fills the demand for its full `originalAmountDemanded` — the
  * state machine does not allow `ship` from a partially-filled
  * demand, so partial fulfilment is not a supported flow at this
  * level. Callers needing partial fill should call

@@ -17,14 +17,14 @@ import ksl.simulation.ModelElement
  * The transit-time aggregate is a plain [Response] without an
  * observer chain (KSL has no chaining-aggregator for non-time-weighted
  * responses; same Session-8 deviation as in
- * [AggregateInventoryResponse]). Callers that want it filled must push
+ * `AggregateInventoryResponse`). Callers that want it filled must push
  * values directly.
  *
  * @param parent parent model element under which the aggregate
  *        responses live
  * @param baseName name prefix for the aggregate responses
  *
- * @see sc.transportlayer.AggregateTransportResponse
+ * See `sc.transportlayer.AggregateTransportResponse`
  */
 class AggregateTransportResponse @JvmOverloads constructor(
     parent: ModelElement,

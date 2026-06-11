@@ -26,7 +26,7 @@ import ksl.simulation.ModelElement
  *  priority, or attach a route — anything that varies per instance and can't be
  *  expressed as a static [QObjectClass].
  *
- *  The [network] parameter exposes the built network's read-only view, so a
+ *  The `network` parameter exposes the built network's read-only view, so a
  *  marking hook can look up `route(name)` to attach a per-instance [Route] as
  *  the QObject's sender (the DTO route-then-mark pattern). Ignore it (use
  *  `MarkingHookIfc { q, _ -> ... }`) when not needed.

@@ -13,7 +13,7 @@ import ksl.simulation.ModelElement
  * Unlike the continuous-review variants, [checkInventory] is a no-op
  * here — review happens via a scheduled event.
  *
- * @see sc.inventorylayer.InventoryPolicyReorderPointOrderUpToLevelPeriodic
+ * See `sc.inventorylayer.InventoryPolicyReorderPointOrderUpToLevelPeriodic`
  */
 open class InventoryPolicyReorderPointOrderUpToLevelPeriodic @JvmOverloads constructor(
     parent: ModelElement,

@@ -13,7 +13,7 @@ import ksl.simulation.ModelElement
  * parameter vector), and [setInitialPolicyParameters] (the vector
  * restored at the start of each replication).
  *
- * @see sc.inventorylayer.InventoryPolicyAbstract
+ * See `sc.inventorylayer.InventoryPolicyAbstract`
  */
 abstract class InventoryPolicyAbstract @JvmOverloads constructor(
     parent: ModelElement,
@@ -33,7 +33,7 @@ abstract class InventoryPolicyAbstract @JvmOverloads constructor(
 
     /**
      * If true (default), the policy parameters are reset to
-     * [initialPolicyParameters] before each replication.
+     * `initialPolicyParameters` before each replication.
      */
     var resetInitialParametersFlag: Boolean = true
 

@@ -5,7 +5,7 @@ package ksl.modeling.supplychain
  * [DemandMessageIfc] per demand on the negotiated order plus order-level
  * metadata.
  *
- * @see sc.inventorylayer.OrderMessageIfc
+ * See `sc.inventorylayer.OrderMessageIfc`
  */
 interface OrderMessageIfc {
     /** The order filler that produced this message. */

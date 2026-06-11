@@ -250,7 +250,7 @@ fun ReportBuilder.designedExperiment(
  * otherwise [DesignedExperimentIfc.regressionResults] will have no data.
  *
  * @param de                  the [DesignedExperimentIfc] whose results supply the regression data
- * @param responseName        the name of the response to fit; must appear in [de.responseNames]
+ * @param responseName        the name of the response to fit; must appear in `de.responseNames`
  * @param linearModel         the model specification (factors, interaction terms, intercept flag)
  * @param confidenceLevel     confidence level for coefficient intervals; defaults to 0.95
  * @param coded               `true` (default) = coded (−1/+1) scale; `false` = original scale
@@ -339,7 +339,7 @@ fun DesignedExperimentIfc.toReport(
  *                          for the design point matrix
  * @param showDetails       `true` includes per-design-point [simulationRun] sections;
  *                          defaults to `false`
- * @param boxPlotResponses  list of response names for which a [MultiBoxPlot] is included;
+ * @param boxPlotResponses  list of response names for which a `MultiBoxPlot` is included;
  *                          defaults to empty (no box plots); pass [DesignedExperiment.responseNames]
  *                          for all responses
  * @param block             optional DSL block; replaces the default when provided

@@ -8,7 +8,7 @@ import ksl.modeling.supplychain.*
  * decide when and how to drain the demand queue into a
  * [SupplyChainModel.DemandLoad].
  *
- * @see sc.transportlayer.DemandLoadFormingRuleIfc
+ * See `sc.transportlayer.DemandLoadFormingRuleIfc`
  */
 fun interface DemandLoadFormingRuleIfc {
     /**

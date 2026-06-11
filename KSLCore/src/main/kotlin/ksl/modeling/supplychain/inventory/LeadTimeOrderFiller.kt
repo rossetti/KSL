@@ -16,7 +16,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param initialAvailability availability at the start of each replication
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.LeadTimeOrderFiller
+ * See `sc.inventorylayer.LeadTimeOrderFiller`
  */
 open class LeadTimeOrderFiller @JvmOverloads constructor(
     parent: ModelElement,

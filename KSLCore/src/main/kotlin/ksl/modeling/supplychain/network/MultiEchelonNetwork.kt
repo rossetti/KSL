@@ -52,7 +52,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @see TransportStrategy
  * @see NetworkNodeIfc
  * @see InventoryCrossDock
- * @see sc.mimenetworks.MultiEchelonNetwork
+ * See `sc.mimenetworks.MultiEchelonNetwork`
  */
 open class MultiEchelonNetwork @JvmOverloads constructor(
     val supplyChainModel: SupplyChainModel,

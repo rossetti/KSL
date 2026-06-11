@@ -6,7 +6,7 @@ import ksl.modeling.supplychain.*
  * Stateless [OrderCarrierIfc] that immediately ships and delivers
  * the order — no simulated time passes.
  *
- * @see sc.transportlayer.NoDelayOrderCarrier
+ * See `sc.transportlayer.NoDelayOrderCarrier`
  */
 object NoDelayOrderCarrier : OrderCarrierIfc {
     override fun transportOrder(order: SupplyChainModel.Order) {

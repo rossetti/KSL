@@ -10,7 +10,7 @@ import ksl.utilities.IdentityIfc
  * See the legacy Java javadoc for the detailed rules around partial
  * filling and backlogging.
  *
- * @see sc.inventorylayer.DemandFillerIfc
+ * See `sc.inventorylayer.DemandFillerIfc`
  */
 interface DemandFillerIfc : IdentityIfc, AvailabilityIfc {
 

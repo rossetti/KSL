@@ -12,6 +12,6 @@ package ksl.modeling.supplychain
  * production facility that consumes raw-material demands and runs an
  * internal recipe would also implement this.
  *
- * @see ksl.modeling.supplychain.facility.StorageFacilityAbstract
+ * See `ksl.modeling.supplychain.facility.StorageFacilityAbstract`
  */
 interface RoutesDemandsInternally : DemandFillerIfc

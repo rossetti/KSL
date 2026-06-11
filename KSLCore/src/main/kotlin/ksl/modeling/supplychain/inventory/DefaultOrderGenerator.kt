@@ -11,7 +11,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * own [addItemTypeDistribution] rather than configuring the creator
  * separately.
  *
- * @see sc.inventorylayer.DefaultOrderGenerator
+ * See `sc.inventorylayer.DefaultOrderGenerator`
  */
 open class DefaultOrderGenerator @JvmOverloads constructor(
     supplyChainModel: SupplyChainModel,

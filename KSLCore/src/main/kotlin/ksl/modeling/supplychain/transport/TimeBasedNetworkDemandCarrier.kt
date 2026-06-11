@@ -28,7 +28,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param parent the parent model element
  * @param name optional model-element name
  *
- * @see sc.transportlayer.TimeBasedNetworkDemandCarrier
+ * See `sc.transportlayer.TimeBasedNetworkDemandCarrier`
  */
 open class TimeBasedNetworkDemandCarrier @JvmOverloads constructor(
     parent: ModelElement,

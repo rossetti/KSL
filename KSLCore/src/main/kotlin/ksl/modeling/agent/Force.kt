@@ -31,7 +31,7 @@ package ksl.modeling.agent
  *  val gravity: Force<Boid> = Force { _, _, _ -> Point2D(0.0, -9.8) }
  *  ```
  *
- *  The force receives [dt] in case it depends on the integration time
+ *  The force receives `dt` in case it depends on the integration time
  *  step (rare but useful for impulse-style forces). Most forces
  *  ignore it.
  *

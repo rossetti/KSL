@@ -8,7 +8,7 @@ import ksl.modeling.variable.ResponseCIfc
  * them at every replication's end.
  *
  * **Lifecycle.** A formulation is constructed before
- * `model.simulate()` runs, walks the [MultiEchelonNetwork] at
+ * `model.simulate()` runs, walks the `MultiEchelonNetwork` at
  * construction time to instantiate one calculator per source kind
  * (Phase 3 detail), and pre-allocates every rollup Response.  Each
  * calculator subscribes to its own source via a
@@ -18,7 +18,7 @@ import ksl.modeling.variable.ResponseCIfc
  * KSL's tree walk guarantees the calculator children have already
  * fired by then because children are visited before parent.
  *
- * **Multi-attach.** A single [MultiEchelonNetwork] may carry
+ * **Multi-attach.** A single `MultiEchelonNetwork` may carry
  * multiple formulations.  Each is independent — different formulations
  * may use different [CostParams], different physical-unit
  * conventions, even different line-item structures, without

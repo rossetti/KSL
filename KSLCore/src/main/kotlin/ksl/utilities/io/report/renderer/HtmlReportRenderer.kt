@@ -29,7 +29,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * A [ReportVisitor] that renders a [ReportNode] tree to a self-contained HTML file.
+ * A `ReportVisitor` that renders a [ReportNode] tree to a self-contained HTML file.
  *
  * **Structure:**
  * - `<html><head>` — inline [REPORT_CSS] + Lets-Plot CDN `<script>` (emitted once)
@@ -42,7 +42,7 @@ import java.time.format.DateTimeFormatter
  * - [ReportNode.Section]           — `<details open><summary>title</summary>`
  * - [ReportNode.Heading]           — `<h{level}>text</h{level}>`
  * - [ReportNode.Paragraph]         — `<p>text</p>`
- * - [ReportNode.StatTable]         — [StatisticReporter.asDataFrame] → [toHtmlTable];
+ * - [ReportNode.StatTable]         — `StatisticReporter.asDataFrame` → `toHtmlTable`;
  *                                    detail=true appends an extended diagnostic table
  * - [ReportNode.WeightedStatTable] — HTML `<table>` with all weighted-statistic fields
  * - [ReportNode.DataTable]         — HTML `<table>`; numeric columns right-aligned

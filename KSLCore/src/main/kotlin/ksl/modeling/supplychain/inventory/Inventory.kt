@@ -34,7 +34,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  *        an incoming demand
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.Inventory
+ * See `sc.inventorylayer.Inventory`
  */
 open class Inventory @JvmOverloads constructor(
     parent: ModelElement,

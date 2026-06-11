@@ -14,7 +14,7 @@ import ksl.simulation.ModelElement
  * statistic accessors; [backlog] and [fillBackLogs] are the two
  * primary extension points.
  *
- * @see sc.inventorylayer.BackLogPolicyAbstract
+ * See `sc.inventorylayer.BackLogPolicyAbstract`
  */
 abstract class BackLogPolicyAbstract @JvmOverloads constructor(
     inventory: Inventory,

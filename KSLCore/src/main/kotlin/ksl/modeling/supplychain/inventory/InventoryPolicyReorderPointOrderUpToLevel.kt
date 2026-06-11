@@ -9,7 +9,7 @@ import ksl.simulation.ModelElement
  * [reorderPoint] or below, orders enough units to bring the position
  * up to [orderUpToPoint].
  *
- * @see sc.inventorylayer.InventoryPolicyReorderPointOrderUpToLevel
+ * See `sc.inventorylayer.InventoryPolicyReorderPointOrderUpToLevel`
  */
 open class InventoryPolicyReorderPointOrderUpToLevel @JvmOverloads constructor(
     parent: ModelElement,

@@ -20,7 +20,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param parent the parent model element
  * @param name optional model-element name
  *
- * @see sc.transportlayer.TimeBasedOrderCarrier
+ * See `sc.transportlayer.TimeBasedOrderCarrier`
  */
 open class TimeBasedOrderCarrier @JvmOverloads constructor(
     parent: ModelElement,

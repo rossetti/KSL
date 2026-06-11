@@ -25,7 +25,7 @@ import ksl.simulation.ModelElement
  * @param parent parent model element; defaults to [supplyChainModel]
  * @param name optional model-element name
  *
- * @see sc.transportlayer.TimeBasedLoadCarrier
+ * See `sc.transportlayer.TimeBasedLoadCarrier`
  */
 open class TimeBasedLoadCarrier @JvmOverloads constructor(
     val supplyChainModel: SupplyChainModel,

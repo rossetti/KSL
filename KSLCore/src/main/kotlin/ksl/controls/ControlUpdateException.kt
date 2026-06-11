@@ -10,7 +10,7 @@ package ksl.controls
  * already been silently reverted to its safe [JsonControlIfc.initialJsonValue]
  * before this exception propagates.
  *
- * For string controls this occurs when [allowedValues] is non-empty and the
+ * For string controls this occurs when `allowedValues` is non-empty and the
  * supplied value is not a member of that set.
  *
  * The batch-import function in [Controls] catches [ControlUpdateException]

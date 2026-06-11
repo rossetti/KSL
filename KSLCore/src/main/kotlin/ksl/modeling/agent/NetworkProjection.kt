@@ -59,7 +59,7 @@ data class WeightedPath<A>(val nodes: List<A>, val totalWeight: Double)
  *     twice.
  *
  *  Weights:
- *   - Each edge has a [weight] (default 1.0). The unweighted graph
+ *   - Each edge has a `weight` (default 1.0). The unweighted graph
  *     algorithms ([shortestPath], [reachableFrom]) ignore weights.
  *     User code can read weights via [weightOf] for its own purposes.
  *
@@ -117,7 +117,7 @@ class NetworkProjection<A : AgentLike> @JvmOverloads constructor(
         }
 
     /**
-     *  Add an edge from [a] to [b] with the given [weight]. For
+     *  Add an edge from [a] to [b] with the given `weight`. For
      *  undirected networks this is symmetric with `connect(b, a, weight)`.
      *  Idempotent on the *existence* of the edge — calling connect
      *  twice updates the weight to the most recent value rather than

@@ -11,7 +11,7 @@ package ksl.modeling.supplychain
  * filters [DemandStateChangeListener] events on
  * `to.stateId === DemandStateId.Rejected`.
  *
- * @see sc.inventorylayer.DemandRejectionListener
+ * See `sc.inventorylayer.DemandRejectionListener`
  */
 open class DemandRejectionListener : DemandStateChangeListener {
     override fun onDemandStateChange(

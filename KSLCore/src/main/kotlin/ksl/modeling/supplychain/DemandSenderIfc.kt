@@ -5,7 +5,7 @@ import ksl.utilities.IdentityIfc
 /**
  * Objects that send demand requests to a [DemandFillerIfc].
  *
- * @see sc.inventorylayer.DemandSenderIfc
+ * See `sc.inventorylayer.DemandSenderIfc`
  */
 interface DemandSenderIfc : IdentityIfc {
     /** True if this sender may produce demands of [type]. */

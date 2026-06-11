@@ -223,9 +223,9 @@ abstract class ModelElement internal constructor(
      *
      *  Module-internal visibility lets `ksl.controls` (same module)
      *  walk the model-element ancestry when extracting controls.
-     *  External callers should navigate hierarchy via
-     *  [Model.modelElements] / [Model.element]; the parent reference
-     *  itself is not part of the public surface.
+     *  External callers should navigate hierarchy via the model's
+     *  element accessors; the parent reference itself is not part of
+     *  the public surface.
      */
     internal val parent: ModelElement?
         get() = myParentModelElement

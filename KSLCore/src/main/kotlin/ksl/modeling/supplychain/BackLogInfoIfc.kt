@@ -6,7 +6,7 @@ import ksl.utilities.IdentityIfc
  * Read-only view of a demand backlog: total units waiting and the
  * number of waiting demands.
  *
- * @see sc.inventorylayer.BackLogInfoIfc
+ * See `sc.inventorylayer.BackLogInfoIfc`
  */
 interface BackLogInfoIfc : IdentityIfc {
     /** Total units associated with all backlogged demands. */

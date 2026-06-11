@@ -22,7 +22,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param timeOfTheLastEvent simulation time at which to stop generating
  * @param name optional model-element name
  *
- * @see sc.inventorylayer.DemandGenerator
+ * See `sc.inventorylayer.DemandGenerator`
  */
 open class DemandGenerator @JvmOverloads constructor(
     val supplyChainModel: SupplyChainModel,

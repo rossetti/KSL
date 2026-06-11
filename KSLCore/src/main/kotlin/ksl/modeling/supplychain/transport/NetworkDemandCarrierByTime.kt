@@ -26,7 +26,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param parent the parent model element
  * @param name optional model-element name
  *
- * @see sc.transportlayer.NetworkDemandCarrierByTime
+ * See `sc.transportlayer.NetworkDemandCarrierByTime`
  */
 open class NetworkDemandCarrierByTime @JvmOverloads constructor(
     parent: ModelElement,
@@ -46,7 +46,7 @@ open class NetworkDemandCarrierByTime @JvmOverloads constructor(
 
     /**
      * When true (default), demands whose customer is a
-     * [DemandGenerator] and that lack an explicit (supplier, customer)
+     * `DemandGenerator` and that lack an explicit (supplier, customer)
      * edge are shipped and delivered immediately. When false, the
      * carrier throws [NoCarrierOptionException].
      */
@@ -54,7 +54,7 @@ open class NetworkDemandCarrierByTime @JvmOverloads constructor(
 
     /**
      * When true (default), demands whose supplier is a
-     * [LeadTimeDemandFiller] and that lack an explicit (supplier,
+     * `LeadTimeDemandFiller` and that lack an explicit (supplier,
      * customer) edge are shipped and delivered immediately. When
      * false, the carrier throws [NoCarrierOptionException].
      */

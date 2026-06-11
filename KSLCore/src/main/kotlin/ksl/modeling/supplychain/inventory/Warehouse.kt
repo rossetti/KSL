@@ -13,7 +13,7 @@ import ksl.simulation.ModelElement
  * demands on an order are filled, the order is shipped via
  * [orderShipper] (if set) or transitioned through ship → deliver.
  *
- * @see sc.inventorylayer.Warehouse
+ * See `sc.inventorylayer.Warehouse`
  */
 open class Warehouse @JvmOverloads constructor(
     parent: ModelElement,
