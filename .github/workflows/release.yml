@@ -115,13 +115,12 @@ jobs:
       # One OS failing must not cancel the others — each builds its own installer.
       fail-fast: false
       matrix:
-        # jpackage cannot cross-build CPU archs, so mac needs BOTH runners:
-        #   macos-13 = Intel (x86_64), macos-14 = Apple Silicon (arm64).
-        # `macos-latest` is arm64-only now, so an Intel Mac sees "not supported
-        # on this Mac". Windows/Linux desktop is x64 — one runner each.
-        # (Note: macos-13 is GitHub's last Intel image and is on a deprecation
-        # path; revisit if/when it is retired.)
-        os: [macos-13, macos-14, windows-latest, ubuntu-latest]
+        # GitHub no longer provides Intel macOS runners (macos-13 is retired /
+        # unschedulable), so CI builds the Apple-Silicon mac installer only
+        # (macos-14 = arm64). The Intel (x86_64) mac .dmg is built locally on an
+        # Intel Mac and uploaded to the release by hand (see the release runbook).
+        # Windows/Linux desktop is x64 — one runner each.
+        os: [macos-14, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
