@@ -49,9 +49,12 @@ on:
 permissions:
   contents: write
 
-# A newer run for the same tag/ref supersedes an in-flight one.
+# Group per artifact (dispatch) or per tag (push) so different artifacts never
+# collide; only a re-run of the SAME artifact/tag queues behind the in-flight one.
+# (Using github.ref here would lump every main-branch dispatch into one group and
+# cancel all but one.)
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.inputs.artifact || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
