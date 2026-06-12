@@ -16,28 +16,25 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.example
-
-import ksl.app.swing.single.kslSingleApp
+package ksl.app.swing.single
 
 /**
- *  Minimal runnable example of `kslSingleApp(...)` in **bundle-picker
- *  mode** — the DSL block is empty (no `modelBuilder(...)` call), so
- *  the launch path shows the [ksl.app.swing.single.BundleModelPickerDialog]
- *  at startup.
+ *  Bundle-mode entry point for the released KSL Single app: runs
+ *  `kslSingleApp(...)` with an empty DSL block (no `modelBuilder(...)`
+ *  call), so the launch path shows the
+ *  [ksl.app.swing.single.BundleModelPickerDialog] at startup.
  *
- *  Run from IntelliJ via right-click `main` → Run.  At launch the
- *  picker presents every model in every bundle on the JVM classpath
- *  (the KSL examples module contributes the M/M/1 and LK-Inventory
- *  bundles when compiled with the test fixtures).  *Load JAR…*
- *  inside the picker adds further bundles interactively.
+ *  At launch the picker presents every model in every bundle on the JVM
+ *  classpath (the KSL examples module contributes the M/M/1 and
+ *  LK-Inventory bundles when compiled with the test fixtures).  *Load
+ *  JAR…* inside the picker adds further bundles interactively.
  *
  *  The selected `(bundleId, modelId)` pair is persisted in saved
  *  configurations as
  *  [ksl.app.config.ModelReference.ByBundleAndModelId], so File →
  *  Open later resolves against the same bundle.
  *
- *  Companion to [MM1SingleApp] (which demonstrates the
+ *  Companion to `MM1SingleApp` (the test-source demo of the
  *  developer-supplied `modelBuilder(...)` mode).
  */
 fun main() = kslSingleApp(appName = "KSL Single App") {

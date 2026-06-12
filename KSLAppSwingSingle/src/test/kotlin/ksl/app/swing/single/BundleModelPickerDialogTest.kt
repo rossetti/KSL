@@ -30,9 +30,9 @@ import kotlin.test.assertTrue
  *  Pins the public [BundleModelPickerDialog.Result] sealed shape
  *  that callers (currently only [KSLSingleApp.resolveController])
  *  switch over.  The modal dialog itself is not unit-tested headless
- *  here — its behavioral coverage is the example app
- *  [ksl.app.swing.single.example.BundleLaunchedSingleApp] plus the
- *  bundle-mode controller tests in [SingleAppControllerConfigurationTest].
+ *  here — its behavioral coverage is the bundle-mode launcher
+ *  `BundleLaunchedSingleApp` plus the bundle-mode controller tests in
+ *  [SingleAppControllerConfigurationTest].
  */
 class BundleModelPickerDialogTest {
 
