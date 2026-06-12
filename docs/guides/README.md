@@ -5,6 +5,12 @@ the same 7-section template (overview, mental model, quick start,
 recipes, key types, gotchas, see also). Code snippets are
 compile-verified against the source on every build.
 
+> **Looking for the desktop apps?** Step-by-step, student-facing user
+> guides for the KSL desktop applications (Single, Scenario, Experiment,
+> Simopt, Results, Distribution) and the `kslpkg` CLI live under
+> [`apps/`](apps/README.md). Those are GUI walkthroughs with real
+> screenshots; the guides below are developer/library references.
+
 ## Reading order
 
 If you're new to KSL, read **Foundation** in order, then pick the
