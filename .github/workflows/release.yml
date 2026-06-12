@@ -1,0 +1,172 @@
+# Builds native installers for the KSL Swing apps (and, later, the kslpkg CLI)
+# and publishes them to a GitHub Release. See .claude/plans/app-release-plan-2026-06-11.md.
+#
+# SCOPE: currently the KSLAppSwingResults "canary" only. Each other app is added
+# during fan-out (plan §9 step 4) by uncommenting one trigger line + one `case`
+# branch below, once that module has a jpackage task.
+#
+# ARTIFACT ISOLATION: triggers are a narrow, per-artifact tag allow-list
+# (`<artifact>-v*`). A KSLCore release (its own manual `publishToMavenCentral`,
+# no tag) can never start a build here, and each app/tool versions independently.
+name: Release installers
+
+on:
+  # Real-release + rc path: push a per-artifact tag, e.g. `results-v1.0.0` or
+  # `results-v1.0.0-rc1` (terminal `git push`, `gh release create`, or the web-UI
+  # "create tag on publish" all fire this).
+  push:
+    tags:
+      - 'results-v*'
+      # --- added during fan-out (plan §9 step 4/5) ---
+      # - 'single-v*'
+      # - 'scenario-v*'
+      # - 'experiment-v*'
+      # - 'simopt-v*'
+      # - 'distribution-v*'
+      # - 'kslpkg-v*'
+  # Manual rehearsal: Actions tab -> Run workflow. Builds on all three OSes but
+  # publishes nothing (a dispatch run has no tag).
+  workflow_dispatch:
+    inputs:
+      artifact:
+        description: 'Artifact to build (rehearsal — nothing is published)'
+        type: choice
+        required: true
+        options:
+          - results
+          # - single
+          # - scenario
+          # - experiment
+          # - simopt
+          # - distribution
+          # - kslpkg
+      version:
+        description: 'Numeric version for the build, e.g. 1.0.0'
+        type: string
+        required: false
+        default: '0.0.0'
+
+# Creating/updating the GitHub Release needs write; the default token is read-only.
+permissions:
+  contents: write
+
+# A newer run for the same tag/ref supersedes an in-flight one.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Single source of truth: turn either trigger into {artifact, version, task,
+  # title, publish, prerelease}. Runs on a cheap Linux runner.
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      task: ${{ steps.r.outputs.task }}
+      title: ${{ steps.r.outputs.title }}
+      version: ${{ steps.r.outputs.version }}
+      numeric: ${{ steps.r.outputs.numeric }}
+      publish: ${{ steps.r.outputs.publish }}
+      prerelease: ${{ steps.r.outputs.prerelease }}
+    steps:
+      - id: r
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # A dispatch run's ref_name is a BRANCH, not a tag — read inputs.
+            artifact="${{ inputs.artifact }}"
+            version="${{ inputs.version }}"
+            publish="false"
+          else
+            # Tag push: ref_name like 'results-v1.0.0' or 'results-v1.0.0-rc1'.
+            ref="${{ github.ref_name }}"
+            artifact="${ref%%-v*}"   # text before the first '-v'
+            version="${ref#*-v}"     # text after the first '-v'
+            publish="true"
+          fi
+          # jpackage requires a numeric MAJOR[.MINOR[.PATCH]] — strip any '-rc1'.
+          numeric="${version%%-*}"
+          # Pre-release if the version carries a suffix (e.g. 1.0.0-rc1).
+          if [[ "$version" == *-* ]]; then prerelease="true"; else prerelease="false"; fi
+          # artifact -> { gradle task, release title }
+          case "$artifact" in
+            results)      task=":KSLAppSwingResults:jpackage";      title="KSL Results" ;;
+            # single)       task=":KSLAppSwingSingle:jpackage";       title="KSL Single" ;;
+            # scenario)     task=":KSLAppSwingScenario:jpackage";     title="KSL Scenario" ;;
+            # experiment)   task=":KSLAppSwingExperiment:jpackage";   title="KSL Experiment" ;;
+            # simopt)       task=":KSLAppSwingSimopt:jpackage";       title="KSL Simopt" ;;
+            # distribution) task=":KSLAppSwingDistribution:jpackage"; title="KSL Distribution" ;;
+            # kslpkg)       task=":KSLBundleTools:runtimeZip";        title="kslpkg" ;;
+            *) echo "::error::Unknown artifact '$artifact'"; exit 1 ;;
+          esac
+          {
+            echo "task=$task"
+            echo "title=$title"
+            echo "version=$version"
+            echo "numeric=$numeric"
+            echo "publish=$publish"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved: artifact=$artifact version=$version numeric=$numeric task=$task publish=$publish prerelease=$prerelease"
+
+  package:
+    needs: resolve
+    strategy:
+      # One OS failing must not cancel the others — each builds its own installer.
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # bash on every runner (incl. Windows) so the one ./gradlew line behaves
+        # identically and we avoid PowerShell/gradlew.bat divergence.
+        shell: bash
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Supply-chain guard: verify every committed gradle-wrapper.jar (6 app
+      # modules + root, all pinned to 9.3.0) against Gradle's published checksums.
+      - name: Validate Gradle wrapper(s)
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      # jpackage shells out to the WiX Toolset to assemble the Windows installer;
+      # it isn't reliably preinstalled. (If MSI packaging fails because choco
+      # installed WiX 4+, pin a 3.x: `choco install wixtoolset --version=3.14.1`.)
+      - name: Install WiX Toolset (Windows only)
+        if: runner.os == 'Windows'
+        run: choco install wixtoolset --no-progress -y
+
+      # The exact task proven locally, parameterized by the resolve job.
+      # -PreleaseVersion is forward-compatible: the packaging convention honors it
+      # for jpackage's appVersion once templatized (plan §4.3); until then Results
+      # emits its built-in 1.0.0, which matches the v1.0.0 line.
+      - name: Build ${{ needs.resolve.outputs.title }} for ${{ matrix.os }}
+        run: ./gradlew ${{ needs.resolve.outputs.task }} -PreleaseVersion=${{ needs.resolve.outputs.numeric }} --no-daemon --stacktrace
+
+      # Publish ONLY on a real tag push (skipped on rehearsal dispatch runs). Each
+      # OS job appends its installer(s) to the single Release for the tag. `body`
+      # is left unset so notes drafted by hand in the web UI are preserved.
+      - name: Upload installer(s) to the GitHub Release
+        if: needs.resolve.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ needs.resolve.outputs.title }} ${{ needs.resolve.outputs.version }}
+          prerelease: ${{ needs.resolve.outputs.prerelease }}
+          fail_on_unmatched_files: false   # a glob matching nothing on this OS is a no-op
+          files: |
+            **/build/jpackage/*.dmg
+            **/build/jpackage/*.pkg
+            **/build/jpackage/*.msi
+            **/build/jpackage/*.exe
+            **/build/jpackage/*.deb
+            # kslpkg runtime zips are added with the kslpkg-v* artifact (plan §6)
