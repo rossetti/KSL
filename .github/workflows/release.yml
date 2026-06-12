@@ -1,9 +1,9 @@
 # Builds native installers for the KSL Swing apps (and, later, the kslpkg CLI)
 # and publishes them to a GitHub Release. See .claude/plans/app-release-plan-2026-06-11.md.
 #
-# SCOPE: currently the KSLAppSwingResults "canary" only. Each other app is added
-# during fan-out (plan §9 step 4) by uncommenting one trigger line + one `case`
-# branch below, once that module has a jpackage task.
+# SCOPE: all six Swing apps (results, single, scenario, experiment, simopt,
+# distribution). kslpkg (the CLI) is added later (plan §6) by uncommenting its
+# trigger line, dispatch option, and `case` branch below.
 #
 # ARTIFACT ISOLATION: triggers are a narrow, per-artifact tag allow-list
 # (`<artifact>-v*`). A KSLCore release (its own manual `publishToMavenCentral`,
@@ -17,13 +17,12 @@ on:
   push:
     tags:
       - 'results-v*'
-      # --- added during fan-out (plan §9 step 4/5) ---
-      # - 'single-v*'
-      # - 'scenario-v*'
-      # - 'experiment-v*'
-      # - 'simopt-v*'
-      # - 'distribution-v*'
-      # - 'kslpkg-v*'
+      - 'single-v*'
+      - 'scenario-v*'
+      - 'experiment-v*'
+      - 'simopt-v*'
+      - 'distribution-v*'
+      # - 'kslpkg-v*'   # added with the kslpkg CLI (plan §6)
   # Manual rehearsal: Actions tab -> Run workflow. Builds on all three OSes but
   # publishes nothing (a dispatch run has no tag).
   workflow_dispatch:
@@ -34,12 +33,12 @@ on:
         required: true
         options:
           - results
-          # - single
-          # - scenario
-          # - experiment
-          # - simopt
-          # - distribution
-          # - kslpkg
+          - single
+          - scenario
+          - experiment
+          - simopt
+          - distribution
+          # - kslpkg   # added with the kslpkg CLI (plan §6)
       version:
         description: 'Numeric version for the build, e.g. 1.0.0'
         type: string
@@ -91,11 +90,11 @@ jobs:
           # artifact -> { gradle task, release title }
           case "$artifact" in
             results)      task=":KSLAppSwingResults:jpackage";      title="KSL Results" ;;
-            # single)       task=":KSLAppSwingSingle:jpackage";       title="KSL Single" ;;
-            # scenario)     task=":KSLAppSwingScenario:jpackage";     title="KSL Scenario" ;;
-            # experiment)   task=":KSLAppSwingExperiment:jpackage";   title="KSL Experiment" ;;
-            # simopt)       task=":KSLAppSwingSimopt:jpackage";       title="KSL Simopt" ;;
-            # distribution) task=":KSLAppSwingDistribution:jpackage"; title="KSL Distribution" ;;
+            single)       task=":KSLAppSwingSingle:jpackage";       title="KSL Single" ;;
+            scenario)     task=":KSLAppSwingScenario:jpackage";     title="KSL Scenario" ;;
+            experiment)   task=":KSLAppSwingExperiment:jpackage";   title="KSL Experiment" ;;
+            simopt)       task=":KSLAppSwingSimopt:jpackage";       title="KSL Simopt" ;;
+            distribution) task=":KSLAppSwingDistribution:jpackage"; title="KSL Distribution" ;;
             # kslpkg)       task=":KSLBundleTools:runtimeZip";        title="kslpkg" ;;
             *) echo "::error::Unknown artifact '$artifact'"; exit 1 ;;
           esac

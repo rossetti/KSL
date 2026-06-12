@@ -1,6 +1,10 @@
+import org.gradle.internal.os.OperatingSystem
+
 plugins {
     kotlin("jvm") version "2.2.0"
     application
+    // badass-runtime drives jlink + jpackage for the native installer.
+    id("org.beryx.runtime") version "2.0.1"
 }
 
 group = "io.github.rossetti"
@@ -35,6 +39,35 @@ application {
 
 kotlin {
     jvmToolchain(21)
+}
+
+// ── KSL app installer packaging (standardized template; see KSLAppSwingResults
+//    build.gradle.kts for the full rationale) ──────────────────────────────────
+// Per-app self-contained (each app is its own standalone Gradle build). The only
+// per-app value is `appImageName` below; the module set, version mapping, and
+// installer-type logic are identical across all apps.
+runtime {
+    modules.set(listOf(
+        "java.se",
+        "jdk.crypto.ec",
+        "jdk.crypto.cryptoki",
+        "jdk.unsupported",
+        "jdk.charsets",
+        "jdk.localedata"
+    ))
+    jpackage {
+        val appImageName = "KSL-Scenario"
+
+        imageName = appImageName
+        installerName = appImageName
+        appVersion = ((project.findProperty("releaseVersion") as String?)
+            ?: "1.0.0").substringBefore("-")
+        installerType = when {
+            OperatingSystem.current().isMacOsX  -> "dmg"
+            OperatingSystem.current().isWindows -> "msi"
+            else                                -> "deb"
+        }
+    }
 }
 
 tasks.test {
