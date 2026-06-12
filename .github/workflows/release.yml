@@ -115,7 +115,13 @@ jobs:
       # One OS failing must not cancel the others — each builds its own installer.
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # jpackage cannot cross-build CPU archs, so mac needs BOTH runners:
+        #   macos-13 = Intel (x86_64), macos-14 = Apple Silicon (arm64).
+        # `macos-latest` is arm64-only now, so an Intel Mac sees "not supported
+        # on this Mac". Windows/Linux desktop is x64 — one runner each.
+        # (Note: macos-13 is GitHub's last Intel image and is on a deprecation
+        # path; revisit if/when it is retired.)
+        os: [macos-13, macos-14, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -151,6 +157,26 @@ jobs:
       # emits its built-in 1.0.0, which matches the v1.0.0 line.
       - name: Build ${{ needs.resolve.outputs.title }} for ${{ matrix.os }}
         run: ./gradlew ${{ needs.resolve.outputs.task }} -PreleaseVersion=${{ needs.resolve.outputs.numeric }} --no-daemon --stacktrace
+
+      # jpackage names every installer the same (KSL-Results-1.0.0.dmg) regardless
+      # of CPU arch, so the Intel and Apple-Silicon Mac builds would collide on
+      # upload. Stamp the arch into the filename. (.deb already encodes _amd64.)
+      - name: Tag installers with CPU architecture
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64|amd64)  arch=x64 ;;
+            arm64|aarch64) arch=arm64 ;;
+            *)             arch="$(uname -m)" ;;
+          esac
+          echo "Renaming installers for arch=$arch"
+          find . -path '*/build/jpackage/*' \
+                 \( -name '*.dmg' -o -name '*.pkg' -o -name '*.msi' -o -name '*.exe' \) -print0 |
+          while IFS= read -r -d '' f; do
+            d=$(dirname "$f"); b=$(basename "$f"); ext="${b##*.}"; stem="${b%.*}"
+            mv "$f" "$d/${stem}-${arch}.${ext}"
+            echo "  -> ${stem}-${arch}.${ext}"
+          done
 
       # Publish ONLY on a real tag push (skipped on rehearsal dispatch runs). Each
       # OS job appends its installer(s) to the single Release for the tag. `body`
