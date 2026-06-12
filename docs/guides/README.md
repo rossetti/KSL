@@ -47,6 +47,14 @@ These guides cross-reference each other in their §7 "See also"
 sections — if the right view isn't obvious from the table, start with
 `ksl-entity` and follow the pointers.
 
+## Authoring & distribution
+
+How to package a model so the desktop apps can run it.
+
+| Guide | What it covers |
+|---|---|
+| [`ksl-model-bundling`](ksl-model-bundling.md) | Preparing a model for bundling — controls, catalog, descriptor, the `KSLModelBundle` SPI, and wiring `kslpkg` enrichment into Gradle |
+
 ## Random numbers, distributions, statistics
 
 | Guide | What it covers |
