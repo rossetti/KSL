@@ -2,8 +2,7 @@
 # and publishes them to a GitHub Release. See .claude/plans/app-release-plan-2026-06-11.md.
 #
 # SCOPE: all six Swing apps (results, single, scenario, experiment, simopt,
-# distribution). kslpkg (the CLI) is added later (plan §6) by uncommenting its
-# trigger line, dispatch option, and `case` branch below.
+# distribution) plus the kslpkg CLI (a per-OS/arch runtime-image zip).
 #
 # ARTIFACT ISOLATION: triggers are a narrow, per-artifact tag allow-list
 # (`<artifact>-v*`). A KSLCore release (its own manual `publishToMavenCentral`,
@@ -22,7 +21,7 @@ on:
       - 'experiment-v*'
       - 'simopt-v*'
       - 'distribution-v*'
-      # - 'kslpkg-v*'   # added with the kslpkg CLI (plan §6)
+      - 'kslpkg-v*'
   # Manual rehearsal: Actions tab -> Run workflow. Builds on all three OSes but
   # publishes nothing (a dispatch run has no tag).
   workflow_dispatch:
@@ -38,7 +37,7 @@ on:
           - experiment
           - simopt
           - distribution
-          # - kslpkg   # added with the kslpkg CLI (plan §6)
+          - kslpkg
       version:
         description: 'Numeric version for the build, e.g. 1.0.0'
         type: string
@@ -98,7 +97,7 @@ jobs:
             experiment)   task=":KSLAppSwingExperiment:jpackage";   title="KSL Experiment" ;;
             simopt)       task=":KSLAppSwingSimopt:jpackage";       title="KSL Simopt" ;;
             distribution) task=":KSLAppSwingDistribution:jpackage"; title="KSL Distribution" ;;
-            # kslpkg)       task=":KSLBundleTools:runtimeZip";        title="kslpkg" ;;
+            kslpkg)       task=":KSLBundleTools:kslpkgZip";         title="kslpkg" ;;
             *) echo "::error::Unknown artifact '$artifact'"; exit 1 ;;
           esac
           {
@@ -196,4 +195,4 @@ jobs:
             **/build/jpackage/*.msi
             **/build/jpackage/*.exe
             **/build/jpackage/*.deb
-            # kslpkg runtime zips are added with the kslpkg-v* artifact (plan §6)
+            **/build/kslpkg/*.zip
