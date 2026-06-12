@@ -82,13 +82,15 @@ There is also a [video series](https://video.uark.edu/playlist/dedicated/1_0q40d
 
 ## KSL Documentation
 
-If you are looking for the KSL API documentation you can find it here:
+- If you are looking for the KSL API documentation you can find it here:
 
 https://rossetti.github.io/KSLDocs/
 
-The repository for the documentation is here:
+- The repository for the documentation is here:
 
 https://github.com/rossetti/KSLDocs
+
+- KSL [Usage Guides](https://github.com/rossetti/KSL/blob/main/docs/guides/README.md) These guides are short vignettes designed to provide an overview on the key KSL packages, applications, and workflows.
 
 Please be aware that the book and documentation may lag the releases due to lack of developer time.
 
