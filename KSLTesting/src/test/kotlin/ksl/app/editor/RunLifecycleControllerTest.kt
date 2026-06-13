@@ -74,7 +74,7 @@ class RunLifecycleControllerTest {
     }
 
     @Test
-    fun `markEdited is idempotent — repeated calls do not re-emit`() = runBlocking {
+    fun `markEdited is idempotent - repeated calls do not re-emit`() = runBlocking {
         // Verify the documented idempotent semantics: a second
         // markEdited when already edited does not produce a fresh
         // emission on the StateFlow (the value is unchanged so no

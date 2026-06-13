@@ -177,7 +177,7 @@ class ExcelUtilDbRoundTripTest {
     }
 
     @Test
-    fun `boundary times — midnight and end of day — round trip`() {
+    fun `boundary times - midnight and end of day - round trip`() {
         db.executeCommand("""
             INSERT INTO $schema.$table (C_VARCHAR, C_TIME) VALUES ('midnight', TIME('00:00:00'))
         """.trimIndent())

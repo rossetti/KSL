@@ -56,7 +56,7 @@ class AggregateResponseTest {
     }
 
     @Test
-    fun `remove detaches the source — subsequent observations are not echoed`() {
+    fun `remove detaches the source - subsequent observations are not echoed`() {
         val m = Model("AR.Remove")
         val src = TestPusher(m, "Src")
         val agg = AggregateResponse(m, "Agg")

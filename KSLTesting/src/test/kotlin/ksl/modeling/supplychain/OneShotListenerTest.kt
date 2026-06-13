@@ -39,7 +39,7 @@ class OneShotListenerTest {
     }
 
     @Test
-    fun `demand one-shot auto-removes — re-entry of target state does not refire`() {
+    fun `demand one-shot auto-removes - re-entry of target state does not refire`() {
         val sc = SupplyChainModel(Model("OS.Demand.AutoRemove"))
         val item = ItemType(sc, name = "A")
         val d = sc.createDemand(item, 1)

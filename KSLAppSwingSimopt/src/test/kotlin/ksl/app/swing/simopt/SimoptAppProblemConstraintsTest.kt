@@ -250,7 +250,7 @@ class SimoptAppProblemConstraintsTest {
     // ── TOML round-trip ──────────────────────────────────────────────────
 
     @Test
-    fun `full problem round-trips through TOML — constraints plus per-constraint overrides plus custom defaults`(
+    fun `full problem round-trips through TOML - constraints plus per-constraint overrides plus custom defaults`(
         @TempDir tempDir: Path
     ) {
         val target = tempDir.resolve("populated.toml")

@@ -65,7 +65,7 @@ class AnalysisNameFromFileStemTest {
     }
 
     @Test
-    fun `custom sentinel is exact-match — does not match default`() {
+    fun `custom sentinel is exact-match - does not match default`() {
         val result = analysisNameFromFileStem(
             path = Path.of("/tmp/mySim.toml"),
             currentName = "Untitled",

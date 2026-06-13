@@ -68,7 +68,7 @@ class DocumentLifecycleControllerTest {
     }
 
     @Test
-    fun `markDirty is idempotent — repeated calls do not re-emit`() = runBlocking {
+    fun `markDirty is idempotent - repeated calls do not re-emit`() = runBlocking {
         // Verify the documented idempotent semantics: a second markDirty
         // when already dirty does not produce a fresh emission on the
         // StateFlow (the value is unchanged so no observer fires).
