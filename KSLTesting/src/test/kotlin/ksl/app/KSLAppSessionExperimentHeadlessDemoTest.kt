@@ -38,6 +38,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  *  Substrate-validation tests for `KSLAppSessionExperimentHeadlessDemo`.
@@ -63,6 +64,7 @@ import kotlin.test.assertTrue
 class KSLAppSessionExperimentHeadlessDemoTest {
 
     @Test
+    @DisabledIfHeadless
     fun `headless experiment workflow produces a BatchCompleted with one snapshot per design point`(
         @TempDir workspace: Path
     ) = runBlocking {
@@ -83,6 +85,7 @@ class KSLAppSessionExperimentHeadlessDemoTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `RegressionFitRecord is populated from substrate regressionResults call`(
         @TempDir workspace: Path
     ) = runBlocking {
@@ -107,6 +110,7 @@ class KSLAppSessionExperimentHeadlessDemoTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `regression HTML lands at AppWorkspacePaths-derived path with response in body`(
         @TempDir workspace: Path
     ) = runBlocking {
@@ -149,6 +153,7 @@ class KSLAppSessionExperimentHeadlessDemoTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `headless experiment demo emits notifications through the substrate sink`(
         @TempDir workspace: Path
     ) = runBlocking {

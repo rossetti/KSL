@@ -22,6 +22,9 @@ import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.runner.FittingRunner
 import ksl.utilities.random.rvariable.ExponentialRV
+import org.junit.jupiter.api.Assumptions
+import org.junit.jupiter.api.BeforeAll
+import java.awt.GraphicsEnvironment
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -32,6 +35,17 @@ import kotlin.test.assertTrue
  * rather than the plot-free table report or the server-rendered fallback.
  */
 class FitReportsTest {
+
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun skipIfHeadless() {
+            Assumptions.assumeFalse(
+                GraphicsEnvironment.isHeadless(),
+                "Headless JVM - renders a lets-plot figure that needs a display"
+            )
+        }
+    }
 
     @Test
     fun `single renders the canonical report from the DTO plus raw data`() {

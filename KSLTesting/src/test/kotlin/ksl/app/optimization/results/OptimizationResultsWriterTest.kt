@@ -27,6 +27,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  *  Substrate-level tests for the optimization results writers
@@ -311,6 +312,7 @@ class OptimizationResultsWriterTest {
     // ── HtmlReportWriter ──────────────────────────────────────────
 
     @Test
+    @DisabledIfHeadless
     fun `HTML report contains substrate solver result tables and iteration metrics`(@TempDir tempDir: Path) {
         val config = lkConfig()
         // Need a live Solver instance for the report — submit through
@@ -362,6 +364,7 @@ class OptimizationResultsWriterTest {
     // ── ResultsArtifactWriter (end-to-end coordinator) ───────────
 
     @Test
+    @DisabledIfHeadless
     fun `coordinator writes the full artifact set into runDir`(@TempDir tempDir: Path) {
         val config = lkConfig()
         val solver = ksl.app.config.optimization.OptimizationSolverFactory(lkProvider)

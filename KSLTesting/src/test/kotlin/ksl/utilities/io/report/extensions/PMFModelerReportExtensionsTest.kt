@@ -25,6 +25,7 @@ import ksl.utilities.random.rvariable.PoissonRV
 import ksl.utilities.toDoubles
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  * Characterization tests for the discrete report extensions. They assert the
@@ -33,6 +34,7 @@ import kotlin.test.assertTrue
  * silently drop or rewire a section. Discrete goodness-of-fit is deterministic
  * (no bootstrap), so the structure is stable.
  */
+@DisabledIfHeadless
 class PMFModelerReportExtensionsTest {
 
     private fun sampleData(): IntArray {

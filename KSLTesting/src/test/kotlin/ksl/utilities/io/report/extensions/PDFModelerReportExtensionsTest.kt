@@ -23,6 +23,7 @@ import ksl.utilities.io.report.toText
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  * Characterization tests for the continuous report extensions. They assert the
@@ -33,6 +34,7 @@ import kotlin.test.assertTrue
  * Byte-for-byte snapshots are intentionally avoided: the shift-minimum CI and
  * the per-fit bootstrap CIs are stochastic, so exact output is not reproducible.
  */
+@DisabledIfHeadless
 class PDFModelerReportExtensionsTest {
 
     private fun sampleData(): DoubleArray = ExponentialRV(10.0, 1).sample(120)

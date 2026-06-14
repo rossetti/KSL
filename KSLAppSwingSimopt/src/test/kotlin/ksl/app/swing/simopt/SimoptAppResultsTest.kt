@@ -33,8 +33,10 @@ import ksl.app.optimization.results.ResultsStatus
 import ksl.app.optimization.results.RunSummaryWriter
 import ksl.controls.ControlType
 import ksl.examples.general.appsupport.SimoptTestModelsBundle
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.awt.GraphicsEnvironment
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertContains
@@ -111,6 +113,10 @@ class SimoptAppResultsTest {
 
     @Test
     fun `successful submit writes the full artifact set to runOutputDir`(@TempDir tempDir: Path) {
+        Assumptions.assumeFalse(
+            GraphicsEnvironment.isHeadless(),
+            "Headless JVM - HTML report embeds a lets-plot figure that needs a display"
+        )
         SimoptAppController("Test").use { c ->
             seedRunnableProblem(c)
             // Override the run output to a temp dir so the test
@@ -159,6 +165,10 @@ class SimoptAppResultsTest {
 
     @Test
     fun `html report contains the Solver configuration section`(@TempDir tempDir: Path) {
+        Assumptions.assumeFalse(
+            GraphicsEnvironment.isHeadless(),
+            "Headless JVM - HTML report embeds a lets-plot figure that needs a display"
+        )
         SimoptAppController("Test").use { c ->
             seedRunnableProblem(c)
             val target = tempDir.resolve("config-html")

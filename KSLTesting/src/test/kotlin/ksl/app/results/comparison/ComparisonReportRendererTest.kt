@@ -31,6 +31,7 @@ import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  *  Black-box tests for [ComparisonReportRenderer].  Each test drives
@@ -51,6 +52,7 @@ class ComparisonReportRendererTest {
     lateinit var tempDir: Path
 
     @Test
+    @DisabledIfHeadless
     fun `box plot writes one file per format with stable stem`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderBoxPlot(
@@ -71,6 +73,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `box plot honors caption override`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderBoxPlot(
@@ -115,6 +118,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `mca writes one file per format`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderMca(
@@ -130,6 +134,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `mca honors title override`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderMca(
@@ -146,6 +151,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `mca honors direction and indifference zone`() {
         // Sanity check that the renderer accepts the configurable knobs
         // without choking; substrate covers the statistical correctness.
@@ -181,6 +187,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `ci plot writes one file per format`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderCiPlot(
@@ -196,6 +203,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `ci plot honors level reference point title and caption`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderCiPlot(
@@ -271,6 +279,7 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `file stems sanitise filesystem-unsafe characters in response names`() {
         val src = InMemoryComparisonSource.builder("punct").apply {
             experiment("S1", model = "MM1") {

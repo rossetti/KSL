@@ -32,6 +32,7 @@ import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  * Verifies the DTO-driven reporting path: a `FitResultData` (built by the
@@ -77,6 +78,7 @@ class FitResultDataReportTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `document with raw data renders plots into the plot directory`() {
         val (data, report) = fixture()
         val ctx = tempContext()
@@ -87,6 +89,7 @@ class FitResultDataReportTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `document writes a non-empty HTML file containing the recommendation`() {
         val (data, report) = fixture()
         val file = report.toDocument(rawData = data).writeHtml(ctx = tempContext())
@@ -97,6 +100,7 @@ class FitResultDataReportTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `bootstrap table appears only when bootstrap was requested`() {
         val withBoot = fixture(bootstrap = BootstrapConfig(sampleSize = 50, level = 0.95, streamNumber = 1))
         val withText = withBoot.report.toDocument(rawData = withBoot.data).toText(tempContext())
@@ -128,6 +132,7 @@ class FitResultDataReportTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `shifted data still reconstructs plots without error`() {
         // Shift values away from zero so automatic shifting engages, exercising
         // the reconstruct-with-shift branch.

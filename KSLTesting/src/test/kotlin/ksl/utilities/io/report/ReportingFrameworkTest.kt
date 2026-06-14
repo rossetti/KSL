@@ -41,6 +41,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 class ReportingFrameworkTest {
 
@@ -107,6 +108,7 @@ class ReportingFrameworkTest {
     // ── Test 3: Histogram extension ───────────────────────────────────────────
 
     @Test
+    @DisabledIfHeadless
     fun histogramExtensionRendersBinTableAndStats() {
         val myBreakpoints = doubleArrayOf(0.0, 1.0, 2.0, 3.0, 4.0, 5.0)
         val myHist = Histogram(myBreakpoints, name = "Wait Time Histogram")
@@ -125,6 +127,7 @@ class ReportingFrameworkTest {
     // ── Test 4: IntegerFrequency extension ────────────────────────────────────
 
     @Test
+    @DisabledIfHeadless
     fun integerFrequencyExtensionRendersFrequencyTableAndStats() {
         val myFreq = IntegerFrequency(name = "Server Count")
         repeat(200) { myFreq.collect((Math.random() * 5).toInt()) }
@@ -175,6 +178,7 @@ class ReportingFrameworkTest {
     // ── Test 7: Simulation report with DriveThroughPharmacyWithQ ─────────────
 
     @Test
+    @DisabledIfHeadless
     fun simulationResultsExtensionProducesFullReport() {
         val myModel = Model("Drive-Through Pharmacy")
         myModel.numberOfReplications = 10
@@ -198,6 +202,7 @@ class ReportingFrameworkTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun simulationResultsHtmlRenderContainsTableStructure() {
         val myModel = Model("HTML Render Test")
         myModel.numberOfReplications = 5

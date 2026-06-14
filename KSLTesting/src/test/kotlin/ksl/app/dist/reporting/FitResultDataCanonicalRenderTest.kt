@@ -29,6 +29,7 @@ import ksl.utilities.random.rvariable.PoissonRV
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  * Proves that a serializable [ksl.app.dist.result.FitResultData] (plus the
@@ -43,6 +44,7 @@ import kotlin.test.assertTrue
  * structure is produced via the canonical extensions, and (2) the DTO render is
  * reproducible.
  */
+@DisabledIfHeadless
 class FitResultDataCanonicalRenderTest {
 
     private fun continuousData(): DoubleArray {

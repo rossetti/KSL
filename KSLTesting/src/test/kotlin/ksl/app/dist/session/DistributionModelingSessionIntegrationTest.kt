@@ -41,6 +41,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  * End-to-end verification that the expanded `FitResultData` graph and the
@@ -158,6 +159,7 @@ class DistributionModelingSessionIntegrationTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `caller rebuilds the document from the awaited report and its own data`() {
         val data = exponentialSample(2.0, 250, 85)
         DistributionModelingSession().use { session ->

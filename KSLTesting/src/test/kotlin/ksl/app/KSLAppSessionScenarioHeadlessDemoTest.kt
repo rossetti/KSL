@@ -38,6 +38,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import ksl.testutils.DisabledIfHeadless
 
 /**
  *  Substrate-validation tests for `KSLAppSessionScenarioHeadlessDemo`.
@@ -121,6 +122,7 @@ class KSLAppSessionScenarioHeadlessDemoTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `box-plot HTML lands at AppWorkspacePaths-derived path and names all scenarios`(
         @TempDir workspace: Path
     ) = runBlocking {
@@ -157,6 +159,7 @@ class KSLAppSessionScenarioHeadlessDemoTest {
     }
 
     @Test
+    @DisabledIfHeadless
     fun `headless scenario demo emits notifications through the substrate sink`(
         @TempDir workspace: Path
     ) = runBlocking {
