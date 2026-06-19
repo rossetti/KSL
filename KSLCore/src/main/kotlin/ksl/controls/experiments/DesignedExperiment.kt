@@ -74,7 +74,7 @@ class DesignedExperiment @JvmOverloads constructor(
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
     override val design: ExperimentalDesignIfc,
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"),
+    val kslDb: KSLDatabase? = KSLDatabase("${name}.db".replace(" ", "_"),
         model.outputDirectory.dbDir)
 ) : Identity(name), DesignedExperimentIfc {
 
@@ -149,7 +149,7 @@ class DesignedExperiment @JvmOverloads constructor(
      *  Assumes that if the user is re-running the design that existing data for the experiment
      *  should be deleted.
      */
-    val dbObserver: KSLDatabaseObserver = KSLDatabaseObserver(model, kslDb, true)
+    val dbObserver: KSLDatabaseObserver? = kslDb?.let { KSLDatabaseObserver(model, it, true) }
 
     /**
      *  capture the original experiment run parameters so that they can

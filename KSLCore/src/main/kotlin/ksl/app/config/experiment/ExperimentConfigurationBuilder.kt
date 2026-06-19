@@ -96,10 +96,10 @@ fun ExperimentConfiguration.toDesignedExperiment(
                 design = effectiveDesign,
                 modelConfiguration = null,
                 pathToOutputDirectory = pathToOutputDirectory,
-                kslDb = kslDatabase ?: KSLDatabase(
+                kslDb = kslDatabase ?: if (outputConfig.enableKSLDatabase) KSLDatabase(
                     "${effectiveName}.db".replace(" ", "_"),
                     pathToOutputDirectory
-                ),
+                ) else null,
                 // Anchor per-point experiment names to the analysis
                 // name so EXPERIMENT.exp_name rows are human-readable
                 // ("MyAnalysis_DP_3" instead of "Experiment_11_DP_3")
@@ -138,10 +138,10 @@ fun ExperimentConfiguration.toDesignedExperiment(
                 model = model,
                 factorSettings = factorSettings,
                 design = effectiveDesign,
-                kslDb = kslDatabase ?: KSLDatabase(
+                kslDb = kslDatabase ?: if (outputConfig.enableKSLDatabase) KSLDatabase(
                     "${effectiveName}.db".replace(" ", "_"),
                     model.outputDirectory.dbDir
-                )
+                ) else null
             )
         }
     }
