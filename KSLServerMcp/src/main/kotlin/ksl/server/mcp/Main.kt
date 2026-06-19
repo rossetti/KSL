@@ -82,7 +82,7 @@ private fun serveStdio() = runBlocking {
 
     val done = Job()
     server.onClose { done.complete() }
-    server.connect(transport)
+    server.createSession(transport)
     done.join()
     watcherScope.cancel()
     tools.close()
