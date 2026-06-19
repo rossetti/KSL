@@ -113,8 +113,9 @@ tasks.register<Jar>("bookExamplesBundleJar") {
 }
 
 // A minimal, single-model SAMPLE bundle JAR — the canonical "I wrote a model ->
-// the server serves it" artifact for the quickstart (docs/server-quickstart.md
-// §6). It packages just the MM1 bundle (MM1Bundle) and its model's class closure
+// the server serves it" artifact for the server guide (docs/guides/ksl-server.md,
+// "Add your own models"). It packages just the MM1 bundle (MM1Bundle) and its
+// model's class closure
 // (GIGcQueue, which needs only KSLCore), plus a single-bundle META-INF/services
 // registration. Like the book bundle it does NOT bundle KSLCore: a bundle JAR is
 // loaded under the host server's classloader, which already provides KSLCore.
