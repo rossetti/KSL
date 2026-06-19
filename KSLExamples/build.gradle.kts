@@ -111,3 +111,36 @@ tasks.register<Jar>("bookExamplesBundleJar") {
     // Book-only ServiceLoader registration (single bundle).
     from("bundle-meta/book-examples")
 }
+
+// A minimal, single-model SAMPLE bundle JAR — the canonical "I wrote a model ->
+// the server serves it" artifact for the quickstart (docs/server-quickstart.md
+// §6). It packages just the MM1 bundle (MM1Bundle) and its model's class closure
+// (GIGcQueue, which needs only KSLCore), plus a single-bundle META-INF/services
+// registration. Like the book bundle it does NOT bundle KSLCore: a bundle JAR is
+// loaded under the host server's classloader, which already provides KSLCore.
+//
+//     ./gradlew :KSLExamples:sampleBundleJar
+//     -> KSLExamples/build/libs/mm1-sample.jar      (drop into ~/.ksl/bundles/)
+tasks.register<Jar>("sampleBundleJar") {
+    group = "ksl bundle"
+    description = "Standalone single-model sample bundle JAR (MM1) for ~/.ksl/bundles/."
+    archiveBaseName.set("mm1-sample")
+    archiveVersion.set("")   // clean drop-in name: mm1-sample.jar
+    dependsOn(tasks.named("classes"))
+
+    // Build-Time lets the loader resolve same-(bundleId, version) duplicates in
+    // ~/.ksl/bundles/ to the most recently packaged copy (newest-wins).
+    manifest {
+        attributes("Build-Time" to Instant.now().toString())
+    }
+
+    // Only the sample's class closure: the bundle itself and the GIGcQueue model
+    // it builds. The include filter also excludes the full jar's 4-bundle
+    // META-INF/services so only MM1 is registered.
+    from(sourceSets["main"].output) {
+        include("ksl/examples/general/appsupport/MM1Bundle*")
+        include("ksl/examples/book/appendixD/GIGcQueue*")
+    }
+    // Single-bundle ServiceLoader registration (MM1 only).
+    from("bundle-meta/mm1-sample")
+}
