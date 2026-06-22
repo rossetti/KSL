@@ -27,7 +27,6 @@ import ksl.app.session.RunResult
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.batchreports.BatchReportsTabPanel
 import ksl.app.comparison.BatchCompletedComparisonSource
-import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
 import ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory

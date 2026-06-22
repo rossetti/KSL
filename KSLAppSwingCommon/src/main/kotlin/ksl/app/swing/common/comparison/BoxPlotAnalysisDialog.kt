@@ -64,8 +64,8 @@ import javax.swing.WindowConstants
  *  - **Response** (required) — picked via [ChooseResponseDialog].
  *  - **Caption** (optional) — overrides the renderer's default
  *    "Cross-experiment distributions — <response>".
- *  - **Output directory** + format checkboxes — defaulted from
- *    [ComparisonAnalyzerFrame]'s constructor, then editable per run.
+ *  - **Output directory** + format checkboxes — defaulted from the
+ *    comparison analyzer's configuration, then editable per run.
  *
  *  Boxes in the rendered plot are ordered left → right by the
  *  experiments column's top → bottom order — that ordering is baked
@@ -93,7 +93,7 @@ object BoxPlotAnalysisDialog {
     ) {
         // SwingUtilities.getWindowAncestor walks getParent() starting
         // from parent's parent, so it returns null when parent itself
-        // is the top-level Window (e.g. ComparisonAnalyzerFrame).
+        // is the top-level Window (e.g. the host application frame).
         // Resolve directly when parent is a Window; otherwise walk up.
         val owner: Window = (parent as? Window)
             ?: SwingUtilities.getWindowAncestor(parent)

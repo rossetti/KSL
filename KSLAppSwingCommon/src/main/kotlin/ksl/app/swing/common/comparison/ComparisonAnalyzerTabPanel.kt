@@ -44,10 +44,9 @@ import javax.swing.SwingConstants
 import javax.swing.table.AbstractTableModel
 
 /**
- *  *Comparison Analyzer* tab — always-visible counterpart to the
- *  deprecated [ComparisonAnalyzerFrame].  Same body (Experiments
- *  selection + per-analysis Configure buttons) restructured as a
- *  `JPanel` so it can live alongside *Scenarios* and *Scenario Reports*
+ *  *Comparison Analyzer* tab — always-visible analyzer UI, the body
+ *  (Experiments selection + per-analysis Configure buttons) restructured
+ *  as a `JPanel` so it can live alongside *Scenarios* and *Scenario Reports*
  *  in a host frame's `JTabbedPane`.
  *
  *  Hosts feed it data via [setSources]: an empty / `null` list shows
