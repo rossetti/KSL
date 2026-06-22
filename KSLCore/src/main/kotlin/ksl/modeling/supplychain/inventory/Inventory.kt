@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.inventory
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.Response
@@ -211,6 +213,12 @@ open class Inventory @JvmOverloads constructor(
     val totalArrivedDemand: Long get() = myDemandArrivalCounter
     val timeLastDemandArrived: Double get() = myTimeLastDemandArrived
 
+    /**
+     *  The starting on-hand inventory used at the beginning of each replication.
+     *  This is the genuine controllable input for starting stock; the underlying
+     *  on-hand TWResponse no longer exposes its initialValue as a control.
+     */
+    @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 0.0)
     var initialOnHand: Int = initialOnHand
         set(value) {
             require(value >= 0) { "initial on hand must be >= 0" }
