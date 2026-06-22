@@ -329,4 +329,14 @@ open class Response internal constructor(
             executive.stop("Stopped because counter limit $replicationCountLimit was reached for $name")
         }
     }
+
+    override fun defaultExcludedControlNames(): Set<String> = DEFAULT_EXCLUDED_CONTROLS
+
+    companion object {
+        // A Response (and its subclasses, e.g. TWResponse) is an output collector:
+        // its inherited initialValue and initialCountLimit have no controllable
+        // semantics by default. Genuine state opts back in via includeControls(...).
+        private val DEFAULT_EXCLUDED_CONTROLS: Set<String> =
+            setOf(Response::initialValue.name, Response::initialCountLimit.name)
+    }
 }

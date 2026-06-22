@@ -40,6 +40,7 @@ import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.robj.DUniformList
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.HistogramIfc
+import kotlin.reflect.KProperty1
 
 /**
  *  The internal constructor for creating model elements. A model element is some
@@ -238,6 +239,69 @@ abstract class ModelElement internal constructor(
      */
     val model : Model
         get() = myModel
+
+    // --- control extraction policy (per-instance overrides + class default) ---
+    private val myExcludedControlNames: MutableSet<String> = mutableSetOf()
+    private val myIncludedControlNames: MutableSet<String> = mutableSetOf()
+
+    /**
+     *  Control property names excluded by DEFAULT for this element type. The base
+     *  implementation excludes nothing. Output abstractions (Response, Counter)
+     *  override this so their inherited lifecycle controls (initial value / count
+     *  limits) are off unless re-enabled per instance via includeControls.
+     *
+     *  A subclass that wants its inherited lifecycle controls available by default
+     *  can narrow the inherited set, e.g.
+     *  `super.defaultExcludedControlNames() - Counter::initialCounterLimit.name`.
+     *
+     *  @return the set of control property names suppressed by default for this element
+     */
+    protected open fun defaultExcludedControlNames(): Set<String> = emptySet()
+
+    /**
+     *  Excludes the given controls on THIS model element from control extraction
+     *  (i.e. they will not appear in model.controls() or any control-editor UI).
+     *  This overrides the class default's include for the named properties.
+     *
+     *  Pass one or more compile-time-checked property references, e.g.
+     *  `excludeControls(Variable::initialValue)`. References that do not correspond
+     *  to a control are ignored. Must be called before the model is run (typically
+     *  at construction time).
+     *
+     *  @param properties the control property references to exclude
+     */
+    fun excludeControls(vararg properties: KProperty1<out ModelElement, *>) {
+        require(model.isNotRunning) { "Controls cannot be changed while the model is running." }
+        myExcludedControlNames.addAll(properties.map { it.name })
+    }
+
+    /**
+     *  Re-includes the given controls on THIS model element, overriding the class
+     *  default's exclude for the named properties. This is the opt-in for genuine
+     *  state on an output abstraction, e.g. a controllable starting level:
+     *  `includeControls(Counter::initialCounterLimit)`.
+     *
+     *  Pass one or more compile-time-checked property references. References that do
+     *  not correspond to a control are ignored. Must be called before the model is
+     *  run (typically at construction time).
+     *
+     *  @param properties the control property references to re-include
+     */
+    fun includeControls(vararg properties: KProperty1<out ModelElement, *>) {
+        require(model.isNotRunning) { "Controls cannot be changed while the model is running." }
+        myIncludedControlNames.addAll(properties.map { it.name })
+    }
+
+    /**
+     *  True if the control named by `propertyName` should be excluded from control
+     *  extraction for this element. Precedence: explicit opt-in wins over explicit
+     *  opt-out, which wins over the class default.
+     */
+    internal fun isControlExcluded(propertyName: String): Boolean = when {
+        propertyName in myIncludedControlNames -> false                 // opt-in wins
+        propertyName in myExcludedControlNames -> true                  // opt-out
+        else -> propertyName in defaultExcludedControlNames()           // class default
+    }
 
     /**
      *

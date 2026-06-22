@@ -20,7 +20,6 @@ package ksl.controls
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.json.Json
-import ksl.modeling.variable.Response
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.collections.KSLMaps
@@ -117,15 +116,16 @@ class Controls(aModel: Model) {
         for (property in properties) {
             logger.trace { "Reviewing member property: ${property.name}" }
 
-            // Guard: Response inherits an @KSLControl on initialValue from Variable,
-            // but initialValue has no meaningful control semantics for Response.
-            if (modelElement::class == Response::class && property.name == "initialValue") {
-                logger.trace { "Skipping inherited initialValue for Response: ${modelElement.name}" }
+            if (property !is KMutableProperty<*>) {
+                logger.trace { "Member property ${property.name} is not mutable — skipping" }
                 continue
             }
 
-            if (property !is KMutableProperty<*>) {
-                logger.trace { "Member property ${property.name} is not mutable — skipping" }
+            // Per-instance + class-default policy (Design C). Subsumes the old
+            // exact-class Response.initialValue guard, which is removed: Response's
+            // default-exclude set now covers initialValue for all Response subclasses.
+            if (modelElement.isControlExcluded(property.name)) {
+                logger.trace { "Skipping excluded control ${property.name} on ${modelElement.name}" }
                 continue
             }
 

@@ -376,4 +376,14 @@ open class Counter @JvmOverloads constructor(
             executive.stop("Stopped because counter limit $replicationCountLimit was reached for $name")
         }
     }
+
+    override fun defaultExcludedControlNames(): Set<String> = DEFAULT_EXCLUDED_CONTROLS
+
+    companion object {
+        // A Counter is an output collector: its initialValue and initialCounterLimit
+        // have no controllable semantics by default. Genuine state opts back in via
+        // includeControls(...).
+        private val DEFAULT_EXCLUDED_CONTROLS: Set<String> =
+            setOf(Counter::initialValue.name, Counter::initialCounterLimit.name)
+    }
 }
