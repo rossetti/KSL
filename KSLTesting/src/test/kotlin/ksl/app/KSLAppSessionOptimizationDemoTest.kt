@@ -44,7 +44,7 @@ class KSLAppSessionOptimizationDemoTest {
     fun `app session optimization demo does not import low-level orchestrators`() {
         val repoRoot = File(System.getProperty("user.dir")).parentFile
         val demoSource = repoRoot.resolve(
-            "KSLExamples/src/main/kotlin/ksl/examples/general/appsession/KSLAppSessionOptimizationDemo.kt"
+            "KSLTestModels/src/main/kotlin/ksl/examples/general/appsession/KSLAppSessionOptimizationDemo.kt"
         ).readText()
 
         assertTrue("ksl.app.orchestrator" !in demoSource,

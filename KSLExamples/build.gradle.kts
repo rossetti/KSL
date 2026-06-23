@@ -31,10 +31,21 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+
+    // KSLExamples carries a small self-test suite that verifies its own
+    // content (e.g. BookExamplesBundle ServiceLoader discovery + model
+    // build/run). It depends on nothing but KSLCore, so KSLExamples remains
+    // a sink that no other module depends on.
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
     jvmToolchain(21)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // Opt-in task: produces a copy of the KSLExamples JAR with embedded

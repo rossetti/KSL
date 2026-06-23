@@ -20,7 +20,9 @@ dependencies {
     // depends on KSLCore as an internal project in multi-project build
     // this permits changes to the KSLCore to be immediately reflected in KSLExtensions
     api(project(":KSLCore"))
-    api(project(":KSLExamples"))
+    // Test fixtures (shared example models + dogfood bundles) now live in
+    // KSLTestModels, not KSLExamples. KSLExamples is no longer a test dependency.
+    api(project(":KSLTestModels"))
 
     implementation("org.junit.jupiter:junit-jupiter:5.9.0")
 

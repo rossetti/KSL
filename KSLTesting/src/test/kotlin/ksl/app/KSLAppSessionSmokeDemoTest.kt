@@ -64,7 +64,7 @@ class KSLAppSessionSmokeDemoTest {
     fun `app session smoke demo does not import low-level orchestrators`() {
         val repoRoot = File(System.getProperty("user.dir")).parentFile
         val demoSource = repoRoot.resolve(
-            "KSLExamples/src/main/kotlin/ksl/examples/general/appsession/KSLAppSessionSmokeDemo.kt"
+            "KSLTestModels/src/main/kotlin/ksl/examples/general/appsession/KSLAppSessionSmokeDemo.kt"
         ).readText()
 
         assertTrue("ksl.app.orchestrator" !in demoSource)

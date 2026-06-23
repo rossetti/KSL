@@ -145,7 +145,7 @@ class KSLAppSessionSingleHeadlessDemoTest {
     private fun readDemoSource(): String {
         val repoRoot = File(System.getProperty("user.dir")).parentFile
         return repoRoot.resolve(
-            "KSLExamples/src/main/kotlin/ksl/examples/general/appsession/" +
+            "KSLTestModels/src/main/kotlin/ksl/examples/general/appsession/" +
                 "KSLAppSessionSingleHeadlessDemo.kt"
         ).readText()
     }

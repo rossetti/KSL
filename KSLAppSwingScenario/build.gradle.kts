@@ -21,11 +21,11 @@ dependencies {
     // editor panels, ConsoleLogPanel + drawer, workspace status bar,
     // notifications, validation banner, etc.
     implementation(project(":KSLAppSwingCommon"))
-    // KSLExamples is a TEST-ONLY dependency: the released app ships no
-    // baked-in bundles (it discovers them from ~/.ksl/bundles/), but the
-    // tests load the example bundles off the test classpath.  Keeping it
-    // out of `implementation` keeps KSLExamples out of the distribution.
-    testImplementation(project(":KSLExamples"))
+    // Test fixtures (example models + dogfood bundles) live in KSLTestModels.
+    // TEST-ONLY: the released app ships no baked-in bundles (it discovers them
+    // from ~/.ksl/bundles/); the tests load the bundles off the test classpath.
+    // Keeping it out of `implementation` keeps the fixtures out of the distribution.
+    testImplementation(project(":KSLTestModels"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
 
