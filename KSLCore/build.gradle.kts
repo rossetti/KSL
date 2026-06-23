@@ -94,12 +94,24 @@ dependencies {
     // used directly by non-app KSLCore code (station/supplychain TOML serialization).
     api("net.peanuuutz.tomlkt:tomlkt:0.4.0")
 
+    // --- test suite (per-module; Phase 7) ---
+    // Core-domain tests use shared example models (KSLTestModels) and JUnit helpers
+    // (KSLTestSupport, e.g. @DisabledIfHeadless). No cycle: these are test-only and
+    // KSLTestModels depends on KSLCore's MAIN, which builds before KSLCore's tests.
+    testImplementation(project(":KSLTestModels"))
+    testImplementation(project(":KSLTestSupport"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation(kotlin("test"))
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
 // this is good because the user can then provide their own logging specification
 tasks.jar {
     exclude("logback.xml")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 kotlin {

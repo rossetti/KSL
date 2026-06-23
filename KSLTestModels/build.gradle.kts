@@ -26,6 +26,11 @@ dependencies {
     // (KSLTesting) inherit both.
     api(project(":KSLCore"))
     api(project(":KSLApp"))
+
+    // --- test suite (per-module; Phase 7) ---
+    // KSLTestModels carries a tiny self-test of its own fixture bundles.
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
@@ -36,4 +41,8 @@ kotlin {
 // this is good because the user can then provide their own logging specification
 tasks.jar {
     exclude("logback.xml")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

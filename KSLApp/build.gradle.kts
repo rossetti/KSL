@@ -30,6 +30,12 @@ dependencies {
     // kotlin-logging, kotlinx-datetime/-serialization/-coroutines, lets-plot,
     // dataframe, hipparchus, tomlkt, ...).
     api(project(":KSLCore"))
+
+    // --- test suite (per-module; Phase 7) ---
+    testImplementation(project(":KSLTestModels"))
+    testImplementation(project(":KSLTestSupport"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
@@ -40,4 +46,8 @@ kotlin {
 // this is good because the user can then provide their own logging specification
 tasks.jar {
     exclude("logback.xml")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
