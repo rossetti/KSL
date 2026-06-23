@@ -22,8 +22,8 @@ repositories {
 dependencies {
 
     // Provides KSLCore + KSLApp APIs to test-fixture code. The appsession/appsupport
-    // fixtures reference ksl.app, which now lives in KSLApp; api so consumers
-    // (KSLTesting) inherit both.
+    // fixtures reference ksl.app, which lives in KSLApp; api so the consuming test
+    // source sets (KSLCore:test, KSLApp:test, and the app modules) inherit both.
     api(project(":KSLCore"))
     api(project(":KSLApp"))
 
