@@ -13,10 +13,12 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    api(project(":KSLCore"))
-    api(project(":KSLExamples"))
-}
+// The root project is a coordinator for this multi-project build: it has no
+// sources of its own and depends on no module. It previously declared
+// api(project(":KSLCore")) + api(project(":KSLExamples")) as a vestigial
+// aggregator — that made the root depend on KSLExamples even though nothing
+// consumes the root project, so it has been removed. KSLExamples is now a
+// true sink (no module, and not the root, depends on it).
 
 kotlin {
     jvmToolchain(21)
