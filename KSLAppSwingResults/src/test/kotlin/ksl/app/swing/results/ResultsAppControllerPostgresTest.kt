@@ -20,6 +20,7 @@ package ksl.app.swing.results
 
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -30,10 +31,16 @@ import kotlin.test.assertTrue
  *  This requires a Postgres server on `localhost:5432` with a `test`
  *  database (user `test`, password `test`) that holds a `ksl_db` schema —
  *  exactly the setup used by `ksl.examples.general.utilities.PostgresKSLDbExample`.
- *  When that is unavailable (e.g. CI, or a machine without the server),
- *  the test **skips** itself via a JUnit assumption rather than failing,
- *  so it is safe to keep in the suite.
+ *
+ *  **Hard-gated on the `KSL_PG_TEST=1` environment variable** (matching
+ *  `ksl.app.dist.data.PostgresDatabaseIntegrationTest`). Without it, JUnit
+ *  never instantiates the test, so it makes **no** network/connection
+ *  attempt — important because the connection probe below would otherwise
+ *  reach out to localhost:5432 on every full-suite run even when it ends up
+ *  skipping. With the gate on but the server unavailable, the inner
+ *  assumption still skips gracefully rather than failing.
  */
+@EnabledIfEnvironmentVariable(named = "KSL_PG_TEST", matches = "1")
 class ResultsAppControllerPostgresTest {
 
     @Test
