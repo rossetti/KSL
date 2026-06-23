@@ -2,6 +2,7 @@ rootProject.name = "KSL"
 
 include(":KSLCore")
 include(":KSLExamples")
+include(":KSLTestModels")
 include(":KSLAppSwingCommon")
 include(":KSLAppSwingSingle")
 include(":KSLAppSwingScenario")
