@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.config
+package ksl.controls.experiments
 
 import kotlinx.serialization.Serializable
 
@@ -36,7 +36,7 @@ import kotlinx.serialization.Serializable
  * `RunConfiguration` runs it the same way it last ran.
  *
  * **Substrate-prep only.**  The field is recorded on
- * [RunConfiguration.executionMode] and round-trips through both
+ * `RunConfiguration.executionMode` and round-trips through both
  * codecs; `ScenarioOrchestrator` does not yet consume it.  Honoring
  * the mode at submit time lands in a separate commit alongside the
  * runner-level sequential mode.

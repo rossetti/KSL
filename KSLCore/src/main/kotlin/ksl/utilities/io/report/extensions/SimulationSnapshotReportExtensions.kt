@@ -36,7 +36,7 @@ import ksl.utilities.statistic.Statistic
  * lifecycle snapshots.
  *
  * The completed-experiment snapshot is the in-memory result returned by
- * [ksl.app.session.RunResult.Completed]. These functions make that result reportable
+ * `ksl.app.session.RunResult.Completed`. These functions make that result reportable
  * without requiring a live [ksl.simulation.Model] reference or a [ksl.utilities.io.dbutil.KSLDatabase].
  *
  * The snapshot stores database DTO rows directly. For data that is already aggregated

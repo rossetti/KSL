@@ -35,7 +35,7 @@ import ksl.app.RunSpec
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.BundleRef
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.simulation.NominatedOutput
 import ksl.app.config.OutputConfig

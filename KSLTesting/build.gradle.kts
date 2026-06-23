@@ -20,6 +20,8 @@ dependencies {
     // depends on KSLCore as an internal project in multi-project build
     // this permits changes to the KSLCore to be immediately reflected in KSLExtensions
     api(project(":KSLCore"))
+    // KSLApp hosts ksl.app.* (extracted from KSLCore); the app tests exercise it heavily.
+    api(project(":KSLApp"))
     // Test fixtures (shared example models + dogfood bundles) now live in
     // KSLTestModels, not KSLExamples. KSLExamples is no longer a test dependency.
     api(project(":KSLTestModels"))

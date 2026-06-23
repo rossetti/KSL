@@ -18,6 +18,7 @@
 
 package ksl.app.config
 
+import ksl.controls.experiments.ExecutionMode
 import kotlinx.serialization.Serializable
 import net.peanuuutz.tomlkt.TomlComment
 

@@ -21,13 +21,11 @@ repositories {
 
 dependencies {
 
-    // Provides KSLCore (and, once Phase 6 lands, KSLApp) APIs to test-fixture code.
-    // Note: the Bucket B appsession/appsupport fixtures reference ksl.app, so until
-    // Phase 6 extracts KSLApp those symbols resolve transitively through KSLCore
-    // (ksl.app still lives in KSLCore on this branch). After Phase 6, add the explicit
-    // KSLApp dependency below.
+    // Provides KSLCore + KSLApp APIs to test-fixture code. The appsession/appsupport
+    // fixtures reference ksl.app, which now lives in KSLApp; api so consumers
+    // (KSLTesting) inherit both.
     api(project(":KSLCore"))
-    // api(project(":KSLApp"))   // uncomment after Phase 6 (KSLApp extraction)
+    api(project(":KSLApp"))
 }
 
 kotlin {

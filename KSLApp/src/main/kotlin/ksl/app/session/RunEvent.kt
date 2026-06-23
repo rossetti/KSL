@@ -255,8 +255,8 @@ sealed class RunEvent {
 
     /**
      * Emitted by `ScenarioOrchestrator` when an individual scenario's
-     * simulation begins.  Under [ksl.app.config.ExecutionMode.SEQUENTIAL]
-     * scenarios start one at a time; under [ksl.app.config.ExecutionMode.CONCURRENT]
+     * simulation begins.  Under [ksl.controls.experiments.ExecutionMode.SEQUENTIAL]
+     * scenarios start one at a time; under [ksl.controls.experiments.ExecutionMode.CONCURRENT]
      * every scenario emits this event before any of them begin replications.
      *
      * @property scenarioName the scenario name as specified in `ScenarioSpec.name`

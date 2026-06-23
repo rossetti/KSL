@@ -20,7 +20,7 @@ package ksl.app.config.experiment
 
 import kotlinx.serialization.Serializable
 import ksl.app.config.BundleRef
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.TracingConfig

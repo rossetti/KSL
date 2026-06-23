@@ -16,6 +16,7 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+    implementation(project(":KSLApp"))
     // KSLAppSwingCommon supplies the shared widgets the Scenario app
     // reuses verbatim: ConfigurationEditorState + the per-scenario
     // editor panels, ConsoleLogPanel + drawer, workspace status bar,

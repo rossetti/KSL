@@ -1,5 +1,6 @@
 package ksl.app.config
 
+import ksl.controls.experiments.ExecutionMode
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model
 import org.junit.jupiter.api.Test

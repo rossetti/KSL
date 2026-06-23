@@ -18,7 +18,7 @@
 
 package ksl.app.swing.common.runcontrol
 
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import javax.swing.BoxLayout
 import javax.swing.ButtonGroup
 import javax.swing.JPanel

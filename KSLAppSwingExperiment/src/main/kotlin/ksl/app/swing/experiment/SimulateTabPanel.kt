@@ -19,7 +19,7 @@
 package ksl.app.swing.experiment
 
 import kotlinx.coroutines.launch
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.FactorSpec
@@ -372,7 +372,7 @@ class SimulateTabPanel(
                 // E7.11 #8 — per-point cancellation is not available
                 // in Sequential mode.  The renderer shows an em-dash
                 // there; click is a no-op.
-                if (controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL) {
+                if (controller.executionMode.value == ksl.controls.experiments.ExecutionMode.SEQUENTIAL) {
                     return
                 }
                 val point = enumeratedPoints.getOrNull(row) ?: return
@@ -601,7 +601,7 @@ class SimulateTabPanel(
         if (cancelled > 0) parts += "$cancelled cancelled"
         if (cancelling > 0) parts += "$cancelling cancelling"
 
-        val isSequential = controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL
+        val isSequential = controller.executionMode.value == ksl.controls.experiments.ExecutionMode.SEQUENTIAL
 
         if (running) {
             val prefix = if (isSequential)
@@ -772,7 +772,7 @@ class SimulateTabPanel(
             table: JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean,
             row: Int, column: Int
         ): java.awt.Component {
-            if (controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL) {
+            if (controller.executionMode.value == ksl.controls.experiments.ExecutionMode.SEQUENTIAL) {
                 return dashLabel
             }
             val point = enumeratedPoints.getOrNull(row)

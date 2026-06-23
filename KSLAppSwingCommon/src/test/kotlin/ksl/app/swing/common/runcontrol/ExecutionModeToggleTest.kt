@@ -1,6 +1,6 @@
 package ksl.app.swing.common.runcontrol
 
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import org.junit.jupiter.api.Test
 import javax.swing.SwingUtilities
 import kotlin.test.assertEquals

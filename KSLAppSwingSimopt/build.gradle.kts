@@ -16,6 +16,7 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+    implementation(project(":KSLApp"))
     // KSLAppSwingCommon hosts the shared appearance / theming code
     // (LookAndFeel, ThemeMenu) consumed at startup.
     implementation(project(":KSLAppSwingCommon"))

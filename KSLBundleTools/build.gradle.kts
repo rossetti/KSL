@@ -45,6 +45,22 @@ dependencies {
         // Swing coroutine dispatcher — kslpkg is a CLI, not a Swing app
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-swing")
     }
+    // ksl.app.* (bundle loading + ModelDescriptor) was extracted from KSLCore into
+    // KSLApp. KSLApp api-depends on KSLCore, so the SAME exclusions must be repeated
+    // here or the slim fat JAR would regain DB drivers / lets-plot / etc. via this path.
+    implementation(project(":KSLApp")) {
+        exclude(group = "org.duckdb")
+        exclude(group = "org.xerial")
+        exclude(group = "org.postgresql")
+        exclude(group = "org.apache.derby")
+        exclude(group = "org.mariadb.jdbc")
+        exclude(group = "com.zaxxer")
+        exclude(group = "org.jetbrains.lets-plot")
+        exclude(group = "org.apache.xmlgraphics")
+        exclude(group = "org.jetbrains.kotlinx", module = "dataframe-jdbc")
+        exclude(group = "org.jetbrains.kotlinx", module = "dataframe-excel")
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-swing")
+    }
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.32")
 

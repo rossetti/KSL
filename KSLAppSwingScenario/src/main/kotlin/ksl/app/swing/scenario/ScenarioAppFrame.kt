@@ -88,11 +88,11 @@ class ScenarioAppFrame(
     private val cancelButton = JButton("Cancel").apply { isEnabled = false }
     private val sequentialRadio = javax.swing.JRadioButton(
         "Sequential",
-        controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL
+        controller.executionMode.value == ksl.controls.experiments.ExecutionMode.SEQUENTIAL
     )
     private val concurrentRadio = javax.swing.JRadioButton(
         "Concurrent",
-        controller.executionMode.value == ksl.app.config.ExecutionMode.CONCURRENT
+        controller.executionMode.value == ksl.controls.experiments.ExecutionMode.CONCURRENT
     )
     private val enableDbCheckbox = javax.swing.JCheckBox(
         "Enable database",
@@ -407,10 +407,10 @@ class ScenarioAppFrame(
         }
         @Suppress("UNUSED_EXPRESSION") group
         sequentialRadio.addActionListener {
-            if (sequentialRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.SEQUENTIAL)
+            if (sequentialRadio.isSelected) controller.setExecutionMode(ksl.controls.experiments.ExecutionMode.SEQUENTIAL)
         }
         concurrentRadio.addActionListener {
-            if (concurrentRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.CONCURRENT)
+            if (concurrentRadio.isSelected) controller.setExecutionMode(ksl.controls.experiments.ExecutionMode.CONCURRENT)
         }
         enableDbCheckbox.addActionListener {
             controller.setEnableKSLDatabase(enableDbCheckbox.isSelected)
@@ -508,7 +508,7 @@ class ScenarioAppFrame(
         }
         controller.edtScope.launch {
             controller.executionMode.collect { mode ->
-                val wantSeq = mode == ksl.app.config.ExecutionMode.SEQUENTIAL
+                val wantSeq = mode == ksl.controls.experiments.ExecutionMode.SEQUENTIAL
                 if (sequentialRadio.isSelected != wantSeq) sequentialRadio.isSelected = wantSeq
                 if (concurrentRadio.isSelected == wantSeq) concurrentRadio.isSelected = !wantSeq
             }

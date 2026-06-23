@@ -18,7 +18,7 @@
 
 package ksl.app.config.experiment
 
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.controls.experiments.DesignedExperiment

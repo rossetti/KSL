@@ -15,6 +15,8 @@ dependencies {
     // coroutine scopes.  It must NOT depend on KSLExamples or on any
     // app-specific module.
     implementation(project(":KSLCore"))
+    // KSLApp hosts ksl.app.* (bundling/run/session/config), extracted from KSLCore.
+    implementation(project(":KSLApp"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
     // FlatLaf — IntelliJ-flavored look-and-feel.  Used by

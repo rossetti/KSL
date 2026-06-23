@@ -16,6 +16,7 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+    implementation(project(":KSLApp"))
     implementation(project(":KSLAppSwingCommon"))
     // Test fixtures (example models + dogfood bundles) live in KSLTestModels.
     // TEST-ONLY: the released app ships no baked-in bundles (it discovers them

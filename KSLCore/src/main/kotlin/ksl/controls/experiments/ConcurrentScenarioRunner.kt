@@ -260,7 +260,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         scenarios: IntProgression = myScenarios.indices,
         clearAllData: Boolean = true,
         onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
-        executionMode: ksl.app.config.ExecutionMode = ksl.app.config.ExecutionMode.CONCURRENT,
+        executionMode: ExecutionMode = ExecutionMode.CONCURRENT,
         onScenarioStart: ((scenarioName: String, scenarioIndex: Int, totalScenarios: Int) -> Unit)? = null,
         onReplicationStart: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
         onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
@@ -331,13 +331,13 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
 
         val outcomes: List<ScenarioRunOutcome> = supervisorScope {
             when (executionMode) {
-                ksl.app.config.ExecutionMode.CONCURRENT -> {
+                ExecutionMode.CONCURRENT -> {
                     val pairs = scenarioList.mapIndexed { i, scenario ->
                         scenario to async(SimulationDispatcher.default) { runOne(scenario, i) }
                     }
                     pairs.map { (scenario, d) -> awaitOrCancelled(d) { scenario } }
                 }
-                ksl.app.config.ExecutionMode.SEQUENTIAL ->
+                ExecutionMode.SEQUENTIAL ->
                     scenarioList.mapIndexed { i, scenario ->
                         val d = async(SimulationDispatcher.default) { runOne(scenario, i) }
                         awaitOrCancelled(d) { scenario }

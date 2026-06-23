@@ -90,7 +90,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")
 
     // https://mvnrepository.com/artifact/net.peanuuutz.tomlkt/tomlkt
-    implementation("net.peanuuutz.tomlkt:tomlkt:0.4.0")
+    // api (not implementation) so KSLApp inherits tomlkt transitively; it is also
+    // used directly by non-app KSLCore code (station/supplychain TOML serialization).
+    api("net.peanuuutz.tomlkt:tomlkt:0.4.0")
 
 }
 

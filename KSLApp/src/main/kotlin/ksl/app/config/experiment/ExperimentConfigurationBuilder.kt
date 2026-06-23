@@ -18,7 +18,7 @@
 
 package ksl.app.config.experiment
 
-import ksl.app.config.ExecutionMode
+import ksl.controls.experiments.ExecutionMode
 import ksl.controls.experiments.CentralCompositeDesign
 import ksl.controls.experiments.DesignPoint
 import ksl.controls.experiments.DesignedExperiment

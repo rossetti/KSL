@@ -31,6 +31,8 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+    // KSLApp hosts ksl.app.* (bundling/run/session), extracted from KSLCore.
+    implementation(project(":KSLApp"))
 
     // KSLExamples carries a small self-test suite that verifies its own
     // content (e.g. BookExamplesBundle ServiceLoader discovery + model
