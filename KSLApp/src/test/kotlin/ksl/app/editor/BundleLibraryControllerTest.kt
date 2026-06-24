@@ -180,12 +180,12 @@ class BundleLibraryControllerTest {
     }
 
     @Test
-    fun `discoverFromDirectories gives earlier directories precedence on a duplicate bundleId`(@TempDir root: Path) {
+    fun `discoverFromDirectories gives earlier directories precedence and silently drops a byte-identical copy`(@TempDir root: Path) {
         val appDir = Files.createDirectories(root.resolve("app"))
         val sharedDir = Files.createDirectories(root.resolve("shared"))
-        // The same bundleId assembled into both the app-specific and shared layers.
-        ManifestBundleFixtures.assembleManifestBundle(appDir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
-        ManifestBundleFixtures.assembleManifestBundle(sharedDir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
+        // The exact same bundle JAR in both the app-specific and shared layers.
+        val jar = ManifestBundleFixtures.assembleManifestBundle(appDir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
+        Files.copy(jar, sharedDir.resolve(jar.fileName))
         val c = BundleLibraryController()
         c.discoverFromDirectories(appDir, sharedDir)   // app directory scanned first
         val loaded = c.loadedBundles.value.filter { it.bundle.bundleId == "ksl.examples.mm1" }
@@ -194,6 +194,25 @@ class BundleLibraryControllerTest {
             loaded.single().sourceJar?.startsWith(appDir) == true,
             "the earlier (app) directory's copy must win; got ${loaded.single().sourceJar}"
         )
+        assertTrue(
+            c.ignoredCopies.value.isEmpty(),
+            "a byte-identical duplicate is dropped silently, not disclosed; got ${c.ignoredCopies.value}"
+        )
+    }
+
+    @Test
+    fun `discoverFromDirectories discloses a different-content same-bundleId copy as a conflict`(@TempDir root: Path) {
+        val appDir = Files.createDirectories(root.resolve("app"))
+        val sharedDir = Files.createDirectories(root.resolve("shared"))
+        // Same bundleId, DIFFERENT content (different model builders → different bytes).
+        ManifestBundleFixtures.assembleManifestBundle(appDir, "a", "ksl.test.dup", MM1ModelBuilder::class.java)
+        ManifestBundleFixtures.assembleManifestBundle(sharedDir, "b", "ksl.test.dup", LKInventoryModelBuilder::class.java)
+        val c = BundleLibraryController()
+        c.discoverFromDirectories(appDir, sharedDir)
+        assertEquals(1, c.loadedBundles.value.size, "precedence keeps one copy per bundleId")
+        val ignored = c.ignoredCopies.value
+        assertEquals(1, ignored.size, "the different-content shadowed copy must be disclosed; got $ignored")
+        assertEquals("ksl.test.dup", ignored.single().bundleId)
     }
 
     // ── LoadBundleResult shape ───────────────────────────────────────────

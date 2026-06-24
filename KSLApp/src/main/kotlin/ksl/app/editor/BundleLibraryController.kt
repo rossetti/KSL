@@ -33,11 +33,11 @@ import java.time.Instant
 private val logger = KotlinLogging.logger {}
 
 /**
- *  Metadata for a bundle copy that newest-wins dedup dropped from the active
- *  set — a same-`(bundleId, version)` duplicate of a copy that was built more
- *  recently.  Kept only for passive disclosure (the Loaded Bundles dialog and
- *  an INFO log line), so a user can see which copies were ignored and when each
- *  was built, without the duplicates cluttering the pickers.
+ *  Metadata for a bundle copy shadowed during discovery — a same-`bundleId` copy
+ *  with *different content* than the higher-precedence copy that won.  Kept only
+ *  for passive disclosure (the Loaded Bundles dialog and an INFO log line), so a
+ *  user can see which conflicting copies were shadowed and when each was built,
+ *  without them cluttering the pickers.
  */
 data class IgnoredBundleCopy(
     val bundleId: String,
@@ -125,13 +125,14 @@ class BundleLibraryController(
 
     private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
     /**
-     *  All bundles currently in scope — discovered from the workspace
-     *  bundle directories + every JAR successfully loaded via [loadJar],
-     *  **newest-wins-deduped** so each `(bundleId, version)` appears once: the
-     *  most recently built copy stays, the rest move to [ignoredCopies].  Apart
-     *  from that dedup, bundles are removed only by a reload that replaces a
-     *  whole JAR's prior entries (keyed on [`sourceJar`][LoadedBundle.sourceJar],
-     *  the atomic classloader unit) or by [close].
+     *  All bundles currently in scope — discovered from the workspace bundle
+     *  directories + every JAR successfully loaded via [loadJar].  At most one
+     *  copy per `bundleId`: same-`bundleId` collisions are resolved by precedence
+     *  (an earlier directory or JAR wins), and a shadowed copy with *different*
+     *  content is disclosed via [ignoredCopies].  Bundles are otherwise removed
+     *  only by a reload that replaces a whole JAR's prior entries (keyed on
+     *  [`sourceJar`][LoadedBundle.sourceJar], the atomic classloader unit) or by
+     *  [close].
      */
     val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
 
@@ -145,11 +146,12 @@ class BundleLibraryController(
 
     private val myIgnoredCopies = MutableStateFlow<List<IgnoredBundleCopy>>(emptyList())
     /**
-     *  Same-`(bundleId, version)` duplicates that newest-wins dedup dropped from
-     *  [loadedBundles] (a copy built more recently won).  Surfaced passively —
-     *  the Loaded Bundles dialog lists these so a user can see redundant JARs
-     *  were collapsed and which one is active — never as a startup interruption.
-     *  Empty when no `(bundleId, version)` is loaded more than once.
+     *  Same-`bundleId` copies shadowed during discovery by a higher-precedence
+     *  copy **with different content** (a genuine conflict, as opposed to a
+     *  byte-identical duplicate, which is dropped silently).  Surfaced passively —
+     *  the Loaded Bundles dialog lists these so a user can see that a conflicting
+     *  JAR was shadowed and which one is active — never as a startup interruption.
+     *  Empty when no such conflict was found.
      */
     val ignoredCopies: StateFlow<List<IgnoredBundleCopy>> = myIgnoredCopies.asStateFlow()
 
@@ -186,9 +188,15 @@ class BundleLibraryController(
         for (dir in dirs) {
             runCatching { Files.createDirectories(dir) }
             for (lb in BundleLoader.loadDirectory(dir)) {
-                if (current.none { it.bundle.bundleId == lb.bundle.bundleId }) {
+                val winner = current.firstOrNull { it.bundle.bundleId == lb.bundle.bundleId }
+                if (winner == null) {
                     current = current + lb
                     changed = true
+                } else {
+                    // A higher-precedence copy (earlier directory / earlier JAR) already
+                    // holds this bundleId.  Classify the shadowed copy by content hash,
+                    // disclose it if the content differs, and close its classloader.
+                    recordShadowed(winner, lb)
                 }
             }
         }
@@ -303,66 +311,42 @@ class BundleLibraryController(
     }
 
     private fun commit(live: List<LoadedBundle>) {
-        val (kept, dropped) = dedupNewestWins(live)
-        if (dropped.isNotEmpty()) {
-            // Deferred close at shutdown (a model may already have been built
-            // from a now-dropped copy); see [retired].
-            retired += dropped
-            recordIgnored(kept, dropped)
-        }
-        myLoadedBundles.value = kept
-        myBundleProvider.value = if (kept.isEmpty()) null else BundleModelProvider(kept)
+        // Callers (discoverFromDirectories, loadJar) have already resolved
+        // same-bundleId collisions by precedence, so [live] carries at most one
+        // copy per bundleId.
+        myLoadedBundles.value = live
+        myBundleProvider.value = if (live.isEmpty()) null else BundleModelProvider(live)
         onBundlesChanged()
     }
 
     /**
-     *  Split [live] into the bundles to keep and the duplicates to drop.  For
-     *  each `(bundleId, version)` the copy with the newest [`builtAt`][LoadedBundle.builtAt]
-     *  wins (a `null` build time sorts oldest; ties keep the first seen); every
-     *  other copy of that exact id+version is dropped.  *Different* versions of
-     *  the same `bundleId` are all kept — that is a meaningful choice the user
-     *  makes in the picker, not a redundant duplicate.
+     *  Handle a [shadowed] copy that lost a same-`bundleId` collision to [winner]
+     *  (which has precedence — an earlier directory or JAR).  Classifying by
+     *  content hash: a copy with **identical** content is a harmless duplicate
+     *  (dropped silently); one with **different** content is a genuine conflict,
+     *  disclosed via [ignoredCopies] and an INFO log so the user knows the
+     *  higher-precedence copy shadowed it.  Either way the shadowed copy's
+     *  classloader is closed — it never entered [loadedBundles], so nothing has
+     *  been built from it.
      */
-    private fun dedupNewestWins(
-        live: List<LoadedBundle>
-    ): Pair<List<LoadedBundle>, List<LoadedBundle>> {
-        val winners = live.groupBy { it.bundle.bundleId to it.bundle.version }
-            .mapValues { (_, copies) -> copies.maxByOrNull { it.builtAt ?: Instant.MIN }!! }
-        val kept = mutableListOf<LoadedBundle>()
-        val dropped = mutableListOf<LoadedBundle>()
-        for (lb in live) {
-            if (winners[lb.bundle.bundleId to lb.bundle.version] === lb) kept += lb else dropped += lb
-        }
-        return kept to dropped
-    }
-
-    private fun recordIgnored(kept: List<LoadedBundle>, dropped: List<LoadedBundle>) {
-        val newRecords = dropped.map { lb ->
-            IgnoredBundleCopy(
-                bundleId = lb.bundle.bundleId,
-                displayName = lb.bundle.displayName,
-                version = lb.bundle.version,
-                source = bundleSourceLabel(lb),
-                builtAt = lb.builtAt
-            )
-        }
-        // Accumulate, de-duped by (bundleId, version, source), so re-committing
-        // an already-clean set never piles up entries.
-        myIgnoredCopies.value = (myIgnoredCopies.value + newRecords)
-            .distinctBy { Triple(it.bundleId, it.version, it.source) }
-        // One INFO line per collapsed group — passive, no UI interruption.
-        dropped.groupBy { it.bundle.bundleId to it.bundle.version }.forEach { (key, copies) ->
-            val (id, version) = key
-            val winner = kept.firstOrNull { it.bundle.bundleId == id && it.bundle.version == version }
-            val builtNote = winner?.builtAt?.let { " (built $it)" } ?: ""
-            val ignoredFrom = copies.joinToString(", ") { bundleSourceLabel(it) }
+    private fun recordShadowed(winner: LoadedBundle, shadowed: LoadedBundle) {
+        if (shadowed.contentHash == null || shadowed.contentHash != winner.contentHash) {
+            myIgnoredCopies.value = (
+                myIgnoredCopies.value + IgnoredBundleCopy(
+                    bundleId = shadowed.bundle.bundleId,
+                    displayName = shadowed.bundle.displayName,
+                    version = shadowed.bundle.version,
+                    source = bundleSourceLabel(shadowed),
+                    builtAt = shadowed.builtAt,
+                )
+                ).distinctBy { Triple(it.bundleId, it.version, it.source) }
             logger.info {
-                "Bundle '$id' v$version: using newest copy from " +
-                        "${winner?.let { bundleSourceLabel(it) } ?: "?"}$builtNote; " +
-                        "ignored ${copies.size} older " +
-                        "cop${if (copies.size == 1) "y" else "ies"}: $ignoredFrom"
+                "Bundle '${shadowed.bundle.bundleId}': a different-content copy from " +
+                        "${bundleSourceLabel(shadowed)} was shadowed by the higher-precedence " +
+                        "copy from ${bundleSourceLabel(winner)}; using the latter."
             }
         }
+        runCatching { shadowed.close() }
     }
 
     /**
