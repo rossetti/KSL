@@ -5,10 +5,9 @@ import kotlin.system.exitProcess
 /**
  * Entry point for the `kslpkg` CLI tool.
  *
- * Phase 6A scope is two commands: `inspect` (read-only summary of a bundle
- * JAR) and `enrich` (rewrite a bundle JAR with embedded `ModelDescriptor`
- * JSON entries). This bootstrap commit wires the module and the dispatch
- * skeleton only; command implementations land in subsequent commits.
+ * Two commands: `inspect` (read-only summary of a bundle JAR) and `assemble`
+ * (turn a plain builders JAR into a self-describing bundle JAR — a `bundle.toml`
+ * manifest plus a per-model embedded `ModelDescriptor` JSON).
  *
  * Argument parsing is intentionally hand-rolled. With two commands and a
  * handful of flags the cost of a parsing library outweighs the benefit;
@@ -37,7 +36,7 @@ internal fun dispatch(args: Array<String>): CommandResult {
             CommandResult.Success
         }
         "inspect" -> InspectCommand.run(args.drop(1))
-        "enrich" -> EnrichCommand.run(args.drop(1))
+        "assemble" -> AssembleCommand.run(args.drop(1))
         else -> {
             System.err.println("Unknown command: $command")
             printUsage()
@@ -55,12 +54,13 @@ private fun printUsage() {
         |  kslpkg inspect <jar>
         |      Print a human-readable summary of the bundles in <jar>.
         |
-        |  kslpkg enrich <input.jar> [-o <output.jar>] [--force]
-        |      Extract a ModelDescriptor for every bundled model and write
-        |      a copy of <input.jar> with the descriptors embedded under
-        |      META-INF/ksl/models/<modelId>/descriptor.json. Default output
-        |      is <input-stem>-enriched.jar next to the input; --force allows
-        |      overwriting an existing output file.
+        |  kslpkg assemble <builders.jar> --id <bundleId> [options]
+        |      Turn a plain builders JAR (one or more ksl.simulation.ModelBuilderIfc
+        |      classes) into a self-describing bundle JAR: a bundle.toml manifest
+        |      plus a per-model descriptor.json. --id is required; other identity
+        |      comes from [--name --description --version --author --homepage
+        |      --license --tag <t>]. Default output is <builders-stem>-bundle.jar
+        |      next to the input; -o sets it, --force overwrites an existing file.
         |
         |  kslpkg --help        Print this message
         |  kslpkg --version     Print the tool version
@@ -68,4 +68,4 @@ private fun printUsage() {
     )
 }
 
-internal const val TOOL_VERSION: String = "0.1.0"
+internal const val TOOL_VERSION: String = "0.2.0"

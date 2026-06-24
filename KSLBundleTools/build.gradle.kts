@@ -85,15 +85,14 @@ tasks.test {
 // (KSLBundleTools-<version>-all.jar). badass-runtime auto-detects the shadow
 // plugin and consumes the shadow jar by its default coordinates to build the
 // runtime image; renaming it (archiveBaseName/classifier/version) makes badass
-// fail to find it. The in-repo enrichExampleBundle task (KSLExamples) consumes
-// shadowJar.archiveFile dynamically, so this name is internal-only.
+// fail to find it.
 
 // ── kslpkg native CLI packaging (badass-runtime) ─────────────────────────────
 runtime {
     // jdeps baseline (./gradlew :KSLBundleTools:suggestModules) PLUS the
     // reflective/runtime extras jdeps can't see: zip FS for reading bundle jars,
-    // and charsets/locales. `enrich` instantiates arbitrary user models, so this
-    // set is verified by running `bin/kslpkg inspect`/`enrich` on a real bundle.
+    // and charsets/locales. `assemble` instantiates arbitrary user models, so this
+    // set is verified by running `bin/kslpkg inspect`/`assemble` on a real bundle.
     modules.set(listOf(
         "java.base",
         "java.sql", "java.sql.rowset", "java.naming", "java.xml", "java.desktop",

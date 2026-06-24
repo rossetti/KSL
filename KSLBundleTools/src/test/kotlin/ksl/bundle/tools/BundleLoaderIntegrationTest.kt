@@ -4,6 +4,7 @@ import ksl.app.bundle.BundleDescriptorCache
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleLoader
 import ksl.bundle.tools.support.StubBundle
+import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -13,8 +14,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * End-to-end checks that the `kslpkg enrich` output interoperates correctly
- * with the runtime three-tier descriptor resolution in
+ * End-to-end checks that an assembled bundle's embedded descriptor interoperates
+ * correctly with the runtime three-tier descriptor resolution in
  * `ksl.app.bundle.LoadedBundle.descriptorFor`.
  *
  * The resolution priority (per the substrate design):
@@ -30,26 +31,25 @@ import kotlin.test.assertTrue
 class BundleLoaderIntegrationTest {
 
     @Test
-    fun `enriched JAR is resolved from the in-JAR entry and the cache is never written`(@TempDir dir: Path) {
-        val source = TestBundleBuilder.build(dir, "stub", listOf(StubBundle::class.java))
-
-        // Enrich the JAR so it carries a META-INF/ksl/models/stub/descriptor.json.
-        val enrichResult = EnrichCommand.run(
-            listOf(source.toString()),
+    fun `an assembled bundle is resolved from the in-JAR descriptor and the cache is never written`(@TempDir dir: Path) {
+        // A plain builders JAR assembled into a bundle JAR that carries
+        // META-INF/ksl/models/Stub/descriptor.json.
+        val builders = TestBundleBuilder.buildWithoutServicesFile(dir, "builders", listOf(StubModelBuilder::class.java))
+        val assembled = dir.resolve("builders-bundle.jar")
+        val assembleResult = AssembleCommand.run(
+            listOf(builders.toString(), "--id", "edu.test.stub", "-o", assembled.toString()),
             out = System.out,
             err = System.err
         )
-        assertEquals(CommandResult.Success, enrichResult, "enrich must succeed for this test")
-
-        val enriched = EnrichCommand.defaultOutputPath(source)
+        assertEquals(CommandResult.Success, assembleResult, "assemble must succeed for this test")
 
         // Custom cache root that we can introspect.
         val cacheRoot = dir.resolve("bundle-cache")
         val cache = BundleDescriptorCache(rootDir = cacheRoot)
 
-        BundleLoader.loadJar(enriched, cache = cache).single().use { loaded ->
-            val descriptor = loaded.descriptorFor("stub")
-            assertEquals("stub", descriptor.modelIdentifier)
+        BundleLoader.loadJar(assembled, cache = cache).single().use { loaded ->
+            val descriptor = loaded.descriptorFor("Stub")
+            assertEquals("Stub", descriptor.modelIdentifier)
         }
 
         // Tier 1 should have served the request, so tiers 2/3 never ran.
@@ -68,20 +68,20 @@ class BundleLoaderIntegrationTest {
     }
 
     @Test
-    fun `unenriched JAR triggers lazy extraction and writes the cache entry`(@TempDir dir: Path) {
-        val unenriched = TestBundleBuilder.build(dir, "stub", listOf(StubBundle::class.java))
+    fun `a bundle with no embedded descriptor triggers lazy extraction and writes the cache entry`(@TempDir dir: Path) {
+        val plain = TestBundleBuilder.build(dir, "stub", listOf(StubBundle::class.java))
 
         val cacheRoot = dir.resolve("bundle-cache")
         val cache = BundleDescriptorCache(rootDir = cacheRoot)
 
         // Sanity: the source JAR carries no in-JAR descriptor for the stub model.
         val descriptorPath = BundleLayout.descriptorPath("stub")
-        val hasInJar = java.util.jar.JarFile(unenriched.toFile()).use { jf ->
+        val hasInJar = java.util.jar.JarFile(plain.toFile()).use { jf ->
             jf.getJarEntry(descriptorPath) != null
         }
-        assertEquals(false, hasInJar, "test precondition: unenriched JAR must not embed the descriptor")
+        assertEquals(false, hasInJar, "test precondition: this JAR must not embed the descriptor")
 
-        BundleLoader.loadJar(unenriched, cache = cache).single().use { loaded ->
+        BundleLoader.loadJar(plain, cache = cache).single().use { loaded ->
             val descriptor = loaded.descriptorFor("stub")
             assertEquals("stub", descriptor.modelIdentifier)
         }

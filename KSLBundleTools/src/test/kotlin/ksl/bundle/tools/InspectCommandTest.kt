@@ -1,6 +1,7 @@
 package ksl.bundle.tools
 
 import ksl.bundle.tools.support.StubBundle
+import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -70,5 +71,25 @@ class InspectCommandTest {
 
         assertEquals(CommandResult.UserError, result)
         assertTrue("expected exactly one argument" in err, "Expected arg-count diagnostic:\n$err")
+    }
+
+    @Test
+    fun `inspect labels a manifest bundle as manifest discovery`(@TempDir dir: Path) {
+        // Assemble a manifest bundle from a plain builders JAR, then inspect it.
+        val builders = TestBundleBuilder.buildWithoutServicesFile(dir, "builders", listOf(StubModelBuilder::class.java))
+        val bundle = dir.resolve("builders-bundle.jar")
+        val sink = PrintStream(ByteArrayOutputStream())
+        AssembleCommand.run(
+            listOf(builders.toString(), "--id", "edu.test.stub", "-o", bundle.toString()),
+            out = sink, err = sink
+        )
+
+        val (result, out, err) = capture { o, e -> InspectCommand.run(listOf(bundle.toString()), out = o, err = e) }
+
+        assertEquals(CommandResult.Success, result)
+        assertTrue(err.isEmpty(), "Expected no stderr output, got: $err")
+        assertTrue("Bundle: edu.test.stub" in out, "Missing bundle id in output:\n$out")
+        assertTrue("Discovery: manifest" in out, "Expected a manifest discovery label:\n$out")
+        assertTrue("Has in-JAR descriptor : yes" in out, "Assembled bundle should embed the descriptor:\n$out")
     }
 }

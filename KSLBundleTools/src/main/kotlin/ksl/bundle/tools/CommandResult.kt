@@ -6,7 +6,7 @@ package ksl.bundle.tools
  *
  * - `Success` (0): the command ran to completion as intended.
  * - `UserError` (1): the caller supplied bad input — missing or malformed
- *   arguments, a non-existent file, a JAR with no bundles to enrich,
+ *   arguments, a non-existent file, a builders JAR with no models,
  *   or an output collision without `--force`.
  * - `InternalError` (2): the command failed for a reason unrelated to
  *   user input — a bundle's `builder().build(...)` threw, an I/O write

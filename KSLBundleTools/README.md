@@ -1,24 +1,29 @@
 # kslpkg — KSL bundle authoring tool
 
 `kslpkg` is a small command-line tool for working with **KSL model bundles**:
-JAR files that ship one or more compiled KSL models behind a discoverable
-service-provider interface (`ksl.app.bundle.KSLModelBundle`). Bundle JARs
-are the unit of model distribution in KSL — consumed today by the four
-reference Swing apps and, by design, by any future hosted runtime
-(REST/gRPC service, MCP server for agent tools, CLI scripting host).
+JAR files that ship one or more compiled KSL models in a form the KSL apps can
+discover and load (`ksl.app.bundle.KSLModelBundle`). Bundle JARs are the unit of
+model distribution in KSL — consumed today by the reference Swing apps and, by
+design, by any future hosted runtime (REST/gRPC service, MCP server for agent
+tools, CLI scripting host).
 
 The tool ships two commands:
 
-- **`inspect`** — print a human-readable summary of the bundles, models,
-  and capabilities declared in a JAR.
-- **`enrich`** — read a bundle JAR, build each declared model once to
-  extract its `ksl.simulation.ModelDescriptor`, and write a copy of the
-  JAR with the descriptors embedded under `META-INF/ksl/models/<modelId>/descriptor.json`.
-  Consumers can then read each model's input/output surface from the JAR
-  without instantiating any Kotlin class.
+- **`inspect`** — print a human-readable summary of the bundles, models, and
+  capabilities declared in a JAR.
+- **`assemble`** — turn a plain **builders JAR** (a JAR whose only required
+  content is one or more named `ksl.simulation.ModelBuilderIfc` classes) into a
+  self-describing **bundle JAR**: a `bundle.toml` manifest plus, per model, an
+  embedded `ksl.simulation.ModelDescriptor` (and `catalog.toml` when present).
+  The model author writes only a `ModelBuilderIfc` — no hand-written
+  `KSLModelBundle` class and no `META-INF/services` registration are required;
+  the result loads at runtime as a `ManifestBackedBundle`. Each model is built
+  **once** at assembly time so consumers can read its input/output surface from
+  the JAR without instantiating any Kotlin class.
 
-`kslpkg` is intentionally minimal in Phase 6 of the KSL roadmap. Authoring
-helpers (`init`, `convert`, `validate`) are deferred to later phases.
+Per-model authoring (curating a catalog, tuning each model's supported apps) is
+the job of the **Bundle Workbench** desktop app, which drives the same headless
+authoring core (`ksl.app.bundle.BundleAuthoringSession`) that `assemble` does.
 
 ---
 
@@ -45,29 +50,29 @@ java -jar kslpkg.jar inspect <jar>
 ```
 
 Prints a structured summary of every `KSLModelBundle` declared in the JAR.
-Falls back to the legacy reflective scan for unannotated JARs (the same
-fallback the runtime loader uses) and tags any synthesized bundle as
-`(legacy)`. A JAR with no bundles is not an error: the command prints a
-clear message and exits 0.
+Discovery prefers a `bundle.toml` manifest (a manifest-backed bundle) and falls
+back to a `META-INF/services/ksl.app.bundle.KSLModelBundle` registration; the
+`Discovery:` line reports which form was found. A JAR with no bundles is not an
+error: the command prints a clear message and exits 0.
 
-**Example output:**
+**Example output (a manifest bundle):**
 
 ```
-JAR: /path/to/KSLExamples-1.0-SNAPSHOT.jar
-Discovery: ServiceLoader (META-INF/services/ksl.app.bundle.KSLModelBundle)
-Bundles: 2
+JAR: /path/to/mymodels-bundle.jar
+Discovery: manifest (META-INF/ksl/bundle.toml)
+Bundles: 1
 
-Bundle: ksl.examples.mm1
+Bundle: edu.uark.examples.mm1
   Display name : M/M/1 Queue Example
-  Description  : Single-server M/M/1 queue (GIGcQueue) with one controllable factor (numServers).
+  Description  : Single-server M/M/1 queue with one controllable factor (numServers).
   Version      : 1.0.0
   KSL API      : 1.2
-  Source JAR   : /path/to/KSLExamples-1.0-SNAPSHOT.jar
+  Source JAR   : /path/to/mymodels-bundle.jar
   Models       : 1
     - MM1 (M/M/1 Queue)
         Description  : A single-server M/M/1 queue with exponential interarrivals and service.
         Apps         : SINGLE, SCENARIO, EXPERIMENT, SIMOPT
-        Has in-JAR descriptor : no
+        Has in-JAR descriptor : yes
   Optional metadata:
     Author    : (unset)
     Homepage  : (unset)
@@ -75,67 +80,81 @@ Bundle: ksl.examples.mm1
     Tags      : (none)
 ```
 
-The **`Has in-JAR descriptor`** line tells you whether `enrich` has
-already been applied — useful when verifying a build pipeline.
+The **`Has in-JAR descriptor`** line tells you whether the bundle embeds each
+model's descriptor (an `assemble`d bundle always does) — useful when verifying a
+build pipeline.
 
-### `enrich`
+### `assemble`
 
 ```bash
-java -jar kslpkg.jar enrich <input.jar> [-o <output.jar>] [--force]
+java -jar kslpkg.jar assemble <builders.jar> --id <bundleId> [options]
 ```
 
-- Default output: `<input-stem>-enriched.jar` next to the input.
-- `-o <path>` redirects the output to a specific location.
-- `--force` allows overwriting an existing output file.
+Discovers the `ModelBuilderIfc` implementations in `<builders.jar>`, builds each
+model once to capture its descriptor, and writes a new bundle JAR. `--id` is
+required (it is the bundle's globally-unique identifier); the rest of the bundle
+identity is optional:
+
+| Flag | Meaning | Default |
+|------|---------|---------|
+| `--id <bundleId>` | globally-unique bundle id (required) | — |
+| `--name <text>` | display name | the builders-JAR stem |
+| `--description <text>` | short description | empty |
+| `--version <v>` | bundle content version | `1.0.0` |
+| `--author` / `--homepage` / `--license` | optional metadata | unset |
+| `--tag <t>` | a free-form tag (repeatable) | none |
+| `-o <path>` | output JAR | `<builders-stem>-bundle.jar` beside the input |
+| `--force` | overwrite an existing output | off |
+
+Per-model metadata uses sensible defaults — `modelId` derived from the builder
+class name, `supportedApps` = SINGLE/SCENARIO/EXPERIMENT. The input builders JAR
+is never modified. The draft is validated before the bundle is written: if
+validation reports an error (e.g. a malformed `--id`) the bundle is not written
+and the command exits 1; warnings are printed but do not block.
+
+**Example:**
+
+```
+$ java -jar kslpkg.jar assemble mymodels.jar --id edu.uark.examples.mm1 --name "M/M/1"
+Assembled edu.uark.examples.mm1 → mymodels-bundle.jar
+  Models (1):
+    - MM1 (MM1) ← edu.uark.examples.mm1.MM1Builder
+  Validation: clean (0 errors, 0 warnings)
+```
 
 The command exits non-zero if:
-- The input file is missing or not a regular file (exit 1).
-- The output file already exists and `--force` was not supplied (exit 1).
-- The input JAR has no `META-INF/services/ksl.app.bundle.KSLModelBundle`
-  registration (exit 1). The legacy reflective fallback used at runtime
-  is not consulted here; only annotated bundles can be enriched.
-- A bundle's `builder().build(...)` throws while extracting a descriptor
-  (exit 2).
-
-Re-enriching is structurally idempotent: pre-existing descriptor entries
-in the input are dropped and re-emitted in the appended section, so the
-output JAR carries exactly one descriptor per model. **Note** that the
-descriptor JSON contents themselves are not byte-stable across runs —
-`Model.modelDescriptor()` captures a construction-time marker and an
-auto-incrementing experiment id. This is a substrate-level concern,
-unrelated to enrich, and is tracked for future work.
+- the input file is missing or not a regular file (1),
+- `--id` is missing (1),
+- the builders JAR declares no `ModelBuilderIfc` implementations (1),
+- the output exists and `--force` was not supplied (1),
+- the assembled bundle fails validation with an error (1),
+- a model's `builder().build(...)` throws, or an I/O write fails (2).
 
 ---
 
-## Wiring `enrich` into a bundle author's Gradle build
+## Wiring `assemble` into a bundle author's Gradle build
 
-`kslpkg` is not currently published as a Gradle plugin. Bundle authors
-who want enrich to run as part of their build add a `JavaExec` task by
-hand. The pattern is short:
+`kslpkg` is not published as a Gradle plugin. Bundle authors who want `assemble`
+to run as part of their build add a `JavaExec` task by hand:
 
 ```kotlin
-// In your bundle project's build.gradle.kts.
-//
-// Assumes kslpkg.jar is available at a known path. Adjust the path
-// reference for how you distribute the tool inside your project
-// (vendored under tools/, downloaded by a separate task, etc.).
+// In your bundle project's build.gradle.kts. Assumes kslpkg.jar is available at
+// a known path (vendored under tools/, downloaded by a separate task, etc.).
 
-tasks.register<JavaExec>("enrichBundle") {
+tasks.register<JavaExec>("assembleBundle") {
     group = "ksl bundle"
-    description = "Embed ModelDescriptor JSON into a copy of this bundle's JAR."
+    description = "Assemble a bundle JAR from this project's ModelBuilderIfc classes."
 
-    val bundleJar = tasks.named<Jar>("jar")
-    dependsOn(bundleJar)
+    val buildersJar = tasks.named<Jar>("jar")
+    dependsOn(buildersJar)
 
     classpath = files("tools/kslpkg.jar")            // <-- adjust
     mainClass.set("ksl.bundle.tools.MainKt")
-
-    inputs.file(bundleJar.flatMap { it.archiveFile })
-    inputs.file("tools/kslpkg.jar")
+    inputs.file(buildersJar.flatMap { it.archiveFile })
 
     doFirst {
-        val inputJar = bundleJar.get().archiveFile.get().asFile.absolutePath
-        args = listOf("enrich", inputJar, "--force")
+        val inputJar = buildersJar.get().archiveFile.get().asFile.absolutePath
+        args = listOf("assemble", inputJar, "--id", "edu.example.my-bundle", "--force")
     }
 }
 ```
@@ -143,26 +162,22 @@ tasks.register<JavaExec>("enrichBundle") {
 Run it explicitly:
 
 ```bash
-./gradlew :your-bundle:enrichBundle
+./gradlew :your-bundle:assembleBundle
 ```
-
-A reference example of this pattern lives in this repository at
-`KSLExamples/build.gradle.kts` (`enrichExampleBundle`), producing
-`KSLExamples-<version>-enriched.jar`.
 
 ---
 
-## Wiring `enrich` as an IntelliJ External Tool
+## Wiring `assemble` as an IntelliJ External Tool
 
 Settings → Tools → External Tools → New:
 
-- **Name:** `kslpkg enrich`
+- **Name:** `kslpkg assemble`
 - **Program:** path to your `java` (`$JDKPath$/bin/java` or similar)
 - **Arguments:**
-  `-jar /path/to/kslpkg.jar enrich "$FilePath$" --force`
+  `-jar /path/to/kslpkg.jar assemble "$FilePath$" --id edu.example.my-bundle --force`
 - **Working directory:** `$ProjectFileDir$`
 
-With the input JAR selected in the project view, invoke the tool from
+With the input builders JAR selected in the project view, invoke the tool from
 the right-click context menu.
 
 ---
@@ -172,7 +187,7 @@ the right-click context menu.
 | Code | Meaning |
 |------|---------|
 | `0`  | The command ran to completion as intended. |
-| `1`  | User-input error: bad arguments, missing file, output collision, JAR with no bundles. |
+| `1`  | User-input error: bad arguments, missing file, missing `--id`, output collision, a builders JAR with no models, or a bundle that fails validation. |
 | `2`  | Internal failure: a model failed to build during descriptor extraction, or an I/O write failed. |
 
 Distinguishing 1 from 2 lets scripts treat "bad input" and "tool broke"
@@ -182,13 +197,11 @@ differently.
 
 ## Related KSL surfaces
 
-- **`ksl.app.bundle`** (in `KSLCore`) — the bundle SPI:
-  `KSLModelBundle`, `KSLBundledModel`, `KSLAppKind`,
-  `BundleLayout`, `BundleLoader`, `LoadedBundle`, `BundleDescriptorCache`.
-- **`ksl.simulation.ModelDescriptor`** — the serialized model metadata
-  that `enrich` embeds.
-- **`KSLAppSession`** — the GUI-agnostic interaction layer that consumes
-  models loaded through the bundle SPI.
-
-For the strategic context behind the bundle substrate, see
-`.claude/plans/Phase6StrategicPlan-v2.md` in this repository.
+- **`ksl.app.bundle`** (in `KSLApp`) — the bundle SPI, authoring core, and loader:
+  `KSLModelBundle`, `KSLBundledModel`, `KSLAppKind`, `ManifestBackedBundle`,
+  `BundleAuthoringSession`, `BundleAssembler`, `BuilderDiscovery`, `BundleLayout`,
+  `BundleLoader`, `LoadedBundle`, `BundleDescriptorCache`.
+- **`ksl.simulation.ModelDescriptor`** — the serialized model metadata that
+  `assemble` embeds.
+- **`KSLAppSession`** — the GUI-agnostic interaction layer that consumes models
+  loaded through the bundle SPI.
