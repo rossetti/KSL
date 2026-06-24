@@ -24,10 +24,12 @@ object BundleLayout {
         "META-INF/services/ksl.app.bundle.KSLModelBundle"
 
     /**
-     * Optional declarative bundle identity file. When present, tooling may
-     * read identity fields (`bundleId`, `version`, etc.) from this TOML
-     * without classloading. The Kotlin `KSLModelBundle` implementation
-     * remains the authoritative source at runtime.
+     * The bundle manifest. For a **manifest-driven (data-driven) bundle** this file
+     * is *authoritative*: when present, `BundleLoader` decodes it (see
+     * `ksl.app.config.BundleManifest` / `BundleManifestToml`) and constructs a
+     * single reusable `ManifestBackedBundle` from it, so the JAR needs no compiled
+     * `KSLModelBundle` class and no `META-INF/services` registration. Legacy
+     * hand-written bundles omit this file and are discovered via `ServiceLoader`.
      */
     const val BUNDLE_TOML: String =
         "META-INF/ksl/bundle.toml"
@@ -43,6 +45,17 @@ object BundleLayout {
      */
     fun descriptorPath(modelId: String): String =
         "$MODELS_ROOT/$modelId/descriptor.json"
+
+    /**
+     * Path of the author-curated catalog TOML for the given model. Optional;
+     * written by `kslpkg enrich` (emitted from the model's DSL-derived catalog)
+     * or hand-authored / written by the Bundle Workbench. When present it is the
+     * authoritative catalog: the runtime loader overlays it onto the resolved
+     * `ModelDescriptor`, replacing any `descriptor.catalog` baked into
+     * `descriptor.json`. Absence simply leaves `descriptor.catalog` as-is.
+     */
+    fun catalogPath(modelId: String): String =
+        "$MODELS_ROOT/$modelId/catalog.toml"
 
     /** Directory holding `ConfigRecipeKind.RUN` recipes for the given model. */
     fun runRecipesDir(modelId: String): String =

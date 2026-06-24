@@ -1,0 +1,327 @@
+# ────────────────────────────────────────────────────────────────────────────
+#  KSL Run Configuration
+# ────────────────────────────────────────────────────────────────────────────
+#
+#  This file describes one analysis for the KSL Single and Scenario apps.
+#  Both apps consume the same shape: a Single document carries exactly one
+#  entry under [[scenarios]]; a Scenario document carries one or more.  It
+#  is read and written by the app and can also be edited by hand.
+#
+#  (Optimization runs use a different file format — see
+#  OptimizationRunConfigurationToml.  The Experiment app does not yet
+#  persist to TOML.)
+#
+#  Document layout (top → bottom):
+#
+#    [outputConfig]      Document-wide output settings.  Analysis name,
+#                        database toggle and policy, CSV flags, report
+#                        formats.
+#    executionMode       Top-level string: "SEQUENTIAL" (one scenario at
+#                        a time, in authored order) or "CONCURRENT".
+#                        For Single documents (one scenario), this has
+#                        no observable effect.
+#    [tracingConfig]     Animation / trace capture settings.  Defaults
+#                        to OFF; safe to ignore unless you are running
+#                        a traced model.
+#    [[scenarios]]       The scenarios to run.  One TOML "[[scenarios]]"
+#                        array-of-tables entry per scenario; each one
+#                        carries its own model reference plus per-
+#                        scenario overrides.  Single documents have
+#                        exactly one entry; Scenario documents have
+#                        one or more (names must be unique).
+#    [[bundleRefs]]      Optional list of model-bundle JARs the
+#                        scenarios reference.  Each entry pins one
+#                        bundleId and an ordered list of candidate
+#                        file paths.
+#
+#  Editing guidelines:
+#
+#   * String values use "double quotes".  Numbers and booleans are bare
+#     literals (numberOfReplications = 30, skipOnRun = true).
+#   * Sections marked "optional" can be omitted entirely.  Within a
+#     section, omitted fields take the default printed in the comment
+#     adjacent to that field.
+#   * Saving from the app overwrites this file.  Your hand-edited
+#     comments WILL NOT be preserved; field VALUES are preserved
+#     verbatim.
+#   * Scenario names must be unique within this document.
+#   * To find each field's expected type and units, see the comment
+#     immediately above it.
+#
+#  Reference: https://rossetti.github.io/KSLBook/
+#
+# ────────────────────────────────────────────────────────────────────────────
+# Top-level string. Allowed values:
+#   'SEQUENTIAL' — run scenarios one at a time in authored order (default).
+#   'CONCURRENT' — run scenarios in parallel where the substrate allows.
+# For Single documents (one scenario) this setting has no observable effect.
+executionMode = "CONCURRENT"
+
+# Document-wide output settings.  Sets the analysis identity
+# (used as the output subdirectory and database file stem),
+# the database toggle and existing-file policy, the CSV flags,
+# and the report-format list consumed by the Single app's
+# auto-render workflow.  See the [outputConfig] section for the
+# individual fields.
+
+[outputConfig]
+# Boolean. When true, capture each scenario's results in the
+# shared KSL SQLite database under
+# <workspace>/output/<analysisName>/<analysisName>.db.
+# Required for the Comparison Analyzer tab.  Default: false.
+enableKSLDatabase = true
+# Boolean. When true, write per-replication CSV files (one row
+# per response per replication) to
+# <workspace>/output/<analysisName>/csvDir/.  Document-wide
+# default; per-scenario CSV toggles on [[scenarios]] entries
+# override this.  Default: false.
+enableReplicationCSV = false
+# Boolean. When true, write across-replication summary CSVs.
+# Independent of enableReplicationCSV — opt in here if you want
+# only the summary file without the larger per-replication one.
+# Default: false.
+enableExperimentCSV = false
+# List of report formats produced by the Single app's pre-run
+# auto-render workflow.  Allowed elements (any subset, order
+# preserved): 'HTML', 'MARKDOWN', 'TEXT'.  Default: ['HTML'].
+# The Scenario app's on-demand Reports tab picks its own format
+# per Generate click and DOES NOT read this list.
+reports = [
+    "HTML"
+]
+# String. Identity for this analysis.  Names the subdirectory
+# <workspace>/output/<analysisName>/ where all artifacts land,
+# and the SQLite database file stem.  Sanitised at write time
+# (letters/digits/_/-, max 64 chars; anything else replaced
+# with _).  Default: 'Untitled'.  The Scenario app auto-fills
+# this from the saved file's stem the first time you save.
+analysisName = "Untitled"
+# Policy for what to do when <analysisName>.db already exists
+# at the start of a Simulate.  Allowed values:
+#   'OVERWRITE' — delete the existing file and create fresh (default).
+#   'NEW'       — write <analysisName>_<yyyy-MM-dd_HHmmss>.db beside
+#                   the existing file, leaving it untouched.
+# There is no 'APPEND' option: KSL's schema rejects duplicate
+# experiment names, which a same-document re-run always produces.
+databasePolicy = "OVERWRITE"
+
+# Animation / trace capture settings.  Defaults to OFF; the
+# [tracingConfig] block can be omitted entirely unless you are
+# running a traced model.  See the section comment for fields.
+
+[tracingConfig]
+# How much detail to capture when tracing is enabled.  Allowed
+# values: 'NONE', 'MINIMAL', 'STANDARD', 'DETAILED'.
+# Default: 'MINIMAL'.  Has no effect when animationTraceFile is
+# omitted.
+captureLevel = "MINIMAL"
+# Integer (positive). How often (in observed events) the trace
+# writer flushes its buffer to disk.  Lower values trade I/O
+# overhead for crash-survivability of the trace.  Default: 1000.
+flushEveryNEvents = 1000
+
+# The scenarios to run.  One TOML [[scenarios]] entry per
+# scenario; each entry carries its own model reference plus
+# per-scenario overrides.  Single documents have exactly one
+# entry; Scenario documents have one or more.  Names must be
+# unique within this document.
+
+[[scenarios]]
+# String (required, non-blank). User-given scenario name.  Must
+# be unique within this document.  Used as the experimentName
+# for the run and as the row key when writing to the SQLite
+# database.
+name = "M/M/1 Queue"
+# Optional. Per-scenario random-variable parameter overrides.
+# Each [[scenarios.rvOverrides]] entry pins one (rvName, paramName)
+# pair to a new value.  An empty list (the default) leaves model
+# RV parameters unchanged.
+rvOverrides = [  ]
+# Boolean. When true, the orchestrator excludes this scenario
+# from the runnable set on Simulate, even though it remains in
+# the list.  Useful for staging which scenarios to run without
+# deleting them.  Default: false.
+skipOnRun = false
+# Boolean. Per-scenario override of [outputConfig].enableReplicationCSV.
+# When true, this scenario emits per-replication CSV regardless
+# of the document-wide setting.  Default: false.
+enableReplicationCSV = false
+# Boolean. Per-scenario override of [outputConfig].enableExperimentCSV.
+# When true, this scenario emits across-replication summary CSV
+# regardless of the document-wide setting.  Default: false.
+enableExperimentCSV = false
+
+# Identifies the model this scenario runs.  Required.  Rendered
+# as a [scenarios.modelReference] sub-table with a 'type'
+# discriminator and one or more variant-specific keys:
+#   type = 'byBundleAndModelId'  bundleId, modelId  (typical GUI form)
+#   type = 'byProviderId'        providerId          (programmatic)
+#   type = 'byJar'               jarPath, ...        (legacy)
+#   type = 'embedded'            modelName           (tests / embedded)
+
+[scenarios.modelReference]
+type = "byBundleAndModelId"
+# String (required, non-blank). The KSLModelBundle's bundleId
+# as declared by the bundle JAR.  Must match a bundleId in the
+# document's [[bundleRefs]] list.
+bundleId = "ksl.examples.mm1"
+# String (required, non-blank). The model identifier within
+# the bundle (KSLBundledModel.modelId).
+modelId = "MM1"
+
+# Optional. Per-scenario numeric / boolean control overrides.
+# Exported by the GUI's control-editor; prefer round-tripping
+# through the app over hand-editing.  An empty export (the
+# default) leaves model control values at the model's defaults.
+
+[scenarios.controlOverrides]
+modelName = ""
+numericControls = [  ]
+stringControls = [  ]
+jsonControls = [  ]
+
+[[scenarios]]
+# String (required, non-blank). User-given scenario name.  Must
+# be unique within this document.  Used as the experimentName
+# for the run and as the row key when writing to the SQLite
+# database.
+name = "Tandem Queue"
+# Optional. Per-scenario random-variable parameter overrides.
+# Each [[scenarios.rvOverrides]] entry pins one (rvName, paramName)
+# pair to a new value.  An empty list (the default) leaves model
+# RV parameters unchanged.
+rvOverrides = [  ]
+# Boolean. When true, the orchestrator excludes this scenario
+# from the runnable set on Simulate, even though it remains in
+# the list.  Useful for staging which scenarios to run without
+# deleting them.  Default: false.
+skipOnRun = false
+# Boolean. Per-scenario override of [outputConfig].enableReplicationCSV.
+# When true, this scenario emits per-replication CSV regardless
+# of the document-wide setting.  Default: false.
+enableReplicationCSV = false
+# Boolean. Per-scenario override of [outputConfig].enableExperimentCSV.
+# When true, this scenario emits across-replication summary CSV
+# regardless of the document-wide setting.  Default: false.
+enableExperimentCSV = false
+
+# Identifies the model this scenario runs.  Required.  Rendered
+# as a [scenarios.modelReference] sub-table with a 'type'
+# discriminator and one or more variant-specific keys:
+#   type = 'byBundleAndModelId'  bundleId, modelId  (typical GUI form)
+#   type = 'byProviderId'        providerId          (programmatic)
+#   type = 'byJar'               jarPath, ...        (legacy)
+#   type = 'embedded'            modelName           (tests / embedded)
+
+[scenarios.modelReference]
+type = "byBundleAndModelId"
+# String (required, non-blank). The KSLModelBundle's bundleId
+# as declared by the bundle JAR.  Must match a bundleId in the
+# document's [[bundleRefs]] list.
+bundleId = "edu.uark.ksl.book-examples"
+# String (required, non-blank). The model identifier within
+# the bundle (KSLBundledModel.modelId).
+modelId = "TandemQueue"
+
+# Optional. Per-scenario numeric / boolean control overrides.
+# Exported by the GUI's control-editor; prefer round-tripping
+# through the app over hand-editing.  An empty export (the
+# default) leaves model control values at the model's defaults.
+
+[scenarios.controlOverrides]
+modelName = ""
+numericControls = [  ]
+stringControls = [  ]
+jsonControls = [  ]
+
+[[scenarios]]
+# String (required, non-blank). User-given scenario name.  Must
+# be unique within this document.  Used as the experimentName
+# for the run and as the row key when writing to the SQLite
+# database.
+name = "Pallet Work Center"
+# Optional. Per-scenario random-variable parameter overrides.
+# Each [[scenarios.rvOverrides]] entry pins one (rvName, paramName)
+# pair to a new value.  An empty list (the default) leaves model
+# RV parameters unchanged.
+rvOverrides = [  ]
+# Boolean. When true, the orchestrator excludes this scenario
+# from the runnable set on Simulate, even though it remains in
+# the list.  Useful for staging which scenarios to run without
+# deleting them.  Default: false.
+skipOnRun = false
+# Boolean. Per-scenario override of [outputConfig].enableReplicationCSV.
+# When true, this scenario emits per-replication CSV regardless
+# of the document-wide setting.  Default: false.
+enableReplicationCSV = false
+# Boolean. Per-scenario override of [outputConfig].enableExperimentCSV.
+# When true, this scenario emits across-replication summary CSV
+# regardless of the document-wide setting.  Default: false.
+enableExperimentCSV = false
+
+# Identifies the model this scenario runs.  Required.  Rendered
+# as a [scenarios.modelReference] sub-table with a 'type'
+# discriminator and one or more variant-specific keys:
+#   type = 'byBundleAndModelId'  bundleId, modelId  (typical GUI form)
+#   type = 'byProviderId'        providerId          (programmatic)
+#   type = 'byJar'               jarPath, ...        (legacy)
+#   type = 'embedded'            modelName           (tests / embedded)
+
+[scenarios.modelReference]
+type = "byBundleAndModelId"
+# String (required, non-blank). The KSLModelBundle's bundleId
+# as declared by the bundle JAR.  Must match a bundleId in the
+# document's [[bundleRefs]] list.
+bundleId = "edu.uark.ksl.book-examples"
+# String (required, non-blank). The model identifier within
+# the bundle (KSLBundledModel.modelId).
+modelId = "PalletWorkCenter"
+
+# Optional. Per-scenario numeric / boolean control overrides.
+# Exported by the GUI's control-editor; prefer round-tripping
+# through the app over hand-editing.  An empty export (the
+# default) leaves model control values at the model's defaults.
+
+[scenarios.controlOverrides]
+modelName = ""
+numericControls = [  ]
+stringControls = [  ]
+jsonControls = [  ]
+
+# Optional list of model-bundle JARs the scenarios reference.
+# Omit entirely (or leave empty) when no scenario uses a bundle-
+# backed model reference.  Each entry pins one bundleId and an
+# ordered list of candidate filesystem paths the loader tries in
+# order until one resolves.
+
+[[bundleRefs]]
+# List of candidate filesystem paths to try when resolving this
+# bundle's JAR.  Tried in order; absolute, workspace-relative,
+# or '~'-prefixed forms are all accepted.  May be empty when the
+# bundle was originally dropped via a file picker — the consumer
+# then falls back to bundleId-based discovery (Recent Bundles,
+# ~/.ksl/bundles/) before prompting the user.
+paths = [
+    "/Users/rossetti/.ksl/bundles/book-examples.jar"
+]
+# String (required, non-blank). Authoritative identifier of the
+# bundle JAR (KSLModelBundle.bundleId).  Scenarios reference
+# this id via modelReference = { type = 'byBundleAndModelId',
+# bundleId = '…', modelId = '…' }.
+bundleId = "edu.uark.ksl.book-examples"
+
+[[bundleRefs]]
+# List of candidate filesystem paths to try when resolving this
+# bundle's JAR.  Tried in order; absolute, workspace-relative,
+# or '~'-prefixed forms are all accepted.  May be empty when the
+# bundle was originally dropped via a file picker — the consumer
+# then falls back to bundleId-based discovery (Recent Bundles,
+# ~/.ksl/bundles/) before prompting the user.
+paths = [
+    "/Users/rossetti/.ksl/bundles/KSLExamples-1.0-SNAPSHOT.jar"
+]
+# String (required, non-blank). Authoritative identifier of the
+# bundle JAR (KSLModelBundle.bundleId).  Scenarios reference
+# this id via modelReference = { type = 'byBundleAndModelId',
+# bundleId = '…', modelId = '…' }.
+bundleId = "ksl.examples.mm1"

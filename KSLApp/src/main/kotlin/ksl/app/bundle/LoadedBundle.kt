@@ -2,6 +2,9 @@ package ksl.app.bundle
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.json.Json
+import ksl.app.config.CatalogValidation
+import ksl.app.config.ModelCatalogToml
+import ksl.simulation.ModelCatalog
 import ksl.simulation.ModelDescriptor
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -93,11 +96,11 @@ class LoadedBundle internal constructor(
             )
 
         // 1. In-JAR descriptor
-        readInJarDescriptor(modelId)?.let { return memoize(modelId, it) }
+        readInJarDescriptor(modelId)?.let { return finalize(modelId, it) }
 
         // 2. On-disk cache (JAR-backed bundles only)
         if (jarSha256 != null) {
-            cache.read(jarSha256, modelId)?.let { return memoize(modelId, it) }
+            cache.read(jarSha256, modelId)?.let { return finalize(modelId, it) }
         }
 
         // 3. Lazy extraction
@@ -111,7 +114,62 @@ class LoadedBundle internal constructor(
         if (jarSha256 != null) {
             cache.write(jarSha256, modelId, descriptor)
         }
-        return memoize(modelId, descriptor)
+        return finalize(modelId, descriptor)
+    }
+
+    /**
+     * Applies the in-JAR `catalog.toml` overlay (if any) to the resolved [base]
+     * descriptor, then memoizes the result. The on-disk cache (written by the
+     * lazy-extraction path before this is called) stores the raw extracted
+     * descriptor; the catalog overlay is a cheap, separate in-JAR resource applied
+     * fresh on every resolution, so the in-memory memoized value carries the
+     * authoritative catalog while the cache stays overlay-free.
+     */
+    private fun finalize(modelId: String, base: ModelDescriptor): ModelDescriptor =
+        memoize(modelId, applyCatalogOverlay(modelId, base))
+
+    /**
+     * If a `catalog.toml` is present at [BundleLayout.catalogPath], decodes it,
+     * drops entries that no longer resolve against [base] (logging a warning),
+     * re-derives input kinds, and returns `base.copy(catalog = …)`. When no
+     * `catalog.toml` is present, [base] is returned unchanged so any
+     * `descriptor.catalog` baked into `descriptor.json` is preserved.
+     */
+    private fun applyCatalogOverlay(modelId: String, base: ModelDescriptor): ModelDescriptor {
+        val authored = readInJarCatalog(modelId) ?: return base
+        val problems = CatalogValidation.validate(authored, base)
+        if (problems.isNotEmpty()) {
+            logger.warn {
+                "catalog.toml for ${bundle.bundleId}/$modelId has ${problems.size} issue(s): " +
+                        problems.joinToString("; ") { it.message }
+            }
+        }
+        return base.copy(catalog = CatalogValidation.sanitize(authored, base))
+    }
+
+    private fun readInJarCatalog(modelId: String): ModelCatalog? {
+        val path = BundleLayout.catalogPath(modelId)
+        val stream = classLoader.getResourceAsStream(path) ?: return null
+        return try {
+            stream.use { input -> ModelCatalogToml.decode(input.bufferedReader().readText()) }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to read in-JAR catalog at $path for ${bundle.bundleId}/$modelId" }
+            null
+        }
+    }
+
+    /**
+     * Returns the raw, un-sanitized catalog authored in the JAR at
+     * [BundleLayout.catalogPath], or `null` when no `catalog.toml` is present.
+     * Unlike the catalog reached through [descriptorFor] (which is validated and
+     * sanitized for overlay), this is the as-authored catalog — exposed so
+     * validation tooling can report problems before they are silently dropped.
+     *
+     * @throws IllegalStateException if this `LoadedBundle` has already been closed
+     */
+    fun inJarCatalog(modelId: String): ModelCatalog? {
+        check(!closed) { "LoadedBundle ${bundle.bundleId} has been closed" }
+        return readInJarCatalog(modelId)
     }
 
     private fun memoize(modelId: String, descriptor: ModelDescriptor): ModelDescriptor {
