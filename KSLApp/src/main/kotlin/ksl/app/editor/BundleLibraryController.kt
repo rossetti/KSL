@@ -26,7 +26,6 @@ import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
 import ksl.app.bundle.bundleSourceLabel
-import ksl.app.settings.UserSettingsStore
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -126,8 +125,8 @@ class BundleLibraryController(
 
     private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
     /**
-     *  All bundles currently in scope — discovered (classpath /
-     *  `~/.ksl/bundles/`) + every JAR successfully loaded via [loadJar],
+     *  All bundles currently in scope — discovered from the workspace
+     *  bundle directories + every JAR successfully loaded via [loadJar],
      *  **newest-wins-deduped** so each `(bundleId, version)` appears once: the
      *  most recently built copy stays, the rest move to [ignoredCopies].  Apart
      *  from that dedup, bundles are removed only by a reload that replaces a
@@ -165,22 +164,35 @@ class BundleLibraryController(
     private val retired = mutableListOf<LoadedBundle>()
 
     /**
-     *  Discover bundles the user has installed into `~/.ksl/bundles/` via
-     *  [BundleLoader.loadDirectory] and append them to [loadedBundles].
-     *  The directory is created if it does not yet exist, giving users a
-     *  well-known place to drop bundle JARs (e.g. the KSL Book Examples
-     *  bundle).  Typically called once from the host's `init {}` block, so
-     *  a released app ships with no baked-in bundles yet still loads
-     *  whatever the user installed.
+     *  Discover bundles from each directory in [dirs], in order, and append
+     *  them to [loadedBundles].  Each directory is created if missing (giving
+     *  users a well-known place to drop bundle JARs, e.g. the KSL Book Examples
+     *  bundle) and then scanned via [BundleLoader.loadDirectory].  Typically
+     *  called once from the host's `init {}` block, so a released app ships with
+     *  no baked-in bundles yet still loads whatever the user installed.
      *
-     *  No-op when the directory holds no loadable `KSLModelBundle` JARs.
-     *  When at least one is found, [onBundlesChanged] fires after the append.
+     *  Directories are scanned in **precedence order**: a bundle whose
+     *  `bundleId` was already registered — from an earlier directory, an earlier
+     *  JAR in the same directory, or a prior [loadJar] — is dropped,
+     *  first-registration-wins.  So an app-specific directory listed before a
+     *  shared one shadows it.
+     *
+     *  No-op when no new bundles are found.  When at least one is added,
+     *  [onBundlesChanged] fires once after the combined append.
      */
-    fun discoverFromUserBundlesDir() {
-        val dir = UserSettingsStore.defaultSettingsDir().resolve("bundles")
-        runCatching { Files.createDirectories(dir) }
-        val dirBundles = BundleLoader.loadDirectory(dir)
-        if (dirBundles.isNotEmpty()) commit(myLoadedBundles.value + dirBundles)
+    fun discoverFromDirectories(vararg dirs: Path) {
+        var current = myLoadedBundles.value
+        var changed = false
+        for (dir in dirs) {
+            runCatching { Files.createDirectories(dir) }
+            for (lb in BundleLoader.loadDirectory(dir)) {
+                if (current.none { it.bundle.bundleId == lb.bundle.bundleId }) {
+                    current = current + lb
+                    changed = true
+                }
+            }
+        }
+        if (changed) commit(current)
     }
 
     /**

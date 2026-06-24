@@ -46,7 +46,7 @@ class BundleModelProvider(
         // can be classified.  A clash between *different* bundleIds is a genuine
         // namespace collision worth a warning.  A repeat of the *same* bundleId
         // is just that bundle loaded from more than one source (e.g. several
-        // JARs in ~/.ksl/bundles) — already surfaced as a bundle-source
+        // JARs in the workspace bundle folders) — already surfaced as a bundle-source
         // conflict notice — so it logs at debug rather than crying wolf.
         val ownerBundleId = mutableMapOf<String, String>()
         for (loaded in bundles) {

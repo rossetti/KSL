@@ -47,6 +47,12 @@ object WorkspaceLayout {
     fun configsDir(workspace: Path, createIfMissing: Boolean = false): Path =
         workspace.resolve("configs").maybeCreate(createIfMissing)
 
+    /** Resolves `<workspace>/bundles/`, optionally creating it.  Serves both the
+     *  app-specific (`KSLWork/<App>/bundles/`) and shared (`KSLWork/bundles/`)
+     *  bundle layers — pass the app workspace or the workspace root respectively. */
+    fun bundlesDir(workspace: Path, createIfMissing: Boolean = false): Path =
+        workspace.resolve("bundles").maybeCreate(createIfMissing)
+
     /** Resolves `<workspace>/output/<runId>/`, optionally creating it. */
     fun outputDir(workspace: Path, runId: String, createIfMissing: Boolean = false): Path =
         workspace.resolve("output").resolve(runId).maybeCreate(createIfMissing)

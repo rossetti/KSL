@@ -61,6 +61,7 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
+import ksl.app.settings.WorkspaceLayout
 import ksl.controls.experiments.DesignedExperimentIfc
 import ksl.controls.experiments.LinearModel
 import ksl.simulation.ModelDescriptor
@@ -274,11 +275,14 @@ class ExperimentAppController(
     val currentModelDescriptor: StateFlow<ModelDescriptor?> = myCurrentModelDescriptor.asStateFlow()
 
     init {
-        // The default (production) library auto-discovers bundles from the user's
-        // ~/.ksl/bundles/; an injected library (tests) is used exactly as supplied.
-        // Mirrors the Scenario / Single controllers.
+        // The default (production) library auto-discovers bundles from the app-specific
+        // then shared KSLWork bundle folders; an injected library (tests) is used
+        // exactly as supplied.  Mirrors the Scenario / Single controllers.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromUserBundlesDir()
+            bundleLibrary.discoverFromDirectories(
+                WorkspaceLayout.bundlesDir(appWorkspace),
+                WorkspaceLayout.bundlesDir(appWorkspace.parent),
+            )
         }
     }
 

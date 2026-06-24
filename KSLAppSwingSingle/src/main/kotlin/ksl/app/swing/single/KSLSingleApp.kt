@@ -20,6 +20,9 @@ package ksl.app.swing.single
 
 import ksl.app.config.ModelReference
 import ksl.app.editor.BundleLibraryController
+import ksl.app.session.AppWorkspacePaths
+import ksl.app.settings.UserSettingsStore
+import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.appearance.AppTheme
 import ksl.app.swing.common.appearance.LookAndFeel
 import ksl.simulation.ModelBuilderIfc
@@ -150,10 +153,15 @@ class KSLSingleApp(val appName: String) {
             // Builder mode — current behavior.
             return SingleAppController(appName, builder)
         }
-        // Bundle-picker mode.  Discover whatever the user installed into
-        // ~/.ksl/bundles/.
+        // Bundle-picker mode.  Discover whatever the user dropped into the
+        // app-specific then shared workspace bundle folders.
+        val activeWorkspace = UserSettingsStore().activeWorkspace()
+        val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, appName)
         val bundleLibrary = BundleLibraryController()
-        bundleLibrary.discoverFromUserBundlesDir()
+        bundleLibrary.discoverFromDirectories(
+            WorkspaceLayout.bundlesDir(appWorkspace),
+            WorkspaceLayout.bundlesDir(activeWorkspace),
+        )
         return when (val outcome = BundleModelPickerDialog.show(bundleLibrary)) {
             BundleModelPickerDialog.Result.Cancelled -> {
                 // No model — exit the JVM cleanly.  The Swing

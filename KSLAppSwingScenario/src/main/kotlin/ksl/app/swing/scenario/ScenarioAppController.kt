@@ -52,6 +52,7 @@ import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.session.withoutScenario
 import ksl.app.settings.UserSettingsStore
+import ksl.app.settings.WorkspaceLayout
 import java.nio.file.Path
 
 /**
@@ -209,11 +210,14 @@ class ScenarioAppController(
     val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     init {
-        // The default (production) library auto-discovers whatever the user installed
-        // into ~/.ksl/bundles/.  An injected library (tests) is used exactly as
-        // supplied.  JAR-loaded bundles join the list later via loadBundleJar.
+        // The default (production) library auto-discovers bundles from the app-specific
+        // then shared KSLWork bundle folders.  An injected library (tests) is used
+        // exactly as supplied.  JAR-loaded bundles join the list later via loadBundleJar.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromUserBundlesDir()
+            bundleLibrary.discoverFromDirectories(
+                WorkspaceLayout.bundlesDir(appWorkspace),
+                WorkspaceLayout.bundlesDir(appWorkspace.parent),
+            )
         }
     }
 

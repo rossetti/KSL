@@ -18,10 +18,12 @@
 
 package ksl.app.editor
 
+import ksl.examples.general.appsupport.LKInventoryModelBuilder
 import ksl.examples.general.appsupport.MM1ModelBuilder
 import ksl.examples.general.appsupport.ManifestBundleFixtures
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -156,6 +158,42 @@ class BundleLibraryControllerTest {
         // controller construction path is exercised by Scenario.
         val c = BundleLibraryController()
         c.loadJar(Path.of("/nonexistent/does-not-exist.jar"))  // must not throw without a callback
+    }
+
+    // ── discoverFromDirectories ──────────────────────────────────────────
+
+    @Test
+    fun `discoverFromDirectories loads bundles from every directory`(@TempDir root: Path) {
+        val appDir = Files.createDirectories(root.resolve("app"))
+        val sharedDir = Files.createDirectories(root.resolve("shared"))
+        ManifestBundleFixtures.assembleManifestBundle(appDir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
+        ManifestBundleFixtures.assembleManifestBundle(
+            sharedDir, "lk", "ksl.examples.lk-inventory", LKInventoryModelBuilder::class.java
+        )
+        val c = BundleLibraryController()
+        c.discoverFromDirectories(appDir, sharedDir)
+        val ids = c.loadedBundles.value.map { it.bundle.bundleId }.toSet()
+        assertTrue(
+            ids.containsAll(listOf("ksl.examples.mm1", "ksl.examples.lk-inventory")),
+            "both directories' bundles should be discovered; got $ids"
+        )
+    }
+
+    @Test
+    fun `discoverFromDirectories gives earlier directories precedence on a duplicate bundleId`(@TempDir root: Path) {
+        val appDir = Files.createDirectories(root.resolve("app"))
+        val sharedDir = Files.createDirectories(root.resolve("shared"))
+        // The same bundleId assembled into both the app-specific and shared layers.
+        ManifestBundleFixtures.assembleManifestBundle(appDir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
+        ManifestBundleFixtures.assembleManifestBundle(sharedDir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
+        val c = BundleLibraryController()
+        c.discoverFromDirectories(appDir, sharedDir)   // app directory scanned first
+        val loaded = c.loadedBundles.value.filter { it.bundle.bundleId == "ksl.examples.mm1" }
+        assertEquals(1, loaded.size, "a duplicate bundleId across directories must load once (first-wins)")
+        assertTrue(
+            loaded.single().sourceJar?.startsWith(appDir) == true,
+            "the earlier (app) directory's copy must win; got ${loaded.single().sourceJar}"
+        )
     }
 
     // ── LoadBundleResult shape ───────────────────────────────────────────

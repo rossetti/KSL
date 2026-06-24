@@ -33,7 +33,8 @@ import net.peanuuutz.tomlkt.TomlComment
  *  document was authored against.  At open time, the consumer
  *  (typically the Scenario app's open-document flow) tries each entry
  *  of [paths] in order, then silently searches Recent Bundles and
- *  `~/.ksl/bundles/` for a JAR whose [bundleId] matches, then prompts
+ *  the workspace bundle folders for a JAR whose [bundleId] matches,
+ *  then prompts
  *  the user to *Locate JAR…* if none match.  See the Scenario app's
  *  workflow design document for the full reconciliation sequence.
  *
@@ -58,7 +59,7 @@ data class BundleRef(
         "or '~'-prefixed forms are all accepted.  May be empty when the\n" +
         "bundle was originally dropped via a file picker — the consumer\n" +
         "then falls back to bundleId-based discovery (Recent Bundles,\n" +
-        "~/.ksl/bundles/) before prompting the user."
+        "the workspace bundle folders) before prompting the user."
     )
     val paths: List<String> = emptyList(),
 

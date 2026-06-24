@@ -10,11 +10,11 @@ class BundleRefTest {
     @Test
     fun `construct with non-blank bundleId and paths is OK`() {
         val ref = BundleRef(
-            paths = listOf("./bundles/foo.jar", "~/.ksl/bundles/foo.jar"),
+            paths = listOf("./bundles/foo.jar", "~/KSLWork/bundles/foo.jar"),
             bundleId = "edu.example.foo"
         )
         assertEquals("edu.example.foo", ref.bundleId)
-        assertEquals(listOf("./bundles/foo.jar", "~/.ksl/bundles/foo.jar"), ref.paths)
+        assertEquals(listOf("./bundles/foo.jar", "~/KSLWork/bundles/foo.jar"), ref.paths)
     }
 
     @Test
