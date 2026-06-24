@@ -12,6 +12,7 @@ include(":KSLAppSwingExperiment")
 include(":KSLAppSwingSimopt")
 include(":KSLAppSwingDistribution")
 include(":KSLAppSwingResults")
+include(":KSLAppSwingBundle")
 include(":KSLBundleTools")
 
 // KSLProjectTemplate is intentionally NOT part of this build. It is a standalone

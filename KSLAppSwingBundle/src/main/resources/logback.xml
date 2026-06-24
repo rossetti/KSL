@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    App-owned logging config for the KSL Bundle Workbench Swing app.
+
+    Logs to ~/.ksl/logs/ksl-bundle-workbench.log; the IntelliJ/Gradle console
+    stays quiet (warnings + errors only).  Without this file the app falls back
+    to logback's default (root -> console at DEBUG), which spams the console with
+    the chatty per-element KSL logging emitted while builders are discovered and
+    descriptors are extracted, and writes no files.
+
+    Volume is deliberately bounded so big builder JARs never produce huge logs:
+      * Only ksl.app.* events (builder discovery, assembly, validation,
+        lifecycle) are kept at INFO.  Everything else - the per-element /
+        per-control KSL model logging emitted while a builder is built to
+        extract its descriptor - is left at WARN, so opening a multi-model JAR
+        does not bloat the log or the console.
+      * A hard rolling cap (2 MB per file, 10 MB total) means the log folder
+        can never surprise the user with a huge file.
+-->
+<configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{30} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${user.home}/.ksl/logs/ksl-bundle-workbench.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/.ksl/logs/ksl-bundle-workbench.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>2MB</maxFileSize>
+            <maxHistory>5</maxHistory>
+            <totalSizeCap>10MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="ksl.app" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
