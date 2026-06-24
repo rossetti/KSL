@@ -14,9 +14,8 @@ import java.util.jar.JarFile
  * Implementation of `kslpkg inspect`.
  *
  * Prints a human-readable summary of every `KSLModelBundle` declared in a
- * JAR. Discovery is delegated to `BundleLoader.loadJar`, which prefers a
- * `bundle.toml` manifest (a manifest-backed bundle) and falls back to a
- * `java.util.ServiceLoader` registration when no manifest is present.
+ * JAR. Discovery is delegated to `BundleLoader.loadJar`, which reads the
+ * JAR's `bundle.toml` manifest (a manifest-backed bundle).
  *
  * A JAR with no bundles is not an error: the command prints a clear
  * "no bundles found" message and returns `Success`. This lets scripts
@@ -81,7 +80,7 @@ internal object InspectCommand {
             }
 
             out.println("JAR: $jarPath")
-            out.println("Discovery: ${discoveryLabel(jarPath)}")
+            out.println("Discovery: ${discoveryLabel()}")
             out.println("Bundles: ${loaded.size}")
             out.println()
             for (lb in loaded) {
@@ -112,19 +111,11 @@ internal object InspectCommand {
     }
 
     /**
-     * Reports how the bundle(s) in [jarPath] are declared: a `bundle.toml` manifest
-     * (a manifest-backed bundle, the preferred form) or a legacy `ServiceLoader`
-     * registration.
+     * The discovery label for the inspect output.  Bundles are manifest-driven
+     * (a `bundle.toml`); kept as an explicit, stable line.
      */
-    private fun discoveryLabel(jarPath: Path): String =
-        if (hasEntry(jarPath, BundleLayout.BUNDLE_TOML)) {
-            "manifest (${BundleLayout.BUNDLE_TOML})"
-        } else {
-            "ServiceLoader (META-INF/services/ksl.app.bundle.KSLModelBundle)"
-        }
-
-    private fun hasEntry(jarPath: Path, entry: String): Boolean =
-        JarFile(jarPath.toFile()).use { it.getJarEntry(entry) != null }
+    private fun discoveryLabel(): String =
+        "manifest (${BundleLayout.BUNDLE_TOML})"
 
     private fun printBundle(
         bundle: KSLModelBundle,

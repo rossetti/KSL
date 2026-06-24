@@ -20,10 +20,12 @@ package ksl.bundle.tools
 
 import ksl.app.editor.BundleLibraryController
 import ksl.app.editor.BundleLibraryController.LoadBundleResult
-import ksl.bundle.tools.support.StubBundle
+import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -33,11 +35,11 @@ import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for [BundleLibraryController.loadJar]'s reload path —
- * the fix for the stale-bundle-on-reload trap.  These tests build real JARs
- * (via [TestBundleBuilder] + [StubBundle]) so a genuine [ksl.app.bundle.LoadedBundle]
- * with a real content hash is produced; the substrate unit test in
- * `KSLTesting` cannot do this because `LoadedBundle` has an internal
- * constructor.
+ * the fix for the stale-bundle-on-reload trap.  These tests assemble real
+ * manifest bundle JARs (a plain [StubModelBuilder] JAR run through
+ * `kslpkg assemble`) so a genuine [ksl.app.bundle.LoadedBundle] with a real
+ * content hash is produced; the substrate unit test in `KSLApp` cannot do this
+ * because `LoadedBundle` has an internal constructor.
  *
  * The author-iteration scenario being pinned: a JAR at a known path is loaded,
  * then *rebuilt in place* with the same `bundleId` but different content, and
@@ -47,19 +49,28 @@ import kotlin.test.assertTrue
  */
 class BundleLibraryReloadTest {
 
-    /** Builds a JAR at `<dir>/bundle.jar`, optionally with a content marker. */
-    private fun buildAt(dir: Path, marker: String?): Path =
-        TestBundleBuilder.build(
-            dir, "bundle", listOf(StubBundle::class.java),
-            extraEntries = if (marker == null) emptyMap()
-                           else mapOf("content-marker.txt" to marker.toByteArray())
+    private val sink = PrintStream(ByteArrayOutputStream())
+
+    /** Assembles a manifest bundle (bundleId `test.stub`) at `<dir>/<name>.jar`.
+     *  [version] varies the manifest content — and thus the JAR's SHA-256 — so
+     *  reload tests can simulate a rebuilt-but-same-bundleId JAR. */
+    private fun buildAt(dir: Path, name: String = "bundle", version: String = "1.0.0"): Path {
+        val builders = TestBundleBuilder.buildWithoutServicesFile(
+            dir, "$name-builders", listOf(StubModelBuilder::class.java)
         )
+        val bundle = dir.resolve("$name.jar")
+        AssembleCommand.run(
+            listOf(builders.toString(), "--id", "test.stub", "--version", version, "-o", bundle.toString(), "--force"),
+            out = sink, err = sink
+        )
+        return bundle
+    }
 
     @Test
     fun `first load of a path reports Loaded and populates the library`(@TempDir dir: Path) {
         var callbacks = 0
         val c = BundleLibraryController(onBundlesChanged = { callbacks++ })
-        val jar = buildAt(dir, marker = null)
+        val jar = buildAt(dir)
 
         val outcome = c.loadJar(jar)
 
@@ -77,13 +88,13 @@ class BundleLibraryReloadTest {
         val c = BundleLibraryController(onBundlesChanged = { callbacks++ })
 
         // v1 at the path.
-        val jar = buildAt(dir, marker = "v1")
+        val jar = buildAt(dir, version = "1.0.0")
         assertIs<LoadBundleResult.Loaded>(c.loadJar(jar))
         assertEquals(1, callbacks)
 
         // Rebuild the SAME path with different content (different SHA-256),
-        // same StubBundle (same bundleId "test.stub").
-        val rebuilt = buildAt(dir, marker = "v2-different-bytes")
+        // same bundleId "test.stub".
+        val rebuilt = buildAt(dir, version = "2.0.0")
         assertEquals(jar, rebuilt, "Rebuild must target the same path to be a reload.")
 
         val outcome = c.loadJar(rebuilt)
@@ -101,7 +112,7 @@ class BundleLibraryReloadTest {
     fun `re-loading the same path with identical content reports AlreadyLoaded and does not refire`(@TempDir dir: Path) {
         var callbacks = 0
         val c = BundleLibraryController(onBundlesChanged = { callbacks++ })
-        val jar = buildAt(dir, marker = "stable")
+        val jar = buildAt(dir)
         assertIs<LoadBundleResult.Loaded>(c.loadJar(jar))
         assertEquals(1, callbacks)
 
@@ -121,11 +132,11 @@ class BundleLibraryReloadTest {
         var callbacks = 0
         val c = BundleLibraryController(onBundlesChanged = { callbacks++ })
 
-        val first = TestBundleBuilder.build(dir, "first", listOf(StubBundle::class.java))
+        val first = buildAt(dir, name = "first")
         assertIs<LoadBundleResult.Loaded>(c.loadJar(first))
 
         // A second, different file declaring the same bundleId "test.stub".
-        val second = TestBundleBuilder.build(dir, "second", listOf(StubBundle::class.java))
+        val second = buildAt(dir, name = "second")
         val outcome = c.loadJar(second)
 
         assertIs<LoadBundleResult.AlreadyLoaded>(outcome)
@@ -138,9 +149,9 @@ class BundleLibraryReloadTest {
     @Test
     fun `close drains the library and the retired set without throwing`(@TempDir dir: Path) {
         val c = BundleLibraryController()
-        val jar = buildAt(dir, marker = "v1")
+        val jar = buildAt(dir, version = "1.0.0")
         c.loadJar(jar)
-        c.loadJar(buildAt(dir, marker = "v2"))   // retires the v1 bundle
+        c.loadJar(buildAt(dir, version = "2.0.0"))   // retires the v1 bundle
 
         c.close()   // must close live + retired without throwing
 

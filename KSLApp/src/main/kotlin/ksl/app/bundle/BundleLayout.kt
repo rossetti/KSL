@@ -15,8 +15,9 @@ package ksl.app.bundle
 object BundleLayout {
 
     /**
-     * The `ServiceLoader` registration file. The JAR must contain this entry
-     * for the runtime loader to discover `KSLModelBundle` implementations.
+     * Legacy `ServiceLoader` registration file. No longer read by the runtime
+     * loader (bundles are manifest-driven); retained only for the bundle-meta
+     * packaging that the book-examples JAR task still emits.
      */
     const val SERVICES_FILE: String =
         "META-INF/services/ksl.app.bundle.KSLModelBundle"
@@ -26,8 +27,8 @@ object BundleLayout {
      * is *authoritative*: when present, `BundleLoader` decodes it (see
      * `ksl.app.config.BundleManifest` / `BundleManifestToml`) and constructs a
      * single reusable `ManifestBackedBundle` from it, so the JAR needs no compiled
-     * `KSLModelBundle` class and no `META-INF/services` registration. Legacy
-     * hand-written bundles omit this file and are discovered via `ServiceLoader`.
+     * `KSLModelBundle` class and no `META-INF/services` registration. This
+     * manifest is now the only way a JAR declares a bundle.
      */
     const val BUNDLE_TOML: String =
         "META-INF/ksl/bundle.toml"

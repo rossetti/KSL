@@ -1,6 +1,5 @@
 package ksl.bundle.tools
 
-import ksl.bundle.tools.support.StubBundle
 import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
@@ -18,24 +17,6 @@ class InspectCommandTest {
         val errBuf = ByteArrayOutputStream()
         val result = block(PrintStream(outBuf), PrintStream(errBuf))
         return Triple(result, outBuf.toString(Charsets.UTF_8), errBuf.toString(Charsets.UTF_8))
-    }
-
-    @Test
-    fun `inspect prints bundle summary for a JAR with a ServiceLoader registration`(@TempDir dir: Path) {
-        val jar = TestBundleBuilder.build(dir, "stub", listOf(StubBundle::class.java))
-
-        val (result, out, err) = capture { o, e ->
-            InspectCommand.run(listOf(jar.toString()), out = o, err = e)
-        }
-
-        assertEquals(CommandResult.Success, result)
-        assertTrue(err.isEmpty(), "Expected no stderr output, got: $err")
-        assertTrue("Bundle: test.stub" in out, "Missing bundle id in output:\n$out")
-        assertTrue("Display name : Stub Bundle" in out, "Missing display name in output:\n$out")
-        assertTrue("Discovery: ServiceLoader" in out, "Missing discovery line in output:\n$out")
-        assertTrue("- stub (Stub Model)" in out, "Missing model line in output:\n$out")
-        assertTrue("Apps         : SINGLE" in out, "Missing apps line in output:\n$out")
-        assertTrue("Has in-JAR descriptor : no" in out, "Missing in-JAR-descriptor probe in output:\n$out")
     }
 
     @Test

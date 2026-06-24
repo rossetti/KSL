@@ -7,7 +7,6 @@ import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.util.ServiceLoader
 import java.util.jar.JarFile
 import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
@@ -22,42 +21,35 @@ private val logger = KotlinLogging.logger {}
  *   - `loadJar`         — a single JAR file
  *   - `loadDirectory`   — every `.jar` file directly inside a directory
  *
- * Two discovery mechanisms are supported, checked in this order:
- *   1. **Manifest-driven (data-driven) bundles.** When a JAR (or a classpath
- *      entry) carries a `BundleLayout.BUNDLE_TOML` manifest, the loader decodes it
- *      and builds a single reusable `ManifestBackedBundle` from it. One
- *      `bundle.toml` declares one bundle. This is how bundle JARs produced by the
- *      enrichment tooling are loaded; the JAR needs no `META-INF/services` file and
- *      no compiled `KSLModelBundle` class.
- *   2. **Legacy `ServiceLoader` bundles.** When no manifest is present, discovery
- *      falls back to `java.util.ServiceLoader` against
- *      `META-INF/services/ksl.app.bundle.KSLModelBundle` (hand-written
- *      `KSLModelBundle` implementations). JARs with neither a manifest nor a
- *      services registration are not bundles; `loadJar` returns an empty list.
+ * Bundles are manifest-driven. When a JAR carries a `BundleLayout.BUNDLE_TOML`
+ * manifest, the loader decodes it and builds a single reusable
+ * `ManifestBackedBundle` from it — one `bundle.toml` declares one bundle, and the
+ * JAR needs no compiled `KSLModelBundle` class. A JAR with no manifest is not a
+ * bundle; `loadJar` returns an empty list. (Legacy `ServiceLoader` discovery
+ * against `META-INF/services/ksl.app.bundle.KSLModelBundle` has been retired.)
  *
  * Pre-bundle JARs holding bare `ksl.simulation.ModelBuilderIfc` classes (with no
  * manifest) are loaded through the separate `ksl.utilities.io.JARModelBuilder` API
  * instead.
  *
  * `loadJar` and `loadDirectory` create a fresh `URLClassLoader` per JAR and
- * hand it to each discovered `LoadedBundle`; the bundles' `close` releases it.
- * If a single JAR declares multiple bundles, all returned `LoadedBundle`s
- * share that classloader and should be closed as a group.
+ * hand it to the `LoadedBundle`; the bundle's `close` releases it.
  */
 object BundleLoader {
 
     /**
-     * Loads every bundle declared in `jarPath` via `ServiceLoader`. Each
-     * returned `LoadedBundle` owns the freshly-created classloader; if the
-     * JAR declares multiple bundles they share the loader.
+     * Loads the manifest-driven bundle declared in `jarPath`. A JAR carries a
+     * bundle when it contains a `bundle.toml` manifest; the loader decodes it
+     * into a single `ManifestBackedBundle` that owns the freshly-created
+     * classloader.
      *
      * @param jarPath path to a regular JAR file
      * @param parent parent classloader for delegation; defaults to the loader
      *               that holds KSLCore so bundle code resolves KSL types
      * @param cache  on-disk descriptor cache for lazy extraction; defaults
      *               to one rooted at `~/.ksl/bundle-cache`
-     * @return zero or more bundles (empty if the JAR has no services file
-     *         registration for `KSLModelBundle`)
+     * @return a single-element list with the manifest bundle, or empty when the
+     *         JAR has no `bundle.toml` manifest
      */
     fun loadJar(
         jarPath: Path,
@@ -86,26 +78,11 @@ object BundleLoader {
             )
         }
 
-        // 2. Legacy ServiceLoader-discovered KSLModelBundle implementations.
-        val discovered = ServiceLoader.load(KSLModelBundle::class.java, classLoader).toList()
-
-        if (discovered.isEmpty()) {
-            classLoader.close()
-            logger.info { "No KSLModelBundle providers in $jarPath" }
-            return emptyList()
-        }
-
-        return discovered.map { bundle ->
-            LoadedBundle(
-                bundle = bundle,
-                sourceJar = jarPath,
-                classLoader = classLoader,
-                ownedResources = classLoader,
-                jarSha256 = sha,
-                cache = cache,
-                builtAt = builtAt
-            )
-        }
+        // No bundle.toml manifest: not a bundle JAR.  (Legacy ServiceLoader
+        // discovery has been retired — bundles are manifest-driven only.)
+        classLoader.close()
+        logger.info { "No bundle.toml manifest in $jarPath; not a bundle JAR" }
+        return emptyList()
     }
 
     /**
@@ -129,7 +106,7 @@ object BundleLoader {
     /**
      * Reads and decodes the [BundleLayout.BUNDLE_TOML] manifest directly from
      * [jarPath], or `null` if the JAR has no manifest. A malformed manifest is
-     * logged and treated as absent (so loading can fall back to ServiceLoader)
+     * logged and treated as absent (so the JAR is reported as not-a-bundle)
      * rather than throwing.
      */
     private fun readManifestFromJar(jarPath: Path): BundleManifest? {

@@ -1,71 +1,25 @@
 package ksl.bundle.tools.support
 
+import ksl.app.bundle.BundleLayout
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.jar.JarEntry
+import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 import java.util.jar.Manifest
 
 /**
- * Builds a real bundle JAR file in a caller-supplied directory by copying
- * the compiled `.class` files of one or more `KSLModelBundle` implementations
- * out of the running test's classpath and emitting an appropriate
- * `META-INF/services/ksl.app.bundle.KSLModelBundle` registration.
+ * Builds plain "builders" JAR files in a caller-supplied directory by copying the
+ * compiled `.class` files of one or more classes out of the running test's
+ * classpath.  These JARs hold `ModelBuilderIfc` implementations (and any inner
+ * classes) ready to be assembled into a manifest bundle via `kslpkg assemble`; the
+ * helper does not write a `bundle.toml` itself.
  *
- * Inner classes (Kotlin `private object` declarations like `StubBundle.StubModel`)
- * are copied alongside the outer class.
- *
- * The produced JAR is self-sufficient *as a bundle declaration* — it does
- * not embed KSLCore classes, which are expected to resolve through the
- * test classpath (URLClassLoader parent delegation, just like in production).
+ * The produced JAR is self-sufficient *as a class container* — it does not embed
+ * KSLCore classes, which are expected to resolve through the test classpath
+ * (URLClassLoader parent delegation, just like in production).
  */
 internal object TestBundleBuilder {
-
-    /**
-     * Builds a JAR at `<dir>/<name>.jar` containing every class file from
-     * each bundle class's package-or-deeper, plus a services file listing
-     * the bundle classes.
-     *
-     * @return the absolute path to the produced JAR
-     */
-    fun build(
-        dir: Path,
-        name: String,
-        bundleClasses: List<Class<*>>,
-        extraEntries: Map<String, ByteArray> = emptyMap()
-    ): Path {
-        val target = dir.resolve("$name.jar")
-        Files.newOutputStream(target).use { os ->
-            JarOutputStream(os, Manifest()).use { jar ->
-                val seen = mutableSetOf<String>()
-                for (cls in bundleClasses) {
-                    addClassWithInnerClasses(jar, cls, seen)
-                }
-                // META-INF/services registration
-                val servicesPath = "META-INF/services/ksl.app.bundle.KSLModelBundle"
-                if (servicesPath !in seen) {
-                    val entry = JarEntry(servicesPath).apply { time = 0L }
-                    jar.putNextEntry(entry)
-                    val body = bundleClasses.joinToString("\n") { it.name } + "\n"
-                    jar.write(body.toByteArray(Charsets.UTF_8))
-                    jar.closeEntry()
-                    seen += servicesPath
-                }
-                // Optional extra entries — used to vary a JAR's content (and
-                // therefore its SHA-256) while keeping the same bundle classes,
-                // simulating a rebuilt-but-same-bundleId JAR for reload tests.
-                for ((entryName, bytes) in extraEntries) {
-                    if (entryName in seen) continue
-                    val entry = JarEntry(entryName).apply { time = 0L }
-                    jar.putNextEntry(entry)
-                    jar.write(bytes)
-                    jar.closeEntry()
-                    seen += entryName
-                }
-            }
-        }
-        return target
-    }
 
     /**
      * Variant that emits the class files but no
@@ -85,6 +39,31 @@ internal object TestBundleBuilder {
             }
         }
         return target
+    }
+
+    /**
+     * Copies [src] to a sibling JAR with every per-model `descriptor.json` removed,
+     * producing a manifest bundle that carries no in-JAR descriptor — so loading it
+     * must fall through to tier-3 lazy extraction.
+     */
+    fun stripDescriptors(src: Path): Path {
+        val dst = src.resolveSibling(src.fileName.toString().removeSuffix(".jar") + "-nodesc.jar")
+        JarFile(src.toFile()).use { jf ->
+            JarOutputStream(Files.newOutputStream(dst), Manifest()).use { out ->
+                val entries = jf.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (entry.isDirectory) continue
+                    // JarOutputStream(Manifest()) already wrote META-INF/MANIFEST.MF.
+                    if (entry.name == "META-INF/MANIFEST.MF") continue
+                    if (entry.name.startsWith(BundleLayout.MODELS_ROOT) && entry.name.endsWith("/descriptor.json")) continue
+                    out.putNextEntry(JarEntry(entry.name).apply { time = 0L })
+                    jf.getInputStream(entry).use { it.copyTo(out) }
+                    out.closeEntry()
+                }
+            }
+        }
+        return dst
     }
 
     private fun addClassWithInnerClasses(

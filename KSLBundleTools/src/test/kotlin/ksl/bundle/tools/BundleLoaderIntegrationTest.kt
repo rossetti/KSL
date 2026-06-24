@@ -3,7 +3,6 @@ package ksl.bundle.tools
 import ksl.app.bundle.BundleDescriptorCache
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleLoader
-import ksl.bundle.tools.support.StubBundle
 import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
@@ -69,21 +68,30 @@ class BundleLoaderIntegrationTest {
 
     @Test
     fun `a bundle with no embedded descriptor triggers lazy extraction and writes the cache entry`(@TempDir dir: Path) {
-        val plain = TestBundleBuilder.build(dir, "stub", listOf(StubBundle::class.java))
+        // Assemble a manifest bundle, then strip its in-JAR descriptor so loading
+        // must fall through to tier-3 lazy extraction (build the model).
+        val builders = TestBundleBuilder.buildWithoutServicesFile(dir, "builders", listOf(StubModelBuilder::class.java))
+        val assembled = dir.resolve("builders-bundle.jar")
+        AssembleCommand.run(
+            listOf(builders.toString(), "--id", "edu.test.stub", "-o", assembled.toString()),
+            out = System.out,
+            err = System.err
+        )
+        val plain = TestBundleBuilder.stripDescriptors(assembled)
 
         val cacheRoot = dir.resolve("bundle-cache")
         val cache = BundleDescriptorCache(rootDir = cacheRoot)
 
-        // Sanity: the source JAR carries no in-JAR descriptor for the stub model.
-        val descriptorPath = BundleLayout.descriptorPath("stub")
+        // Sanity: the stripped JAR carries no in-JAR descriptor for the model.
+        val descriptorPath = BundleLayout.descriptorPath("Stub")
         val hasInJar = java.util.jar.JarFile(plain.toFile()).use { jf ->
             jf.getJarEntry(descriptorPath) != null
         }
         assertEquals(false, hasInJar, "test precondition: this JAR must not embed the descriptor")
 
         BundleLoader.loadJar(plain, cache = cache).single().use { loaded ->
-            val descriptor = loaded.descriptorFor("stub")
-            assertEquals("stub", descriptor.modelIdentifier)
+            val descriptor = loaded.descriptorFor("Stub")
+            assertEquals("Stub", descriptor.modelIdentifier)
         }
 
         // Tier 3 fired, so the cache entry exists.
@@ -91,12 +99,12 @@ class BundleLoaderIntegrationTest {
         val cachedDescriptors = Files.walk(cacheRoot).use { stream ->
             stream
                 .filter { Files.isRegularFile(it) }
-                .filter { it.fileName.toString() == "stub.json" }
+                .filter { it.fileName.toString() == "Stub.json" }
                 .toList()
         }
         assertEquals(
             1, cachedDescriptors.size,
-            "expected exactly one cached descriptor file at <root>/<sha>/stub.json; found ${cachedDescriptors.size}"
+            "expected exactly one cached descriptor file at <root>/<sha>/Stub.json; found ${cachedDescriptors.size}"
         )
         val meta = Files.walk(cacheRoot).use { stream ->
             stream

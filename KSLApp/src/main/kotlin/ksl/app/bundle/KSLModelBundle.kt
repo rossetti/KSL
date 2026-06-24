@@ -1,13 +1,13 @@
 package ksl.app.bundle
 
 /**
- * The service-provider interface for a self-describing KSL model bundle.
+ * The interface for a self-describing KSL model bundle.
  *
  * A bundle is a JAR containing one or more `KSLBundledModel` instances plus
  * the metadata needed to discover, identify, and version them. Bundles are
- * discovered at runtime via `java.util.ServiceLoader` against this interface;
- * the corresponding registration lives at
- * `META-INF/services/ksl.app.bundle.KSLModelBundle` inside the JAR.
+ * declared by a `bundle.toml` manifest inside the JAR (see `BundleLayout`),
+ * which the runtime loader decodes into a `ManifestBackedBundle` — the
+ * implementation of this interface.
  *
  * This interface is GUI-agnostic by design. The four Swing apps are the
  * first consumer, but the same surface is intended to be consumed by a
