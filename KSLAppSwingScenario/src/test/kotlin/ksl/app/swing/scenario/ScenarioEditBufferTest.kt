@@ -22,7 +22,11 @@ import ksl.app.bundle.BundleLoader
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.ScenarioSpec
+import ksl.examples.general.appsupport.MM1ModelBuilder
+import ksl.examples.general.appsupport.ManifestBundleFixtures
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -105,21 +109,22 @@ class ScenarioEditBufferTest {
     }
 
     @Test
-    fun `probe succeeds against a real classpath bundle`() {
-        val bundles = BundleLoader.loadFromClasspath()
+    fun `probe succeeds against a real assembled bundle`(@TempDir dir: Path) {
+        val jar = ManifestBundleFixtures.assembleManifestBundle(
+            dir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java
+        )
+        val bundles = BundleLoader.loadJar(jar)
         try {
-            assertTrue(bundles.isNotEmpty(), "classpath bundles required for this test")
             val bundle = bundles.first()
             val modelId = bundle.bundle.models.first().modelId
             val b = ScenarioEditBuffer.probe(
                 spec(bundleId = bundle.bundle.bundleId, modelId = modelId),
                 bundles = bundles
             ).also { buffer = it }
-            // Snapshots can be empty or non-empty depending on the model;
-            // the contract here is just that defaults came from the
-            // descriptor, not from SAFE_FALLBACK_DEFAULTS — checking that
-            // modelDefaults differs from the fallback in at least one field
-            // is brittle, so just verify the buffer opened cleanly.
+            // Snapshots can be empty or non-empty depending on the model; the contract
+            // here is just that defaults came from the descriptor, not from
+            // SAFE_FALLBACK_DEFAULTS — that is brittle to assert directly, so just verify
+            // the buffer opened cleanly against the real model reference.
             assertEquals(b.modelReference, ModelReference.ByBundleAndModelId(bundle.bundle.bundleId, modelId))
         } finally {
             bundles.forEach { runCatching { it.close() } }

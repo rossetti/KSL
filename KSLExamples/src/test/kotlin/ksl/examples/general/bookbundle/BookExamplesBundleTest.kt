@@ -21,6 +21,7 @@ package ksl.examples.general.bookbundle
 import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.LoadedBundle
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -77,17 +78,14 @@ class BookExamplesBundleTest {
             chapter7ModelIds + chapter8ModelIds + capstoneModelIds
 
     private fun withBookBundle(block: (LoadedBundle) -> Unit) {
-        val bundles = BundleLoader.loadFromClasspath()
+        // Assemble the 16 book builders into a manifest bundle JAR and load it (the same
+        // path an app uses), instead of relying on classpath ServiceLoader discovery.
+        val dir = Files.createTempDirectory("book-bundle-test")
         try {
-            val match = bundles.firstOrNull { it.bundle.bundleId == BookExamplesBundle.BUNDLE_ID }
-            assertNotNull(
-                match,
-                "Expected BookExamplesBundle on the classpath; got " +
-                    bundles.map { it.bundle.bundleId }
-            )
-            block(match)
+            val jar = BookBundleFixture.assemble(dir)
+            BundleLoader.loadJar(jar).single().use { block(it) }
         } finally {
-            bundles.forEach { it.close() }
+            dir.toFile().deleteRecursively()
         }
     }
 

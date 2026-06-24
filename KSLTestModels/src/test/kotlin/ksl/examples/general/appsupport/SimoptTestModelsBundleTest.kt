@@ -19,33 +19,42 @@
 package ksl.examples.general.appsupport
 
 import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.LoadedBundle
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- *  Smoke tests for [SimoptTestModelsBundle]: confirms ServiceLoader
- *  registration, both bundled models load through the classpath
- *  discovery path, and each descriptor exposes the expected
- *  `@KSLControl`-annotated decision-variable surface that the SimOpt
- *  app's input picker depends on.
+ *  Smoke tests for the SimOpt fixture models: assembles them into a manifest bundle
+ *  (from the named [LKInventoryOptModelBuilder] / [RQInventoryOptModelBuilder]), loads
+ *  it, and confirms each descriptor exposes the expected `@KSLControl`-annotated
+ *  decision-variable surface that the SimOpt app's input picker depends on.
  *
- *  These tests do not run the simulations — they only inspect the
- *  introspection contract.  Per-model run behaviour is covered by the
- *  textbook tests in their respective modules.
+ *  These tests do not run the simulations — they only inspect the introspection
+ *  contract. Per-model run behaviour is covered by the textbook tests.
  */
 class SimoptTestModelsBundleTest {
 
+    /** Assembles the two SimOpt models as one manifest bundle and loads it. */
+    private fun loadBundle(dir: Path): List<LoadedBundle> {
+        val jar = ManifestBundleFixtures.assembleManifestBundle(
+            dir, "simopt", "ksl.examples.simopt-test-models",
+            LKInventoryOptModelBuilder::class.java, RQInventoryOptModelBuilder::class.java,
+        )
+        return BundleLoader.loadJar(jar)
+    }
+
     @Test
-    fun `bundle is discovered on the classpath`() {
-        val bundles = BundleLoader.loadFromClasspath()
+    fun `bundle assembles with both SimOpt models`(@TempDir dir: Path) {
+        val bundles = loadBundle(dir)
         try {
             val match = bundles.firstOrNull {
                 it.bundle.bundleId == "ksl.examples.simopt-test-models"
             }
             assertNotNull(match,
-                "Expected SimoptTestModelsBundle to be discovered; got " +
-                    bundles.map { it.bundle.bundleId })
+                "Expected the SimOpt bundle; got " + bundles.map { it.bundle.bundleId })
             assertTrue(
                 match.bundle.models.map { it.modelId }.containsAll(
                     listOf(
@@ -62,8 +71,8 @@ class SimoptTestModelsBundleTest {
     }
 
     @Test
-    fun `LK opt descriptor exposes the expected controls and responses`() {
-        val bundles = BundleLoader.loadFromClasspath()
+    fun `LK opt descriptor exposes the expected controls and responses`(@TempDir dir: Path) {
+        val bundles = loadBundle(dir)
         try {
             val match = bundles.first { it.bundle.bundleId == "ksl.examples.simopt-test-models" }
             val descriptor = match.descriptorFor(SimoptTestModelsBundle.LK_OPT_MODEL_ID)
@@ -92,8 +101,8 @@ class SimoptTestModelsBundleTest {
     }
 
     @Test
-    fun `RQ opt descriptor exposes Inventory child-element controls and responses`() {
-        val bundles = BundleLoader.loadFromClasspath()
+    fun `RQ opt descriptor exposes Inventory child-element controls and responses`(@TempDir dir: Path) {
+        val bundles = loadBundle(dir)
         try {
             val match = bundles.first { it.bundle.bundleId == "ksl.examples.simopt-test-models" }
             val descriptor = match.descriptorFor(SimoptTestModelsBundle.RQ_OPT_MODEL_ID)
