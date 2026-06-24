@@ -59,8 +59,10 @@ private fun printUsage() {
         |      classes) into a self-describing bundle JAR: a bundle.toml manifest
         |      plus a per-model descriptor.json. --id is required; other identity
         |      comes from [--name --description --version --author --homepage
-        |      --license --tag <t>]. Default output is <builders-stem>-bundle.jar
-        |      next to the input; -o sets it, --force overwrites an existing file.
+        |      --license --tag <t>]. --exclude <id,...> drops discovered models by
+        |      modelId (e.g. a shared closure embedded for runtime, not a model).
+        |      Default output is <builders-stem>-bundle.jar next to the input;
+        |      -o sets it, --force overwrites an existing file.
         |
         |  kslpkg --help        Print this message
         |  kslpkg --version     Print the tool version

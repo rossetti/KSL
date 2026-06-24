@@ -65,8 +65,13 @@ class BundleAuthoringSession private constructor(
         var catalog: ModelCatalog? = null
     }
 
-    /** Builds the [BundleAssembler.BundleSpec] from the current draft state. */
-    fun buildSpec(): BundleAssembler.BundleSpec = BundleAssembler.BundleSpec(
+    /**
+     * Builds the [BundleAssembler.BundleSpec] from the current draft state.  Models
+     * whose `modelId` is in [excludeModelIds] are dropped from the bundle — e.g. a
+     * shared builder closure that is embedded for runtime but should not surface as a
+     * selectable model.
+     */
+    fun buildSpec(excludeModelIds: Set<String> = emptySet()): BundleAssembler.BundleSpec = BundleAssembler.BundleSpec(
         bundleId = bundleId,
         displayName = displayName,
         description = description,
@@ -76,7 +81,7 @@ class BundleAuthoringSession private constructor(
         homepage = homepage,
         license = license,
         tags = tags.toSet(),
-        models = models.map { d ->
+        models = models.filterNot { it.modelId in excludeModelIds }.map { d ->
             BundleAssembler.ModelSpec(
                 modelId = d.modelId,
                 builderClass = d.builderClass,
@@ -98,11 +103,11 @@ class BundleAuthoringSession private constructor(
      * reflects exactly what [assemble] would produce. The temp file is removed before
      * returning.
      */
-    fun validate(): BundleValidation.ValidationReport {
+    fun validate(excludeModelIds: Set<String> = emptySet()): BundleValidation.ValidationReport {
         val tmpDir = Files.createTempDirectory("ksl-bundle-validate")
         val tmpJar = tmpDir.resolve("candidate-bundle.jar")
         try {
-            BundleAssembler.assemble(inputJar, tmpJar, buildSpec(), force = true)
+            BundleAssembler.assemble(inputJar, tmpJar, buildSpec(excludeModelIds), force = true)
             val loaded = BundleLoader.loadJar(tmpJar)
             try {
                 return loaded.firstOrNull()?.let { BundleValidation.validate(it) }
@@ -128,8 +133,8 @@ class BundleAuthoringSession private constructor(
      * JAR is never modified; [output] must differ from it and is overwritten only
      * with [force].
      */
-    fun assemble(output: Path, force: Boolean = false) =
-        BundleAssembler.assemble(inputJar, output, buildSpec(), force)
+    fun assemble(output: Path, force: Boolean = false, excludeModelIds: Set<String> = emptySet()) =
+        BundleAssembler.assemble(inputJar, output, buildSpec(excludeModelIds), force)
 
     companion object {
         /** Default KSL API version stamped on a new bundle; editable per session. */

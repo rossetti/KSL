@@ -60,6 +60,10 @@ internal object AssembleCommand {
             return CommandResult.UserError
         }
 
+        for (id in parsed.excludeModelIds - session.models.map { it.modelId }.toSet()) {
+            err.println("assemble: --exclude '$id' matches no discovered model; ignoring")
+        }
+
         // Apply identity from the CLI; everything else keeps the session defaults.
         session.bundleId = parsed.bundleId
         parsed.displayName?.let { session.displayName = it }
@@ -78,7 +82,7 @@ internal object AssembleCommand {
 
         // Validate the draft before writing anything; refuse to emit a bundle with errors.
         val report = try {
-            session.validate()
+            session.validate(parsed.excludeModelIds)
         } catch (e: Exception) {
             err.println("assemble: validation failed to run: ${e.message}")
             return CommandResult.InternalError
@@ -92,16 +96,20 @@ internal object AssembleCommand {
         }
 
         try {
-            session.assemble(output, force = parsed.force)
+            session.assemble(output, force = parsed.force, excludeModelIds = parsed.excludeModelIds)
         } catch (e: Exception) {
             err.println("assemble: failed to write $output: ${e.message}")
             return CommandResult.InternalError
         }
 
+        val included = session.models.filterNot { it.modelId in parsed.excludeModelIds }
         out.println("Assembled ${parsed.bundleId} → $output")
-        out.println("  Models (${session.models.size}):")
-        for (m in session.models) {
+        out.println("  Models (${included.size}):")
+        for (m in included) {
             out.println("    - ${m.modelId} (${m.displayName}) ← ${m.builderClass}")
+        }
+        for (m in session.models.filter { it.modelId in parsed.excludeModelIds }) {
+            out.println("    - (excluded) ${m.modelId} ← ${m.builderClass}")
         }
         for (d in session.discoveryErrors) {
             out.println("  ! skipped ${d.builderClass}: ${d.error}")
@@ -127,6 +135,7 @@ internal object AssembleCommand {
         val tags: List<String>,
         val output: Path?,
         val force: Boolean,
+        val excludeModelIds: Set<String>,
     )
 
     private fun parseArgs(args: List<String>, err: PrintStream): ParsedArgs? {
@@ -145,6 +154,7 @@ internal object AssembleCommand {
         val tags = mutableListOf<String>()
         var outputArg: String? = null
         var force = false
+        val excludeIds = mutableListOf<String>()
 
         var i = 0
         while (i < args.size) {
@@ -165,6 +175,10 @@ internal object AssembleCommand {
                 "--tag" -> { tags += (valueFor() ?: return null); i += 2 }
                 "-o", "--output" -> { outputArg = valueFor() ?: return null; i += 2 }
                 "--force" -> { force = true; i++ }
+                "--exclude" -> {
+                    excludeIds += (valueFor() ?: return null).split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    i += 2
+                }
                 else -> {
                     if (a.startsWith("-")) { err.println("assemble: unknown flag $a"); return null }
                     if (inputArg != null) {
@@ -189,6 +203,7 @@ internal object AssembleCommand {
             tags = tags,
             output = outputArg?.let { Paths.get(it).toAbsolutePath() },
             force = force,
+            excludeModelIds = excludeIds.toSet(),
         )
     }
 }

@@ -2,6 +2,7 @@ package ksl.bundle.tools
 
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleLoader
+import ksl.bundle.tools.support.StubBModelBuilder
 import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
@@ -28,6 +29,31 @@ class AssembleCommandTest {
     /** A plain builders JAR: just the ModelBuilderIfc class — no services file, no manifest. */
     private fun buildersJar(dir: Path, name: String = "builders"): Path =
         TestBundleBuilder.buildWithoutServicesFile(dir, name, listOf(StubModelBuilder::class.java))
+
+    @Test
+    fun `assemble --exclude drops the named model from the bundle`(@TempDir dir: Path) {
+        // Two builders discovered; exclude one by modelId.
+        val builders = TestBundleBuilder.buildWithoutServicesFile(
+            dir, "builders", listOf(StubModelBuilder::class.java, StubBModelBuilder::class.java)
+        )
+        val output = dir.resolve("builders-bundle.jar")
+
+        val (result, out, err) = capture { o, e ->
+            AssembleCommand.run(
+                listOf(builders.toString(), "--id", "edu.test.stub", "--exclude", "StubB", "-o", output.toString()),
+                out = o, err = e
+            )
+        }
+
+        assertEquals(CommandResult.Success, result, "stderr: $err")
+        assertTrue("Models (1)" in out, "expected one included model:\n$out")
+        assertTrue("(excluded) StubB" in out, "expected StubB reported as excluded:\n$out")
+
+        BundleLoader.loadJar(output).single().use { lb ->
+            val ids = lb.bundle.models.map { it.modelId }
+            assertEquals(listOf("Stub"), ids, "bundle must contain only the non-excluded model; got $ids")
+        }
+    }
 
     @Test
     fun `assemble turns a builders JAR into a loadable manifest bundle`(@TempDir dir: Path) {

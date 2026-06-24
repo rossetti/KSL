@@ -16,8 +16,6 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import java.time.Instant
-
 plugins {
     kotlin("jvm") version "2.2.0"
 }
@@ -28,6 +26,10 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenCentral()
 }
+
+// Isolated classpath for running the kslpkg bundle assembler from a task, without
+// putting KSLBundleTools on KSLExamples' compile/test classpath (KSLExamples stays a sink).
+val kslpkgClasspath by configurations.creating
 
 dependencies {
     implementation(project(":KSLCore"))
@@ -40,6 +42,8 @@ dependencies {
     // a sink that no other module depends on.
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
     testImplementation(kotlin("test"))
+
+    add("kslpkgClasspath", project(":KSLBundleTools"))
 }
 
 kotlin {
@@ -50,50 +54,51 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// NOTE: an opt-in `enrichExampleBundle` task previously lived here. It ran
-// `kslpkg enrich` to embed ModelDescriptor JSON into a copy of the KSLExamples
-// JAR. `kslpkg enrich` was retired in favour of `kslpkg assemble` (which builds
-// a manifest bundle from a plain builders JAR); a replacement example-bundle
-// build step is introduced when the example bundles are converted to the
-// manifest mechanism.
-
-// Produces the slim, distributable "KSL Book Examples" bundle JAR meant to be
-// dropped into ~/.ksl/bundles/ (or loaded via Bundles -> Load JAR...).  It
-// carries ONLY:
-//   - the curated book models + their copied framework
-//     (package ksl.examples.general.bookbundle), and
-//   - the reused two-echelon inventory closure
-//     (package ksl.examples.general.models.inventory, which BookExamplesBundle's
-//      Two-Echelon entry delegates to via BuildTwoEchelonModel).
-// plus a BOOK-ONLY META-INF/services registration, so loading it surfaces only
-// the 16 book models — not the three dogfood bundles (MM1 / LKInventory /
-// SimoptTestModels) that the full KSLExamples jar also registers.
-//
-// It deliberately does NOT bundle KSLCore: a bundle JAR is loaded under the
-// host app's classloader, which already provides KSLCore.
+// Produces the slim, distributable "KSL Book Examples" bundle JAR — a manifest
+// bundle meant to be dropped into the workspace bundles folder (or loaded via
+// Bundles -> Load JAR...).  It is assembled by `kslpkg assemble` from a plain
+// builders JAR holding only the two class packages that make up the bundle's
+// closure:
+//   - the curated book models + builders (package ksl.examples.general.bookbundle), and
+//   - the reused two-echelon inventory closure (package ksl.examples.general.models.inventory).
+// It deliberately does NOT bundle KSLCore: a bundle JAR is loaded under the host
+// app's classloader, which already provides KSLCore.
 //
 //     ./gradlew :KSLExamples:bookExamplesBundleJar
 //     -> KSLExamples/build/libs/book-examples.jar
-tasks.register<Jar>("bookExamplesBundleJar") {
-    group = "ksl bundle"
-    description = "Slim KSL Book Examples bundle JAR for ~/.ksl/bundles/."
-    archiveBaseName.set("book-examples")
-    archiveVersion.set("")   // clean drop-in name: book-examples.jar
+
+// Step 1: the plain builders JAR (the input to kslpkg assemble).
+tasks.register<Jar>("bookBuildersJar") {
+    description = "Plain builders JAR for the book-examples bundle (input to kslpkg assemble)."
+    archiveBaseName.set("book-builders")
+    archiveVersion.set("")
     dependsOn(tasks.named("classes"))
-
-    // Stamp the build time so newest-wins dedup can resolve same-(bundleId,
-    // version) duplicates in ~/.ksl/bundles/ to the most recently packaged
-    // copy.  The loader falls back to the JAR file's mtime when this is absent.
-    manifest {
-        attributes("Build-Time" to Instant.now().toString())
-    }
-
-    // Only the two class packages that make up the bundle's closure.  The
-    // include filter also excludes the full jar's 4-bundle META-INF/services.
     from(sourceSets["main"].output) {
         include("ksl/examples/general/bookbundle/**")
         include("ksl/examples/general/models/inventory/**")
     }
-    // Book-only ServiceLoader registration (single bundle).
-    from("bundle-meta/book-examples")
+}
+
+// Step 2: assemble the builders JAR into a manifest bundle (embeds each model's
+// descriptor.json by building it once during assembly), via the kslpkg CLI.
+tasks.register<JavaExec>("bookExamplesBundleJar") {
+    group = "ksl bundle"
+    description = "Assemble the slim KSL Book Examples manifest bundle JAR (kslpkg assemble)."
+    dependsOn("bookBuildersJar")
+    classpath = kslpkgClasspath
+    mainClass.set("ksl.bundle.tools.MainKt")
+    args(
+        "assemble", layout.buildDirectory.file("libs/book-builders.jar").get().asFile.path,
+        "--id", "edu.uark.ksl.book-examples",
+        "--name", "KSL Book Examples",
+        "--version", "1.0.0",
+        // BuildTwoEchelonModel is the shared closure that TwoEchelonInventory delegates to;
+        // it is embedded for runtime but must not surface as a 17th (uncurated) model.
+        "--exclude", "BuildTwoEchelonModel",
+        "--description", "Curated, decision-relevant simulation models from the KSL book " +
+            "(chapters 4 through 8), each with an authored catalog of headline inputs and outputs, " +
+            "ready to run in the KSL apps.",
+        "-o", layout.buildDirectory.file("libs/book-examples.jar").get().asFile.path,
+        "--force",
+    )
 }
