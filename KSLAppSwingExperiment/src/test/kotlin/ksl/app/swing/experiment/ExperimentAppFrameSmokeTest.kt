@@ -21,7 +21,9 @@ package ksl.app.swing.experiment
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.awt.GraphicsEnvironment
+import java.nio.file.Path
 import javax.swing.JTabbedPane
 import javax.swing.SwingUtilities
 import kotlin.test.assertEquals
@@ -39,6 +41,10 @@ import kotlin.test.assertTrue
  *  (Swing component construction fails without a display).
  */
 class ExperimentAppFrameSmokeTest {
+
+    @TempDir
+    lateinit var bundleDir: Path
+    private val lkJar: Path by lazy { ExperimentBundleFixtures.lkJar(bundleDir) }
 
     companion object {
         @JvmStatic
@@ -112,14 +118,14 @@ class ExperimentAppFrameSmokeTest {
         var frame: ExperimentAppFrame? = null
         try {
             SwingUtilities.invokeAndWait {
-                controller = ExperimentAppController("FactorsTabSmoke")
+                controller = ExperimentAppController("FactorsTabSmoke", injectedBundleLibrary = ExperimentBundleFixtures.library(lkJar))
                 frame = ExperimentAppFrame(controller!!)
             }
             SwingUtilities.invokeAndWait {
                 controller!!.setModelReference(
                     ksl.app.config.ModelReference.ByBundleAndModelId(
                         bundleId = "ksl.examples.lk-inventory",
-                        modelId = ksl.examples.general.appsupport.LKInventoryBundle.MODEL_ID
+                        modelId = ExperimentBundleFixtures.LK_MODEL_ID
                     )
                 )
                 val descriptor = controller!!.currentModelDescriptor.value
@@ -159,14 +165,14 @@ class ExperimentAppFrameSmokeTest {
         var frame: ExperimentAppFrame? = null
         try {
             SwingUtilities.invokeAndWait {
-                controller = ExperimentAppController("DesignTabSmoke")
+                controller = ExperimentAppController("DesignTabSmoke", injectedBundleLibrary = ExperimentBundleFixtures.library(lkJar))
                 frame = ExperimentAppFrame(controller!!)
             }
             SwingUtilities.invokeAndWait {
                 controller!!.setModelReference(
                     ksl.app.config.ModelReference.ByBundleAndModelId(
                         bundleId = "ksl.examples.lk-inventory",
-                        modelId = ksl.examples.general.appsupport.LKInventoryBundle.MODEL_ID
+                        modelId = ExperimentBundleFixtures.LK_MODEL_ID
                     )
                 )
                 val descriptor = controller!!.currentModelDescriptor.value

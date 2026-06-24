@@ -68,12 +68,10 @@ data class IgnoredBundleCopy(
  *  ## What this owns
  *
  *  - The [loadedBundles] StateFlow — the set in scope, populated by
- *    [discoverFromClasspath] and [loadJar]; a reload replaces a JAR's
+ *    [loadJar]; a reload replaces a JAR's
  *    prior entries in place.
  *  - The [bundleProvider] StateFlow — a [BundleModelProvider]
  *    wrapping the current set, or `null` when no bundles are loaded.
- *  - [discoverFromClasspath] — one-shot probe of the JVM classpath
- *    via [BundleLoader.loadFromClasspath]; hosts call once in init.
  *  - [loadJar] — JAR-load with de-duplication, in-place reload of a
  *    rebuilt JAR, and deferred close of any bundles it displaces.
  *  - [findBundle] — `bundleId`-keyed lookup helper.
@@ -103,7 +101,6 @@ data class IgnoredBundleCopy(
  *
  *  | Method | Effect | Typical caller |
  *  |---|---|---|
- *  | [discoverFromClasspath] | append classpath bundles (if any) | host `init {}` |
  *  | [loadJar]               | append / reload a JAR's bundles (dedup by `bundleId`; reload by `sourceJar`) | host's `loadBundleJar` |
  *  | [findBundle]            | read-only lookup | host descriptor resolution |
  *  | [close]                 | close every loaded + retired bundle, reset to empty | host `close()` |
@@ -118,8 +115,8 @@ data class IgnoredBundleCopy(
  *  multi-threaded host would need to serialize calls externally.
  *
  *  @param onBundlesChanged invoked after every mutation that changes
- *  the loaded set ([discoverFromClasspath]'s successful add, and
- *  [loadJar]'s `Loaded` and `Reloaded` outcomes).  NOT invoked when
+ *  the loaded set ([loadJar]'s `Loaded` and `Reloaded` outcomes).
+ *  NOT invoked when
  *  [loadJar] returns `AlreadyLoaded`, `NoBundles`, or `Failed`.
  *  Defaults to a no-op.
  */
@@ -168,29 +165,13 @@ class BundleLibraryController(
     private val retired = mutableListOf<LoadedBundle>()
 
     /**
-     *  Discover bundles already on the JVM classpath via
-     *  [BundleLoader.loadFromClasspath] and append them to
-     *  [loadedBundles].  Typically called once from the host's
-     *  `init {}` block so a packaged app immediately shows
-     *  available models in the picker.
-     *
-     *  No-op when the classpath carries no `KSLModelBundle` SPI
-     *  entries.  When at least one is found, [onBundlesChanged]
-     *  fires after the append.
-     */
-    fun discoverFromClasspath() {
-        val classpathBundles = BundleLoader.loadFromClasspath()
-        if (classpathBundles.isNotEmpty()) commit(myLoadedBundles.value + classpathBundles)
-    }
-
-    /**
      *  Discover bundles the user has installed into `~/.ksl/bundles/` via
      *  [BundleLoader.loadDirectory] and append them to [loadedBundles].
      *  The directory is created if it does not yet exist, giving users a
      *  well-known place to drop bundle JARs (e.g. the KSL Book Examples
-     *  bundle).  Typically called once from the host's `init {}` block in
-     *  place of [discoverFromClasspath], so a released app ships with no
-     *  baked-in bundles yet still loads whatever the user installed.
+     *  bundle).  Typically called once from the host's `init {}` block, so
+     *  a released app ships with no baked-in bundles yet still loads
+     *  whatever the user installed.
      *
      *  No-op when the directory holds no loadable `KSLModelBundle` JARs.
      *  When at least one is found, [onBundlesChanged] fires after the append.

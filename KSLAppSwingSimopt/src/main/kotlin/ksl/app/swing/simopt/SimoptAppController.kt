@@ -577,11 +577,10 @@ class SimoptAppController(
     )
 
     init {
-        // The default (production) library auto-discovers bundles; an injected
-        // library (tests) is used exactly as supplied.  Mirrors the Experiment /
-        // Scenario / Single controllers.
+        // The default (production) library auto-discovers bundles from the user's
+        // ~/.ksl/bundles/; an injected library (tests) is used exactly as supplied.
+        // Mirrors the Experiment / Scenario / Single controllers.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromClasspath()
             bundleLibrary.discoverFromUserBundlesDir()
         }
         // Seed validation so the Execute step sees a populated flow

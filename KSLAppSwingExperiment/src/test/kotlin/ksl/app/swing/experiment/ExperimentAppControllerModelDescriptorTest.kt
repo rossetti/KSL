@@ -19,8 +19,9 @@
 package ksl.app.swing.experiment
 
 import ksl.app.config.ModelReference
-import ksl.examples.general.appsupport.LKInventoryBundle
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertContains
@@ -35,20 +36,23 @@ import kotlin.test.assertNull
  *  clears in lockstep with [ExperimentAppController.modelReference]
  *  and [ExperimentAppController.loadedBundles].
  *
- *  Uses the LK Inventory bundle, which is auto-loaded from the
- *  classpath by the controller's `init` block (the
- *  `KSLAppSwingExperiment` module depends on `KSLExamples` which
- *  carries the bundle's `ServiceLoader` registration).  Asserting
- *  the bundle is loaded acts as both fixture-validity check and
- *  classpath sanity check.
+ *  Uses the LK Inventory model, assembled into a manifest bundle JAR
+ *  and injected via `ExperimentBundleFixtures` (see `setUp`).
  */
 class ExperimentAppControllerModelDescriptorTest {
+
+    @TempDir
+    lateinit var bundleDir: Path
+    private val lkJar: Path by lazy { ExperimentBundleFixtures.lkJar(bundleDir) }
 
     private var controller: ExperimentAppController? = null
 
     @BeforeTest
     fun setUp() {
-        controller = ExperimentAppController("ModelDescriptorTest")
+        controller = ExperimentAppController(
+            "ModelDescriptorTest",
+            injectedBundleLibrary = ExperimentBundleFixtures.library(lkJar)
+        )
     }
 
     @AfterTest
@@ -58,11 +62,11 @@ class ExperimentAppControllerModelDescriptorTest {
     }
 
     @Test
-    fun `LK bundle is auto-loaded on construction (fixture sanity check)`() {
+    fun `LK bundle is loaded into the controller (fixture sanity check)`() {
         val c = controller!!
         val bundleIds = c.loadedBundles.value.map { it.bundle.bundleId }
         assertContains(bundleIds, "ksl.examples.lk-inventory",
-            "LK Inventory bundle should be auto-loaded from the classpath; got $bundleIds")
+            "LK Inventory bundle should be loaded from the injected library; got $bundleIds")
     }
 
     @Test
@@ -73,7 +77,7 @@ class ExperimentAppControllerModelDescriptorTest {
         c.setModelReference(
             ModelReference.ByBundleAndModelId(
                 bundleId = "ksl.examples.lk-inventory",
-                modelId = LKInventoryBundle.MODEL_ID
+                modelId = ExperimentBundleFixtures.LK_MODEL_ID
             )
         )
         val descriptor = c.currentModelDescriptor.value
@@ -133,7 +137,7 @@ class ExperimentAppControllerModelDescriptorTest {
         c.setModelReference(
             ModelReference.ByBundleAndModelId(
                 bundleId = "ksl.examples.lk-inventory",
-                modelId = LKInventoryBundle.MODEL_ID
+                modelId = ExperimentBundleFixtures.LK_MODEL_ID
             )
         )
         assertNotNull(c.currentModelDescriptor.value)
@@ -152,7 +156,7 @@ class ExperimentAppControllerModelDescriptorTest {
         val loaded = ksl.app.config.experiment.ExperimentConfiguration(
             modelReference = ModelReference.ByBundleAndModelId(
                 bundleId = "ksl.examples.lk-inventory",
-                modelId = LKInventoryBundle.MODEL_ID
+                modelId = ExperimentBundleFixtures.LK_MODEL_ID
             ),
             factors = listOf(
                 ksl.app.config.experiment.FactorSpec(
@@ -168,7 +172,7 @@ class ExperimentAppControllerModelDescriptorTest {
         c.loadConfiguration(loaded)
         assertNotNull(c.currentModelDescriptor.value,
             "loadConfiguration should trigger descriptor refresh")
-        assertEquals(LKInventoryBundle.MODEL_ID,
+        assertEquals(ExperimentBundleFixtures.LK_MODEL_ID,
             (c.modelReference.value as ModelReference.ByBundleAndModelId).modelId)
     }
 }

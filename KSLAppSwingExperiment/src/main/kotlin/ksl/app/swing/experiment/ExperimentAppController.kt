@@ -274,11 +274,10 @@ class ExperimentAppController(
     val currentModelDescriptor: StateFlow<ModelDescriptor?> = myCurrentModelDescriptor.asStateFlow()
 
     init {
-        // The default (production) library auto-discovers bundles; an injected
-        // library (tests) is used exactly as supplied.  Mirrors the Scenario /
-        // Single controllers.
+        // The default (production) library auto-discovers bundles from the user's
+        // ~/.ksl/bundles/; an injected library (tests) is used exactly as supplied.
+        // Mirrors the Scenario / Single controllers.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromClasspath()
             bundleLibrary.discoverFromUserBundlesDir()
         }
     }

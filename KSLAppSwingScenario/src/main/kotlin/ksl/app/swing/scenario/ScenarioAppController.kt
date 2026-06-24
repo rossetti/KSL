@@ -209,13 +209,10 @@ class ScenarioAppController(
     val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     init {
-        // The default (production) library auto-discovers available bundles: any
-        // already on the JVM classpath (none in a released app — KSLExamples is
-        // test-only), plus whatever the user installed into ~/.ksl/bundles/.  An
-        // injected library (tests) is used exactly as supplied.  JAR-loaded bundles
-        // join the list later via loadBundleJar.
+        // The default (production) library auto-discovers whatever the user installed
+        // into ~/.ksl/bundles/.  An injected library (tests) is used exactly as
+        // supplied.  JAR-loaded bundles join the list later via loadBundleJar.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromClasspath()
             bundleLibrary.discoverFromUserBundlesDir()
         }
     }

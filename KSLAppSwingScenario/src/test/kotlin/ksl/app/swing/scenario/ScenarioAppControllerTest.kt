@@ -24,8 +24,13 @@ import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
+import ksl.app.editor.BundleLibraryController
 import ksl.app.session.RunResult
+import ksl.examples.general.appsupport.MM1ModelBuilder
+import ksl.examples.general.appsupport.ManifestBundleFixtures
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -99,13 +104,13 @@ class ScenarioAppControllerTest {
     }
 
     @Test
-    fun `controller auto-discovers classpath bundles via BundleLoader`() {
-        val c = fresh()
-        // KSLExamples is on the test classpath; it ships MM1Bundle and
-        // LKInventoryBundle as ServiceLoader-registered KSLModelBundles.
-        // The exact count may grow over time — assert non-empty + provider
-        // populated instead of a fixed number.
-        assertTrue(c.loadedBundles.value.isNotEmpty(), "expected classpath bundles to auto-load")
+    fun `injected bundles are exposed via loadedBundles and bundleProvider`(@TempDir dir: Path) {
+        val jar = ManifestBundleFixtures.assembleManifestBundle(
+            dir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java
+        )
+        val lib = BundleLibraryController().apply { loadJar(jar) }
+        val c = ScenarioAppController("BundleTest", injectedBundleLibrary = lib).also { controller = it }
+        assertTrue(c.loadedBundles.value.isNotEmpty(), "injected bundles should be exposed via loadedBundles")
         val provider = c.bundleProvider.value
         assertTrue(provider != null, "bundleProvider should be non-null when bundles are present")
         assertTrue(provider!!.modelIdentifiers().isNotEmpty(), "provider should expose at least one model")

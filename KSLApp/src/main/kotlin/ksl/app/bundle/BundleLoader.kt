@@ -7,7 +7,6 @@ import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.util.Collections
 import java.util.ServiceLoader
 import java.util.jar.JarFile
 import kotlin.io.path.extension
@@ -19,11 +18,9 @@ private val logger = KotlinLogging.logger {}
 /**
  * Entry point for discovering and loading `KSLModelBundle` instances.
  *
- * Three sources are supported:
+ * Two sources are supported:
  *   - `loadJar`         — a single JAR file
  *   - `loadDirectory`   — every `.jar` file directly inside a directory
- *   - `loadFromClasspath` — bundles already visible to a `ClassLoader` on the
- *                          running JVM's classpath
  *
  * Two discovery mechanisms are supported, checked in this order:
  *   1. **Manifest-driven (data-driven) bundles.** When a JAR (or a classpath
@@ -172,54 +169,6 @@ object BundleLoader {
                     logger.warn(e) { "Skipping bundle JAR $jar: ${e.message}" }
                 }
             }
-        }
-        return result
-    }
-
-    /**
-     * Loads bundles already visible to `classLoader` (default: the loader
-     * that holds KSLCore). Used to surface in-process bundled examples that
-     * ship as part of the application's classpath rather than as separate
-     * JAR files. Returned bundles have `sourceJar == null` and bypass the
-     * on-disk cache; in-JAR descriptors are still consulted via
-     * `getResourceAsStream`.
-     */
-    fun loadFromClasspath(
-        classLoader: ClassLoader = defaultParent(),
-        cache: BundleDescriptorCache = BundleDescriptorCache()
-    ): List<LoadedBundle> {
-        val result = mutableListOf<LoadedBundle>()
-
-        // 1. Manifest-driven bundles visible on the classpath (there may be several,
-        //    one per bundle.toml resource). sourceJar/jarSha256/builtAt are null, as
-        //    for any classpath-loaded bundle.
-        for (url in Collections.list(classLoader.getResources(BundleLayout.BUNDLE_TOML))) {
-            val manifest = runCatching {
-                url.openStream().use { BundleManifestToml.decode(it.readBytes().toString(Charsets.UTF_8)) }
-            }.getOrElse { e ->
-                logger.warn(e) { "Malformed ${BundleLayout.BUNDLE_TOML} at $url; ignoring" }
-                null
-            } ?: continue
-            result += LoadedBundle(
-                bundle = ManifestBackedBundle(classLoader, manifest),
-                sourceJar = null,
-                classLoader = classLoader,
-                ownedResources = null,
-                jarSha256 = null,
-                cache = cache
-            )
-        }
-
-        // 2. Legacy ServiceLoader-discovered bundles on the classpath.
-        ServiceLoader.load(KSLModelBundle::class.java, classLoader).toList().forEach { bundle ->
-            result += LoadedBundle(
-                bundle = bundle,
-                sourceJar = null,
-                classLoader = classLoader,
-                ownedResources = null,
-                jarSha256 = null,
-                cache = cache
-            )
         }
         return result
     }

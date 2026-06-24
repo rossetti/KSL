@@ -26,11 +26,13 @@ import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
 import ksl.app.editor.BundleLibraryController
-import ksl.examples.general.appsupport.MM1Bundle
+import ksl.examples.general.appsupport.MM1ModelBuilder
+import ksl.examples.general.appsupport.ManifestBundleFixtures
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.AfterTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -496,18 +498,23 @@ class SingleAppControllerConfigurationTest {
 
     // ── Bundle-mode launch (E.5.x — bundle fallback feature) ────────────
 
-    private val mm1BundleId = MM1Bundle().bundleId
-    private val mm1ModelId = MM1Bundle.MODEL_ID
+    private val mm1BundleId = "ksl.examples.mm1"
+    private val mm1ModelId = "MM1"
+
+    @TempDir
+    lateinit var bundleDir: java.nio.file.Path
+    private val mm1Jar: java.nio.file.Path by lazy {
+        ManifestBundleFixtures.assembleManifestBundle(bundleDir, "mm1", mm1BundleId, MM1ModelBuilder::class.java)
+    }
 
     /** Construct a bundle-mode controller backed by a real
-     *  [BundleLibraryController] with the classpath bundles
-     *  auto-discovered.  [appName] follows the same default as
-     *  [freshController]. */
+     *  [BundleLibraryController] holding the MM1 bundle, assembled into a
+     *  JAR and loaded (not classpath-discovered).  [appName] follows the
+     *  same default as [freshController]. */
     private fun freshBundleModeController(
         appName: String = "ConfigTestApp"
     ): SingleAppController {
-        val lib = BundleLibraryController()
-        lib.discoverFromClasspath()
+        val lib = BundleLibraryController().apply { loadJar(mm1Jar) }
         val c = SingleAppController(
             appName = appName,
             modelBuilder = builder,    // any builder suffices for probe

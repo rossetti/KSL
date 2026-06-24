@@ -21,8 +21,9 @@ package ksl.app.swing.experiment
 import ksl.app.config.ModelReference
 import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.FactorSpec
-import ksl.examples.general.appsupport.LKInventoryBundle
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -37,15 +38,22 @@ import kotlin.test.assertNotNull
  */
 class ExperimentAppControllerFactorBindingTest {
 
+    @TempDir
+    lateinit var bundleDir: Path
+    private val lkJar: Path by lazy { ExperimentBundleFixtures.lkJar(bundleDir) }
+
     private var controller: ExperimentAppController? = null
 
     @BeforeTest
     fun setUp() {
-        controller = ExperimentAppController("FactorBindingTest")
+        controller = ExperimentAppController(
+            "FactorBindingTest",
+            injectedBundleLibrary = ExperimentBundleFixtures.library(lkJar)
+        )
         controller!!.setModelReference(
             ModelReference.ByBundleAndModelId(
                 bundleId = "ksl.examples.lk-inventory",
-                modelId = LKInventoryBundle.MODEL_ID
+                modelId = ExperimentBundleFixtures.LK_MODEL_ID
             )
         )
     }

@@ -150,10 +150,9 @@ class KSLSingleApp(val appName: String) {
             // Builder mode — current behavior.
             return SingleAppController(appName, builder)
         }
-        // Bundle-picker mode.  Discover any classpath bundles (none in a
-        // released app) plus whatever the user installed into ~/.ksl/bundles/.
+        // Bundle-picker mode.  Discover whatever the user installed into
+        // ~/.ksl/bundles/.
         val bundleLibrary = BundleLibraryController()
-        bundleLibrary.discoverFromClasspath()
         bundleLibrary.discoverFromUserBundlesDir()
         return when (val outcome = BundleModelPickerDialog.show(bundleLibrary)) {
             BundleModelPickerDialog.Result.Cancelled -> {

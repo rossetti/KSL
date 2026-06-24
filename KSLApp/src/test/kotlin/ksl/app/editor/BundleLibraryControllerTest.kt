@@ -18,7 +18,10 @@
 
 package ksl.app.editor
 
+import ksl.examples.general.appsupport.MM1ModelBuilder
+import ksl.examples.general.appsupport.ManifestBundleFixtures
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -31,12 +34,12 @@ import kotlin.test.assertTrue
  *  jar-load + de-duplication) that Scenario / Experiment / Simopt
  *  all compose after Phase E.5.8 decomposition.
  *
- *  Light-weight test surface: [ksl.app.bundle.LoadedBundle] has an
- *  internal constructor, so the with-bundles paths
- *  (de-duplication, provider becomes non-null) are exercised
- *  indirectly by the existing per-app test suites which load real
- *  fixture JARs.  These tests pin the substrate contract that does
- *  not require constructing a [LoadedBundle].
+ *  Light-weight test surface: `LoadedBundle` has an internal
+ *  constructor, so the with-bundles paths (provider becomes non-null,
+ *  findBundle hits, the callback fires) are exercised by assembling a
+ *  real fixture bundle JAR (via `ManifestBundleFixtures`) and loading
+ *  it through `loadJar` — never by constructing a `LoadedBundle`
+ *  directly.
  */
 class BundleLibraryControllerTest {
 
@@ -51,34 +54,24 @@ class BundleLibraryControllerTest {
             "Fresh controller must have null bundleProvider.")
     }
 
-    // ── discoverFromClasspath ────────────────────────────────────────────
+    // ── loadJar (success path) ───────────────────────────────────────────
 
     @Test
-    fun `discoverFromClasspath does not throw and fires callback iff bundles found`() {
-        // The KSLTesting classpath may or may not carry KSLModelBundle
-        // SPI registrations depending on which fixture modules are
-        // present; the substrate contract is the same either way:
-        //   - if the classpath probe returns empty, NEITHER flow
-        //     mutates AND onBundlesChanged does NOT fire,
-        //   - if it returns non-empty, loadedBundles becomes that
-        //     list, bundleProvider becomes non-null, AND
-        //     onBundlesChanged fires exactly once.
-        // Verify the iff coupling without assuming which case we're in.
+    fun `loadJar of a real bundle fires the callback once and populates the provider`(@TempDir dir: Path) {
+        val jar = ManifestBundleFixtures.assembleManifestBundle(
+            dir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java
+        )
         var callbackCount = 0
         val c = BundleLibraryController(onBundlesChanged = { callbackCount++ })
-        c.discoverFromClasspath()
-        val discoveredAnything = c.loadedBundles.value.isNotEmpty()
-        if (discoveredAnything) {
-            assertNotNull(c.bundleProvider.value,
-                "Non-empty loadedBundles must coincide with non-null bundleProvider.")
-            assertEquals(1, callbackCount,
-                "onBundlesChanged must fire exactly once when classpath bundles are discovered.")
-        } else {
-            assertNull(c.bundleProvider.value,
-                "Empty loadedBundles must coincide with null bundleProvider.")
-            assertEquals(0, callbackCount,
-                "onBundlesChanged must NOT fire when classpath probe finds nothing.")
-        }
+        val result = c.loadJar(jar)
+        assertTrue(result is BundleLibraryController.LoadBundleResult.Loaded,
+            "Loading a real bundle JAR must yield Loaded; got $result")
+        assertTrue(c.loadedBundles.value.isNotEmpty(),
+            "loadedBundles must be populated after a successful load.")
+        assertNotNull(c.bundleProvider.value,
+            "Non-empty loadedBundles must coincide with non-null bundleProvider.")
+        assertEquals(1, callbackCount,
+            "onBundlesChanged must fire exactly once on a successful load.")
     }
 
     // ── loadJar (error path) ─────────────────────────────────────────────
@@ -116,14 +109,17 @@ class BundleLibraryControllerTest {
     }
 
     @Test
-    fun `findBundle returns null for a bundleId that does not match`() {
-        // Same as the empty case but the assertion intent is
-        // different: even after discoverFromClasspath has run (no-op
-        // here on the test classpath), lookups for unknown ids
-        // return null.
-        val c = BundleLibraryController()
-        c.discoverFromClasspath()
-        assertNull(c.findBundle("definitely-not-a-real-bundleId-xyz123"))
+    fun `findBundle returns the loaded bundle by id and null for others`(@TempDir dir: Path) {
+        // Even with a bundle loaded, findBundle is selective: it returns
+        // the loaded bundle for its id and null for any other.
+        val jar = ManifestBundleFixtures.assembleManifestBundle(
+            dir, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java
+        )
+        val c = BundleLibraryController().apply { loadJar(jar) }
+        assertNotNull(c.findBundle("ksl.examples.mm1"),
+            "findBundle must return the bundle that was loaded.")
+        assertNull(c.findBundle("definitely-not-a-real-bundleId-xyz123"),
+            "findBundle must return null for an unknown bundleId even when bundles are loaded.")
     }
 
     // ── close ────────────────────────────────────────────────────────────
@@ -159,8 +155,7 @@ class BundleLibraryControllerTest {
         // Verifies the default lambda doesn't throw — the default
         // controller construction path is exercised by Scenario.
         val c = BundleLibraryController()
-        c.discoverFromClasspath()  // must not throw even without a callback
-        c.loadJar(Path.of("/nonexistent/does-not-exist.jar"))  // same
+        c.loadJar(Path.of("/nonexistent/does-not-exist.jar"))  // must not throw without a callback
     }
 
     // ── LoadBundleResult shape ───────────────────────────────────────────
