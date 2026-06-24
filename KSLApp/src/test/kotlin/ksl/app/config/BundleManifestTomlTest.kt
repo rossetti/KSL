@@ -1,6 +1,5 @@
 package ksl.app.config
 
-import ksl.app.bundle.ConfigRecipeKind
 import ksl.app.bundle.KSLAppKind
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -27,10 +26,6 @@ class BundleManifestTomlTest {
                 displayName = "M/M/1 Queue",
                 description = "Single-server queue.",
                 supportedApps = setOf(KSLAppKind.SINGLE, KSLAppKind.EXPERIMENT),
-                recipes = listOf(
-                    RecipeEntry("light-load", ConfigRecipeKind.RUN, "META-INF/ksl/models/MM1/run/light-load.toml"),
-                    RecipeEntry("sweep", ConfigRecipeKind.OPTIMIZATION, "META-INF/ksl/models/MM1/optimization/sweep.toml"),
-                ),
             ),
         ),
     )
@@ -53,8 +48,7 @@ class BundleManifestTomlTest {
             ),
         )
         val text = BundleManifestToml.encode(minimal)
-        // Assert on the TOML key form ("author = ..."), not the bare word — the
-        // document-header comment legitimately mentions "author-curated recipes".
+        // Assert on the TOML key form ("author = ..."), not the bare word.
         assertFalse(text.contains("author ="), "explicitNulls=false should omit unset author")
         assertFalse(text.contains("homepage ="), "explicitNulls=false should omit unset homepage")
         assertFalse(text.contains("license ="), "explicitNulls=false should omit unset license")
@@ -65,6 +59,5 @@ class BundleManifestTomlTest {
     fun `enums serialize by name`() {
         val text = BundleManifestToml.encode(full)
         assertTrue(text.contains("SINGLE"), "KSLAppKind should serialize as its name")
-        assertTrue(text.contains("RUN"), "ConfigRecipeKind should serialize as its name")
     }
 }

@@ -66,12 +66,12 @@ class BundleWorkbenchFrame(
     }
     private val validateButton = JButton("Validate").apply {
         toolTipText = "Check the current draft: assemble it to a temporary bundle and report problems " +
-            "(bundle id, model ids, supported apps, catalog, recipes, builder resolvability)."
+            "(bundle id, model ids, supported apps, catalog, builder resolvability)."
         isEnabled = false
         addActionListener { controller.validate() }
     }
     private val assembleButton = JButton("Assemble bundle JAR…").apply {
-        toolTipText = "Write a NEW bundle JAR (manifest + per-model descriptor + catalog + recipes). " +
+        toolTipText = "Write a NEW bundle JAR (manifest + per-model descriptor + catalog). " +
             "The input builders JAR is never modified."
         isEnabled = false
         addActionListener { assembleDialog() }
@@ -310,7 +310,7 @@ class BundleWorkbenchFrame(
         when {
             "/" !in path -> tabs.selectedIndex = TAB_IDENTITY        // bundleId / bundle-level
             path.contains("catalog", ignoreCase = true) -> { selectModelFrom(path); tabs.selectedIndex = TAB_CATALOG }
-            // Recipe loci have no dedicated tab; recipes belong to a model, so land on Models.
+            // Other model-level loci (builder, supported apps) land on the Models tab.
             else -> { selectModelFrom(path); tabs.selectedIndex = TAB_MODELS }
         }
     }

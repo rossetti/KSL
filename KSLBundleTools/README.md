@@ -10,7 +10,7 @@ reference Swing apps and, by design, by any future hosted runtime
 The tool ships two commands:
 
 - **`inspect`** — print a human-readable summary of the bundles, models,
-  capabilities, and recipes declared in a JAR.
+  and capabilities declared in a JAR.
 - **`enrich`** — read a bundle JAR, build each declared model once to
   extract its `ksl.simulation.ModelDescriptor`, and write a copy of the
   JAR with the descriptors embedded under `META-INF/ksl/models/<modelId>/descriptor.json`.
@@ -68,7 +68,6 @@ Bundle: ksl.examples.mm1
         Description  : A single-server M/M/1 queue with exponential interarrivals and service.
         Apps         : SINGLE, SCENARIO, EXPERIMENT, SIMOPT
         Has in-JAR descriptor : no
-        Recipes      : (none)
   Optional metadata:
     Author    : (unset)
     Homepage  : (unset)
@@ -184,7 +183,7 @@ differently.
 ## Related KSL surfaces
 
 - **`ksl.app.bundle`** (in `KSLCore`) — the bundle SPI:
-  `KSLModelBundle`, `KSLBundledModel`, `KSLConfigRecipe`, `KSLAppKind`,
+  `KSLModelBundle`, `KSLBundledModel`, `KSLAppKind`,
   `BundleLayout`, `BundleLoader`, `LoadedBundle`, `BundleDescriptorCache`.
 - **`ksl.simulation.ModelDescriptor`** — the serialized model metadata
   that `enrich` embeds.

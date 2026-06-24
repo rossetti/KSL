@@ -10,9 +10,7 @@ package ksl.app.bundle
  * entries are not renamed or removed without a major-version bump of the
  * bundle SPI (see Phase 6 plan §4.8).
  *
- * Per-model subdirectories live under `MODELS_ROOT/<modelId>/` and follow a
- * one-directory-per-recipe-kind convention so a bundle author can drop new
- * recipe files into a directory without editing code.
+ * Per-model subdirectories live under `MODELS_ROOT/<modelId>/`.
  */
 object BundleLayout {
 
@@ -56,24 +54,4 @@ object BundleLayout {
      */
     fun catalogPath(modelId: String): String =
         "$MODELS_ROOT/$modelId/catalog.toml"
-
-    /** Directory holding `ConfigRecipeKind.RUN` recipes for the given model. */
-    fun runRecipesDir(modelId: String): String =
-        "$MODELS_ROOT/$modelId/run"
-
-    /** Directory holding `ConfigRecipeKind.SCENARIO_BATCH` recipes for the given model. */
-    fun scenarioRecipesDir(modelId: String): String =
-        "$MODELS_ROOT/$modelId/scenarios"
-
-    /** Directory holding `ConfigRecipeKind.OPTIMIZATION` recipes for the given model. */
-    fun optimizationRecipesDir(modelId: String): String =
-        "$MODELS_ROOT/$modelId/optimization"
-
-    /**
-     * Directory holding `ConfigRecipeKind.EXPERIMENT` recipes for the given model.
-     * Reserved now; designed-experiment recipe authoring is wired up in a
-     * later Phase 6 sub-phase.
-     */
-    fun experimentRecipesDir(modelId: String): String =
-        "$MODELS_ROOT/$modelId/experiment"
 }

@@ -26,7 +26,7 @@ import net.peanuuutz.tomlkt.Toml
  * Sibling of [ModelCatalogToml] and [RunConfigurationToml]: it uses `tomlkt` over
  * the `@Serializable` [BundleManifest] type, so the manifest round-trips through
  * TOML with no additional DTO layer. TOML is preferred for the manifest because it
- * supports comments and the `[[models]]` / `[[models.recipes]]` array-of-tables
+ * supports comments and the `[[models]]` array-of-tables
  * syntax a human may want to read or hand-tweak.
  *
  * ## Example output snippet
@@ -42,11 +42,6 @@ import net.peanuuutz.tomlkt.Toml
  * builderClass  = "ksl.examples.mm1.MM1Builder"
  * displayName   = "M/M/1 Queue"
  * supportedApps = ["SINGLE", "SCENARIO", "EXPERIMENT", "SIMOPT"]
- *
- *   [[models.recipes]]
- *   name = "light-load"
- *   kind = "RUN"
- *   path = "META-INF/ksl/models/MM1/run/light-load.toml"
  * ```
  */
 object BundleManifestToml {
@@ -85,8 +80,7 @@ object BundleManifestToml {
         #
         #  Top-level keys are the bundle's identity. Each [[models]] table describes one
         #  packaged model: its modelId, the fully-qualified name of its ModelBuilderIfc
-        #  implementation (builderClass), its display labels, the app kinds it supports,
-        #  and any author-curated recipes ([[models.recipes]]) shipped alongside it.
+        #  implementation (builderClass), its display labels, and the app kinds it supports.
         #
         #  Reference: https://rossetti.github.io/KSLBook/
         #

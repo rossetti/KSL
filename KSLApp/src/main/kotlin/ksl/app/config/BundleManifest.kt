@@ -19,7 +19,6 @@
 package ksl.app.config
 
 import kotlinx.serialization.Serializable
-import ksl.app.bundle.ConfigRecipeKind
 import ksl.app.bundle.KSLAppKind
 
 /**
@@ -38,7 +37,7 @@ import ksl.app.bundle.KSLAppKind
  * The manifest mirrors the `ksl.app.bundle.KSLModelBundle` SPI surface: the
  * top-level fields are the bundle's identity, and [models] supplies one entry per
  * packaged model (its `modelId`, the FQN of its builder class, its human labels,
- * its supported app kinds, and any author-curated recipes).
+ * and its supported app kinds).
  *
  * @param bundleId       globally unique, stable bundle identifier
  * @param displayName    human-readable bundle name
@@ -67,7 +66,7 @@ data class BundleManifest(
 
 /**
  * One model's entry in a [BundleManifest], mirroring the
- * `ksl.app.bundle.KSLBundledModel` surface plus the per-model recipe list.
+ * `ksl.app.bundle.KSLBundledModel` surface.
  *
  * @param builderClass   FQN of a `ksl.simulation.ModelBuilderIfc` implementation
  *                       resolvable on the bundle JAR's classloader; it must expose
@@ -77,7 +76,6 @@ data class BundleManifest(
  * @param displayName    human-readable model name
  * @param description    short model description
  * @param supportedApps  the app kinds this model claims to support
- * @param recipes        author-curated configuration recipes shipped for this model
  */
 @Serializable
 data class ModelManifestEntry(
@@ -86,25 +84,4 @@ data class ModelManifestEntry(
     val displayName: String,
     val description: String = "",
     val supportedApps: Set<KSLAppKind> = emptySet(),
-    val recipes: List<RecipeEntry> = emptyList(),
-)
-
-/**
- * A single author-curated recipe referenced by a [ModelManifestEntry].
- *
- * The recipe file is shipped inside the bundle JAR at [path]; the loader exposes it
- * as a `ksl.app.bundle.KSLConfigRecipe` whose `openStream()` reads that resource.
- * Listing recipes explicitly (rather than enumerating a directory) keeps recipe
- * discovery robust across both JAR-backed and classpath-loaded bundles.
- *
- * @param name  human-visible label (conventionally the file stem)
- * @param kind  the configuration shape carried by this recipe
- * @param path  in-JAR resource path of the recipe file, e.g.
- *              `META-INF/ksl/models/<modelId>/run/<name>.toml`
- */
-@Serializable
-data class RecipeEntry(
-    val name: String,
-    val kind: ConfigRecipeKind,
-    val path: String,
 )

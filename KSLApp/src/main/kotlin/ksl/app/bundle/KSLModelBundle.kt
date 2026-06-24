@@ -16,7 +16,7 @@ package ksl.app.bundle
  * presentation hints (icons, themes, layout); such concerns live in
  * per-consumer sidecars.
  *
- * Optional metadata (`author`, `homepage`, `license`, `tags`, `recipesFor`)
+ * Optional metadata (`author`, `homepage`, `license`, `tags`)
  * has defaulted implementations so the SPI may grow in a backward-compatible
  * fashion: new optional members are added with safe defaults, allowing
  * existing bundle implementations to compile unchanged.
@@ -75,17 +75,4 @@ interface KSLModelBundle {
     /** Optional. Free-form tags for cataloging and search. */
     val tags: Set<String>
         get() = emptySet()
-
-    /**
-     * Returns the author-curated `KSLConfigRecipe` instances for the given
-     * model. Default: empty list.
-     *
-     * Implementations typically enumerate JAR resources under the per-kind
-     * subdirectories defined in `BundleLayout` and wrap each as a
-     * `KSLConfigRecipe`.
-     *
-     * @param modelId the `KSLBundledModel.modelId` whose recipes are requested
-     * @return recipes belonging to that model; empty if the bundle ships none
-     */
-    fun recipesFor(modelId: String): List<KSLConfigRecipe> = emptyList()
 }

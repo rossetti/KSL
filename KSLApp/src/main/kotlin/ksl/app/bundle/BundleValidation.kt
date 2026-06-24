@@ -19,15 +19,6 @@
 package ksl.app.bundle
 
 import ksl.app.config.CatalogValidation
-import ksl.app.config.ModelReference
-import ksl.app.config.RunConfiguration
-import ksl.app.config.RunConfigurationJson
-import ksl.app.config.RunConfigurationToml
-import ksl.app.config.experiment.ExperimentConfiguration
-import ksl.app.config.experiment.ExperimentConfigurationToml
-import ksl.app.config.optimization.OptimizationRunConfiguration
-import ksl.app.config.optimization.OptimizationRunConfigurationJson
-import ksl.app.config.optimization.OptimizationRunConfigurationToml
 import ksl.simulation.ModelDescriptor
 
 /**
@@ -56,7 +47,6 @@ import ksl.simulation.ModelDescriptor
  *    author honor system.
  *  - any in-JAR **`catalog.toml`** resolves against the descriptor (delegated to
  *    [CatalogValidation]).
- *  - every **recipe** deserializes for its declared [ConfigRecipeKind].
  */
 object BundleValidation {
 
@@ -145,7 +135,6 @@ object BundleValidation {
 
             checkSupportedApps(model.supportedApps, descriptor, locus, findings)
             checkCatalog(loaded, model.modelId, descriptor, locus, findings)
-            checkRecipes(bundle, model.modelId, locus, findings)
         }
 
         return ValidationReport(findings)
@@ -219,69 +208,4 @@ object BundleValidation {
         }
     }
 
-    private fun checkRecipes(
-        bundle: KSLModelBundle,
-        modelId: String,
-        locus: String,
-        findings: MutableList<Finding>,
-    ) {
-        for (recipe in bundle.recipesFor(modelId)) {
-            val where = "$locus recipe '${recipe.name}' [${recipe.kind}]"
-            val text = try {
-                recipe.openStream().bufferedReader().use { it.readText() }
-            } catch (e: Exception) {
-                findings += Finding(Severity.ERROR, where, "could not read recipe stream: ${e.message}")
-                continue
-            }
-            val decoded = try {
-                decodeRecipe(recipe.kind, text)
-            } catch (e: Exception) {
-                findings += Finding(Severity.ERROR, where, "failed to parse: ${e.message}")
-                continue
-            }
-            // The recipe is filed under modelId; its own modelReference should agree.
-            for (ref in referencedModelIds(decoded)) {
-                if (ref != null && ref != modelId) {
-                    findings += Finding(
-                        Severity.WARNING, where,
-                        "recipe references model '$ref' but is filed under '$modelId'",
-                        suggestion = "file it under '$ref', or set the recipe's modelReference to '$modelId'"
-                    )
-                }
-            }
-        }
-    }
-
-    /** The model ids a decoded recipe references (for the filed-under-model check). */
-    private fun referencedModelIds(decoded: Any): List<String?> = when (decoded) {
-        is RunConfiguration -> decoded.scenarios.map { modelIdOf(it.modelReference) }
-        is ExperimentConfiguration -> listOf(modelIdOf(decoded.modelReference))
-        is OptimizationRunConfiguration -> listOf(modelIdOf(decoded.model.modelReference))
-        else -> emptyList()
-    }
-
-    private fun modelIdOf(ref: ModelReference): String? = when (ref) {
-        is ModelReference.ByBundleAndModelId -> ref.modelId
-        is ModelReference.ByProviderId -> ref.providerId
-        else -> null // ByJar / external — no in-bundle model id to compare
-    }
-
-    /** Decodes [text] for [kind] using the matching codec; throws on a parse failure. */
-    private fun decodeRecipe(kind: ConfigRecipeKind, text: String): Any =
-        when (kind) {
-            ConfigRecipeKind.RUN, ConfigRecipeKind.SCENARIO_BATCH ->
-                tomlOrJson(text, { RunConfigurationToml.decode(it) }, { RunConfigurationJson.decode(it) })
-            ConfigRecipeKind.OPTIMIZATION ->
-                tomlOrJson(text, { OptimizationRunConfigurationToml.decode(it) }, { OptimizationRunConfigurationJson.decode(it) })
-            ConfigRecipeKind.EXPERIMENT ->
-                ExperimentConfigurationToml.decode(text)
-        }
-
-    /** Recipes carry no format marker, so try TOML first and fall back to JSON. */
-    private fun <T> tomlOrJson(text: String, toml: (String) -> T, json: (String) -> T): T =
-        try {
-            toml(text)
-        } catch (_: Exception) {
-            json(text)
-        }
 }

@@ -3,7 +3,6 @@ package ksl.app.bundle
 import ksl.app.config.BundleManifest
 import ksl.app.config.BundleManifestToml
 import ksl.app.config.ModelManifestEntry
-import ksl.app.config.RecipeEntry
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
@@ -25,8 +24,6 @@ class ManifestBackedBundleTest {
     @TempDir
     lateinit var tmp: Path
 
-    private val recipePath = "META-INF/ksl/models/p1-model/run/light.toml"
-
     private fun manifest() = BundleManifest(
         bundleId = "test.bundle.p1",
         displayName = "Phase 1 Test Bundle",
@@ -40,12 +37,11 @@ class ManifestBackedBundleTest {
                 displayName = "Phase 1 Model",
                 description = "Minimal model.",
                 supportedApps = setOf(KSLAppKind.SINGLE, KSLAppKind.EXPERIMENT),
-                recipes = listOf(RecipeEntry("light", ConfigRecipeKind.RUN, recipePath)),
             ),
         ),
     )
 
-    /** Writes a builders JAR: the fixture class file(s), the manifest, and a recipe. */
+    /** Writes a builders JAR: the fixture class file(s) and the manifest. */
     private fun buildBuildersJar(name: String, manifest: BundleManifest): Path {
         val target = tmp.resolve(name)
         JarOutputStream(Files.newOutputStream(target), Manifest()).use { jar ->
@@ -57,9 +53,6 @@ class ManifestBackedBundleTest {
             }
             jar.putNextEntry(JarEntry(BundleLayout.BUNDLE_TOML).apply { time = 0L })
             jar.write(BundleManifestToml.encode(manifest).toByteArray(Charsets.UTF_8))
-            jar.closeEntry()
-            jar.putNextEntry(JarEntry(recipePath).apply { time = 0L })
-            jar.write("# light-load recipe\n".toByteArray(Charsets.UTF_8))
             jar.closeEntry()
         }
         return target
@@ -99,21 +92,6 @@ class ManifestBackedBundleTest {
     }
 
     @Test
-    fun `recipesFor returns the manifest-listed recipe and its bytes`() {
-        val jar = buildBuildersJar("p1.jar", manifest())
-        BundleLoader.loadJar(jar).first().use { lb ->
-            val recipes = lb.bundle.recipesFor("p1-model")
-            assertEquals(1, recipes.size)
-            val recipe = recipes.single()
-            assertEquals("light", recipe.name)
-            assertEquals(ConfigRecipeKind.RUN, recipe.kind)
-            val text = recipe.openStream().use { it.readBytes().toString(Charsets.UTF_8) }
-            assertTrue(text.contains("light-load recipe"))
-            assertTrue(lb.bundle.recipesFor("absent-model").isEmpty())
-        }
-    }
-
-    @Test
     fun `Kotlin object builder is supported`() {
         val m = manifest().let {
             it.copy(
@@ -121,7 +99,6 @@ class ManifestBackedBundleTest {
                     it.models.single().copy(
                         modelId = "p1-object-model",
                         builderClass = Phase1ObjectBuilder::class.java.name,
-                        recipes = emptyList(),
                     )
                 )
             )

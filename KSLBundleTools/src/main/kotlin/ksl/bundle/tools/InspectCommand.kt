@@ -2,7 +2,6 @@ package ksl.bundle.tools
 
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleLoader
-import ksl.app.bundle.KSLConfigRecipe
 import ksl.app.bundle.KSLModelBundle
 import ksl.app.bundle.LoadedBundle
 import java.io.PrintStream
@@ -130,15 +129,6 @@ internal object InspectCommand {
             out.println("        Apps         : ${model.supportedApps.joinToString(", ")}")
             val hasInJar = BundleLayout.descriptorPath(model.modelId) in inJarDescriptorPaths
             out.println("        Has in-JAR descriptor : ${if (hasInJar) "yes" else "no"}")
-            val recipes: List<KSLConfigRecipe> = bundle.recipesFor(model.modelId)
-            if (recipes.isEmpty()) {
-                out.println("        Recipes      : (none)")
-            } else {
-                out.println("        Recipes      :")
-                for (r in recipes) {
-                    out.println("          - ${r.name} [${r.kind}]")
-                }
-            }
         }
         out.println("  Optional metadata:")
         out.println("    Author    : ${bundle.author ?: "(unset)"}")

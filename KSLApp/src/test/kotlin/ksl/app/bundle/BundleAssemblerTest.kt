@@ -69,9 +69,6 @@ class BundleAssemblerTest {
                     catalog = ModelCatalog(
                         nominatedOutputs = listOf(NominatedOutput(name = "throughput", displayName = "Throughput")),
                     ),
-                    recipes = listOf(
-                        BundleAssembler.RecipeContent("light", ConfigRecipeKind.RUN, "# light recipe\n".toByteArray()),
-                    ),
                 ),
             ),
         )
@@ -90,12 +87,6 @@ class BundleAssemblerTest {
             // catalog.toml overlay applied at load:
             assertNotNull(descriptor.catalog)
             assertTrue(descriptor.catalog!!.nominatedOutputs.any { it.name == "throughput" })
-
-            val recipes = lb.bundle.recipesFor("mm1")
-            assertEquals(1, recipes.size)
-            assertEquals("light", recipes.single().name)
-            assertEquals(ConfigRecipeKind.RUN, recipes.single().kind)
-            assertTrue(recipes.single().openStream().use { it.readBytes().toString(Charsets.UTF_8) }.contains("light recipe"))
         }
     }
 

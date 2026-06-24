@@ -26,22 +26,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.swing.Swing
-import ksl.app.bundle.BundleAssembler
 import ksl.app.bundle.BundleAuthoringSession
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleValidation
-import ksl.app.bundle.ConfigRecipeKind
 import ksl.app.bundle.KSLAppKind
 import ksl.app.config.CatalogValidation
 import ksl.app.config.ModelReference
-import ksl.app.config.RecipeImport
-import ksl.app.config.RunConfiguration
-import ksl.app.config.RunConfigurationJson
-import ksl.app.config.RunConfigurationToml
-import ksl.app.config.ScenarioSpec
-import ksl.app.config.experiment.ExperimentConfigurationToml
-import ksl.app.config.optimization.OptimizationRunConfigurationJson
-import ksl.app.config.optimization.OptimizationRunConfigurationToml
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.settings.UserSettingsStore
 import ksl.app.validation.FieldError
@@ -60,7 +50,7 @@ import java.util.jar.JarFile
  * views). The workbench turns a *builders JAR* into a *bundle JAR*.
  *
  * The document is the in-memory authoring draft (bundle identity + per-model
- * metadata, catalog, and recipes) accumulated across model selections but not yet
+ * metadata and catalog) accumulated across model selections but not yet
  * assembled into a JAR ([dirty] tracks this). Mutations are synchronous and
  * unit-testable without a running event loop; [scope] exists only for UI collectors.
  */
@@ -108,7 +98,7 @@ class BundleWorkbenchController(val appName: String) {
         val license: String?,
     )
 
-    /** Editable per-model metadata snapshot (not the catalog/recipes, which have their own flows). */
+    /** Editable per-model metadata snapshot (not the catalog, which has its own flow). */
     data class ModelView(
         val modelId: String,
         val displayName: String,
@@ -131,7 +121,7 @@ class BundleWorkbenchController(val appName: String) {
     private val _selectedModelId = MutableStateFlow<String?>(null)
     val selectedModelId: StateFlow<String?> = _selectedModelId.asStateFlow()
 
-    /** A `ModelReference` for the selected model, used by the recipe editor. */
+    /** A `ModelReference` for the selected model. */
     private val _currentReference = MutableStateFlow<ModelReference?>(null)
     val currentReference: StateFlow<ModelReference?> = _currentReference.asStateFlow()
 
@@ -143,9 +133,6 @@ class BundleWorkbenchController(val appName: String) {
 
     private val _catalogProblems = MutableStateFlow<List<CatalogValidation.CatalogProblem>>(emptyList())
     val catalogProblems: StateFlow<List<CatalogValidation.CatalogProblem>> = _catalogProblems.asStateFlow()
-
-    private val _recipes = MutableStateFlow<List<RecipeInfo>>(emptyList())
-    val recipes: StateFlow<List<RecipeInfo>> = _recipes.asStateFlow()
 
     private val _validation = MutableStateFlow<BundleValidation.ValidationReport?>(null)
     val validation: StateFlow<BundleValidation.ValidationReport?> = _validation.asStateFlow()
@@ -178,7 +165,7 @@ class BundleWorkbenchController(val appName: String) {
         adopt(s, jar, fromBundle = false)
     }
 
-    /** Opens an already-assembled bundle JAR, restoring its identity/catalog/recipes. */
+    /** Opens an already-assembled bundle JAR, restoring its identity/catalog. */
     fun openBundleJar(jar: Path) {
         adopt(BundleAuthoringSession.openExisting(jar), jar, fromBundle = true)
     }
@@ -201,7 +188,7 @@ class BundleWorkbenchController(val appName: String) {
         validate() // seed the health banner with the opening state
     }
 
-    /** Selects a model, seeding the catalog buffer and recipe list from its draft. */
+    /** Selects a model, seeding the catalog buffer from its draft. */
     fun selectModel(modelId: String) {
         val s = session ?: return
         val draft = s.models.firstOrNull { it.modelId == modelId } ?: return
@@ -212,7 +199,6 @@ class BundleWorkbenchController(val appName: String) {
         // else from the descriptor — reusing CatalogDraft.from's descriptor-driven seeding.
         val seed = draft.descriptor.copy(catalog = draft.catalog ?: draft.descriptor.catalog)
         _catalogDraft.value = CatalogDraft.from(seed)
-        _recipes.value = draft.recipes.map { RecipeInfo(it.name, it.kind) }
         revalidateCatalog()
     }
 
@@ -262,102 +248,9 @@ class BundleWorkbenchController(val appName: String) {
         refreshModels()
         _dirty.value = true
         if (_selectedModelId.value == modelId) selectModel(v.modelId)
-        _status.value = "Model '${v.modelId}' applied. Next: choose another model, or go to the Catalog / Recipes tabs."
+        _status.value = "Model '${v.modelId}' applied. Next: choose another model, or go to the Catalog tab."
         validate() // refresh the health banner (e.g. supported-apps warnings clear)
     }
-
-    /** Adds (or replaces by name+kind) a recipe in the selected model's draft. */
-    fun addRecipe(kind: ConfigRecipeKind, name: String, bytes: ByteArray) {
-        val s = session ?: return
-        val mid = _selectedModelId.value ?: return
-        require(isValidRecipeName(name)) { "invalid recipe name: '$name'" }
-        val draft = s.models.firstOrNull { it.modelId == mid } ?: return
-        draft.recipes.removeAll { it.name == name && it.kind == kind }
-        draft.recipes.add(BundleAssembler.RecipeContent(name, kind, bytes))
-        _recipes.value = draft.recipes.map { RecipeInfo(it.name, it.kind) }
-        _dirty.value = true
-        _status.value = "Recipe '$name' [$kind] added."
-        validate()
-    }
-
-    /** Convenience: author a single-scenario RUN recipe from the run editor. */
-    fun addRunRecipe(name: String, scenario: ScenarioSpec) {
-        val bytes = RunConfigurationToml.encode(RunConfiguration(scenarios = listOf(scenario)))
-            .toByteArray(Charsets.UTF_8)
-        addRecipe(ConfigRecipeKind.RUN, name, bytes)
-    }
-
-    /**
-     * Inspects an existing app-authored config file without importing it, so the
-     * import wizard can show what it contains (kind, format, referenced models,
-     * per-scenario detail) before the user commits. Delegates to the headless
-     * [RecipeImport.summarize].
-     */
-    fun summarizeRecipe(bytes: ByteArray): RecipeImport.RecipeSummary = RecipeImport.summarize(bytes)
-
-    /**
-     * Imports [bytes] (a Single/Scenario/Experiment/Optimization config file) as a
-     * recipe for the currently selected model, applying the headless
-     * [RecipeImport.importForModel] transform: keeping the selected scenarios
-     * ([keepScenarioIndices], `null` = all) and, when [retarget] is true, rewriting
-     * model references to this bundle's `(bundleId, modelId)`. The resulting recipe
-     * is added to the draft. Returns the final recipe name.
-     */
-    fun importRecipe(
-        bytes: ByteArray,
-        keepScenarioIndices: Set<Int>?,
-        retarget: Boolean,
-        name: String? = null,
-    ): String {
-        val s = session ?: error("no JAR open")
-        val mid = _selectedModelId.value ?: error("select a model first")
-        val result = RecipeImport.importForModel(bytes, s.bundleId, mid, keepScenarioIndices, retarget)
-        val recipeName = (name?.ifBlank { null }) ?: result.suggestedName
-        addRecipe(result.kind, recipeName, result.bytes)
-        return recipeName
-    }
-
-    /** The raw bytes of a recipe in the selected model's draft, for viewing/editing. */
-    fun recipeBytes(name: String, kind: ConfigRecipeKind): ByteArray? {
-        val mid = _selectedModelId.value ?: return null
-        val draft = session?.models?.firstOrNull { it.modelId == mid } ?: return null
-        return draft.recipes.firstOrNull { it.name == name && it.kind == kind }?.bytes
-    }
-
-    /** Removes a recipe from the selected model's draft. */
-    fun removeRecipe(name: String, kind: ConfigRecipeKind) {
-        val s = session ?: return
-        val mid = _selectedModelId.value ?: return
-        val draft = s.models.firstOrNull { it.modelId == mid } ?: return
-        if (draft.recipes.removeAll { it.name == name && it.kind == kind }) {
-            _recipes.value = draft.recipes.map { RecipeInfo(it.name, it.kind) }
-            _dirty.value = true
-            _status.value = "Recipe '$name' removed."
-            validate()
-        }
-    }
-
-    /**
-     * Checks that [bytes] parse as a recipe of [kind] (TOML, with a JSON fallback for
-     * the run/optimization kinds). Returns `null` when valid, else an error message —
-     * used to give immediate feedback when importing a recipe file.
-     */
-    fun parseRecipe(kind: ConfigRecipeKind, bytes: ByteArray): String? = try {
-        val text = bytes.toString(Charsets.UTF_8)
-        when (kind) {
-            ConfigRecipeKind.RUN, ConfigRecipeKind.SCENARIO_BATCH ->
-                runCatching { RunConfigurationToml.decode(text) }.getOrElse { RunConfigurationJson.decode(text) }
-            ConfigRecipeKind.OPTIMIZATION ->
-                runCatching { OptimizationRunConfigurationToml.decode(text) }.getOrElse { OptimizationRunConfigurationJson.decode(text) }
-            ConfigRecipeKind.EXPERIMENT -> ExperimentConfigurationToml.decode(text)
-        }
-        null
-    } catch (e: Exception) {
-        e.message ?: e.toString()
-    }
-
-    private fun isValidRecipeName(name: String): Boolean =
-        name.isNotBlank() && name.none { it == '/' || it == '\\' } && name != "." && name != ".."
 
     /**
      * Validates the current draft (assembles to a temp JAR and runs BundleValidation),
@@ -440,7 +333,6 @@ class BundleWorkbenchController(val appName: String) {
         _currentDescriptor.value = null
         _catalogDraft.value = null
         _catalogProblems.value = emptyList()
-        _recipes.value = emptyList()
     }
 
     private companion object {

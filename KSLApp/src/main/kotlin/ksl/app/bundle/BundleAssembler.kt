@@ -5,7 +5,6 @@ import ksl.app.config.BundleManifest
 import ksl.app.config.BundleManifestToml
 import ksl.app.config.ModelCatalogToml
 import ksl.app.config.ModelManifestEntry
-import ksl.app.config.RecipeEntry
 import ksl.simulation.ModelCatalog
 import ksl.simulation.ModelDescriptor
 import java.nio.file.Files
@@ -17,7 +16,7 @@ import java.time.Instant
 /**
  * Turns a plain **builders JAR** into an enriched **bundle JAR** by writing data-only
  * artifacts into a *new* JAR: the `bundle.toml` manifest plus, per model, a
- * `descriptor.json`, an optional `catalog.toml`, and any recipe files. The result is
+ * `descriptor.json` and an optional `catalog.toml`. The result is
  * loadable through [BundleLoader] as a [ManifestBackedBundle].
  *
  * Invariants:
@@ -28,11 +27,11 @@ import java.time.Instant
  *  - The JAR manifest gets a `Build-Time` attribute so [LoadedBundle.builtAt] is a
  *    real timestamp (deterministic newest-wins resolution across re-assembles).
  *
- * The assembler owns the in-JAR **layout**: it assigns recipe paths via
- * [BundleLayout] and writes the manifest's [RecipeEntry] paths to match the bytes it
- * emits, so a caller cannot desynchronise the manifest from the files. Authoring
- * *decisions* (ids, supportedApps, which catalog/recipes) live in
- * [BundleAuthoringSession]; this class only serialises and writes.
+ * The assembler owns the in-JAR **layout**: it assigns descriptor/catalog paths via
+ * [BundleLayout] and writes the manifest entries to match the bytes it emits, so a
+ * caller cannot desynchronise the manifest from the files. Authoring *decisions*
+ * (ids, supportedApps, which catalog) live in [BundleAuthoringSession]; this class
+ * only serialises and writes.
  */
 object BundleAssembler {
 
@@ -52,14 +51,6 @@ object BundleAssembler {
         val supportedApps: Set<KSLAppKind> = emptySet(),
         val descriptor: ModelDescriptor,
         val catalog: ModelCatalog? = null,
-        val recipes: List<RecipeContent> = emptyList(),
-    )
-
-    /** One authored recipe: its label/kind and raw bytes (TOML or JSON). */
-    data class RecipeContent(
-        val name: String,
-        val kind: ConfigRecipeKind,
-        val bytes: ByteArray,
     )
 
     /** The full authored content of a bundle (identity + models). */
@@ -110,18 +101,12 @@ object BundleAssembler {
                 entries[BundleLayout.catalogPath(model.modelId)] =
                     ModelCatalogToml.encode(catalog).toByteArray(Charsets.UTF_8)
             }
-            val recipeEntries = model.recipes.map { recipe ->
-                val path = "${recipeDir(recipe.kind, model.modelId)}/${recipe.name}.toml"
-                entries[path] = recipe.bytes
-                RecipeEntry(recipe.name, recipe.kind, path)
-            }
             ModelManifestEntry(
                 modelId = model.modelId,
                 builderClass = model.builderClass,
                 displayName = model.displayName,
                 description = model.description,
                 supportedApps = model.supportedApps,
-                recipes = recipeEntries,
             )
         }
         val manifest = BundleManifest(
@@ -152,12 +137,4 @@ object BundleAssembler {
     /** Byte-stable canonical JSON for a descriptor (same config as `kslpkg enrich`). */
     private fun descriptorBytes(descriptor: ModelDescriptor): ByteArray =
         descriptorJson.encodeToString(ModelDescriptor.serializer(), descriptor).toByteArray(Charsets.UTF_8)
-
-    /** The in-JAR directory for a recipe of the given [kind] under [modelId]. */
-    private fun recipeDir(kind: ConfigRecipeKind, modelId: String): String = when (kind) {
-        ConfigRecipeKind.RUN -> BundleLayout.runRecipesDir(modelId)
-        ConfigRecipeKind.SCENARIO_BATCH -> BundleLayout.scenarioRecipesDir(modelId)
-        ConfigRecipeKind.OPTIMIZATION -> BundleLayout.optimizationRecipesDir(modelId)
-        ConfigRecipeKind.EXPERIMENT -> BundleLayout.experimentRecipesDir(modelId)
-    }
 }

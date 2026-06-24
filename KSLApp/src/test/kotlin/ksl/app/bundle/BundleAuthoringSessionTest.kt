@@ -81,7 +81,6 @@ class BundleAuthoringSessionTest {
         m.modelId = "mm1"
         m.supportedApps.clear(); m.supportedApps.add(KSLAppKind.SINGLE)
         m.catalog = ModelCatalog(nominatedOutputs = listOf(NominatedOutput("throughput", displayName = "Throughput")))
-        m.recipes.add(BundleAssembler.RecipeContent("light", ConfigRecipeKind.RUN, "# r\n".toByteArray()))
         val out = tmp.resolve("resume-bundle.jar")
         s.assemble(out)
 
@@ -93,6 +92,5 @@ class BundleAuthoringSessionTest {
         assertEquals(setOf(KSLAppKind.SINGLE), rm.supportedApps)
         assertNotNull(rm.catalog)
         assertTrue(rm.catalog!!.nominatedOutputs.any { it.name == "throughput" })
-        assertEquals(listOf("light"), rm.recipes.map { it.name })
     }
 }

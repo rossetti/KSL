@@ -186,8 +186,7 @@ class SimpleServerBundle : KSLModelBundle {
 - **`supportedApps`** advertises where the model is meaningful (a model with no varied input
   isn't a useful `EXPERIMENT`/`SIMOPT` subject, for instance).
 - **`kslApiVersion`** records the KSL API the bundle was built against.
-- Optional: `author`, `homepage`, `license`, `tags`, and **config recipes** (pre-canned run
-  setups) via `recipesFor(modelId)`.
+- Optional: `author`, `homepage`, `license`, `tags`.
 
 ### Step 5 — Register for discovery
 
@@ -285,25 +284,22 @@ That's the whole point: a model you wrote, now configurable and runnable in ever
 
 | Type | Package | Role |
 |---|---|---|
-| `KSLModelBundle` | `ksl.app.bundle` | The bundle: id, display name, version, `kslApiVersion`, models, optional metadata, recipes. |
+| `KSLModelBundle` | `ksl.app.bundle` | The bundle: id, display name, version, `kslApiVersion`, models, optional metadata. |
 | `KSLBundledModel` | `ksl.app.bundle` | One model: id, display name, `supportedApps`, `builder()`. |
 | `ModelBuilderIfc` | `ksl.simulation` | `build(modelConfiguration, experimentRunParameters): Model`. |
 | `KSLAppKind` | `ksl.app.bundle` | `SINGLE` · `SCENARIO` · `EXPERIMENT` · `SIMOPT`. |
 | `@KSLControl` family | `ksl.controls` | Marks settable parameters → [controls guide](ksl-controls.md). |
 | `curateCatalog` / `ModelCatalog` | `ksl.simulation` | Nominate headline inputs/outputs with names + units. |
 | `Model.modelDescriptor()` / `ModelDescriptor` | `ksl.simulation` | The serialized I/O surface that `enrich` embeds. |
-| `KSLConfigRecipe` / `ConfigRecipeKind` | `ksl.app.bundle` | Optional pre-canned run configurations shipped with a bundle. |
 
 ---
 
-## 5. Recipes & variations
+## 5. Variations
 
 - **Multiple models per bundle.** `models` is a list — ship related models in one JAR; each
   declares its own `supportedApps`.
 - **Restrict the apps.** A pure cost model with no decision variable might be
   `supportedApps = setOf(SINGLE)` only.
-- **Config recipes.** Override `recipesFor(modelId)` to ship ready-made run/scenario/
-  experiment setups alongside the model.
 - **Build-time variants.** Read `modelConfiguration` in `build(...)` to construct variants
   (e.g. a topology size) from a string map.
 - **Bundle-ready checklist:**

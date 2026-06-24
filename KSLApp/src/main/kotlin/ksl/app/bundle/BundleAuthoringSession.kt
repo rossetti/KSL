@@ -63,7 +63,6 @@ class BundleAuthoringSession private constructor(
         val supportedApps: MutableSet<KSLAppKind> =
             linkedSetOf(KSLAppKind.SINGLE, KSLAppKind.SCENARIO, KSLAppKind.EXPERIMENT)
         var catalog: ModelCatalog? = null
-        val recipes: MutableList<BundleAssembler.RecipeContent> = mutableListOf()
     }
 
     /** Builds the [BundleAssembler.BundleSpec] from the current draft state. */
@@ -86,7 +85,6 @@ class BundleAuthoringSession private constructor(
                 supportedApps = d.supportedApps.toSet(),
                 descriptor = d.descriptor,
                 catalog = d.catalog,
-                recipes = d.recipes.toList(),
             )
         },
     )
@@ -154,8 +152,8 @@ class BundleAuthoringSession private constructor(
         /**
          * Opens an authoring session over an **already-assembled bundle JAR**, resuming
          * the draft: discovers/builds the in-JAR builders (for descriptors) and then
-         * overlays the `bundle.toml` identity + per-model metadata, the in-JAR
-         * `catalog.toml`, and recipe files. Models are matched to manifest entries by
+         * overlays the `bundle.toml` identity + per-model metadata and the in-JAR
+         * `catalog.toml`. Models are matched to manifest entries by
          * `builderClass`. If [bundleJar] has no manifest it behaves like [open].
          */
         fun openExisting(
@@ -182,10 +180,6 @@ class BundleAuthoringSession private constructor(
                 draft.supportedApps.clear(); draft.supportedApps.addAll(entry.supportedApps)
                 draft.catalog = readEntryText(bundleJar, BundleLayout.catalogPath(entry.modelId))
                     ?.let { runCatching { ModelCatalogToml.decode(it) }.getOrNull() }
-                draft.recipes.clear()
-                entry.recipes.forEach { r ->
-                    readEntryBytes(bundleJar, r.path)?.let { draft.recipes.add(BundleAssembler.RecipeContent(r.name, r.kind, it)) }
-                }
             }
             return session
         }
