@@ -21,9 +21,6 @@ package ksl.examples.general.bookbundle
 import ksl.app.bundle.KSLAppKind
 import ksl.app.bundle.KSLBundledModel
 import ksl.app.bundle.KSLModelBundle
-import ksl.examples.general.models.inventory.BuildTwoEchelonModel
-import ksl.simulation.ExperimentRunParametersIfc
-import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
 /**
@@ -138,31 +135,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("Pharmacy") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = DriveThroughPharmacyWithResource(model, numServers = 1, name = "Pharmacy")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 20000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    // The pharmacist count is the SResource's initialCapacity control.
-                    input("Pharmacy:Pharmacists.initialCapacity") {
-                        displayName = "Number of Pharmacists"; unit = "pharmacists"
-                    }
-                    rvParameter(sim.serviceRV, "mean") { displayName = "Mean Service Time"; unit = "min" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.probSystemTimeGT4Minutes) { displayName = "P(System Time >= 4 min)" }
-                    output(sim.numCustomersServed) { displayName = "Number Served" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = DriveThroughPharmacyWithResourceModelBuilder()
     }
 
     /**
@@ -186,29 +159,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = DriveThroughPharmacyWithQ(model, numServers = 1, name = "Pharmacy")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 20000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    input(sim, DriveThroughPharmacyWithQ::numPharmacists) {
-                        displayName = "Number of Pharmacists"; unit = "pharmacists"
-                    }
-                    rvParameter(sim.serviceRV, "mean") { displayName = "Mean Service Time"; unit = "min" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.probSystemTimeGT4Minutes) { displayName = "P(System Time >= 4 min)" }
-                    output(sim.numCustomersServed) { displayName = "Number Served" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = DriveThroughPharmacyWithQModelBuilder()
     }
 
     /**
@@ -232,31 +183,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.EXPERIMENT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("Tandem") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TandemQueue(model, name = "Tandem")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 20000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    rvParameter(sim.station1.activityTimeRV, "mean") {
-                        displayName = "Station 1 Mean Service Time"; unit = "min"
-                    }
-                    rvParameter(sim.station2.activityTimeRV, "mean") {
-                        displayName = "Station 2 Mean Service Time"; unit = "min"
-                    }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.totalSystemTime) { displayName = "Avg Total Time in System"; unit = "min" }
-                    output(sim.totalProcessed) { displayName = "Number Processed" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TandemQueueModelBuilder()
     }
 
     // ════════════════════════════════ Chapter 5 ════════════════════════════════
@@ -286,33 +213,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("PWC") must differ from the Model name.
-                // Terminating simulation: set only the replication count (each
-                // replication ends when the day's pallets are processed).
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = PalletWorkCenter(model, numWorkers = 2, name = "PWC")
-                model.numberOfReplications = 30
-                model.curateCatalog {
-                    input(sim, PalletWorkCenter::numWorkers) {
-                        displayName = "Number of Workers"; unit = "workers"
-                    }
-                    rvParameter(sim.transportTimeRV, "mean") {
-                        displayName = "Mean Transport Time"; unit = "min"
-                    }
-                    output(sim.workerUtilization) { displayName = "Worker Utilization" }
-                    output(sim.probOfOverTime) { displayName = "P(Overtime > 480 min)" }
-                    output(sim.totalProcessingTime) { displayName = "Total Processing Time"; unit = "min" }
-                    output(sim.numInSystem) { displayName = "Avg Pallets at Work Center" }
-                    output(sim.numPalletsProcessed) { displayName = "Pallets Processed" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = PalletWorkCenterModelBuilder()
     }
 
     // ════════════════════════════════ Chapter 6 ════════════════════════════════
@@ -341,33 +242,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("StemFair") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = StemFairMixer(model, name = "StemFair")
-                model.numberOfReplications = 400
-                model.lengthOfReplication = 6.0 * 60.0   // a single 6-hour mixer
-                model.curateCatalog {
-                    // Recruiter-team capacities (ResourceWithQ initialCapacity controls).
-                    input("JHBuntR.initialCapacity") {
-                        displayName = "JH-Bunt Recruiters"; unit = "recruiters"
-                    }
-                    input("MalWartR.initialCapacity") {
-                        displayName = "Mal-Wart Recruiters"; unit = "recruiters"
-                    }
-                    output("OverallSystemTime") { displayName = "Avg Time in System"; unit = "min" }
-                    output("NumInSystem") { displayName = "Avg Number in System" }
-                    output("NonWanderSystemTime") { displayName = "Avg Time in System (non-wanderers)"; unit = "min" }
-                    output("WanderSystemTime") { displayName = "Avg Time in System (wanderers)"; unit = "min" }
-                    output("LeaverSystemTime") { displayName = "Avg Time in System (leavers)"; unit = "min" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = StemFairMixerModelBuilder()
     }
 
     /**
@@ -394,29 +269,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("TieDye") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TieDyeTShirts(model, name = "TieDye")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 480.0
-                model.curateCatalog {
-                    input("ShirtMakers_R.initialCapacity") {
-                        displayName = "Shirt Makers"; unit = "workers"
-                    }
-                    input("Packager_R.initialCapacity") {
-                        displayName = "Packagers"; unit = "workers"
-                    }
-                    output("System Time") { displayName = "Avg Order Time in System"; unit = "min" }
-                    output("Num in System") { displayName = "Avg Number of Orders in System" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TieDyeTShirtsModelBuilder()
     }
 
     // ════════════════════════════════ Chapter 7 ════════════════════════════════
@@ -444,35 +297,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("WalkInClinic") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = WalkInHealthClinic(model, name = "WalkInClinic")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 10.0 * 60.0   // a 10-hour clinic day
-                model.curateCatalog {
-                    input("Doctors.initialCapacity") { displayName = "Number of Doctors"; unit = "doctors" }
-                    input("TriageNurse.initialCapacity") { displayName = "Number of Triage Nurses"; unit = "nurses" }
-                    input(sim, WalkInHealthClinic::balkCriteria) {
-                        displayName = "Balk Threshold (queue length)"; unit = "patients"
-                    }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                    output("WalkInClinic:TimeInSystemHigh") { displayName = "Avg Time in System (high priority)"; unit = "min" }
-                    output("WalkInClinic:TimeInSystemMedium") { displayName = "Avg Time in System (medium priority)"; unit = "min" }
-                    output("WalkInClinic:TimeInSystemLow") { displayName = "Avg Time in System (low priority)"; unit = "min" }
-                    output(sim.probBalking) { displayName = "P(Balk)" }
-                    output(sim.probReneging) { displayName = "P(Renege)" }
-                    output("WalkInClinic:NumServed") { displayName = "Number Served" }
-                    output("WalkInClinic:NumBalked") { displayName = "Number Balked" }
-                    output("WalkInClinic:NumReneged") { displayName = "Number Reneged" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = WalkInHealthClinicModelBuilder()
     }
 
     /**
@@ -497,30 +322,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("StemFairEnhanced") must differ from the Model name.
-                // Terminating: arrivals stop when the mixer closes, then students finish.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = StemFairMixerEnhanced(model, name = "StemFairEnhanced")
-                model.numberOfReplications = 400
-                model.curateCatalog {
-                    input("JHBuntR.initialCapacity") { displayName = "JH-Bunt Recruiters"; unit = "recruiters" }
-                    input("MalWartR.initialCapacity") { displayName = "Mal-Wart Recruiters"; unit = "recruiters" }
-                    output("OverallSystemTime") { displayName = "Avg Time in System"; unit = "min" }
-                    output("RecruitingOnlySystemTime") { displayName = "Avg Time in System (recruiting only)"; unit = "min" }
-                    output("MixingStudentSystemTime") { displayName = "Avg Time in System (mixers)"; unit = "min" }
-                    output("NumInSystem") { displayName = "Avg Number in System" }
-                    output("NumInSystemAtClosing") { displayName = "Number in System at Closing" }
-                    output("TotalNumberArrivals") { displayName = "Total Arrivals" }
-                    output("Mixer Ending Time") { displayName = "Mixer Ending Time"; unit = "min" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = StemFairMixerEnhancedModelBuilder()
     }
 
     /**
@@ -545,32 +347,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.EXPERIMENT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("StemFairScheduled") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = StemFairMixerEnhancedSched(model, name = "StemFairScheduled")
-                model.numberOfReplications = 400
-                model.curateCatalog {
-                    input(sim, StemFairMixerEnhancedSched::lengthOfMixer) {
-                        displayName = "Mixer Length"; unit = "min"
-                    }
-                    input(sim, StemFairMixerEnhancedSched::warningTime) {
-                        displayName = "Warning Time Before Close"; unit = "min"
-                    }
-                    output("OverallSystemTime") { displayName = "Avg Time in System"; unit = "min" }
-                    output("RecruitingOnlySystemTime") { displayName = "Avg Time in System (recruiting only)"; unit = "min" }
-                    output("MixingStudentSystemTime") { displayName = "Avg Time in System (mixers)"; unit = "min" }
-                    output("NumInSystem") { displayName = "Avg Number in System" }
-                    output("NumInSystemAtClosing") { displayName = "Number in System at Closing" }
-                    output("Mixer Ending Time") { displayName = "Mixer Ending Time"; unit = "min" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = StemFairMixerEnhancedSchedModelBuilder()
     }
 
     /**
@@ -597,30 +374,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("RQInventory") must differ from the Model name;
-                // the (R,Q) controls/responses live on its inner "RQInventory:Item".
-                val model = Model(modelId, autoCSVReports = false)
-                RQInventorySystem(model, reorderPt = 1, reorderQty = 2, name = "RQInventory")
-                model.lengthOfReplication = 20000.0
-                model.lengthOfReplicationWarmUp = 10000.0
-                model.numberOfReplications = 40
-                model.curateCatalog {
-                    input("RQInventory:Item.initialReorderPoint") { displayName = "Reorder Point (R)"; unit = "units" }
-                    input("RQInventory:Item.initialReorderQty") { displayName = "Reorder Quantity (Q)"; unit = "units" }
-                    output("RQInventory:Item:TotalCost") { displayName = "Avg Total Cost"; unit = "\$/period" }
-                    output("RQInventory:Item:FillRate") { displayName = "Fill Rate" }
-                    output("RQInventory:Item:OrderingFrequency") { displayName = "Ordering Frequency" }
-                    output("RQInventory:Item:OnHand") { displayName = "Avg On-Hand Inventory"; unit = "units" }
-                    output("RQInventory:Item:AmountBackOrdered") { displayName = "Avg Backorders"; unit = "units" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = RQInventorySystemModelBuilder()
     }
 
     // ════════════════════════════════ Chapter 8 ════════════════════════════════
@@ -653,31 +407,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("TestRepairRC") must differ from the Model name.
-                // Bundle default is shorter than the book's one-year run for interactive
-                // responsiveness (same means, wider confidence intervals).
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TestAndRepairShopResourceConstrained(model, name = "TestRepairRC")
-                model.numberOfReplications = 10
-                model.lengthOfReplication = 30000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    input("DiagnosticMachines.initialCapacity") { displayName = "Diagnostic Machines"; unit = "machines" }
-                    input("Test1.initialCapacity") { displayName = "Test-1 Machines"; unit = "machines" }
-                    input("Test2.initialCapacity") { displayName = "Test-2 Machines"; unit = "machines" }
-                    input("Test3.initialCapacity") { displayName = "Test-3 Machines"; unit = "machines" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                    output(sim.probWithinLimit) { displayName = "P(Within 480-min Contract)" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TestAndRepairShopResourceConstrainedModelBuilder()
     }
 
     /**
@@ -701,28 +431,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.EXPERIMENT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("TandemConstrained") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TandemQueueWithConstrainedMovement(model, name = "TandemConstrained")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 20000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    input("worker1.initialCapacity") { displayName = "Station-1 Workers"; unit = "workers" }
-                    input("worker2.initialCapacity") { displayName = "Station-2 Workers"; unit = "workers" }
-                    rvParameter(sim.service1RV, "mean") { displayName = "Station-1 Mean Service Time"; unit = "min" }
-                    rvParameter(sim.service2RV, "mean") { displayName = "Station-2 Mean Service Time"; unit = "min" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TandemQueueWithConstrainedMovementModelBuilder()
     }
 
     /**
@@ -746,28 +455,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.EXPERIMENT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("TandemUnconstrained") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TandemQueueWithUnconstrainedMovement(model, name = "TandemUnconstrained")
-                model.numberOfReplications = 30
-                model.lengthOfReplication = 20000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    input("worker1.initialCapacity") { displayName = "Station-1 Workers"; unit = "workers" }
-                    input("worker2.initialCapacity") { displayName = "Station-2 Workers"; unit = "workers" }
-                    rvParameter(sim.service1RV, "mean") { displayName = "Station-1 Mean Service Time"; unit = "min" }
-                    rvParameter(sim.service2RV, "mean") { displayName = "Station-2 Mean Service Time"; unit = "min" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TandemQueueWithUnconstrainedMovementModelBuilder()
     }
 
     /**
@@ -792,30 +480,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("TestRepairMR") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TestAndRepairShopWithMovableResources(model, name = "TestRepairMR")
-                model.numberOfReplications = 10
-                model.lengthOfReplication = 30000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    input("DiagnosticWorkers.initialCapacity") { displayName = "Diagnostic Workers"; unit = "workers" }
-                    input("RepairWorkers.initialCapacity") { displayName = "Repair Workers"; unit = "workers" }
-                    input("Test1.initialCapacity") { displayName = "Test-1 Machines"; unit = "machines" }
-                    input("Test2.initialCapacity") { displayName = "Test-2 Machines"; unit = "machines" }
-                    input("Test3.initialCapacity") { displayName = "Test-3 Machines"; unit = "machines" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                    output(sim.probWithinLimit) { displayName = "P(Within 480-min Contract)" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TestAndRepairShopWithMovableResourcesModelBuilder()
     }
 
     /**
@@ -840,30 +505,7 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Child element name ("TestRepairConv") must differ from the Model name.
-                val model = Model(modelId, autoCSVReports = false)
-                val sim = TestAndRepairShopWithConveyor(model, name = "TestRepairConv")
-                model.numberOfReplications = 10
-                model.lengthOfReplication = 30000.0
-                model.lengthOfReplicationWarmUp = 5000.0
-                model.curateCatalog {
-                    input("Diagnostics.initialCapacity") { displayName = "Diagnostic Stations"; unit = "stations" }
-                    input("Repair.initialCapacity") { displayName = "Repair Stations"; unit = "stations" }
-                    input("Test1.initialCapacity") { displayName = "Test-1 Stations"; unit = "stations" }
-                    input("Test2.initialCapacity") { displayName = "Test-2 Stations"; unit = "stations" }
-                    input("Test3.initialCapacity") { displayName = "Test-3 Stations"; unit = "stations" }
-                    output(sim.numInSystem) { displayName = "Avg Number in System" }
-                    output(sim.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-                    output(sim.probWithinLimit) { displayName = "P(Within 480-min Contract)" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TestAndRepairShopWithConveyorModelBuilder()
     }
 
     // ═══════════════════════════════ Capstone ═══════════════════════════════
@@ -898,27 +540,6 @@ class BookExamplesBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                // Reuse the existing general builder, then nominate the
-                // optimization-relevant catalog.  Keys match the
-                // constrained/unconstrainedTwoEchelonProblemDefinition() functions.
-                val model = BuildTwoEchelonModel.build(modelConfiguration, experimentRunParameters)
-                model.curateCatalog {
-                    input("TwoEchelon:DCInventory.initialReorderPoint") { displayName = "DC Reorder Point (R)"; unit = "units" }
-                    input("TwoEchelon:DCInventory.initialReorderQty") { displayName = "DC Reorder Quantity (Q)"; unit = "units" }
-                    input("TwoEchelon:BaseInventory.initialReorderPoint") { displayName = "Base Reorder Point (R)"; unit = "units" }
-                    input("TwoEchelon:BaseInventory.initialReorderQty") { displayName = "Base Reorder Quantity (Q)"; unit = "units" }
-                    output("TwoEchelon:TotalCost") { displayName = "Avg Total Cost"; unit = "\$/period" }
-                    output("TwoEchelon:TotalOrderingAndHoldingCost") { displayName = "Avg Ordering + Holding Cost"; unit = "\$/period" }
-                    output("TwoEchelon:DCInventory:ItemA:FillRate") { displayName = "DC Fill Rate" }
-                    output("TwoEchelon:BaseInventory:ItemA:FillRate") { displayName = "Base Fill Rate" }
-                }
-                return model
-            }
-        }
+        override fun builder(): ModelBuilderIfc = TwoEchelonInventoryModelBuilder()
     }
 }
