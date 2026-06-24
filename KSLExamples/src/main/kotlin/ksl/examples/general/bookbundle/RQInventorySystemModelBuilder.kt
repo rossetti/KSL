@@ -22,7 +22,7 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
-/** Named, discoverable [ModelBuilderIfc] for the 'RQInventorySystem' book example; the build that [BookExamplesBundle] delegates to. */
+/** Named, discoverable [ModelBuilderIfc] for the 'RQInventorySystem' book example. */
 class RQInventorySystemModelBuilder : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,

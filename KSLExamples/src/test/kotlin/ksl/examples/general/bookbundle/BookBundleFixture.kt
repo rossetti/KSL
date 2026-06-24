@@ -20,7 +20,28 @@ import java.util.jar.Manifest
  */
 internal object BookBundleFixture {
 
-    /** The 16 named book-example builders (one per model in [BookExamplesBundle]). */
+    /** Stable, globally unique id of the book-examples bundle. */
+    const val BUNDLE_ID: String = "edu.uark.ksl.book-examples"
+
+    // ── Model ids (class name minus the `ModelBuilder` suffix) ──
+    const val DRIVE_THROUGH_PHARMACY_RESOURCE: String = "DriveThroughPharmacyWithResource"
+    const val DRIVE_THROUGH_PHARMACY_QUEUE: String = "DriveThroughPharmacyWithQ"
+    const val TANDEM_QUEUE: String = "TandemQueue"
+    const val PALLET_WORK_CENTER: String = "PalletWorkCenter"
+    const val STEM_FAIR_MIXER: String = "StemFairMixer"
+    const val TIE_DYE_TSHIRTS: String = "TieDyeTShirts"
+    const val WALK_IN_HEALTH_CLINIC: String = "WalkInHealthClinic"
+    const val STEM_FAIR_MIXER_ENHANCED: String = "StemFairMixerEnhanced"
+    const val STEM_FAIR_MIXER_ENHANCED_SCHED: String = "StemFairMixerEnhancedSched"
+    const val RQ_INVENTORY_SYSTEM: String = "RQInventorySystem"
+    const val TEST_AND_REPAIR_RESOURCE_CONSTRAINED: String = "TestAndRepairShopResourceConstrained"
+    const val TANDEM_QUEUE_CONSTRAINED_MOVEMENT: String = "TandemQueueWithConstrainedMovement"
+    const val TANDEM_QUEUE_UNCONSTRAINED_MOVEMENT: String = "TandemQueueWithUnconstrainedMovement"
+    const val TEST_AND_REPAIR_MOVABLE_RESOURCES: String = "TestAndRepairShopWithMovableResources"
+    const val TEST_AND_REPAIR_CONVEYOR: String = "TestAndRepairShopWithConveyor"
+    const val TWO_ECHELON_INVENTORY: String = "TwoEchelonInventory"
+
+    /** The 16 named book-example builders (one per book-example model). */
     val builders: List<Class<out ModelBuilderIfc>> = listOf(
         DriveThroughPharmacyWithResourceModelBuilder::class.java,
         DriveThroughPharmacyWithQModelBuilder::class.java,
@@ -41,7 +62,7 @@ internal object BookBundleFixture {
     )
 
     /** Assembles the 16 builders into a bundle JAR at `<dir>/book-examples.jar`. */
-    fun assemble(dir: Path, bundleId: String = "ksl.examples.book"): Path {
+    fun assemble(dir: Path, bundleId: String = BUNDLE_ID): Path {
         val buildersJar = writeBuildersJar(dir, "book-builders", builders)
         val session = BundleAuthoringSession.open(buildersJar)
         session.bundleId = bundleId

@@ -22,7 +22,7 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
-/** Named, discoverable [ModelBuilderIfc] for the 'TandemQueue' book example; the build that [BookExamplesBundle] delegates to. */
+/** Named, discoverable [ModelBuilderIfc] for the 'TandemQueue' book example. */
 class TandemQueueModelBuilder : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,

@@ -22,7 +22,7 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
-/** Named, discoverable [ModelBuilderIfc] for the 'StemFairMixerEnhanced' book example; the build that [BookExamplesBundle] delegates to. */
+/** Named, discoverable [ModelBuilderIfc] for the 'StemFairMixerEnhanced' book example. */
 class StemFairMixerEnhancedModelBuilder : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,

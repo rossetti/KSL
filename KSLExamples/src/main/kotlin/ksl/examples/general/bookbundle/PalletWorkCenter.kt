@@ -19,7 +19,7 @@ package ksl.examples.general.bookbundle
 
 // Adapted from ksl.examples.book.chapter5.PalletWorkCenter for the "KSL Book Examples"
 // bundle (edu.uark.ksl.book-examples).  Behaviorally identical to the chapter version;
-// only the package differs.  The bundle wraps this model in BookExamplesBundle.kt.
+// only the package differs.  The bundle wraps this model in the book-examples bundle.
 //
 // This is a terminating simulation: each replication processes a random number of
 // pallets (NumPalletsRV) and ends naturally, so the bundle sets only the replication

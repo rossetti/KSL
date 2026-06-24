@@ -20,7 +20,7 @@ package ksl.examples.general.bookbundle
 // Adapted from ksl.examples.book.chapter4.DriveThroughPharmacyWithResource for the
 // "KSL Book Examples" bundle (edu.uark.ksl.book-examples).  Behaviorally identical to
 // the chapter version; only the package differs and the demo main() was dropped.
-// The bundle wraps this model in BookExamplesBundle.kt.
+// The bundle wraps this model in the book-examples bundle.
 
 import ksl.modeling.elements.*
 import ksl.modeling.queue.Queue

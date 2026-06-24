@@ -23,7 +23,7 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
-/** Named, discoverable [ModelBuilderIfc] for the 'TwoEchelonInventory' book example; the build that [BookExamplesBundle] delegates to. */
+/** Named, discoverable [ModelBuilderIfc] for the 'TwoEchelonInventory' book example. */
 class TwoEchelonInventoryModelBuilder : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,

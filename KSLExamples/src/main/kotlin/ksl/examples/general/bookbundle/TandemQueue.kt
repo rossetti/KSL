@@ -20,7 +20,7 @@ package ksl.examples.general.bookbundle
 
 // Adapted from ksl.examples.book.chapter4.TandemQueue for the "KSL Book Examples"
 // bundle (edu.uark.ksl.book-examples).  Behaviorally identical to the chapter version;
-// only the package differs.  The bundle wraps this model in BookExamplesBundle.kt.
+// only the package differs.  The bundle wraps this model in the book-examples bundle.
 
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.EventGeneratorIfc

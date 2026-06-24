@@ -26,12 +26,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- *  Verification for the chapter-4 slice of [BookExamplesBundle]:
- *  ServiceLoader discovery, that every nominated catalog input/output
- *  resolves against the built model's actual control / RV-parameter /
- *  response surface, and that each model builds and runs.  This is the
- *  in-suite equivalent of a `kslpkg validate` pass, catching catalog
- *  key/name drift at test time.
+ *  Verification for the book-examples bundle: that every nominated catalog
+ *  input/output resolves against the built model's actual control /
+ *  RV-parameter / response surface, and that each model builds and runs.
+ *  This is the in-suite equivalent of a `kslpkg validate` pass, catching
+ *  catalog key/name drift at test time.
  *
  *  Grows one book chapter at a time; the model-id list below is extended
  *  as later chapters land.
@@ -39,37 +38,37 @@ import kotlin.test.assertTrue
 class BookExamplesBundleTest {
 
     private val chapter4ModelIds = listOf(
-        BookExamplesBundle.DRIVE_THROUGH_PHARMACY_RESOURCE,
-        BookExamplesBundle.DRIVE_THROUGH_PHARMACY_QUEUE,
-        BookExamplesBundle.TANDEM_QUEUE,
+        BookBundleFixture.DRIVE_THROUGH_PHARMACY_RESOURCE,
+        BookBundleFixture.DRIVE_THROUGH_PHARMACY_QUEUE,
+        BookBundleFixture.TANDEM_QUEUE,
     )
 
     private val chapter5ModelIds = listOf(
-        BookExamplesBundle.PALLET_WORK_CENTER,
+        BookBundleFixture.PALLET_WORK_CENTER,
     )
 
     private val chapter6ModelIds = listOf(
-        BookExamplesBundle.STEM_FAIR_MIXER,
-        BookExamplesBundle.TIE_DYE_TSHIRTS,
+        BookBundleFixture.STEM_FAIR_MIXER,
+        BookBundleFixture.TIE_DYE_TSHIRTS,
     )
 
     private val chapter7ModelIds = listOf(
-        BookExamplesBundle.WALK_IN_HEALTH_CLINIC,
-        BookExamplesBundle.STEM_FAIR_MIXER_ENHANCED,
-        BookExamplesBundle.STEM_FAIR_MIXER_ENHANCED_SCHED,
-        BookExamplesBundle.RQ_INVENTORY_SYSTEM,
+        BookBundleFixture.WALK_IN_HEALTH_CLINIC,
+        BookBundleFixture.STEM_FAIR_MIXER_ENHANCED,
+        BookBundleFixture.STEM_FAIR_MIXER_ENHANCED_SCHED,
+        BookBundleFixture.RQ_INVENTORY_SYSTEM,
     )
 
     private val chapter8ModelIds = listOf(
-        BookExamplesBundle.TEST_AND_REPAIR_RESOURCE_CONSTRAINED,
-        BookExamplesBundle.TANDEM_QUEUE_CONSTRAINED_MOVEMENT,
-        BookExamplesBundle.TANDEM_QUEUE_UNCONSTRAINED_MOVEMENT,
-        BookExamplesBundle.TEST_AND_REPAIR_MOVABLE_RESOURCES,
-        BookExamplesBundle.TEST_AND_REPAIR_CONVEYOR,
+        BookBundleFixture.TEST_AND_REPAIR_RESOURCE_CONSTRAINED,
+        BookBundleFixture.TANDEM_QUEUE_CONSTRAINED_MOVEMENT,
+        BookBundleFixture.TANDEM_QUEUE_UNCONSTRAINED_MOVEMENT,
+        BookBundleFixture.TEST_AND_REPAIR_MOVABLE_RESOURCES,
+        BookBundleFixture.TEST_AND_REPAIR_CONVEYOR,
     )
 
     private val capstoneModelIds = listOf(
-        BookExamplesBundle.TWO_ECHELON_INVENTORY,
+        BookBundleFixture.TWO_ECHELON_INVENTORY,
     )
 
     /** Every model the bundle is expected to expose so far. */

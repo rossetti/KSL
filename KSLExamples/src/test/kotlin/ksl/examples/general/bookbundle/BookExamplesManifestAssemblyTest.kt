@@ -9,9 +9,8 @@ import kotlin.test.assertTrue
 
 /**
  * Verifies the 16 book-example models assemble + load through the manifest mechanism
- * from their extracted named builders — the unblock for eventually retiring the
- * `BookExamplesBundle` ServiceLoader registration. Each model's descriptor is extracted
- * by building it once during assembly, so a clean load is end-to-end proof.
+ * from their extracted named builders. Each model's descriptor is extracted by
+ * building it once during assembly, so a clean load is end-to-end proof.
  */
 class BookExamplesManifestAssemblyTest {
 
@@ -19,7 +18,7 @@ class BookExamplesManifestAssemblyTest {
     fun `the 16 book builders assemble and load as one manifest bundle`(@TempDir dir: Path) {
         val bundle = BookBundleFixture.assemble(dir)
         BundleLoader.loadJar(bundle).single().use { lb ->
-            assertEquals("ksl.examples.book", lb.bundle.bundleId)
+            assertEquals(BookBundleFixture.BUNDLE_ID, lb.bundle.bundleId)
             assertEquals(16, lb.bundle.models.size, "all 16 book models should assemble")
             // Spot-check a few descriptors resolve (each model is built once to extract it).
             for (id in listOf("TandemQueue", "RQInventorySystem", "TwoEchelonInventory")) {
