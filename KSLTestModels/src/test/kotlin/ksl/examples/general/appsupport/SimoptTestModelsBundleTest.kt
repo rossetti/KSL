@@ -58,8 +58,8 @@ class SimoptTestModelsBundleTest {
             assertTrue(
                 match.bundle.models.map { it.modelId }.containsAll(
                     listOf(
-                        SimoptTestModelsBundle.LK_OPT_MODEL_ID,
-                        SimoptTestModelsBundle.RQ_OPT_MODEL_ID
+                        "LKInventoryOpt",
+                        "RQInventoryOpt"
                     )
                 ),
                 "Bundle must expose both LKInventoryOpt and RQInventoryOpt; got " +
@@ -75,7 +75,7 @@ class SimoptTestModelsBundleTest {
         val bundles = loadBundle(dir)
         try {
             val match = bundles.first { it.bundle.bundleId == "ksl.examples.simopt-test-models" }
-            val descriptor = match.descriptorFor(SimoptTestModelsBundle.LK_OPT_MODEL_ID)
+            val descriptor = match.descriptorFor("LKInventoryOpt")
             val controlKeys = descriptor.controls.numericControls.map { it.keyName }.toSet()
             val expected = listOf(
                 "orderQuantity",
@@ -105,7 +105,7 @@ class SimoptTestModelsBundleTest {
         val bundles = loadBundle(dir)
         try {
             val match = bundles.first { it.bundle.bundleId == "ksl.examples.simopt-test-models" }
-            val descriptor = match.descriptorFor(SimoptTestModelsBundle.RQ_OPT_MODEL_ID)
+            val descriptor = match.descriptorFor("RQInventoryOpt")
             val controlKeys = descriptor.controls.numericControls.map { it.keyName }.toSet()
             // The RQ controls live on the RQInventory child element named "Inventory:Item"
             // (see RQInventorySystem.kt:62).  The Controls framework prefixes the child

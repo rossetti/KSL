@@ -29,8 +29,8 @@ import ksl.simulation.ModelBuilderIfc
  * `curateCatalog`. Default `modelId` (class name minus the `ModelBuilder` suffix) is
  * `MM1`.
  *
- * This is the build that [MM1Bundle] delegates to, and that `kslpkg assemble` / the
- * Bundle Workbench discover when assembling a manifest bundle from a builders JAR.
+ * This is the build that `kslpkg assemble` / the Bundle Workbench discover when
+ * assembling a manifest bundle from a builders JAR.
  */
 class MM1ModelBuilder : ModelBuilderIfc {
     override fun build(

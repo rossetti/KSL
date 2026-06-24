@@ -29,7 +29,7 @@ import ksl.simulation.ModelBuilderIfc
  * cycle), nominating the (s,S) policy knobs and headline cost outputs via
  * `curateCatalog`. Default `modelId` is `LKInventory`.
  *
- * This is the build that [LKInventoryBundle] delegates to.
+ * Packaged into a manifest bundle by `kslpkg assemble` / the Bundle Workbench.
  */
 class LKInventoryModelBuilder : ModelBuilderIfc {
     override fun build(

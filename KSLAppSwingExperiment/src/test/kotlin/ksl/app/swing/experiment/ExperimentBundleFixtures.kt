@@ -12,8 +12,8 @@ import java.nio.file.Path
  * library (the same way an app loads bundles) instead of relying on classpath
  * ServiceLoader discovery.
  *
- * The `*_BUNDLE_ID` / `*_MODEL_ID` constants match the originals (`MM1Bundle`,
- * `LKInventoryBundle`) so existing `(bundleId, modelId)` references resolve unchanged.
+ * The `*_BUNDLE_ID` / `*_MODEL_ID` constants are the canonical ids of the assembled
+ * MM1 / LK fixtures, so `(bundleId, modelId)` references resolve unchanged.
  * Assemble the JAR once per test, then build a fresh [library] per controller —
  * `ExperimentAppController.close()` closes the library it was given, so each controller
  * needs its own.

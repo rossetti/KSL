@@ -29,9 +29,8 @@ import ksl.simulation.ModelBuilderIfc
  * nominates the optimization-relevant inputs/outputs by key. Default `modelId` is
  * `LKInventoryOpt`.
  *
- * This is one of the two builds that [SimoptTestModelsBundle] delegates to. Its run
- * parameters (longer horizon, more replications) come from `BuildLKModel` and
- * intentionally differ from [LKInventoryModelBuilder]'s quicker preset.
+ * Its run parameters (longer horizon, more replications) come from `BuildLKModel`
+ * and intentionally differ from [LKInventoryModelBuilder]'s quicker preset.
  */
 class LKInventoryOptModelBuilder : ModelBuilderIfc {
     override fun build(

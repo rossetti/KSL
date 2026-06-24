@@ -29,7 +29,7 @@ import ksl.simulation.ModelBuilderIfc
  * `Inventory:Item`, so the catalog keys carry that prefix. Default `modelId` is
  * `RQInventoryOpt`.
  *
- * This is one of the two builds that [SimoptTestModelsBundle] delegates to.
+ * One of the two SimOpt inventory fixtures, alongside [LKInventoryOptModelBuilder].
  */
 class RQInventoryOptModelBuilder : ModelBuilderIfc {
     override fun build(

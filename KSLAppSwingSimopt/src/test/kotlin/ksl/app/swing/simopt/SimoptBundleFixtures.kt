@@ -14,9 +14,8 @@ import java.nio.file.Path
  * (the same way an app loads bundles) instead of relying on classpath ServiceLoader
  * discovery.
  *
- * The `*_BUNDLE_ID` / `*_MODEL_ID` constants match the originals (`MM1Bundle`,
- * `LKInventoryBundle`, `SimoptTestModelsBundle`) so existing `(bundleId, modelId)`
- * references resolve unchanged.  Assemble the JARs once per test, then build a fresh
+ * The `*_BUNDLE_ID` / `*_MODEL_ID` constants are the canonical ids of the assembled
+ * MM1 / LK / SimOpt fixtures, so `(bundleId, modelId)` references resolve unchanged.  Assemble the JARs once per test, then build a fresh
  * [library] per controller — `SimoptAppController.close()` closes the library it was
  * given, so each controller needs its own.
  */
