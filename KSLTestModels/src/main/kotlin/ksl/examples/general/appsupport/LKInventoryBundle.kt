@@ -21,9 +21,6 @@ package ksl.examples.general.appsupport
 import ksl.app.bundle.KSLAppKind
 import ksl.app.bundle.KSLBundledModel
 import ksl.app.bundle.KSLModelBundle
-import ksl.examples.general.models.LKInventoryModel
-import ksl.simulation.ExperimentRunParametersIfc
-import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
 /**
@@ -77,28 +74,8 @@ class LKInventoryBundle : KSLModelBundle {
             KSLAppKind.SIMOPT
         )
 
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                val model = Model(modelId, autoCSVReports = false)
-                val inv = LKInventoryModel(model, "Inventory")
-                model.numberOfReplications = 10
-                model.lengthOfReplication = 120.0
-                model.lengthOfReplicationWarmUp = 20.0
-                // Author-nominated catalog of the (s,S) policy knobs and headline
-                // cost outputs, declared on the unedited LKInventoryModel.
-                model.curateCatalog {
-                    input(inv, LKInventoryModel::reorderPoint) { displayName = "Reorder Point (s)"; unit = "units" }
-                    input(inv, LKInventoryModel::orderQuantity) { displayName = "Order Quantity"; unit = "units" }
-                    input(inv, LKInventoryModel::initialInventoryLevel) { displayName = "Initial Inventory"; unit = "units" }
-                    output(inv.avgTotalCost) { displayName = "Avg Total Cost"; unit = "\$/period" }
-                    output(inv.posInventoryLevel) { displayName = "Avg On-Hand Inventory"; unit = "units" }
-                    output(inv.negInventoryLevel) { displayName = "Avg Backorders"; unit = "units" }
-                }
-                return model
-            }
-        }
+        // The build logic lives in the named, discoverable LKInventoryModelBuilder so
+        // the same model can be packaged as a manifest bundle.
+        override fun builder(): ModelBuilderIfc = LKInventoryModelBuilder()
     }
 }

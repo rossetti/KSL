@@ -21,10 +21,6 @@ package ksl.examples.general.appsupport
 import ksl.app.bundle.KSLAppKind
 import ksl.app.bundle.KSLBundledModel
 import ksl.app.bundle.KSLModelBundle
-import ksl.examples.general.simopt.BuildLKModel
-import ksl.examples.general.simopt.BuildRQModel
-import ksl.simulation.ExperimentRunParametersIfc
-import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
 /**
@@ -106,23 +102,8 @@ class SimoptTestModelsBundle : KSLModelBundle {
 
         override val supportedApps: Set<KSLAppKind> = setOf(KSLAppKind.SIMOPT)
 
-        // Wrap the shared BuildLKModel so the build logic stays in one place while
-        // the bundle nominates the optimization-relevant inputs/outputs by key.
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                val model = BuildLKModel.build(modelConfiguration, experimentRunParameters)
-                model.curateCatalog {
-                    input("Inventory.reorderPoint") { displayName = "Reorder Point (s)"; unit = "units" }
-                    input("Inventory.orderQuantity") { displayName = "Order Quantity"; unit = "units" }
-                    output("TotalCost") { displayName = "Avg Total Cost"; unit = "\$/period" }
-                    output("OnHandLevel") { displayName = "Avg On-Hand Inventory"; unit = "units" }
-                }
-                return model
-            }
-        }
+        // Build logic lives in the named, discoverable LKInventoryOptModelBuilder.
+        override fun builder(): ModelBuilderIfc = LKInventoryOptModelBuilder()
     }
 
     private object RQOptModel : KSLBundledModel {
@@ -140,22 +121,7 @@ class SimoptTestModelsBundle : KSLModelBundle {
 
         override val supportedApps: Set<KSLAppKind> = setOf(KSLAppKind.SIMOPT)
 
-        // Wrap the shared BuildRQModel; the (R,Q) controls/responses live on the
-        // child element "Inventory:Item", so the keys carry that prefix.
-        override fun builder(): ModelBuilderIfc = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ExperimentRunParametersIfc?
-            ): Model {
-                val model = BuildRQModel.build(modelConfiguration, experimentRunParameters)
-                model.curateCatalog {
-                    input("Inventory:Item.initialReorderPoint") { displayName = "Reorder Point (R)"; unit = "units" }
-                    input("Inventory:Item.initialReorderQty") { displayName = "Order Quantity (Q)"; unit = "units" }
-                    output("Inventory:Item:TotalCost") { displayName = "Avg Total Cost"; unit = "\$/period" }
-                    output("Inventory:Item:OrderingFrequency") { displayName = "Ordering Frequency" }
-                }
-                return model
-            }
-        }
+        // Build logic lives in the named, discoverable RQInventoryOptModelBuilder.
+        override fun builder(): ModelBuilderIfc = RQInventoryOptModelBuilder()
     }
 }
