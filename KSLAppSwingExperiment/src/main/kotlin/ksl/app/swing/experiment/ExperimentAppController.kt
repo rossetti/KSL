@@ -105,7 +105,8 @@ import java.time.format.DateTimeFormatter
  *  mirroring Scenario's Clear-All semantics.
  */
 class ExperimentAppController(
-    val appName: String
+    val appName: String,
+    injectedBundleLibrary: BundleLibraryController? = null,
 ) : AutoCloseable {
 
     companion object {
@@ -244,7 +245,7 @@ class ExperimentAppController(
      *  previously-unresolvable [ModelReference.ByBundleAndModelId]
      *  re-resolves the moment its bundle arrives.
      */
-    private val bundleLibrary = BundleLibraryController(
+    private val bundleLibrary: BundleLibraryController = injectedBundleLibrary ?: BundleLibraryController(
         onBundlesChanged = ::refreshModelDescriptor
     )
 
@@ -273,11 +274,13 @@ class ExperimentAppController(
     val currentModelDescriptor: StateFlow<ModelDescriptor?> = myCurrentModelDescriptor.asStateFlow()
 
     init {
-        // Classpath (none in a released app — KSLExamples is test-only —
-        // but present for tests) plus the user's ~/.ksl/bundles/.  Mirrors
-        // the Scenario controller.
-        bundleLibrary.discoverFromClasspath()
-        bundleLibrary.discoverFromUserBundlesDir()
+        // The default (production) library auto-discovers bundles; an injected
+        // library (tests) is used exactly as supplied.  Mirrors the Scenario /
+        // Single controllers.
+        if (injectedBundleLibrary == null) {
+            bundleLibrary.discoverFromClasspath()
+            bundleLibrary.discoverFromUserBundlesDir()
+        }
     }
 
     /**

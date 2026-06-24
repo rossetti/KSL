@@ -79,7 +79,8 @@ import java.nio.file.Path
  *   subdirectory under `<KSLWork>/<appNameSanitized>/`.
  */
 class ScenarioAppController(
-    val appName: String
+    val appName: String,
+    injectedBundleLibrary: BundleLibraryController? = null,
 ) : AutoCloseable {
 
     /** Scope for EDT-confined coroutine work. */
@@ -192,7 +193,7 @@ class ScenarioAppController(
      *  changes (the model picker queries [loadedBundles] lazily),
      *  so [onBundlesChanged] is left as the default no-op.
      */
-    private val bundleLibrary = BundleLibraryController()
+    private val bundleLibrary: BundleLibraryController = injectedBundleLibrary ?: BundleLibraryController()
 
     /** All bundles currently loaded into this controller (classpath + any
      *  JARs the user has loaded interactively).  Append-only in v1 — no
@@ -208,13 +209,15 @@ class ScenarioAppController(
     val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     init {
-        // Discover available bundles two ways: any already on the JVM
-        // classpath (none in a released app — KSLExamples is test-only —
-        // but present for tests), plus whatever the user installed into
-        // ~/.ksl/bundles/.  JAR-loaded bundles join the list later via
-        // [loadBundleJar].
-        bundleLibrary.discoverFromClasspath()
-        bundleLibrary.discoverFromUserBundlesDir()
+        // The default (production) library auto-discovers available bundles: any
+        // already on the JVM classpath (none in a released app — KSLExamples is
+        // test-only), plus whatever the user installed into ~/.ksl/bundles/.  An
+        // injected library (tests) is used exactly as supplied.  JAR-loaded bundles
+        // join the list later via loadBundleJar.
+        if (injectedBundleLibrary == null) {
+            bundleLibrary.discoverFromClasspath()
+            bundleLibrary.discoverFromUserBundlesDir()
+        }
     }
 
     /**

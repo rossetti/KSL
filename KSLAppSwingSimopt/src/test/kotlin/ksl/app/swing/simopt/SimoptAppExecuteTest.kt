@@ -25,7 +25,8 @@ import ksl.app.config.ModelReference
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.AlgorithmKind
 import ksl.controls.ControlType
-import ksl.examples.general.appsupport.SimoptTestModelsBundle
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -39,8 +40,8 @@ import kotlin.test.assertTrue
  *  Pins the real run lifecycle ([SimoptAppController.submit] /
  *  [SimoptAppController.cancel]) and the hoisted validation flows.
  *
- *  Uses the classpath-discovered LK (s,S) inventory model from
- *  [SimoptTestModelsBundle] — one decision variable (`reorderPoint`,
+ *  Uses the assembled LK (s,S) inventory optimization model
+ *  (`LKInventoryOpt`) — one decision variable (`reorderPoint`,
  *  integer) with stochastic hill climbing at 2 iterations × 1
  *  replication per evaluation.  Even though `BuildLKModel` defaults
  *  to 1000 replications × 120 horizon, the solver's
@@ -51,8 +52,19 @@ import kotlin.test.assertTrue
  */
 class SimoptAppExecuteTest {
 
-    private val lkBundleId = SimoptTestModelsBundle().bundleId
-    private val lkModelId = SimoptTestModelsBundle.LK_OPT_MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** SimOpt test-models bundle JAR (LKInventoryOpt + RQInventoryOpt), assembled once per test. */
+    private val simoptJar: Path by lazy { SimoptBundleFixtures.simoptJar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the SimOpt bundle.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(simoptJar))
+
+    private val lkBundleId = SimoptBundleFixtures.SIMOPT_BUNDLE_ID
+    private val lkModelId = SimoptBundleFixtures.LK_OPT_MODEL_ID
     private fun lkRef() = ModelReference.ByBundleAndModelId(lkBundleId, lkModelId)
 
     /** Seed a tiny runnable optimization: LK inventory with the
@@ -97,7 +109,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `submit on an empty document is a no-op`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.submit()
             assertFalse(c.runningFlow.value, "submit must not start a run when no model is set")
             assertNull(c.lastResult.value)
@@ -108,7 +120,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `documentValidation on an empty document carries MISSING_MODEL`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val result = c.documentValidation.value
             assertFalse(result.isValid)
             assertTrue(
@@ -120,7 +132,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `documentValidation is valid on a seeded runnable problem`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             val result = c.documentValidation.value
             assertTrue(
@@ -135,7 +147,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `runModelAwareValidationNow populates the cache and clears the stale flag`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             // Pre-condition: cache is null + stale until the user
             // explicitly re-checks.
@@ -152,7 +164,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `document edit re-asserts the stale flag`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.runModelAwareValidationNow()
             assertFalse(c.modelAwareStale.value)
@@ -167,7 +179,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `submit completes and populates lastResult`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.submit()
             assertTrue(c.runningFlow.value, "running must flip true synchronously inside submit()")
@@ -185,7 +197,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `cancel resolves to non-running with null lastResult`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.submit()
             // Request cooperative cancellation; the solver exits at
@@ -201,7 +213,7 @@ class SimoptAppExecuteTest {
 
     @Test
     fun `latestIteration starts null and is cleared on a fresh submit`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertNull(c.latestIteration.value, "Fresh controller has no live iteration")
             seedRunnableProblem(c)
             c.submit()

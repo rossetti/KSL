@@ -32,7 +32,6 @@ import ksl.app.optimization.results.LatestBestSnapshot
 import ksl.app.optimization.results.ResultsStatus
 import ksl.app.optimization.results.RunSummaryWriter
 import ksl.controls.ControlType
-import ksl.examples.general.appsupport.SimoptTestModelsBundle
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -67,8 +66,19 @@ import kotlin.test.assertTrue
  */
 class SimoptAppResultsTest {
 
-    private val lkBundleId = SimoptTestModelsBundle().bundleId
-    private val lkModelId = SimoptTestModelsBundle.LK_OPT_MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** SimOpt test-models bundle JAR (LKInventoryOpt + RQInventoryOpt), assembled once per test. */
+    private val simoptJar: Path by lazy { SimoptBundleFixtures.simoptJar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the SimOpt bundle.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(simoptJar))
+
+    private val lkBundleId = SimoptBundleFixtures.SIMOPT_BUNDLE_ID
+    private val lkModelId = SimoptBundleFixtures.LK_OPT_MODEL_ID
     private fun lkRef() = ModelReference.ByBundleAndModelId(lkBundleId, lkModelId)
 
     /** Seed a tiny runnable optimization — same shape as the Execute
@@ -117,7 +127,7 @@ class SimoptAppResultsTest {
             GraphicsEnvironment.isHeadless(),
             "Headless JVM - HTML report embeds a lets-plot figure that needs a display"
         )
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             // Override the run output to a temp dir so the test
             // doesn't pollute the developer workspace.
@@ -146,7 +156,7 @@ class SimoptAppResultsTest {
 
     @Test
     fun `summary toml carries solverConfiguration block populated from the live solver`(@TempDir tempDir: Path) {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             val target = tempDir.resolve("config-toml")
             c.setRunOutputDir(target)
@@ -169,7 +179,7 @@ class SimoptAppResultsTest {
             GraphicsEnvironment.isHeadless(),
             "Headless JVM - HTML report embeds a lets-plot figure that needs a display"
         )
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             val target = tempDir.resolve("config-html")
             c.setRunOutputDir(target)
@@ -189,7 +199,7 @@ class SimoptAppResultsTest {
 
     @Test
     fun `solver and problem names auto-derive when the user leaves the fields blank`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             // The seed never calls setCommonSolverName / setProblemName,
             // so both flows stay null.  The spec recomputation must
@@ -211,7 +221,7 @@ class SimoptAppResultsTest {
 
     @Test
     fun `explicit solver name overrides the algorithm-derived default`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.setCommonSolverName("shc-baseline")
             assertEquals("shc-baseline", c.solverSpec.value?.name)
@@ -220,7 +230,7 @@ class SimoptAppResultsTest {
 
     @Test
     fun `explicit problem name overrides the model-derived default`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.setProblemName("Custom problem label")
             assertEquals("Custom problem label", c.problemSpec.value?.problemName)
@@ -229,7 +239,7 @@ class SimoptAppResultsTest {
 
     @Test
     fun `summary toml shows the derived solver and problem names not ID_ counters`(@TempDir tempDir: Path) {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             val target = tempDir.resolve("names-toml")
             c.setRunOutputDir(target)
@@ -258,7 +268,7 @@ class SimoptAppResultsTest {
 
     @Test
     fun `summary toml carries a runDirectory matching the run output folder leaf`(@TempDir tempDir: Path) {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             val target = tempDir.resolve("rundir-test")
             c.setRunOutputDir(target)

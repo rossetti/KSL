@@ -100,7 +100,8 @@ import kotlin.time.Duration.Companion.minutes
  *           frame title and in the workspace subdirectory layout
  */
 class SimoptAppController(
-    val appName: String
+    val appName: String,
+    injectedBundleLibrary: BundleLibraryController? = null,
 ) : AutoCloseable {
 
     /** Scope for EDT-confined coroutine work — collectors driving
@@ -351,7 +352,7 @@ class SimoptAppController(
      *  previously-unresolvable [ModelReference.ByBundleAndModelId]
      *  re-resolves the moment its bundle arrives.
      */
-    private val bundleLibrary = BundleLibraryController(
+    private val bundleLibrary: BundleLibraryController = injectedBundleLibrary ?: BundleLibraryController(
         onBundlesChanged = ::refreshModelDescriptor
     )
 
@@ -576,11 +577,13 @@ class SimoptAppController(
     )
 
     init {
-        // Classpath (none in a released app — KSLExamples is test-only —
-        // but present for tests) plus the user's ~/.ksl/bundles/.  Mirrors
-        // the Experiment / Scenario controllers.
-        bundleLibrary.discoverFromClasspath()
-        bundleLibrary.discoverFromUserBundlesDir()
+        // The default (production) library auto-discovers bundles; an injected
+        // library (tests) is used exactly as supplied.  Mirrors the Experiment /
+        // Scenario / Single controllers.
+        if (injectedBundleLibrary == null) {
+            bundleLibrary.discoverFromClasspath()
+            bundleLibrary.discoverFromUserBundlesDir()
+        }
         // Seed validation so the Execute step sees a populated flow
         // even before the first user edit.
         refreshDocumentValidation()

@@ -23,7 +23,6 @@ import ksl.app.config.optimization.EvaluationSpec
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.config.optimization.SolverTrackingSpec
-import ksl.examples.general.appsupport.MM1Bundle
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -44,8 +43,19 @@ import kotlin.test.assertTrue
  */
 class SimoptAppRunSetupTest {
 
-    private val mm1BundleId = MM1Bundle().bundleId
-    private val mm1ModelId = MM1Bundle.MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** MM1 model bundle JAR, assembled once per test. */
+    private val mm1Jar: Path by lazy { SimoptBundleFixtures.mm1Jar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the MM1 bundle.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(mm1Jar))
+
+    private val mm1BundleId = SimoptBundleFixtures.MM1_BUNDLE_ID
+    private val mm1ModelId = SimoptBundleFixtures.MM1_MODEL_ID
     private fun mm1Ref() = ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId)
 
     private fun seedRunnableProblem(c: SimoptAppController) {
@@ -61,7 +71,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setEvaluationSpec marks dirty`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.markSaved(Path.of("/tmp/dummy"))
             assertFalse(c.isDirty.value)
@@ -72,7 +82,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setEvaluationSpec does not invalidate the previous run's results`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             // editedSinceLastRun is true after the structural seed.
             // We pin that evaluation-spec edits do NOT *additionally*
@@ -89,7 +99,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setEvaluationSpec is a no-op when value equals current`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val before = c.evaluationSpec.value
             c.setEvaluationSpec(before)
             assertEquals(before, c.evaluationSpec.value)
@@ -99,7 +109,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setEvaluationSpec persists nullable overrides`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setEvaluationSpec(EvaluationSpec(
                 maxFeasibleSamplingIterations = 25,
                 solutionPrecision = 0.0001
@@ -111,7 +121,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setEvaluationSpec persists parallel evaluation settings`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setEvaluationSpec(EvaluationSpec(
                 parallelEvaluation = true,
                 numEvaluationWorkers = 4
@@ -123,7 +133,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `a new document defaults to parallel evaluation`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertTrue(
                 c.evaluationSpec.value.parallelEvaluation,
                 "the Run Step tab should default to parallel evaluation for a new document"
@@ -135,7 +145,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setTrackingSpec marks dirty`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             c.markSaved(Path.of("/tmp/dummy"))
             assertFalse(c.isDirty.value)
@@ -146,7 +156,7 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `setTrackingSpec does not flip editedSinceLastRun`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedRunnableProblem(c)
             val before = c.editedSinceLastRun.value
             c.setTrackingSpec(c.trackingSpec.value.copy(enableConsoleTrace = true))
@@ -181,7 +191,7 @@ class SimoptAppRunSetupTest {
     @Test
     fun `loadConfiguration restores evaluation and tracking settings`(@TempDir tempDir: Path) {
         val target = tempDir.resolve("opt.toml")
-        SimoptAppController("Test").use { writer ->
+        controller().use { writer ->
             seedRunnableProblem(writer)
             writer.setEvaluationSpec(EvaluationSpec(
                 useSolutionCache = false,
@@ -201,7 +211,7 @@ class SimoptAppRunSetupTest {
             ))
             writer.saveConfiguration(target)
         }
-        SimoptAppController("Test").use { reader ->
+        controller().use { reader ->
             val result = reader.loadConfiguration(target)
             assertTrue(result is SimoptAppController.LoadResult.Success)
             assertEquals(3, reader.evaluationSpec.value.snapshotFrequency)

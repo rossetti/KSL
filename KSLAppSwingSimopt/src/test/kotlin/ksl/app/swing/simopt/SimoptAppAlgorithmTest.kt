@@ -28,7 +28,6 @@ import ksl.app.config.optimization.RandomRestartSpec
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.TemperatureSpec
 import ksl.app.swing.simopt.stepper.Step
-import ksl.examples.general.appsupport.MM1Bundle
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -46,8 +45,19 @@ import kotlin.test.assertTrue
  */
 class SimoptAppAlgorithmTest {
 
-    private val mm1BundleId = MM1Bundle().bundleId
-    private val mm1ModelId = MM1Bundle.MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** MM1 model bundle JAR, assembled once per test. */
+    private val mm1Jar: Path by lazy { SimoptBundleFixtures.mm1Jar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the MM1 bundle.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(mm1Jar))
+
+    private val mm1BundleId = SimoptBundleFixtures.MM1_BUNDLE_ID
+    private val mm1ModelId = SimoptBundleFixtures.MM1_MODEL_ID
     private fun mm1Ref() = ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId)
 
     private fun seedMinimumProblem(c: SimoptAppController) {
@@ -62,7 +72,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `default state has null algorithmKind and null solverSpec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertNull(c.algorithmKind.value)
             assertNull(c.solverSpec.value)
         }
@@ -70,7 +80,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `defaults pre-populate every algorithm-specific flow`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             // Common
             assertEquals(100, c.commonMaxIterations.value)
             assertEquals(0, c.commonStreamNum.value)
@@ -97,7 +107,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setAlgorithmKind(SHC) publishes a StochasticHillClimbing spec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.STOCHASTIC_HILL_CLIMBING)
             val spec = c.solverSpec.value
             assertTrue(spec is SolverSpec.StochasticHillClimbing,
@@ -109,7 +119,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setAlgorithmKind(SA) publishes a SimulatedAnnealing spec with defaulted nested editors`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.SIMULATED_ANNEALING)
             val spec = c.solverSpec.value
             assertTrue(spec is SolverSpec.SimulatedAnnealing)
@@ -120,7 +130,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setAlgorithmKind(CE) publishes a CrossEntropy spec with elitePct and ceSampleSize set`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.CROSS_ENTROPY)
             val spec = c.solverSpec.value
             assertTrue(spec is SolverSpec.CrossEntropy)
@@ -132,7 +142,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setAlgorithmKind(RSpline) publishes an RSpline spec with growth-schedule defaults`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.R_SPLINE)
             val spec = c.solverSpec.value
             assertTrue(spec is SolverSpec.RSpline)
@@ -144,7 +154,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setAlgorithmKind(null) clears solverSpec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.STOCHASTIC_HILL_CLIMBING)
             assertNotNull(c.solverSpec.value)
             c.setAlgorithmKind(null)
@@ -156,7 +166,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `switching algorithm kind preserves common parameters`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.STOCHASTIC_HILL_CLIMBING)
             c.setCommonMaxIterations(250)
             c.setCommonStreamNum(7)
@@ -174,7 +184,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `switching to SA and back preserves SA-specific parameters`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.SIMULATED_ANNEALING)
             c.setSaTemperature(TemperatureSpec.Fixed(50.0))
             c.setSaCoolingSchedule(CoolingScheduleSpec.Linear(50.0, 0.5, 200))
@@ -194,7 +204,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `random restart preserves across algorithm switches`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setAlgorithmKind(AlgorithmKind.STOCHASTIC_HILL_CLIMBING)
             c.setRandomRestart(RandomRestartSpec(maxNumRestarts = 5))
             assertEquals(5, (c.solverSpec.value as SolverSpec.StochasticHillClimbing).randomRestart?.maxNumRestarts)
@@ -211,7 +221,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setCommonMaxIterations rejects non-positive values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertThrows<IllegalArgumentException> { c.setCommonMaxIterations(0) }
             assertThrows<IllegalArgumentException> { c.setCommonMaxIterations(-5) }
         }
@@ -219,7 +229,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setCeElitePct rejects values outside (0,1)`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertThrows<IllegalArgumentException> { c.setCeElitePct(0.0) }
             assertThrows<IllegalArgumentException> { c.setCeElitePct(1.0) }
             assertThrows<IllegalArgumentException> { c.setCeElitePct(-0.1) }
@@ -228,7 +238,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setSaStoppingTemperature rejects non-positive or non-finite values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertThrows<IllegalArgumentException> { c.setSaStoppingTemperature(0.0) }
             assertThrows<IllegalArgumentException> { c.setSaStoppingTemperature(-1.0) }
             assertThrows<IllegalArgumentException> { c.setSaStoppingTemperature(Double.NaN) }
@@ -239,7 +249,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setSolverSpec(SHC) fans out into common flows`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val spec = SolverSpec.StochasticHillClimbing(
                 maxIterations = 7,
                 replicationsPerEvaluation = 4,
@@ -258,7 +268,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setSolverSpec(SA) fans out into SA-specific flows`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val spec = SolverSpec.SimulatedAnnealing(
                 maxIterations = 100,
                 replicationsPerEvaluation = 5,
@@ -284,7 +294,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setSolverSpec(CE) fans out and preserves elitePct override`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val spec = SolverSpec.CrossEntropy(
                 maxIterations = 200,
                 replicationsPerEvaluation = 30,
@@ -303,7 +313,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setSolverSpec(RSpline) fans out into RSpline-specific flows`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val spec = SolverSpec.RSpline(
                 maxIterations = 50,
                 // See companion comment in the SA fan-out test.
@@ -323,7 +333,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setSolverSpec(null) resets every piece to defaults`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setSolverSpec(SolverSpec.RSpline(
                 maxIterations = 50, initialNumReps = 5,
                 sampleSizeGrowthRate = 2.0, maxNumReplications = 50
@@ -341,7 +351,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `Algorithm step completion gates on non-null solverSpec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMinimumProblem(c)
             assertFalse(c.canAdvanceTo(Step.RUN_SETUP),
                 "Locked until algorithm is committed")
@@ -354,7 +364,7 @@ class SimoptAppAlgorithmTest {
 
     @Test
     fun `setAlgorithmKind marks dirty and drops lastResult`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMinimumProblem(c)
             c.markSaved(Path.of("/tmp/dummy"))
             assertFalse(c.isDirty.value)
@@ -416,12 +426,12 @@ class SimoptAppAlgorithmTest {
 
     private fun roundTripSpec(tempDir: Path, spec: SolverSpec) {
         val target = tempDir.resolve("opt.toml")
-        SimoptAppController("Test").use { writer ->
+        controller().use { writer ->
             seedMinimumProblem(writer)
             writer.setSolverSpec(spec)
             writer.saveConfiguration(target)
         }
-        SimoptAppController("Test").use { reader ->
+        controller().use { reader ->
             val result = reader.loadConfiguration(target)
             assertTrue(result is SimoptAppController.LoadResult.Success)
             val decoded = OptimizationRunConfigurationToml.decode(target.toFile().readText())

@@ -23,8 +23,6 @@ import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.editor.BundleLibraryController
-import ksl.examples.general.appsupport.LKInventoryBundle
-import ksl.examples.general.appsupport.MM1Bundle
 import ksl.app.swing.simopt.stepper.Step
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -38,33 +36,45 @@ import kotlin.test.assertTrue
 
 /**
  *  Controller-level tests for the Phase O3 mutators and bundle /
- *  descriptor wiring.  Pure JVM tests — no Swing constructed.  Run
- *  on the test classpath which includes KSLExamples, so the
- *  classpath auto-discovery picks up the [MM1Bundle] +
- *  [LKInventoryBundle] entries.
+ *  descriptor wiring.  Pure JVM tests — no Swing constructed.  The
+ *  MM1 + LK models are assembled into manifest bundle JARs and
+ *  injected via `SimoptBundleFixtures` (see the `controller()`
+ *  factory), not discovered from the classpath.
  */
 class SimoptAppControllerTest {
 
-    private val mm1BundleId = MM1Bundle().bundleId
-    private val mm1ModelId = MM1Bundle.MODEL_ID
-    private val lkBundleId = LKInventoryBundle().bundleId
-    private val lkModelId = LKInventoryBundle.MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** MM1 + LK model bundle JARs, assembled once per test. */
+    private val mm1Jar: Path by lazy { SimoptBundleFixtures.mm1Jar(bundleDir) }
+    private val lkJar: Path by lazy { SimoptBundleFixtures.lkJar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the MM1 + LK bundles.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(mm1Jar, lkJar))
+
+    private val mm1BundleId = SimoptBundleFixtures.MM1_BUNDLE_ID
+    private val mm1ModelId = SimoptBundleFixtures.MM1_MODEL_ID
+    private val lkBundleId = SimoptBundleFixtures.LK_BUNDLE_ID
+    private val lkModelId = SimoptBundleFixtures.LK_MODEL_ID
 
     private fun mm1Ref() = ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId)
     private fun lkRef() = ModelReference.ByBundleAndModelId(lkBundleId, lkModelId)
 
     @Test
-    fun `controller auto-discovers classpath bundles on construction`() {
-        SimoptAppController("Test").use { c ->
+    fun `injected library bundles are exposed via loadedBundles`() {
+        controller().use { c ->
             val bundles = c.loadedBundles.value
             assertTrue(
                 bundles.any { it.bundle.bundleId == mm1BundleId },
-                "Expected the MM1 classpath bundle to be auto-discovered; got " +
+                "Expected the MM1 bundle to be loaded; got " +
                     "${bundles.map { it.bundle.bundleId }}"
             )
             assertTrue(
                 bundles.any { it.bundle.bundleId == lkBundleId },
-                "Expected the LK classpath bundle to be auto-discovered; got " +
+                "Expected the LK bundle to be loaded; got " +
                     "${bundles.map { it.bundle.bundleId }}"
             )
             assertNotNull(c.bundleProvider.value, "bundleProvider must be non-null when bundles are loaded")
@@ -73,7 +83,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setModelReference builds a ModelRunTemplate with descriptor defaults`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             val template = c.modelTemplate.value
             assertNotNull(template)
@@ -94,7 +104,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setModelReference publishes the descriptor`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertNull(c.currentModelDescriptor.value)
             c.setModelReference(mm1Ref())
             assertNotNull(c.currentModelDescriptor.value)
@@ -103,7 +113,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setModelReference to an unloaded bundle leaves descriptor null`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(
                 ModelReference.ByBundleAndModelId("ksl.examples.nonexistent", "X")
             )
@@ -114,7 +124,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setModelReferenceAndClear drops problemSpec and solverSpec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             c.setProblemSpec(
                 OptimizationProblemSpec(
@@ -143,7 +153,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setLengthOfReplication updates modelTemplate run parameters`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             c.setLengthOfReplication(500.0)
             assertEquals(500.0, c.modelTemplate.value?.runParameters?.lengthOfReplication)
@@ -152,7 +162,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setLengthOfReplication is a no-op when no model is set`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertNull(c.modelTemplate.value)
             c.setLengthOfReplication(123.0)
             assertNull(c.modelTemplate.value, "No model → no template → no-op")
@@ -161,7 +171,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setLengthOfReplication rejects non-positive values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             assertThrows<IllegalArgumentException> { c.setLengthOfReplication(0.0) }
             assertThrows<IllegalArgumentException> { c.setLengthOfReplication(-1.0) }
@@ -170,7 +180,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setLengthOfReplicationWarmUp accepts zero and rejects negatives`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             c.setLengthOfReplicationWarmUp(0.0)  // zero is valid
             assertEquals(0.0, c.modelTemplate.value?.runParameters?.lengthOfReplicationWarmUp)
@@ -180,7 +190,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setNumberOfReplications updates the baseline replication count`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             c.setNumberOfReplications(42)
             assertEquals(42, c.modelTemplate.value?.runParameters?.numberOfReplications)
@@ -189,7 +199,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setNumberOfReplications rejects non-positive values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             assertThrows<IllegalArgumentException> { c.setNumberOfReplications(0) }
             assertThrows<IllegalArgumentException> { c.setNumberOfReplications(-3) }
@@ -198,7 +208,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setModelReference marks the document dirty`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertFalse(c.isDirty.value, "Fresh document is clean")
             c.setModelReference(mm1Ref())
             assertTrue(c.isDirty.value)
@@ -208,7 +218,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `setting a model unlocks the Problem step`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertFalse(c.canAdvanceTo(Step.PROBLEM))
             c.setModelReference(mm1Ref())
             assertTrue(c.canAdvanceTo(Step.PROBLEM))
@@ -217,7 +227,7 @@ class SimoptAppControllerTest {
 
     @Test
     fun `loadBundleJar with a non-existent path returns Failed`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val result = c.loadBundleJar(Path.of("/does/not/exist.jar"))
             assertTrue(
                 result is BundleLibraryController.LoadBundleResult.Failed,
@@ -227,22 +237,19 @@ class SimoptAppControllerTest {
     }
 
     @Test
-    fun `loadBundleJar accepts the same classpath bundles silently as duplicates`() {
-        // The classpath bundles are auto-discovered at construction time;
-        // a hypothetical re-load of those same bundle ids should be treated
-        // as duplicates and produce NoBundles.  We can't easily produce a
-        // JAR fixture here, but we can verify the duplicate-detection
-        // contract via the public LoadBundleResult enum's shape.
-        SimoptAppController("Test").use { c ->
-            // No-op exercise: just confirm the enum has all three variants
-            // by exhaustive-when compilation.
-            val variants: List<BundleLibraryController.LoadBundleResult> = listOf(
-                BundleLibraryController.LoadBundleResult.Loaded(listOf("a")),
-                BundleLibraryController.LoadBundleResult.NoBundles,
-                BundleLibraryController.LoadBundleResult.Failed("x")
+    fun `loadBundleJar of an already-loaded bundle is a silent duplicate`() {
+        // The injected library already holds the MM1 bundle; re-loading the
+        // same JAR must be reported as a duplicate (AlreadyLoaded / NoBundles)
+        // and must not grow the loaded set.
+        controller().use { c ->
+            val before = c.loadedBundles.value.size
+            val result = c.loadBundleJar(mm1Jar)
+            assertTrue(
+                result is BundleLibraryController.LoadBundleResult.AlreadyLoaded ||
+                    result is BundleLibraryController.LoadBundleResult.NoBundles,
+                "Re-loading an already-loaded bundle must be a silent duplicate; got $result"
             )
-            assertEquals(3, variants.size)
-            assertNotNull(c)
+            assertEquals(before, c.loadedBundles.value.size, "Duplicate load must not grow the loaded set")
         }
     }
 
@@ -251,7 +258,7 @@ class SimoptAppControllerTest {
         // Phase O4.1: partial-save support.  As soon as a model is
         // selected the controller can snapshot a draft document with
         // null problem / solver.
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertNull(c.currentConfiguration(),
                 "Fresh document has no model — snapshot should be null")
             c.setModelReference(mm1Ref())
@@ -266,7 +273,7 @@ class SimoptAppControllerTest {
     fun `saveConfiguration writes a partial document after only a model is set`(@TempDir tempDir: Path) {
         // The previous (pre-O4.1) gate required problem + solver to
         // be set before save; this test pins the relaxed behaviour.
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             val target = tempDir.resolve("draft.toml")
             c.saveConfiguration(target)
@@ -292,11 +299,11 @@ class SimoptAppControllerTest {
         // assert the load restores the editor state for continued
         // editing.
         val target = tempDir.resolve("draft.toml")
-        SimoptAppController("Test").use { writer ->
+        controller().use { writer ->
             writer.setModelReference(mm1Ref())
             writer.saveConfiguration(target)
         }
-        SimoptAppController("Test").use { reader ->
+        controller().use { reader ->
             val result = reader.loadConfiguration(target)
             assertTrue(
                 result is SimoptAppController.LoadResult.Success,
@@ -317,7 +324,7 @@ class SimoptAppControllerTest {
         // Mirrors the convention used by Experiment / Scenario / Single
         // apps: TOML documents land in <appWorkspace>/configs/, created
         // lazily on first access via WorkspaceLayout.configsDir.
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             // Re-point the active workspace at a TempDir so the test
             // doesn't write under the user's real KSLWork.
             c.settingsStore.setCurrentDirectory(tempDir)

@@ -25,7 +25,6 @@ import ksl.app.config.optimization.OptimizationRunConfigurationToml
 import ksl.app.config.optimization.PenaltyFunctionSpec
 import ksl.app.config.optimization.ResponseConstraintSpec
 import ksl.app.swing.simopt.stepper.Step
-import ksl.examples.general.appsupport.MM1Bundle
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -44,8 +43,19 @@ import kotlin.test.assertTrue
  */
 class SimoptAppProblemConstraintsTest {
 
-    private val mm1BundleId = MM1Bundle().bundleId
-    private val mm1ModelId = MM1Bundle.MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** MM1 model bundle JAR, assembled once per test. */
+    private val mm1Jar: Path by lazy { SimoptBundleFixtures.mm1Jar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the MM1 bundle.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(mm1Jar))
+
+    private val mm1BundleId = SimoptBundleFixtures.MM1_BUNDLE_ID
+    private val mm1ModelId = SimoptBundleFixtures.MM1_MODEL_ID
     private fun mm1Ref() = ksl.app.config.ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId)
 
     private fun seedMm1ProblemMinimum(c: SimoptAppController) {
@@ -61,7 +71,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `addResponseName is idempotent`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addResponseName("FillRate")
             c.addResponseName("FillRate")
             assertEquals(listOf("FillRate"), c.responseNames.value)
@@ -70,7 +80,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `addResponseName rejects blank`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertThrows<IllegalArgumentException> { c.addResponseName("") }
             assertThrows<IllegalArgumentException> { c.addResponseName("   ") }
         }
@@ -78,7 +88,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `removeResponseName is a no-op for unknown names`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addResponseName("FillRate")
             c.removeResponseName("Other")
             assertEquals(listOf("FillRate"), c.responseNames.value)
@@ -89,7 +99,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `addLinearConstraint appends and selects the new row`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addLinearConstraint(
                 LinearConstraintSpec(coefficients = mapOf("x" to 1.0), rhsValue = 5.0)
@@ -101,7 +111,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `updateLinearConstraint rejects index out of range`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addLinearConstraint(LinearConstraintSpec(mapOf("x" to 1.0), 5.0))
             assertThrows<IllegalArgumentException> {
@@ -112,7 +122,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `deleteLinearConstraint clamps the selection`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addLinearConstraint(LinearConstraintSpec(mapOf("x" to 1.0), 5.0))
             c.addLinearConstraint(LinearConstraintSpec(mapOf("y" to 1.0), 3.0))
@@ -127,7 +137,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `moveLinearConstraintUp at 0 is a no-op`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addLinearConstraint(LinearConstraintSpec(mapOf("x" to 1.0), 5.0))
             c.moveLinearConstraintUp(0)
@@ -137,7 +147,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `addLinearConstraint marks dirty and drops lastResult`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             assertTrue(c.isDirty.value)  // already dirty from seed
             c.markSaved(Path.of("/tmp/dummy"))
@@ -151,7 +161,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `addResponseConstraint auto-declares the referenced response name`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             assertTrue(c.responseNames.value.isEmpty())
             c.addResponseConstraint(ResponseConstraintSpec(name = "FillRate", rhsValue = 0.95))
@@ -161,7 +171,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `addResponseConstraint rejects blank name`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             assertThrows<IllegalArgumentException> {
                 c.addResponseConstraint(ResponseConstraintSpec(name = "", rhsValue = 0.0))
@@ -171,7 +181,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `updateResponseConstraint auto-declares a new name`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addResponseConstraint(ResponseConstraintSpec(name = "FillRate", rhsValue = 0.95))
             c.updateResponseConstraint(
@@ -183,7 +193,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `deleteResponseConstraint clamps the selection`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addResponseConstraint(ResponseConstraintSpec(name = "A", rhsValue = 1.0))
             c.addResponseConstraint(ResponseConstraintSpec(name = "B", rhsValue = 2.0))
@@ -197,7 +207,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `moveResponseConstraintDown swaps neighbours and shifts selection`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             c.addResponseConstraint(ResponseConstraintSpec(name = "A", rhsValue = 1.0))
             c.addResponseConstraint(ResponseConstraintSpec(name = "B", rhsValue = 2.0))
@@ -213,7 +223,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `setDefaultLinearPenalty updates the consolidated spec when complete`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             val custom = PenaltyFunctionSpec.DynamicPolynomial(basePenalty = 250.0)
             c.setDefaultLinearPenalty(custom)
@@ -223,7 +233,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `setDefaultResponsePenalty updates the consolidated spec when complete`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             seedMm1ProblemMinimum(c)
             val custom = PenaltyFunctionSpec.WithMemory(basePenalty = 75.0)
             c.setDefaultResponsePenalty(custom)
@@ -235,7 +245,7 @@ class SimoptAppProblemConstraintsTest {
 
     @Test
     fun `Constraints step is complete the moment Problem is complete`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertFalse(c.canAdvanceTo(Step.CONSTRAINTS),
                 "Locked while Problem is incomplete")
             seedMm1ProblemMinimum(c)
@@ -254,7 +264,7 @@ class SimoptAppProblemConstraintsTest {
         @TempDir tempDir: Path
     ) {
         val target = tempDir.resolve("populated.toml")
-        SimoptAppController("Test").use { writer ->
+        controller().use { writer ->
             seedMm1ProblemMinimum(writer)
             writer.addResponseName("Backorders")
             writer.addResponseConstraint(
@@ -286,7 +296,7 @@ class SimoptAppProblemConstraintsTest {
             writer.saveConfiguration(target)
         }
 
-        SimoptAppController("Test").use { reader ->
+        controller().use { reader ->
             val result = reader.loadConfiguration(target)
             assertTrue(result is SimoptAppController.LoadResult.Success)
 

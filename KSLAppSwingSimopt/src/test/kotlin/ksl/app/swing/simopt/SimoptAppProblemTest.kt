@@ -26,7 +26,8 @@ import ksl.app.config.optimization.OptimizationType
 import ksl.app.config.optimization.PenaltyFunctionSpec
 import ksl.app.config.optimization.ResponseConstraintSpec
 import ksl.app.swing.simopt.stepper.Step
-import ksl.examples.general.appsupport.MM1Bundle
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
@@ -42,8 +43,19 @@ import kotlin.test.assertTrue
  */
 class SimoptAppProblemTest {
 
-    private val mm1BundleId = MM1Bundle().bundleId
-    private val mm1ModelId = MM1Bundle.MODEL_ID
+    @TempDir
+    lateinit var bundleDir: Path
+
+    /** MM1 model bundle JAR, assembled once per test. */
+    private val mm1Jar: Path by lazy { SimoptBundleFixtures.mm1Jar(bundleDir) }
+
+    /** A fresh controller backed by an injected library holding the MM1 bundle.
+     *  Each call builds its own library; the controller closes it on `use {}` exit. */
+    private fun controller() =
+        SimoptAppController("Test", injectedBundleLibrary = SimoptBundleFixtures.library(mm1Jar))
+
+    private val mm1BundleId = SimoptBundleFixtures.MM1_BUNDLE_ID
+    private val mm1ModelId = SimoptBundleFixtures.MM1_MODEL_ID
     private fun mm1Ref() = ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId)
 
     private fun inputX() = OptimizationInputSpec(name = "x", lowerBound = 0.0, upperBound = 10.0)
@@ -52,7 +64,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `default state has null objective and empty inputs`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertNull(c.objectiveResponseName.value)
             assertTrue(c.inputs.value.isEmpty())
             assertNull(c.problemSpec.value)
@@ -62,7 +74,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setting objective alone leaves problemSpec null`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setObjectiveResponseName("Cost")
             assertEquals("Cost", c.objectiveResponseName.value)
             // Substrate requires non-empty inputs — consolidated spec stays null.
@@ -72,7 +84,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `objective plus one input publishes problemSpec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setObjectiveResponseName("Cost")
             c.addInput(inputX())
             val spec = c.problemSpec.value
@@ -85,7 +97,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `addInput rejects duplicate names`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             val ex = assertThrows<IllegalArgumentException> {
                 c.addInput(inputX())
@@ -97,7 +109,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `updateInput rejects index out of range`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             assertThrows<IllegalArgumentException> { c.updateInput(5, inputY()) }
         }
@@ -105,7 +117,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `updateInput rejects a name collision with a different input`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             c.addInput(inputY())
             // Try to rename y to x.
@@ -118,7 +130,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `updateInput accepts renaming to the same row's existing name`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             // Updating row 0 with the same name + new bounds is allowed.
             c.updateInput(0, inputX().copy(lowerBound = -5.0))
@@ -128,7 +140,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `deleteInput shifts selectedInputIndex sensibly`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             c.addInput(inputY())
             c.addInput(inputZ())
@@ -147,7 +159,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `moveInputUp and moveInputDown reorder correctly`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             c.addInput(inputY())
             c.addInput(inputZ())
@@ -165,7 +177,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `moveInputUp at index 0 is a no-op`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             c.addInput(inputY())
             c.moveInputUp(0)
@@ -175,7 +187,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `moveInputDown at last index is a no-op`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             c.addInput(inputY())
             c.moveInputDown(1)
@@ -185,7 +197,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setOptimizationType updates the consolidated spec when complete`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setObjectiveResponseName("Cost")
             c.addInput(inputX())
             assertEquals(OptimizationType.MINIMIZE, c.problemSpec.value?.optimizationType)
@@ -196,7 +208,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setIndifferenceZoneParameter rejects negative values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertThrows<IllegalArgumentException> { c.setIndifferenceZoneParameter(-0.1) }
             assertThrows<IllegalArgumentException> { c.setIndifferenceZoneParameter(Double.NaN) }
             assertThrows<IllegalArgumentException> { c.setIndifferenceZoneParameter(Double.POSITIVE_INFINITY) }
@@ -205,7 +217,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setObjectiveGranularity rejects negative values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertThrows<IllegalArgumentException> { c.setObjectiveGranularity(-0.5) }
             assertThrows<IllegalArgumentException> { c.setObjectiveGranularity(Double.NaN) }
         }
@@ -213,7 +225,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setProblemSpec(null) clears every piece`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setObjectiveResponseName("Cost")
             c.addInput(inputX())
             c.setProblemName("MyProblem")
@@ -231,7 +243,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setProblemSpec(spec) fans out into the pieces`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             val spec = OptimizationProblemSpec(
                 problemName = "PlugIn",
                 objectiveResponseName = "Cost",
@@ -263,7 +275,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `Problem step completion gates on objective plus inputs`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setModelReference(mm1Ref())
             assertFalse(c.canAdvanceTo(Step.ALGORITHM))
             c.setObjectiveResponseName("Cost")
@@ -275,7 +287,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `addInput marks document dirty plus drops lastResult`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             assertFalse(c.isDirty.value)
             c.addInput(inputX())
             assertTrue(c.isDirty.value)
@@ -285,7 +297,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `setResponseNames is reflected in the consolidated spec`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.setObjectiveResponseName("Cost")
             c.addInput(inputX())
             c.setResponseNames(listOf("Resp1", "Resp2"))
@@ -295,7 +307,7 @@ class SimoptAppProblemTest {
 
     @Test
     fun `selectedInputIndex setter clamps out-of-range values`() {
-        SimoptAppController("Test").use { c ->
+        controller().use { c ->
             c.addInput(inputX())
             c.addInput(inputY())
             c.setSelectedInputIndex(99)
