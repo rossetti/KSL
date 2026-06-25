@@ -31,6 +31,7 @@ import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.Rectangle
 import java.awt.event.ActionListener
 import javax.swing.BorderFactory
 import javax.swing.Box
@@ -39,7 +40,10 @@ import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JTextArea
 import javax.swing.ScrollPaneConstants
+import javax.swing.Scrollable
+import javax.swing.UIManager
 
 /**
  * Top-of-editor banner summarising the document's validation state.
@@ -81,7 +85,15 @@ class DocumentHealthBanner(
         isContentAreaFilled = false
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
-    private val detailPanel = JPanel().apply {
+    // Scrollable tracking the viewport width so detail rows wrap to the banner width
+    // instead of overflowing past it (the scroll pane shows no horizontal scrollbar).
+    private val detailPanel = object : JPanel(), Scrollable {
+        override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+        override fun getScrollableUnitIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int = 16
+        override fun getScrollableBlockIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int = 64
+        override fun getScrollableTracksViewportWidth(): Boolean = true
+        override fun getScrollableTracksViewportHeight(): Boolean = false
+    }.apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
     }
@@ -175,7 +187,14 @@ class DocumentHealthBanner(
         val row = JComponentRow()
         val severityLabel = JLabel(SeverityIcon(issue.severity))
         severityLabel.border = BorderFactory.createEmptyBorder(0, 4, 0, 6)
-        val message = JLabel("<html>${escape(issue.message)} <span style='color:#777'>(${escape(issue.path)})</span></html>")
+        val message = JTextArea("${issue.message} (${issue.path})").apply {
+            lineWrap = true
+            wrapStyleWord = true
+            isEditable = false
+            isOpaque = false
+            font = UIManager.getFont("Label.font") ?: font
+            border = BorderFactory.createEmptyBorder(1, 0, 0, 4)
+        }
         val jumpButton = JButton("Jump to source").apply {
             isFocusPainted = false
             addActionListener(jumpListener(issue))
@@ -199,9 +218,6 @@ class DocumentHealthBanner(
     }
 
     private fun plural(n: Int, word: String): String = if (n == 1) word else "${word}s"
-
-    private fun escape(text: String): String =
-        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     /**
      * Test-only accessor for the rendered entry rows.  Each row is a
