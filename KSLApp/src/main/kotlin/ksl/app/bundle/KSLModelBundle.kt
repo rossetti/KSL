@@ -39,19 +39,19 @@ interface KSLModelBundle {
     val description: String
 
     /**
-     * Bundle-author's own version of this bundle's content. Independent of
-     * `kslApiVersion`. Semver is encouraged but not enforced.
+     * Optional. Bundle-author's own display version of this bundle's content
+     * (semver encouraged). Purely a display label — `null` when unspecified; the
+     * loader deduplicates by content hash, not version.
      */
-    val version: String
+    val version: String?
 
     /**
-     * The major.minor version of the KSL API the bundle was built against.
-     * Loaders may refuse to load (or warn on) a bundle whose `kslApiVersion`
-     * is incompatible with the running KSL build. This is the bundle-level
-     * compatibility surface; the descriptor JSON carries its own schema
-     * version independently.
+     * Optional. The major.minor version of the KSL API the bundle was built
+     * against, when the author chooses to record it; `null` when unspecified.
+     * Not currently enforced by the loader — reserved as a future compatibility
+     * surface. The descriptor JSON carries its own schema version independently.
      */
-    val kslApiVersion: String
+    val kslApiVersion: String?
 
     /**
      * The models packaged in this bundle. Building this list must not

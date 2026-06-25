@@ -103,7 +103,7 @@ object LoadedBundlesDialog {
             for ((i, lb) in bundles.withIndex()) {
                 if (i > 0) appendLine()
                 appendLine("Bundle: ${lb.bundle.displayName}  [${lb.bundle.bundleId}]")
-                appendLine("  Version: ${lb.bundle.version}")
+                appendLine("  Version: ${lb.bundle.version ?: "(none)"}")
                 appendLine("  Built:   ${lb.builtAt ?: "unknown"}")
                 appendLine("  Source: ${lb.sourceJar?.toString() ?: "classpath"}")
                 if (lb.bundle.models.isEmpty()) {
@@ -121,9 +121,9 @@ object LoadedBundlesDialog {
             }
             if (ignoredCopies.isNotEmpty()) {
                 appendLine()
-                appendLine("Ignored copies (same id + version, superseded by a newer build):")
+                appendLine("Ignored copies (a same-id copy with different content was shadowed):")
                 for (ic in ignoredCopies) {
-                    appendLine("    • ${ic.displayName}  [${ic.bundleId}]  v${ic.version}")
+                    appendLine("    • ${ic.displayName}  [${ic.bundleId}]${ic.version?.let { "  v$it" } ?: ""}")
                     appendLine("        from ${ic.source}, built ${ic.builtAt ?: "unknown"}")
                 }
             }

@@ -42,7 +42,7 @@ private val logger = KotlinLogging.logger {}
 data class IgnoredBundleCopy(
     val bundleId: String,
     val displayName: String,
-    val version: String,
+    val version: String?,
     /** JAR file name, or `"classpath"`. */
     val source: String,
     val builtAt: Instant?

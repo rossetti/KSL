@@ -17,8 +17,8 @@ class WorkbenchStubBundle : KSLModelBundle {
     override val bundleId: String = "test.workbench"
     override val displayName: String = "Workbench Stub Bundle"
     override val description: String = "Two counters; one pre-nominated."
-    override val version: String = "0.0.1"
-    override val kslApiVersion: String = "1.2"
+    override val version: String? = "0.0.1"
+    override val kslApiVersion: String? = "1.2"
     override val models: List<KSLBundledModel> = listOf(M)
 
     private object M : KSLBundledModel {

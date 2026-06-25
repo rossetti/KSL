@@ -26,8 +26,8 @@ class ManifestBackedBundle(
     override val bundleId: String = manifest.bundleId
     override val displayName: String = manifest.displayName
     override val description: String = manifest.description
-    override val version: String = manifest.version
-    override val kslApiVersion: String = manifest.kslApiVersion
+    override val version: String? = manifest.version
+    override val kslApiVersion: String? = manifest.kslApiVersion
     override val author: String? = manifest.author
     override val homepage: String? = manifest.homepage
     override val license: String? = manifest.license

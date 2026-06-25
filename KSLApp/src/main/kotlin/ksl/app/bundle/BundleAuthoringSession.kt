@@ -34,8 +34,8 @@ class BundleAuthoringSession private constructor(
     var bundleId: String = ""
     var displayName: String = inputJar.fileName.toString().removeSuffix(".jar")
     var description: String = ""
-    var version: String = "1.0.0"
-    var kslApiVersion: String = DEFAULT_KSL_API_VERSION
+    var version: String? = null
+    var kslApiVersion: String? = null
     var author: String? = null
     var homepage: String? = null
     var license: String? = null
@@ -137,9 +137,6 @@ class BundleAuthoringSession private constructor(
         BundleAssembler.assemble(inputJar, output, buildSpec(excludeModelIds), force)
 
     companion object {
-        /** Default KSL API version stamped on a new bundle; editable per session. */
-        const val DEFAULT_KSL_API_VERSION: String = "1.2"
-
         /**
          * Opens an authoring session over [inputJar], discovering and building its
          * model builders.

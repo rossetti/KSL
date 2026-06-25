@@ -126,8 +126,8 @@ internal object InspectCommand {
         out.println("Bundle: ${bundle.bundleId}")
         out.println("  Display name : ${bundle.displayName}")
         out.println("  Description  : ${bundle.description}")
-        out.println("  Version      : ${bundle.version}")
-        out.println("  KSL API      : ${bundle.kslApiVersion}")
+        out.println("  Version      : ${bundle.version ?: "(none)"}")
+        out.println("  KSL API      : ${bundle.kslApiVersion ?: "(none)"}")
         out.println("  Source JAR   : $jarPath")
         out.println("  Models       : ${bundle.models.size}")
         for (model in bundle.models) {

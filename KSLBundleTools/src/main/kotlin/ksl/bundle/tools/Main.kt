@@ -57,8 +57,9 @@ private fun printUsage() {
         |  kslpkg assemble <builders.jar> --id <bundleId> [options]
         |      Turn a plain builders JAR (one or more ksl.simulation.ModelBuilderIfc
         |      classes) into a self-describing bundle JAR: a bundle.toml manifest
-        |      plus a per-model descriptor.json. --id is required; other identity
-        |      comes from [--name --description --version --author --homepage
+        |      plus a per-model descriptor.json. --id is required (reverse-DNS
+        |      recommended, e.g. edu.uark.ksl.queueing); other identity is optional,
+        |      from [--name --description --version --author --homepage
         |      --license --tag <t>]. --exclude <id,...> drops discovered models by
         |      modelId (e.g. a shared closure embedded for runtime, not a model).
         |      Default output is <builders-stem>-bundle.jar next to the input;

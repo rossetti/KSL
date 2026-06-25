@@ -42,8 +42,8 @@ import ksl.app.bundle.KSLAppKind
  * @param bundleId       globally unique, stable bundle identifier
  * @param displayName    human-readable bundle name
  * @param description    short bundle description
- * @param version        bundle-author's content version (semver encouraged)
- * @param kslApiVersion  major.minor of the KSL API the bundle was built against
+ * @param version        optional bundle-author display version (semver encouraged); null when unspecified
+ * @param kslApiVersion  optional KSL API major.minor the bundle was built against; null when unspecified
  * @param author         optional bundle author or organisation
  * @param homepage       optional project/documentation URL
  * @param license        optional license identifier (e.g. an SPDX id)
@@ -55,8 +55,8 @@ data class BundleManifest(
     val bundleId: String,
     val displayName: String,
     val description: String,
-    val version: String,
-    val kslApiVersion: String,
+    val version: String? = null,
+    val kslApiVersion: String? = null,
     val author: String? = null,
     val homepage: String? = null,
     val license: String? = null,

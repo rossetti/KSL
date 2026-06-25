@@ -30,9 +30,9 @@ import ksl.app.bundle.bundleSourceLabel
  *
  *  Centralized so every app renders bundle choices identically.
  */
-fun bundlePickerLabel(displayName: String, version: String, sourceLabel: String): String {
+fun bundlePickerLabel(displayName: String, version: String?, sourceLabel: String): String {
     val name = displayName.ifBlank { "(unnamed bundle)" }
-    return "$name · v$version · $sourceLabel"
+    return if (version.isNullOrBlank()) "$name · $sourceLabel" else "$name · v$version · $sourceLabel"
 }
 
 /** [bundlePickerLabel] for a [LoadedBundle], falling back to the bundle id

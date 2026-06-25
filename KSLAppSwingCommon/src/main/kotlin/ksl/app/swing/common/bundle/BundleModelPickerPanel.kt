@@ -88,7 +88,7 @@ class BundleModelPickerPanel(
     private data class BundleChoice(
         val bundleId: String,
         val bundleDisplayName: String,
-        val version: String,
+        val version: String?,
         val sourceLabel: String
     ) {
         override fun toString(): String =
