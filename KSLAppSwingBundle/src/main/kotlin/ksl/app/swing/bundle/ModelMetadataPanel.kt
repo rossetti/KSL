@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import ksl.app.bundle.KSLAppKind
 import ksl.app.swing.bundle.BundleWorkbenchController.ModelView
+import ksl.app.swing.common.layout.WrapLayout
 import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
 import java.awt.Component
@@ -32,8 +33,6 @@ import java.awt.Insets
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.BorderFactory
-import javax.swing.Box
-import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JComponent
@@ -113,28 +112,25 @@ class ModelMetadataPanel(
 
     // ── bulk toolbar ────────────────────────────────────────────────────────
 
-    private fun buildBulkToolbar(): JComponent = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
+    // WrapLayout (not BoxLayout) so the strip reflows to additional rows — and the
+    // NORTH region grows to show them — when the window is too narrow for one row.
+    private fun buildBulkToolbar(): JComponent = JPanel(WrapLayout(hgap = 6, vgap = 4)).apply {
         border = BorderFactory.createEmptyBorder(0, 0, 6, 0)
-        add(JLabel("Bulk-edit supported apps (tick apps, select rows, then): "))
+        add(JLabel("Bulk-edit supported apps (tick apps, select rows, then):"))
         bulkChecks.values.forEach { add(it) }
-        add(Box.createHorizontalStrut(8))
         add(JButton("Add to selected rows").apply {
             toolTipText = "Add the ticked apps to every selected model row."
             addActionListener { bulkApply(add = true) }
         })
-        add(Box.createHorizontalStrut(4))
         add(JButton("Remove from selected rows").apply {
             toolTipText = "Remove the ticked apps from every selected model row."
             addActionListener { bulkApply(add = false) }
         })
-        add(Box.createHorizontalGlue())
-        add(JLabel("In bundle: "))
+        add(JLabel("    In bundle:"))
         add(JButton("Include all").apply {
             toolTipText = "Mark every model for inclusion in the assembled bundle."
             addActionListener { controller.setAllIncluded(true) }
         })
-        add(Box.createHorizontalStrut(4))
         add(JButton("Exclude all").apply {
             toolTipText = "Drop every model from the assembled bundle (the builders stay in the JAR)."
             addActionListener { controller.setAllIncluded(false) }

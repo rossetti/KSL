@@ -32,8 +32,8 @@ import ksl.simulation.ModelDescriptor
  * bundle and its descriptors.
  *
  * Checks performed:
- *  - **bundleId** is non-blank, uses only safe identifier characters, and is
- *    conventionally reverse-DNS-style.
+ *  - **bundleId** is non-blank and uses only safe identifier characters. A
+ *    reverse-DNS-style id is a documented convention, not enforced here.
  *  - each **modelId** is a safe path segment (it names a directory under
  *    `META-INF/ksl/models/`).
  *  - each model's **builder** resolves and is instantiable. For a manifest-driven
@@ -96,12 +96,6 @@ object BundleValidation {
                 findings += Finding(
                     Severity.ERROR, "bundleId",
                     "bundleId '$bid' contains characters outside [A-Za-z0-9._-]"
-                )
-            !bid.contains('.') ->
-                findings += Finding(
-                    Severity.WARNING, "bundleId",
-                    "bundleId '$bid' is not namespaced (no '.')",
-                    suggestion = "use a namespaced, globally-unique id, e.g. edu.uark.examples.$bid"
                 )
         }
 
