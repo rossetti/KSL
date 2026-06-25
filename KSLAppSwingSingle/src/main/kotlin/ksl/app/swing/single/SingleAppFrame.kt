@@ -701,6 +701,14 @@ class SingleAppFrame(
         return "${sanitizeFileName(controller.appName)}.toml"
     }
 
+    /** `dir` if it exists, else its nearest existing ancestor, else the active workspace
+     *  (always present) — so a file chooser never silently falls back to the user's home. */
+    private fun existingDirOrAncestor(dir: Path): Path {
+        var d: Path? = dir
+        while (d != null && !Files.isDirectory(d)) d = d.parent
+        return d ?: controller.settingsStore.activeWorkspace()
+    }
+
     private fun handleSaveAs() {
         val workspace = controller.appWorkspace
         // Compute the chooser's starting directory without eagerly
@@ -713,7 +721,10 @@ class SingleAppFrame(
         // The eventual successful write creates the parent dir on
         // demand (see `writeConfigurationTo` line below).
         val configsDir = WorkspaceLayout.configsDir(workspace, createIfMissing = false)
-        val startDir = if (java.nio.file.Files.exists(configsDir)) configsDir else workspace
+        // configsDir / workspace may not exist on disk yet; JFileChooser silently jumps to
+        // the user's home when handed a non-existent directory, so fall back to the nearest
+        // existing ancestor (which bottoms out at the always-present active workspace).
+        val startDir = existingDirOrAncestor(configsDir)
         val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
             dialogTitle = "Save Configuration"

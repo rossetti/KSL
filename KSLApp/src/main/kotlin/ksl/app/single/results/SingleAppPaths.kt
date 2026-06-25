@@ -23,13 +23,13 @@ import java.nio.file.Path
 /**
  *  Filesystem-path conventions for single-document UI applications
  *  (the Single app today; any future non-Swing single-document host
- *  tomorrow).  Single-document hosts deliberately use a flatter
- *  layout than the multi-document hosts (`Scenario`, `Experiment`,
- *  `Simopt`), nesting per-analysis rather than per-app under the
- *  active workspace:
+ *  tomorrow).  These are pure path helpers that nest a per-analysis
+ *  folder under whatever base directory the caller supplies.  The
+ *  Single Swing host supplies its own per-app `KSLWork` workspace
+ *  folder — the same one that holds `bundles/` — giving:
  *
  *  <pre>
- *  &lt;activeWorkspace&gt;/
+ *  &lt;baseDir&gt;/                     (the app's KSLWork workspace folder)
  *    &lt;analysisFolder&gt;/            ← appWorkspaceDir
  *      reports/                    ← reportsDir
  *  </pre>

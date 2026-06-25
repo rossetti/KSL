@@ -450,10 +450,11 @@ class SingleAppControllerConfigurationTest {
     }
 
     @Test
-    fun `appWorkspace nests under settingsStore activeWorkspace by modelName`() {
+    fun `appWorkspace nests under the app workspace dir by modelName`() {
         val c = freshController()
         val parent = c.settingsStore.activeWorkspace()
-        assertEquals(parent.resolve("ConfigTestModel"), c.appWorkspace)
+        // Rooted at the app's own KSLWork/<AppName>/ dir (beside bundles/), then per-model.
+        assertEquals(parent.resolve("ConfigTestApp").resolve("ConfigTestModel"), c.appWorkspace)
     }
 
     @Test
@@ -470,7 +471,8 @@ class SingleAppControllerConfigurationTest {
         try {
             assertEquals("My_Sim_Name", c.modelName)
             val parent = c.settingsStore.activeWorkspace()
-            assertEquals(parent.resolve("My_Sim_Name"), c.appWorkspace)
+            // App name "Spaced App" sanitizes to "Spaced_App"; the model nests under it.
+            assertEquals(parent.resolve("Spaced_App").resolve("My_Sim_Name"), c.appWorkspace)
         } finally {
             c.close()
         }

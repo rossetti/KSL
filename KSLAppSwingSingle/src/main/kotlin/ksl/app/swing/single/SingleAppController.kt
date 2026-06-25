@@ -48,6 +48,7 @@ import ksl.app.config.RVParameterOverride
 import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
@@ -214,11 +215,16 @@ class SingleAppController(
      * [SingleAppPaths.appWorkspaceDir], which encodes the
      * single-app three-tier fallback: sanitized analysis name when
      * set + non-blank + non-"Untitled", else the (already-sanitized)
-     * modelName, else the parent workspace itself.
+     * modelName, else the app workspace dir itself.  The base is the
+     * app's own KSLWork workspace folder (beside bundles/), not the
+     * bare workspace root.
      */
     val appWorkspace: Path
         get() = SingleAppPaths.appWorkspaceDir(
-            activeWorkspace = settingsStore.activeWorkspace(),
+            // Root per-analysis folders under the app's own workspace dir
+            // (KSLWork/<AppName>/) — the same dir bundle discovery uses — rather than
+            // the bare workspace root, so output/configs/reports sit beside bundles/.
+            activeWorkspace = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName),
             analysisName = myOutputConfig.value.analysisName,
             modelName = modelName
         )
