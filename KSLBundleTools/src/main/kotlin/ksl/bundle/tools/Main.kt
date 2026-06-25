@@ -23,8 +23,9 @@ fun main(args: Array<String>) {
 
 internal fun dispatch(args: Array<String>): CommandResult {
     if (args.isEmpty()) {
+        // Bare `kslpkg` is a friendly help request, not a usage error.
         printUsage()
-        return CommandResult.UserError
+        return CommandResult.Success
     }
     return when (val command = args[0]) {
         "--help", "-h", "help" -> {
