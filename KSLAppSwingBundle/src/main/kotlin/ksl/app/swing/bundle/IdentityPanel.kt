@@ -52,8 +52,7 @@ class IdentityPanel(
     private val description = JTextField(32).apply { toolTipText = "Short description of the bundle (optional)." }
     private val version = JTextField(14).apply { toolTipText = "Your version of this bundle's content (semver encouraged)." }
     private val kslApi = JTextField(14).apply {
-        isEditable = false
-        toolTipText = "Informational only (not enforced anywhere): the KSL API version this bundle targets. Auto-filled."
+        toolTipText = "Optional. Not enforced anywhere: the KSL API version this bundle targets (leave blank if unsure)."
     }
     private val generateButton = JButton("Generate").apply {
         toolTipText = "Suggest a namespaced bundle id from an organization/domain and the JAR name."
@@ -86,7 +85,7 @@ class IdentityPanel(
         add("Bundle id *:", bundleIdRow)
         add("Display name *:", displayName)
         add("Description:", description)
-        add("Version *:", version)
+        add("Version:", version)
         add("KSL API version:", kslApi)
         add("Author (optional):", author)
         add("Homepage (optional):", homepage)

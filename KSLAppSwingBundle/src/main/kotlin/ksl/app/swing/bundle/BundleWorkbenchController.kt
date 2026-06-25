@@ -104,6 +104,10 @@ class BundleWorkbenchController(val appName: String) {
         val displayName: String,
         val builderClass: String,
         val supportedApps: Set<KSLAppKind>,
+        /** Whether this model is declared in the assembled bundle.  Uncheck to keep the
+         *  builder in the JAR (resolvable at runtime) but drop it from the model set —
+         *  e.g. a shared closure another model delegates to. */
+        val included: Boolean = true,
     )
 
     private val _currentJar = MutableStateFlow<Path?>(null)
@@ -114,6 +118,9 @@ class BundleWorkbenchController(val appName: String) {
 
     private val _models = MutableStateFlow<List<ModelView>>(emptyList())
     val models: StateFlow<List<ModelView>> = _models.asStateFlow()
+
+    /** Model ids the author has excluded from the assembled bundle (see [setIncluded]). */
+    private var excludedModelIds: Set<String> = emptySet()
 
     private val _discoveryErrors = MutableStateFlow<List<String>>(emptyList())
     val discoveryErrors: StateFlow<List<String>> = _discoveryErrors.asStateFlow()
@@ -175,6 +182,7 @@ class BundleWorkbenchController(val appName: String) {
         _currentJar.value = jar
         _lastAssembled.value = if (fromBundle) jar else null
         _discoveryErrors.value = s.discoveryErrors.map { "${it.builderClass}: ${it.error}" }
+        excludedModelIds = emptySet()
         refreshIdentity()
         refreshModels()
         val first = s.models.firstOrNull()?.modelId
@@ -240,7 +248,10 @@ class BundleWorkbenchController(val appName: String) {
     fun updateModel(modelId: String, transform: (ModelView) -> ModelView) {
         val s = session ?: return
         val draft = s.models.firstOrNull { it.modelId == modelId } ?: return
-        val v = transform(ModelView(draft.modelId, draft.displayName, draft.builderClass, draft.supportedApps.toSet()))
+        val v = transform(
+            ModelView(draft.modelId, draft.displayName, draft.builderClass, draft.supportedApps.toSet(),
+                included = modelId !in excludedModelIds)
+        )
         draft.modelId = v.modelId
         draft.displayName = v.displayName
         draft.supportedApps.clear()
@@ -252,21 +263,39 @@ class BundleWorkbenchController(val appName: String) {
         validate() // refresh the health banner (e.g. supported-apps warnings clear)
     }
 
+    /** Includes or excludes [modelId] from the assembled bundle's model set.  An
+     *  excluded model's builder class stays in the JAR (resolvable at runtime) but is
+     *  not declared as a bundle model — e.g. a shared closure another model delegates to. */
+    fun setIncluded(modelId: String, included: Boolean) {
+        excludedModelIds = if (included) excludedModelIds - modelId else excludedModelIds + modelId
+        refreshModels()
+        _dirty.value = true
+        _status.value =
+            if (included) "Model '$modelId' included in the bundle."
+            else "Model '$modelId' excluded from the bundle (its builder stays in the JAR)."
+        validate()
+    }
+
     /**
      * Validates the current draft (assembles to a temp JAR and runs BundleValidation),
      * publishing the result to [healthBus] for the inline banner.
      */
     fun validate(): BundleValidation.ValidationReport? {
-        val report = session?.validate()
+        val report = session?.validate(excludedModelIds)
         _validation.value = report
         healthBus.publish(report?.let(::toValidationResult) ?: ValidationResult())
+        _status.value = when {
+            report == null -> "Open a builders JAR first."
+            report.isClean -> "Validation: clean — 0 errors, 0 warnings."
+            else -> "Validation: ${report.errorCount} error(s), ${report.warningCount} warning(s) — see the banner."
+        }
         return report
     }
 
     /** Assembles the bundle JAR at [output] from the current draft. */
     fun assemble(output: Path, force: Boolean = false) {
         val s = session ?: error("no builders JAR open")
-        s.assemble(output, force)
+        s.assemble(output, force, excludeModelIds = excludedModelIds)
         _lastAssembled.value = output
         _dirty.value = false
         _status.value = "Assembled to ${output.fileName}."
@@ -304,7 +333,8 @@ class BundleWorkbenchController(val appName: String) {
 
     private fun refreshModels() {
         _models.value = session?.models?.map {
-            ModelView(it.modelId, it.displayName, it.builderClass, it.supportedApps.toSet())
+            ModelView(it.modelId, it.displayName, it.builderClass, it.supportedApps.toSet(),
+                included = it.modelId !in excludedModelIds)
         } ?: emptyList()
     }
 

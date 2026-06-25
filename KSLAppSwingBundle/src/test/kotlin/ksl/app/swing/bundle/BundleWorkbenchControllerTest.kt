@@ -3,6 +3,7 @@ package ksl.app.swing.bundle
 import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.KSLAppKind
 import ksl.app.swing.bundle.support.TestJarBuilder
+import ksl.app.swing.bundle.support.WorkbenchSecondBuilder
 import ksl.app.swing.bundle.support.WorkbenchTestBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -85,6 +86,40 @@ class BundleWorkbenchControllerTest {
                 c.catalogProblems.value.isEmpty(),
                 "nominating real candidates should not produce problems: ${c.catalogProblems.value}"
             )
+        } finally {
+            c.dispose()
+        }
+    }
+
+    @Test
+    fun `excluding a discovered model drops it from the assembled bundle`(@TempDir dir: Path) {
+        val c = controller()
+        try {
+            val jar = TestJarBuilder.buildBuildersJar(
+                dir, "wb2", WorkbenchTestBuilder::class.java, WorkbenchSecondBuilder::class.java
+            )
+            c.openBuildersJar(jar)
+            assertEquals(2, c.models.value.size, "two builders discovered")
+            assertTrue(c.models.value.all { it.included }, "models start included")
+            c.models.value.forEach { mv ->
+                c.updateModel(mv.modelId) { it.copy(supportedApps = setOf(KSLAppKind.SINGLE)) }
+            }
+
+            val dropped = c.models.value.map { it.modelId }.sorted().first()
+            c.setIncluded(dropped, false)
+            assertFalse(
+                c.models.value.first { it.modelId == dropped }.included,
+                "the toggled model reads as excluded"
+            )
+
+            c.updateIdentity { it.copy(bundleId = "edu.test.wb2", displayName = "WB2") }
+            val output = dir.resolve("wb2-bundle.jar")
+            c.assemble(output)
+
+            BundleLoader.loadJar(output).first().use { lb ->
+                assertEquals(1, lb.bundle.models.size, "the excluded model is not declared in the bundle")
+                assertFalse(lb.bundle.models.any { it.modelId == dropped }, "the excluded id is gone")
+            }
         } finally {
             c.dispose()
         }

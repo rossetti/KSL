@@ -144,7 +144,7 @@ class ModelMetadataPanel(
 
     private fun legend(): JComponent = JLabel(
         "Selecting a row sets the model the Catalog tab edits · edit display name and the app boxes in place · " +
-            "double-click a row to rename and inspect it"
+            "uncheck In bundle to drop a model (e.g. a shared closure) · double-click a row to rename and inspect it"
     ).apply { border = BorderFactory.createEmptyBorder(4, 2, 0, 2) }
 
     // ── table population ──────────────────────────────────────────────────────
@@ -300,7 +300,9 @@ class ModelMetadataPanel(
     private inner class ModelsTableModel : AbstractTableModel() {
         var rows: List<ModelView> = emptyList()
 
-        private val fixedColumns = listOf("Model id", "Display name", "Builder class")
+        // Column 0 is the "In bundle" include toggle; the model-id/name/class are
+        // string columns; the trailing columns are one app-support checkbox per kind.
+        private val fixedColumns = listOf("In bundle", "Model id", "Display name", "Builder class")
         private val appColumnBase = fixedColumns.size
 
         override fun getRowCount(): Int = rows.size
@@ -309,18 +311,22 @@ class ModelMetadataPanel(
         override fun getColumnName(column: Int): String =
             fixedColumns.getOrNull(column) ?: appKinds[column - appColumnBase].name
 
-        override fun getColumnClass(columnIndex: Int): Class<*> =
-            if (columnIndex >= appColumnBase) java.lang.Boolean::class.java else String::class.java
+        override fun getColumnClass(columnIndex: Int): Class<*> = when {
+            columnIndex == 0 -> java.lang.Boolean::class.java          // In bundle
+            columnIndex >= appColumnBase -> java.lang.Boolean::class.java
+            else -> String::class.java
+        }
 
         override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean =
-            columnIndex == 1 || columnIndex >= appColumnBase
+            columnIndex == 0 || columnIndex == 2 || columnIndex >= appColumnBase
 
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
             val row = rows[rowIndex]
             return when (columnIndex) {
-                0 -> row.modelId
-                1 -> row.displayName
-                2 -> row.builderClass
+                0 -> row.included
+                1 -> row.modelId
+                2 -> row.displayName
+                3 -> row.builderClass
                 else -> row.supportedApps.contains(appKinds[columnIndex - appColumnBase])
             }
         }
@@ -329,7 +335,8 @@ class ModelMetadataPanel(
             if (updating) return
             val row = rows.getOrNull(rowIndex) ?: return
             when {
-                columnIndex == 1 -> controller.updateModel(row.modelId) {
+                columnIndex == 0 -> controller.setIncluded(row.modelId, value as? Boolean ?: return)
+                columnIndex == 2 -> controller.updateModel(row.modelId) {
                     it.copy(displayName = (value as? String)?.trim() ?: it.displayName)
                 }
                 columnIndex >= appColumnBase -> {
