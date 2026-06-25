@@ -425,6 +425,10 @@ class ExperimentAppControllerTest {
         val c = fresh()
         c.addFactor(factor("A"))
         assertFalse(c.submit())
+        assertTrue(
+            c.lastSubmitError?.contains("model", ignoreCase = true) == true,
+            "expected a model-related reason: ${c.lastSubmitError}"
+        )
     }
 
     @Test
@@ -432,6 +436,10 @@ class ExperimentAppControllerTest {
         val c = fresh()
         c.setModelReference(mm1)
         assertFalse(c.submit())
+        assertTrue(
+            c.lastSubmitError?.contains("factor", ignoreCase = true) == true,
+            "expected a factor-related reason: ${c.lastSubmitError}"
+        )
     }
 
     // (The "submit with no bundle provider" case is implicit — fresh

@@ -860,6 +860,11 @@ class FactorsTabPanel(
             )
             return
         }
+        // Enforce the bound control's permitted range — out-of-range levels are rejected.
+        boundsViolationMessage(parsed)?.let {
+            notifier.error("$it  Adjust the levels to within range before saving the factor.")
+            return
+        }
         val newName = nameField.text.trim()
         if (newName.isBlank()) {
             notifier.warn("Factor name cannot be blank.")
@@ -956,9 +961,9 @@ class FactorsTabPanel(
                 levelsPreview.text = "Duplicate level values detected."
             }
             else -> {
-                val outOfRange = warningForBoundsViolation(parsed)
+                val outOfRange = boundsViolationMessage(parsed)
                 if (outOfRange != null) {
-                    levelsPreview.foreground = Color(0xCC, 0x77, 0x00)
+                    levelsPreview.foreground = Color(0xCC, 0x33, 0x33)
                     levelsPreview.text = outOfRange
                 } else {
                     levelsPreview.foreground = Color(0x33, 0x77, 0x33)
@@ -968,7 +973,10 @@ class FactorsTabPanel(
         }
     }
 
-    private fun warningForBoundsViolation(levels: List<Double>): String? {
+    /** Message describing any levels outside the bound control's `[lowerBound, upperBound]`,
+     *  or null when the binding is not a control, the bounds are not finite, or all levels
+     *  are in range.  Used both as a live preview hint and as the commit-time gate. */
+    private fun boundsViolationMessage(levels: List<Double>): String? {
         if (!controlRadio.isSelected) return null
         val key = controlKeyCombo.selectedItem as? String ?: return null
         val descriptor = controller.currentModelDescriptor.value ?: return null
@@ -977,8 +985,8 @@ class FactorsTabPanel(
         if (!control.lowerBound.isFinite() || !control.upperBound.isFinite()) return null
         val violators = levels.filter { it < control.lowerBound || it > control.upperBound }
         if (violators.isEmpty()) return null
-        return "Warning: level(s) ${violators.joinToString(", ")} outside control range " +
-            "[${control.lowerBound}, ${control.upperBound}] — commit will still succeed."
+        return "Level(s) ${violators.joinToString(", ")} are outside the control's permitted " +
+            "range [${control.lowerBound}, ${control.upperBound}]."
     }
 
     private fun refreshBindingResolvability() {

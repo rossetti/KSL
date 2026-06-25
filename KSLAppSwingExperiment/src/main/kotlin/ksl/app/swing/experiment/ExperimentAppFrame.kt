@@ -530,8 +530,8 @@ class ExperimentAppFrame(
         consolePanel.clear()
         if (!controller.submit()) {
             notifications.error(
-                "Could not start the run.  Check the model reference resolves against " +
-                    "the loaded bundles."
+                controller.lastSubmitError
+                    ?: "Could not start the run.  Check the model reference and factors."
             )
         }
     }
@@ -1023,11 +1023,20 @@ class ExperimentAppFrame(
     }
 
     private fun writeConfigurationTo(path: Path) {
+        if (controller.factors.value.isEmpty()) {
+            notifications.warn("Add at least one factor before saving the experiment.")
+            return
+        }
         val config = try {
             controller.currentConfiguration()
         } catch (t: IllegalStateException) {
             notifications.warn(
                 "Cannot save: ${t.message ?: "model reference is required"}"
+            )
+            return
+        } catch (t: IllegalArgumentException) {
+            notifications.warn(
+                "Cannot save: ${t.message ?: "the experiment configuration is incomplete"}"
             )
             return
         }

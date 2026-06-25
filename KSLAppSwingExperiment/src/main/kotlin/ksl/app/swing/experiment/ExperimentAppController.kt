@@ -778,12 +778,30 @@ class ExperimentAppController(
      *  document write back into the same folder (with [DatabasePolicy]
      *  governing the .db file inside).
      */
+    /** Human-readable reason the most recent [submit] returned false, or null on success.
+     *  The frame surfaces this so the user sees the specific cause, not a generic message. */
+    var lastSubmitError: String? = null
+        private set
+
     fun submit(): Boolean {
-        if (myRunning.value) return false
-        val ref = myModelReference.value ?: return false
+        lastSubmitError = null
+        if (myRunning.value) {
+            lastSubmitError = "A run is already in progress."
+            return false
+        }
+        val ref = myModelReference.value ?: run {
+            lastSubmitError = "No model selected — pick a model on the Model tab."
+            return false
+        }
         val factors = myFactors.value
-        if (factors.isEmpty()) return false
-        val provider = bundleLibrary.bundleProvider.value ?: return false
+        if (factors.isEmpty()) {
+            lastSubmitError = "No factors defined — add at least one on the Factors tab."
+            return false
+        }
+        val provider = bundleLibrary.bundleProvider.value ?: run {
+            lastSubmitError = "No model bundles are loaded — load the model's bundle on the Model tab."
+            return false
+        }
 
         // R1: clear runtime artefacts before kickoff.  The Reports +
         // Regression tabs flip to their empty states through their
@@ -813,8 +831,14 @@ class ExperimentAppController(
         )
 
         val modelBuilder = try {
-            provider.builderFor(ref.toModelIdentifier())
+            // Resolve unambiguously by (bundleId, modelId) when both are known — the flat
+            // single-id lookup can shadow when two bundles share a modelId.
+            when (ref) {
+                is ModelReference.ByBundleAndModelId -> provider.builderFor(ref.bundleId, ref.modelId)
+                else -> provider.builderFor(ref.toModelIdentifier())
+            }
         } catch (t: Throwable) {
+            lastSubmitError = "Could not resolve or build the model: ${t.message ?: t::class.simpleName}"
             runLifecycle.markEdited()
             return false
         }
@@ -829,6 +853,7 @@ class ExperimentAppController(
                 name = analysisDirName
             )
         } catch (t: Throwable) {
+            lastSubmitError = "Could not build the designed experiment: ${t.message ?: t::class.simpleName}"
             return false
         }
         myExperimentInstance.value = experiment
