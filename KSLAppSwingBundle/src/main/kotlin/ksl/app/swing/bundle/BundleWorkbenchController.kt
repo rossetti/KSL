@@ -276,6 +276,18 @@ class BundleWorkbenchController(val appName: String) {
         validate()
     }
 
+    /** Includes or excludes every discovered model at once (see [setIncluded]). */
+    fun setAllIncluded(included: Boolean) {
+        val ids = session?.models?.map { it.modelId } ?: return
+        excludedModelIds = if (included) emptySet() else ids.toSet()
+        refreshModels()
+        _dirty.value = true
+        _status.value =
+            if (included) "All ${ids.size} model(s) included in the bundle."
+            else "All ${ids.size} model(s) excluded from the bundle (builders stay in the JAR)."
+        validate()
+    }
+
     /**
      * Validates the current draft (assembles to a temp JAR and runs BundleValidation),
      * publishing the result to [healthBus] for the inline banner.

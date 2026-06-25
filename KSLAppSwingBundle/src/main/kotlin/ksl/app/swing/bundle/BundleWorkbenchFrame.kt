@@ -68,7 +68,7 @@ class BundleWorkbenchFrame(
         toolTipText = "Check the current draft: assemble it to a temporary bundle and report problems " +
             "(bundle id, model ids, supported apps, catalog, builder resolvability)."
         isEnabled = false
-        addActionListener { controller.validate() }
+        addActionListener { runValidate() }
     }
     private val assembleButton = JButton("Assemble bundle JAR…").apply {
         toolTipText = "Write a NEW bundle JAR (manifest + per-model descriptor + catalog). " +
@@ -162,11 +162,32 @@ class BundleWorkbenchFrame(
             add(JMenuItem(SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this@BundleWorkbenchFrame })))
             add(RecentWorkingDirectoriesMenu(controller.settingsStore, controller.scope))
             addSeparator()
-            add(JMenuItem("Validate").apply { addActionListener { controller.validate() } })
+            add(JMenuItem("Validate").apply { addActionListener { runValidate() } })
             add(JMenuItem("Assemble bundle JAR…").apply { addActionListener { assembleDialog() } })
             addSeparator()
             add(JMenuItem("Exit").apply { addActionListener { handleClose() } })
         })
+    }
+
+    /** Validates, then flashes the status line so a repeat click is visibly acknowledged. */
+    private fun runValidate() {
+        val report = controller.validate()
+        flashStatus(ok = report?.isClean == true)
+    }
+
+    /** Briefly highlights the status line (green = clean, amber = findings) as a transient
+     *  "the action ran" cue, since the status text itself may be unchanged between runs. */
+    private fun flashStatus(ok: Boolean) {
+        val origBackground = statusLabel.background
+        val origOpaque = statusLabel.isOpaque
+        statusLabel.isOpaque = true
+        statusLabel.background = if (ok) java.awt.Color(0xCC, 0xF2, 0xCC) else java.awt.Color(0xFF, 0xE2, 0xB3)
+        statusLabel.repaint()
+        javax.swing.Timer(450) {
+            statusLabel.background = origBackground
+            statusLabel.isOpaque = origOpaque
+            statusLabel.repaint()
+        }.apply { isRepeats = false; start() }
     }
 
     private fun openJarDialog() {

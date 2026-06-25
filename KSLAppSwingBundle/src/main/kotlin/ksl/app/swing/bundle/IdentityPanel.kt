@@ -82,14 +82,14 @@ class IdentityPanel(
             add(bundleId, BorderLayout.CENTER)
             add(generateButton, BorderLayout.EAST)
         }
-        add("Bundle id *:", bundleIdRow)
-        add("Display name *:", displayName)
+        add("Bundle id (required):", bundleIdRow)
+        add("Display name (required):", displayName)
         add("Description:", description)
         add("Version:", version)
         add("KSL API version:", kslApi)
-        add("Author (optional):", author)
-        add("Homepage (optional):", homepage)
-        add("License (optional):", license)
+        add("Author:", author)
+        add("Homepage:", homepage)
+        add("License:", license)
 
         val apply = JButton("Apply bundle identity").apply { addActionListener { apply() } }
         add(JScrollPane(form), BorderLayout.CENTER)

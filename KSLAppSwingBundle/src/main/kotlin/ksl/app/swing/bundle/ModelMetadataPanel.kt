@@ -116,19 +116,29 @@ class ModelMetadataPanel(
     private fun buildBulkToolbar(): JComponent = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.X_AXIS)
         border = BorderFactory.createEmptyBorder(0, 0, 6, 0)
-        add(JLabel("Bulk supported apps: "))
+        add(JLabel("Bulk-edit supported apps (tick apps, select rows, then): "))
         bulkChecks.values.forEach { add(it) }
         add(Box.createHorizontalStrut(8))
-        add(JButton("Add to selected").apply {
-            toolTipText = "Add the checked apps to every selected model row."
+        add(JButton("Add to selected rows").apply {
+            toolTipText = "Add the ticked apps to every selected model row."
             addActionListener { bulkApply(add = true) }
         })
         add(Box.createHorizontalStrut(4))
-        add(JButton("Remove from selected").apply {
-            toolTipText = "Remove the checked apps from every selected model row."
+        add(JButton("Remove from selected rows").apply {
+            toolTipText = "Remove the ticked apps from every selected model row."
             addActionListener { bulkApply(add = false) }
         })
         add(Box.createHorizontalGlue())
+        add(JLabel("In bundle: "))
+        add(JButton("Include all").apply {
+            toolTipText = "Mark every model for inclusion in the assembled bundle."
+            addActionListener { controller.setAllIncluded(true) }
+        })
+        add(Box.createHorizontalStrut(4))
+        add(JButton("Exclude all").apply {
+            toolTipText = "Drop every model from the assembled bundle (the builders stay in the JAR)."
+            addActionListener { controller.setAllIncluded(false) }
+        })
     }
 
     private fun bulkApply(add: Boolean) {
@@ -143,8 +153,8 @@ class ModelMetadataPanel(
     }
 
     private fun legend(): JComponent = JLabel(
-        "Selecting a row sets the model the Catalog tab edits · edit display name and the app boxes in place · " +
-            "uncheck In bundle to drop a model (e.g. a shared closure) · double-click a row to rename and inspect it"
+        "Select a row to edit it in the Catalog tab · edit the display name and app boxes in place · " +
+            "uncheck In bundle to leave a model out of the assembled bundle · double-click a row to rename and inspect it"
     ).apply { border = BorderFactory.createEmptyBorder(4, 2, 0, 2) }
 
     // ── table population ──────────────────────────────────────────────────────

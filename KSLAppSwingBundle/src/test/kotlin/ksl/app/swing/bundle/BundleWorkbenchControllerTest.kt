@@ -125,4 +125,24 @@ class BundleWorkbenchControllerTest {
         }
     }
 
+    @Test
+    fun `include-all and exclude-all toggle every model`(@TempDir dir: Path) {
+        val c = controller()
+        try {
+            val jar = TestJarBuilder.buildBuildersJar(
+                dir, "wb3", WorkbenchTestBuilder::class.java, WorkbenchSecondBuilder::class.java
+            )
+            c.openBuildersJar(jar)
+            assertEquals(2, c.models.value.size)
+
+            c.setAllIncluded(false)
+            assertTrue(c.models.value.none { it.included }, "exclude-all clears every In bundle box")
+
+            c.setAllIncluded(true)
+            assertTrue(c.models.value.all { it.included }, "include-all re-checks every model")
+        } finally {
+            c.dispose()
+        }
+    }
+
 }
