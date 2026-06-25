@@ -82,6 +82,11 @@ class Notifications(
      *  notification appears asynchronously.
      */
     override fun emit(spec: NotificationSpec) {
+        // Echo to the console so long messages survive the transient toast and can be
+        // copied: the toast auto-dismisses and its text is not selectable.  (A persistent
+        // in-app notification log is the longer-term home — see the history-panel plan.)
+        (if (spec.severity == NotificationSeverity.ERROR) System.err else System.out)
+            .println("[${spec.severity}] ${spec.message}")
         if (javax.swing.SwingUtilities.isEventDispatchThread()) {
             show(spec)
         } else {

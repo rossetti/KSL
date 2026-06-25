@@ -41,11 +41,13 @@ data class NotificationSpec(
     val dismissAfter: Duration? = defaultDismissAfter(severity)
 ) {
     companion object {
-        /** Default auto-dismiss duration per severity. */
-        fun defaultDismissAfter(severity: NotificationSeverity): Duration = when (severity) {
+        /** Default auto-dismiss duration per severity; null means stay until dismissed. */
+        fun defaultDismissAfter(severity: NotificationSeverity): Duration? = when (severity) {
             NotificationSeverity.INFO -> 5.seconds
             NotificationSeverity.WARNING -> 5.seconds
-            NotificationSeverity.ERROR -> 8.seconds
+            // Errors persist until the user dismisses them — a long error message must not
+            // vanish before it can be read (the console echo preserves the full text too).
+            NotificationSeverity.ERROR -> null
         }
     }
 }

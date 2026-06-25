@@ -74,10 +74,11 @@ class NotificationsTest {
     }
 
     @Test
-    fun `severity defaults yield non-null durations`() {
+    fun `severity defaults - INFO and WARNING auto-dismiss, ERROR persists`() {
         assertEquals(5.seconds, NotificationSpec.defaultDismissAfter(NotificationSeverity.INFO))
         assertEquals(5.seconds, NotificationSpec.defaultDismissAfter(NotificationSeverity.WARNING))
-        assertEquals(8.seconds, NotificationSpec.defaultDismissAfter(NotificationSeverity.ERROR))
+        // Errors stay until the user dismisses them so a long message isn't lost.
+        assertEquals(null, NotificationSpec.defaultDismissAfter(NotificationSeverity.ERROR))
 
         val s = NotificationSpec("hi")
         assertEquals(5.seconds, s.dismissAfter)
