@@ -218,6 +218,14 @@ class BundleWorkbenchFrame(
             JOptionPane.showMessageDialog(this, "Open a builders JAR first.", "Nothing to assemble", JOptionPane.WARNING_MESSAGE)
             return
         }
+        if (controller.identity.value?.bundleId.isNullOrBlank()) {
+            JOptionPane.showMessageDialog(
+                this, "Enter a bundle id on the Bundle identity tab before assembling.",
+                "Bundle id required", JOptionPane.WARNING_MESSAGE
+            )
+            tabs.selectedIndex = TAB_IDENTITY
+            return
+        }
         val appDir = controller.ensureAppWorkspace()
         val chooser = JFileChooser(appDir.toFile()).apply {
             dialogTitle = "Assemble bundle JAR"

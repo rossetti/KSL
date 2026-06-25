@@ -167,9 +167,9 @@ class BundleWorkbenchController(val appName: String) {
 
     /** Opens a plain builders JAR, discovers its models, selects the first, and validates. */
     fun openBuildersJar(jar: Path) {
-        val s = BundleAuthoringSession.open(jar)
-        if (s.bundleId.isBlank()) s.bundleId = defaultBundleId(jar)
-        adopt(s, jar, fromBundle = false)
+        // bundleId is intentionally NOT auto-filled: it is required, so the modeler must
+        // type one (or use Generate) — a pre-filled value is too easy to ship unchanged.
+        adopt(BundleAuthoringSession.open(jar), jar, fromBundle = false)
     }
 
     /** Opens an already-assembled bundle JAR, restoring its identity/catalog. */
@@ -191,7 +191,7 @@ class BundleWorkbenchController(val appName: String) {
         _status.value = when {
             s.models.isEmpty() -> "No model builders found in this JAR."
             fromBundle -> "Reopened bundle with ${s.models.size} model(s)."
-            else -> "Opened ${s.models.size} model(s). Next: set the bundle identity (Bundle identity tab)."
+            else -> "Opened ${s.models.size} model(s). Next: enter the required bundle id on the Bundle identity tab."
         }
         validate() // seed the health banner with the opening state
     }
@@ -201,7 +201,11 @@ class BundleWorkbenchController(val appName: String) {
         val s = session ?: return
         val draft = s.models.firstOrNull { it.modelId == modelId } ?: return
         _selectedModelId.value = modelId
-        _currentReference.value = ModelReference.ByBundleAndModelId(s.bundleId, modelId)
+        // bundleId may still be blank (required, not auto-filled) — a reference needs a
+        // non-blank id, so leave it null until the modeler enters one.
+        _currentReference.value =
+            if (s.bundleId.isBlank()) null
+            else ModelReference.ByBundleAndModelId(s.bundleId, modelId)
         _currentDescriptor.value = draft.descriptor
         // Seed the editable catalog buffer from the model's accumulated catalog (if any),
         // else from the descriptor — reusing CatalogDraft.from's descriptor-driven seeding.
@@ -238,7 +242,11 @@ class BundleWorkbenchController(val appName: String) {
         s.homepage = v.homepage?.ifBlank { null }
         s.license = v.license?.ifBlank { null }
         refreshIdentity()
-        _selectedModelId.value?.let { _currentReference.value = ModelReference.ByBundleAndModelId(s.bundleId, it) }
+        _selectedModelId.value?.let {
+            _currentReference.value =
+                if (s.bundleId.isBlank()) null
+                else ModelReference.ByBundleAndModelId(s.bundleId, it)
+        }
         _dirty.value = true
         _status.value = "Bundle identity applied. Next: set each model's supported apps on the Models tab."
         validate() // refresh the health banner so fixed findings clear
@@ -377,12 +385,4 @@ class BundleWorkbenchController(val appName: String) {
         _catalogProblems.value = emptyList()
     }
 
-    private companion object {
-        /** A provisional, filesystem-safe bundleId derived from the JAR stem. */
-        fun defaultBundleId(jar: Path): String {
-            val stem = jar.fileName.toString().removeSuffix(".jar").ifBlank { "bundle" }
-            return stem.map { if (it.isLetterOrDigit() || it == '.' || it == '_' || it == '-') it else '-' }
-                .joinToString("").ifBlank { "bundle" }
-        }
-    }
 }

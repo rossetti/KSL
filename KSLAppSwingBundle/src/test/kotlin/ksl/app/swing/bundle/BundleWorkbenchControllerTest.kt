@@ -31,7 +31,7 @@ class BundleWorkbenchControllerTest {
             c.openBuildersJar(buildersJar(dir))
             assertEquals("WorkbenchTest", c.selected, "modelId derived from the builder FQN")
             assertNotNull(c.identity.value)
-            assertEquals("wb", c.identity.value!!.bundleId, "bundleId defaults to the JAR stem")
+            assertEquals("", c.identity.value!!.bundleId, "bundleId is NOT auto-filled; the user must enter it")
             assertEquals(1, c.models.value.size)
             assertNotNull(c.currentDescriptor.value)
             assertNotNull(c.catalogDraft.value)
