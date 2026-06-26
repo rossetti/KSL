@@ -35,13 +35,11 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
-    // The example dogfood bundles (MM1 / LKInventory / SimoptTestModels) are
-    // test fixtures only — kept off any runtime classpath, the same hygiene
-    // Phase 6F item 7 applies to the apps.
-    testImplementation(project(":KSLExamples"))
     // MM1 / LKInventory / SimOpt manifest-bundle fixtures (ManifestBundleFixtures +
-    // the named ModelBuilderIfc classes) — the seam that replaces the retired
-    // classpath/ServiceLoader bundle discovery in these tests.
+    // the named ModelBuilderIfc classes) — the dogfood models the server tests
+    // assemble into bundle JARs, replacing the retired classpath/ServiceLoader
+    // discovery. KSLTestModels is the only example/model dependency the server
+    // stack needs (KSLExamples is intentionally kept off the server classpath).
     testImplementation(project(":KSLTestModels"))
     testRuntimeOnly("ch.qos.logback:logback-classic:1.5.32")
 }
