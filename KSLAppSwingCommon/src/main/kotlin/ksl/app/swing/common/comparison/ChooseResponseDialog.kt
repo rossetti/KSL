@@ -99,7 +99,11 @@ object ChooseResponseDialog {
         val name: String,
         val category: ResponseCategory,
         val recordingExperiments: Int,
-        val totalCheckedExperiments: Int
+        val totalCheckedExperiments: Int,
+        /** Distinct model identifiers of the experiments that record this response.
+         *  More than one means the same response name spans different models — and may
+         *  therefore measure different quantities. */
+        val models: List<String> = emptyList()
     )
 
     /** Result of [showDialog]. */
@@ -187,6 +191,7 @@ object ChooseResponseDialog {
 
             applyColumnWidths()
             installResponseRenderer()
+            installModelsRenderer()
             installFilterableHeader()
             sorter.rowFilter = composeRowFilter()
 
@@ -216,9 +221,10 @@ object ChooseResponseDialog {
 
         private fun applyColumnWidths() {
             val cm = table.columnModel
-            cm.getColumn(COL_RESPONSE).preferredWidth = 320
-            cm.getColumn(COL_CATEGORY).preferredWidth = 130
-            cm.getColumn(COL_RECORDED).preferredWidth = 140
+            cm.getColumn(COL_RESPONSE).preferredWidth = 260
+            cm.getColumn(COL_MODELS).preferredWidth = 160
+            cm.getColumn(COL_CATEGORY).preferredWidth = 110
+            cm.getColumn(COL_RECORDED).preferredWidth = 120
         }
 
         /**
@@ -246,6 +252,34 @@ object ChooseResponseDialog {
             javax.swing.ToolTipManager.sharedInstance().registerComponent(table)
         }
 
+        /**
+         *  Render the *Model(s)* cell.  When a response is recorded by more than one
+         *  model, flag it (amber + ⚠) with a tooltip caution — the same response name
+         *  spans different models and may measure different quantities.
+         */
+        private fun installModelsRenderer() {
+            table.columnModel.getColumn(COL_MODELS).cellRenderer =
+                object : DefaultTableCellRenderer() {
+                    override fun getTableCellRendererComponent(
+                        t: JTable, value: Any?, isSelected: Boolean,
+                        hasFocus: Boolean, row: Int, column: Int
+                    ): Component {
+                        super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, column)
+                        val models = rows.getOrNull(t.convertRowIndexToModel(row))?.models ?: emptyList()
+                        if (models.size > 1) {
+                            text = "⚠ ${models.joinToString(", ")}"
+                            if (!isSelected) foreground = Color(0x99, 0x55, 0x00)
+                            toolTipText = "Recorded by ${models.size} different models " +
+                                "(${models.joinToString(", ")}) — confirm they measure the same quantity."
+                        } else {
+                            toolTipText = null
+                        }
+                        return this
+                    }
+                }
+            javax.swing.ToolTipManager.sharedInstance().registerComponent(table)
+        }
+
         private fun buildButtons(): JComponent = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 12, 12, 12)
@@ -265,12 +299,21 @@ object ChooseResponseDialog {
             val v = validator?.invoke(name)
             val display = nominatedOutputs[name]?.displayName?.takeIf { it.isNotBlank() }
             val label = if (display != null) "'$name' — $display" else "'$name'"
-            if (v == null || v.ok) {
-                statusLabel.text = "Ready: $label"
-                statusLabel.foreground = Color(0x33, 0x77, 0x33)
-            } else {
-                statusLabel.text = "⚠ ${v.reason}"
-                statusLabel.foreground = Color(0x99, 0x55, 0x00)
+            val models = rows.firstOrNull { it.name == name }?.models ?: emptyList()
+            when {
+                v != null && !v.ok -> {
+                    statusLabel.text = "⚠ ${v.reason}"
+                    statusLabel.foreground = Color(0x99, 0x55, 0x00)
+                }
+                models.size > 1 -> {
+                    statusLabel.text = "⚠ $label is recorded by ${models.size} different models " +
+                        "(${models.joinToString(", ")}) — confirm they measure the same quantity."
+                    statusLabel.foreground = Color(0x99, 0x55, 0x00)
+                }
+                else -> {
+                    statusLabel.text = "Ready: $label"
+                    statusLabel.foreground = Color(0x33, 0x77, 0x33)
+                }
             }
         }
 
@@ -425,17 +468,19 @@ object ChooseResponseDialog {
     // ── Table model ──────────────────────────────────────────────────────
 
     private const val COL_RESPONSE = 0
-    private const val COL_CATEGORY = 1
-    private const val COL_RECORDED = 2
+    private const val COL_MODELS = 1
+    private const val COL_CATEGORY = 2
+    private const val COL_RECORDED = 3
 
     private class ResponseTableModel(
         private val rows: List<Row>
     ) : AbstractTableModel() {
 
         override fun getRowCount(): Int = rows.size
-        override fun getColumnCount(): Int = 3
+        override fun getColumnCount(): Int = 4
         override fun getColumnName(c: Int): String = when (c) {
             COL_RESPONSE -> "Response"
+            COL_MODELS -> "Model(s)"
             COL_CATEGORY -> "Category"
             COL_RECORDED -> "Recorded by"
             else -> ""
@@ -445,6 +490,7 @@ object ChooseResponseDialog {
 
         fun cellAsString(row: Row, column: Int): String = when (column) {
             COL_RESPONSE -> row.name
+            COL_MODELS -> if (row.models.isEmpty()) "—" else row.models.joinToString(", ")
             COL_CATEGORY -> when (row.category) {
                 ResponseCategory.OBSERVATION -> "Observation"
                 ResponseCategory.TIME_WEIGHTED -> "Time-weighted"

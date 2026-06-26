@@ -334,11 +334,13 @@ object MultipleComparisonAnalysisDialog {
         private fun onPickResponse() {
             val totalChecked = model.selectedExperimentNames.size
             val rows = model.availableResponses().map { r ->
+                val recording = model.experimentsRecording(r.name)
                 ChooseResponseDialog.Row(
                     name = r.name,
                     category = r.category,
-                    recordingExperiments = model.experimentsRecording(r.name).size,
-                    totalCheckedExperiments = totalChecked
+                    recordingExperiments = recording.size,
+                    totalCheckedExperiments = totalChecked,
+                    models = recording.map { it.modelIdentifier }.distinct().sorted()
                 )
             }
             if (rows.isEmpty()) {
