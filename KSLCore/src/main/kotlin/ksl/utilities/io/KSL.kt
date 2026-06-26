@@ -125,5 +125,21 @@ object KSL {
         return myOutputDir.createSubDirectory(dirName)
     }
 
+    /** Resolves a path to the named subdirectory under the base output directory
+     *  WITHOUT creating it. This is the path-only sibling of `createSubDirectory`.
+     *
+     *  Model's constructor-default output path uses this so that a model that never
+     *  writes output materializes no directory. The directory is created later, on
+     *  first actual output (when the model's output directory is first used).
+     *
+     *  Output abstractions that DO write at construction time (e.g. the scenario /
+     *  experiment runners, which open a results `KSLDatabase` in their output
+     *  directory) must keep using `createSubDirectory` so the directory exists.
+     *
+     * @param dirName the name of the subdirectory to resolve. It must not be null
+     * @return a path to the named subdirectory under the output root, not created
+     */
+    fun outputSubPath(dirName: String): Path = outDir.resolve(dirName)
+
 
 }

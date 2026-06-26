@@ -74,7 +74,7 @@ private var simCounter: Int = 0
  */
 class Model @JvmOverloads constructor(
     val simulationName: String = "Simulation${++simCounter}",
-    private val pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
+    private val pathToOutputDirectory: Path = KSL.outputSubPath(simulationName.replace(" ", "_") + "_OutputDir"),
     var autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
