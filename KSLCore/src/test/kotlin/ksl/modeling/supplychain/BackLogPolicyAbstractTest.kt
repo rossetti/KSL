@@ -37,7 +37,6 @@ class BackLogPolicyAbstractTest {
         override val numberOfDemandsBackLogged: Int get() = backlogCalls - fillCalls
         override fun getBackLogStatistics(): BackLogStatisticsIfc =
             error("not exercised in these tests")
-        override val id: Int = 0
         override var label: String? = null
     }
 

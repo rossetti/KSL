@@ -81,15 +81,13 @@ abstract class ModelElement internal constructor(
         //TODO consider conversion functions
     }
 
-    init {
-        elementCounter = elementCounter + 1
-    }
-
     private val modelElementObservers = mutableListOf<ModelElementObserver>()
 
-    override val id: Int = elementCounter
+    final override var id: Int = 0
+        private set
 
-    final override val name: String = makeName(name)
+    final override var name: String = makeName(name)
+        private set
 
     private fun makeName(str: String?): String {
         return if (str == null) {
@@ -451,11 +449,16 @@ abstract class ModelElement internal constructor(
      */
     @JvmOverloads
     constructor(parent: ModelElement, name: String? = null) : this(name) {
-        // should not be leaking this
-        // adds the model element to the parent and also set this element's parent
-        parent.addModelElement(this)
-        // sets this element's model to the model of its parent, everyone is in the same model
+        // The parent is already fully constructed, so parent.myModel is available.
         myModel = parent.myModel
+        // Assign the real per-model id (the primary set a placeholder 0) and recompute the
+        // name with it.  A provided name is unchanged; an auto-name now uses the real id.
+        // Both are finalized BEFORE the registry calls so the model's name/id map never
+        // sees the transient placeholder.
+        id = myModel.nextElementId()
+        this.name = makeName(name)
+        // adds the model element to the parent and sets this element's parent
+        parent.addModelElement(this)
         // tells the model to add this element to the overall model element map
         myModel.addToModelElementMap(this)
     }
@@ -2016,8 +2019,6 @@ abstract class ModelElement internal constructor(
 
     companion object {
         private var enumCounter: Int = 0
-
-        private var elementCounter: Int = 0
 
         /**
          * incremented to give a running total of the number of model QObject

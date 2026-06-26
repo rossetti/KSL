@@ -56,7 +56,6 @@ class InventoryTest {
                 override val numberOfDemandsBackLogged: Int = 0
                 override fun getBackLogStatistics(): BackLogStatisticsIfc =
                     error("not used")
-                override val id: Int = 0
                 override var label: String? = null
             }
         }

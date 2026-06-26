@@ -79,6 +79,18 @@ class Model @JvmOverloads constructor(
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
 
+    /** Per-model element-id counter.  Each Model owns its own elements,
+     *  so element ids — and the auto-names derived from them — are reproducible across
+     *  builds: identical construction order yields identical ids every time. */
+    private var myElementCounter: Int = 0
+
+    /** Next per-model element id.  Called from the ModelElement (parent, name) constructor
+     *  via parent.myModel; not part of the public API. */
+    internal fun nextElementId(): Int {
+        myElementCounter = myElementCounter + 1
+        return myElementCounter
+    }
+
     /**
      *  When `true`, [simulate] turns on the per-replication CSV report
      *  before running, regardless of [autoCSVReports].  Independent
