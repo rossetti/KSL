@@ -37,7 +37,7 @@ class RunServiceOptimizationTest {
 
     @Test
     fun `submits an optimization for MM1 and completes with an iteration history`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val control = descriptor.controls.numericControls.first() // numServers

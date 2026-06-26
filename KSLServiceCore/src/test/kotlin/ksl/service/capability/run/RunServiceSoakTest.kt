@@ -41,12 +41,13 @@ import kotlin.time.Duration.Companion.seconds
  * JobManager must reclaim terminated jobs on its TTL rather than growing
  * without bound.
  */
+@org.junit.jupiter.api.Disabled("Heaviest run test (long soak); disabled initially per request to keep the suite fast.")
 class RunServiceSoakTest {
 
     @Test
     fun `many sequential runs reuse one provider and all complete`() = runBlocking {
         val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             RunService.fromRegistry(registry).use { runService ->
                 // Short retention so terminated jobs are evicted during the soak.

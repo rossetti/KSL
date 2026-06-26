@@ -61,7 +61,7 @@ class KslMcpToolsTest {
 
     @BeforeTest
     fun setUp() {
-        registry = BundleRegistry.fromClasspath()
+        registry = TestBundles.registry()
         // An isolated settings store so workspace get/set and file output stay off the
         // real ~/.ksl and ~/Documents/KSLWork. The default workspace lives in a temp dir.
         tmpWorkspace = java.nio.file.Files.createTempDirectory("mcp-ws")
@@ -577,9 +577,6 @@ class KslMcpToolsTest {
         val report = structured(tools.validateRun(buildJsonObject { put("config", badDoc) }))
         assertEquals(false, report["valid"]!!.jsonPrimitive.content.toBoolean())
         assertTrue(report["errors"]!!.jsonArray.isNotEmpty())
-
-        // Recipes surface (empty for MM1, but the mechanism works).
-        assertEquals(false, tools.listRecipes(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") }).isError ?: false)
     }
 
     @Test
@@ -696,10 +693,6 @@ class KslMcpToolsTest {
         val modelArr = structured(models)["models"]!!.jsonArray.map { it.jsonPrimitive.content }
         assertTrue("MM1" in modelArr, "structuredContent lists the model ids")
 
-        // list_recipes: {recipes:[...]} (possibly empty for MM1, but typed and present).
-        val recipes = tools.listRecipes(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
-        assertNotNull(structured(recipes)["recipes"]?.jsonArray)
-
         // run_template: the text is the editable document; structuredContent.document is it parsed.
         val template = tools.runTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
         val doc = structured(template)["document"]!!.jsonObject
@@ -772,7 +765,6 @@ class KslMcpToolsTest {
         check("list_bundles", tools.listBundles())
         check("list_models", tools.listModels(buildJsonObject { put("bundleId", "ksl.examples.mm1") }))
         check("describe_model", tools.describeModel(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") }))
-        check("list_recipes", tools.listRecipes(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") }))
         check("run_template", tools.runTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") }))
         check("fit_template", tools.fitTemplate(buildJsonObject { put("kind", "CONTINUOUS") }))
 
@@ -859,7 +851,7 @@ class KslMcpToolsTest {
                     "fit_template", "fit_config", "validate_fit_config",
                     "preview_run_config", "preview_optimization_config",
                     "preview_experiment_config", "preview_fit_config",
-                    "list_recipes", "get_recipe", "run_template",
+                    "run_template",
                     "validate_run_config", "validate_optimization_config",
                     "get_result", "list_responses", "get_response", "get_design_point",
                     "get_fit_scoring", "get_fit_report",

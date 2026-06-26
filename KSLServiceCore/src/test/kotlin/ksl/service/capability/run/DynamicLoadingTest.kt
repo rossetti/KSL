@@ -18,9 +18,10 @@
 
 package ksl.service.capability.run
 
-import ksl.examples.general.appsupport.MM1Bundle
-import ksl.service.capability.run.support.TestBundleBuilder
+import ksl.examples.general.appsupport.MM1ModelBuilder
+import ksl.examples.general.appsupport.ManifestBundleFixtures
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -31,6 +32,13 @@ import kotlin.test.assertTrue
  * with deferred classloader close.
  */
 class DynamicLoadingTest {
+
+    /** Assembles the MM1 manifest bundle and drops just its bundle JAR into [into] (the watched dir). */
+    private fun dropMm1(into: Path): Path {
+        val build = Files.createTempDirectory("mm1-build")
+        val src = ManifestBundleFixtures.assembleManifestBundle(build, "mm1", "ksl.examples.mm1", MM1ModelBuilder::class.java)
+        return Files.copy(src, into.resolve("mm1.jar"))
+    }
 
     @Test
     fun `a dropped jar is picked up and a removed jar is dropped`() {
@@ -44,7 +52,7 @@ class DynamicLoadingTest {
             assertTrue(registry.listBundles().isEmpty())
 
             // Drop a real bundle jar and rescan → MM1 appears and resolves.
-            TestBundleBuilder.build(dir, "mm1", listOf(MM1Bundle::class.java))
+            dropMm1(dir)
             watcher.scanOnce()
             assertTrue(registry.listBundles().any { it.bundleId == "ksl.examples.mm1" }, "MM1 jar should be loaded")
             assertTrue(provider.isModelProvided("MM1"), "the dynamic provider must resolve the new model")
@@ -61,7 +69,7 @@ class DynamicLoadingTest {
         val dir = Files.createTempDirectory("ksl-bundles-stable")
         BundleRegistry.empty().use { registry ->
             val watcher = BundleDirectoryWatcher(registry, dir)
-            TestBundleBuilder.build(dir, "mm1", listOf(MM1Bundle::class.java))
+            dropMm1(dir)
             watcher.scanOnce()
             val firstHash = registry.knownSources().values.firstOrNull()
             watcher.scanOnce() // same bytes → no reload

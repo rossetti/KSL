@@ -31,9 +31,10 @@ dependencies {
     // Client engine for the HTTP transport integration test (the SSE client
     // plugin ships in ktor-client-core, pulled transitively by the MCP SDK).
     testImplementation("io.ktor:ktor-client-cio:3.2.3")
-    // The example bundles (MM1 / LKInventory / SimoptTestModels) must be on the
-    // test classpath so BundleRegistry.fromClasspath() can discover them.
-    testImplementation(project(":KSLExamples"))
+    // MM1 / LKInventory / SimOpt manifest-bundle fixtures (KSLTestModels'
+    // ManifestBundleFixtures + named builders) for bundles loaded via
+    // BundleRegistry.fromDirectories(...) in tests.
+    testImplementation(project(":KSLTestModels"))
 }
 
 application {

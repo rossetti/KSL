@@ -53,7 +53,7 @@ class RunServiceDocumentTest {
 
     @Test
     fun `a run document round-trips through JSON, validates, and runs`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             // Round-trip the document through the authoritative codec.
             val original = mm1Document(reps = 3)
@@ -71,7 +71,7 @@ class RunServiceDocumentTest {
 
     @Test
     fun `a document referencing an unknown model fails validation`() {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             val bad = RunConfiguration(
                 scenarios = listOf(

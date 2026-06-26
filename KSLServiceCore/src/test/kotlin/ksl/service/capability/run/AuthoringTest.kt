@@ -24,15 +24,15 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The authoring stack (Phase 8.3): the intent menu (`modelKinds`), author
- * recipes (`recipes`), and generated scaffolds (`RunTemplates`). A generated
- * scaffold must itself be a *valid, runnable* document.
+ * The authoring stack (Phase 8.3): the intent menu (`modelKinds`) and the
+ * generated scaffolds (`RunTemplates`). A generated scaffold must itself be a
+ * *valid, runnable* document.
  */
 class AuthoringTest {
 
     @Test
     fun `modelKinds exposes the model's declared task kinds`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val kinds = registry.modelKinds("ksl.examples.mm1", "MM1")
             assertTrue(KSLAppKind.SINGLE in kinds, "MM1 should support SINGLE; got $kinds")
             assertTrue(KSLAppKind.SIMOPT in kinds, "MM1 declares SIMOPT support")
@@ -40,17 +40,8 @@ class AuthoringTest {
     }
 
     @Test
-    fun `recipes returns a list (possibly empty) without error`() {
-        BundleRegistry.fromClasspath().use { registry ->
-            // MM1 ships no curated recipes; the mechanism is exposed regardless.
-            val recipes = registry.recipes("ksl.examples.mm1", "MM1")
-            assertTrue(recipes.isEmpty() || recipes.isNotEmpty()) // total: no exception
-        }
-    }
-
-    @Test
     fun `a generated run scaffold round-trips and is itself a valid document`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val scaffold = RunTemplates.runDocument(descriptor, "MM1")
 

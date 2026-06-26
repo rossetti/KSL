@@ -44,11 +44,12 @@ import kotlin.time.Duration.Companion.seconds
  * `Cancelled` outcome — the detectable signal that keeps a timed-out run from
  * being mistaken for a clean result and cached as one.
  */
+@org.junit.jupiter.api.Disabled("Heavy run test (wall-clock deadline waits); disabled initially per request to keep the suite fast.")
 class RunServiceDeadlineTest {
 
     @Test
     fun `a runaway run is cancelled at the server deadline`(): Unit = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             // Any discrete-event example model runs effectively forever under a
             // huge horizon; we just need one to drive past the deadline.
@@ -82,7 +83,7 @@ class RunServiceDeadlineTest {
 
     @Test
     fun `a runaway experiment is cancelled at the server deadline`(): Unit = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             // A factorial needs >= 2 numeric controls; discover a model that has them.
             val target = registry.listBundles().firstNotNullOfOrNull { bundle ->
@@ -113,7 +114,7 @@ class RunServiceDeadlineTest {
 
     @Test
     fun `a long optimization is cancelled at the server deadline`(): Unit = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val control = descriptor.controls.numericControls.first()

@@ -47,7 +47,7 @@ class RunServiceRandomizationTest {
 
     @Test
     fun `singleRunConfig leaves the default run byte-identical and only perturbs when asked`() {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             RunService.fromRegistry(registry).use { service ->
                 // Baseline: no stream args.

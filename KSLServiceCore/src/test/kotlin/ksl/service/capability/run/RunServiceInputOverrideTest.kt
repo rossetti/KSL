@@ -44,7 +44,7 @@ class RunServiceInputOverrideTest {
 
     @Test
     fun `inflating the service-time mean drives time-in-system up`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val serviceRv = descriptor.rvParameterData.first { it.paramName == "mean" }
@@ -83,7 +83,7 @@ class RunServiceInputOverrideTest {
 
     @Test
     fun `a numeric control override is accepted and the run completes`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val controlKey = descriptor.controls.numericControls.first().keyName // numServers

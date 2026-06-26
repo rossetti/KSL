@@ -61,7 +61,7 @@ class KslRestAppTest {
 
     @Test
     fun `health is UP and ready reflects the readiness probe`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         val ready = java.util.concurrent.atomic.AtomicBoolean(false)
         application { kslRestModule(service, ready = ready::get) }
@@ -94,7 +94,7 @@ class KslRestAppTest {
 
     @Test
     fun `bearer token gate rejects without a valid token and allows with it`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         val token = "lab-key-123"
         application { kslRestModule(service, ready = { true }, authToken = token) }
@@ -123,7 +123,7 @@ class KslRestAppTest {
 
     @Test
     fun `rest surface - discovery, run lifecycle, and fit`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -181,7 +181,7 @@ class KslRestAppTest {
 
     @Test
     fun `optimization runs as a job and its result is fetched via runs endpoint`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -224,7 +224,7 @@ class KslRestAppTest {
 
     @Test
     fun `experiment runs as a job and its batch result is fetched via runs endpoint`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -270,7 +270,7 @@ class KslRestAppTest {
 
     @Test
     fun `POST runs applies inputs and rejects unknown input keys`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -307,7 +307,7 @@ class KslRestAppTest {
 
     @Test
     fun `POST run-configs runs an authored document and rejects an invalid one`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -353,7 +353,7 @@ class KslRestAppTest {
 
     @Test
     fun `POST runs replicationSet selects an independent realization`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -385,7 +385,7 @@ class KslRestAppTest {
 
     @Test
     fun `document endpoints accept a TOML body, not only JSON`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -424,8 +424,8 @@ class KslRestAppTest {
     }
 
     @Test
-    fun `authoring - template, recipes, and validation`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+    fun `authoring - template and validation`() = testApplication {
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -459,9 +459,6 @@ class KslRestAppTest {
             }
             assertEquals(HttpStatusCode.OK, badReport.status)
             assertTrue("\"valid\":false" in badReport.bodyAsText().replace(" ", ""))
-
-            // recipes endpoint works (empty for MM1).
-            assertEquals(HttpStatusCode.OK, client.get("/bundles/ksl.examples.mm1/models/MM1/recipes").status)
         } finally {
             service.close()
             registry.close()
@@ -470,7 +467,7 @@ class KslRestAppTest {
 
     @Test
     fun `unknown model on POST runs is a 400`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -488,7 +485,7 @@ class KslRestAppTest {
 
     @Test
     fun `experiment document flow - template, validate, submit, and projection`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -537,7 +534,7 @@ class KslRestAppTest {
 
     @Test
     fun `fit document flow - template, validate, submit, and projection`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -601,7 +598,7 @@ class KslRestAppTest {
 
     @Test
     fun `preview experiment returns canonical document and design-point cost`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -638,7 +635,7 @@ class KslRestAppTest {
 
     @Test
     fun `POST runs escalation runs only the top-up and combines on completion`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }
@@ -677,7 +674,7 @@ class KslRestAppTest {
 
     @Test
     fun `an identical run is cached and the retained result is projectable`() = testApplication {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val service = freshService(registry)
         application { kslRestModule(service) }
         val client = createClient { install(ClientContentNegotiation) { json() } }

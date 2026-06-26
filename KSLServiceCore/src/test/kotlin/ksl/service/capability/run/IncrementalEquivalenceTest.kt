@@ -64,7 +64,7 @@ class IncrementalEquivalenceTest {
 
     @Test
     fun `cached N plus top-up M minus N equals a monolithic M-rep run`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             RunService.fromRegistry(registry).use { svc ->
                 val m = 8

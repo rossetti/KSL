@@ -28,8 +28,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
     testImplementation("io.ktor:ktor-server-test-host:3.2.3")
     testImplementation("io.ktor:ktor-client-content-negotiation:3.2.3")
-    // Example bundles for BundleRegistry.fromClasspath() in tests.
-    testImplementation(project(":KSLExamples"))
+    // MM1 manifest-bundle fixture (KSLTestModels' ManifestBundleFixtures) for
+    // bundles loaded via BundleRegistry.fromDirectories(...) in tests.
+    testImplementation(project(":KSLTestModels"))
 }
 
 application {

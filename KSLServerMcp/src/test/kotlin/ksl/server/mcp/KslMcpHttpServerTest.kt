@@ -48,7 +48,7 @@ class KslMcpHttpServerTest {
 
     @Test
     fun `serves the tool surface over the HTTP transport`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val tools = KslMcpTools(registry)
         val server = KslMcpHttpServer.create(tools, host = "127.0.0.1", port = 0)
         server.start(wait = false)
@@ -78,7 +78,7 @@ class KslMcpHttpServerTest {
 
     @Test
     fun `serves health and readiness endpoints`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val tools = KslMcpTools(registry)
         val ready = java.util.concurrent.atomic.AtomicBoolean(true)
         val server = KslMcpHttpServer.create(tools, host = "127.0.0.1", port = 0, ready = ready::get)
@@ -105,7 +105,7 @@ class KslMcpHttpServerTest {
 
     @Test
     fun `bearer token gate protects routes while probes stay public`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         val tools = KslMcpTools(registry)
         val token = "lab-key-xyz"
         val server = KslMcpHttpServer.create(tools, host = "127.0.0.1", port = 0, ready = { true }, authToken = token)

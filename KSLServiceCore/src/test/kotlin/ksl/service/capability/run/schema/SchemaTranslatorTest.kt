@@ -21,6 +21,7 @@ package ksl.service.capability.run.schema
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import ksl.service.capability.run.BundleRegistry
+import ksl.service.capability.run.TestBundles
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -36,7 +37,7 @@ class SchemaTranslatorTest {
 
     @Test
     fun `catalog-led input schema surfaces exactly the nominated inputs in order`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")
             assertNotNull(descriptor)
             val catalog = descriptor.catalog
@@ -55,7 +56,7 @@ class SchemaTranslatorTest {
 
     @Test
     fun `no-catalog fallback emits the full control surface`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val stripped = descriptor.copy(catalog = null)
 
@@ -69,7 +70,7 @@ class SchemaTranslatorTest {
 
     @Test
     fun `output schema leads with nominated outputs`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val nominated = descriptor.catalog!!.nominatedOutputs.map { it.name }
 

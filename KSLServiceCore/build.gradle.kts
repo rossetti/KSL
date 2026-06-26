@@ -39,6 +39,10 @@ dependencies {
     // test fixtures only — kept off any runtime classpath, the same hygiene
     // Phase 6F item 7 applies to the apps.
     testImplementation(project(":KSLExamples"))
+    // MM1 / LKInventory / SimOpt manifest-bundle fixtures (ManifestBundleFixtures +
+    // the named ModelBuilderIfc classes) — the seam that replaces the retired
+    // classpath/ServiceLoader bundle discovery in these tests.
+    testImplementation(project(":KSLTestModels"))
     testRuntimeOnly("ch.qos.logback:logback-classic:1.5.32")
 }
 

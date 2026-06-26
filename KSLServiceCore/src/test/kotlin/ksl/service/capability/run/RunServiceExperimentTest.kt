@@ -41,7 +41,7 @@ class RunServiceExperimentTest {
 
     @Test
     fun `submits a 2x2 factorial experiment and completes with per-point snapshots`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             // Find a model with at least two numeric controls.
             val target = registry.listBundles().firstNotNullOfOrNull { bundle ->
@@ -87,7 +87,7 @@ class RunServiceExperimentTest {
 
     @Test
     fun `runs a templated ExperimentConfiguration document end to end`() = runBlocking {
-        val registry = BundleRegistry.fromClasspath()
+        val registry = TestBundles.registry()
         try {
             val target = registry.listBundles().firstNotNullOfOrNull { bundle ->
                 bundle.modelIds.firstNotNullOfOrNull { modelId ->

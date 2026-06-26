@@ -33,7 +33,7 @@ class RunInputsTest {
 
     @Test
     fun `routes a control key to a control override and an rv key to an rv override`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val controlKey = descriptor.controls.numericControls.first().keyName
             val rv = descriptor.rvParameterData.first()
@@ -57,7 +57,7 @@ class RunInputsTest {
 
     @Test
     fun `an unknown input key is rejected with a helpful message`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val error = assertFailsWith<IllegalArgumentException> {
                 RunInputs.bind(descriptor, mapOf("not.a.real.input" to 1.0))
@@ -68,7 +68,7 @@ class RunInputsTest {
 
     @Test
     fun `an empty input map binds to empty overrides`() {
-        BundleRegistry.fromClasspath().use { registry ->
+        TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val bound = RunInputs.bind(descriptor, emptyMap())
             assertTrue(bound.controlOverrides.numericControls.isEmpty())

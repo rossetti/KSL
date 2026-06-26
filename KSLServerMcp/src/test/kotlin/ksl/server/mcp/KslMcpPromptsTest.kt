@@ -36,7 +36,7 @@ class KslMcpPromptsTest {
 
     @BeforeTest
     fun setUp() {
-        registry = BundleRegistry.fromClasspath()
+        registry = TestBundles.registry()
         tools = KslMcpTools(registry, ksl.service.store.ResultStore(java.nio.file.Files.createTempDirectory("mcp-prompts-rs")))
     }
 
