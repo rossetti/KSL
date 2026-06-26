@@ -231,7 +231,12 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
                 isDone = true
                 endingStatus = COMPLETED_ALL_STEPS
                 stoppingMessage = endingStatus.msg
-            } else if (isExecutionTimeExceeded) {
+            } else if (maximumAllowedExecutionTime > Duration.ZERO &&
+                Clock.System.now() - beginExecutionTime >= maximumAllowedExecutionTime
+            ) {
+                // Live wall-clock check, evaluated between steps (events). The
+                // EXCEEDED_EXECUTION_TIME outcome is recorded here so the
+                // isExecutionTimeExceeded property reads it back post-hoc.
                 isDone = true
                 endingStatus = EXCEEDED_EXECUTION_TIME
                 stoppingMessage = endingStatus.msg

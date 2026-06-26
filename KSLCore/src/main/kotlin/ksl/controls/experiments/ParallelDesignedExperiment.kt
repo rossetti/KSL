@@ -99,7 +99,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     override val design: ExperimentalDesignIfc,
     val modelConfiguration: Map<String, String>? = null,
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory),
+    val kslDb: KSLDatabase? = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory),
     private val experimentName: String? = null,
     private val useDesignPointOutputDirs: Boolean = true,
     /** Optional override for the template model's
@@ -552,7 +552,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         // (cancelling the parent scope) still propagates downward
         // because supervisorScope itself respects its own cancellation.
         kotlinx.coroutines.supervisorScope {
-            if (clearAllData) kslDb.clearAllData()
+            if (clearAllData) kslDb?.clearAllData()
 
             val effectiveNumReps = effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint)
             if (effectiveNumReps != null) {
@@ -625,7 +625,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             // they fire [onDesignPointCancelled] first (so callers can
             // distinguish from failures), then [onDesignPointComplete]
             // with snapshot = null for count-driving consumers.
-            val writer = SnapshotBatchWriter(kslDb)
+            val writer = kslDb?.let { SnapshotBatchWriter(it) }
             for (outcome in outcomes) {
                 ensureActive()
                 val designPoint = outcome.plan.designPoint
@@ -655,7 +655,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
                             // always rendered the empty-state card.
                             replications = snapshots
                                 .filterIsInstance<SimulationSnapshot.ReplicationCompleted>()
-                            if (snapshots.isNotEmpty()) writer.write(snapshots)
+                            if (snapshots.isNotEmpty()) writer?.write(snapshots)
                         }
                     }
                     onDesignPointComplete?.invoke(designPoint, snapshot)

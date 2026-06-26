@@ -1,9 +1,9 @@
 # KSL usage guides
 
-Sixteen task-oriented guides, one per major KSL package. Each follows
+Task-oriented guides covering the major KSL packages. Each follows
 the same 7-section template (overview, mental model, quick start,
-recipes, key types, gotchas, see also). Code snippets are
-compile-verified against the source on every build.
+recipes, key types, gotchas, see also). Library-guide code snippets
+are compile-verified against the source on every build.
 
 > **Looking for the desktop apps?** Step-by-step, student-facing user
 > guides for the KSL desktop applications (Single, Scenario, Experiment,
@@ -46,6 +46,15 @@ model matches your problem.
 These guides cross-reference each other in their §7 "See also"
 sections — if the right view isn't obvious from the table, start with
 `ksl-entity` and follow the pointers.
+
+## Running as a server
+
+Drive your models from outside the JVM — an AI assistant over MCP, or
+scripts and web apps over REST.
+
+| Guide | What it covers |
+|---|---|
+| [`ksl-server`](ksl-server.md) | Running KSL's capabilities as MCP / REST servers — transports, distributions, the bundle drop-in, securing cross-machine access, and day-2 operation. Operational (shell / HTTP / config), not compile-verified Kotlin. |
 
 ## Random numbers, distributions, statistics
 

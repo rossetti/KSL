@@ -14,6 +14,9 @@ include(":KSLAppSwingDistribution")
 include(":KSLAppSwingResults")
 include(":KSLAppSwingBundle")
 include(":KSLBundleTools")
+include(":KSLServiceCore")
+include(":KSLServerMcp")
+include(":KSLServerRest")
 
 // KSLProjectTemplate is intentionally NOT part of this build. It is a standalone
 // starter project (its own settings.gradle.kts) that depends on the PUBLISHED

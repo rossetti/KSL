@@ -38,12 +38,14 @@ interface IterativeProcessStatusIfc {
     val isDone: Boolean
 
     /**
-     * Returns if the elapsed execution time exceeds the maximum time allowed.
-     * Only true if the maximum was set and elapsed time is greater than or
-     * equal to getMaximumAllowedExecutionTime()
+     * True if this process ended because it exceeded its maximum allowed
+     * execution time. This is a recorded-outcome accessor: the live
+     * wall-clock comparison (elapsed since [beginExecutionTime] vs.
+     * [maximumAllowedExecutionTime]) is performed between steps while the
+     * process runs, and the `EndingStatus.EXCEEDED_EXECUTION_TIME` outcome is
+     * recorded when it trips; this property reads that outcome back.
      *
-     * @return true if the execution time exceeds
-     * getMaximumAllowedExecutionTime()
+     * @return true if the process ended via EXCEEDED_EXECUTION_TIME
      */
     val isExecutionTimeExceeded: Boolean
 
@@ -188,12 +190,12 @@ interface IterativeProcessIfc : IterativeProcessStatusIfc {
     }
 
     /**
-     * Returns if the elapsed execution time exceeds the maximum time allowed.
-     * Only true if the maximum was set and elapsed time is greater than or
-     * equal to getMaximumAllowedExecutionTime()
+     * True once the process has recorded an [EndingStatus.EXCEEDED_EXECUTION_TIME]
+     * outcome. The live elapsed-vs-maximum comparison is made between steps in
+     * the run loop (see `IterativeProcess.stoppingConditionCheck`); this reads
+     * back the recorded result.
      *
-     * @return true if the execution time exceeds
-     * getMaximumAllowedExecutionTime()
+     * @return true if the process ended via EXCEEDED_EXECUTION_TIME
      */
     override val isExecutionTimeExceeded: Boolean
         get() = endingStatus == EndingStatus.EXCEEDED_EXECUTION_TIME
