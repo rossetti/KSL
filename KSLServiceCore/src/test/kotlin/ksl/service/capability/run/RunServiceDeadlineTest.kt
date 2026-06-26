@@ -44,7 +44,6 @@ import kotlin.time.Duration.Companion.seconds
  * `Cancelled` outcome — the detectable signal that keeps a timed-out run from
  * being mistaken for a clean result and cached as one.
  */
-@org.junit.jupiter.api.Disabled("Heavy run test (wall-clock deadline waits); disabled initially per request to keep the suite fast.")
 class RunServiceDeadlineTest {
 
     @Test

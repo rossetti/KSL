@@ -41,7 +41,6 @@ import kotlin.time.Duration.Companion.seconds
  * JobManager must reclaim terminated jobs on its TTL rather than growing
  * without bound.
  */
-@org.junit.jupiter.api.Disabled("Heaviest run test (long soak); disabled initially per request to keep the suite fast.")
 class RunServiceSoakTest {
 
     @Test
