@@ -35,7 +35,7 @@ import ksl.utilities.random.rvariable.TriangularRV
 
 class TandemQueueWithUnconstrainedMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
-    private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(88.0, 176.0, 264.0))
+    private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(88.0, 176.0, 264.0), name = "WalkingSpeed")
     private val dm = DistancesModel()
     private val enter = dm.Location("Enter")
     private val station1 = dm.Location("Station1")
@@ -55,10 +55,10 @@ class TandemQueueWithUnconstrainedMovement(parent: ModelElement, name: String? =
 
     private val tba = ExponentialRV(1.0, 1)
 
-    private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
+    private val st1 = RandomVariable(this, ExponentialRV(0.7, 2), name = "Station1ServiceTime")
     val service1RV: RandomVariableCIfc
         get() = st1
-    private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
+    private val st2 = RandomVariable(this, ExponentialRV(0.9, 3), name = "Station2ServiceTime")
     val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)

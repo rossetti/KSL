@@ -42,12 +42,12 @@ class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessMo
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(6.0, 1)
 
-    private val triageRV = RandomVariable(this, UniformRV(2.0, 3.0, 2))
-    private val highRV = RandomVariable(this, LognormalRV(38.0, 8.0 * 8.0, 3))
-    private val mediumRV = RandomVariable(this, TriangularRV(16.0, 22.0, 28.0, 4))
-    private val lowRV = RandomVariable(this, LognormalRV(12.0, 2.0 * 2.0, 5))
+    private val triageRV = RandomVariable(this, UniformRV(2.0, 3.0, 2), name = "TriageTime")
+    private val highRV = RandomVariable(this, LognormalRV(38.0, 8.0 * 8.0, 3), name = "HighPriorityServiceTime")
+    private val mediumRV = RandomVariable(this, TriangularRV(16.0, 22.0, 28.0, 4), name = "MediumPriorityServiceTime")
+    private val lowRV = RandomVariable(this, LognormalRV(12.0, 2.0 * 2.0, 5), name = "LowPriorityServiceTime")
 
-    private val renegeTimeRV = RandomVariable(this, UniformRV(10.0, 20.0, 6))
+    private val renegeTimeRV = RandomVariable(this, UniformRV(10.0, 20.0, 6), name = "RenegeTime")
 
     private val doctorQ: RequestQ = RequestQ(this, "DoctorQ", discipline = Queue.Discipline.RANKED)
     private val doctorR: ResourceWithQ = ResourceWithQ(this, capacity = 5, queue = doctorQ, name = "Doctors")

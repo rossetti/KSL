@@ -37,28 +37,28 @@ import ksl.utilities.random.rvariable.UniformRV
 class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
-    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
-    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
-    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
-    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
+    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1), name = "Plan1Step1TestTime")
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2), name = "Plan1Step2TestTime")
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3), name = "Plan1Step3TestTime")
+    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0), name = "Plan1Step4TestTime")
     // test plan 2, distribution j
-    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
-    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0))
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0), name = "Plan2Step1TestTime")
+    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0), name = "Plan2Step2TestTime")
     // test plan 3, distribution j
-    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
-    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
-    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3))
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2), name = "Plan3Step1TestTime")
+    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4), name = "Plan3Step2TestTime")
+    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3), name = "Plan3Step3TestTime")
     // test plan 4, distribution j
-    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
-    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0), name = "Plan4Step1TestTime")
+    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0), name = "Plan4Step2TestTime")
 
-    private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
-    private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
-    private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
-    private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0))
+    private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0), name = "Plan1RepairTime")
+    private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0), name = "Plan2RepairTime")
+    private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0), name = "Plan3RepairTime")
+    private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0), name = "Plan4RepairTime")
 
-    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
-    private val moveTime = RandomVariable(this, UniformRV(2.0, 4.0))
+    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0), name = "DiagnosticTime")
+    private val moveTime = RandomVariable(this, UniformRV(2.0, 4.0), name = "MoveTime")
 
     // define the resources
     private val dw1 = Resource(this, name = "DiagnosticsWorker1")
