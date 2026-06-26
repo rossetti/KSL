@@ -40,7 +40,16 @@ object KSL {
      */
     private var myEnumCounter = 0
 
-    internal val myOutputDir = OutputDirectory("kslOutput", "kslOutput.txt")
+    // Base output directory: "kslOutput" under the program launch directory by
+    // default — unchanged for IDE / student runs, so `kslOutput/` still appears at
+    // the project root. The `ksl.outputDir` system property overrides it; this repo's
+    // Gradle test convention sets it so test output lands under build/ instead of
+    // littering each module's source tree. An absolute value is used as-is (Path.resolve
+    // returns an absolute argument unchanged); a relative one resolves under the launch dir.
+    internal val myOutputDir = OutputDirectory(
+        System.getProperty("ksl.outputDir") ?: "kslOutput",
+        "kslOutput.txt"
+    )
 
     /**
      *  Use with println(), but it goes to a file called kslOutput.txt

@@ -24,6 +24,20 @@ kotlin {
     jvmToolchain(21)
 }
 
+// Keep generated simulation output out of the source tree during tests. KSL's
+// default output root is the relative path "kslOutput", created in the process
+// working directory — which for a Gradle test is the module dir, so a test run
+// otherwise scatters a kslOutput/ of per-model folders into every module. Point the
+// ksl.outputDir hook (see KSL.kt) at each module's build/ so it is gitignored and
+// removed by `clean`. This affects ONLY this repo's Test tasks; an IDE run or a
+// student's KSLProjectTemplate leaves the property unset and still gets kslOutput/
+// at the project root.
+allprojects {
+    tasks.withType<Test>().configureEach {
+        systemProperty("ksl.outputDir", layout.buildDirectory.dir("kslOutput").get().asFile.path)
+    }
+}
+
 // Repo-wide source-hygiene check (formerly the JUnit test ksl.conventions.BacktickNameAsciiTest):
 // no Kotlin function declared with a backtick identifier may contain a non-ASCII character.
 // Backtick function names become part of the generated .class file name; a non-ASCII char there
