@@ -72,7 +72,8 @@ class DriveThroughPharmacyWithResource(
     val resource: SResourceCIfc
         get() = myPharmacists
 
-    private var myServiceRV: RandomVariable = RandomVariable(parent = this, rSource = ExponentialRV(0.5, 2))
+    private var myServiceRV: RandomVariable = RandomVariable(parent = this,
+        rSource = ExponentialRV(0.5, 2), "${this.name}:ServiceTime")
     val serviceRV: RandomVariableCIfc
         get() = myServiceRV
 
@@ -109,7 +110,8 @@ class DriveThroughPharmacyWithResource(
 
     private val ad  = ExponentialRV(1.0, 1)
     private val myArrivalGenerator: EventGenerator = EventGenerator(
-        parent = this, generateAction = this::arrival, timeUntilFirstRV = ad, timeBtwEventsRV = ad
+        parent = this, generateAction = this::arrival, timeUntilFirstRV = ad, timeBtwEventsRV = ad,
+        name = "${this.name}:ArrivalGenerator"
     )
     val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator

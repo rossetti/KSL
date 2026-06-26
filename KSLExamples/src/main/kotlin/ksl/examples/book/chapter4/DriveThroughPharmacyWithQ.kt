@@ -58,7 +58,8 @@ class DriveThroughPharmacyWithQ(
             field = value
         }
 
-    private var myServiceRV: RandomVariable = RandomVariable(this, rSource = ExponentialRV(0.5, 2))
+    private var myServiceRV: RandomVariable = RandomVariable(this,
+        rSource = ExponentialRV(0.5, 2), name = "ServiceTime",)
     val serviceRV: RandomVariableCIfc
         get() = myServiceRV
 
@@ -97,7 +98,7 @@ class DriveThroughPharmacyWithQ(
         parent = this,
         generateAction = Arrivals(),
         timeUntilFirstRV = ad,
-        timeBtwEventsRV = ad
+        timeBtwEventsRV = ad, name = "${this.name}:ArrivalGenerator"
     )
     val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator

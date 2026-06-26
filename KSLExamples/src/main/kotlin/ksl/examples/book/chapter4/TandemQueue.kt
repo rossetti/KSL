@@ -44,7 +44,7 @@ class TandemQueue(
     private val ad = ExponentialRV(6.0, 1)
     private val myArrivalGenerator: EventGenerator = EventGenerator(
         parent = this,
-        generateAction = this::arrivalEvent, timeUntilFirstRV = ad, timeBtwEventsRV = ad
+        generateAction = this::arrivalEvent, timeUntilFirstRV = ad, timeBtwEventsRV = ad, name = "${this.name}:ArrivalGenerator"
     )
 
     private val myStation1: SingleQStation = SingleQStation(
