@@ -19,8 +19,7 @@
 package ksl.service.capability.run
 
 import ksl.examples.general.appsupport.MM1ModelBuilder
-import ksl.examples.general.appsupport.ManifestBundleFixtures
-import org.junit.jupiter.api.Disabled
+import ksl.service.capability.run.support.DeterministicBundleJar
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -35,20 +34,15 @@ import kotlin.test.assertTrue
  * key — while an identical rebuild does not. This is what stops a reloaded model
  * from being served a stale cached result.
  */
-@Disabled(
-    "Needs a deterministic manifest-jar builder: the production assembler stamps a unique " +
-        "Build-Time per build, so 'a byte-identical rebuild keeps the same content hash' no longer " +
-        "holds. Re-enable with a deterministic packer.",
-)
 class BundleVersionInvalidationTest {
 
     @Test
     fun `a rebuilt bundle jar changes the version salt, an identical one does not`() {
         BundleRegistry.empty().use { registry ->
-            fun assemble(version: String): Path = ManifestBundleFixtures.assembleManifestBundle(
+            fun assemble(version: String): Path = DeterministicBundleJar.build(
                 Files.createTempDirectory("ksl-bundles-version"), "mm1", "ksl.examples.mm1",
-                MM1ModelBuilder::class.java,
-            ) { it.version = version }
+                MM1ModelBuilder::class.java, version = version,
+            )
 
             registry.loadOrReplaceFromJar(assemble("v1"))
             val salt1 = registry.versionSaltFor(listOf("MM1"))
