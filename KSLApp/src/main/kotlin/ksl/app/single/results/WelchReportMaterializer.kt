@@ -116,6 +116,29 @@ object WelchReportMaterializer {
     }
 
     /**
+     * Deletes every immediate `<name>_Welch` capture subdirectory under
+     * [outputDir], leaving all other run output (csvDir, dbDir,
+     * kslOutput.txt, plotDir, …) untouched.  Called before a Simulate so a
+     * fresh run's Welch discovery never mixes in a prior run's data.
+     *
+     * @param outputDir the run output directory to clean.
+     * @return the number of `_Welch` directories removed (0 when none exist
+     *   or [outputDir] is absent).
+     */
+    fun clearWelchData(outputDir: Path): Int {
+        if (!outputDir.exists() || !Files.isDirectory(outputDir)) return 0
+        var removed = 0
+        Files.newDirectoryStream(outputDir).use { dirs ->
+            for (dir in dirs) {
+                if (!Files.isDirectory(dir)) continue
+                if (!dir.fileName.toString().endsWith(WELCH_DIR_SUFFIX)) continue
+                if (dir.toFile().deleteRecursively()) removed++
+            }
+        }
+        return removed
+    }
+
+    /**
      * Builds one document with a `welchAnalysis` section per analyzer in
      * [analyzers] and writes it to `<reportsDir>/<fileStem>.<ext>`, with
      * any embedded plot images under `<reportsDir>/plots`.  Creates

@@ -26,8 +26,10 @@ import ksl.utilities.io.OutputDirectory
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -93,6 +95,28 @@ class WelchReportMaterializerTest {
             reportsDir = tempDir.resolve("reports")
         )
         assertIs<StandardReportOutcome.Failed>(outcome)
+    }
+
+    @Test
+    @DisplayName("clearWelchData removes only the *_Welch dirs, leaving other output")
+    fun clearWelchDataRemovesOnlyWelchDirs(@TempDir tempDir: Path) {
+        // Two Welch capture dirs plus a non-Welch run-output dir.
+        Files.createDirectories(tempDir.resolve("System Time_Welch"))
+        Files.createDirectories(tempDir.resolve("Num in System_Welch").resolve("nested"))
+        Files.createDirectories(tempDir.resolve("csvDir"))
+
+        val removed = WelchReportMaterializer.clearWelchData(tempDir)
+
+        assertEquals(2, removed, "both *_Welch dirs should be removed")
+        assertFalse(Files.exists(tempDir.resolve("System Time_Welch")))
+        assertFalse(Files.exists(tempDir.resolve("Num in System_Welch")))
+        assertTrue(Files.exists(tempDir.resolve("csvDir")), "non-Welch output must survive")
+    }
+
+    @Test
+    @DisplayName("clearWelchData is a no-op (returns 0) for an absent directory")
+    fun clearWelchDataNoOpForAbsentDir(@TempDir tempDir: Path) {
+        assertEquals(0, WelchReportMaterializer.clearWelchData(tempDir.resolve("does-not-exist")))
     }
 
     @Test

@@ -40,6 +40,7 @@ import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.single.results.ReportSaveRecord
 import ksl.app.single.results.SingleAppPaths
+import ksl.app.single.results.WelchReportMaterializer
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
@@ -952,7 +953,13 @@ class SingleAppController(
         // failed (appWorkspace == parent workspace); the Model's
         // constructor-supplied default is used as a fallback.
         val outputDirectoryString = if (modelName.isNotEmpty()) {
-            appWorkspace.resolve("output").toAbsolutePath().normalize().toString()
+            val outputDir = appWorkspace.resolve("output")
+            // Remove any prior run's *_Welch capture dirs so the Post-Run
+            // Reporting tab's Welch discovery reflects only this run — the
+            // on-disk analogue of the recentReportSaves clear above.  Other
+            // run output is left untouched.
+            WelchReportMaterializer.clearWelchData(outputDir)
+            outputDir.toAbsolutePath().normalize().toString()
         } else null
         val config = RunConfiguration(
             scenarios = listOf(
