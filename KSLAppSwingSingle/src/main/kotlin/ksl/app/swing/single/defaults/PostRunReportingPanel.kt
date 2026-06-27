@@ -39,6 +39,7 @@ import java.awt.CardLayout
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.Rectangle
 import java.awt.Desktop
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -57,6 +58,7 @@ import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.Scrollable
 import javax.swing.JTable
 import javax.swing.JTextField
 import javax.swing.ListSelectionModel
@@ -108,9 +110,17 @@ class PostRunReportingPanel(
 
     // Form widgets
     private val stemField = JTextField(36)
-    private val folderLabel = JLabel(" ").apply {
+    // A read-only, non-opaque text field rather than a JLabel: a long reports
+    // path is then fully readable by scrolling/selecting within a fixed width
+    // (and copyable), instead of a JLabel that refuses to shrink and clips off
+    // the frame.  Minimum width is small so it shrinks with the panel.
+    private val folderLabel = JTextField(" ").apply {
+        isEditable = false
+        isOpaque = false
+        border = null
         font = font.deriveFont(font.size * 0.95f)
         foreground = Color(0x55, 0x55, 0x55)
+        minimumSize = Dimension(0, preferredSize.height)
     }
     private val htmlBox = JCheckBox("HTML", true)
     private val markdownBox = JCheckBox("Markdown", false)
@@ -179,29 +189,40 @@ class PostRunReportingPanel(
     }
 
     private fun buildPopulated(): JPanel {
-        // The report-config form (Output → Formats → Sections → Save) sits in
-        // NORTH at its natural height; the Recent-saves block lives in CENTER
-        // so it absorbs all remaining vertical space and grows with the
-        // window.  The previous single BoxLayout stack pushed Recent saves to
-        // the bottom with no growth priority, so it was clipped on a short tab
-        // and the fixed-height table forced a resize to see many reports.
-        val form = JPanel().apply {
+        // All content lives in one vertically-scrollable column so the whole
+        // tab is reachable at any frame size — no resizing the app frame to
+        // see the lower items.  Earlier layouts (a plain stack, then form-NORTH
+        // + recent-CENTER) clipped content when the frame was shorter than the
+        // form, with no way to scroll.
+        //
+        // The stack tracks the viewport WIDTH (blocks fill width, no horizontal
+        // scrollbar) but not its HEIGHT (so it keeps its preferred height and a
+        // vertical scrollbar appears when the frame is short).
+        val stack = object : JPanel(), Scrollable {
+            override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+            override fun getScrollableUnitIncrement(r: Rectangle, o: Int, d: Int): Int = 16
+            override fun getScrollableBlockIncrement(r: Rectangle, o: Int, d: Int): Int = r.height
+            override fun getScrollableTracksViewportWidth(): Boolean = true
+            override fun getScrollableTracksViewportHeight(): Boolean = false
+        }.apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            alignmentX = Component.LEFT_ALIGNMENT
             add(buildReportOutputBlock())
-            add(Box.createVerticalStrut(6))
-            add(buildFormatsBlock())
             add(Box.createVerticalStrut(6))
             add(buildSectionsBlock())
             // Action row sits directly under Sections — the form's natural
             // reading flow is Output → Formats → Sections → "now Save".
             add(Box.createVerticalStrut(6))
             add(buildActionRow())
+            add(Box.createVerticalStrut(8))
+            add(buildRecentSavesBlock())
         }
-        return JPanel(BorderLayout(0, 8)).apply {
-            add(form, BorderLayout.NORTH)
-            add(buildRecentSavesBlock(), BorderLayout.CENTER)
+        val scroll = JScrollPane(stack).apply {
+            border = BorderFactory.createEmptyBorder()
+            verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
+            horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+            verticalScrollBar.unitIncrement = 16
         }
+        return JPanel(BorderLayout()).apply { add(scroll, BorderLayout.CENTER) }
     }
 
     private fun buildReportOutputBlock(): JPanel = JPanel(GridBagLayout()).apply {
@@ -215,12 +236,22 @@ class PostRunReportingPanel(
             anchor = GridBagConstraints.WEST
             fill = GridBagConstraints.NONE
         }
+        // Row 0: filename stem (grows) + formats on the same line to save height.
         gbc.gridx = 0; gbc.gridy = 0; add(JLabel("Filename stem:"), gbc)
-        gbc.gridx = 1
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
         add(stemField, gbc)
         gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0.0
-        gbc.gridx = 1; gbc.gridy = 1
+        gbc.gridx = 2
+        add(JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            add(JLabel("Formats:"))
+            add(Box.createHorizontalStrut(6))
+            add(htmlBox); add(Box.createHorizontalStrut(8))
+            add(markdownBox); add(Box.createHorizontalStrut(8))
+            add(textBox)
+        }, gbc)
+        // Row 1: extensions note (under the stem field).
+        gbc.gridx = 1; gbc.gridy = 1; gbc.gridwidth = 2
         add(
             JLabel("Extensions appended per selected format.").apply {
                 foreground = Color(0x88, 0x88, 0x88)
@@ -228,25 +259,11 @@ class PostRunReportingPanel(
             },
             gbc
         )
+        gbc.gridwidth = 1
+        // Row 2: folder.
         gbc.gridx = 0; gbc.gridy = 2; add(JLabel("Folder:"), gbc)
-        gbc.gridx = 1
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0; gbc.gridwidth = 2
         add(folderLabel, gbc)
-    }
-
-    private fun buildFormatsBlock(): JPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Formats"),
-            BorderFactory.createEmptyBorder(4, 8, 8, 8)
-        )
-        alignmentX = Component.LEFT_ALIGNMENT
-        add(htmlBox)
-        add(Box.createHorizontalStrut(12))
-        add(markdownBox)
-        add(Box.createHorizontalStrut(12))
-        add(textBox)
-        add(Box.createHorizontalGlue())
     }
 
     private fun buildSectionsBlock(): JPanel = JPanel(GridBagLayout()).apply {
@@ -255,29 +272,32 @@ class PostRunReportingPanel(
             BorderFactory.createEmptyBorder(4, 8, 8, 8)
         )
         alignmentX = Component.LEFT_ALIGNMENT
+        // Two columns, halving the block's height.  Diagnostics stays a
+        // visually-indented sub-option of across-replication stats.
         val gbc = GridBagConstraints().apply {
             insets = Insets(2, 4, 2, 4)
             anchor = GridBagConstraints.WEST
             fill = GridBagConstraints.NONE
         }
+        val colGap = Insets(2, 28, 2, 4)
+        // Column 0
         gbc.gridx = 0; gbc.gridy = 0; add(summaryBox, gbc)
         gbc.gridy = 1; add(acrossRepBox, gbc)
-        gbc.gridy = 2
-        gbc.insets = Insets(2, 24, 2, 4)
-        add(diagnosticsBox, gbc)
+        gbc.gridy = 2; gbc.insets = Insets(2, 24, 2, 4); add(diagnosticsBox, gbc)
         gbc.insets = Insets(2, 4, 2, 4)
-        gbc.gridy = 3; add(histogramsBox, gbc)
-        gbc.gridy = 4; add(frequenciesBox, gbc)
-        gbc.gridy = 5
-        val tsRow = JPanel().apply {
+        // Column 1
+        gbc.gridx = 1; gbc.insets = colGap
+        gbc.gridy = 0; add(histogramsBox, gbc)
+        gbc.gridy = 1; add(frequenciesBox, gbc)
+        gbc.gridy = 2
+        add(JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             add(timeSeriesBox)
             add(Box.createHorizontalStrut(8))
             add(JLabel("confidence:"))
             add(Box.createHorizontalStrut(4))
             add(timeSeriesCiCombo)
-        }
-        add(tsRow, gbc)
+        }, gbc)
     }
 
     private fun buildRecentSavesBlock(): JPanel = JPanel(BorderLayout()).apply {
@@ -293,7 +313,7 @@ class PostRunReportingPanel(
             add(openFolderButton)
         }
         val scroll = JScrollPane(recentTable).apply {
-            preferredSize = Dimension(0, 140)
+            preferredSize = Dimension(0, 190)
         }
         val rowActions = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -375,6 +395,10 @@ class PostRunReportingPanel(
             latestSnapshot.collect {
                 refreshCard()
                 refreshDefaults()
+                // The folder label resolves only when a snapshot is in hand,
+                // so it must refresh when the run completes — not just on
+                // outputConfig edits.  Without this it stays blank after a run.
+                refreshFolderLabel()
                 refreshSaveEnabled()
                 refreshSectionAvailability()
                 refreshWelchButton()
@@ -432,9 +456,13 @@ class PostRunReportingPanel(
         // want a "pending"-shaped path leaking through.
         val dir = computeReportsDir() ?: run {
             folderLabel.text = " "
+            folderLabel.toolTipText = null
             return
         }
-        folderLabel.text = dir.toString()
+        val path = dir.toString()
+        folderLabel.text = path
+        folderLabel.toolTipText = path
+        folderLabel.caretPosition = 0   // show the start of the path, not the end
     }
 
     private fun refreshSaveEnabled() {
@@ -613,7 +641,12 @@ class PostRunReportingPanel(
             }
         }
         if (saved > 0) {
-            statusLabel.text = "✓ Saved $saved file(s) to $dir"
+            // Keep the status text short — the action row competes with three
+            // buttons for width, and a full path here gets clipped off the
+            // frame.  The folder is reachable via "Open folder" / Recent saves;
+            // the full path is on the tooltip.
+            statusLabel.text = "✓ Saved $saved file(s) — see Recent saves"
+            statusLabel.toolTipText = dir.toString()
             statusLabel.foreground = STATUS_GREEN
             notifier.info("Saved $saved report file(s).")
         }
