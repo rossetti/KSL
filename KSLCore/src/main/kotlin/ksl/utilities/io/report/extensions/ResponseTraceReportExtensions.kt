@@ -19,6 +19,7 @@
 package ksl.utilities.io.report.extensions
 
 import ksl.observers.ResponseTrace
+import ksl.observers.ResponseTraceDataIfc
 import ksl.utilities.io.plotting.ScatterPlot
 import ksl.utilities.io.plotting.StateVariablePlot
 import ksl.utilities.io.report.ast.ReportNode
@@ -82,7 +83,7 @@ import ksl.utilities.statistic.Statistic
  * @param endTime    upper bound of the time window; defaults to [Double.MAX_VALUE]
  */
 fun ReportBuilder.stateVariableTrace(
-    trace: ResponseTrace,
+    trace: ResponseTraceDataIfc,
     repNums: List<Int> = trace.replicationNumbers.take(1),
     startTime: Double = 0.0,
     endTime: Double = Double.MAX_VALUE
@@ -141,7 +142,7 @@ fun ReportBuilder.stateVariableTrace(
  * @param endTime    upper bound of the time window; defaults to [Double.MAX_VALUE]
  */
 fun ReportBuilder.observationTrace(
-    trace: ResponseTrace,
+    trace: ResponseTraceDataIfc,
     repNums: List<Int> = trace.replicationNumbers.take(1),
     startTime: Double = 0.0,
     endTime: Double = Double.MAX_VALUE
@@ -192,7 +193,7 @@ fun ReportBuilder.observationTrace(
  * @param endTime    upper bound of the time window; defaults to [Double.MAX_VALUE]
  */
 fun ReportBuilder.responseTrace(
-    trace: ResponseTrace,
+    trace: ResponseTraceDataIfc,
     repNums: List<Int> = trace.replicationNumbers.take(1),
     startTime: Double = 0.0,
     endTime: Double = Double.MAX_VALUE

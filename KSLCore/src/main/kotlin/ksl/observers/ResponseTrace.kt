@@ -23,7 +23,7 @@ class ResponseTrace @JvmOverloads constructor(
     theResponse: Response,
     val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(
         theResponse.name.replace(':', '_') + "_Trace"),
-) : ModelElementObserver(theResponse.name) {
+) : ModelElementObserver(theResponse.name), ResponseTraceDataIfc {
 
     private val variable = theResponse
     private val tf: TabularOutputFile
@@ -135,7 +135,7 @@ class ResponseTrace @JvmOverloads constructor(
      * Reporting extensions use this to auto-select between a state-variable
      * sample-path plot and an observations plot.
      */
-    val isTimeWeighted: Boolean
+    override val isTimeWeighted: Boolean
         get() = variable is TWResponse
 
     /**
@@ -143,7 +143,7 @@ class ResponseTrace @JvmOverloads constructor(
      * ascending order.  Replications that were not recorded (e.g. because
      * [maxNumReplications] was reached) are not included.
      */
-    val replicationNumbers: List<Int>
+    override val replicationNumbers: List<Int>
         get() = selectRepNums()
 
     private fun createSelectRepNumsSQL(): String {
@@ -206,10 +206,10 @@ class ResponseTrace @JvmOverloads constructor(
      * @param startTime lower bound of the time window (inclusive); defaults to 0.0
      * @param endTime   upper bound of the time window (inclusive); defaults to [Double.MAX_VALUE]
      */
-    fun traceDataMap(
+    override fun traceDataMap(
         repNum: Int,
-        startTime: Double = 0.0,
-        endTime: Double = Double.MAX_VALUE
+        startTime: Double,
+        endTime: Double
     ): Map<String, DoubleArray> {
         return selectTimeAndValue(repNum, startTime, endTime)
     }
