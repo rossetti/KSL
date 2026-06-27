@@ -171,7 +171,79 @@ data class OutputConfig(
         "There is no 'APPEND' option: KSL's schema rejects duplicate\n" +
         "experiment names, which a same-document re-run always produces."
     )
-    val databasePolicy: DatabasePolicy = DatabasePolicy.OVERWRITE
+    val databasePolicy: DatabasePolicy = DatabasePolicy.OVERWRITE,
+
+    @TomlComment(
+        "Boolean. When true, attach a WelchFileObserver to each selected\n" +
+        "response before the run so warm-up (initialization-bias) data is\n" +
+        "streamed to <workspace>/output/<responseName>_Welch/ during the\n" +
+        "run.  Required to produce a Welch report afterward — it cannot be\n" +
+        "reconstructed from a finished run.  Default: false."
+    )
+    val enableWelchAnalysis: Boolean = false,
+
+    @TomlComment(
+        "List of responses to capture for Welch analysis, each paired with\n" +
+        "its discretizing interval.  Tally responses use the value as a\n" +
+        "batch size (e.g. 1.0); time-weighted responses use it as a delta-t\n" +
+        "interval (e.g. 10.0).  Only consulted when enableWelchAnalysis is\n" +
+        "true.  Default: empty (no responses captured)."
+    )
+    val welchResponses: List<WelchResponseSpec> = emptyList(),
+
+    @TomlComment(
+        "Boolean. Include the partial-sums plot section in the Welch\n" +
+        "report.  Default: true."
+    )
+    val welchIncludePartialSums: Boolean = true,
+
+    @TomlComment(
+        "Boolean. Include the Schruben initialization-bias test section in\n" +
+        "the Welch report.  Default: false."
+    )
+    val welchIncludeBiasTest: Boolean = false,
+
+    @TomlComment(
+        "Boolean. Include the post-deletion batch-means analysis section in\n" +
+        "the Welch report.  Default: false."
+    )
+    val welchIncludeBatchMeans: Boolean = false,
+
+    @TomlComment(
+        "Int. Warm-up deletion point for the report's batch-means and\n" +
+        "bias-test sections.  -1 selects the MSER recommendation; any value\n" +
+        ">= 0 is used as a fixed deletion point.  Default: -1."
+    )
+    val welchDeletionPoint: Int = -1,
+
+    @TomlComment(
+        "Boolean. When true, the Single app materializes the Welch report\n" +
+        "automatically after each Simulate, reusing the `reports` format\n" +
+        "set for the output mix.  Default: false."
+    )
+    val welchAutoRender: Boolean = false
+)
+
+/**
+ *  One response selected for Welch warm-up analysis, paired with the
+ *  discretizing interval used when the response's observations are
+ *  streamed to disk during the run.
+ *
+ *  Stored in [OutputConfig.welchResponses].  The orchestrator turns each
+ *  entry into a `WelchFileObserver` attached to the named response on
+ *  `ksl.simulation.Model` before the run starts.
+ *
+ *  @property responseName the model response to capture.  Must match a
+ *    response name on the built model at attach time; unknown names are
+ *    skipped defensively by the orchestrator.
+ *  @property interval the batching/discretizing interval — a batch size
+ *    for tally responses (e.g. 1.0) or a delta-t for time-weighted
+ *    responses (e.g. 10.0).
+ */
+@Serializable
+data class WelchResponseSpec(
+    val responseName: String,
+    val interval: Double
 )
 
 /**

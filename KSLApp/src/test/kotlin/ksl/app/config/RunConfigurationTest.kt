@@ -3,6 +3,7 @@ package ksl.app.config
 import ksl.controls.experiments.ExecutionMode
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -182,6 +183,70 @@ class RunConfigurationTest {
         assertEquals(config, tomlDecoded)
         kotlin.test.assertTrue(jsonDecoded.outputConfig.reports.isEmpty())
         kotlin.test.assertTrue(tomlDecoded.outputConfig.reports.isEmpty())
+    }
+
+    // ── Welch warm-up fields on OutputConfig ─────────────────────────────────
+
+    private fun welchConfig(): RunConfiguration = mm1Config().copy(
+        outputConfig = OutputConfig(
+            enableWelchAnalysis = true,
+            welchResponses = listOf(
+                WelchResponseSpec("MM1Queue:SystemTime", 1.0),
+                WelchResponseSpec("MM1Queue:NumInSystem", 10.0)
+            ),
+            welchIncludePartialSums = true,
+            welchIncludeBiasTest = true,
+            welchIncludeBatchMeans = true,
+            welchDeletionPoint = 250,
+            welchAutoRender = true
+        )
+    )
+
+    @Test
+    @DisplayName("OutputConfig with Welch fields round-trips through JSON")
+    fun welchOutputConfigRoundTripsThroughJson() {
+        val config = welchConfig()
+        val decoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        assertEquals(config, decoded)
+    }
+
+    @Test
+    @DisplayName("OutputConfig with Welch fields round-trips through TOML")
+    fun welchOutputConfigRoundTripsThroughToml() {
+        val config = welchConfig()
+        val decoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, decoded)
+    }
+
+    @Test
+    @DisplayName("Legacy TOML lacking Welch keys decodes with documented defaults")
+    fun legacyTomlWithoutWelchKeysDecodesWithDefaults() {
+        // A pre-Welch document: OutputConfig section carries only the
+        // original fields.  The decoder must supply every welch* default
+        // so old configs keep working unchanged.
+        val legacy = """
+            executionMode = "SEQUENTIAL"
+            scenarios = []
+            bundleRefs = []
+
+            [outputConfig]
+            enableKSLDatabase = false
+            enableReplicationCSV = false
+            enableExperimentCSV = false
+            reports = ["HTML"]
+
+            [tracingConfig]
+            captureLevel = "MINIMAL"
+            flushEveryNEvents = 1000
+        """.trimIndent()
+        val cfg = RunConfigurationToml.decode(legacy).outputConfig
+        assertEquals(false, cfg.enableWelchAnalysis)
+        assertTrue(cfg.welchResponses.isEmpty())
+        assertEquals(true, cfg.welchIncludePartialSums)
+        assertEquals(false, cfg.welchIncludeBiasTest)
+        assertEquals(false, cfg.welchIncludeBatchMeans)
+        assertEquals(-1, cfg.welchDeletionPoint)
+        assertEquals(false, cfg.welchAutoRender)
     }
 
     // ── ExecutionMode field on RunConfiguration ──────────────────────────────
