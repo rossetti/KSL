@@ -23,6 +23,21 @@ import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRes
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simopt.solvers.algorithms.genetic.BlendCrossover
+import ksl.simopt.solvers.algorithms.genetic.CrossoverOperatorIfc
+import ksl.simopt.solvers.algorithms.genetic.GaussianMutation
+import ksl.simopt.solvers.algorithms.genetic.GeneticAlgorithmSolver
+import ksl.simopt.solvers.algorithms.genetic.MutationOperatorIfc
+import ksl.simopt.solvers.algorithms.genetic.SelectionOperatorIfc
+import ksl.simopt.solvers.algorithms.genetic.TournamentSelection
+import ksl.simopt.solvers.algorithms.pso.BoundaryHandlerIfc
+import ksl.simopt.solvers.algorithms.pso.ClampToBounds
+import ksl.simopt.solvers.algorithms.pso.InertiaWeightScheduleIfc
+import ksl.simopt.solvers.algorithms.pso.LinearDecreasingInertia
+import ksl.simopt.solvers.algorithms.pso.ParticleSwarmSolver
+import ksl.simopt.solvers.algorithms.bo.AcquisitionFunctionIfc
+import ksl.simopt.solvers.algorithms.bo.BayesianOptimizationSolver
+import ksl.simopt.solvers.algorithms.bo.ExpectedImprovement
 import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
@@ -1501,6 +1516,460 @@ abstract class Solver(
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return restartSolver
+        }
+
+        /**
+         * Creates and configures a genetic algorithm solver for a given problem definition.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param populationSize The number of individuals per generation. Defaults to [GeneticAlgorithmSolver.defaultPopulationSize].
+         * @param selectionOperator The parent-selection strategy. Defaults to [TournamentSelection].
+         * @param crossoverOperator The recombination strategy. Defaults to [BlendCrossover].
+         * @param mutationOperator The mutation strategy. When null (the default), a [GaussianMutation] for the problem is created.
+         * @param startingPoint Optional initial coordinates seeded into the initial population.
+         * If left null, the solver will automatically generate a random feasible population upon initialization.
+         * @param maxIterations The maximum number of generations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
+         * @return An instance of GeneticAlgorithmSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createGeneticAlgorithmSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            populationSize: Int = GeneticAlgorithmSolver.defaultPopulationSize,
+            selectionOperator: SelectionOperatorIfc = TournamentSelection(),
+            crossoverOperator: CrossoverOperatorIfc = BlendCrossover(),
+            mutationOperator: MutationOperatorIfc? = null,
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+        ): GeneticAlgorithmSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            val solver = GeneticAlgorithmSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                populationSize = populationSize,
+                selectionOperator = selectionOperator,
+                crossoverOperator = crossoverOperator,
+                mutationOperator = mutationOperator ?: GaussianMutation(problemDefinition),
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
+            )
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
+        }
+
+        /**
+         * Creates and configures a genetic algorithm solver for a given problem definition
+         * that uses a random restart approach.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates.
+         * @param populationSize The number of individuals per generation. Defaults to [GeneticAlgorithmSolver.defaultPopulationSize].
+         * @param selectionOperator The parent-selection strategy. Defaults to [TournamentSelection].
+         * @param crossoverOperator The recombination strategy. Defaults to [BlendCrossover].
+         * @param mutationOperator The mutation strategy. When null (the default), a [GaussianMutation] for the problem is created.
+         * @param maxIterations The maximum number of generations per restart. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams shared by the inner genetic algorithm solver and the outer driver; defaults to a fresh RNStreamProvider
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createRandomRestartGeneticAlgorithmSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
+            populationSize: Int = GeneticAlgorithmSolver.defaultPopulationSize,
+            selectionOperator: SelectionOperatorIfc = TournamentSelection(),
+            crossoverOperator: CrossoverOperatorIfc = BlendCrossover(),
+            mutationOperator: MutationOperatorIfc? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+        ): RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            // The inner genetic algorithm solver keeps its own stream from the shared provider;
+            // the outer random-restart driver (the returned solver) takes the user's streamNum.
+            val ga = GeneticAlgorithmSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = 0,
+                streamProvider = streamProvider,
+                populationSize = populationSize,
+                selectionOperator = selectionOperator,
+                crossoverOperator = crossoverOperator,
+                mutationOperator = mutationOperator ?: GaussianMutation(problemDefinition),
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
+            )
+            val restartSolver = RandomRestartSolver(
+                restartingSolver = ga, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
+            )
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the inner solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return restartSolver
+        }
+
+        /**
+         * Creates and configures a global-best particle swarm optimization (PSO) solver for a given
+         * problem definition.
+         *
+         * Note: unlike the other `create*` factories (which default to sequential evaluation), this
+         * factory defaults [parallelOptions] to `enabled = true`, because PSO evaluates the whole
+         * swarm as one batch each iteration and therefore benefits directly from parallel oracle
+         * execution. As with all parallel evaluation, the supplied [modelBuilder] MUST return an
+         * independent, freshly built model on each call; pass `ParallelEvaluationOptions()` to force
+         * sequential evaluation if that is not the case.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation. Must yield independent models per call when parallel.
+         * @param swarmSize The number of particles in the swarm. Defaults to [ParticleSwarmSolver.defaultSwarmSize].
+         * @param inertiaSchedule The inertia-weight schedule. Defaults to [LinearDecreasingInertia].
+         * @param cognitiveCoefficient The cognitive acceleration coefficient c1. Defaults to [ParticleSwarmSolver.defaultCognitiveCoefficient].
+         * @param socialCoefficient The social acceleration coefficient c2. Defaults to [ParticleSwarmSolver.defaultSocialCoefficient].
+         * @param boundaryHandler How out-of-range positions are handled. Defaults to [ClampToBounds].
+         * @param startingPoint Optional initial coordinates seeded as the first particle.
+         * If left null, the whole swarm is scattered over random feasible points upon initialization.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
+         * @return An instance of ParticleSwarmSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createParticleSwarmSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            swarmSize: Int = ParticleSwarmSolver.defaultSwarmSize,
+            inertiaSchedule: InertiaWeightScheduleIfc = LinearDecreasingInertia(),
+            cognitiveCoefficient: Double = ParticleSwarmSolver.defaultCognitiveCoefficient,
+            socialCoefficient: Double = ParticleSwarmSolver.defaultSocialCoefficient,
+            boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions(enabled = true)
+        ): ParticleSwarmSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            val solver = ParticleSwarmSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                swarmSize = swarmSize,
+                inertiaSchedule = inertiaSchedule,
+                cognitiveCoefficient = cognitiveCoefficient,
+                socialCoefficient = socialCoefficient,
+                boundaryHandler = boundaryHandler,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
+            )
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
+        }
+
+        /**
+         * Creates and configures a global-best particle swarm optimization solver for a given problem
+         * definition that uses a random restart approach.
+         *
+         * As with [createParticleSwarmSolver], [parallelOptions] defaults to `enabled = true`; the
+         * supplied [modelBuilder] must yield independent models per call.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation. Must yield independent models per call when parallel.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates.
+         * @param swarmSize The number of particles in the swarm. Defaults to [ParticleSwarmSolver.defaultSwarmSize].
+         * @param inertiaSchedule The inertia-weight schedule. Defaults to [LinearDecreasingInertia].
+         * @param cognitiveCoefficient The cognitive acceleration coefficient c1. Defaults to [ParticleSwarmSolver.defaultCognitiveCoefficient].
+         * @param socialCoefficient The social acceleration coefficient c2. Defaults to [ParticleSwarmSolver.defaultSocialCoefficient].
+         * @param boundaryHandler How out-of-range positions are handled. Defaults to [ClampToBounds].
+         * @param maxIterations The maximum number of iterations per restart. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams shared by the inner particle swarm solver and the outer driver; defaults to a fresh RNStreamProvider
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createRandomRestartParticleSwarmSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
+            swarmSize: Int = ParticleSwarmSolver.defaultSwarmSize,
+            inertiaSchedule: InertiaWeightScheduleIfc = LinearDecreasingInertia(),
+            cognitiveCoefficient: Double = ParticleSwarmSolver.defaultCognitiveCoefficient,
+            socialCoefficient: Double = ParticleSwarmSolver.defaultSocialCoefficient,
+            boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions(enabled = true)
+        ): RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            // The inner particle swarm solver keeps its own stream from the shared provider;
+            // the outer random-restart driver (the returned solver) takes the user's streamNum.
+            val pso = ParticleSwarmSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = 0,
+                streamProvider = streamProvider,
+                swarmSize = swarmSize,
+                inertiaSchedule = inertiaSchedule,
+                cognitiveCoefficient = cognitiveCoefficient,
+                socialCoefficient = socialCoefficient,
+                boundaryHandler = boundaryHandler,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
+            )
+            val restartSolver = RandomRestartSolver(
+                restartingSolver = pso, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
+            )
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the inner solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return restartSolver
+        }
+
+        /**
+         * Creates and configures a Bayesian optimization (BO) solver for a given problem definition.
+         *
+         * BO is sequential: each iteration evaluates a single point, so [parallelOptions] defaults to
+         * sequential evaluation (as with most factories). Enabling parallel evaluation only benefits
+         * the initial design batch; if you do, the supplied [modelBuilder] must yield an independent
+         * model per call.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param initialDesignSize The number of initial design points. Defaults to [BayesianOptimizationSolver.defaultInitialDesignSize].
+         * @param acquisition The acquisition function. Defaults to [ExpectedImprovement].
+         * @param startingPoint Optional initial coordinates seeded into the initial design.
+         * If left null, the initial design is generated entirely by the design strategy.
+         * @param maxIterations The maximum number of BO iterations (after the initial design). Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
+         * @return An instance of BayesianOptimizationSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createBayesianOptimizationSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            initialDesignSize: Int = BayesianOptimizationSolver.defaultInitialDesignSize,
+            acquisition: AcquisitionFunctionIfc = ExpectedImprovement(),
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+        ): BayesianOptimizationSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            val solver = BayesianOptimizationSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                acquisition = acquisition,
+                initialDesignSize = initialDesignSize,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
+            )
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
+        }
+
+        /**
+         * Creates and configures a Bayesian optimization solver for a given problem definition that
+         * uses a random restart approach.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will seed it
+         * into the initial design. All subsequent restarts use purely random initial designs.
+         * @param initialDesignSize The number of initial design points per restart. Defaults to [BayesianOptimizationSolver.defaultInitialDesignSize].
+         * @param acquisition The acquisition function. Defaults to [ExpectedImprovement].
+         * @param maxIterations The maximum number of BO iterations per restart. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams shared by the inner Bayesian optimization solver and the outer driver; defaults to a fresh RNStreamProvider
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createRandomRestartBayesianOptimizationSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
+            initialDesignSize: Int = BayesianOptimizationSolver.defaultInitialDesignSize,
+            acquisition: AcquisitionFunctionIfc = ExpectedImprovement(),
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+        ): RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            // The inner Bayesian optimization solver keeps its own stream from the shared provider;
+            // the outer random-restart driver (the returned solver) takes the user's streamNum.
+            val bo = BayesianOptimizationSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = 0,
+                streamProvider = streamProvider,
+                acquisition = acquisition,
+                initialDesignSize = initialDesignSize,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
+            )
+            val restartSolver = RandomRestartSolver(
+                restartingSolver = bo, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
+            )
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the inner solver on run #1.
             if (startingPoint != null) {
                 restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
             }
