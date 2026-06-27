@@ -28,8 +28,10 @@ import ksl.app.single.results.StandardReportMaterializer
 import ksl.app.single.results.StandardReportOutcome
 import ksl.app.notification.NotificationSink
 import ksl.app.single.results.ReportSaveRecord
+import ksl.app.single.results.TraceReportMaterializer
 import ksl.app.single.results.WelchReportMaterializer
 import ksl.app.swing.single.SingleAppController
+import ksl.app.swing.single.TraceReportDialog
 import ksl.app.swing.single.WelchReportDialog
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import java.awt.BorderLayout
@@ -124,6 +126,7 @@ class PostRunReportingPanel(
     }
     private val saveButton = JButton("Save report")
     private val welchButton = JButton("Welch Report…").apply { isEnabled = false }
+    private val traceButton = JButton("Trace Report…").apply { isEnabled = false }
     private val statusLabel = JLabel(" ").apply {
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
@@ -157,6 +160,7 @@ class PostRunReportingPanel(
         refreshSaveEnabled()
         refreshSectionAvailability()
         refreshWelchButton()
+        refreshTraceButton()
     }
 
     // ── Layout helpers ─────────────────────────────────────────────────────
@@ -324,6 +328,8 @@ class PostRunReportingPanel(
         add(saveButton)
         add(Box.createHorizontalStrut(8))
         add(welchButton)
+        add(Box.createHorizontalStrut(8))
+        add(traceButton)
         add(Box.createHorizontalStrut(12))
         add(statusLabel)
         add(Box.createHorizontalGlue())
@@ -347,6 +353,9 @@ class PostRunReportingPanel(
         welchButton.addActionListener {
             WelchReportDialog.show(controller, notifier, javax.swing.SwingUtilities.getWindowAncestor(this))
         }
+        traceButton.addActionListener {
+            TraceReportDialog.show(controller, notifier, javax.swing.SwingUtilities.getWindowAncestor(this))
+        }
     }
 
     private fun wireRecentBehaviour() {
@@ -369,6 +378,7 @@ class PostRunReportingPanel(
                 refreshSaveEnabled()
                 refreshSectionAvailability()
                 refreshWelchButton()
+                refreshTraceButton()
             }
         }
         controller.edtScope.launch {
@@ -512,6 +522,30 @@ class PostRunReportingPanel(
             "Save a Welch warm-up (initialization-bias) report from this run's captured data."
         } else {
             "No Welch data for this run.  Enable Warm-Up Analysis on the Run Control tab " +
+                "before Simulate."
+        }
+    }
+
+    /**
+     *  Enable the "Trace Report…" button only when this run captured trace
+     *  data on disk (the user opted in pre-run).  Mirrors [refreshWelchButton]:
+     *  discovery runs once per completed run (on snapshot change), not on every
+     *  form edit.
+     */
+    private fun refreshTraceButton() {
+        val available = try {
+            currentSnapshot() != null &&
+                TraceReportMaterializer
+                    .discoverTraceFiles(controller.appWorkspace.resolve("output"))
+                    .isNotEmpty()
+        } catch (t: Throwable) {
+            false
+        }
+        traceButton.isEnabled = available
+        traceButton.toolTipText = if (available) {
+            "Save a response-trace report (sample paths) from this run's captured data."
+        } else {
+            "No trace data for this run.  Enable Response Trace on the Run Control tab " +
                 "before Simulate."
         }
     }
