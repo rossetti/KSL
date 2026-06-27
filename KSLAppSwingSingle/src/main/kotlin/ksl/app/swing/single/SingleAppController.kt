@@ -683,42 +683,30 @@ class SingleAppController(
     }
 
     /**
-     * Apply the complete Warm-Up Analysis (Welch) selection in one shot.
+     * Apply the Warm-Up Analysis (Welch) **capture** selection in one shot.
      * Called by the modal `WelchConfigDialog` on **OK** — a single batched
      * write keeps per-widget churn out of [outputConfig] and gives the
      * dialog real Cancel semantics (Cancel simply never calls this).
      * No-op (and no dirty flip) when the resulting config is unchanged.
      *
+     * Only capture concerns live here — which responses to observe and at
+     * what discretizing interval.  Report-rendering choices (partial-sums
+     * plot, bias test, …) are made on demand in the Post-Run Reporting tab,
+     * not persisted in [OutputConfig].
+     *
      * @param enableWelchAnalysis master toggle — when false the orchestrator
      *   attaches no Welch observers regardless of [welchResponses].
      * @param welchResponses the selected responses, each with its
      *   discretizing interval.
-     * @param includePartialSums include the partial-sums plot section.
-     * @param includeBiasTest include the Schruben bias-test section.
-     * @param includeBatchMeans include the post-deletion batch-means section.
-     * @param deletionPoint warm-up deletion point; -1 selects the MSER
-     *   recommendation.
-     * @param autoRender when true, the Welch report is materialized
-     *   automatically after each Simulate (reusing [OutputConfig.reports]).
      */
     fun applyWelchConfig(
         enableWelchAnalysis: Boolean,
-        welchResponses: List<WelchResponseSpec>,
-        includePartialSums: Boolean,
-        includeBiasTest: Boolean,
-        includeBatchMeans: Boolean,
-        deletionPoint: Int,
-        autoRender: Boolean
+        welchResponses: List<WelchResponseSpec>
     ) {
         val current = myOutputConfig.value
         val updated = current.copy(
             enableWelchAnalysis = enableWelchAnalysis,
-            welchResponses = welchResponses,
-            welchIncludePartialSums = includePartialSums,
-            welchIncludeBiasTest = includeBiasTest,
-            welchIncludeBatchMeans = includeBatchMeans,
-            welchDeletionPoint = deletionPoint,
-            welchAutoRender = autoRender
+            welchResponses = welchResponses
         )
         if (updated == current) return
         myOutputConfig.value = updated

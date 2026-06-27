@@ -187,41 +187,13 @@ data class OutputConfig(
         "its discretizing interval.  Tally responses use the value as a\n" +
         "batch size (e.g. 1.0); time-weighted responses use it as a delta-t\n" +
         "interval (e.g. 10.0).  Only consulted when enableWelchAnalysis is\n" +
-        "true.  Default: empty (no responses captured)."
+        "true.  Default: empty (no responses captured).\n" +
+        "\n" +
+        "Welch fields here are capture-only (which responses, what interval).\n" +
+        "Report-rendering choices (partial-sums plot, bias test, etc.) are\n" +
+        "made on demand in the Post-Run Reporting tab, not persisted here."
     )
-    val welchResponses: List<WelchResponseSpec> = emptyList(),
-
-    @TomlComment(
-        "Boolean. Include the partial-sums plot section in the Welch\n" +
-        "report.  Default: true."
-    )
-    val welchIncludePartialSums: Boolean = true,
-
-    @TomlComment(
-        "Boolean. Include the Schruben initialization-bias test section in\n" +
-        "the Welch report.  Default: false."
-    )
-    val welchIncludeBiasTest: Boolean = false,
-
-    @TomlComment(
-        "Boolean. Include the post-deletion batch-means analysis section in\n" +
-        "the Welch report.  Default: false."
-    )
-    val welchIncludeBatchMeans: Boolean = false,
-
-    @TomlComment(
-        "Int. Warm-up deletion point for the report's batch-means and\n" +
-        "bias-test sections.  -1 selects the MSER recommendation; any value\n" +
-        ">= 0 is used as a fixed deletion point.  Default: -1."
-    )
-    val welchDeletionPoint: Int = -1,
-
-    @TomlComment(
-        "Boolean. When true, the Single app materializes the Welch report\n" +
-        "automatically after each Simulate, reusing the `reports` format\n" +
-        "set for the output mix.  Default: false."
-    )
-    val welchAutoRender: Boolean = false
+    val welchResponses: List<WelchResponseSpec> = emptyList()
 )
 
 /**

@@ -777,53 +777,34 @@ class SingleAppControllerConfigurationTest {
             welchResponses = listOf(
                 WelchResponseSpec("System Time", 1.0),
                 WelchResponseSpec("Num in System", 10.0)
-            ),
-            includePartialSums = true,
-            includeBiasTest = true,
-            includeBatchMeans = true,
-            deletionPoint = 250,
-            autoRender = true
+            )
         )
         assertTrue(c.isDirty.value, "applyWelchConfig should flip dirty true")
         val oc = c.currentConfiguration().outputConfig
         assertTrue(oc.enableWelchAnalysis)
         assertEquals(2, oc.welchResponses.size)
         assertEquals(10.0, oc.welchResponses.first { it.responseName == "Num in System" }.interval)
-        assertTrue(oc.welchIncludeBiasTest)
-        assertTrue(oc.welchIncludeBatchMeans)
-        assertEquals(250, oc.welchDeletionPoint)
-        assertTrue(oc.welchAutoRender)
     }
 
     @Test
     @DisplayName("applyWelchConfig with the current values is a no-op for dirty")
     fun applyWelchConfigNoOpDoesNotFlipDirty() {
         val c = freshController()
-        val oc = c.outputConfig.value   // defaults: welch off, empty, -1
+        val oc = c.outputConfig.value   // defaults: welch off, empty
         c.applyWelchConfig(
             enableWelchAnalysis = oc.enableWelchAnalysis,
-            welchResponses = oc.welchResponses,
-            includePartialSums = oc.welchIncludePartialSums,
-            includeBiasTest = oc.welchIncludeBiasTest,
-            includeBatchMeans = oc.welchIncludeBatchMeans,
-            deletionPoint = oc.welchDeletionPoint,
-            autoRender = oc.welchAutoRender
+            welchResponses = oc.welchResponses
         )
         assertFalse(c.isDirty.value, "no-op applyWelchConfig must not flip dirty")
     }
 
     @Test
-    @DisplayName("Welch config survives a save -> load round trip")
+    @DisplayName("Welch capture config survives a save -> load round trip")
     fun welchConfigSurvivesSaveLoadRoundTrip() {
         val c = freshController("RoundTripWelchApp")
         c.applyWelchConfig(
             enableWelchAnalysis = true,
-            welchResponses = listOf(WelchResponseSpec("System Time", 2.5)),
-            includePartialSums = false,
-            includeBiasTest = true,
-            includeBatchMeans = false,
-            deletionPoint = 42,
-            autoRender = true
+            welchResponses = listOf(WelchResponseSpec("System Time", 2.5))
         )
         val saved = c.currentConfiguration()
         val outcome = c.loadConfiguration(saved)
@@ -831,10 +812,6 @@ class SingleAppControllerConfigurationTest {
         val oc = c.outputConfig.value
         assertTrue(oc.enableWelchAnalysis)
         assertEquals(listOf(WelchResponseSpec("System Time", 2.5)), oc.welchResponses)
-        assertFalse(oc.welchIncludePartialSums)
-        assertTrue(oc.welchIncludeBiasTest)
-        assertEquals(42, oc.welchDeletionPoint)
-        assertTrue(oc.welchAutoRender)
         assertFalse(c.isDirty.value, "load should clear dirty")
     }
 
@@ -844,21 +821,11 @@ class SingleAppControllerConfigurationTest {
         val c = freshController()
         c.applyWelchConfig(
             enableWelchAnalysis = true,
-            welchResponses = listOf(WelchResponseSpec("System Time", 1.0)),
-            includePartialSums = false,
-            includeBiasTest = true,
-            includeBatchMeans = true,
-            deletionPoint = 7,
-            autoRender = true
+            welchResponses = listOf(WelchResponseSpec("System Time", 1.0))
         )
         c.resetConfiguration()
         val oc = c.outputConfig.value
         assertFalse(oc.enableWelchAnalysis)
         assertTrue(oc.welchResponses.isEmpty())
-        assertTrue(oc.welchIncludePartialSums, "partial-sums default is true")
-        assertFalse(oc.welchIncludeBiasTest)
-        assertFalse(oc.welchIncludeBatchMeans)
-        assertEquals(-1, oc.welchDeletionPoint)
-        assertFalse(oc.welchAutoRender)
     }
 }

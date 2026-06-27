@@ -193,12 +193,7 @@ class RunConfigurationTest {
             welchResponses = listOf(
                 WelchResponseSpec("MM1Queue:SystemTime", 1.0),
                 WelchResponseSpec("MM1Queue:NumInSystem", 10.0)
-            ),
-            welchIncludePartialSums = true,
-            welchIncludeBiasTest = true,
-            welchIncludeBatchMeans = true,
-            welchDeletionPoint = 250,
-            welchAutoRender = true
+            )
         )
     )
 
@@ -242,11 +237,6 @@ class RunConfigurationTest {
         val cfg = RunConfigurationToml.decode(legacy).outputConfig
         assertEquals(false, cfg.enableWelchAnalysis)
         assertTrue(cfg.welchResponses.isEmpty())
-        assertEquals(true, cfg.welchIncludePartialSums)
-        assertEquals(false, cfg.welchIncludeBiasTest)
-        assertEquals(false, cfg.welchIncludeBatchMeans)
-        assertEquals(-1, cfg.welchDeletionPoint)
-        assertEquals(false, cfg.welchAutoRender)
     }
 
     // ── ExecutionMode field on RunConfiguration ──────────────────────────────

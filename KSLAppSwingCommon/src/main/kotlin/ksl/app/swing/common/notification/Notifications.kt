@@ -18,6 +18,7 @@
 
 package ksl.app.swing.common.notification
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.notification.NotificationSeverity
 import ksl.app.notification.NotificationSink
 import ksl.app.notification.NotificationSpec
@@ -38,6 +39,8 @@ import javax.swing.JPanel
 import javax.swing.SwingConstants
 import javax.swing.Timer
 import kotlin.time.Duration
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Stacked transient-notification surface from scenario workflow
@@ -82,11 +85,16 @@ class Notifications(
      *  notification appears asynchronously.
      */
     override fun emit(spec: NotificationSpec) {
-        // Echo to the console so long messages survive the transient toast and can be
-        // copied: the toast auto-dismisses and its text is not selectable.  (A persistent
-        // in-app notification log is the longer-term home — see the history-panel plan.)
-        (if (spec.severity == NotificationSeverity.ERROR) System.err else System.out)
-            .println("[${spec.severity}] ${spec.message}")
+        // Mirror to the logger (not raw stdout) so messages persist beyond the
+        // transient, non-selectable toast — in the rolling log file.  Routing
+        // through logback means routine INFO/WARN events honor the app's
+        // console threshold (WARN+) instead of spamming the console; only
+        // genuinely surfacing severities reach the terminal.
+        when (spec.severity) {
+            NotificationSeverity.INFO -> logger.info { spec.message }
+            NotificationSeverity.WARNING -> logger.warn { spec.message }
+            NotificationSeverity.ERROR -> logger.error { spec.message }
+        }
         if (javax.swing.SwingUtilities.isEventDispatchThread()) {
             show(spec)
         } else {

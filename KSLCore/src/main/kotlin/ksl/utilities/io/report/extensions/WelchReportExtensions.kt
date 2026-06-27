@@ -125,22 +125,30 @@ fun ReportBuilder.welchAnalysis(
  * @param includeBiasTest    `true` appends a Schruben initialization bias test
  *                           section; the test is applied to Welch averages
  *                           batched with [WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE]
+ * @param includeDeletionPoint `true` (default) appends the MSER / deletion-point
+ *                           recommendation table; `false` omits it (and, when the
+ *                           bias test and batch means are also off, skips the
+ *                           O(n^2) MSER computation entirely)
  * @param deletionPoint      observation index for post-deletion analysis;
  *                           `-1` means use the MSER recommendation
  */
 fun ReportBuilder.welchAnalysis(
     analyzer: WelchDataFileAnalyzer,
-    includePartialSums: Boolean = true,
-    includeBatchMeans:  Boolean = false,
-    includeBiasTest:    Boolean = false,
-    deletionPoint:      Int     = -1
+    includePartialSums:   Boolean = true,
+    includeBatchMeans:    Boolean = false,
+    includeBiasTest:      Boolean = false,
+    includeDeletionPoint: Boolean = true,
+    deletionPoint:        Int     = -1
 ) {
-    val myEffectiveDeletionPt   = if (deletionPoint < 0) {
-        analyzer.recommendDeletionPoint()
-    } else {
-        deletionPoint
+    // recommendDeletionPoint() -> computeMSER() is O(n^2) in the number of
+    // Welch observations, so resolve the deletion point lazily: it is only
+    // needed by the deletion-point table (§5) and the post-deletion batch-means
+    // section (§7).  The bias test (§6) deliberately does NOT use it (see there).
+    // A user-supplied point (>= 0) is free.  When neither §5 nor §7 is
+    // requested, the MSER computation never runs.
+    val myEffectiveDeletionPt: Int by lazy(LazyThreadSafetyMode.NONE) {
+        if (deletionPoint < 0) analyzer.recommendDeletionPoint() else deletionPoint
     }
-    val myEffectiveDeletionTime = myEffectiveDeletionPt * analyzer.averageTimePerObservation
 
     section(analyzer.responseName) {
 
@@ -178,22 +186,34 @@ fun ReportBuilder.welchAnalysis(
             plot(PartialSumsPlot(analyzer))
         }
 
-        // ── 5. MSER deletion-point recommendation ─────────────────────────
-        dataTable(
-            headers = listOf("Property", "Value"),
-            rows    = listOf(
-                listOf("Recommended Deletion Observation", myEffectiveDeletionPt.toString()),
-                listOf("Recommended Deletion Time (approx.)",  fmtDouble(myEffectiveDeletionTime))
-            ),
-            caption = if (deletionPoint < 0) "MSER Deletion-Point Recommendation"
-                      else "User-Supplied Deletion Point"
-        )
+        // ── 5. MSER deletion-point recommendation (optional) ──────────────
+        if (includeDeletionPoint) {
+            val myEffectiveDeletionTime = myEffectiveDeletionPt * analyzer.averageTimePerObservation
+            dataTable(
+                headers = listOf("Property", "Value"),
+                rows    = listOf(
+                    listOf("Recommended Deletion Observation", myEffectiveDeletionPt.toString()),
+                    listOf("Recommended Deletion Time (approx.)",  fmtDouble(myEffectiveDeletionTime))
+                ),
+                caption = if (deletionPoint < 0) "MSER Deletion-Point Recommendation"
+                          else "User-Supplied Deletion Point"
+            )
+        }
 
         // ── 6. Initialization bias test (optional) ────────────────────────
         if (includeBiasTest) {
             section("Initialization Bias Test") {
+                // The bias test detects whether initialization bias is present;
+                // it does NOT require the MSER recommendation.  It needs only a
+                // deletion offset for `batchWelchAverages` (which the test then
+                // batches and feeds to the F-statistics).  Use the user-supplied
+                // deletion point when given (>= 0), otherwise test the full
+                // series (0).  This deliberately avoids the O(n^2) MSER
+                // computation and tests for bias rather than testing whether
+                // MSER already removed it.
+                val myBiasTestDeletePt = deletionPoint.coerceAtLeast(0)
                 val myBiasBS     = analyzer.batchWelchAverages(
-                    myEffectiveDeletionPt,
+                    myBiasTestDeletePt,
                     WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE
                 )
                 val myBatchMeans = myBiasBS.batchMeans
@@ -220,7 +240,7 @@ fun ReportBuilder.welchAnalysis(
 
                 paragraph(
                     "The Schruben initialization bias test is applied to Welch averages " +
-                    "from observation ${myEffectiveDeletionPt + 1} onward, batched with " +
+                    "from observation ${myBiasTestDeletePt + 1} onward, batched with " +
                     "batch size ${WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE}. " +
                     "H\u2080: no initialization bias. " +
                     "Reject H\u2080 when p-value < 0.05 " +

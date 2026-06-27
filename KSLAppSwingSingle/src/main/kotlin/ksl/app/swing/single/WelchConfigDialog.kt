@@ -38,9 +38,15 @@ import javax.swing.JDialog
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
-import javax.swing.JSpinner
-import javax.swing.SpinnerNumberModel
+import javax.swing.JTable
+import javax.swing.JTextField
+import javax.swing.ListSelectionModel
+import javax.swing.RowFilter
 import javax.swing.WindowConstants
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
+import javax.swing.table.AbstractTableModel
+import javax.swing.table.TableRowSorter
 
 /**
  * One editable row in the Welch dialog's response checklist: a response,
@@ -129,141 +135,144 @@ internal class WelchConfigDialogImpl(
 ) : JDialog(owner, "Configure Warm-Up Analysis (Welch)", ModalityType.APPLICATION_MODAL) {
 
     private val seedConfig: OutputConfig = controller.outputConfig.value
-    private val rowStates: List<WelchRowState> =
-        WelchDialogLogic.initialRows(seedConfig, controller.responseSnapshot)
+
+    /** Mutable backing rows (model order = probe order); the table edits these in place. */
+    private val rows: MutableList<WelchRowState> =
+        WelchDialogLogic.initialRows(seedConfig, controller.responseSnapshot).toMutableList()
 
     internal val masterCheckBox = JCheckBox("Capture Welch warm-up data during the run").apply {
         isSelected = seedConfig.enableWelchAnalysis
         addActionListener { syncEnabled() }
     }
 
-    internal val rowChecks: List<JCheckBox> = rowStates.map { JCheckBox(it.name).apply { isSelected = it.selected } }
-    private val intervalSpinners: List<JSpinner> = rowStates.map {
-        JSpinner(SpinnerNumberModel(it.interval, 0.0, 1_000_000.0, 1.0))
+    private val tableModel = RowsModel()
+    private val table = JTable(tableModel).apply {
+        rowHeight = 22
+        fillsViewportHeight = true
+        setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+        autoCreateRowSorter = true
+        putClientProperty("terminateEditOnFocusLost", true)
+        columnModel.getColumn(COL_CAPTURE).apply { preferredWidth = 64; maxWidth = 70 }
+        columnModel.getColumn(COL_NAME).preferredWidth = 280
+        columnModel.getColumn(COL_TYPE).preferredWidth = 110
+        columnModel.getColumn(COL_INTERVAL).preferredWidth = 90
     }
+    private val sorter = TableRowSorter(tableModel).also { table.rowSorter = it }
 
-    private val partialSumsCheck = JCheckBox("Partial-sums plot").apply {
-        isSelected = seedConfig.welchIncludePartialSums
+    private val filterField = JTextField(20).apply {
+        toolTipText = "Type to filter the response list by name"
+        document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent?) = applyFilter()
+            override fun removeUpdate(e: DocumentEvent?) = applyFilter()
+            override fun changedUpdate(e: DocumentEvent?) = applyFilter()
+        })
     }
-    private val biasTestCheck = JCheckBox("Initialization bias test (Schruben)").apply {
-        isSelected = seedConfig.welchIncludeBiasTest
-    }
-
-    internal val autoRenderCheck = JCheckBox("Auto-render Welch report after Simulate").apply {
-        isSelected = seedConfig.welchAutoRender
-    }
+    private val selectAllButton = JButton(object : AbstractAction("Select all") {
+        override fun actionPerformed(e: java.awt.event.ActionEvent?) = setAllVisibleSelected(true)
+    })
+    private val selectNoneButton = JButton(object : AbstractAction("Select none") {
+        override fun actionPerformed(e: java.awt.event.ActionEvent?) = setAllVisibleSelected(false)
+    })
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
+        isResizable = true
 
         contentPane.layout = BorderLayout()
-        contentPane.add(buildBody(), BorderLayout.CENTER)
-        contentPane.add(buildButtonRow(), BorderLayout.SOUTH)
+        contentPane.add(buildHeader(), BorderLayout.NORTH)
+        contentPane.add(buildCenter(), BorderLayout.CENTER)
+        contentPane.add(buildFooter(), BorderLayout.SOUTH)
 
         syncEnabled()
-        pack()
-        size = Dimension(560, maxOf(360, size.height))
+        size = Dimension(640, 520)
         setLocationRelativeTo(owner)
     }
 
-    private fun buildBody(): JComponent {
-        val body = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = BorderFactory.createEmptyBorder(10, 12, 6, 12)
-        }
-        body.add(leftRow(masterCheckBox))
-        body.add(leftRow(JLabel(
-            "<html><i>Check the box above to enable the response and report options below.</i></html>"
+    private fun buildHeader(): JComponent = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        border = BorderFactory.createEmptyBorder(10, 12, 4, 12)
+        add(leftRow(masterCheckBox))
+        add(leftRow(JLabel(
+            "<html><i>Check the box above to choose the responses to capture below.</i></html>"
         ).apply { foreground = Color(0x66, 0x66, 0x66) }))
-        body.add(Box.createVerticalStrut(8))
-
-        body.add(leftRow(boldLabel("Responses to analyze")))
-        val rowsPanel = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        for (i in rowStates.indices) {
-            val typeLabel = if (rowStates[i].isTimeWeighted) "(time-weighted)" else "(tally)"
-            rowsPanel.add(JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
-                alignmentX = Component.LEFT_ALIGNMENT
-                add(rowChecks[i])
-                add(JLabel(typeLabel).apply { foreground = Color(0x66, 0x66, 0x66) })
-                add(Box.createHorizontalStrut(8))
-                add(JLabel("interval:"))
-                add(intervalSpinners[i].apply { preferredSize = Dimension(90, preferredSize.height) })
-            })
-        }
-        body.add(JScrollPane(rowsPanel).apply {
+        add(Box.createVerticalStrut(8))
+        add(leftRow(boldLabel("Responses to analyze")))
+        add(JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
             alignmentX = Component.LEFT_ALIGNMENT
-            border = BorderFactory.createLineBorder(Color(0xCC, 0xCC, 0xCC))
-            preferredSize = Dimension(520, 120)
+            add(JLabel("Filter:"))
+            add(filterField)
+            add(Box.createHorizontalStrut(12))
+            add(selectAllButton)
+            add(selectNoneButton)
         })
-        body.add(leftRow(JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
-            add(JButton(object : AbstractAction("Select all") {
-                override fun actionPerformed(e: java.awt.event.ActionEvent?) = setAllSelected(true)
+    }
+
+    private fun buildCenter(): JComponent = JScrollPane(table).apply {
+        border = BorderFactory.createCompoundBorder(
+            BorderFactory.createEmptyBorder(0, 12, 0, 12),
+            BorderFactory.createLineBorder(Color(0xCC, 0xCC, 0xCC))
+        )
+    }
+
+    private fun buildFooter(): JComponent = JPanel(BorderLayout()).apply {
+        border = BorderFactory.createEmptyBorder(4, 12, 8, 12)
+        add(JLabel(
+            "<html><i>Captured during the run; analyzed afterward via the Post-Run " +
+                "Reporting tab. Selecting fewer responses keeps runs fast.</i></html>"
+        ).apply { foreground = Color(0x66, 0x66, 0x66) }, BorderLayout.NORTH)
+        add(JPanel(FlowLayout(FlowLayout.RIGHT, 6, 8)).apply {
+            add(JButton(object : AbstractAction("Cancel") {
+                override fun actionPerformed(e: java.awt.event.ActionEvent?) = onCancel()
             }))
-            add(JButton(object : AbstractAction("Select none") {
-                override fun actionPerformed(e: java.awt.event.ActionEvent?) = setAllSelected(false)
-            }))
-        }))
-        body.add(Box.createVerticalStrut(8))
-
-        body.add(leftRow(boldLabel("Optional sections")))
-        body.add(leftRow(partialSumsCheck))
-        body.add(leftRow(biasTestCheck))
-        body.add(Box.createVerticalStrut(8))
-        body.add(leftRow(autoRenderCheck))
-        body.add(leftRow(JLabel(
-            "<html><i>Captured during the run; analyzed afterward. Adds per-observation " +
-                "I/O — selecting fewer responses keeps runs fast.</i></html>"
-        ).apply { foreground = Color(0x66, 0x66, 0x66) }))
-        return body
+            add(JButton(object : AbstractAction("OK") {
+                override fun actionPerformed(e: java.awt.event.ActionEvent?) = onOk()
+            }).also { this@WelchConfigDialogImpl.rootPane.defaultButton = it })
+        }, BorderLayout.SOUTH)
     }
 
-    private fun buildButtonRow(): JComponent = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 8)).apply {
-        border = BorderFactory.createEmptyBorder(0, 12, 8, 12)
-        add(JButton(object : AbstractAction("Cancel") {
-            override fun actionPerformed(e: java.awt.event.ActionEvent?) = onCancel()
-        }))
-        add(JButton(object : AbstractAction("OK") {
-            override fun actionPerformed(e: java.awt.event.ActionEvent?) = onOk()
-        }).also { this@WelchConfigDialogImpl.rootPane.defaultButton = it })
+    private fun applyFilter() {
+        val text = filterField.text.trim()
+        sorter.rowFilter = if (text.isEmpty()) null
+        else RowFilter.regexFilter("(?i)" + Regex.escape(text), COL_NAME)
     }
 
-    private fun setAllSelected(selected: Boolean) {
-        for (cb in rowChecks) cb.isSelected = selected
+    /** Select / deselect every row currently visible under the active filter. */
+    private fun setAllVisibleSelected(selected: Boolean) {
+        if (table.isEditing) table.cellEditor?.stopCellEditing()
+        for (viewRow in 0 until table.rowCount) {
+            val modelRow = table.convertRowIndexToModel(viewRow)
+            rows[modelRow] = rows[modelRow].copy(selected = selected)
+            tableModel.fireTableCellUpdated(modelRow, COL_CAPTURE)
+        }
     }
 
-    /** Grey out the body when the master toggle is off (the existing idiom). */
+    /** Grey out the table + controls when the master toggle is off. */
     private fun syncEnabled() {
         val on = masterCheckBox.isSelected
-        for (i in rowStates.indices) { rowChecks[i].isEnabled = on; intervalSpinners[i].isEnabled = on }
-        partialSumsCheck.isEnabled = on
-        biasTestCheck.isEnabled = on
-        autoRenderCheck.isEnabled = on
+        table.isEnabled = on
+        filterField.isEnabled = on
+        selectAllButton.isEnabled = on
+        selectNoneButton.isEnabled = on
     }
 
-    /** Collect current widget state into the controller via one batched call. */
+    /** Collect the capture selection and apply it via one batched call. */
     internal fun onOk() {
-        val rows = rowStates.indices.map { i ->
-            rowStates[i].copy(
-                selected = rowChecks[i].isSelected,
-                interval = (intervalSpinners[i].value as Number).toDouble()
-            )
-        }
+        if (table.isEditing) table.cellEditor?.stopCellEditing()
         controller.applyWelchConfig(
             enableWelchAnalysis = masterCheckBox.isSelected,
-            welchResponses = WelchDialogLogic.selectedSpecs(rows),
-            includePartialSums = partialSumsCheck.isSelected,
-            includeBiasTest = biasTestCheck.isSelected,
-            // Batch-means and an explicit deletion point are not exposed in
-            // this dialog: the report omits the batch-means section and uses
-            // the MSER-recommended deletion point (-1).
-            includeBatchMeans = false,
-            deletionPoint = -1,
-            autoRender = autoRenderCheck.isSelected
+            welchResponses = WelchDialogLogic.selectedSpecs(rows)
         )
         dispose()
     }
 
     private fun onCancel() = dispose()
+
+    // ── Test seam (the headless smoke test drives rows by model index) ──────
+    internal fun rowCount(): Int = rows.size
+    internal fun isCaptured(row: Int): Boolean = rows[row].selected
+    internal fun setCaptured(row: Int, value: Boolean) {
+        tableModel.setValueAt(value, row, COL_CAPTURE)
+    }
 
     private fun leftRow(component: JComponent): JComponent =
         JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
@@ -273,4 +282,55 @@ internal class WelchConfigDialogImpl(
 
     private fun boldLabel(text: String): JLabel =
         JLabel(text).apply { font = font.deriveFont(Font.BOLD) }
+
+    /**
+     * Table model over [rows].  Capture (checkbox) and Interval are editable
+     * while the master toggle is on; Response and Type are read-only.
+     */
+    private inner class RowsModel : AbstractTableModel() {
+        override fun getRowCount(): Int = rows.size
+        override fun getColumnCount(): Int = 4
+        override fun getColumnName(column: Int): String = when (column) {
+            COL_CAPTURE -> "Capture"
+            COL_NAME -> "Response"
+            COL_TYPE -> "Type"
+            COL_INTERVAL -> "Interval"
+            else -> ""
+        }
+        override fun getColumnClass(columnIndex: Int): Class<*> = when (columnIndex) {
+            COL_CAPTURE -> java.lang.Boolean::class.java
+            COL_INTERVAL -> java.lang.Double::class.java
+            else -> String::class.java
+        }
+        override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean =
+            masterCheckBox.isSelected && (columnIndex == COL_CAPTURE || columnIndex == COL_INTERVAL)
+
+        override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
+            val r = rows[rowIndex]
+            return when (columnIndex) {
+                COL_CAPTURE -> r.selected
+                COL_NAME -> r.name
+                COL_TYPE -> if (r.isTimeWeighted) "time-weighted" else "tally"
+                COL_INTERVAL -> r.interval
+                else -> ""
+            }
+        }
+
+        override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
+            val r = rows[rowIndex]
+            rows[rowIndex] = when (columnIndex) {
+                COL_CAPTURE -> r.copy(selected = aValue as? Boolean ?: r.selected)
+                COL_INTERVAL -> r.copy(interval = (aValue as? Number)?.toDouble() ?: r.interval)
+                else -> r
+            }
+            fireTableCellUpdated(rowIndex, columnIndex)
+        }
+    }
+
+    private companion object {
+        const val COL_CAPTURE = 0
+        const val COL_NAME = 1
+        const val COL_TYPE = 2
+        const val COL_INTERVAL = 3
+    }
 }

@@ -28,7 +28,9 @@ import ksl.app.single.results.StandardReportMaterializer
 import ksl.app.single.results.StandardReportOutcome
 import ksl.app.notification.NotificationSink
 import ksl.app.single.results.ReportSaveRecord
+import ksl.app.single.results.WelchReportMaterializer
 import ksl.app.swing.single.SingleAppController
+import ksl.app.swing.single.WelchReportDialog
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -121,6 +123,7 @@ class PostRunReportingPanel(
         selectedItem = 0.95
     }
     private val saveButton = JButton("Save report")
+    private val welchButton = JButton("Welch Report…").apply { isEnabled = false }
     private val statusLabel = JLabel(" ").apply {
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
@@ -153,6 +156,7 @@ class PostRunReportingPanel(
         refreshCard()
         refreshSaveEnabled()
         refreshSectionAvailability()
+        refreshWelchButton()
     }
 
     // ── Layout helpers ─────────────────────────────────────────────────────
@@ -171,23 +175,29 @@ class PostRunReportingPanel(
     }
 
     private fun buildPopulated(): JPanel {
-        val outer = JPanel()
-        outer.layout = BoxLayout(outer, BoxLayout.Y_AXIS)
-        outer.add(buildReportOutputBlock())
-        outer.add(Box.createVerticalStrut(6))
-        outer.add(buildFormatsBlock())
-        outer.add(Box.createVerticalStrut(6))
-        outer.add(buildSectionsBlock())
-        // Action row sits directly under Sections — the form's
-        // natural reading flow is Output → Formats → Sections →
-        // "now Save".  Recent saves goes below, as a navigation aid
-        // rather than an interrupter.
-        outer.add(Box.createVerticalStrut(6))
-        outer.add(buildActionRow())
-        outer.add(Box.createVerticalStrut(8))
-        outer.add(buildRecentSavesBlock())
-        outer.add(Box.createVerticalGlue())
-        return outer
+        // The report-config form (Output → Formats → Sections → Save) sits in
+        // NORTH at its natural height; the Recent-saves block lives in CENTER
+        // so it absorbs all remaining vertical space and grows with the
+        // window.  The previous single BoxLayout stack pushed Recent saves to
+        // the bottom with no growth priority, so it was clipped on a short tab
+        // and the fixed-height table forced a resize to see many reports.
+        val form = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            alignmentX = Component.LEFT_ALIGNMENT
+            add(buildReportOutputBlock())
+            add(Box.createVerticalStrut(6))
+            add(buildFormatsBlock())
+            add(Box.createVerticalStrut(6))
+            add(buildSectionsBlock())
+            // Action row sits directly under Sections — the form's natural
+            // reading flow is Output → Formats → Sections → "now Save".
+            add(Box.createVerticalStrut(6))
+            add(buildActionRow())
+        }
+        return JPanel(BorderLayout(0, 8)).apply {
+            add(form, BorderLayout.NORTH)
+            add(buildRecentSavesBlock(), BorderLayout.CENTER)
+        }
     }
 
     private fun buildReportOutputBlock(): JPanel = JPanel(GridBagLayout()).apply {
@@ -312,6 +322,8 @@ class PostRunReportingPanel(
         border = BorderFactory.createEmptyBorder(0, 8, 0, 8)
         alignmentX = Component.LEFT_ALIGNMENT
         add(saveButton)
+        add(Box.createHorizontalStrut(8))
+        add(welchButton)
         add(Box.createHorizontalStrut(12))
         add(statusLabel)
         add(Box.createHorizontalGlue())
@@ -332,6 +344,9 @@ class PostRunReportingPanel(
             override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = refreshSaveEnabled()
         })
         saveButton.addActionListener { handleSave() }
+        welchButton.addActionListener {
+            WelchReportDialog.show(controller, notifier, javax.swing.SwingUtilities.getWindowAncestor(this))
+        }
     }
 
     private fun wireRecentBehaviour() {
@@ -353,6 +368,7 @@ class PostRunReportingPanel(
                 refreshDefaults()
                 refreshSaveEnabled()
                 refreshSectionAvailability()
+                refreshWelchButton()
             }
         }
         controller.edtScope.launch {
@@ -473,6 +489,31 @@ class PostRunReportingPanel(
         val record = controller.recentReportSaves.value.getOrNull(sel)
         openRowButton.isEnabled = record != null
         removeRowButton.isEnabled = record != null
+    }
+
+    /**
+     *  Enable the "Welch Report…" button only when this run captured Welch
+     *  data on disk (the user opted in pre-run).  Discovery is a small
+     *  glob + JSON parse under `<appWorkspace>/output`; it runs once per
+     *  completed run (on snapshot change), not on every form edit.  You
+     *  cannot retro-produce Welch from a finished run, hence the hint.
+     */
+    private fun refreshWelchButton() {
+        val available = try {
+            currentSnapshot() != null &&
+                WelchReportMaterializer
+                    .discoverAnalyzers(controller.appWorkspace.resolve("output"))
+                    .isNotEmpty()
+        } catch (t: Throwable) {
+            false
+        }
+        welchButton.isEnabled = available
+        welchButton.toolTipText = if (available) {
+            "Save a Welch warm-up (initialization-bias) report from this run's captured data."
+        } else {
+            "No Welch data for this run.  Enable Warm-Up Analysis on the Run Control tab " +
+                "before Simulate."
+        }
     }
 
     // ── Snapshot accessors ─────────────────────────────────────────────────

@@ -80,15 +80,13 @@ class WelchConfigDialogTest {
 
         // Simulate the user enabling capture and selecting the first response.
         dialog.masterCheckBox.isSelected = true
-        dialog.rowChecks[0].isSelected = true
-        dialog.autoRenderCheck.isSelected = true
+        dialog.setCaptured(0, true)
         dialog.onOk()
 
         val oc = c.outputConfig.value
         assertTrue(oc.enableWelchAnalysis, "OK must enable Welch capture")
         assertEquals(1, oc.welchResponses.size, "exactly the one checked response is captured")
         assertEquals(c.responseSnapshot[0].name, oc.welchResponses.single().responseName)
-        assertTrue(oc.welchAutoRender, "auto-render checkbox must propagate")
         assertTrue(c.isDirty.value, "applying a change must flip dirty")
     }
 
@@ -100,16 +98,11 @@ class WelchConfigDialogTest {
         // Pre-apply a Welch selection so the dialog has something to seed from.
         c.applyWelchConfig(
             enableWelchAnalysis = true,
-            welchResponses = listOf(ksl.app.config.WelchResponseSpec(c.responseSnapshot[0].name, 1.0)),
-            includePartialSums = true,
-            includeBiasTest = false,
-            includeBatchMeans = false,
-            deletionPoint = -1,
-            autoRender = false
+            welchResponses = listOf(ksl.app.config.WelchResponseSpec(c.responseSnapshot[0].name, 1.0))
         )
         val dialog = WelchConfigDialogImpl(c, owner = null)
         assertTrue(dialog.masterCheckBox.isSelected, "master toggle seeds from enableWelchAnalysis")
-        assertTrue(dialog.rowChecks[0].isSelected, "configured response row seeds selected")
-        assertFalse(dialog.rowChecks[1].isSelected, "unconfigured response row seeds unselected")
+        assertTrue(dialog.isCaptured(0), "configured response row seeds selected")
+        assertFalse(dialog.isCaptured(1), "unconfigured response row seeds unselected")
     }
 }

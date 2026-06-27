@@ -157,6 +157,10 @@ object WelchReportMaterializer {
                         includePartialSums = options.includePartialSums,
                         includeBatchMeans = options.includeBatchMeans,
                         includeBiasTest = options.includeBiasTest,
+                        // The app never shows the MSER deletion-point table; this
+                        // also avoids the O(n^2) MSER computation unless the bias
+                        // test is on (which needs the deletion point).
+                        includeDeletionPoint = false,
                         deletionPoint = options.deletionPoint
                     )
                 }
