@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ReportFormat
 import ksl.app.swing.single.SingleAppController
+import ksl.app.swing.single.WelchConfigDialog
+import ksl.app.swing.single.WelchDialogLogic
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -31,12 +33,14 @@ import java.awt.Insets
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
+import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.SwingUtilities
 
 /**
  *  Default *Run Control* tab content for `kslSingleApp(...)`.
@@ -73,6 +77,8 @@ class RunControlTabPanel(
     private val replicationCsvCheckbox: JCheckBox
     private val experimentCsvCheckbox: JCheckBox
     private val reportFormatCheckboxes: Map<ReportFormat, JCheckBox>
+    private val welchButton: JButton
+    private val welchSummaryLabel: JLabel
 
     init {
         // No BorderLayout-with-CENTER-stretching here: the prior shape
@@ -114,6 +120,28 @@ class RunControlTabPanel(
             toolTipText = "Across-replication summary statistics — one row per response " +
                 "with mean / std-dev / etc.  Written to <workspace>/output/csvDir/."
             addActionListener { controller.setEnableExperimentCSV(isSelected) }
+        }
+
+        // ── Warm-Up Analysis (Welch) cluster ──────────────────────────
+        // A button opening the dedicated modal dialog (kept off this tab
+        // to avoid crowding the Output Options section); the label gives
+        // the gist without opening it.  Disabled when the probe found no
+        // responses to analyze.
+        val hasResponses = controller.responseSnapshot.isNotEmpty()
+        welchButton = JButton("Configure Warm-Up Analysis…").apply {
+            isEnabled = hasResponses
+            toolTipText = if (hasResponses) {
+                "Choose responses and options for Welch warm-up (initialization-bias) " +
+                    "analysis.  Captured during the run; viewable as an HTML report afterward."
+            } else {
+                "No responses available to analyze."
+            }
+            addActionListener {
+                WelchConfigDialog.show(controller, SwingUtilities.getWindowAncestor(this@RunControlTabPanel))
+            }
+        }
+        welchSummaryLabel = JLabel(WelchDialogLogic.summary(controller.outputConfig.value)).apply {
+            foreground = Color(0x66, 0x66, 0x66)
         }
 
         // ── Auto-render cluster ───────────────────────────────────────
@@ -211,8 +239,30 @@ class RunControlTabPanel(
         }
         body.add(formatsRow, gbc)
 
-        // Row 6: pointer to Post-Run Reporting
+        // Row 6: spacer
         gbc.gridy = 6
+        body.add(Box.createVerticalStrut(6), gbc)
+
+        // Row 7: Warm-Up Analysis header
+        gbc.gridy = 7
+        body.add(subHeader("Warm-Up Analysis (Welch)"), gbc)
+
+        // Row 8: configure button + summary label
+        gbc.gridy = 8
+        val welchRow = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            add(welchButton)
+            add(Box.createHorizontalStrut(8))
+            add(welchSummaryLabel)
+        }
+        body.add(welchRow, gbc)
+
+        // Row 9: spacer
+        gbc.gridy = 9
+        body.add(Box.createVerticalStrut(6), gbc)
+
+        // Row 10: pointer to Post-Run Reporting
+        gbc.gridy = 10
         body.add(
             JLabel(
                 "<html>Reports land in <code>&lt;workspace&gt;/reports/&lt;analysisName&gt;/" +
@@ -258,6 +308,10 @@ class RunControlTabPanel(
                     val want = format in cfg.reports
                     if (cb.isSelected != want) cb.isSelected = want
                 }
+                // Welch summary reflects the last applied dialog selection;
+                // refreshes on Open Configuration / Reset without opening it.
+                val welchText = WelchDialogLogic.summary(cfg)
+                if (welchSummaryLabel.text != welchText) welchSummaryLabel.text = welchText
             }
         }
     }
