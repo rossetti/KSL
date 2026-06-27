@@ -40,6 +40,7 @@ import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.single.results.ReportSaveRecord
 import ksl.app.single.results.SingleAppPaths
+import ksl.app.single.results.TraceReportMaterializer
 import ksl.app.single.results.WelchReportMaterializer
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExperimentRunOverrides
@@ -49,6 +50,7 @@ import ksl.app.config.RVParameterOverride
 import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.TraceResponseSpec
 import ksl.app.config.WelchResponseSpec
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
@@ -715,6 +717,37 @@ class SingleAppController(
     }
 
     /**
+     * Apply the Response Trace **capture** selection in one shot.  Called by
+     * the modal `TraceConfigDialog` on **OK** — a single batched write keeps
+     * per-widget churn out of [outputConfig] and gives the dialog real Cancel
+     * semantics (Cancel simply never calls this).  No-op (and no dirty flip)
+     * when the resulting config is unchanged.
+     *
+     * Only capture concerns live here — which responses to trace and the
+     * per-response replication cap.  Report-rendering choices (which
+     * replications to plot, time window, …) are made on demand in the
+     * Post-Run Reporting tab, not persisted in [OutputConfig].
+     *
+     * @param enableResponseTrace master toggle — when false the orchestrator
+     *   attaches no trace observers regardless of [traceResponses].
+     * @param traceResponses the selected responses, each with its replication
+     *   cap.
+     */
+    fun applyTraceConfig(
+        enableResponseTrace: Boolean,
+        traceResponses: List<TraceResponseSpec>
+    ) {
+        val current = myOutputConfig.value
+        val updated = current.copy(
+            enableResponseTrace = enableResponseTrace,
+            traceResponses = traceResponses
+        )
+        if (updated == current) return
+        myOutputConfig.value = updated
+        markDirty()
+    }
+
+    /**
      * Append [record] to [recentReportSaves], FIFO-evicting beyond
      * [MAX_RECENT_REPORT_SAVES].  Records are prepended (most-recent
      * first) so the UI doesn't have to reverse the list.
@@ -954,11 +987,12 @@ class SingleAppController(
         // constructor-supplied default is used as a fallback.
         val outputDirectoryString = if (modelName.isNotEmpty()) {
             val outputDir = appWorkspace.resolve("output")
-            // Remove any prior run's *_Welch capture dirs so the Post-Run
-            // Reporting tab's Welch discovery reflects only this run — the
+            // Remove any prior run's *_Welch / *_Trace capture artifacts so the
+            // Post-Run Reporting tab's discovery reflects only this run — the
             // on-disk analogue of the recentReportSaves clear above.  Other
             // run output is left untouched.
             WelchReportMaterializer.clearWelchData(outputDir)
+            TraceReportMaterializer.clearTraceData(outputDir)
             outputDir.toAbsolutePath().normalize().toString()
         } else null
         val config = RunConfiguration(

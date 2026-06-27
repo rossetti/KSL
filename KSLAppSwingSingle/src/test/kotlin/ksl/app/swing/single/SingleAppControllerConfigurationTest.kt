@@ -25,6 +25,7 @@ import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.TraceResponseSpec
 import ksl.app.config.WelchResponseSpec
 import ksl.app.editor.BundleLibraryController
 import ksl.examples.general.appsupport.MM1ModelBuilder
@@ -827,5 +828,68 @@ class SingleAppControllerConfigurationTest {
         val oc = c.outputConfig.value
         assertFalse(oc.enableWelchAnalysis)
         assertTrue(oc.welchResponses.isEmpty())
+    }
+
+    // ── Response Trace — Phase 4 controller surface ─────────────────────────
+
+    @Test
+    @DisplayName("applyTraceConfig updates OutputConfig and flips dirty")
+    fun applyTraceConfigUpdatesOutputConfigAndFlipsDirty() {
+        val c = freshController()
+        c.applyTraceConfig(
+            enableResponseTrace = true,
+            traceResponses = listOf(
+                TraceResponseSpec("System Time", maxReplications = 1),
+                TraceResponseSpec("Num in System", maxReplications = 3)
+            )
+        )
+        assertTrue(c.isDirty.value, "applyTraceConfig should flip dirty true")
+        val oc = c.currentConfiguration().outputConfig
+        assertTrue(oc.enableResponseTrace)
+        assertEquals(2, oc.traceResponses.size)
+        assertEquals(3, oc.traceResponses.first { it.responseName == "Num in System" }.maxReplications)
+    }
+
+    @Test
+    @DisplayName("applyTraceConfig with the current values is a no-op for dirty")
+    fun applyTraceConfigNoOpDoesNotFlipDirty() {
+        val c = freshController()
+        val oc = c.outputConfig.value   // defaults: trace off, empty
+        c.applyTraceConfig(
+            enableResponseTrace = oc.enableResponseTrace,
+            traceResponses = oc.traceResponses
+        )
+        assertFalse(c.isDirty.value, "no-op applyTraceConfig must not flip dirty")
+    }
+
+    @Test
+    @DisplayName("Trace capture config survives a save -> load round trip")
+    fun traceConfigSurvivesSaveLoadRoundTrip() {
+        val c = freshController("RoundTripTraceApp")
+        c.applyTraceConfig(
+            enableResponseTrace = true,
+            traceResponses = listOf(TraceResponseSpec("System Time", maxReplications = 2))
+        )
+        val saved = c.currentConfiguration()
+        val outcome = c.loadConfiguration(saved)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+        val oc = c.outputConfig.value
+        assertTrue(oc.enableResponseTrace)
+        assertEquals(listOf(TraceResponseSpec("System Time", 2)), oc.traceResponses)
+        assertFalse(c.isDirty.value, "load should clear dirty")
+    }
+
+    @Test
+    @DisplayName("resetConfiguration clears Trace state back to defaults")
+    fun resetConfigurationClearsTraceState() {
+        val c = freshController()
+        c.applyTraceConfig(
+            enableResponseTrace = true,
+            traceResponses = listOf(TraceResponseSpec("System Time", maxReplications = 1))
+        )
+        c.resetConfiguration()
+        val oc = c.outputConfig.value
+        assertFalse(oc.enableResponseTrace)
+        assertTrue(oc.traceResponses.isEmpty())
     }
 }
