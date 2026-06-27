@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ReportFormat
 import ksl.app.swing.single.SingleAppController
+import ksl.app.swing.single.TraceConfigDialog
+import ksl.app.swing.single.TraceDialogLogic
 import ksl.app.swing.single.WelchConfigDialog
 import ksl.app.swing.single.WelchDialogLogic
 import java.awt.BorderLayout
@@ -79,6 +81,8 @@ class RunControlTabPanel(
     private val reportFormatCheckboxes: Map<ReportFormat, JCheckBox>
     private val welchButton: JButton
     private val welchSummaryLabel: JLabel
+    private val traceButton: JButton
+    private val traceSummaryLabel: JLabel
 
     init {
         // No BorderLayout-with-CENTER-stretching here: the prior shape
@@ -141,6 +145,23 @@ class RunControlTabPanel(
             }
         }
         welchSummaryLabel = JLabel(WelchDialogLogic.summary(controller.outputConfig.value)).apply {
+            foreground = Color(0x66, 0x66, 0x66)
+        }
+
+        // ── Response Trace cluster ─────────────────────────────────────
+        traceButton = JButton("Configure Response Trace…").apply {
+            isEnabled = hasResponses
+            toolTipText = if (hasResponses) {
+                "Choose responses to trace during the run.  Captured during the " +
+                    "run; viewable as an HTML report afterward."
+            } else {
+                "No responses available to trace."
+            }
+            addActionListener {
+                TraceConfigDialog.show(controller, SwingUtilities.getWindowAncestor(this@RunControlTabPanel))
+            }
+        }
+        traceSummaryLabel = JLabel(TraceDialogLogic.summary(controller.outputConfig.value)).apply {
             foreground = Color(0x66, 0x66, 0x66)
         }
 
@@ -257,12 +278,26 @@ class RunControlTabPanel(
         }
         body.add(welchRow, gbc)
 
-        // Row 9: spacer
+        // Row 9: Response Trace header
         gbc.gridy = 9
+        body.add(subHeader("Response Trace"), gbc)
+
+        // Row 10: configure button + summary label
+        gbc.gridy = 10
+        val traceRow = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            add(traceButton)
+            add(Box.createHorizontalStrut(8))
+            add(traceSummaryLabel)
+        }
+        body.add(traceRow, gbc)
+
+        // Row 11: spacer
+        gbc.gridy = 11
         body.add(Box.createVerticalStrut(6), gbc)
 
-        // Row 10: pointer to Post-Run Reporting
-        gbc.gridy = 10
+        // Row 12: pointer to Post-Run Reporting
+        gbc.gridy = 12
         body.add(
             JLabel(
                 "<html>Reports land in <code>&lt;workspace&gt;/reports/&lt;analysisName&gt;/" +
@@ -312,6 +347,8 @@ class RunControlTabPanel(
                 // refreshes on Open Configuration / Reset without opening it.
                 val welchText = WelchDialogLogic.summary(cfg)
                 if (welchSummaryLabel.text != welchText) welchSummaryLabel.text = welchText
+                val traceText = TraceDialogLogic.summary(cfg)
+                if (traceSummaryLabel.text != traceText) traceSummaryLabel.text = traceText
             }
         }
     }
