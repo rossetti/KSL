@@ -25,12 +25,16 @@ import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.WelchResponseSpec
 import ksl.app.editor.BundleLibraryController
 import ksl.examples.general.appsupport.MM1ModelBuilder
 import ksl.examples.general.appsupport.ManifestBundleFixtures
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.AfterTest
@@ -711,5 +715,150 @@ class SingleAppControllerConfigurationTest {
     fun `builder mode sourceRef defaults to Embedded keyed on appName`() {
         val c = freshController("CustomName")
         assertEquals(ModelReference.Embedded("CustomName"), c.sourceRef)
+    }
+
+    // ── Warm-Up Analysis (Welch) — Phase 4 controller surface ───────────────
+
+    /**
+     * Builder whose model exposes one tally ("System Time") and one
+     * time-weighted ("Num in System") response — enough to exercise the
+     * probe-time responseSnapshot and its time-weighted flag.
+     */
+    private val responsefulBuilder = object : ModelBuilderIfc {
+        override fun build(
+            modelConfiguration: Map<String, String>?,
+            experimentRunParameters: ExperimentRunParametersIfc?
+        ): Model {
+            val m = Model("RespModel", autoCSVReports = false)
+            Response(m, name = "System Time")
+            TWResponse(m, name = "Num in System")
+            return m
+        }
+    }
+
+    private fun responsefulController(): SingleAppController {
+        val c = SingleAppController("RespApp", responsefulBuilder)
+        controller = c
+        return c
+    }
+
+    @Test
+    @DisplayName("responseSnapshot captures response names and the time-weighted flag")
+    fun responseSnapshotCapturesNamesAndTimeWeightedFlag() {
+        val c = responsefulController()
+        val byName = c.responseSnapshot.associateBy { it.name }
+        assertEquals(false, byName["System Time"]?.isTimeWeighted,
+            "tally response must be flagged not time-weighted")
+        assertEquals(true, byName["Num in System"]?.isTimeWeighted,
+            "TWResponse must be flagged time-weighted")
+    }
+
+    @Test
+    @DisplayName("responseSnapshot is empty when the probe build fails")
+    fun responseSnapshotIsEmptyOnProbeFailure() {
+        val throwingBuilder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model = error("Synthetic probe failure")
+        }
+        val c = SingleAppController("ProbeFailRespApp", throwingBuilder)
+        controller = c
+        assertTrue(c.responseSnapshot.isEmpty(),
+            "Probe failure must leave responseSnapshot empty.")
+    }
+
+    @Test
+    @DisplayName("applyWelchConfig updates OutputConfig and flips dirty")
+    fun applyWelchConfigUpdatesOutputConfigAndFlipsDirty() {
+        val c = freshController()
+        c.applyWelchConfig(
+            enableWelchAnalysis = true,
+            welchResponses = listOf(
+                WelchResponseSpec("System Time", 1.0),
+                WelchResponseSpec("Num in System", 10.0)
+            ),
+            includePartialSums = true,
+            includeBiasTest = true,
+            includeBatchMeans = true,
+            deletionPoint = 250,
+            autoRender = true
+        )
+        assertTrue(c.isDirty.value, "applyWelchConfig should flip dirty true")
+        val oc = c.currentConfiguration().outputConfig
+        assertTrue(oc.enableWelchAnalysis)
+        assertEquals(2, oc.welchResponses.size)
+        assertEquals(10.0, oc.welchResponses.first { it.responseName == "Num in System" }.interval)
+        assertTrue(oc.welchIncludeBiasTest)
+        assertTrue(oc.welchIncludeBatchMeans)
+        assertEquals(250, oc.welchDeletionPoint)
+        assertTrue(oc.welchAutoRender)
+    }
+
+    @Test
+    @DisplayName("applyWelchConfig with the current values is a no-op for dirty")
+    fun applyWelchConfigNoOpDoesNotFlipDirty() {
+        val c = freshController()
+        val oc = c.outputConfig.value   // defaults: welch off, empty, -1
+        c.applyWelchConfig(
+            enableWelchAnalysis = oc.enableWelchAnalysis,
+            welchResponses = oc.welchResponses,
+            includePartialSums = oc.welchIncludePartialSums,
+            includeBiasTest = oc.welchIncludeBiasTest,
+            includeBatchMeans = oc.welchIncludeBatchMeans,
+            deletionPoint = oc.welchDeletionPoint,
+            autoRender = oc.welchAutoRender
+        )
+        assertFalse(c.isDirty.value, "no-op applyWelchConfig must not flip dirty")
+    }
+
+    @Test
+    @DisplayName("Welch config survives a save -> load round trip")
+    fun welchConfigSurvivesSaveLoadRoundTrip() {
+        val c = freshController("RoundTripWelchApp")
+        c.applyWelchConfig(
+            enableWelchAnalysis = true,
+            welchResponses = listOf(WelchResponseSpec("System Time", 2.5)),
+            includePartialSums = false,
+            includeBiasTest = true,
+            includeBatchMeans = false,
+            deletionPoint = 42,
+            autoRender = true
+        )
+        val saved = c.currentConfiguration()
+        val outcome = c.loadConfiguration(saved)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+        val oc = c.outputConfig.value
+        assertTrue(oc.enableWelchAnalysis)
+        assertEquals(listOf(WelchResponseSpec("System Time", 2.5)), oc.welchResponses)
+        assertFalse(oc.welchIncludePartialSums)
+        assertTrue(oc.welchIncludeBiasTest)
+        assertEquals(42, oc.welchDeletionPoint)
+        assertTrue(oc.welchAutoRender)
+        assertFalse(c.isDirty.value, "load should clear dirty")
+    }
+
+    @Test
+    @DisplayName("resetConfiguration clears Welch state back to defaults")
+    fun resetConfigurationClearsWelchState() {
+        val c = freshController()
+        c.applyWelchConfig(
+            enableWelchAnalysis = true,
+            welchResponses = listOf(WelchResponseSpec("System Time", 1.0)),
+            includePartialSums = false,
+            includeBiasTest = true,
+            includeBatchMeans = true,
+            deletionPoint = 7,
+            autoRender = true
+        )
+        c.resetConfiguration()
+        val oc = c.outputConfig.value
+        assertFalse(oc.enableWelchAnalysis)
+        assertTrue(oc.welchResponses.isEmpty())
+        assertTrue(oc.welchIncludePartialSums, "partial-sums default is true")
+        assertFalse(oc.welchIncludeBiasTest)
+        assertFalse(oc.welchIncludeBatchMeans)
+        assertEquals(-1, oc.welchDeletionPoint)
+        assertFalse(oc.welchAutoRender)
     }
 }

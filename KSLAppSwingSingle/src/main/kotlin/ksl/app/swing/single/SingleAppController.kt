@@ -48,6 +48,7 @@ import ksl.app.config.RVParameterOverride
 import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.WelchResponseSpec
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
@@ -63,6 +64,7 @@ import ksl.controls.ModelControlsExport
 import ksl.controls.StringControlData
 import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.simulation.MapModelProvider
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameterData
@@ -71,6 +73,16 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Lightweight probe-time descriptor of a model response: its name plus
+ * whether it is time-weighted (implements `TWResponseCIfc`).  Captured
+ * once from the probe model (see [SingleAppController.responseSnapshot])
+ * so the Warm-Up Analysis dialog can build its response checklist without
+ * a live model.  Intentionally not serializable — the persisted selection
+ * lives in `ksl.app.config.WelchResponseSpec` on the OutputConfig.
+ */
+data class ResponseProbe(val name: String, val isTimeWeighted: Boolean)
 
 /**
  * Internal state-holder for one `kslSingleApp(...)` instance.
@@ -174,6 +186,17 @@ class SingleAppController(
     override val rvSnapshot: List<RVParameterData>
 
     /**
+     * The model's responses captured at probe time, each paired with
+     * whether it is time-weighted (implements `TWResponseCIfc`).  Drives
+     * the Warm-Up Analysis (Welch) configuration dialog's response
+     * checklist and the per-type default discretizing interval (batch
+     * size for tally responses, delta-t for time-weighted).  Empty when
+     * the model exposes no responses or when the probe build failed —
+     * see [probeFailure].
+     */
+    val responseSnapshot: List<ResponseProbe>
+
+    /**
      * The model's author-curated catalog captured at probe time, or `null`
      * when the model nominated nothing (or the probe build failed).
      */
@@ -202,6 +225,7 @@ class SingleAppController(
         this.modelDefaults = probe.defaults
         this.controlsSnapshot = probe.controlsSnapshot
         this.rvSnapshot = probe.rvSnapshot
+        this.responseSnapshot = probe.responseSnapshot
         this.modelCatalog = probe.modelCatalog
         this.modelName = probe.modelName
         this.probeFailure = probe.failure
@@ -280,6 +304,7 @@ class SingleAppController(
         val defaults: ExperimentRunDefaults,
         val controlsSnapshot: ModelControlsExport,
         val rvSnapshot: List<RVParameterData>,
+        val responseSnapshot: List<ResponseProbe>,
         val modelCatalog: ksl.simulation.ModelCatalog?,
         val modelName: String,
         val failure: Throwable?
@@ -292,6 +317,13 @@ class SingleAppController(
             defaults = descriptor.experimentRunDefaults,
             controlsSnapshot = descriptor.controls,
             rvSnapshot = descriptor.rvParameterData,
+            // Capture (name, isTimeWeighted) for every response while the
+            // probe model is still alive; the model itself is discarded
+            // with this method's scope.  Time-weighted responses implement
+            // TWResponseCIfc — the discretizing default differs by type.
+            responseSnapshot = model.responses.map {
+                ResponseProbe(name = it.name, isTimeWeighted = it is TWResponseCIfc)
+            },
             modelCatalog = descriptor.catalog,
             modelName = model.name,
             failure = null
@@ -302,6 +334,7 @@ class SingleAppController(
             defaults = SAFE_FALLBACK_DEFAULTS,
             controlsSnapshot = ModelControlsExport(modelName = appName),
             rvSnapshot = emptyList(),
+            responseSnapshot = emptyList(),
             modelCatalog = null,
             modelName = "",
             failure = t
@@ -646,6 +679,49 @@ class SingleAppController(
         val updated = if (enabled) current + format else current - format
         if (updated == current) return
         myOutputConfig.value = myOutputConfig.value.copy(reports = updated)
+        markDirty()
+    }
+
+    /**
+     * Apply the complete Warm-Up Analysis (Welch) selection in one shot.
+     * Called by the modal `WelchConfigDialog` on **OK** — a single batched
+     * write keeps per-widget churn out of [outputConfig] and gives the
+     * dialog real Cancel semantics (Cancel simply never calls this).
+     * No-op (and no dirty flip) when the resulting config is unchanged.
+     *
+     * @param enableWelchAnalysis master toggle — when false the orchestrator
+     *   attaches no Welch observers regardless of [welchResponses].
+     * @param welchResponses the selected responses, each with its
+     *   discretizing interval.
+     * @param includePartialSums include the partial-sums plot section.
+     * @param includeBiasTest include the Schruben bias-test section.
+     * @param includeBatchMeans include the post-deletion batch-means section.
+     * @param deletionPoint warm-up deletion point; -1 selects the MSER
+     *   recommendation.
+     * @param autoRender when true, the Welch report is materialized
+     *   automatically after each Simulate (reusing [OutputConfig.reports]).
+     */
+    fun applyWelchConfig(
+        enableWelchAnalysis: Boolean,
+        welchResponses: List<WelchResponseSpec>,
+        includePartialSums: Boolean,
+        includeBiasTest: Boolean,
+        includeBatchMeans: Boolean,
+        deletionPoint: Int,
+        autoRender: Boolean
+    ) {
+        val current = myOutputConfig.value
+        val updated = current.copy(
+            enableWelchAnalysis = enableWelchAnalysis,
+            welchResponses = welchResponses,
+            welchIncludePartialSums = includePartialSums,
+            welchIncludeBiasTest = includeBiasTest,
+            welchIncludeBatchMeans = includeBatchMeans,
+            welchDeletionPoint = deletionPoint,
+            welchAutoRender = autoRender
+        )
+        if (updated == current) return
+        myOutputConfig.value = updated
         markDirty()
     }
 
