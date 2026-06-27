@@ -193,7 +193,29 @@ data class OutputConfig(
         "Report-rendering choices (partial-sums plot, bias test, etc.) are\n" +
         "made on demand in the Post-Run Reporting tab, not persisted here."
     )
-    val welchResponses: List<WelchResponseSpec> = emptyList()
+    val welchResponses: List<WelchResponseSpec> = emptyList(),
+
+    @TomlComment(
+        "Boolean. When true, attach a ResponseTrace to each selected response\n" +
+        "before the run so every change of the response is streamed to a\n" +
+        "<workspace>/output/<responseName>_Trace file during the run.\n" +
+        "Required to produce a trace report afterward.  Default: false."
+    )
+    val enableResponseTrace: Boolean = false,
+
+    @TomlComment(
+        "List of responses to trace, each paired with the maximum number of\n" +
+        "replications to record (tracing every change of a response can be\n" +
+        "large; keep this small — the trace report shows the first replication\n" +
+        "by default).  Only consulted when enableResponseTrace is true.\n" +
+        "Default: empty (no responses traced).\n" +
+        "\n" +
+        "Trace fields here are capture-only (which responses, how many reps).\n" +
+        "Report-rendering choices (which replications to plot, time window,\n" +
+        "formats) are made on demand in the Post-Run Reporting tab, not\n" +
+        "persisted here."
+    )
+    val traceResponses: List<TraceResponseSpec> = emptyList()
 )
 
 /**
@@ -216,6 +238,28 @@ data class OutputConfig(
 data class WelchResponseSpec(
     val responseName: String,
     val interval: Double
+)
+
+/**
+ *  One response selected for response tracing, paired with the maximum
+ *  number of replications to record.
+ *
+ *  Stored in [OutputConfig.traceResponses].  The orchestrator turns each
+ *  entry into a `ResponseTrace` attached to the named response on
+ *  `ksl.simulation.Model` before the run starts.
+ *
+ *  @property responseName the model response to trace.  Must match a response
+ *    name on the built model at attach time; unknown names are skipped
+ *    defensively by the orchestrator.
+ *  @property maxReplications the maximum number of replications to record for
+ *    this response.  Tracing every change of a response can produce a lot of
+ *    data, so this defaults to 1; the trace report shows the first
+ *    replication by default.
+ */
+@Serializable
+data class TraceResponseSpec(
+    val responseName: String,
+    val maxReplications: Int = 1
 )
 
 /**

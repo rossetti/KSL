@@ -237,6 +237,37 @@ class RunConfigurationTest {
         val cfg = RunConfigurationToml.decode(legacy).outputConfig
         assertEquals(false, cfg.enableWelchAnalysis)
         assertTrue(cfg.welchResponses.isEmpty())
+        // Trace fields were added later than Welch — same legacy guarantee.
+        assertEquals(false, cfg.enableResponseTrace)
+        assertTrue(cfg.traceResponses.isEmpty())
+    }
+
+    // ── Response-trace fields on OutputConfig ────────────────────────────────
+
+    private fun traceConfig(): RunConfiguration = mm1Config().copy(
+        outputConfig = OutputConfig(
+            enableResponseTrace = true,
+            traceResponses = listOf(
+                TraceResponseSpec("MM1Queue:SystemTime", maxReplications = 1),
+                TraceResponseSpec("MM1Queue:NumInSystem", maxReplications = 3)
+            )
+        )
+    )
+
+    @Test
+    @DisplayName("OutputConfig with trace fields round-trips through JSON")
+    fun traceOutputConfigRoundTripsThroughJson() {
+        val config = traceConfig()
+        val decoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        assertEquals(config, decoded)
+    }
+
+    @Test
+    @DisplayName("OutputConfig with trace fields round-trips through TOML")
+    fun traceOutputConfigRoundTripsThroughToml() {
+        val config = traceConfig()
+        val decoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, decoded)
     }
 
     // ── ExecutionMode field on RunConfiguration ──────────────────────────────
