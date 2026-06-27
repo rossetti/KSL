@@ -202,6 +202,22 @@ object SingleRunOrchestrator {
             ksl.utilities.io.dbutil.KSLDatabaseObserver(model = model, db = db)
         }
 
+        // Welch warm-up capture.  Each WelchFileObserver self-attaches to
+        // its response (via attachModelElementObserver in its own init
+        // block) and streams observations to
+        // <outputDirectory>/<responseName>_Welch/ across the run lifecycle.
+        // Lifecycle is bound to this fresh-per-Run model — when the model
+        // dies the observer goes with it; no explicit detach needed.
+        // Unknown response names are skipped defensively so a stale config
+        // (a response renamed or removed since the config was saved)
+        // degrades to fewer files instead of failing the run.
+        if (outputConfig.enableWelchAnalysis) {
+            for (spec in outputConfig.welchResponses) {
+                val response = model.response(spec.responseName) ?: continue
+                ksl.observers.welch.WelchFileObserver(response, spec.interval)
+            }
+        }
+
         return model
     }
 
