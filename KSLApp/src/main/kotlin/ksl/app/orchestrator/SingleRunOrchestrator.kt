@@ -218,6 +218,20 @@ object SingleRunOrchestrator {
             }
         }
 
+        // Response tracing.  Each ResponseTrace self-attaches to its response
+        // and streams every change to <outputDirectory>/<responseName>_Trace
+        // during the run.  Lifecycle is bound to this fresh-per-Run model.
+        // Unknown response names are skipped defensively (stale config).  The
+        // per-response maxReplications cap bounds trace volume.
+        if (outputConfig.enableResponseTrace) {
+            for (spec in outputConfig.traceResponses) {
+                val response = model.response(spec.responseName) ?: continue
+                ksl.observers.ResponseTrace(response).apply {
+                    maxNumReplications = spec.maxReplications
+                }
+            }
+        }
+
         return model
     }
 
