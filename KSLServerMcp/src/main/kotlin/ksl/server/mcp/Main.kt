@@ -73,7 +73,9 @@ private fun serveStdio() = runBlocking {
     watcher.start(watcherScope)
 
     val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries)
-    val artifactStore = ArtifactStore(config.resultCacheDir())
+    // Run work (capture output, the KSL database, rendered reports/exports) lands in
+    // the KSLWork workspace like the desktop apps — NOT under ~/.ksl (settings/cache only).
+    val artifactStore = ArtifactStore(config.outputRoot())
     val tools = KslMcpTools(registry, resultStore, artifactStore, maxConcurrentJobs = config.server.maxConcurrentJobs, runDeadline = config.runDeadline())
     val server = KslMcpServer.build(tools)
 

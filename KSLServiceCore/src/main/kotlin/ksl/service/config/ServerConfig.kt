@@ -78,6 +78,20 @@ data class ServerConfig(
     /** The result-cache directory: `KSL_RESULT_CACHE_DIR` > `cache.dir` > `~/.ksl/result-cache`. Created if absent. */
     fun resultCacheDir(): Path = resolveDir("KSL_RESULT_CACHE_DIR", cache.dir, ResultStore.defaultDir())
 
+    /**
+     * The root for run **work output** — each result's `output/` (captured Welch/
+     * trace files and the KSL database) and rendered `artifacts/` — under the
+     * server's KSLWork app folder (`KSLWork/KSL_MCP_APPS/runs/`), resolved through
+     * the user's active workspace. This is the same KSLWork layout the desktop
+     * apps write into; the `~/.ksl` tree stays settings + result-cache only.
+     * `KSL_OUTPUT_DIR` overrides it (the operator escape hatch). Created if absent.
+     */
+    fun outputRoot(): Path {
+        System.getenv("KSL_OUTPUT_DIR")?.let { return ensureDir(expandHome(it)) }
+        val workspace = UserSettingsStore().activeWorkspace()
+        return ensureDir(workspace.resolve(SERVER_APP_FOLDER).resolve(RUNS_FOLDER))
+    }
+
     /** The MCP listen port: `KSL_MCP_PORT` > `server.mcpPort`. */
     fun mcpPort(): Int = System.getenv("KSL_MCP_PORT")?.toIntOrNull() ?: server.mcpPort
 
@@ -110,6 +124,10 @@ data class ServerConfig(
          *  (`KSLWork/KSL_MCP_APPS/`); its `bundles/` subfolder is searched before the
          *  shared `KSLWork/bundles/`. Shared by the MCP and REST transports. */
         const val SERVER_APP_FOLDER: String = "KSL_MCP_APPS"
+
+        /** Subfolder of the server app folder holding per-result run output + artifacts
+         *  (`KSLWork/KSL_MCP_APPS/runs/<resultId>/`). */
+        const val RUNS_FOLDER: String = "runs"
 
         /** Loads the config from `KSL_CONFIG_FILE` (else `~/.ksl/config.toml`); defaults when absent or unreadable. */
         fun load(): ServerConfig {

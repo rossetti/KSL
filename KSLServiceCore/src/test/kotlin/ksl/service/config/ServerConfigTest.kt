@@ -18,6 +18,8 @@
 
 package ksl.service.config
 
+import org.junit.jupiter.api.DisplayName
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -30,6 +32,21 @@ import kotlin.test.assertTrue
  * helpers, which read env directly.
  */
 class ServerConfigTest {
+
+    @Test
+    @DisplayName("outputRoot routes run work to the KSLWork app folder, not under ~/.ksl")
+    fun outputRootUsesWorkspaceNotKslHome() {
+        // Default (no KSL_OUTPUT_DIR): <activeWorkspace>/KSL_MCP_APPS/runs.
+        val root = ServerConfig().outputRoot()
+        assertTrue(
+            root.endsWith(Path.of(ServerConfig.SERVER_APP_FOLDER, ServerConfig.RUNS_FOLDER)),
+            "run output should live under <workspace>/${ServerConfig.SERVER_APP_FOLDER}/${ServerConfig.RUNS_FOLDER}; was $root",
+        )
+        assertTrue(
+            !root.toString().contains(Path.of(".ksl").toString()),
+            "run work must NOT live under ~/.ksl (settings + result-cache only); was $root",
+        )
+    }
 
     @Test
     fun `defaults are sensible and a full document round-trips`() {

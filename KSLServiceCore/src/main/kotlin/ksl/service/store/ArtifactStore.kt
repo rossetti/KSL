@@ -23,20 +23,23 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The on-disk home for a result's rendered artifacts (reports, plot images,
- * exports). A sibling of `ResultStore`: artifacts for a result live under
- * `<root>/<resultId>/artifacts/`, beside that result's `result.json`, so the
- * two share one directory per result and the `ResultStore` retention sweep
- * (which deletes a result's directory wholesale) evicts the artifacts with it.
+ * The on-disk home for a result's run **work**: each result's `output/` (the
+ * model's run output — captured Welch/trace files and the KSL database) under
+ * [outputDirFor], and its rendered `artifacts/` (reports, plot images, exports)
+ * under [dirFor], both at `<root>/<resultId>/`.
  *
- * Phase A delivers only the pipe: a place to write per-result files and a
- * read-only listing/resolution surface the transports serve. The capabilities
- * that *write* artifacts (Welch/trace materialization, comparison reports) land
- * in later phases. Path resolution is normalized and confined to the artifacts
- * directory, so a hostile artifact name cannot escape the root.
+ * In the servers [root] is the KSLWork workspace work folder
+ * (`ServerConfig.outputRoot()` → `KSLWork/KSL_MCP_APPS/runs/`), the same layout
+ * the desktop apps write into — **not** `~/.ksl`, which stays settings + the
+ * `ResultStore` JSON cache only. Because this is now a separate root from
+ * `ResultStore`, evicting a cached result JSON does not delete its workspace
+ * work; the workspace accumulates run output as it does for the desktop apps.
  *
- * @param root the cache root shared with `ResultStore` (defaults to
- *   [ResultStore.defaultDir]); servers pass `ServerConfig.resultCacheDir()`.
+ * Path resolution is normalized and confined to the artifacts directory, so a
+ * hostile artifact name cannot escape the root.
+ *
+ * @param root the work-output root (defaults to [ResultStore.defaultDir] for
+ *   tests/in-process use); servers pass `ServerConfig.outputRoot()`.
  */
 class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
 
