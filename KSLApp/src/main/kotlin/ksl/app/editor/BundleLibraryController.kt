@@ -187,7 +187,9 @@ class BundleLibraryController(
         var changed = false
         for (dir in dirs) {
             runCatching { Files.createDirectories(dir) }
-            for (lb in BundleLoader.loadDirectory(dir)) {
+            val outcome = BundleLoader.loadDirectory(dir)
+            outcome.rejected.forEach { logger.warn { "Refused bundle JAR ${it.jar}: ${it.reason}" } }
+            for (lb in outcome.loaded) {
                 val winner = current.firstOrNull { it.bundle.bundleId == lb.bundle.bundleId }
                 if (winner == null) {
                     current = current + lb
@@ -236,14 +238,20 @@ class BundleLibraryController(
      *  (`sourceJar == null`) are never displaced by it.
      */
     fun loadJar(jarPath: Path): LoadBundleResult {
-        val fresh = try {
-            BundleLoader.loadJar(jarPath)
+        val outcome = try {
+            BundleLoader.loadForConsumption(jarPath)
         } catch (t: Throwable) {
             return LoadBundleResult.Failed(
                 t.message ?: t::class.simpleName ?: "load failed"
             )
         }
-        if (fresh.isEmpty()) return LoadBundleResult.NoBundles
+        val fresh = outcome.loaded
+        if (fresh.isEmpty()) {
+            // Not a bundle (no manifest) or an incomplete bundle (missing in-JAR
+            // descriptors); surface the actionable reason pointing to (re)assembly.
+            return outcome.rejected.firstOrNull()?.let { LoadBundleResult.Failed(it.reason) }
+                ?: LoadBundleResult.NoBundles
+        }
 
         val priorSamePath = myLoadedBundles.value.filter { it.sourceJar == jarPath }
         if (priorSamePath.isNotEmpty()) {

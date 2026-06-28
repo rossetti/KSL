@@ -14,19 +14,15 @@ private val logger = KotlinLogging.logger {}
 /**
  * Runtime-managed wrapper around one discovered `KSLModelBundle`. Holds the
  * bundle's classloader and (when applicable) its source JAR and content hash,
- * and provides on-demand access to each model's `ksl.simulation.ModelDescriptor`
- * with a three-tier resolution strategy.
+ * and provides on-demand access to each model's `ksl.simulation.ModelDescriptor`.
  *
- * Descriptor resolution priority (per `descriptorFor`):
- *   1. In-JAR resource at `BundleLayout.descriptorPath(modelId)`. Present when
- *      the bundle was processed by `kslpkg enrich`.
- *   2. On-disk cache at `~/.ksl/bundle-cache/<jarSha256>/<modelId>.json`.
- *      Applies only to JAR-backed bundles, not classpath-loaded ones.
- *   3. Lazy extraction: instantiate the model via its builder and call
- *      `Model.modelDescriptor()`. The result is cached for JAR-backed
- *      bundles before returning.
- *
- * Results are memoized in-memory for the lifetime of this `LoadedBundle`.
+ * A loadable bundle must be **complete**: `descriptorFor` resolves each model's
+ * descriptor from the in-JAR resource at `BundleLayout.descriptorPath(modelId)`
+ * (baked in by `kslpkg assemble` / the Bundle Workbench). If a declared model has
+ * no embedded descriptor the bundle is incomplete and `descriptorFor` throws
+ * `IncompleteBundleException`; [missingDescriptors] reports such gaps up front so
+ * a consumer can reject the bundle at load rather than failing mid-run. Results
+ * are memoized in-memory for the lifetime of this `LoadedBundle`.
  *
  * `LoadedBundle` is `AutoCloseable`. The `ownedResources` parameter is the
  * `AutoCloseable` (if any) whose lifetime this instance manages — typically
@@ -44,7 +40,6 @@ class LoadedBundle internal constructor(
     private val classLoader: ClassLoader,
     private val ownedResources: AutoCloseable?,
     private val jarSha256: String?,
-    private val cache: BundleDescriptorCache,
     /**
      *  When this bundle was built/packaged: the JAR manifest's `Build-Time`
      *  attribute if present, else the JAR file's last-modified time; `null`
@@ -77,53 +72,56 @@ class LoadedBundle internal constructor(
         get() = jarSha256
 
     /**
-     * Returns the `ModelDescriptor` for the given `modelId`. Resolves through
-     * in-JAR resource, then on-disk cache, then lazy extraction (see class
-     * KDoc). The first successful resolution is memoized.
+     * Returns the `ModelDescriptor` for the given `modelId`, read from the bundle's
+     * embedded in-JAR descriptor (with any `catalog.toml` overlay applied) and
+     * memoized. A complete bundle always embeds its descriptors; if this one does
+     * not, the bundle is incomplete and this throws `IncompleteBundleException`.
      *
      * @throws IllegalArgumentException if `modelId` is not declared by this bundle
      * @throws IllegalStateException if this `LoadedBundle` has already been closed
-     * @throws RuntimeException if lazy extraction fails (model build error)
+     * @throws IncompleteBundleException if the bundle declares `modelId` but embeds
+     *   no descriptor for it (the JAR was not fully assembled)
      */
     fun descriptorFor(modelId: String): ModelDescriptor {
         check(!closed) { "LoadedBundle ${bundle.bundleId} has been closed" }
         myDescriptors[modelId]?.let { return it }
 
-        val bundledModel = bundle.models.firstOrNull { it.modelId == modelId }
-            ?: throw IllegalArgumentException(
+        if (bundle.models.none { it.modelId == modelId }) {
+            throw IllegalArgumentException(
                 "Bundle ${bundle.bundleId} does not declare model '$modelId'. " +
                         "Available: ${bundle.models.map { it.modelId }}"
             )
-
-        // 1. In-JAR descriptor
-        readInJarDescriptor(modelId)?.let { return finalize(modelId, it) }
-
-        // 2. On-disk cache (JAR-backed bundles only)
-        if (jarSha256 != null) {
-            cache.read(jarSha256, modelId)?.let { return finalize(modelId, it) }
         }
 
-        // 3. Lazy extraction
-        val descriptor = try {
-            bundledModel.builder().build(null, null).modelDescriptor()
-        } catch (e: Exception) {
-            throw RuntimeException(
-                "Failed to extract descriptor for ${bundle.bundleId}/$modelId", e
-            )
-        }
-        if (jarSha256 != null) {
-            cache.write(jarSha256, modelId, descriptor)
-        }
-        return finalize(modelId, descriptor)
+        // A complete bundle embeds each model's descriptor. If it is absent (or
+        // unreadable), the JAR is not a fully-assembled bundle — reject and point
+        // the user to (re)assembly rather than silently rebuilding the model.
+        val base = readInJarDescriptor(modelId)
+            ?: throw IncompleteBundleException(bundle.bundleId, modelId)
+        return finalize(modelId, base)
     }
 
     /**
+     * The ids of declared models that have **no** embedded in-JAR descriptor — i.e.
+     * the bundle is incomplete (not fully assembled). Empty for a complete bundle.
+     * Lets a consumer reject an incomplete bundle at load instead of failing when a
+     * model is first run.
+     *
+     * @throws IllegalStateException if this `LoadedBundle` has already been closed
+     */
+    fun missingDescriptors(): List<String> {
+        check(!closed) { "LoadedBundle ${bundle.bundleId} has been closed" }
+        return bundle.models.map { it.modelId }.filter { !hasInJarDescriptor(it) }
+    }
+
+    private fun hasInJarDescriptor(modelId: String): Boolean =
+        classLoader.getResource(BundleLayout.descriptorPath(modelId)) != null
+
+    /**
      * Applies the in-JAR `catalog.toml` overlay (if any) to the resolved [base]
-     * descriptor, then memoizes the result. The on-disk cache (written by the
-     * lazy-extraction path before this is called) stores the raw extracted
-     * descriptor; the catalog overlay is a cheap, separate in-JAR resource applied
-     * fresh on every resolution, so the in-memory memoized value carries the
-     * authoritative catalog while the cache stays overlay-free.
+     * descriptor, then memoizes the result. The catalog overlay is a separate
+     * in-JAR resource applied fresh on resolution, so the memoized value carries
+     * the authoritative catalog.
      */
     private fun finalize(modelId: String, base: ModelDescriptor): ModelDescriptor =
         memoize(modelId, applyCatalogOverlay(modelId, base))
@@ -206,3 +204,14 @@ class LoadedBundle internal constructor(
         }
     }
 }
+
+/**
+ * Thrown when a loaded bundle declares a model but embeds no descriptor for it —
+ * i.e. the JAR is not a fully-assembled bundle. The message points the user to the
+ * bundling step, which is what makes a JAR loadable.
+ */
+class IncompleteBundleException(val bundleId: String, val modelId: String) : RuntimeException(
+    "Bundle '$bundleId' is incomplete: model '$modelId' has no embedded descriptor at " +
+        "${BundleLayout.descriptorPath(modelId)}. Re-assemble it with 'kslpkg assemble' or " +
+        "the Bundle Workbench before loading."
+)

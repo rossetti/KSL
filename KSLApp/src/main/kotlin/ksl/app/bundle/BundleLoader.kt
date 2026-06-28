@@ -6,6 +6,7 @@ import ksl.app.config.BundleManifestToml
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.jar.JarFile
 import kotlin.io.path.extension
@@ -46,19 +47,21 @@ object BundleLoader {
      * @param jarPath path to a regular JAR file
      * @param parent parent classloader for delegation; defaults to the loader
      *               that holds KSLCore so bundle code resolves KSL types
-     * @param cache  on-disk descriptor cache for lazy extraction; defaults
-     *               to one rooted at `~/.ksl/bundle-cache`
      * @return a single-element list with the manifest bundle, or empty when the
      *         JAR has no `bundle.toml` manifest
+     *
+     * This is the lenient primitive: it loads any manifest-bearing JAR, complete
+     * or not, so tooling (`kslpkg inspect`, authoring validation) can read it. The
+     * runtime "must be a complete bundle" gate lives in [loadForConsumption] /
+     * [loadDirectory], which the server and apps use.
      */
     fun loadJar(
         jarPath: Path,
         parent: ClassLoader = defaultParent(),
-        cache: BundleDescriptorCache = BundleDescriptorCache()
     ): List<LoadedBundle> {
         require(jarPath.isRegularFile()) { "Not a regular file: $jarPath" }
         val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parent)
-        val sha = BundleDescriptorCache.sha256OfFile(jarPath)
+        val sha = sha256OfFile(jarPath)
         val builtAt = readBuiltAt(jarPath)
 
         // 1. Manifest-driven bundle: one bundle.toml = one bundle. Read the manifest
@@ -72,7 +75,6 @@ object BundleLoader {
                     classLoader = classLoader,
                     ownedResources = classLoader,
                     jarSha256 = sha,
-                    cache = cache,
                     builtAt = builtAt,
                 )
             )
@@ -126,28 +128,63 @@ object BundleLoader {
     }
 
     /**
-     * Loads bundles from every `.jar` file directly inside `dir` (non-recursive).
-     * Empty list if the directory is missing or contains no JARs. JARs whose
-     * `loadJar` throws are skipped with a warning so one bad bundle never
-     * breaks startup discovery.
+     * Loads every **complete** bundle from the `.jar` files directly inside `dir`
+     * (non-recursive) for runtime consumption, and reports the JARs it rejected.
+     * A JAR is rejected when it is not a bundle (no `bundle.toml`), is an
+     * incomplete bundle (missing in-JAR descriptors — not fully assembled), or
+     * fails to load; rejected bundles' classloaders are closed. A missing
+     * directory yields an empty outcome.
      */
     fun loadDirectory(
         dir: Path,
         parent: ClassLoader = defaultParent(),
-        cache: BundleDescriptorCache = BundleDescriptorCache()
-    ): List<LoadedBundle> {
-        if (!dir.isDirectory()) return emptyList()
-        val result = mutableListOf<LoadedBundle>()
+    ): LoadOutcome {
+        if (!dir.isDirectory()) return LoadOutcome(emptyList(), emptyList())
+        val loaded = mutableListOf<LoadedBundle>()
+        val rejected = mutableListOf<RejectedJar>()
         Files.newDirectoryStream(dir, "*.jar").use { stream ->
             for (jar in stream.sorted()) {
-                try {
-                    result += loadJar(jar, parent, cache)
-                } catch (e: Exception) {
-                    logger.warn(e) { "Skipping bundle JAR $jar: ${e.message}" }
-                }
+                val outcome = loadForConsumption(jar, parent)
+                loaded += outcome.loaded
+                rejected += outcome.rejected
             }
         }
-        return result
+        return LoadOutcome(loaded, rejected)
+    }
+
+    /**
+     * Loads `jarPath` for runtime consumption, enforcing the "complete bundle"
+     * contract: a JAR with no `bundle.toml` is rejected as not-a-bundle, a manifest
+     * bundle missing any in-JAR descriptor is rejected as incomplete (and its
+     * classloader closed), and a load failure is rejected with its message. Only
+     * complete bundles appear in [LoadOutcome.loaded].
+     */
+    fun loadForConsumption(jarPath: Path, parent: ClassLoader = defaultParent()): LoadOutcome {
+        val bundles = try {
+            loadJar(jarPath, parent)
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to load bundle JAR $jarPath: ${e.message}" }
+            return LoadOutcome(emptyList(), listOf(RejectedJar(jarPath, "failed to load: ${e.message}")))
+        }
+        if (bundles.isEmpty()) {
+            return LoadOutcome(emptyList(), listOf(RejectedJar(jarPath, notABundleReason)))
+        }
+        val loaded = mutableListOf<LoadedBundle>()
+        val rejected = mutableListOf<RejectedJar>()
+        for (lb in bundles) {
+            val missing = lb.missingDescriptors()
+            if (missing.isEmpty()) {
+                loaded += lb
+            } else {
+                rejected += RejectedJar(
+                    jarPath,
+                    "incomplete bundle '${lb.bundle.bundleId}': missing embedded descriptor(s) for " +
+                        "${missing.joinToString()}; re-assemble it with 'kslpkg assemble' or the Bundle Workbench",
+                )
+                runCatching { lb.close() }
+            }
+        }
+        return LoadOutcome(loaded, rejected)
     }
 
     /** Default parent classloader: the one that loaded KSLCore. */
@@ -157,4 +194,30 @@ object BundleLoader {
     /** Convenience predicate, useful in tests and tooling. */
     fun isJar(path: Path): Boolean =
         path.isRegularFile() && path.extension.equals("jar", ignoreCase = true)
+
+    /** SHA-256 of a file's bytes as lower-case hex — the per-JAR content hash used
+     *  for newest-wins dedup and result-cache version salting. */
+    fun sha256OfFile(path: Path): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        Files.newInputStream(path).use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val n = input.read(buffer)
+                if (n <= 0) break
+                md.update(buffer, 0, n)
+            }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private val notABundleReason: String =
+        "not a KSL bundle (no ${BundleLayout.BUNDLE_TOML} manifest); assemble it with " +
+            "'kslpkg assemble' or the Bundle Workbench"
 }
+
+/** A JAR the runtime loader refused, with a user-facing [reason]. */
+data class RejectedJar(val jar: Path, val reason: String)
+
+/** The result of loading a directory or JAR for consumption: the complete bundles
+ *  that loaded and the JARs that were rejected. */
+data class LoadOutcome(val loaded: List<LoadedBundle>, val rejected: List<RejectedJar>)

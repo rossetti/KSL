@@ -273,6 +273,7 @@ fun Application.kslRestModule(
 
         // ----- discovery / description -----
         get("/bundles") { call.respond(service.listBundles()) }
+        get("/bundles/skipped") { call.respond(service.skippedBundles()) }
 
         get("/bundles/{bundleId}/models") {
             call.respond(service.listModels(call.parameters["bundleId"]!!))

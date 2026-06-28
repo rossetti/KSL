@@ -28,6 +28,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -139,6 +140,12 @@ class KslRestService(
     private data class TopUp(val cachedResultId: String, val reuseN: Int)
 
     fun listBundles() = registry.listBundles()
+
+    /** JARs in the bundle directories refused as non-bundles or incomplete bundles,
+     *  as a JSON array of {jar, reason} — so a user knows to (re)assemble them. */
+    fun skippedBundles(): JsonElement = buildJsonArray {
+        registry.skipped().forEach { add(buildJsonObject { put("jar", it.jar.toString()); put("reason", it.reason) }) }
+    }
 
     fun listModels(bundleId: String): List<String> = registry.listModels(bundleId)
 

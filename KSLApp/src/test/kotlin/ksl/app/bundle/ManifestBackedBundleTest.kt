@@ -11,13 +11,15 @@ import java.util.jar.JarOutputStream
 import java.util.jar.Manifest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 /**
- * Phase 1 loader tests: a JAR that contains only builder classes plus a
- * `bundle.toml` (no `META-INF/services` registration, no compiled
- * `KSLModelBundle`) is fully loadable and usable through [BundleLoader].
+ * Loader contract tests: a JAR with a `bundle.toml` and builder classes but no
+ * embedded descriptors is loadable through the lenient [BundleLoader.loadJar]
+ * primitive (so tooling can read it) yet **incomplete** — [LoadedBundle.missingDescriptors]
+ * reports the gap and [LoadedBundle.descriptorFor] rejects it. Only a fully
+ * assembled bundle (descriptors embedded) is usable for descriptors.
  */
 class ManifestBackedBundleTest {
 
@@ -82,17 +84,16 @@ class ManifestBackedBundleTest {
     }
 
     @Test
-    fun `descriptor resolves via the reflective builder`() {
+    fun `a manifest-only bundle is incomplete and descriptorFor rejects it`() {
         val jar = buildBuildersJar("p1.jar", manifest())
         BundleLoader.loadJar(jar).first().use { lb ->
-            val descriptor = lb.descriptorFor("p1-model")
-            assertEquals("p1-model", descriptor.modelName)
-            assertTrue("throughput" in descriptor.responseNames, "expected the model's response")
+            assertEquals(listOf("p1-model"), lb.missingDescriptors())
+            assertFailsWith<IncompleteBundleException> { lb.descriptorFor("p1-model") }
         }
     }
 
     @Test
-    fun `Kotlin object builder is supported`() {
+    fun `a manifest-only bundle with a Kotlin object builder is also incomplete`() {
         val m = manifest().let {
             it.copy(
                 models = listOf(
@@ -105,8 +106,8 @@ class ManifestBackedBundleTest {
         }
         val jar = buildBuildersJar("p1obj.jar", m)
         BundleLoader.loadJar(jar).first().use { lb ->
-            val descriptor = lb.descriptorFor("p1-object-model")
-            assertTrue("utilization" in descriptor.responseNames)
+            assertEquals(listOf("p1-object-model"), lb.missingDescriptors())
+            assertFailsWith<IncompleteBundleException> { lb.descriptorFor("p1-object-model") }
         }
     }
 

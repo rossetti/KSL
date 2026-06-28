@@ -6,6 +6,8 @@ import ksl.app.config.BundleManifest
 import ksl.app.config.BundleManifestToml
 import ksl.app.config.ModelManifestEntry
 import ksl.simulation.ModelBuilderIfc
+import ksl.simulation.ModelDescriptor
+import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -59,14 +61,26 @@ internal object DeterministicBundleJar {
                 ),
             ),
         )
+        // Embed the model's descriptor so the bundle is COMPLETE — the runtime loaders
+        // reject a manifest bundle that omits an in-JAR descriptor. The descriptor is
+        // model-intrinsic and serialized deterministically, so identical arguments stay
+        // byte-reproducible (the version-invalidation test relies on that).
+        val descriptor: ModelDescriptor =
+            builderClass.getDeclaredConstructor().newInstance().build(null, null).modelDescriptor()
+        val descriptorBytes = descriptorJson
+            .encodeToString(ModelDescriptor.serializer(), descriptor).toByteArray(Charsets.UTF_8)
+
         val target = dir.resolve("$jarName.jar")
         JarOutputStream(Files.newOutputStream(target)).use { jar ->
             writeClassWithInnerClasses(jar, builderClass)
             writeEntry(jar, BundleLayout.BUNDLE_TOML, BundleManifestToml.encode(manifest).toByteArray(Charsets.UTF_8))
+            writeEntry(jar, BundleLayout.descriptorPath(modelId), descriptorBytes)
             extraEntries.toSortedMap().forEach { (name, bytes) -> writeEntry(jar, name, bytes) }
         }
         return target
     }
+
+    private val descriptorJson = Json { encodeDefaults = true; allowSpecialFloatingPointValues = true }
 
     /** The builder's class file plus its synthetic `<simpleName>$*` siblings, in sorted (stable) order. */
     private fun writeClassWithInnerClasses(jar: JarOutputStream, cls: Class<*>) {

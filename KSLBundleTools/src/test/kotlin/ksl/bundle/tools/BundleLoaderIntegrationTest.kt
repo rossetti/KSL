@@ -1,117 +1,80 @@
 package ksl.bundle.tools
 
-import ksl.app.bundle.BundleDescriptorCache
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.IncompleteBundleException
 import ksl.bundle.tools.support.StubModelBuilder
 import ksl.bundle.tools.support.TestBundleBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * End-to-end checks that an assembled bundle's embedded descriptor interoperates
- * correctly with the runtime three-tier descriptor resolution in
- * `ksl.app.bundle.LoadedBundle.descriptorFor`.
- *
- * The resolution priority (per the substrate design):
- *   1. In-JAR resource at `BundleLayout.descriptorPath(modelId)`
- *   2. On-disk cache at `~/.ksl/bundle-cache/<jarSha256>/<modelId>.json`
- *   3. Lazy extraction: build the model and call `Model.modelDescriptor()`,
- *      then write the result back to the cache.
- *
- * These tests use a `BundleDescriptorCache` rooted at a per-test temp
- * directory so the global `~/.ksl/` cache is not perturbed, and so the
- * cache directory's emptiness or contents can be directly observed.
+ * End-to-end checks for the runtime descriptor contract in
+ * `ksl.app.bundle.LoadedBundle.descriptorFor`: a loadable bundle must embed its
+ * descriptors (be fully assembled). A complete bundle resolves from its in-JAR
+ * descriptor; an incomplete one is rejected for consumption and throws when a
+ * descriptor is requested.
  */
 class BundleLoaderIntegrationTest {
 
-    @Test
-    fun `an assembled bundle is resolved from the in-JAR descriptor and the cache is never written`(@TempDir dir: Path) {
-        // A plain builders JAR assembled into a bundle JAR that carries
-        // META-INF/ksl/models/Stub/descriptor.json.
+    private fun assemble(dir: Path): Path {
         val builders = TestBundleBuilder.buildWithoutServicesFile(dir, "builders", listOf(StubModelBuilder::class.java))
         val assembled = dir.resolve("builders-bundle.jar")
-        val assembleResult = AssembleCommand.run(
+        val result = AssembleCommand.run(
             listOf(builders.toString(), "--id", "edu.test.stub", "-o", assembled.toString()),
-            out = System.out,
-            err = System.err
+            out = System.out, err = System.err,
         )
-        assertEquals(CommandResult.Success, assembleResult, "assemble must succeed for this test")
+        assertEquals(CommandResult.Success, result, "assemble must succeed for this test")
+        return assembled
+    }
 
-        // Custom cache root that we can introspect.
-        val cacheRoot = dir.resolve("bundle-cache")
-        val cache = BundleDescriptorCache(rootDir = cacheRoot)
+    @Test
+    fun `a complete assembled bundle resolves from its in-JAR descriptor and loads for consumption`(@TempDir dir: Path) {
+        val assembled = assemble(dir)
 
-        BundleLoader.loadJar(assembled, cache = cache).single().use { loaded ->
-            val descriptor = loaded.descriptorFor("Stub")
-            assertEquals("Stub", descriptor.modelIdentifier)
+        BundleLoader.loadJar(assembled).single().use { loaded ->
+            assertTrue(loaded.missingDescriptors().isEmpty(), "a complete bundle has no missing descriptors")
+            assertEquals("Stub", loaded.descriptorFor("Stub").modelIdentifier)
         }
 
-        // Tier 1 should have served the request, so tiers 2/3 never ran.
-        // Tier 3 would have written into the cache; an empty (or absent)
-        // cache root proves it did not.
-        if (Files.exists(cacheRoot)) {
-            val written = Files.walk(cacheRoot).use { stream ->
-                stream.filter { Files.isRegularFile(it) }.count()
-            }
-            assertEquals(
-                0L, written,
-                "cache must remain empty when the in-JAR path serves the descriptor; " +
-                        "found files under $cacheRoot"
-            )
+        val outcome = BundleLoader.loadForConsumption(assembled)
+        try {
+            assertEquals(1, outcome.loaded.size, "a complete bundle loads for consumption")
+            assertTrue(outcome.rejected.isEmpty(), "a complete bundle is not rejected")
+        } finally {
+            outcome.loaded.forEach { it.close() }
         }
     }
 
     @Test
-    fun `a bundle with no embedded descriptor triggers lazy extraction and writes the cache entry`(@TempDir dir: Path) {
-        // Assemble a manifest bundle, then strip its in-JAR descriptor so loading
-        // must fall through to tier-3 lazy extraction (build the model).
-        val builders = TestBundleBuilder.buildWithoutServicesFile(dir, "builders", listOf(StubModelBuilder::class.java))
-        val assembled = dir.resolve("builders-bundle.jar")
-        AssembleCommand.run(
-            listOf(builders.toString(), "--id", "edu.test.stub", "-o", assembled.toString()),
-            out = System.out,
-            err = System.err
-        )
+    fun `an incomplete bundle (no embedded descriptor) is rejected for consumption and throws on descriptorFor`(@TempDir dir: Path) {
+        val assembled = assemble(dir)
         val plain = TestBundleBuilder.stripDescriptors(assembled)
 
-        val cacheRoot = dir.resolve("bundle-cache")
-        val cache = BundleDescriptorCache(rootDir = cacheRoot)
-
-        // Sanity: the stripped JAR carries no in-JAR descriptor for the model.
-        val descriptorPath = BundleLayout.descriptorPath("Stub")
+        // Precondition: the stripped JAR embeds no descriptor for the model.
         val hasInJar = java.util.jar.JarFile(plain.toFile()).use { jf ->
-            jf.getJarEntry(descriptorPath) != null
+            jf.getJarEntry(BundleLayout.descriptorPath("Stub")) != null
         }
         assertEquals(false, hasInJar, "test precondition: this JAR must not embed the descriptor")
 
-        BundleLoader.loadJar(plain, cache = cache).single().use { loaded ->
-            val descriptor = loaded.descriptorFor("Stub")
-            assertEquals("Stub", descriptor.modelIdentifier)
+        // The lenient primitive still loads it (so inspect/tooling can report on it),
+        // but it reports the gap and refuses to produce a descriptor.
+        BundleLoader.loadJar(plain).single().use { loaded ->
+            assertEquals(listOf("Stub"), loaded.missingDescriptors())
+            assertFailsWith<IncompleteBundleException> { loaded.descriptorFor("Stub") }
         }
 
-        // Tier 3 fired, so the cache entry exists.
-        assertTrue(Files.isDirectory(cacheRoot), "cache root must be created on first miss")
-        val cachedDescriptors = Files.walk(cacheRoot).use { stream ->
-            stream
-                .filter { Files.isRegularFile(it) }
-                .filter { it.fileName.toString() == "Stub.json" }
-                .toList()
-        }
-        assertEquals(
-            1, cachedDescriptors.size,
-            "expected exactly one cached descriptor file at <root>/<sha>/Stub.json; found ${cachedDescriptors.size}"
+        // The consumption gate rejects it outright (and closes its classloader).
+        val outcome = BundleLoader.loadForConsumption(plain)
+        assertTrue(outcome.loaded.isEmpty(), "an incomplete bundle must not load for consumption")
+        assertEquals(1, outcome.rejected.size, "the incomplete bundle is rejected")
+        assertTrue(
+            outcome.rejected.single().reason.contains("incomplete", ignoreCase = true),
+            "rejection reason should explain incompleteness: ${outcome.rejected.single().reason}",
         )
-        val meta = Files.walk(cacheRoot).use { stream ->
-            stream
-                .filter { Files.isRegularFile(it) }
-                .filter { it.fileName.toString() == "meta.json" }
-                .toList()
-        }
-        assertEquals(1, meta.size, "expected exactly one meta.json alongside the descriptor")
     }
 }

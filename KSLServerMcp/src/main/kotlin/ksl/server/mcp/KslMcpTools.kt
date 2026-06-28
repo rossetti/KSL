@@ -171,20 +171,32 @@ class KslMcpTools(
     /** `list_bundles` — every bundle the server makes available. */
     fun listBundles(): CallToolResult {
         val bundles = registry.listBundles()
+        val skipped = registry.skipped()
         val structured = buildJsonObject {
             put("bundles", json.parseToJsonElement(json.encodeToString(bundles)))
+            if (skipped.isNotEmpty()) {
+                putJsonArray("skipped") {
+                    skipped.forEach { add(buildJsonObject { put("jar", it.jar.toString()); put("reason", it.reason) }) }
+                }
+            }
         }
-        val summary = if (bundles.isEmpty()) {
-            "No bundles available."
-        } else {
-            buildString {
+        val summary = buildString {
+            if (bundles.isEmpty()) {
+                append("No bundles available.")
+            } else {
                 appendLine("${bundles.size} bundle(s):")
                 bundles.forEach { b ->
                     val note = b.notice?.let { " ($it)" } ?: ""
                     appendLine("  - ${b.bundleId} — models: ${b.modelIds.joinToString(", ")}$note")
                 }
-            }.trimEnd()
-        }
+            }
+            if (skipped.isNotEmpty()) {
+                appendLine()
+                appendLine()
+                appendLine("Skipped ${skipped.size} JAR(s) (not loadable bundles — (re)assemble them):")
+                skipped.forEach { appendLine("  - ${it.jar.fileName}: ${it.reason}") }
+            }
+        }.trimEnd()
         return result(summary, structured)
     }
 

@@ -66,8 +66,8 @@ data class CachedResult(
  *
  * Two tiers: Caffeine in memory (size-bounded LRU, the part worth not
  * reinventing) over a thin JSON-on-disk store under `~/.ksl/result-cache/`
- * (mirroring `BundleDescriptorCache`: inspectable, survives restart,
- * best-effort — an I/O error is swallowed, never breaking a request).
+ * (inspectable, survives restart, best-effort — an I/O error is swallowed,
+ * never breaking a request).
  */
 class ResultStore(
     private val dir: Path = defaultDir(),

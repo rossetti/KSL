@@ -275,6 +275,15 @@ internal object McpResultSchemas {
                 put("type", "array")
                 put("description", "All available bundles (bundleId + the model ids each provides).")
             }
+            putJsonObject("skipped") {
+                put("type", "array")
+                put(
+                    "description",
+                    "JARs in the bundle directories that were refused — not a KSL bundle, or an " +
+                        "incomplete bundle (missing embedded descriptors): {jar, reason}. Tell the user " +
+                        "to (re)assemble them with 'kslpkg assemble' or the Bundle Workbench.",
+                )
+            }
         },
         required = listOf("bundles"),
     )

@@ -22,6 +22,7 @@ import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.KSLAppKind
 import ksl.app.bundle.LoadedBundle
+import ksl.app.bundle.RejectedJar
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.Serializable
 import ksl.simulation.ModelDescriptor
@@ -62,6 +63,10 @@ class BundleRegistry private constructor(
 
     private val displaced = CopyOnWriteArrayList<LoadedBundle>()
     private val mutationLock = Any()
+
+    // Source jar -> why it was refused (not a bundle, or incomplete). Guarded by
+    // [mutationLock]; surfaced to operators/tools via [skipped].
+    private val skippedByJar = LinkedHashMap<Path, RejectedJar>()
 
     init {
         synchronized(mutationLock) { recompute() }
@@ -194,19 +199,24 @@ class BundleRegistry private constructor(
         bundles.mapNotNull { lb -> lb.sourceJar?.let { it to (lb.contentHash ?: "") } }.toMap()
 
     /**
-     * Loads the bundles in [path], replacing any currently loaded from the same
-     * jar (their classloaders are displaced for deferred close). Returns the
-     * number of bundles the jar provided.
+     * Loads the **complete** bundles in [path] for consumption, replacing any
+     * currently loaded from the same jar (their classloaders are displaced for
+     * deferred close). A jar that is not a bundle, or an incomplete bundle
+     * (missing in-JAR descriptors), is refused and recorded in [skipped] with a
+     * WARN. Returns the number of bundles the jar provided.
      */
     fun loadOrReplaceFromJar(path: Path): Int {
-        val loaded = BundleLoader.loadJar(path)
+        val outcome = BundleLoader.loadForConsumption(path)
         synchronized(mutationLock) {
             val (fromThisJar, others) = bundles.partition { it.sourceJar == path }
             displaced.addAll(fromThisJar)
-            bundles = others + loaded
+            bundles = others + outcome.loaded
+            val rejection = outcome.rejected.firstOrNull()
+            if (rejection == null) skippedByJar.remove(path) else skippedByJar[path] = rejection
             recompute()
         }
-        return loaded.size
+        outcome.rejected.forEach { logger.warn { "Refused bundle JAR ${it.jar}: ${it.reason}" } }
+        return outcome.loaded.size
     }
 
     /** Drops the bundles loaded from [path] (their classloaders are deferred-closed). */
@@ -215,8 +225,24 @@ class BundleRegistry private constructor(
             val (gone, kept) = bundles.partition { it.sourceJar == path }
             displaced.addAll(gone)
             bundles = kept
+            skippedByJar.remove(path)
             recompute()
         }
+    }
+
+    /**
+     * JARs in the watched directories that were refused for consumption — either
+     * not a KSL bundle (no manifest) or an incomplete bundle (missing in-JAR
+     * descriptors). Surfaced to operators and the `list_bundles` tool so a user
+     * knows to (re)assemble them.
+     */
+    fun skipped(): List<RejectedJar> = synchronized(mutationLock) { skippedByJar.values.toList() }
+
+    /** Seeds the [skipped] set and WARN-logs each rejection (used by the directory factories). */
+    private fun recordRejections(rejections: List<RejectedJar>) {
+        if (rejections.isEmpty()) return
+        synchronized(mutationLock) { rejections.forEach { skippedByJar[it.jar] = it } }
+        rejections.forEach { logger.warn { "Refused bundle JAR ${it.jar}: ${it.reason}" } }
     }
 
     override fun close() {
@@ -227,14 +253,20 @@ class BundleRegistry private constructor(
         /** An empty registry (the watcher loads into it). */
         fun empty(): BundleRegistry = BundleRegistry(emptyList())
 
-        /** Builds a registry from every bundle JAR in each of [dirs] (non-recursive,
-         *  in order). Same-`bundleId` duplicates across dirs are resolved newest-wins. */
-        fun fromDirectories(dirs: List<Path>): BundleRegistry =
-            BundleRegistry(dirs.flatMap { BundleLoader.loadDirectory(it) })
+        /** Builds a registry from every **complete** bundle JAR in each of [dirs]
+         *  (non-recursive, in order). Same-`bundleId` duplicates across dirs are
+         *  resolved newest-wins; refused jars are recorded in [skipped]. */
+        fun fromDirectories(dirs: List<Path>): BundleRegistry {
+            val outcomes = dirs.map { BundleLoader.loadDirectory(it) }
+            return BundleRegistry(outcomes.flatMap { it.loaded })
+                .also { reg -> reg.recordRejections(outcomes.flatMap { it.rejected }) }
+        }
 
-        /** Builds a registry from every bundle JAR in [dir] (non-recursive). */
-        fun fromDirectory(dir: Path): BundleRegistry =
-            BundleRegistry(BundleLoader.loadDirectory(dir))
+        /** Builds a registry from every **complete** bundle JAR in [dir] (non-recursive). */
+        fun fromDirectory(dir: Path): BundleRegistry {
+            val outcome = BundleLoader.loadDirectory(dir)
+            return BundleRegistry(outcome.loaded).also { it.recordRejections(outcome.rejected) }
+        }
     }
 }
 
