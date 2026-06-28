@@ -165,6 +165,35 @@ internal object McpResultSchemas {
         required = listOf("responses"),
     )
 
+    /** get_artifacts: the rendered artifacts (reports, plot images, exports) retained for a result. */
+    val artifacts = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("artifacts") {
+                put("type", "array")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("name") { put("type", "string") }
+                        putJsonObject("mediaType") { put("type", "string") }
+                        putJsonObject("path") { put("type", "string") }
+                    }
+                }
+            }
+        },
+        required = listOf("artifacts"),
+    )
+
+    /** get_artifact: one artifact's metadata, with inline text content when the artifact is textual. */
+    val artifact = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("name") { put("type", "string") }
+            putJsonObject("mediaType") { put("type", "string") }
+            putJsonObject("path") { put("type", "string") }
+            putJsonObject("content") { put("type", "string"); put("description", "Inline text for textual artifacts (HTML/Markdown/text/CSV/JSON/SVG).") }
+        },
+        required = listOf("name", "mediaType", "path"),
+    )
+
     /** get_response: one response's across-replication statistics. */
     val response = ToolSchema(
         properties = buildJsonObject {

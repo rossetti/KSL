@@ -30,6 +30,7 @@ import io.ktor.server.request.path
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
@@ -370,6 +371,17 @@ fun Application.kslRestModule(
             val point = service.storedDesignPoint(call.parameters["resultId"]!!, index)
                 ?: return@get call.respond(HttpStatusCode.NotFound, StatusResponse("no such design point"))
             call.respondText(point.toString(), ContentType.Application.Json)
+        }
+
+        get("/results/{resultId}/artifacts") {
+            call.respond(service.artifacts(call.parameters["resultId"]!!))
+        }
+
+        get("/results/{resultId}/artifacts/{name...}") {
+            val name = call.parameters.getAll("name")?.joinToString("/").orEmpty()
+            val file = service.artifactFile(call.parameters["resultId"]!!, name)
+                ?: return@get call.respond(HttpStatusCode.NotFound, StatusResponse("no such artifact"))
+            call.respondFile(file.toFile())
         }
 
         // ----- document-centric submission (the full-fidelity path) -----

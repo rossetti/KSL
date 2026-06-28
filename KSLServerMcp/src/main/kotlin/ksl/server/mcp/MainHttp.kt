@@ -25,6 +25,7 @@ import kotlinx.coroutines.cancel
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
+import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
 
 /**
@@ -48,7 +49,8 @@ fun main() {
     watcher.start(watcherScope)
 
     val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries)
-    val tools = KslMcpTools(registry, resultStore, maxConcurrentJobs = config.server.maxConcurrentJobs, runDeadline = config.runDeadline())
+    val artifactStore = ArtifactStore(config.resultCacheDir())
+    val tools = KslMcpTools(registry, resultStore, artifactStore, maxConcurrentJobs = config.server.maxConcurrentJobs, runDeadline = config.runDeadline())
     val port = config.mcpPort()
     val host = config.bindHost() // localhost by default (local-trust model); see ServerConfig
 

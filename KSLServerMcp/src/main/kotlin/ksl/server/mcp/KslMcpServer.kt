@@ -457,6 +457,30 @@ object KslMcpServer {
         ) { request -> tools.getResponse(request.arguments) }
 
         server.addTool(
+            name = "get_artifacts",
+            description = "List the rendered artifacts (reports, plot images, exports) retained for a result " +
+                "(structuredContent {artifacts:[{name, mediaType, path}]}). Present the full list; fetch one " +
+                "with get_artifact.",
+            inputSchema = resultIdOnly,
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.getArtifacts(request.arguments) }
+
+        server.addTool(
+            name = "get_artifact",
+            description = "Fetch one artifact by name. Text artifacts (HTML/Markdown/text/CSV/JSON/SVG) come " +
+                "back inline as the text content; structuredContent carries {name, mediaType, path, content?} " +
+                "and the on-disk path for any type.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("name") { put("type", "string") }
+                },
+                required = listOf("resultId", "name"),
+            ),
+            outputSchema = McpResultSchemas.artifact,
+        ) { request -> tools.getArtifact(request.arguments) }
+
+        server.addTool(
             name = "get_design_point",
             description = "Get one scenario/design-point result from a retained batch result, by index. " +
                 "Returns structuredContent with the design point (its factor settings and per-response " +

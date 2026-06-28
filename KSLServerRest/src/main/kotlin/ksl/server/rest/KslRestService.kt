@@ -64,17 +64,21 @@ import ksl.service.capability.run.IncrementalCombine
 import ksl.service.capability.run.IncrementalRunCache
 import ksl.service.capability.run.ResultKeys
 import ksl.service.capability.run.RunService
+import ksl.service.capability.run.dto.ArtifactRef
 import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.config.ConfigDocuments
 import ksl.service.preview.DocumentPreview
 import ksl.service.capability.run.dto.mapping.toDto
+import ksl.service.capability.run.dto.mapping.withArtifacts
 import ksl.service.capability.run.schema.SchemaTranslator
 import ksl.service.job.JobHandleView
 import ksl.service.job.JobManager
 import ksl.service.job.JobStatus
+import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultKind
 import ksl.service.store.ResultStore
 import ksl.service.store.StoredResult
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -87,6 +91,7 @@ class KslRestService(
     private val registry: BundleRegistry,
     maxConcurrentJobs: Int = Runtime.getRuntime().availableProcessors(),
     private val resultStore: ResultStore = ResultStore(),
+    private val artifactStore: ArtifactStore = ArtifactStore(),
     runDeadline: kotlin.time.Duration? = null,
 ) : AutoCloseable {
 
@@ -450,12 +455,13 @@ class KslRestService(
                         return null
                     }
                     val combined = IncrementalCombine.completed(cachedDto, dto)
-                    persistRun(meta.resultId, meta.request, combined)
+                    val storedCombined = persistRun(meta.resultId, meta.request, combined)
                     indexFamily(meta)
-                    return combined
+                    return storedCombined
                 }
-                persistRun(meta.resultId, meta.request, dto)
+                val stored = persistRun(meta.resultId, meta.request, dto)
                 if (dto is RunResultDto.Completed) indexFamily(meta)
+                return stored
             }
             return dto
         }
@@ -463,17 +469,31 @@ class KslRestService(
         return resultStore.get(jobId)?.let { json.decodeFromJsonElement(RunResultDto.serializer(), it.payload) }
     }
 
-    private fun persistRun(resultId: String, request: JsonElement, dto: RunResultDto) {
+    /**
+     * Stores [dto] under [resultId], first attaching any artifacts a capability
+     * has materialized for the result (empty until the reporting phases). Returns
+     * the artifact-enriched DTO so callers hand the client the same payload that
+     * was retained.
+     */
+    private fun persistRun(resultId: String, request: JsonElement, dto: RunResultDto): RunResultDto {
+        val enriched = dto.withArtifacts(artifactStore.list(resultId))
         resultStore.put(
             StoredResult(
                 resultId = resultId,
                 kind = ResultKind.RUN,
                 createdAt = Clock.System.now(),
                 request = request,
-                payload = json.encodeToJsonElement(RunResultDto.serializer(), dto),
+                payload = json.encodeToJsonElement(RunResultDto.serializer(), enriched),
             ),
         )
+        return enriched
     }
+
+    /** The artifacts (rendered reports, plot images, exports) retained for a result. */
+    fun artifacts(resultId: String): List<ArtifactRef> = artifactStore.list(resultId)
+
+    /** Resolves one artifact file by name within a result, or null if absent / escaping the dir. */
+    fun artifactFile(resultId: String, name: String): Path? = artifactStore.resolve(resultId, name)
 
     private fun indexFamily(meta: ResultMeta) {
         val identity = meta.identity ?: return

@@ -27,6 +27,7 @@ import kotlinx.coroutines.cancel
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
+import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -49,7 +50,11 @@ fun main() {
     watcher.start(watcherScope)
 
     val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries)
-    val service = KslRestService(registry, config.server.maxConcurrentJobs, resultStore, runDeadline = config.runDeadline())
+    val artifactStore = ArtifactStore(config.resultCacheDir())
+    val service = KslRestService(
+        registry, config.server.maxConcurrentJobs, resultStore, artifactStore,
+        runDeadline = config.runDeadline(),
+    )
     val port = config.restPort()
     val host = config.bindHost() // localhost by default (local-trust model); see ServerConfig
 

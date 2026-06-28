@@ -76,6 +76,21 @@ fun RunResult.toDto(artifacts: List<ArtifactRef> = emptyList()): RunResultDto = 
     is RunResult.Cancelled -> RunResultDto.Cancelled(reason = reason)
 }
 
+/**
+ * Returns a copy of this DTO carrying [artifacts] on the variants that can hold
+ * them (the completed run, batch, and optimization results). Failed/Cancelled
+ * results have no artifacts and are returned unchanged. The transports call this
+ * at persist time to attach whatever a capability materialized for the result
+ * (see `ArtifactStore`), keeping [toDto] free of any disk dependency.
+ */
+fun RunResultDto.withArtifacts(artifacts: List<ArtifactRef>): RunResultDto = when (this) {
+    is RunResultDto.Completed -> copy(artifacts = artifacts)
+    is RunResultDto.BatchCompleted -> copy(artifacts = artifacts)
+    is RunResultDto.OptimizationCompleted -> copy(artifacts = artifacts)
+    is RunResultDto.Failed -> this
+    is RunResultDto.Cancelled -> this
+}
+
 internal fun RunSummary.toDto(): RunSummaryDto = RunSummaryDto(
     runId = runId,
     modelIdentifier = modelIdentifier,

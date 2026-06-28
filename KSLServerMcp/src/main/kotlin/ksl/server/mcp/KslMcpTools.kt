@@ -59,6 +59,7 @@ import ksl.service.capability.run.ExperimentFactorSpec
 import ksl.service.capability.run.ResultKeys
 import ksl.service.capability.run.RunInputs
 import ksl.service.capability.run.RunTemplates
+import ksl.service.store.ArtifactStore
 import ksl.service.store.CachedResult
 import ksl.service.store.ResultKind
 import ksl.service.store.ResultStore
@@ -82,6 +83,7 @@ import ksl.service.capability.run.BundleRegistry
 import ksl.service.capability.run.RunService
 import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.capability.run.dto.mapping.toDto
+import ksl.service.capability.run.dto.mapping.withArtifacts
 import ksl.service.capability.run.schema.SchemaTranslator
 import ksl.service.config.ConfigDocuments
 import ksl.service.job.JobAtCapacityException
@@ -109,6 +111,7 @@ import java.util.concurrent.ConcurrentHashMap
 class KslMcpTools(
     private val registry: BundleRegistry,
     private val resultStore: ResultStore = ResultStore(),
+    private val artifactStore: ArtifactStore = ArtifactStore(),
     private val json: Json = Json {
         prettyPrint = true
         encodeDefaults = true
@@ -681,12 +684,13 @@ class KslMcpTools(
     }
 
     private fun persistRun(resultId: String, request: JsonElement, dto: RunResultDto): StoredResult {
+        val enriched = dto.withArtifacts(artifactStore.list(resultId))
         val stored = StoredResult(
             resultId = resultId,
             kind = ResultKind.RUN,
             createdAt = Clock.System.now(),
             request = request,
-            payload = json.encodeToJsonElement(RunResultDto.serializer(), dto),
+            payload = json.encodeToJsonElement(RunResultDto.serializer(), enriched),
         )
         resultStore.put(stored)
         return stored
@@ -765,7 +769,10 @@ class KslMcpTools(
     ): CallToolResult {
         val cached = try {
             resultStore.cachedRun(key, kind, request, useCache) {
-                json.encodeToJsonElement(RunResultDto.serializer(), produce().toDto())
+                json.encodeToJsonElement(
+                    RunResultDto.serializer(),
+                    produce().toDto().withArtifacts(artifactStore.list(key)),
+                )
             }
         } catch (e: JobAtCapacityException) {
             return error("server is at capacity (${e.limit} concurrent jobs); try again shortly")
@@ -891,6 +898,52 @@ class KslMcpTools(
             "${names.size} response(s): ${names.joinToString(", ")}"
         }
         return result(summary, payload)
+    }
+
+    /** `get_artifacts` — the rendered artifacts (reports, plot images, exports) retained for a result. */
+    fun getArtifacts(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val refs = artifactStore.list(resultId)
+        val structured = buildJsonObject {
+            putJsonArray("artifacts") {
+                refs.forEach {
+                    add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) })
+                }
+            }
+        }
+        val summary = if (refs.isEmpty()) {
+            "No artifacts for result '$resultId'."
+        } else {
+            buildString {
+                appendLine("${refs.size} artifact(s) for $resultId:")
+                refs.forEach { appendLine("  - ${it.name} (${it.mediaType})") }
+            }.trimEnd()
+        }
+        return result(summary, structured)
+    }
+
+    /**
+     * `get_artifact` — one artifact by name. Text artifacts (HTML/Markdown/text/
+     * CSV/JSON/SVG) are returned inline as the text content; for any type the
+     * on-disk `path` is included so a local agent can open the file directly.
+     */
+    fun getArtifact(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val name = arguments.string("name") ?: return error("missing required argument 'name'")
+        val file = artifactStore.resolve(resultId, name)
+            ?: return error("no artifact '$name' for result '$resultId'")
+        val mediaType = artifactStore.list(resultId).firstOrNull { it.name == name }?.mediaType
+            ?: "application/octet-stream"
+        val isText = mediaType.startsWith("text/") || mediaType == "application/json" || mediaType == "image/svg+xml"
+        val content = if (isText) runCatching { java.nio.file.Files.readString(file) }.getOrNull() else null
+        val structured = buildJsonObject {
+            put("name", name)
+            put("mediaType", mediaType)
+            put("path", file.toString())
+            if (content != null) put("content", content)
+        }
+        val summary = content ?: "Artifact '$name' ($mediaType) is at: $file"
+        return result(summary, structured)
     }
 
     /** `get_response` — one response's statistics from a retained result. */
