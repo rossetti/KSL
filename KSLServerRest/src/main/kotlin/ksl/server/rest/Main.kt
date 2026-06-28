@@ -49,7 +49,7 @@ fun main() {
     val watcherScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     watcher.start(watcherScope)
 
-    val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries)
+    val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries, config.cache.maxDiskBytes)
     // Run work (capture output, the KSL database, rendered reports/exports) lands in
     // the KSLWork workspace like the desktop apps — NOT under ~/.ksl (settings/cache only).
     val artifactStore = ArtifactStore(config.outputRoot())

@@ -31,7 +31,8 @@ private val logger = KotlinLogging.logger {}
  * defaults to `~/.ksl/bundle-cache`
  */
 class BundleDescriptorCache(
-    val rootDir: Path = defaultCacheDir()
+    val rootDir: Path = defaultCacheDir(),
+    private val maxEntries: Int = DEFAULT_MAX_ENTRIES,
 ) {
 
     private val myJson = Json {
@@ -59,7 +60,8 @@ class BundleDescriptorCache(
         return try {
             val meta = myJson.decodeFromString(CacheMeta.serializer(), Files.readString(metaFile))
             if (meta.cacheSchemaVersion != CACHE_SCHEMA_VERSION) {
-                logger.info { "Discarding cache entry $jarSha256: schema ${meta.cacheSchemaVersion} != $CACHE_SCHEMA_VERSION" }
+                logger.info { "Discarding stale cache entry $jarSha256: schema ${meta.cacheSchemaVersion} != $CACHE_SCHEMA_VERSION" }
+                deleteRecursively(dir)
                 return null
             }
             myJson.decodeFromString(ModelDescriptor.serializer(), Files.readString(descFile))
@@ -83,8 +85,35 @@ class BundleDescriptorCache(
                 dir.resolve("$modelId.json"),
                 myJson.encodeToString(ModelDescriptor.serializer(), descriptor)
             )
+            pruneIfNeeded()
         } catch (e: IOException) {
             logger.warn(e) { "Failed to write bundle-cache entry $jarSha256/$modelId" }
+        }
+    }
+
+    /**
+     * Best-effort retention: keeps at most [maxEntries] per-JAR cache directories
+     * (the most-recently-modified), deleting the rest. Bounds the otherwise
+     * unbounded growth as JARs are rebuilt — each new JAR SHA is a fresh entry and
+     * old ones are never read again. A value <= 0 disables pruning.
+     */
+    private fun pruneIfNeeded() {
+        if (maxEntries <= 0) return
+        runCatching {
+            val dirs = Files.list(rootDir).use { stream ->
+                stream.filter { Files.isDirectory(it) }.toList()
+            }
+            if (dirs.size <= maxEntries) return
+            dirs.sortedByDescending { runCatching { Files.getLastModifiedTime(it).toMillis() }.getOrDefault(0L) }
+                .drop(maxEntries)
+                .forEach { deleteRecursively(it) }
+        }
+    }
+
+    private fun deleteRecursively(path: Path) {
+        if (!Files.exists(path)) return
+        Files.walk(path).use { walk ->
+            walk.sorted(Comparator.reverseOrder()).forEach { runCatching { Files.delete(it) } }
         }
     }
 
@@ -103,6 +132,9 @@ class BundleDescriptorCache(
          *       identification fields).
          */
         const val CACHE_SCHEMA_VERSION: Int = 2
+
+        /** Default cap on the number of per-JAR cache directories retained. */
+        const val DEFAULT_MAX_ENTRIES: Int = 32
 
         /** Returns the conventional cache root, `~/.ksl/bundle-cache`. */
         fun defaultCacheDir(): Path =

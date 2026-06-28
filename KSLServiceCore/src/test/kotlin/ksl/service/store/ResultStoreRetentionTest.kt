@@ -79,8 +79,51 @@ class ResultStoreRetentionTest {
     @Test
     fun `a zero cap disables eviction`() {
         val dir = Files.createTempDirectory("rs-unbounded")
-        val store = ResultStore(dir, maxMemoryBytes = 64L * 1024 * 1024, maxDiskEntries = 0)
+        val store = ResultStore(dir, maxMemoryBytes = 64L * 1024 * 1024, maxDiskEntries = 0, maxDiskBytes = 0)
         repeat(20) { store.put(StoredResult("id-$it", ResultKind.RUN, Clock.System.now(), JsonPrimitive("x"), JsonPrimitive("x"))) }
         assertEquals(20, diskEntryCount(dir))
+    }
+
+    @Test
+    fun `the disk byte cap evicts oldest until under the byte budget`() {
+        val dir = Files.createTempDirectory("rs-bytecap")
+        val cap = 3500L
+        val payload = JsonPrimitive("x".repeat(1000)) // ~1 KB per result.json
+        // Count cap off, byte cap on: bytes are the sole eviction driver.
+        val store = ResultStore(dir, maxMemoryBytes = 64L * 1024 * 1024, maxDiskEntries = 0, maxDiskBytes = cap)
+        listOf("a", "b", "c", "d", "e", "f").forEachIndexed { i, id ->
+            store.put(StoredResult(id, ResultKind.RUN, Clock.System.now(), JsonPrimitive("req"), payload))
+            Files.setLastModifiedTime(dir.resolve(id), FileTime.fromMillis(1_000L + i))
+        }
+        val total = Files.walk(dir).use { w ->
+            w.filter { Files.isRegularFile(it) }.mapToLong { Files.size(it) }.sum()
+        }
+        assertTrue(total <= cap, "byte cap must hold the cache at/under $cap bytes; was $total")
+        assertNotNull(store.get("f"), "the newest entry must survive")
+        assertNull(store.get("a"), "the oldest entry must be evicted under the byte cap")
+    }
+
+    @Test
+    fun `the family index is not counted as an entry and orphaned family files are pruned on eviction`() {
+        val dir = Files.createTempDirectory("rs-family")
+        val store = ResultStore(dir, maxMemoryBytes = 64L * 1024 * 1024, maxDiskEntries = 2)
+        putAndAge(store, dir, "old", age = 1_000L)
+        store.indexFamily("fam", size = 10, resultId = "old")
+        assertEquals(mapOf(10 to "old"), store.familyMembers("fam"), "member present while its result is retained")
+
+        // Two more puts evict "old" (cap = 2); the family then has no live member.
+        putAndAge(store, dir, "b", age = 2_000L)
+        putAndAge(store, dir, "c", age = 3_000L)
+
+        assertNull(store.get("old"), "'old' should be evicted")
+        val realEntries = Files.list(dir).use { s ->
+            s.filter { Files.isRegularFile(it.resolve("result.json")) }.count()
+        }
+        assertEquals(2L, realEntries, "only real result entries (not the _family index) count toward the cap")
+        assertTrue(store.familyMembers("fam").isEmpty(), "an evicted member is no longer reported")
+        assertTrue(
+            Files.notExists(dir.resolve("_family").resolve("fam.json")),
+            "an orphaned family index file should be pruned after its result is evicted",
+        )
     }
 }

@@ -5,7 +5,7 @@
     This module-level config overrides KSLCore's logback.xml (whose root logs
     at DEBUG to the console) so that opening databases and generating reports
     does not flood the terminal with engine chatter. Output is still captured
-    to a rolling file under logs/ for diagnostics; only WARN and above reach
+    to a rolling file under ~/.ksl/logs/ for diagnostics; only WARN and above reach
     the console.
 -->
 <configuration>
@@ -21,10 +21,12 @@
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/kslResultsApp.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/kslResultsApp.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>7</maxHistory>
+        <file>${user.home}/.ksl/logs/ksl-results.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/.ksl/logs/ksl-results.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>2MB</maxFileSize>
+            <maxHistory>5</maxHistory>
+            <totalSizeCap>10MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>

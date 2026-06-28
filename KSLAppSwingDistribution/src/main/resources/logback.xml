@@ -5,7 +5,7 @@
     This module-level config overrides KSLCore's logback.xml (whose root logs
     at DEBUG to the console) so that running a fit does not flood the terminal
     with engine chatter. Engine output is still captured to a rolling file under
-    logs/ for diagnostics; only WARN and above reach the console.
+    ~/.ksl/logs/ for diagnostics; only WARN and above reach the console.
 -->
 <configuration>
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
@@ -20,10 +20,12 @@
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/kslDistApp.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/kslDistApp.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>7</maxHistory>
+        <file>${user.home}/.ksl/logs/ksl-dist.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/.ksl/logs/ksl-dist.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>2MB</maxFileSize>
+            <maxHistory>5</maxHistory>
+            <totalSizeCap>10MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>

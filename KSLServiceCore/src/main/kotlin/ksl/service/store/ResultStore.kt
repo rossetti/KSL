@@ -73,6 +73,7 @@ class ResultStore(
     private val dir: Path = defaultDir(),
     maxMemoryBytes: Long = DEFAULT_MAX_MEMORY_BYTES,
     private val maxDiskEntries: Int = 500,
+    private val maxDiskBytes: Long = DEFAULT_MAX_DISK_BYTES,
 ) {
     private val json = Json {
         encodeDefaults = true
@@ -191,25 +192,63 @@ class ResultStore(
     }
 
     /**
-     * Bounds disk growth (Phase 8 plan §9): when more than [maxDiskEntries]
-     * result directories exist, deletes the oldest (by last-modified time) down
-     * to the cap, and invalidates them from memory. A cap of `0` disables
-     * eviction (unbounded). Best-effort — an I/O error never breaks a request.
+     * Bounds disk growth (Phase 8 plan §9): evicts the oldest result directories
+     * (by last-modified time) until BOTH the entry-count cap [maxDiskEntries] and
+     * the total-byte cap [maxDiskBytes] hold, invalidating each from memory. A cap
+     * of `0` disables that bound. When anything is evicted, orphaned `_family`
+     * index files (no surviving member) are pruned too. Best-effort — an I/O error
+     * never breaks a request.
      */
     private fun evictDiskIfNeeded() {
-        if (maxDiskEntries <= 0) return
+        if (maxDiskEntries <= 0 && maxDiskBytes <= 0) return
         runCatching {
             val entries = Files.list(dir).use { stream ->
                 // Only real result entries (a dir with result.json); never the _family index.
                 stream.filter { Files.isRegularFile(it.resolve("result.json")) }.toList()
             }
-            if (entries.size <= maxDiskEntries) return
-            entries.sortedBy { runCatching { Files.getLastModifiedTime(it).toMillis() }.getOrDefault(0L) }
-                .take(entries.size - maxDiskEntries)
-                .forEach { entry ->
-                    deleteRecursively(entry)
-                    memory.invalidate(entry.fileName.toString())
+            // Oldest first, each paired with its on-disk size.
+            val sized = entries
+                .sortedBy { runCatching { Files.getLastModifiedTime(it).toMillis() }.getOrDefault(0L) }
+                .map { it to dirBytes(it) }
+            var count = sized.size
+            var total = sized.sumOf { it.second }
+            var evicted = false
+            for ((entry, bytes) in sized) {
+                val overCount = maxDiskEntries > 0 && count > maxDiskEntries
+                val overBytes = maxDiskBytes > 0 && total > maxDiskBytes
+                if (!overCount && !overBytes) break
+                deleteRecursively(entry)
+                memory.invalidate(entry.fileName.toString())
+                count--
+                total -= bytes
+                evicted = true
+            }
+            if (evicted) pruneOrphanedFamilies()
+        }
+    }
+
+    /** Total bytes of the regular files under [entry] (its `result.json` and any siblings). */
+    private fun dirBytes(entry: Path): Long = runCatching {
+        Files.walk(entry).use { walk ->
+            walk.filter { Files.isRegularFile(it) }.toList()
+        }.sumOf { runCatching { Files.size(it) }.getOrDefault(0L) }
+    }.getOrDefault(0L)
+
+    /** Deletes `_family` index files that no longer reference any retained result. */
+    private fun pruneOrphanedFamilies() {
+        synchronized(familyLock) {
+            runCatching {
+                if (!Files.isDirectory(familyDir)) return
+                val files = Files.list(familyDir).use { stream ->
+                    stream.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".json") }.toList()
                 }
+                for (file in files) {
+                    val anyLive = readFamily(file).values.any {
+                        Files.exists(dir.resolve(it).resolve("result.json"))
+                    }
+                    if (!anyLive) runCatching { Files.delete(file) }
+                }
+            }
         }
     }
 
@@ -223,6 +262,9 @@ class ResultStore(
     companion object {
         /** Default in-memory budget for retained result payloads: 64 MB. */
         const val DEFAULT_MAX_MEMORY_BYTES: Long = 64L * 1024 * 1024
+
+        /** Default on-disk budget for the result cache: 128 MB. */
+        const val DEFAULT_MAX_DISK_BYTES: Long = 128L * 1024 * 1024
 
         fun defaultDir(): Path =
             Path.of(System.getProperty("user.home")).resolve(".ksl").resolve("result-cache")

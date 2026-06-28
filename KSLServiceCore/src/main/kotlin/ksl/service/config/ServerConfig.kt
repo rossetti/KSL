@@ -172,6 +172,8 @@ data class CacheConfig(
     val maxMemoryBytes: Long = ResultStore.DEFAULT_MAX_MEMORY_BYTES,
     @TomlComment("Max results retained on disk; oldest are evicted past this. 0 = unbounded.")
     val maxDiskEntries: Int = 500,
+    @TomlComment("On-disk byte budget for the result cache; oldest evicted past this. 0 = unbounded (default 128 MiB).")
+    val maxDiskBytes: Long = ResultStore.DEFAULT_MAX_DISK_BYTES,
 )
 
 /** Transport and execution settings. */
