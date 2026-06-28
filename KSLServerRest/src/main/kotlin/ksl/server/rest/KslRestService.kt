@@ -65,6 +65,10 @@ import ksl.service.capability.run.IncrementalRunCache
 import ksl.service.capability.run.ResultKeys
 import ksl.service.capability.run.RunService
 import ksl.app.config.OutputConfig
+import ksl.service.capability.dbanalysis.DbQueryResult
+import ksl.service.capability.dbanalysis.DbStatusDto
+import ksl.service.capability.dbanalysis.ExperimentInfoDto
+import ksl.service.capability.dbanalysis.ResultDatabaseService
 import ksl.service.capability.report.ReportArtifactService
 import ksl.service.capability.report.ReportRequest
 import ksl.service.capability.report.TraceReport
@@ -249,7 +253,10 @@ class KslRestService(
         // execution detail, not part of the logical request — resultId was keyed
         // off the original config above, so caching is unaffected.
         val reportRequest = reportRequestFor(config.outputConfig)
-        val captureDir = reportRequest?.let { artifactStore.dirFor(resultId).resolveSibling("output") }
+        // Redirect output into the server-owned per-result dir when the run produces
+        // any managed output: Welch/trace reports OR a KSL database (for analysis).
+        val capturesOutput = reportRequest != null || config.outputConfig.enableKSLDatabase
+        val captureDir = if (capturesOutput) artifactStore.outputDirFor(resultId) else null
         val runConfig = if (captureDir != null) {
             baseConfig.copy(outputConfig = baseConfig.outputConfig.copy(outputDirectory = captureDir.toString()))
         } else baseConfig
@@ -543,6 +550,31 @@ class KslRestService(
 
     /** Resolves one artifact file by name within a result, or null if absent / escaping the dir. */
     fun artifactFile(resultId: String, name: String): Path? = artifactStore.resolve(resultId, name)
+
+    // ----- result database analysis (Phase C; by resultId, stateless) -----
+
+    private val resultDb = ResultDatabaseService()
+
+    /** Whether the result has an analyzable database (always succeeds). */
+    fun dbStatus(resultId: String): DbStatusDto = resultDb.status(artifactStore.outputDirFor(resultId))
+
+    /** The experiments in the result's database, or null when there is none. */
+    fun dbExperiments(resultId: String): List<ExperimentInfoDto>? =
+        resultDb.experiments(artifactStore.outputDirFor(resultId))
+
+    /** Across-replication summary statistics for one experiment as JSON. */
+    fun dbSummary(resultId: String, experimentName: String): DbQueryResult =
+        resultDb.summary(artifactStore.outputDirFor(resultId), experimentName)
+
+    /** Multiple-comparison analysis of a response as JSON. */
+    fun dbCompare(
+        resultId: String,
+        responseName: String,
+        experimentNames: List<String>?,
+        delta: Double,
+        level: Double,
+    ): DbQueryResult =
+        resultDb.compare(artifactStore.outputDirFor(resultId), responseName, experimentNames, delta, level)
 
     private fun indexFamily(meta: ResultMeta) {
         val identity = meta.identity ?: return

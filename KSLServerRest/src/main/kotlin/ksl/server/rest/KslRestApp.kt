@@ -22,6 +22,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -43,6 +44,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.dist.config.DistributionKind
+import ksl.service.capability.dbanalysis.DbQueryResult
+import ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE
 import ksl.service.capability.run.ExperimentFactorSpec
 import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
@@ -50,6 +53,28 @@ import ksl.service.job.JobAtCapacityException
 import ksl.service.job.JobStatus
 
 /** `POST /runs` body. */
+/** Body of `POST /results/{id}/database/compare` — the MCB analysis request. */
+@Serializable
+data class CompareRequest(
+    val response: String,
+    val experiments: List<String>? = null,
+    val delta: Double? = null,
+    val level: Double? = null,
+)
+
+/** Maps a [DbQueryResult] onto the HTTP response: JSON body, a 404 with guidance
+ *  when there is no database, or a 422 with the precondition explanation. */
+private suspend fun respondDbJson(call: ApplicationCall, result: DbQueryResult) {
+    when (result) {
+        DbQueryResult.NoDatabase ->
+            call.respond(HttpStatusCode.NotFound, StatusResponse(NO_DATABASE_MESSAGE))
+        is DbQueryResult.Invalid ->
+            call.respond(HttpStatusCode.UnprocessableEntity, StatusResponse(result.reason))
+        is DbQueryResult.Json ->
+            call.respondText(result.payload, ContentType.Application.Json)
+    }
+}
+
 @Serializable
 data class RunRequest(
     val bundleId: String,
@@ -382,6 +407,36 @@ fun Application.kslRestModule(
             val file = service.artifactFile(call.parameters["resultId"]!!, name)
                 ?: return@get call.respond(HttpStatusCode.NotFound, StatusResponse("no such artifact"))
             call.respondFile(file.toFile())
+        }
+
+        // ----- result database analysis (Phase C) -----
+        get("/results/{resultId}/database") {
+            call.respond(service.dbStatus(call.parameters["resultId"]!!))
+        }
+
+        get("/results/{resultId}/database/experiments") {
+            val experiments = service.dbExperiments(call.parameters["resultId"]!!)
+                ?: return@get call.respond(HttpStatusCode.NotFound, StatusResponse(NO_DATABASE_MESSAGE))
+            call.respond(experiments)
+        }
+
+        get("/results/{resultId}/database/experiments/{exp}/summary") {
+            respondDbJson(call, service.dbSummary(call.parameters["resultId"]!!, call.parameters["exp"]!!))
+        }
+
+        post("/results/{resultId}/database/compare") {
+            val req = try {
+                call.receive<CompareRequest>()
+            } catch (e: Exception) {
+                return@post call.respond(HttpStatusCode.BadRequest, StatusResponse("invalid compare request: ${e.message}"))
+            }
+            respondDbJson(
+                call,
+                service.dbCompare(
+                    call.parameters["resultId"]!!, req.response, req.experiments,
+                    req.delta ?: 0.0, req.level ?: 0.95,
+                ),
+            )
         }
 
         // ----- document-centric submission (the full-fidelity path) -----

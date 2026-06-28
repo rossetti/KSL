@@ -155,6 +155,7 @@ class KslMcpTools(
     private val runService = RunService.fromRegistry(registry, runDeadline = runDeadline)
     private val runJobs = JobManager<RunEvent, RunResult>(scope, maxConcurrentJobs)
     private val reportArtifacts = ksl.service.capability.report.ReportArtifactService()
+    private val resultDb = ksl.service.capability.dbanalysis.ResultDatabaseService()
 
     // Session-scoped raw fit observations (resultId -> data), bounded LRU. The fit
     // result keeps only summary stats, so get_fit_report needs the data to render
@@ -448,7 +449,10 @@ class KslMcpTools(
         // detail that does not affect caching.
         val resultId = ResultKeys.forRunConfig(config, salt)
         val reportRequest = reportRequestFor(config.outputConfig)
-        val captureDir = reportRequest?.let { artifactStore.dirFor(resultId).resolveSibling("output") }
+        // Redirect output into the server-owned per-result dir when the run produces
+        // any managed output: Welch/trace reports OR a KSL database (for analysis).
+        val capturesOutput = reportRequest != null || config.outputConfig.enableKSLDatabase
+        val captureDir = if (capturesOutput) artifactStore.outputDirFor(resultId) else null
         val cached = try {
             IncrementalRunCache.run(resultStore, json, config, useCache, salt) { cfg ->
                 val runCfg = if (captureDir != null) {
@@ -973,6 +977,69 @@ class KslMcpTools(
         val summary = content ?: "Artifact '$name' ($mediaType) is at: $file"
         return result(summary, structured)
     }
+
+    /** `db_status` — whether a result has an analyzable KSL database, with guidance when not. */
+    fun dbStatus(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val status = resultDb.status(artifactStore.outputDirFor(resultId))
+        val structured = buildJsonObject {
+            put("present", status.present)
+            put("experimentCount", status.experimentCount)
+            put("message", status.message)
+        }
+        return result(status.message, structured)
+    }
+
+    /** `db_experiments` — the experiments recorded in a result's database. */
+    fun dbExperiments(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val experiments = resultDb.experiments(artifactStore.outputDirFor(resultId))
+            ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+        val element = json.encodeToJsonElement(
+            kotlinx.serialization.builtins.ListSerializer(ksl.service.capability.dbanalysis.ExperimentInfoDto.serializer()),
+            experiments,
+        )
+        val structured = buildJsonObject { put("experiments", element) }
+        val summary = "${experiments.size} experiment(s): " + experiments.joinToString(", ") { it.name }
+        return result(summary, structured)
+    }
+
+    /** `db_summary` — across-replication summary statistics for one experiment, as JSON. */
+    fun dbSummary(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val experiment = arguments.string("experimentName") ?: return error("missing required argument 'experimentName'")
+        return dbJsonResult(resultDb.summary(artifactStore.outputDirFor(resultId), experiment), "summary")
+    }
+
+    /** `db_compare` — multiple-comparison (MCB) analysis of a response, as JSON. */
+    fun dbCompare(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val response = arguments.string("responseName") ?: return error("missing required argument 'responseName'")
+        val experiments = arguments?.get("experiments")?.let { el ->
+            (el as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }
+        }
+        val delta = arguments?.get("delta")?.jsonPrimitive?.doubleOrNull ?: 0.0
+        val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
+        return dbJsonResult(
+            resultDb.compare(artifactStore.outputDirFor(resultId), response, experiments, delta, level),
+            "comparison",
+        )
+    }
+
+    /** Maps a [ksl.service.capability.dbanalysis.DbQueryResult] to a tool result:
+     *  JSON in structuredContent on success, or a non-error guidance result when
+     *  there is no database / the request is not analyzable. */
+    private fun dbJsonResult(outcome: ksl.service.capability.dbanalysis.DbQueryResult, key: String): CallToolResult =
+        when (outcome) {
+            ksl.service.capability.dbanalysis.DbQueryResult.NoDatabase ->
+                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+            is ksl.service.capability.dbanalysis.DbQueryResult.Invalid ->
+                result(outcome.reason, buildJsonObject { put("analyzable", false); put("reason", outcome.reason) })
+            is ksl.service.capability.dbanalysis.DbQueryResult.Json -> {
+                val payload = json.parseToJsonElement(outcome.payload)
+                result("Returned $key as structuredContent.$key.", buildJsonObject { put(key, payload) })
+            }
+        }
 
     /** `get_response` — one response's statistics from a retained result. */
     fun getResponse(arguments: JsonObject?): CallToolResult {

@@ -1,0 +1,133 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.service.capability.dbanalysis
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import ksl.examples.book.appendixD.GIGcQueue
+import ksl.observers.welch.WelchFileObserver
+import ksl.simulation.Model
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * Tests for [ResultDatabaseService] — by-result database analysis projected to
+ * JSON via the existing DataFrame writers. Headless-safe (no plot rendering).
+ */
+class ResultDatabaseServiceTest {
+
+    private val service = ResultDatabaseService()
+
+    /** Runs [experimentNames] of a GI/G/c queue into one SQLite KSL database
+     *  under [outDir], yielding a multi-experiment database to analyze. */
+    private fun buildDatabase(outDir: Path, experimentNames: List<String>, numServers: Int = 1) {
+        Files.createDirectories(outDir)
+        val db = KSLDatabase("results.db", outDir)
+        for (expName in experimentNames) {
+            val m = Model("DbAnalysisModel", autoCSVReports = false)
+            m.numberOfReplications = 4
+            m.lengthOfReplication = 2000.0
+            m.experimentName = expName
+            GIGcQueue(m, numServers = numServers, name = "Q")
+            KSLDatabaseObserver(m, db)
+            m.simulate()
+        }
+    }
+
+    @Test
+    @DisplayName("status, locate, and experiments reflect the produced database")
+    fun statusAndExperiments(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline", "alt"))
+
+        assertTrue(service.locate(outDir)?.fileName.toString()?.endsWith(".db") == true)
+        val status = service.status(outDir)
+        assertTrue(status.present, "database should be present")
+        assertEquals(2, status.experimentCount)
+        assertEquals(setOf("baseline", "alt"), service.experiments(outDir)!!.map { it.name }.toSet())
+    }
+
+    @Test
+    @DisplayName("summary returns across-replication statistics as JSON")
+    fun summaryJson(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline"))
+
+        val result = service.summary(outDir, "baseline")
+        assertTrue(result is DbQueryResult.Json, "expected JSON; got $result")
+        val rows = Json.parseToJsonElement((result as DbQueryResult.Json).payload).jsonArray
+        assertTrue(rows.isNotEmpty(), "summary should have response rows")
+        val names = rows.map { it.jsonObject["stat_name"]!!.toString() }
+        assertTrue(names.any { it.contains("System Time") }, "summary should include System Time; got $names")
+    }
+
+    @Test
+    @DisplayName("compare returns MCB results/intervals/screening as JSON")
+    fun compareJson(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline", "alt"))
+
+        val result = service.compare(outDir, "System Time")
+        assertTrue(result is DbQueryResult.Json, "expected JSON; got $result")
+        val obj = Json.parseToJsonElement((result as DbQueryResult.Json).payload).jsonObject
+        assertTrue(obj["intervals"]!!.jsonArray.isNotEmpty(), "MCB intervals should be present")
+        assertTrue(obj["results"]!!.jsonArray.isNotEmpty(), "MCB results should be present")
+    }
+
+    @Test
+    @DisplayName("compare on a single-experiment database is gracefully invalid")
+    fun compareNeedsTwoExperiments(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("only-one"))
+
+        val result = service.compare(outDir, "System Time")
+        assertTrue(result is DbQueryResult.Invalid, "single experiment must be Invalid; got $result")
+        assertTrue((result as DbQueryResult.Invalid).reason.contains("at least 2"),
+            "reason should explain the precondition; got: ${result.reason}")
+    }
+
+    @Test
+    @DisplayName("a run with no database is reported gracefully, never as an error")
+    fun noDatabaseIsGraceful(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output").also { Files.createDirectories(it) }
+        // Capture some non-database output to prove *.db discovery is specific.
+        val m = Model("NoDbModel", autoCSVReports = false)
+        m.outputDirectory = ksl.utilities.io.OutputDirectory(outDir, "kslOutput.txt")
+        m.numberOfReplications = 2
+        m.lengthOfReplication = 200.0
+        GIGcQueue(m, numServers = 1, name = "Q")
+        WelchFileObserver(m.response("System Time")!!, 1.0)
+        m.simulate()
+
+        assertTrue(service.locate(outDir) == null, "no *.db should be found")
+        val status = service.status(outDir)
+        assertTrue(!status.present && status.message.contains("enableKSLDatabase"),
+            "absence must carry guidance; got: $status")
+        assertEquals(DbQueryResult.NoDatabase, service.compare(outDir, "System Time"))
+        assertTrue(service.experiments(outDir) == null)
+    }
+}

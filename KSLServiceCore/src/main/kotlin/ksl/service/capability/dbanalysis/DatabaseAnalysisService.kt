@@ -19,13 +19,30 @@
 package ksl.service.capability.dbanalysis
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import ksl.app.comparison.AnalysisType
 import ksl.app.comparison.ComparisonDataSourceIfc
+import ksl.app.comparison.ComparisonSelectionModel
 import ksl.app.comparison.ExperimentRow
 import ksl.app.comparison.KSLDatabaseComparisonSource
 import ksl.app.comparison.ResponseRow
 import ksl.utilities.io.dbutil.DerbyDb
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SQLiteDb
+import ksl.utilities.statistic.MCBIntervalData
+import ksl.utilities.statistic.MCBScreeningIntervalData
+import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import ksl.utilities.statistic.asMCBIntervalDataFrame
+import ksl.utilities.statistic.asMCBResultDataFrame
+import ksl.utilities.statistic.asMCBScreeningIntervalDataFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.columnNames
+import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import org.jetbrains.kotlinx.dataframe.io.toJson
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
@@ -120,6 +137,60 @@ class DatabaseAnalysisService : AutoCloseable {
     /** The underlying comparison source, for callers that drive MCB / CI analyses directly. */
     fun comparisonSource(handle: DbHandle): ComparisonDataSourceIfc = handle.source
 
+    // ----- JSON projections (DataFrame.toJson over the existing analysis layer) -----
+
+    /**
+     * Across-replication summary statistics for [experimentName] as JSON (one
+     * object per response: average, std error, CI half-width, count, min/max, …).
+     * Reuses `KSLDatabase.acrossRepStatDataFor` and the DataFrame JSON writer —
+     * no bespoke serialization. An unknown experiment yields `[]`.
+     */
+    fun acrossReplicationSummaryJson(handle: DbHandle, experimentName: String, prettyPrint: Boolean = false): String =
+        handle.database.acrossRepStatDataFor(experimentName).toDataFrame().dropDbBookkeeping().toJson(prettyPrint)
+
+    /**
+     * Multiple-comparison (MCB) analysis of [responseName] across [experimentNames]
+     * (null = every experiment recording the response), as a JSON document
+     * `{response, delta, level, results, intervals, screening}` where each array is
+     * the `DataFrame.toJson()` of the analyzer's existing MCB data. Preconditions
+     * are validated through `ComparisonSelectionModel`, so an unanalyzable request
+     * returns [DbQueryResult.Invalid] with the explanation rather than throwing.
+     */
+    fun comparisonJson(
+        handle: DbHandle,
+        responseName: String,
+        experimentNames: List<String>? = null,
+        delta: Double = 0.0,
+        level: Double = 0.95,
+        prettyPrint: Boolean = false,
+    ): DbQueryResult {
+        val selection = ComparisonSelectionModel(listOf(handle.source))
+        if (experimentNames == null) selection.selectAll()
+        else experimentNames.forEach { selection.toggleExperiment(it, true) }
+
+        val validation = selection.validateForResponse(responseName, AnalysisType.MULTIPLE_COMPARISON)
+        if (!validation.ok) return DbQueryResult.Invalid(validation.reason ?: "Comparison request is not analyzable.")
+
+        val observations = selection.gatherObservationsFor(responseName)
+        val mca = MultipleComparisonAnalyzer(observations, responseName)
+        val results = mca.mcbResultData(context = responseName)
+            .asMCBResultDataFrame().toJson()
+        val intervals = mca.mcbIntervalData(delta = delta, probCS = level, context = responseName)
+            .map { it.finiteLimits() }.asMCBIntervalDataFrame().toJson()
+        val screening = mca.mcbScreeningIntervalData(probCS = level, context = responseName)
+            .map { it.finiteLimits() }.asMCBScreeningIntervalDataFrame().toJson()
+
+        val payload = buildJsonObject {
+            put("response", responseName)
+            put("delta", delta)
+            put("level", level)
+            put("results", json.parseToJsonElement(results))
+            put("intervals", json.parseToJsonElement(intervals))
+            put("screening", json.parseToJsonElement(screening))
+        }
+        return DbQueryResult.Json(json.encodeToString(JsonObject.serializer(), payload))
+    }
+
     /** Releases a handle. Best-effort closes the underlying connection if closeable. */
     fun close(handle: DbHandle) {
         handles.remove(handle.id)
@@ -134,4 +205,27 @@ class DatabaseAnalysisService : AutoCloseable {
         ExperimentInfoDto(name, modelIdentifier, numReplications, responses.map { it.toDto() })
 
     private fun ResponseRow.toDto() = ResponseInfoDto(name, category.name)
+
+    private val json = Json { ignoreUnknownKeys = true; allowSpecialFloatingPointValues = true }
+
+    /** Drops the `DbTableData` bookkeeping columns that reflective `toDataFrame()`
+     *  adds, leaving only the real data columns (mirrors `asMCB*DataFrame`). */
+    private fun <T> DataFrame<T>.dropDbBookkeeping(): DataFrame<T> {
+        val present = DB_BOOKKEEPING.filter { it in columnNames() }
+        return if (present.isEmpty()) this else remove(*present.toTypedArray())
+    }
+
+    /** ±Infinity interval limits → null so the JSON is valid (JSON has no Infinity). */
+    private fun MCBIntervalData.finiteLimits(): MCBIntervalData =
+        copy(lowerLimit = lowerLimit?.takeIf { it.isFinite() }, upperLimit = upperLimit?.takeIf { it.isFinite() })
+
+    private fun MCBScreeningIntervalData.finiteLimits(): MCBScreeningIntervalData =
+        copy(lowerLimit = lowerLimit?.takeIf { it.isFinite() }, upperLimit = upperLimit?.takeIf { it.isFinite() })
+
+    private companion object {
+        val DB_BOOKKEEPING = listOf(
+            "autoIncField", "keyFields", "numColumns", "numInsertFields",
+            "numUpdateFields", "schemaName", "tableName",
+        )
+    }
 }

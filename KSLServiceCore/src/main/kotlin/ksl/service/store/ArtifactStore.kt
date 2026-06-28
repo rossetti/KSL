@@ -45,6 +45,17 @@ class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
         Files.createDirectories(artifactsDir(resultId))
 
     /**
+     * The server-owned capture/output directory for [resultId]
+     * (`<root>/<resultId>/output`) — where a run's redirected output (Welch/trace
+     * files, the KSL database) lands. The single source of truth shared by run
+     * submission (which stamps it onto the run's output config) and later
+     * discovery (reporting, database analysis). Not created here; the run creates
+     * it, and readers tolerate its absence.
+     */
+    fun outputDirFor(resultId: String): Path =
+        root.resolve(resultId).resolve(OUTPUT)
+
+    /**
      * Every artifact recorded for [resultId] as wire refs, ordered by name; an
      * empty list when none have been written (or the result is unknown). Nested
      * files (e.g. `plots/welch.png`) are reported with their relative path as
@@ -98,5 +109,6 @@ class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
 
     private companion object {
         const val ARTIFACTS = "artifacts"
+        const val OUTPUT = "output"
     }
 }

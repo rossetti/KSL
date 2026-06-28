@@ -481,6 +481,58 @@ object KslMcpServer {
         ) { request -> tools.getArtifact(request.arguments) }
 
         server.addTool(
+            name = "db_status",
+            description = "Report whether a result has an analyzable KSL database (structuredContent " +
+                "{present, experimentCount, message}). A run produces one only when it enabled the database " +
+                "option; when absent, the message tells the user how to re-run. Always succeeds.",
+            inputSchema = resultIdOnly,
+            outputSchema = McpResultSchemas.dbStatus,
+        ) { request -> tools.dbStatus(request.arguments) }
+
+        server.addTool(
+            name = "db_experiments",
+            description = "List the experiments recorded in a result's database (structuredContent " +
+                "{experiments:[{name, modelIdentifier, numReplications, responses}]}). Returns guidance when " +
+                "the result has no database.",
+            inputSchema = resultIdOnly,
+            outputSchema = McpResultSchemas.dbExperiments,
+        ) { request -> tools.dbExperiments(request.arguments) }
+
+        server.addTool(
+            name = "db_summary",
+            description = "Across-replication summary statistics for one experiment in a result's database, " +
+                "as JSON in structuredContent.summary (average, std error, CI half-width, count, min/max per " +
+                "response). Guidance when there is no database.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("experimentName") { put("type", "string") }
+                },
+                required = listOf("resultId", "experimentName"),
+            ),
+            outputSchema = McpResultSchemas.dbJson,
+        ) { request -> tools.dbSummary(request.arguments) }
+
+        server.addTool(
+            name = "db_compare",
+            description = "Multiple-comparison (MCB) analysis of a response across the database's experiments, " +
+                "as JSON in structuredContent.comparison {response, delta, level, results, intervals, screening}. " +
+                "Needs >=2 experiments recording the response with equal replication counts; otherwise returns a " +
+                "clear precondition message. Guidance when there is no database.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("responseName") { put("type", "string") }
+                    putJsonObject("experiments") { put("type", "array"); putJsonObject("items") { put("type", "string") } }
+                    putJsonObject("delta") { put("type", "number") }
+                    putJsonObject("level") { put("type", "number") }
+                },
+                required = listOf("resultId", "responseName"),
+            ),
+            outputSchema = McpResultSchemas.dbJson,
+        ) { request -> tools.dbCompare(request.arguments) }
+
+        server.addTool(
             name = "get_design_point",
             description = "Get one scenario/design-point result from a retained batch result, by index. " +
                 "Returns structuredContent with the design point (its factor settings and per-response " +

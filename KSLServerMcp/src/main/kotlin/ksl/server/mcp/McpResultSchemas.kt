@@ -194,6 +194,41 @@ internal object McpResultSchemas {
         required = listOf("name", "mediaType", "path"),
     )
 
+    /** db_status: whether a result has an analyzable database. */
+    val dbStatus = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("present") { put("type", "boolean") }
+            putJsonObject("experimentCount") { put("type", "integer") }
+            putJsonObject("message") { put("type", "string") }
+        },
+        required = listOf("present", "experimentCount", "message"),
+    )
+
+    /** db_experiments: the experiments in a result's database (or {present:false}). */
+    val dbExperiments = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("experiments") {
+                put("type", "array")
+                putJsonObject("items") { put("type", "object") }
+            }
+            putJsonObject("present") { put("type", "boolean") }
+        },
+        required = emptyList(),
+    )
+
+    /** db_summary / db_compare: the analysis JSON (DataFrame-derived) under its key,
+     *  or a guidance envelope when there is no database / the request is not analyzable. */
+    val dbJson = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("summary") { put("type", "array"); put("description", "Across-replication statistics (db_summary).") }
+            putJsonObject("comparison") { put("type", "object"); put("description", "MCB analysis {results, intervals, screening} (db_compare).") }
+            putJsonObject("present") { put("type", "boolean"); put("description", "false when the result has no database.") }
+            putJsonObject("analyzable") { put("type", "boolean"); put("description", "false when preconditions are unmet.") }
+            putJsonObject("reason") { put("type", "string") }
+        },
+        required = emptyList(),
+    )
+
     /** get_response: one response's across-replication statistics. */
     val response = ToolSchema(
         properties = buildJsonObject {
