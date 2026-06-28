@@ -12,6 +12,20 @@ repositories {
     mavenCentral()
 }
 
+// Headless server: drop the lets-plot Swing *display* frontend (pulled in
+// transitively from KSLCore). Its static initializer eagerly constructs an AWT
+// window to probe for a display and throws HeadlessException with none, which
+// poisons the LetsPlot class for the whole JVM. Without it the frontend probe
+// degrades to a no-op context, so report rendering (HTML-embed and SVG/PNG image
+// export via lets-plot-image-export + Apache Batik) works fully headless. The
+// desktop apps keep the frontend for interactive display. See the gap-closure
+// plan §B5. Applied to all configurations (incl. test) so tests reflect the
+// deployed, headless runtime; compile-safe — no code references the frontend.
+configurations.all {
+    exclude(group = "org.jetbrains.lets-plot", module = "lets-plot-batik")
+    exclude(group = "org.jetbrains.lets-plot", module = "platf-batik-jvm")
+}
+
 dependencies {
     // The REST/SSE transport over the headless service core. Ktor is isolated
     // here; it never reaches KSLServiceCore or KSLCore.

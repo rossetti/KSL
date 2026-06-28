@@ -137,6 +137,26 @@ class SingleRunTraceCaptureTest {
     }
 
     @Test
+    @DisplayName("A trace manifest records each traced response's time-weighting")
+    fun traceManifestRecordsTimeWeighting(@TempDir tempDir: Path) {
+        val cfg = buildConfig(
+            outputDir = tempDir,
+            outputConfig = OutputConfig(
+                enableResponseTrace = true,
+                traceResponses = listOf(
+                    TraceResponseSpec(SYSTEM_TIME, maxReplications = 1),
+                    TraceResponseSpec(NUM_IN_SYSTEM, maxReplications = 1)
+                )
+            )
+        )
+        submitAndAwait(cfg)
+
+        val manifest = ksl.app.single.results.TraceManifest.read(tempDir)
+        assertEquals(false, manifest[SYSTEM_TIME], "System Time is a tally (observation) response")
+        assertEquals(true, manifest[NUM_IN_SYSTEM], "Num in System is a time-weighted response")
+    }
+
+    @Test
     @DisplayName("Per-response maxReplications caps how many replications are recorded")
     fun maxReplicationsCapIsApplied(@TempDir tempDir: Path) {
         val cfg = buildConfig(

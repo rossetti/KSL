@@ -154,6 +154,7 @@ class KslMcpTools(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val runService = RunService.fromRegistry(registry, runDeadline = runDeadline)
     private val runJobs = JobManager<RunEvent, RunResult>(scope, maxConcurrentJobs)
+    private val reportArtifacts = ksl.service.capability.report.ReportArtifactService()
 
     // Session-scoped raw fit observations (resultId -> data), bounded LRU. The fit
     // result keeps only summary stats, so get_fit_report needs the data to render
@@ -441,10 +442,24 @@ class KslMcpTools(
      * storage (sufficient statistics, no per-replication arrays).
      */
     private suspend fun incrementalRunConfig(config: ksl.app.config.RunConfiguration, useCache: Boolean): CallToolResult {
+        val salt = CacheVersion.forRun(registry, config)
+        // resultId is keyed off the original config (matches IncrementalRunCache's
+        // own exactKey), so redirecting the run's output below is an execution
+        // detail that does not affect caching.
+        val resultId = ResultKeys.forRunConfig(config, salt)
+        val reportRequest = reportRequestFor(config.outputConfig)
+        val captureDir = reportRequest?.let { artifactStore.dirFor(resultId).resolveSibling("output") }
         val cached = try {
-            IncrementalRunCache.run(resultStore, json, config, useCache, CacheVersion.forRun(registry, config)) { cfg ->
-                (runJobs.result(runJobs.register { runService.submitRunConfig(cfg) }.jobId)
-                    ?: kotlin.error("run vanished")).toDto()
+            IncrementalRunCache.run(resultStore, json, config, useCache, salt) { cfg ->
+                val runCfg = if (captureDir != null) {
+                    cfg.copy(outputConfig = cfg.outputConfig.copy(outputDirectory = captureDir.toString()))
+                } else cfg
+                val result = runJobs.result(runJobs.register { runService.submitRunConfig(runCfg) }.jobId)
+                    ?: kotlin.error("run vanished")
+                if (reportRequest != null && captureDir != null) {
+                    runCatching { reportArtifacts.materialize(artifactStore.dirFor(resultId), captureDir, reportRequest) }
+                }
+                result.toDto().withArtifacts(artifactStore.list(resultId))
             }
         } catch (e: JobAtCapacityException) {
             return error("server is at capacity (${e.limit} concurrent jobs); try again shortly")
@@ -452,6 +467,19 @@ class KslMcpTools(
             return error("run failed: ${e.message}")
         }
         return runResult(cached)
+    }
+
+    /**
+     * The default reports to render for a run, derived from its capture toggles:
+     * a Welch report when Welch analysis was captured, a trace report when
+     * response tracing was captured; null when neither (no post-run reporting).
+     */
+    private fun reportRequestFor(outputConfig: ksl.app.config.OutputConfig): ksl.service.capability.report.ReportRequest? {
+        val request = ksl.service.capability.report.ReportRequest(
+            welch = if (outputConfig.enableWelchAnalysis) ksl.service.capability.report.WelchReport() else null,
+            trace = if (outputConfig.enableResponseTrace) ksl.service.capability.report.TraceReport() else null,
+        )
+        return if (request.isEmpty) null else request
     }
 
     /**

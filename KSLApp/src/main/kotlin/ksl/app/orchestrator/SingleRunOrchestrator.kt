@@ -224,11 +224,21 @@ object SingleRunOrchestrator {
         // Unknown response names are skipped defensively (stale config).  The
         // per-response maxReplications cap bounds trace volume.
         if (outputConfig.enableResponseTrace) {
+            // The traced response's time-weighting is recorded in a sidecar
+            // manifest so post-run reporting (which works from the files alone,
+            // with no live model) can pick the right plot.  Keyed by trace-file
+            // stem to match the on-disk <stem>_Trace names.
+            val traceManifest = LinkedHashMap<String, Boolean>()
             for (spec in outputConfig.traceResponses) {
                 val response = model.response(spec.responseName) ?: continue
                 ksl.observers.ResponseTrace(response).apply {
                     maxNumReplications = spec.maxReplications
                 }
+                traceManifest[ksl.app.single.results.TraceManifest.stemFor(response.name)] =
+                    response is ksl.modeling.variable.TWResponse
+            }
+            if (traceManifest.isNotEmpty()) {
+                ksl.app.single.results.TraceManifest.write(model.outputDirectory.outDir, traceManifest)
             }
         }
 

@@ -64,6 +64,11 @@ import ksl.service.capability.run.IncrementalCombine
 import ksl.service.capability.run.IncrementalRunCache
 import ksl.service.capability.run.ResultKeys
 import ksl.service.capability.run.RunService
+import ksl.app.config.OutputConfig
+import ksl.service.capability.report.ReportArtifactService
+import ksl.service.capability.report.ReportRequest
+import ksl.service.capability.report.TraceReport
+import ksl.service.capability.report.WelchReport
 import ksl.service.capability.run.dto.ArtifactRef
 import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.config.ConfigDocuments
@@ -99,6 +104,7 @@ class KslRestService(
     private val runService = RunService.fromRegistry(registry, runDeadline = runDeadline)
     private val runJobs = JobManager<RunEvent, RunResult>(scope, maxConcurrentJobs)
     private val fitService = FitService()
+    private val reportArtifacts = ReportArtifactService()
     private val json = Json {
         encodeDefaults = true
         allowSpecialFloatingPointValues = true // ControlData bounds can be ±∞
@@ -116,6 +122,10 @@ class KslRestService(
         val identity: String? = null,
         val replications: Int? = null,
         val topUp: TopUp? = null,
+        // Post-run reporting: the server-owned capture dir and the reports to
+        // render from it once the run completes (null when nothing was captured).
+        val outputDir: Path? = null,
+        val reportRequest: ReportRequest? = null,
     )
 
     private data class TopUp(val cachedResultId: String, val reuseN: Int)
@@ -232,10 +242,46 @@ class KslRestService(
         val m = IncrementalRunCache.replications(config)
         val identity = if (m != null && IncrementalRunCache.eligible(config)) IncrementalRunCache.runIdentity(config, salt) else null
         val topUp = identity?.let { planTopUp(it, m!!) }
-        val runConfig = if (topUp != null) IncrementalRunCache.topUpConfig(config, topUp.reuseN) else config
+        val baseConfig = if (topUp != null) IncrementalRunCache.topUpConfig(config, topUp.reuseN) else config
+        // When the run captures Welch/trace data, redirect its output into a
+        // server-owned per-result dir so reporting can find it, and remember the
+        // reports to render once the run completes.  The output directory is an
+        // execution detail, not part of the logical request — resultId was keyed
+        // off the original config above, so caching is unaffected.
+        val reportRequest = reportRequestFor(config.outputConfig)
+        val captureDir = reportRequest?.let { artifactStore.dirFor(resultId).resolveSibling("output") }
+        val runConfig = if (captureDir != null) {
+            baseConfig.copy(outputConfig = baseConfig.outputConfig.copy(outputDirectory = captureDir.toString()))
+        } else baseConfig
         val jobId = runJobs.register { runService.submitRunConfig(runConfig) }.jobId
-        pending[jobId] = ResultMeta(resultId, ResultKind.RUN, json.parseToJsonElement(RunConfigurationJson.encode(config)), identity, m, topUp)
+        pending[jobId] = ResultMeta(
+            resultId, ResultKind.RUN, json.parseToJsonElement(RunConfigurationJson.encode(config)),
+            identity, m, topUp, outputDir = captureDir, reportRequest = reportRequest,
+        )
         return RunSubmission(resultId, cached = false, jobId = jobId, status = JobStatus.RUNNING, reusedReplications = topUp?.reuseN ?: 0)
+    }
+
+    /**
+     * The default reports to render for a run, derived from its capture toggles:
+     * a Welch report when Welch analysis was captured, a trace report when
+     * response tracing was captured. Null when the run captured neither (no
+     * post-run reporting — the common case). Report formatting uses sensible
+     * defaults (HTML); finer control can ride the request envelope later.
+     */
+    private fun reportRequestFor(outputConfig: OutputConfig): ReportRequest? {
+        val request = ReportRequest(
+            welch = if (outputConfig.enableWelchAnalysis) WelchReport() else null,
+            trace = if (outputConfig.enableResponseTrace) TraceReport() else null,
+        )
+        return if (request.isEmpty) null else request
+    }
+
+    /** Renders any requested reports from the run's capture output into the result's
+     *  artifact dir, before persistence so they are listed with the result. Best-effort. */
+    private fun materializeReports(meta: ResultMeta) {
+        val request = meta.reportRequest ?: return
+        val outputDir = meta.outputDir ?: return
+        runCatching { reportArtifacts.materialize(artifactStore.dirFor(meta.resultId), outputDir, request) }
     }
 
     private fun planTopUp(identity: String, target: Int): TopUp? {
@@ -445,6 +491,9 @@ class KslRestService(
             val dto = result.toDto()
             val meta = pending.remove(jobId)
             if (meta != null && resultStore.get(meta.resultId) == null) {
+                // Render reports from the capture output BEFORE persistRun, so the
+                // freshly-written artifacts are listed onto the stored result.
+                materializeReports(meta)
                 val topUp = meta.topUp
                 if (topUp != null) {
                     // Incremental: combine the (M−N)-rep top-up with the cached N-rep run.
