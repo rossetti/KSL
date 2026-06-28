@@ -533,6 +533,40 @@ object KslMcpServer {
         ) { request -> tools.dbCompare(request.arguments) }
 
         server.addTool(
+            name = "db_compare_report",
+            description = "Render a multiple-comparison (MCB) report — intervals plus confidence-interval and " +
+                "box plots — as a downloadable artifact (structuredContent {artifacts:[...]}; fetch with " +
+                "get_artifact). Same preconditions as db_compare. Optional 'formats' (HTML default).",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("responseName") { put("type", "string") }
+                    putJsonObject("experiments") { put("type", "array"); putJsonObject("items") { put("type", "string") } }
+                    putJsonObject("delta") { put("type", "number") }
+                    putJsonObject("level") { put("type", "number") }
+                    putJsonObject("formats") { put("type", "array"); putJsonObject("items") { put("type", "string") } }
+                },
+                required = listOf("resultId", "responseName"),
+            ),
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.dbCompareReport(request.arguments) }
+
+        server.addTool(
+            name = "db_export",
+            description = "Export the result's database tables as downloadable artifacts: 'format' CSV (one file " +
+                "per table) or EXCEL (a single workbook). Returns structuredContent {artifacts:[...]}; fetch with " +
+                "get_artifact.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("format") { put("type", "string"); put("description", "CSV or EXCEL (default CSV).") }
+                },
+                required = listOf("resultId"),
+            ),
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.dbExport(request.arguments) }
+
+        server.addTool(
             name = "get_design_point",
             description = "Get one scenario/design-point result from a retained batch result, by index. " +
                 "Returns structuredContent with the design point (its factor settings and per-response " +

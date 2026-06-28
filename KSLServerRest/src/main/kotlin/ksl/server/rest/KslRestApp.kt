@@ -44,7 +44,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.dist.config.DistributionKind
+import ksl.app.config.ReportFormat
+import ksl.service.capability.dbanalysis.DbExportFormat
 import ksl.service.capability.dbanalysis.DbQueryResult
+import ksl.service.capability.dbanalysis.DbReportResult
 import ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE
 import ksl.service.capability.run.ExperimentFactorSpec
 import ksl.service.config.HealthEndpoints
@@ -53,14 +56,20 @@ import ksl.service.job.JobAtCapacityException
 import ksl.service.job.JobStatus
 
 /** `POST /runs` body. */
-/** Body of `POST /results/{id}/database/compare` — the MCB analysis request. */
+/** Body of `POST /results/{id}/database/compare` and `.../compare/report` — the
+ *  MCB analysis request. [formats] applies only to the report variant. */
 @Serializable
 data class CompareRequest(
     val response: String,
     val experiments: List<String>? = null,
     val delta: Double? = null,
     val level: Double? = null,
+    val formats: List<String>? = null,
 )
+
+/** Body of `POST /results/{id}/database/export` — `format` is "CSV" or "EXCEL". */
+@Serializable
+data class ExportRequest(val format: String = "CSV")
 
 /** Maps a [DbQueryResult] onto the HTTP response: JSON body, a 404 with guidance
  *  when there is no database, or a 422 with the precondition explanation. */
@@ -73,6 +82,26 @@ private suspend fun respondDbJson(call: ApplicationCall, result: DbQueryResult) 
         is DbQueryResult.Json ->
             call.respondText(result.payload, ContentType.Application.Json)
     }
+}
+
+/** Maps a file-producing [DbReportResult] onto the response: on success, the
+ *  result's full artifact list (the new report/export is downloadable via the
+ *  artifacts endpoint); otherwise guidance. */
+private suspend fun respondDbReport(call: ApplicationCall, service: KslRestService, resultId: String, result: DbReportResult) {
+    when (result) {
+        DbReportResult.NoDatabase ->
+            call.respond(HttpStatusCode.NotFound, StatusResponse(NO_DATABASE_MESSAGE))
+        is DbReportResult.Invalid ->
+            call.respond(HttpStatusCode.UnprocessableEntity, StatusResponse(result.reason))
+        is DbReportResult.Ok ->
+            call.respond(service.artifacts(resultId))
+    }
+}
+
+/** Parses report-format names (default HTML) into the report-format set. */
+private fun parseReportFormats(names: List<String>?): Set<ReportFormat> {
+    val parsed = names.orEmpty().mapNotNull { s -> ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
+    return parsed.toSet().ifEmpty { setOf(ReportFormat.HTML) }
 }
 
 @Serializable
@@ -437,6 +466,34 @@ fun Application.kslRestModule(
                     req.delta ?: 0.0, req.level ?: 0.95,
                 ),
             )
+        }
+
+        post("/results/{resultId}/database/compare/report") {
+            val id = call.parameters["resultId"]!!
+            val req = try {
+                call.receive<CompareRequest>()
+            } catch (e: Exception) {
+                return@post call.respond(HttpStatusCode.BadRequest, StatusResponse("invalid compare request: ${e.message}"))
+            }
+            respondDbReport(
+                call, service, id,
+                service.dbCompareReport(
+                    id, req.response, req.experiments, req.delta ?: 0.0, req.level ?: 0.95,
+                    parseReportFormats(req.formats),
+                ),
+            )
+        }
+
+        post("/results/{resultId}/database/export") {
+            val id = call.parameters["resultId"]!!
+            val req = try {
+                call.receive<ExportRequest>()
+            } catch (e: Exception) {
+                return@post call.respond(HttpStatusCode.BadRequest, StatusResponse("invalid export request: ${e.message}"))
+            }
+            val format = DbExportFormat.entries.firstOrNull { it.name.equals(req.format, ignoreCase = true) }
+                ?: return@post call.respond(HttpStatusCode.BadRequest, StatusResponse("format must be CSV or EXCEL"))
+            respondDbReport(call, service, id, service.dbExport(id, format))
         }
 
         // ----- document-centric submission (the full-fidelity path) -----

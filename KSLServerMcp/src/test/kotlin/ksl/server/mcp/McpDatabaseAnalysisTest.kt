@@ -96,6 +96,23 @@ class McpDatabaseAnalysisTest {
     }
 
     @Test
+    @DisplayName("db_compare_report and db_export produce downloadable artifacts (headless)")
+    fun reportAndExportTools() = runBlocking {
+        val resultId = runResultId(enableDb = true)
+
+        val exported = tools.dbExport(buildJsonObject { put("resultId", resultId); put("format", "CSV") })
+            .structuredContent!!.jsonObject["artifacts"]!!.jsonArray
+            .map { it.jsonObject["name"]!!.jsonPrimitive.content }
+        assertTrue(exported.any { it.endsWith(".csv") }, "CSV export expected; got $exported")
+
+        val reported = tools.dbCompareReport(buildJsonObject {
+            put("resultId", resultId); put("responseName", "System Time")
+        }).structuredContent!!.jsonObject["artifacts"]!!.jsonArray
+            .map { it.jsonObject["name"]!!.jsonPrimitive.content }
+        assertTrue(reported.any { it.endsWith(".html") }, "comparison report html expected; got $reported")
+    }
+
+    @Test
     @DisplayName("db_status reports absence gracefully for a run without the database option")
     fun reportsAbsenceGracefully() = runBlocking {
         val resultId = runResultId(enableDb = false)

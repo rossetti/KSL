@@ -65,7 +65,10 @@ import ksl.service.capability.run.IncrementalRunCache
 import ksl.service.capability.run.ResultKeys
 import ksl.service.capability.run.RunService
 import ksl.app.config.OutputConfig
+import ksl.app.config.ReportFormat
+import ksl.service.capability.dbanalysis.DbExportFormat
 import ksl.service.capability.dbanalysis.DbQueryResult
+import ksl.service.capability.dbanalysis.DbReportResult
 import ksl.service.capability.dbanalysis.DbStatusDto
 import ksl.service.capability.dbanalysis.ExperimentInfoDto
 import ksl.service.capability.dbanalysis.ResultDatabaseService
@@ -575,6 +578,24 @@ class KslRestService(
         level: Double,
     ): DbQueryResult =
         resultDb.compare(artifactStore.outputDirFor(resultId), responseName, experimentNames, delta, level)
+
+    /** Renders a comparison (MCB) report into the result's artifact dir (Phase C+). */
+    fun dbCompareReport(
+        resultId: String,
+        responseName: String,
+        experimentNames: List<String>?,
+        delta: Double,
+        level: Double,
+        formats: Set<ReportFormat>,
+    ): DbReportResult =
+        resultDb.renderComparisonReport(
+            artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId),
+            responseName, experimentNames, delta, level, formats,
+        )
+
+    /** Exports the result's database into its artifact dir (Phase C+). */
+    fun dbExport(resultId: String, format: DbExportFormat): DbReportResult =
+        resultDb.exportDatabase(artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId), format)
 
     private fun indexFamily(meta: ResultMeta) {
         val identity = meta.identity ?: return

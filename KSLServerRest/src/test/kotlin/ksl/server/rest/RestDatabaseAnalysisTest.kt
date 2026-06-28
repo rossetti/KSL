@@ -30,7 +30,10 @@ import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationJson
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.ReportFormat
+import ksl.service.capability.dbanalysis.DbExportFormat
 import ksl.service.capability.dbanalysis.DbQueryResult
+import ksl.service.capability.dbanalysis.DbReportResult
 import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
 import org.junit.jupiter.api.DisplayName
@@ -86,6 +89,27 @@ class RestDatabaseAnalysisTest {
             assertTrue(compare is DbQueryResult.Json, "compare should yield JSON; got $compare")
             val obj = Json.parseToJsonElement((compare as DbQueryResult.Json).payload).jsonObject
             assertTrue(obj["intervals"]!!.jsonArray.isNotEmpty(), "MCB intervals expected")
+        } finally {
+            close()
+        }
+    }
+
+    @Test
+    @DisplayName("comparison report and database export are produced as artifacts (headless)")
+    fun reportsAndExports() = runBlocking {
+        val (service, close) = freshService()
+        try {
+            val resultId = runToCompletion(service, scenarioDoc(enableDb = true))
+
+            // CSV export — headless-safe (no plots).
+            assertTrue(service.dbExport(resultId, DbExportFormat.CSV) is DbReportResult.Ok)
+            // Comparison report — embedded plots render headless (Swing frontend excluded here).
+            val report = service.dbCompareReport(resultId, "System Time", null, 0.0, 0.95, setOf(ReportFormat.HTML))
+            assertTrue(report is DbReportResult.Ok, "comparison report should render; got $report")
+
+            val names = service.artifacts(resultId).map { it.name }
+            assertTrue(names.any { it.endsWith(".html") }, "expected a comparison report .html; got $names")
+            assertTrue(names.any { it.endsWith(".csv") }, "expected CSV export; got $names")
         } finally {
             close()
         }

@@ -26,9 +26,11 @@ import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.awt.GraphicsEnvironment
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -108,6 +110,46 @@ class ResultDatabaseServiceTest {
         assertTrue(result is DbQueryResult.Invalid, "single experiment must be Invalid; got $result")
         assertTrue((result as DbQueryResult.Invalid).reason.contains("at least 2"),
             "reason should explain the precondition; got: ${result.reason}")
+    }
+
+    @Test
+    @DisplayName("export writes CSV files and an Excel workbook (Phase C+)")
+    fun exportsCsvAndExcel(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline", "alt"))
+        val reportsDir = tempDir.resolve("artifacts")
+
+        val csv = service.exportDatabase(outDir, reportsDir, DbExportFormat.CSV)
+        assertTrue(csv is DbReportResult.Ok && (csv as DbReportResult.Ok).files.any { it.endsWith(".csv") },
+            "CSV export should write .csv files; got $csv")
+
+        val excel = service.exportDatabase(outDir, reportsDir, DbExportFormat.EXCEL)
+        assertTrue(excel is DbReportResult.Ok && (excel as DbReportResult.Ok).files.contains("database.xlsx"),
+            "Excel export should write database.xlsx; got $excel")
+        assertTrue(Files.exists(reportsDir.resolve("database.xlsx")), "the workbook must be on disk")
+    }
+
+    @Test
+    @DisplayName("comparison report renders an HTML artifact with plots (Phase C+)")
+    fun comparisonReportRenders(@TempDir tempDir: Path) {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "embedded plot rendering needs a display on this classpath")
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline", "alt"))
+        val reportsDir = tempDir.resolve("artifacts")
+
+        val result = service.renderComparisonReport(outDir, reportsDir, "System Time")
+        assertTrue(result is DbReportResult.Ok, "expected a rendered report; got $result")
+        val files = (result as DbReportResult.Ok).files
+        assertTrue(files.any { it.endsWith(".html") }, "comparison report should write HTML; got $files")
+    }
+
+    @Test
+    @DisplayName("comparison report on one experiment is gracefully invalid (Phase C+)")
+    fun comparisonReportNeedsTwoExperiments(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("solo"))
+        val result = service.renderComparisonReport(outDir, tempDir.resolve("artifacts"), "System Time")
+        assertTrue(result is DbReportResult.Invalid, "single experiment must be Invalid; got $result")
     }
 
     @Test

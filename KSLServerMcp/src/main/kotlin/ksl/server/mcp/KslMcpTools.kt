@@ -1026,6 +1026,60 @@ class KslMcpTools(
         )
     }
 
+    /** `db_compare_report` — render a comparison (MCB) report (with plots) as an artifact. */
+    fun dbCompareReport(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val response = arguments.string("responseName") ?: return error("missing required argument 'responseName'")
+        val experiments = arguments?.get("experiments")?.let { el ->
+            (el as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }
+        }
+        val delta = arguments?.get("delta")?.jsonPrimitive?.doubleOrNull ?: 0.0
+        val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
+        val formats = (arguments?.get("formats") as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
+            ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
+        val outcome = resultDb.renderComparisonReport(
+            artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId),
+            response, experiments, delta, level, formats,
+        )
+        return dbReportResult(outcome, resultId)
+    }
+
+    /** `db_export` — export the result's database tables (CSV per table, or one Excel workbook). */
+    fun dbExport(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val formatName = arguments.string("format") ?: "CSV"
+        val format = ksl.service.capability.dbanalysis.DbExportFormat.entries
+            .firstOrNull { it.name.equals(formatName, ignoreCase = true) }
+            ?: return error("format must be CSV or EXCEL")
+        val outcome = resultDb.exportDatabase(artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId), format)
+        return dbReportResult(outcome, resultId)
+    }
+
+    /** Maps a file-producing [ksl.service.capability.dbanalysis.DbReportResult] to a
+     *  tool result: on success the result's artifact list, else a guidance result. */
+    private fun dbReportResult(outcome: ksl.service.capability.dbanalysis.DbReportResult, resultId: String): CallToolResult =
+        when (outcome) {
+            ksl.service.capability.dbanalysis.DbReportResult.NoDatabase ->
+                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+            is ksl.service.capability.dbanalysis.DbReportResult.Invalid ->
+                result(outcome.reason, buildJsonObject { put("analyzable", false); put("reason", outcome.reason) })
+            is ksl.service.capability.dbanalysis.DbReportResult.Ok -> {
+                val refs = artifactStore.list(resultId)
+                val structured = buildJsonObject {
+                    putJsonArray("artifacts") {
+                        refs.forEach { add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) }) }
+                    }
+                }
+                result(
+                    "Wrote ${outcome.files.size} file(s): ${outcome.files.joinToString(", ")}. " +
+                        "${refs.size} artifact(s) now downloadable via get_artifact.",
+                    structured,
+                )
+            }
+        }
+
     /** Maps a [ksl.service.capability.dbanalysis.DbQueryResult] to a tool result:
      *  JSON in structuredContent on success, or a non-error guidance result when
      *  there is no database / the request is not analyzable. */

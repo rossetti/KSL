@@ -46,6 +46,17 @@ data class DbStatusDto(
     val message: String,
 )
 
+/** A file-producing database operation (rendered report, data export). Like
+ *  [DbQueryResult] but yields artifact file names rather than a JSON payload. */
+sealed interface DbReportResult {
+    data object NoDatabase : DbReportResult
+    data class Invalid(val reason: String) : DbReportResult
+    data class Ok(val files: List<String>) : DbReportResult
+}
+
+/** Database export target. CSV writes one file per table; EXCEL writes a single workbook. */
+enum class DbExportFormat { CSV, EXCEL }
+
 /** The guidance shown when a result has no database to analyze. */
 const val NO_DATABASE_MESSAGE: String =
     "No database found for this result. Re-run the model with the database option " +

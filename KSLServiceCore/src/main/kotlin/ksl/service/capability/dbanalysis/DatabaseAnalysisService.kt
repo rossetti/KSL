@@ -26,6 +26,8 @@ import kotlinx.serialization.json.put
 import ksl.app.comparison.AnalysisType
 import ksl.app.comparison.ComparisonDataSourceIfc
 import ksl.app.comparison.ComparisonSelectionModel
+import ksl.app.config.ReportFormat
+import ksl.app.results.comparison.ComparisonReportRenderer
 import ksl.app.comparison.ExperimentRow
 import ksl.app.comparison.KSLDatabaseComparisonSource
 import ksl.app.comparison.ResponseRow
@@ -189,6 +191,74 @@ class DatabaseAnalysisService : AutoCloseable {
             put("screening", json.parseToJsonElement(screening))
         }
         return DbQueryResult.Json(json.encodeToString(JsonObject.serializer(), payload))
+    }
+
+    // ----- file-producing operations (rendered reports, exports) — Phase C+ -----
+
+    /**
+     * Renders a Multiple-Comparison report for [responseName] (MCB intervals plus
+     * embedded confidence-interval and box plots) into [reportsDir], reusing
+     * `ComparisonReportRenderer`. Preconditions are validated through
+     * `ComparisonSelectionModel`, so an unanalyzable request returns
+     * [DbReportResult.Invalid]. Returns the written file names on success.
+     */
+    fun renderComparisonReport(
+        handle: DbHandle,
+        responseName: String,
+        experimentNames: List<String>? = null,
+        delta: Double = 0.0,
+        level: Double = 0.95,
+        formats: Set<ReportFormat> = setOf(ReportFormat.HTML),
+        reportsDir: Path,
+    ): DbReportResult {
+        val selection = ComparisonSelectionModel(listOf(handle.source))
+        if (experimentNames == null) selection.selectAll()
+        else experimentNames.forEach { selection.toggleExperiment(it, true) }
+
+        val validation = selection.validateForResponse(responseName, AnalysisType.MULTIPLE_COMPARISON)
+        if (!validation.ok) return DbReportResult.Invalid(validation.reason ?: "Comparison request is not analyzable.")
+
+        Files.createDirectories(reportsDir)
+        val outcome = ComparisonReportRenderer.renderMca(
+            sourceLabel = handle.label,
+            responseName = responseName,
+            observations = selection.gatherObservationsFor(responseName),
+            outputDir = reportsDir,
+            formats = formats,
+            indifferenceZone = delta,
+            altConfidenceLevel = level,
+            diffConfidenceLevel = level,
+            probCorrectSelection = level,
+            showAltCIPlot = true,
+            showBoxPlot = true,
+        )
+        return DbReportResult.Ok(outcome.written.map { it.fileName.toString() })
+    }
+
+    /**
+     * Exports the database's tables into [reportsDir] (a single workbook for
+     * [DbExportFormat.EXCEL]; one CSV per table under a `csv/` subdir for
+     * [DbExportFormat.CSV]), reusing the `DatabaseIOIfc` exporters. Returns the
+     * written file names (relative to [reportsDir]).
+     */
+    fun exportDatabase(handle: DbHandle, format: DbExportFormat, reportsDir: Path): List<String> {
+        Files.createDirectories(reportsDir)
+        return when (format) {
+            DbExportFormat.EXCEL -> {
+                handle.database.exportToExcel(wbName = "database", wbDirectory = reportsDir)
+                listOf("database.xlsx")
+            }
+            DbExportFormat.CSV -> {
+                val csvDir = Files.createDirectories(reportsDir.resolve("csv"))
+                handle.database.exportAllTablesAsCSV(pathToOutPutDirectory = csvDir)
+                Files.walk(csvDir).use { stream ->
+                    stream.filter { Files.isRegularFile(it) }
+                        .map { reportsDir.relativize(it).toString().replace('\\', '/') }
+                        .sorted()
+                        .toList()
+                }
+            }
+        }
     }
 
     /** Releases a handle. Best-effort closes the underlying connection if closeable. */

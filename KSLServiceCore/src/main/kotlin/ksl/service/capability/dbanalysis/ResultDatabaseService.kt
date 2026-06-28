@@ -84,6 +84,29 @@ class ResultDatabaseService(
         return withDatabase(db) { analysis.comparisonJson(it, responseName, experimentNames, delta, level) }
     }
 
+    /** Renders a comparison (MCB) report into [reportsDir], or a graceful result
+     *  when there is no database / the request is not analyzable. */
+    fun renderComparisonReport(
+        outputDir: Path,
+        reportsDir: Path,
+        responseName: String,
+        experimentNames: List<String>? = null,
+        delta: Double = 0.0,
+        level: Double = 0.95,
+        formats: Set<ksl.app.config.ReportFormat> = setOf(ksl.app.config.ReportFormat.HTML),
+    ): DbReportResult {
+        val db = locate(outputDir) ?: return DbReportResult.NoDatabase
+        return withDatabase(db) {
+            analysis.renderComparisonReport(it, responseName, experimentNames, delta, level, formats, reportsDir)
+        }
+    }
+
+    /** Exports the result's database into [reportsDir], or [DbReportResult.NoDatabase]. */
+    fun exportDatabase(outputDir: Path, reportsDir: Path, format: DbExportFormat): DbReportResult {
+        val db = locate(outputDir) ?: return DbReportResult.NoDatabase
+        return withDatabase(db) { DbReportResult.Ok(analysis.exportDatabase(it, format, reportsDir)) }
+    }
+
     private fun <T> withDatabase(db: Path, block: (DbHandle) -> T): T {
         val handle = analysis.open(db)
         try {
