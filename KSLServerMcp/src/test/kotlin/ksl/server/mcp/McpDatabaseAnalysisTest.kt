@@ -110,6 +110,12 @@ class McpDatabaseAnalysisTest {
         }).structuredContent!!.jsonObject["artifacts"]!!.jsonArray
             .map { it.jsonObject["name"]!!.jsonPrimitive.content }
         assertTrue(reported.any { it.endsWith(".html") }, "comparison report html expected; got $reported")
+
+        val summarized = tools.dbSummaryReport(buildJsonObject {
+            put("resultId", resultId); put("experimentName", "baseline")
+        }).structuredContent!!.jsonObject["artifacts"]!!.jsonArray
+            .map { it.jsonObject["name"]!!.jsonPrimitive.content }
+        assertTrue(summarized.any { it.contains("summary") && it.endsWith(".html") }, "summary report expected; got $summarized")
     }
 
     @Test

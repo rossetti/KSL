@@ -101,6 +101,22 @@ class ResultDatabaseService(
         }
     }
 
+    /** Renders a single-experiment summary report into [reportsDir], or
+     *  [DbReportResult.NoDatabase] when the result has no database. */
+    fun renderExperimentSummaryReport(
+        outputDir: Path,
+        reportsDir: Path,
+        experimentName: String,
+        level: Double = 0.95,
+        showPlots: Boolean = true,
+        formats: Set<ksl.app.config.ReportFormat> = setOf(ksl.app.config.ReportFormat.HTML),
+    ): DbReportResult {
+        val db = locate(outputDir) ?: return DbReportResult.NoDatabase
+        return withDatabase(db) {
+            DbReportResult.Ok(analysis.renderExperimentSummaryReport(it, experimentName, level, showPlots, formats, reportsDir))
+        }
+    }
+
     /** Exports the result's database into [reportsDir], or [DbReportResult.NoDatabase]. */
     fun exportDatabase(outputDir: Path, reportsDir: Path, format: DbExportFormat): DbReportResult {
         val db = locate(outputDir) ?: return DbReportResult.NoDatabase

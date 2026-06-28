@@ -1057,6 +1057,23 @@ class KslMcpTools(
         return dbReportResult(outcome, resultId)
     }
 
+    /** `db_summary_report` — render a single-experiment summary report (stats + histograms/frequencies) as an artifact. */
+    fun dbSummaryReport(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val experiment = arguments.string("experimentName") ?: return error("missing required argument 'experimentName'")
+        val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
+        val showPlots = arguments.string("showPlots")?.toBooleanStrictOrNull() ?: true
+        val formats = (arguments?.get("formats") as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
+            ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
+        val outcome = resultDb.renderExperimentSummaryReport(
+            artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId),
+            experiment, level, showPlots, formats,
+        )
+        return dbReportResult(outcome, resultId)
+    }
+
     /** Maps a file-producing [ksl.service.capability.dbanalysis.DbReportResult] to a
      *  tool result: on success the result's artifact list, else a guidance result. */
     private fun dbReportResult(outcome: ksl.service.capability.dbanalysis.DbReportResult, resultId: String): CallToolResult =

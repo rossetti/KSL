@@ -597,6 +597,19 @@ class KslRestService(
     fun dbExport(resultId: String, format: DbExportFormat): DbReportResult =
         resultDb.exportDatabase(artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId), format)
 
+    /** Renders a single-experiment summary report into the result's artifact dir (Phase C+). */
+    fun dbSummaryReport(
+        resultId: String,
+        experimentName: String,
+        level: Double,
+        showPlots: Boolean,
+        formats: Set<ReportFormat>,
+    ): DbReportResult =
+        resultDb.renderExperimentSummaryReport(
+            artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId),
+            experimentName, level, showPlots, formats,
+        )
+
     private fun indexFamily(meta: ResultMeta) {
         val identity = meta.identity ?: return
         val replications = meta.replications ?: return

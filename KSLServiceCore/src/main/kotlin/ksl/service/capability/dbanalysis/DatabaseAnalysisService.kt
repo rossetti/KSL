@@ -34,6 +34,11 @@ import ksl.app.comparison.ResponseRow
 import ksl.utilities.io.dbutil.DerbyDb
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SQLiteDb
+import ksl.utilities.io.report.extensions.toReport
+import ksl.utilities.io.report.renderer.RenderContext
+import ksl.utilities.io.report.writeHtml
+import ksl.utilities.io.report.writeMarkdown
+import ksl.utilities.io.report.writeText
 import ksl.utilities.statistic.MCBIntervalData
 import ksl.utilities.statistic.MCBScreeningIntervalData
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
@@ -233,6 +238,42 @@ class DatabaseAnalysisService : AutoCloseable {
             showBoxPlot = true,
         )
         return DbReportResult.Ok(outcome.written.map { it.fileName.toString() })
+    }
+
+    /**
+     * Renders a single-experiment summary report (across-replication statistics
+     * plus embedded histograms / frequency distributions, optional plots) for
+     * [experimentName] into [reportsDir], reusing `KSLDatabase.toReport`. Returns
+     * the written file names; an unknown experiment still produces a report noting
+     * the absence (never an error).
+     */
+    fun renderExperimentSummaryReport(
+        handle: DbHandle,
+        experimentName: String,
+        level: Double = 0.95,
+        showPlots: Boolean = true,
+        formats: Set<ReportFormat> = setOf(ReportFormat.HTML),
+        reportsDir: Path,
+    ): List<String> {
+        Files.createDirectories(reportsDir)
+        val document = handle.database.toReport(experimentName, confidenceLevel = level, showPlots = showPlots)
+        val ctx = RenderContext(outputDir = reportsDir, plotDir = reportsDir.resolve("plots"))
+        val stem = "summary-" + experimentName.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        return formats.map { fmt ->
+            val target = reportsDir.resolve("$stem.${fmt.extension()}")
+            val file = when (fmt) {
+                ReportFormat.HTML -> document.writeHtml(path = target, ctx = ctx)
+                ReportFormat.MARKDOWN -> document.writeMarkdown(path = target, ctx = ctx)
+                ReportFormat.TEXT -> document.writeText(path = target, ctx = ctx)
+            }
+            reportsDir.relativize(file.toPath()).toString().replace('\\', '/')
+        }
+    }
+
+    private fun ReportFormat.extension(): String = when (this) {
+        ReportFormat.HTML -> "html"
+        ReportFormat.MARKDOWN -> "md"
+        ReportFormat.TEXT -> "txt"
     }
 
     /**

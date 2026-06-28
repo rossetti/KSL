@@ -567,6 +567,25 @@ object KslMcpServer {
         ) { request -> tools.dbExport(request.arguments) }
 
         server.addTool(
+            name = "db_summary_report",
+            description = "Render a single-experiment summary report — across-replication statistics plus " +
+                "embedded histograms and frequency distributions — as a downloadable artifact " +
+                "(structuredContent {artifacts:[...]}; fetch with get_artifact). Optional 'level', 'showPlots', " +
+                "'formats' (HTML default).",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("experimentName") { put("type", "string") }
+                    putJsonObject("level") { put("type", "number") }
+                    putJsonObject("showPlots") { put("type", "boolean") }
+                    putJsonObject("formats") { put("type", "array"); putJsonObject("items") { put("type", "string") } }
+                },
+                required = listOf("resultId", "experimentName"),
+            ),
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.dbSummaryReport(request.arguments) }
+
+        server.addTool(
             name = "get_design_point",
             description = "Get one scenario/design-point result from a retained batch result, by index. " +
                 "Returns structuredContent with the design point (its factor settings and per-response " +

@@ -71,6 +71,14 @@ data class CompareRequest(
 @Serializable
 data class ExportRequest(val format: String = "CSV")
 
+/** Body of `POST /results/{id}/database/experiments/{exp}/report` — all optional. */
+@Serializable
+data class SummaryReportRequest(
+    val level: Double? = null,
+    val showPlots: Boolean? = null,
+    val formats: List<String>? = null,
+)
+
 /** Maps a [DbQueryResult] onto the HTTP response: JSON body, a 404 with guidance
  *  when there is no database, or a 422 with the precondition explanation. */
 private suspend fun respondDbJson(call: ApplicationCall, result: DbQueryResult) {
@@ -494,6 +502,16 @@ fun Application.kslRestModule(
             val format = DbExportFormat.entries.firstOrNull { it.name.equals(req.format, ignoreCase = true) }
                 ?: return@post call.respond(HttpStatusCode.BadRequest, StatusResponse("format must be CSV or EXCEL"))
             respondDbReport(call, service, id, service.dbExport(id, format))
+        }
+
+        post("/results/{resultId}/database/experiments/{exp}/report") {
+            val id = call.parameters["resultId"]!!
+            val exp = call.parameters["exp"]!!
+            val req = runCatching { call.receive<SummaryReportRequest>() }.getOrElse { SummaryReportRequest() }
+            respondDbReport(
+                call, service, id,
+                service.dbSummaryReport(id, exp, req.level ?: 0.95, req.showPlots ?: true, parseReportFormats(req.formats)),
+            )
         }
 
         // ----- document-centric submission (the full-fidelity path) -----

@@ -144,6 +144,18 @@ class ResultDatabaseServiceTest {
     }
 
     @Test
+    @DisplayName("experiment summary report renders an HTML artifact (Phase C+)")
+    fun summaryReportRenders(@TempDir tempDir: Path) {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "embedded plot rendering needs a display on this classpath")
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline"))
+
+        val result = service.renderExperimentSummaryReport(outDir, tempDir.resolve("artifacts"), "baseline")
+        assertTrue(result is DbReportResult.Ok, "expected a rendered report; got $result")
+        assertTrue((result as DbReportResult.Ok).files.any { it.endsWith(".html") }, "summary report HTML expected; got ${result.files}")
+    }
+
+    @Test
     @DisplayName("comparison report on one experiment is gracefully invalid (Phase C+)")
     fun comparisonReportNeedsTwoExperiments(@TempDir tempDir: Path) {
         val outDir = tempDir.resolve("output")

@@ -106,10 +106,14 @@ class RestDatabaseAnalysisTest {
             // Comparison report — embedded plots render headless (Swing frontend excluded here).
             val report = service.dbCompareReport(resultId, "System Time", null, 0.0, 0.95, setOf(ReportFormat.HTML))
             assertTrue(report is DbReportResult.Ok, "comparison report should render; got $report")
+            // Single-experiment summary report — also renders headless.
+            val summary = service.dbSummaryReport(resultId, "baseline", 0.95, true, setOf(ReportFormat.HTML))
+            assertTrue(summary is DbReportResult.Ok, "summary report should render; got $summary")
 
             val names = service.artifacts(resultId).map { it.name }
-            assertTrue(names.any { it.endsWith(".html") }, "expected a comparison report .html; got $names")
             assertTrue(names.any { it.endsWith(".csv") }, "expected CSV export; got $names")
+            assertTrue(names.any { it.endsWith(".html") }, "expected report .html files; got $names")
+            assertTrue(names.any { it.contains("summary") && it.endsWith(".html") }, "expected a summary report; got $names")
         } finally {
             close()
         }
