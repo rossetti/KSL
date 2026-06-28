@@ -1775,10 +1775,10 @@ interface DatabaseIfc : DatabaseIOIfc {
             val sr = StringReader(str) // wrap your String
             val reader = BufferedReader(sr) // wrap your StringReader
             var cmd = StringBuilder()
-            var line: String
+            var line: String?
             while (reader.readLine().also { line = it } != null) {
                 //boolean end = parseCommandString(line, cmd);
-                val option = parseLine(line, cmd)
+                val option = parseLine(line!!, cmd)
                 if (option == LineOption.END) {
                     queries.add(cmd.toString().trim { it <= ' ' })
                     cmd = StringBuilder()

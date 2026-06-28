@@ -32,10 +32,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.statistic.*
 import ksl.utilities.toPrimitives
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.*
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
@@ -1583,46 +1580,45 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         @JvmStatic
         val dbDir: Path = KSL.dbDir
 
+        /**
+         * Formerly the working-directory location that KSL schema-creation scripts
+         * were copied into (from their classpath resources) so they could be executed
+         * as files. Schema scripts are now executed directly from their classpath
+         * resources (see `executeSchemaResource`), so this directory is no longer
+         * created or used and may not exist.
+         */
+        @Deprecated(
+            "KSL schema scripts are executed directly from classpath resources; " +
+                "this directory is no longer used and may not exist."
+        )
         @JvmStatic
-        val dbScriptsDir: Path = KSL.createSubDirectory("dbScript")
+        val dbScriptsDir: Path
+            get() = KSL.outDir.resolve("dbScript")
 
-        init {
-            try {
-                val classLoader = this::class.java.classLoader
-                val dbCreate = classLoader.getResourceAsStream("KSL_Db.sql")
-                val dbDrop = classLoader.getResourceAsStream("KSL_DbDropScript.sql")
-                val dbSQLiteCreate = classLoader.getResourceAsStream("KSL_SQLite.sql")
-//                val dbDuckDbCreate = classLoader.getResourceAsStream("KSL_DuckDb.sql")
-                if (dbCreate != null) {
-                    Files.copy(
-                        dbCreate, dbScriptsDir.resolve("KSL_Db.sql"),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
-                    DatabaseIfc.logger.trace { "Copied KSL_Db.sql to $dbScriptsDir" }
-                }
-                if (dbDrop != null) {
-                    Files.copy(
-                        dbDrop, dbScriptsDir.resolve("KSL_DbDropScript.sql"),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
-                    DatabaseIfc.logger.trace { "Copied KSL_DbDropScript.sql to $dbScriptsDir" }
-                }
-                if (dbSQLiteCreate != null) {
-                    Files.copy(
-                        dbSQLiteCreate, dbScriptsDir.resolve("KSL_SQLite.sql"),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
-                    DatabaseIfc.logger.trace { "Copied KSL_SQLite.sql to $dbScriptsDir" }
-                }
-//                if (dbDuckDbCreate != null) {
-//                    Files.copy(
-//                        dbDuckDbCreate, dbScriptsDir.resolve("KSL_DuckDb.sql"),
-//                        StandardCopyOption.REPLACE_EXISTING
-//                    )
-//                    DatabaseIfc.logger.trace { "Copied KSL_DuckDb.sql to $dbScriptsDir" }
-//                }
-            } catch (e: IOException) {
-                e.printStackTrace()
+        /**
+         * Loads the KSL schema-creation script named [resourceName] from the classpath
+         * and executes it against [db]. The script is read straight from the resource
+         * stream and parsed exactly as the file-based path parses a script file (via
+         * `DatabaseIfc.parseQueriesInString`), so embedded-database creation does not
+         * depend on copying the script to a working-directory file — and thus on the
+         * launch directory being writable. This makes creation behave identically in
+         * IDE runs, tests, and packaged or headless servers.
+         *
+         * @param db the database to execute the schema script against
+         * @param resourceName the classpath resource name of the SQL creation script
+         * @throws DataAccessException if the resource is missing on the classpath or
+         *   the script does not fully execute
+         */
+        private fun executeSchemaResource(db: Database, resourceName: String) {
+            val script = this::class.java.classLoader.getResourceAsStream(resourceName)
+                ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                ?: throw DataAccessException(
+                    "Required KSL schema resource '$resourceName' was not found on the classpath"
+                )
+            val executed = db.executeCommands(DatabaseIfc.parseQueriesInString(script))
+            if (!executed) {
+                DatabaseIfc.logger.error { "Unable to execute the KSL schema resource '$resourceName'" }
+                throw DataAccessException("The schema resource '$resourceName' did not fully execute")
             }
         }
 
@@ -1637,12 +1633,8 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             DatabaseIfc.logger.info { "Create SQLite Database for KSLDatabase: $dbName at path $dbDirectory" }
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
-            val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
             // database.defaultSchemaName = "main"
-            if (!executed) {
-                DatabaseIfc.logger.error { "Unable to execute KSL_SQLite.sql creation script" }
-                throw DataAccessException("The execution script KSL_SQLite.sql did not fully execute")
-            }
+            executeSchemaResource(database, "KSL_SQLite.sql")
             return database
         }
 
@@ -1705,18 +1697,9 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         fun executeKSLDbCreationScriptOnDatabase(db: Database) {
             if (!db.containsSchema(SCHEMA_NAME)) {
                 DatabaseIfc.logger.warn { "The database ${db.label} does not contain schema $SCHEMA_NAME" }
-                try {
-                    DatabaseIfc.logger.warn { "Assume the schema has not be made and execute the creation script KSL_Db.sql" }
-                    val executed = db.executeScript(dbScriptsDir.resolve("KSL_Db.sql"))
-                    if (!executed) {
-                        throw DataAccessException("The execution script KSL_Db.sql did not fully execute")
-                    } else {
-                        DatabaseIfc.logger.info { "Executed the creation script KSL_Db.sql for ${db.label}" }
-                    }
-                } catch (e: IOException) {
-                    DatabaseIfc.logger.error { "Unable to execute KSL_Db.sql creation script" }
-                    throw DataAccessException("Unable to execute KSL_Db.sql creation script")
-                }
+                DatabaseIfc.logger.warn { "Assume the schema has not been made and execute the creation script KSL_Db.sql" }
+                executeSchemaResource(db, "KSL_Db.sql")
+                DatabaseIfc.logger.info { "Executed the creation script KSL_Db.sql for ${db.label}" }
             }
         }
 
