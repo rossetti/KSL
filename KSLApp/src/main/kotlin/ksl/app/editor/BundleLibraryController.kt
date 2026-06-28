@@ -248,8 +248,8 @@ class BundleLibraryController(
         val fresh = outcome.loaded
         if (fresh.isEmpty()) {
             // Not a bundle (no manifest) or an incomplete bundle (missing in-JAR
-            // descriptors); surface the actionable reason pointing to (re)assembly.
-            return outcome.rejected.firstOrNull()?.let { LoadBundleResult.Failed(it.reason) }
+            // descriptors) — a user-correctable refusal, surfaced as a warning.
+            return outcome.rejected.firstOrNull()?.let { LoadBundleResult.Rejected(it.reason) }
                 ?: LoadBundleResult.NoBundles
         }
 
@@ -371,6 +371,10 @@ class BundleLibraryController(
      *  - [NoBundles] — the JAR declares no `KSLModelBundle` service.
      *  - [Failed] — the load attempt threw.  [Failed.reason] is
      *    suitable for surfacing to the user.
+     *  - [Rejected] — the JAR was refused for consumption: not a KSL bundle
+     *    (no `bundle.toml` manifest), or an incomplete bundle (missing embedded
+     *    descriptors).  A normal, user-correctable outcome — surface it as a
+     *    **warning**, not an error.  [Rejected.reason] points to the bundling step.
      */
     sealed class LoadBundleResult {
         data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
@@ -378,5 +382,6 @@ class BundleLibraryController(
         data class AlreadyLoaded(val bundleIds: List<String>) : LoadBundleResult()
         object NoBundles : LoadBundleResult()
         data class Failed(val reason: String) : LoadBundleResult()
+        data class Rejected(val reason: String) : LoadBundleResult()
     }
 }

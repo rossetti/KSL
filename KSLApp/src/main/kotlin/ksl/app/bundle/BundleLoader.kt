@@ -144,7 +144,14 @@ object BundleLoader {
         val rejected = mutableListOf<RejectedJar>()
         Files.newDirectoryStream(dir, "*.jar").use { stream ->
             for (jar in stream.sorted()) {
-                val outcome = loadForConsumption(jar, parent)
+                // One unreadable/bad jar must not break directory discovery, so the
+                // read exception is caught here and recorded as a rejection.
+                val outcome = try {
+                    loadForConsumption(jar, parent)
+                } catch (e: Exception) {
+                    logger.warn(e) { "Failed to load bundle JAR $jar: ${e.message}" }
+                    LoadOutcome(emptyList(), listOf(RejectedJar(jar, "failed to load: ${e.message}")))
+                }
                 loaded += outcome.loaded
                 rejected += outcome.rejected
             }
@@ -154,18 +161,14 @@ object BundleLoader {
 
     /**
      * Loads `jarPath` for runtime consumption, enforcing the "complete bundle"
-     * contract: a JAR with no `bundle.toml` is rejected as not-a-bundle, a manifest
-     * bundle missing any in-JAR descriptor is rejected as incomplete (and its
-     * classloader closed), and a load failure is rejected with its message. Only
-     * complete bundles appear in [LoadOutcome.loaded].
+     * contract: a JAR with no `bundle.toml` is rejected as not-a-bundle, and a
+     * manifest bundle missing any in-JAR descriptor is rejected as incomplete (and
+     * its classloader closed). Only complete bundles appear in [LoadOutcome.loaded].
+     * Throws if the JAR cannot be read (e.g. it does not exist) — a genuine load
+     * error, distinct from a refusal; [loadDirectory] catches that per jar.
      */
     fun loadForConsumption(jarPath: Path, parent: ClassLoader = defaultParent()): LoadOutcome {
-        val bundles = try {
-            loadJar(jarPath, parent)
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to load bundle JAR $jarPath: ${e.message}" }
-            return LoadOutcome(emptyList(), listOf(RejectedJar(jarPath, "failed to load: ${e.message}")))
-        }
+        val bundles = loadJar(jarPath, parent)
         if (bundles.isEmpty()) {
             return LoadOutcome(emptyList(), listOf(RejectedJar(jarPath, notABundleReason)))
         }
