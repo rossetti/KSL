@@ -248,12 +248,29 @@ class KslMcpTools(
     /** A config-document scaffold result: the raw document as text (to edit and submit) plus
      *  the same parsed into `structuredContent` for typed access. */
     private fun documentResult(documentType: String, encoded: String): CallToolResult {
-        val parsed = runCatching { json.parseToJsonElement(encoded) }.getOrNull()
+        val parsed = runCatching { json.parseToJsonElement(encoded) }.getOrNull()?.let(::sanitizeNonFinite)
         val structured = buildJsonObject {
             put("documentType", documentType)
             if (parsed is JsonObject) put("document", parsed)
         }
         return result(encoded, structured)
+    }
+
+    /**
+     * JSON — and the MCP transport's response serializer — cannot represent the
+     * non-finite doubles (±Infinity, NaN) that a model's unbounded `ControlData`
+     * bounds carry (a control with no upper limit reports `upperBound = +∞`).
+     * Left in `structuredContent`, such a value makes the SDK's stricter
+     * serializer throw while writing the reply, so no response is ever sent and
+     * the call hangs. Map every non-finite numeric primitive to null — the same
+     * "±∞ → null" convention the database-analysis path uses — so the structured
+     * payload is always wire-serializable.
+     */
+    private fun sanitizeNonFinite(element: JsonElement): JsonElement = when (element) {
+        is JsonObject -> JsonObject(element.mapValues { sanitizeNonFinite(it.value) })
+        is JsonArray -> JsonArray(element.map(::sanitizeNonFinite))
+        is JsonPrimitive ->
+            if (!element.isString && element.doubleOrNull?.isFinite() == false) JsonNull else element
     }
 
     /**

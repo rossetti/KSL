@@ -39,6 +39,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import ksl.service.capability.run.BundleRegistry
+import org.junit.jupiter.api.DisplayName
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -90,6 +91,31 @@ class KslMcpToolsTest {
     /** The structured-output payload of an execution-result tool (run/fit/experiment/optimization). */
     private fun structured(result: io.modelcontextprotocol.kotlin.sdk.types.CallToolResult): JsonObject =
         result.structuredContent!!.jsonObject
+
+    /** True when no numeric primitive anywhere in [element] is non-finite — the condition the
+     *  MCP transport's strict JSON serializer requires (it rejects ±Infinity / NaN). */
+    private fun isWireSafe(element: JsonElement): Boolean = when (element) {
+        is JsonObject -> element.values.all(::isWireSafe)
+        is JsonArray -> element.all(::isWireSafe)
+        is JsonPrimitive -> element.isString || element.doubleOrNull?.isFinite() != false
+    }
+
+    @Test
+    @DisplayName("run_template structuredContent carries no non-finite numbers (unbounded control bounds → null)")
+    fun runTemplateStructuredContentIsWireSafe() {
+        // MM1's numServers control is unbounded: @KSLControl defaults upperBound to +Infinity.
+        // Left in structuredContent, that Infinity makes the MCP transport's strict JSON
+        // serializer throw while writing the reply, so no response is sent and the call hangs.
+        // The fix maps non-finite bounds to null; assert none survive into the structured payload.
+        val template = tools.runTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+        assertEquals(false, template.isError ?: false, firstText(template))
+        val structuredContent = template.structuredContent!!.jsonObject
+        assertTrue("document" in structuredContent, "run_template must return the parsed document in structuredContent")
+        assertTrue(
+            isWireSafe(structuredContent),
+            "structuredContent must contain no ±Infinity/NaN (the MCP transport serializer rejects them): $structuredContent",
+        )
+    }
 
     @Test
     fun `list_bundles surfaces the MM1 example bundle`() {
