@@ -794,7 +794,7 @@ class ExperimentAppFrame(
             BundleLibraryController.LoadBundleResult.NoBundles ->
                 notifications.warn("$path declares no KSLModelBundle service.")
             is BundleLibraryController.LoadBundleResult.Rejected ->
-                notifications.warn("Could not load $path: ${outcome.reason}")
+                notifications.info("Could not load $path: ${outcome.reason}")
             is BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }

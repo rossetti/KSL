@@ -553,7 +553,7 @@ class SingleAppFrame(
             ksl.app.editor.BundleLibraryController.LoadBundleResult.NoBundles ->
                 notifications.warn("$path declares no KSLModelBundle service.")
             is ksl.app.editor.BundleLibraryController.LoadBundleResult.Rejected ->
-                notifications.warn("Could not load $path: ${outcome.reason}")
+                notifications.info("Could not load $path: ${outcome.reason}")
             is ksl.app.editor.BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }

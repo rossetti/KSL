@@ -361,7 +361,7 @@ class SimoptAppFrame(
                     "${path.fileName} declares no KSLModelBundle SPI entries."
                 )
             is BundleLibraryController.LoadBundleResult.Rejected ->
-                notifications.warn(
+                notifications.info(
                     "Could not load ${path.fileName}: ${result.reason}"
                 )
             is BundleLibraryController.LoadBundleResult.Failed ->

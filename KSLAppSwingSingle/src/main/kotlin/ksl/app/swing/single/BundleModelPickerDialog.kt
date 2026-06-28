@@ -258,7 +258,7 @@ private class PickerDialog(
             BundleLibraryController.LoadBundleResult.NoBundles ->
                 showBannerError("$path declares no KSLModelBundle service.")
             is BundleLibraryController.LoadBundleResult.Rejected ->
-                showBannerError("Could not load $path: ${outcome.reason}")
+                showBannerInfo("Could not load $path: ${outcome.reason}")
             is BundleLibraryController.LoadBundleResult.Failed ->
                 showBannerError("Could not load $path: ${outcome.reason}")
         }
