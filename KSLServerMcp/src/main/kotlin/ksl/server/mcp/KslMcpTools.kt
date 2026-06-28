@@ -1026,6 +1026,24 @@ class KslMcpTools(
         )
     }
 
+    /** `db_views` — the statistical DataFrame views available for a result's database. */
+    fun dbViews(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val names = resultDb.viewNames(artifactStore.outputDirFor(resultId))
+            ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+        val structured = buildJsonObject { putJsonArray("views") { names.forEach { add(it) } } }
+        return result("${names.size} view(s): ${names.joinToString(", ")}", structured)
+    }
+
+    /** `db_view` — one named statistical view as a JSON envelope ({view,total,returned,truncated,rows}). */
+    fun dbView(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val view = arguments.string("view") ?: return error("missing required argument 'view'")
+        val experiment = arguments.string("experiment")
+        val limit = arguments.string("limit")?.toIntOrNull() ?: ksl.service.capability.dbanalysis.DEFAULT_VIEW_ROW_LIMIT
+        return dbJsonResult(resultDb.viewJson(artifactStore.outputDirFor(resultId), view, experiment, limit), "view")
+    }
+
     /** `db_compare_report` — render a comparison (MCB) report (with plots) as an artifact. */
     fun dbCompareReport(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")

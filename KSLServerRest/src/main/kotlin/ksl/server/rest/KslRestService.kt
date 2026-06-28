@@ -66,6 +66,7 @@ import ksl.service.capability.run.ResultKeys
 import ksl.service.capability.run.RunService
 import ksl.app.config.OutputConfig
 import ksl.app.config.ReportFormat
+import ksl.service.capability.dbanalysis.DEFAULT_VIEW_ROW_LIMIT
 import ksl.service.capability.dbanalysis.DbExportFormat
 import ksl.service.capability.dbanalysis.DbQueryResult
 import ksl.service.capability.dbanalysis.DbReportResult
@@ -596,6 +597,13 @@ class KslRestService(
     /** Exports the result's database into its artifact dir (Phase C+). */
     fun dbExport(resultId: String, format: DbExportFormat): DbReportResult =
         resultDb.exportDatabase(artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId), format)
+
+    /** The statistical-view names available for the result's database, or null when there is none. */
+    fun dbViewNames(resultId: String): List<String>? = resultDb.viewNames(artifactStore.outputDirFor(resultId))
+
+    /** A named statistical view as a JSON envelope (Phase C+). */
+    fun dbView(resultId: String, viewName: String, experiment: String?, limit: Int?): DbQueryResult =
+        resultDb.viewJson(artifactStore.outputDirFor(resultId), viewName, experiment, limit ?: DEFAULT_VIEW_ROW_LIMIT)
 
     /** Renders a single-experiment summary report into the result's artifact dir (Phase C+). */
     fun dbSummaryReport(

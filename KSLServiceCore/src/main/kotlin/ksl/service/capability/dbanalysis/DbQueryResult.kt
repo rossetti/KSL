@@ -61,3 +61,6 @@ enum class DbExportFormat { CSV, EXCEL }
 const val NO_DATABASE_MESSAGE: String =
     "No database found for this result. Re-run the model with the database option " +
         "enabled (set enableKSLDatabase in the run's OutputConfig; SQLite is the default)."
+
+/** Default row cap for a statistical-view JSON projection; truncation is reported in the envelope. */
+const val DEFAULT_VIEW_ROW_LIMIT: Int = 10_000

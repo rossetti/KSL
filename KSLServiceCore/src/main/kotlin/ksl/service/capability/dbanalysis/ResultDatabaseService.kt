@@ -71,6 +71,23 @@ class ResultDatabaseService(
         return withDatabase(db) { DbQueryResult.Json(analysis.acrossReplicationSummaryJson(it, experimentName)) }
     }
 
+    /** The named statistical views available, or null when the result has no database. */
+    fun viewNames(outputDir: Path): List<String>? {
+        locate(outputDir) ?: return null
+        return analysis.viewNames()
+    }
+
+    /** A named statistical view as JSON (row-capped envelope), or a graceful result. */
+    fun viewJson(
+        outputDir: Path,
+        viewName: String,
+        experiment: String? = null,
+        limit: Int = DEFAULT_VIEW_ROW_LIMIT,
+    ): DbQueryResult {
+        val db = locate(outputDir) ?: return DbQueryResult.NoDatabase
+        return withDatabase(db) { analysis.viewJson(it, viewName, experiment, limit) }
+    }
+
     /** Multiple-comparison analysis of [responseName] as JSON, or a graceful
      *  [DbQueryResult.NoDatabase] / [DbQueryResult.Invalid] when not analyzable. */
     fun compare(

@@ -79,6 +79,10 @@ data class SummaryReportRequest(
     val formats: List<String>? = null,
 )
 
+/** Response of `GET /results/{id}/database/views` — the available statistical view names. */
+@Serializable
+data class ViewsResponse(val views: List<String>)
+
 /** Maps a [DbQueryResult] onto the HTTP response: JSON body, a 404 with guidance
  *  when there is no database, or a 422 with the precondition explanation. */
 private suspend fun respondDbJson(call: ApplicationCall, result: DbQueryResult) {
@@ -455,6 +459,18 @@ fun Application.kslRestModule(
             val experiments = service.dbExperiments(call.parameters["resultId"]!!)
                 ?: return@get call.respond(HttpStatusCode.NotFound, StatusResponse(NO_DATABASE_MESSAGE))
             call.respond(experiments)
+        }
+
+        get("/results/{resultId}/database/views") {
+            val names = service.dbViewNames(call.parameters["resultId"]!!)
+                ?: return@get call.respond(HttpStatusCode.NotFound, StatusResponse(NO_DATABASE_MESSAGE))
+            call.respond(ViewsResponse(names))
+        }
+
+        get("/results/{resultId}/database/views/{view}") {
+            val experiment = call.request.queryParameters["experiment"]
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()
+            respondDbJson(call, service.dbView(call.parameters["resultId"]!!, call.parameters["view"]!!, experiment, limit))
         }
 
         get("/results/{resultId}/database/experiments/{exp}/summary") {

@@ -21,6 +21,7 @@ package ksl.service.capability.dbanalysis
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
@@ -110,6 +111,46 @@ class ResultDatabaseServiceTest {
         assertTrue(result is DbQueryResult.Invalid, "single experiment must be Invalid; got $result")
         assertTrue((result as DbQueryResult.Invalid).reason.contains("at least 2"),
             "reason should explain the precondition; got: ${result.reason}")
+    }
+
+    @Test
+    @DisplayName("statistical views project to JSON envelopes; time-series is the across-rep summary")
+    fun viewsProjectToJson(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline", "alt"))
+
+        assertTrue(service.viewNames(outDir)!!.containsAll(listOf("across-replication", "time-series", "histograms")))
+
+        val across = service.viewJson(outDir, "across-replication")
+        assertTrue(across is DbQueryResult.Json, "expected JSON; got $across")
+        val env = Json.parseToJsonElement((across as DbQueryResult.Json).payload).jsonObject
+        assertEquals("across-replication", env["view"]!!.jsonPrimitive.content)
+        assertTrue(env["rows"]!!.jsonArray.isNotEmpty(), "across-replication should have rows")
+        assertTrue(env["truncated"]!!.jsonPrimitive.content == "false")
+
+        // time-series is the across-replication per-period summary (period + average columns).
+        val ts = service.viewJson(outDir, "time-series")
+        assertTrue(ts is DbQueryResult.Json, "time-series should project; got $ts")
+    }
+
+    @Test
+    @DisplayName("view supports an experiment filter, a row cap, and rejects unknown names")
+    fun viewFilteringAndCapping(@TempDir tempDir: Path) {
+        val outDir = tempDir.resolve("output")
+        buildDatabase(outDir, listOf("baseline", "alt"))
+
+        val all = (service.viewJson(outDir, "across-replication") as DbQueryResult.Json)
+            .let { Json.parseToJsonElement(it.payload).jsonObject["rows"]!!.jsonArray.size }
+        val filtered = (service.viewJson(outDir, "across-replication", experiment = "baseline") as DbQueryResult.Json)
+            .let { Json.parseToJsonElement(it.payload).jsonObject }
+        assertTrue(filtered["rows"]!!.jsonArray.size < all, "experiment filter should narrow the rows")
+
+        val capped = (service.viewJson(outDir, "across-replication", limit = 1) as DbQueryResult.Json)
+            .let { Json.parseToJsonElement(it.payload).jsonObject }
+        assertEquals("true", capped["truncated"]!!.jsonPrimitive.content)
+        assertEquals(1, capped["rows"]!!.jsonArray.size)
+
+        assertTrue(service.viewJson(outDir, "no-such-view") is DbQueryResult.Invalid)
     }
 
     @Test

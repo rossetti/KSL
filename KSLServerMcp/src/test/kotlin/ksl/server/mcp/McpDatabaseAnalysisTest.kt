@@ -96,6 +96,21 @@ class McpDatabaseAnalysisTest {
     }
 
     @Test
+    @DisplayName("db_views lists views and db_view projects one to a JSON envelope")
+    fun viewTools() = runBlocking {
+        val resultId = runResultId(enableDb = true)
+
+        val views = tools.dbViews(buildJsonObject { put("resultId", resultId) })
+            .structuredContent!!.jsonObject["views"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(views.contains("across-replication"), "expected the across-replication view; got $views")
+
+        val env = tools.dbView(buildJsonObject { put("resultId", resultId); put("view", "across-replication") })
+            .structuredContent!!.jsonObject["view"]!!.jsonObject
+        assertTrue(env["rows"]!!.jsonArray.isNotEmpty(), "across-replication view should have rows; got $env")
+        assertTrue(env["truncated"]!!.jsonPrimitive.content == "false")
+    }
+
+    @Test
     @DisplayName("db_compare_report and db_export produce downloadable artifacts (headless)")
     fun reportAndExportTools() = runBlocking {
         val resultId = runResultId(enableDb = true)

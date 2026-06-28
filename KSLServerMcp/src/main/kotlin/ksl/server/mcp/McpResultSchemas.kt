@@ -222,9 +222,22 @@ internal object McpResultSchemas {
         properties = buildJsonObject {
             putJsonObject("summary") { put("type", "array"); put("description", "Across-replication statistics (db_summary).") }
             putJsonObject("comparison") { put("type", "object"); put("description", "MCB analysis {results, intervals, screening} (db_compare).") }
+            putJsonObject("view") { put("type", "object"); put("description", "Statistical view envelope {view, total, returned, truncated, rows} (db_view).") }
             putJsonObject("present") { put("type", "boolean"); put("description", "false when the result has no database.") }
             putJsonObject("analyzable") { put("type", "boolean"); put("description", "false when preconditions are unmet.") }
             putJsonObject("reason") { put("type", "string") }
+        },
+        required = emptyList(),
+    )
+
+    /** db_views: the available statistical view names. */
+    val dbViews = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("views") {
+                put("type", "array")
+                putJsonObject("items") { put("type", "string") }
+            }
+            putJsonObject("present") { put("type", "boolean") }
         },
         required = emptyList(),
     )

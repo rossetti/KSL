@@ -47,7 +47,9 @@ import ksl.utilities.statistic.asMCBResultDataFrame
 import ksl.utilities.statistic.asMCBScreeningIntervalDataFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.columnNames
+import org.jetbrains.kotlinx.dataframe.api.filter
 import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.api.take
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import org.jetbrains.kotlinx.dataframe.io.toJson
 import java.nio.file.Files
@@ -198,6 +200,40 @@ class DatabaseAnalysisService : AutoCloseable {
         return DbQueryResult.Json(json.encodeToString(JsonObject.serializer(), payload))
     }
 
+    /** The named statistical DataFrame views available for JSON projection. */
+    fun viewNames(): List<String> = DB_VIEWS.keys.toList()
+
+    /**
+     * A named `KSLDatabase` statistical view as JSON, optionally filtered to one
+     * experiment, row-capped with a no-silent-truncation envelope
+     * `{view, total, returned, truncated, rows}`. Reuses `DataFrame.toJson()` — no
+     * bespoke serialization. An unknown view name returns [DbQueryResult.Invalid]
+     * listing the catalog.
+     */
+    fun viewJson(
+        handle: DbHandle,
+        viewName: String,
+        experiment: String? = null,
+        limit: Int = DEFAULT_VIEW_ROW_LIMIT,
+    ): DbQueryResult {
+        val accessor = DB_VIEWS[viewName]
+            ?: return DbQueryResult.Invalid("unknown view '$viewName'; available: ${DB_VIEWS.keys.joinToString(", ")}")
+        val full = accessor(handle.database).dropDbBookkeeping().filterExperiment(experiment)
+        val total = full.rowsCount()
+        val capped = if (total > limit) full.take(limit) else full
+        val envelope = buildJsonObject {
+            put("view", viewName)
+            put("total", total)
+            put("returned", capped.rowsCount())
+            put("truncated", total > limit)
+            put("rows", json.parseToJsonElement(capped.toJson()))
+        }
+        return DbQueryResult.Json(json.encodeToString(JsonObject.serializer(), envelope))
+    }
+
+    private fun DataFrame<*>.filterExperiment(name: String?): DataFrame<*> =
+        if (name == null || "exp_name" !in columnNames()) this else filter { it["exp_name"] == name }
+
     // ----- file-producing operations (rendered reports, exports) — Phase C+ -----
 
     /**
@@ -337,6 +373,24 @@ class DatabaseAnalysisService : AutoCloseable {
         val DB_BOOKKEEPING = listOf(
             "autoIncField", "keyFields", "numColumns", "numInsertFields",
             "numUpdateFields", "schemaName", "tableName",
+        )
+
+        /**
+         * The exposed statistical views (friendly name -> DataFrame accessor).
+         * `time-series` is the across-replication per-period summary view (bounded:
+         * experiment x response x period). Pairwise-differences is intentionally
+         * excluded; bulk extraction is the job of the database export.
+         */
+        val DB_VIEWS: Map<String, (KSLDatabase) -> DataFrame<*>> = linkedMapOf(
+            "across-replication" to { it.acrossReplicationViewStatistics },
+            "within-replication" to { it.withinRepViewStatistics },
+            "within-replication-responses" to { it.withinRepResponseViewStatistics },
+            "within-replication-counters" to { it.withinRepCounterViewStatistics },
+            "time-series" to { it.timeSeriesResponseViewData },
+            "histograms" to { it.histogramResults },
+            "frequencies" to { it.frequencyResults },
+            "batch-statistics" to { it.batchStatViewStatistics },
+            "experiment-replications" to { it.expStatRepViewStatistics },
         )
     }
 }

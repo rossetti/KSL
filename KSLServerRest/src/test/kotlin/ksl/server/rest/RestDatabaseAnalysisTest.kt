@@ -95,6 +95,21 @@ class RestDatabaseAnalysisTest {
     }
 
     @Test
+    @DisplayName("statistical views are listed and projected to JSON by resultId")
+    fun statisticalViews() = runBlocking {
+        val (service, close) = freshService()
+        try {
+            val resultId = runToCompletion(service, scenarioDoc(enableDb = true))
+            assertTrue(service.dbViewNames(resultId)!!.contains("across-replication"))
+            assertTrue(service.dbView(resultId, "across-replication", null, null) is DbQueryResult.Json)
+            assertTrue(service.dbView(resultId, "time-series", null, null) is DbQueryResult.Json)
+            assertTrue(service.dbView(resultId, "no-such-view", null, null) is DbQueryResult.Invalid)
+        } finally {
+            close()
+        }
+    }
+
+    @Test
     @DisplayName("comparison report and database export are produced as artifacts (headless)")
     fun reportsAndExports() = runBlocking {
         val (service, close) = freshService()

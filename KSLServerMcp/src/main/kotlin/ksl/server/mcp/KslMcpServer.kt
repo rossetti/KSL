@@ -533,6 +533,33 @@ object KslMcpServer {
         ) { request -> tools.dbCompare(request.arguments) }
 
         server.addTool(
+            name = "db_views",
+            description = "List the statistical DataFrame views available for a result's database " +
+                "(structuredContent {views:[...]}): across-replication, within-replication, time-series " +
+                "(across-rep per-period summary), histograms, frequencies, batch-statistics, and more. " +
+                "Fetch one with db_view.",
+            inputSchema = resultIdOnly,
+            outputSchema = McpResultSchemas.dbViews,
+        ) { request -> tools.dbViews(request.arguments) }
+
+        server.addTool(
+            name = "db_view",
+            description = "Fetch one named statistical view as JSON in structuredContent.view, a row-capped " +
+                "envelope {view, total, returned, truncated, rows}. Optional 'experiment' filter and 'limit'. " +
+                "For whole-table bulk use db_export instead.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("view") { put("type", "string") }
+                    putJsonObject("experiment") { put("type", "string") }
+                    putJsonObject("limit") { put("type", "integer") }
+                },
+                required = listOf("resultId", "view"),
+            ),
+            outputSchema = McpResultSchemas.dbJson,
+        ) { request -> tools.dbView(request.arguments) }
+
+        server.addTool(
             name = "db_compare_report",
             description = "Render a multiple-comparison (MCB) report — intervals plus confidence-interval and " +
                 "box plots — as a downloadable artifact (structuredContent {artifacts:[...]}; fetch with " +
