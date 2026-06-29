@@ -22,6 +22,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.datetime.Instant
 import ksl.animation.AnimationSink
 import ksl.animation.NullAnimationSink
+import ksl.animation.animationInventory
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
@@ -423,7 +424,8 @@ class Model @JvmOverloads constructor(
             rvParameterData        = this.rvParameterSetter.rvParametersData,
             configuration          = this.configuration,
             baseTimeUnit           = this.baseTimeUnit,
-            catalog                = this.modelCatalog
+            catalog                = this.modelCatalog,
+            animationInventory     = this.animationInventory()
         )
     }
 

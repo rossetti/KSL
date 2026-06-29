@@ -65,7 +65,12 @@ data class ModelDescriptor(
     val rvParameterData: List<RVParameterData>,
     val configuration: Map<String, String>? = null,
     val baseTimeUnit: ModelElement.TimeUnit,
-    val catalog: ModelCatalog? = null
+    val catalog: ModelCatalog? = null,
+    /**
+     *  the model's animatable inventory (queues, resources, responses, stations, conveyors,
+     *  agent spaces, …), enumerated pre-run; empty for models with nothing animatable
+     */
+    val animationInventory: ksl.animation.AnimationInventory = ksl.animation.AnimationInventory()
 ) : ToJSONIfc {
 
     /**
