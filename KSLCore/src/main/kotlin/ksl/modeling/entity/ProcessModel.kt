@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import io.github.oshai.kotlinlogging.KLogger
+import ksl.animation.AnimationEvent
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
@@ -491,6 +492,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myWaitForProcessState = WaitForProcess()
         private val myBlockedUntilCompletion = BlockedUntilCompletion()
         private var state: EntityState = myCreatedState
+
+        /**
+         *  Emits [event] to the model's animation sink only when animation is active.
+         *  The lambda builds the event lazily, so when animation is disabled (the default
+         *  [ksl.animation.NullAnimationSink]) no event object is constructed — the cost is
+         *  effectively zero. Used at the entity/process emission points throughout this class.
+         */
+        internal inline fun emitAnimation(event: () -> AnimationEvent) {
+            val sink = model.animationSink
+            if (sink.isActive) sink.emit(event())
+        }
+
+        init {
+            // Entity has come into existence: emit EntityCreated (only when animating).
+            emitAnimation { AnimationEvent.EntityCreated(time, id, javaClass.simpleName.ifEmpty { "Entity" }) }
+        }
 
         val isCreated: Boolean
             get() = state == myCreatedState
@@ -1006,6 +1023,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
+            emitAnimation { AnimationEvent.ProcessCompleted(time, id, completedProcess.name) }
             // must clear the current process so next can be run if there is one
             myCurrentProcess = null
             afterRunningProcess(completedProcess)
@@ -1038,6 +1056,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // okay to dispose of the entity
                 if (autoDispose) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id is being disposed by ${processModel.name}" }
+                    emitAnimation { AnimationEvent.EntityDisposed(time, id) }
                     dispose(this)
                 }
             }
@@ -1500,6 +1519,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             private val delayAction = DelayAction()
 
+            // True while the delay below is the internal delay of a move(): used to
+            // suppress DelayStarted/DelayEnded so a move emits MoveStarted/MoveCompleted
+            // (the spatial event the renderer interpolates) rather than a bare delay.
+            private var inMoveDelay: Boolean = false
+
+            // True while a hold() below is an internal hold of a conveyor request/ride/exit:
+            // used to suppress HoldEntered/HoldReleased so the conveyor emits its own events
+            // rather than the internal hold on a conveyor hold queue.
+            private var inConveyorHold: Boolean = false
+
             /**
              *  Used to invoke activation of a process
              */
@@ -1547,6 +1576,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myPendingProcess = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} activating and running process, ($this)" }
                 entity.state.activate()// was scheduled, now entity is active for running
+                emitAnimation { AnimationEvent.ProcessActivated(time, entity.id, name) }
                 start() // starts the coroutine from the created state
             }
 
@@ -1673,10 +1703,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waiting for ${process.name} in process, ($this)" }
                 p.activate(timeUntilActivation, priority)
                 entity.state.waitForProcess()
+                emitAnimation { AnimationEvent.WaitingForProcess(time, entity.id, process.name) }
                 suspend()
                 calledProcess = null
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} ended wait for ${process.name} in process, ($this)" }
+                emitAnimation { AnimationEvent.WaitForProcessCompleted(time, entity.id, process.name) }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1692,10 +1724,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waiting for ${signal.name} in process, ($this)" }
                 entity.state.waitForSignal()
                 signal.hold(entity, waitPriority)
+                emitAnimation { AnimationEvent.WaitingForSignal(time, entity.id, signal.name) }
                 suspend()
                 signal.release(entity, waitStats)
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} released from ${signal.name} in process, ($this)" }
+                emitAnimation { AnimationEvent.SignalReceived(time, entity.id, signal.name) }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1741,12 +1775,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 for (completingProcess in blockingUntilCompletedSet!!) {
                     completingProcess.attachBlockingCompletionListener(this)
                 }
+                // Capture the names now: the set is emptied as the processes complete, so it is
+                // empty by the time this process resumes below.
+                val blockedProcessNames = blockingUntilCompletedSet!!.map { it.name }
+                for (n in blockedProcessNames) emitAnimation { AnimationEvent.WaitingForProcess(time, entity.id, n) }
                 // suspend this current process while the supplied processes complete
                 suspend()
                 // tell each completing process to forget that this current process was blocking for it
                 for (completedProcess in blockingUntilCompletedSet!!) {
                     completedProcess.detachBlockingCompletionListener(this)
                 }
+                for (n in blockedProcessNames) emitAnimation { AnimationEvent.WaitForProcessCompleted(time, entity.id, n) }
                 // done blocking on the process so make sure that set is clear
                 blockingUntilCompletedSet?.clear()
                 blockingUntilCompletedSet = null
@@ -1771,9 +1810,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : HOLD : entity_id = ${entity.id} : entering holdQ = ${queue.name} : suspension name = $suspensionName : in process, ($this)" }
                 entity.state.holdInQueue()
                 queue.enqueue(entity, priority)
+                if (!inConveyorHold) emitAnimation { AnimationEvent.HoldEntered(time, entity.id, queue.name) }
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : HOLD: entity_id = ${entity.id} : released from holdQ = ${queue.name} : suspension name = $suspensionName" }
+                if (!inConveyorHold) emitAnimation { AnimationEvent.HoldReleased(time, entity.id, queue.name) }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1937,6 +1978,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = ResourceRequest(amountNeeded, resource)
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
+                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resource.name, queue.name, amountNeeded) }
                 waitForResource(request, resource, queue)
                 // entity has been told to resume or the request was selected for allocation
                 queue.remove(request) // take the request out of the queue after possible wait
@@ -1971,6 +2013,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (!resource.canAllocate(request.amountRequested)) {
                     // the resource can't allocate to the request, no need to consider it versus others waiting in the queue
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resource.name) }
                     entity.state.waitForResource()
                     suspend()
                     entity.state.activate()
@@ -1982,6 +2025,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // null means that no requests were picked, if it wasn't picked as next by the rule, then the request must wait
                     if ((nextRequest == null) || nextRequest != request) {
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                        emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resource.name) }
                         entity.state.waitForResource()
                         suspend()
                         entity.state.activate()
@@ -2007,10 +2051,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = ResourcePoolRequest(amountNeeded, resourcePool)
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
+                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resourcePool.name, queue.name, amountNeeded) }
                 // this causes the selection rule to be invoked to see if resources are available
                 //TODO: The current implementation does not facilitate partial filling
                 if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resourcePool.name) }
                     entity.state.waitForResource()
                     suspend()
                     entity.state.activate()
@@ -2056,9 +2102,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = MovableResourcePoolRequest(myMovableResourcePool = movableResourcePool)
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
+                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, movableResourcePool.name, queue.name, 1) }
                 // this causes the selection rule to be invoked to see if resources are available
                 if (!movableResourcePool.canAllocate(resourceSelectionRule)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, movableResourcePool.name) }
                     entity.state.waitForResource()
                     suspend()
                     entity.state.activate()
@@ -2102,9 +2150,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
+                if (!inMoveDelay) emitAnimation { AnimationEvent.DelayStarted(time, entity.id, delayDuration, myDelayEvent!!.time, suspensionName) }
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
+                if (!inMoveDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, suspensionName) }
                 require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: suspension name = $currentSuspendName : entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -2125,11 +2175,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val d = fromLoc.distanceTo(toLoc)
                 val t = d / velocity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} MOVING from ${fromLoc.name} to ${toLoc.name} suspending process, ($this) ..." }
+                emitAnimation {
+                    AnimationEvent.MoveStarted(
+                        time, entity.id,
+                        fromX = fromLoc.x, fromY = fromLoc.y, toX = toLoc.x, toY = toLoc.y,
+                        velocity = velocity, duration = t, arrivalTime = time + t,
+                        fromZ = fromLoc.z, toZ = toLoc.z,
+                        fromLocationName = fromLoc.name, toLocationName = toLoc.name
+                    )
+                }
                 isMoving = true
+                inMoveDelay = true // suppress the internal delay's Delay events; this is a move
                 delay(t, movePriority, suspensionName)
+                inMoveDelay = false
                 currentLocation = toLoc
                 isMoving = false
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} completed move from ${fromLoc.name} to ${toLoc.name}" }
+                emitAnimation { AnimationEvent.MoveCompleted(time, entity.id, toLoc.x, toLoc.y, toLoc.z) }
             }
 
             override suspend fun move(
@@ -2141,14 +2203,40 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ) {
                 require(!spatialElement.isMoving) { "Spatial element ${spatialElement.spatialName} is already moving!" }
                 require(velocity > 0.0) { "The velocity of the movement must be > 0.0 in process, ($this)" }
-                val d = spatialElement.currentLocation.distanceTo(toLoc)
+                val fromLoc = spatialElement.currentLocation
+                val d = fromLoc.distanceTo(toLoc)
                 val t = d / velocity
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} is moving ${spatialElement.spatialName} from ${spatialElement.currentLocation.name} to ${toLoc.name} suspending process, ($this) ..." }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} is moving ${spatialElement.spatialName} from ${fromLoc.name} to ${toLoc.name} suspending process, ($this) ..." }
+                // Animate the spatial element itself (e.g. a movable/transport resource). The mover's own state
+                // flags say why it is moving — transporting an entity, repositioning empty, or returning home —
+                // so the renderer can style it and draw the carried entity (10.8/C2). Guarded; no cost without a sink.
+                emitAnimation {
+                    val mover = spatialElement.modelElement as? ksl.modeling.spatial.MovableResource
+                    val mode = when {
+                        mover?.isReturningHome == true -> ksl.animation.MoverMode.RETURNING_HOME
+                        mover?.isTransporting == true -> ksl.animation.MoverMode.TRANSPORTING
+                        else -> ksl.animation.MoverMode.EMPTY
+                    }
+                    val carrying = mode == ksl.animation.MoverMode.TRANSPORTING
+                    AnimationEvent.SpatialElementMoved(
+                        time, spatialElement.spatialName,
+                        fromX = fromLoc.x, fromY = fromLoc.y, fromZ = fromLoc.z,
+                        toX = toLoc.x, toY = toLoc.y, toZ = toLoc.z,
+                        velocity = velocity, duration = t, arrivalTime = time + t,
+                        fromLocationName = fromLoc.name, toLocationName = toLoc.name,
+                        mode = mode,
+                        carriedEntityId = if (carrying) entity.id else null,
+                        carriedEntityType = if (carrying) entity.javaClass.simpleName.ifEmpty { "Entity" } else null
+                    )
+                }
                 spatialElement.isMoving = true
+                inMoveDelay = true // suppress the internal delay's Delay events; this is a move
                 delay(t, movePriority, suspensionName)
+                inMoveDelay = false
                 spatialElement.currentLocation = toLoc
                 spatialElement.isMoving = false
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > spatial element ${spatialElement.spatialName} completed move to ${toLoc.name}" }
+                emitAnimation { AnimationEvent.SpatialElementMoveCompleted(time, spatialElement.spatialName, toLoc.x, toLoc.y, toLoc.z) }
             }
 
             override suspend fun moveWith(
@@ -2160,10 +2248,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ) {
                 require(!isMoving) { "The entity_id = ${entity.id} is already moving" }
                 require(currentLocation.isLocationEqualTo(spatialElement.currentLocation)) { "The location of the entity and the spatial element must be the same" }
+                // The entity rides along with the spatial element: emit the entity's move.
+                // (The inner move(spatialElement) does the delay, suppressed via inMoveDelay,
+                // and does not itself emit a Move event.)
+                val moveDuration = currentLocation.distanceTo(toLoc) / velocity
+                emitAnimation {
+                    AnimationEvent.MoveStarted(
+                        time, entity.id,
+                        fromX = currentLocation.x, fromY = currentLocation.y, toX = toLoc.x, toY = toLoc.y,
+                        velocity = velocity, duration = moveDuration, arrivalTime = time + moveDuration,
+                        fromZ = currentLocation.z, toZ = toLoc.z,
+                        fromLocationName = currentLocation.name, toLocationName = toLoc.name
+                    )
+                }
                 isMoving = true
                 move(spatialElement, toLoc, velocity, movePriority, suspensionName)
                 isMoving = false
                 currentLocation = toLoc
+                emitAnimation { AnimationEvent.MoveCompleted(time, entity.id, toLoc.x, toLoc.y, toLoc.z) }
             }
 
             override suspend fun moveWith(
@@ -2391,11 +2493,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     requestPriority,
                     requestResumePriority
                 )
+                emitAnimation { AnimationEvent.ConveyorAccessRequested(time, entity.id, conveyor.name, entryLocation) }
+                // Animation: if the entry cell can't be entered now (occupied/blocked), the entity will
+                // wait at the entry location — emit a blocked event so a renderer can show it (8G.8).
+                if (conveyor.entryCells[entryLocation]?.isUnavailable == true) {
+                    emitAnimation { AnimationEvent.ConveyorEntryBlocked(time, entity.id, conveyor.name, entryLocation) }
+                }
                 // holds the entity until the entry cell is blocked for entry
+                inConveyorHold = true
                 hold(
                     conveyor.myAccessingHoldQ,
                     suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.myAccessingHoldQ.name}"
                 )
+                inConveyorHold = false
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = conveyorRequest
                 // entity via the request now blocks (controls) the access cell for entry
@@ -2432,14 +2542,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from $origin to $destination : suspension name = $currentSuspendName" }
                 // schedules the need to ride the conveyor
                 conveyor.scheduleConveyAction(conveyorRequest as Conveyor.ConveyorRequest, destination, ridePriority)
+                emitAnimation { AnimationEvent.ConveyorRideStarted(time, entity.id, conveyor.name, origin, destination) }
                 isMoving = true
                 // holds here while request rides on the conveyor
                 val timeStarted = time
+                inConveyorHold = true
                 hold(
                     conveyor.myRidingHoldQ,
                     suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}"
                 )
+                inConveyorHold = false
                 isMoving = false
+                emitAnimation { AnimationEvent.ConveyorDestinationReached(time, entity.id, conveyor.name, destination) }
 //                if (destination is LocationIfc) { //TODO
 //                    currentLocation = destination
 //                }
@@ -2464,11 +2578,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
                 // schedules the need to exit the conveyor
                 conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
+                val exitLocation = conveyorRequest.currentLocation
                 isMoving = true
                 // hold here while entity exits the conveyor
+                inConveyorHold = true
                 hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
+                inConveyorHold = false
                 isMoving = false
                 entity.conveyorRequest = null
+                emitAnimation { AnimationEvent.ConveyorExited(time, entity.id, conveyor.name, exitLocation) }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -2596,6 +2714,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     afterSuccessfulProcessCompletion(this)
                 }.onFailure {
                     if (it is ProcessTerminatedException) {
+                        emitAnimation { AnimationEvent.EntityTerminated(time, entity.id) }
                         // check if the current process was activated (called) by other process in a waitFor
                         // if so, then because this process was terminated with an exception, we should terminate its caller
                         if (callingProcess != null) {
