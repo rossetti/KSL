@@ -217,6 +217,12 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
         zRange = 0.0..worldZSize,
     )
 
+    init {
+        // Flatten the 3D no-fly voxels to a 2D footprint so the obstacles can be drawn in the 2D animation
+        // (reuses the grid-obstacle overlay); runs after the no-fly zones are blocked above.
+        sky.attachGeometry(space, airspace.toFlattenedGridGraph())
+    }
+
     // ── Depot and delivery points ──────────────────────────────────────────
 
     val depot: Voxel = Voxel(1, 1, 0)
@@ -278,6 +284,10 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
         private suspend fun KSLProcessBuilder.executeDelivery(order: Order) {
             // Out to the delivery point.
             flyTo(order.deliveryVoxel)
+            // Flash a transient highlight at the drop-off while unloading (G-animated overlay; a no-op unless
+            // marker-pulse capture is enabled). Holds for the unload duration so the ring fades as the drone waits.
+            val drop = voxelCenter(order.deliveryVoxel)
+            reportMarkerPulse(drop.x, drop.y, holdTime = unloadTime, label = "delivered", colorHex = "#2ca02c")
             delay(unloadTime)
             // Back to depot.
             flyTo(depot)

@@ -444,20 +444,6 @@ class AnimationAppController(
         layoutLifecycle.markSaved(path)
     }
 
-    /**
-     * Adopt a bundled example's hand-authored [layout]: make it the active layout (so the Layout tab and the
-     * Replay "Active layout" choice show the proper grid/space, colors, and placement immediately), and — when
-     * the model has no saved layouts yet — persist it to `layouts/` as a loadable, editable starting point.
-     * Never clobbers an existing saved layout.
-     */
-    fun adoptAuthoredLayout(layout: AnimationLayout) {
-        setLayout(withMoverHomeBases(layout))
-        if (listLayouts().isEmpty()) {
-            val stem = (layout.title ?: "").ifBlank { modelName.ifBlank { appName } }.replace(Regex("[^A-Za-z0-9-_ ]"), "_")
-            runCatching { saveLayout(layoutsDir.resolve("$stem (authored).lay.toml")) }
-        }
-    }
-
     /** Fill each mover's [MovableResourceLayoutElement.homeBase] from the inventory when absent (10.8 follow-up). */
     private fun withMoverHomeBases(layout: AnimationLayout): AnimationLayout {
         if (inventory.movableHomeBases.isEmpty()) return layout
@@ -1077,9 +1063,8 @@ class AnimationAppController(
                 bundleLibrary = bundleLibrary,
                 sourceRef = ModelReference.ByBundleAndModelId(bundleId, modelId)
             )
-            // Authored-layout adoption deferred to Phase 7: the examples bundle will ship .lay.toml sidecars
-            // keyed by (bundleId, modelId), read here to call adoptAuthoredLayout(...). Until then a bundled
-            // model falls back to the scaffold/Quick view.
+            // A bundled model opens with no layout; the user authors one in the Layout tab and saves it to
+            // <modelWorkspace>/layouts/ (layouts are user-authored files, not bundle content).
         }
     }
 }

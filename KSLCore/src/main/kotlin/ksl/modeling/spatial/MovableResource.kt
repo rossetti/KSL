@@ -1,5 +1,7 @@
 package ksl.modeling.spatial
 
+import ksl.animation.KSLAnimatedEntity
+import ksl.animation.KSLAnimatedProcess
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.entity.*
@@ -221,7 +223,11 @@ open class MovableResource(
             }
         }
 
+        // The home-base return is internal plumbing, not a domain entity/process — keep it out of the
+        // animation inventory's discovered types/processes (10.8/C6).
+        @KSLAnimatedEntity(include = false)
         inner class Driver() : Entity() {
+            @KSLAnimatedProcess(include = false)
             val returnToHomeProcess: KSLProcess = process {
                 require(homeBase != null) { "There is no home based defined for ${this@MovableResource.name}" }
                 val a = seize(

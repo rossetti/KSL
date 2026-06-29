@@ -25,9 +25,11 @@ import ksl.simulation.ModelBuilderIfc
 /*
  * ModelBuilderIfc wrappers for the 16 animation gallery models, so `kslpkg assemble`
  * (the animationExamplesBundleJar task) can package them into the discoverable
- * `edu.uark.ksl.animation-examples` bundle. Each delegates to its example's buildModel();
- * the hand-authored layout (each example's buildLayout()) ships as a sidecar resource (Phase 7b).
- * The released bundle is dropped into the user's KSLWork/bundles folder and discovered at runtime.
+ * `edu.uark.ksl.animation-examples` bundle. Each delegates to its example's buildModel().
+ * Layouts are NOT bundled: the user authors a layout in the animation app's Layout tab and
+ * saves it to their workspace. (Each example's buildLayout() is a standalone teaching example
+ * of the layout DSL, not consumed at runtime.) The released bundle is dropped into the user's
+ * KSLWork/bundles folder and discovered at runtime.
  */
 
 class Example01DriveThroughPharmacyBuilder : ModelBuilderIfc {

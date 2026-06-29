@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import kotlinx.serialization.Serializable
+import ksl.animation.AnimationEvent
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.queue.QueueCIfc
@@ -826,6 +827,22 @@ class Conveyor @JvmOverloads constructor(
             cell.isBlocked = false
         }
         positionedToEnter.clear()
+        emitConveyorDefined()
+    }
+
+    /**
+     * Emits this conveyor's static cell structure for animation: every named entry/exit location and
+     * its cell index, so a renderer can map cell indices to world positions. Guarded, so it costs
+     * nothing without an animation sink.
+     */
+    private fun emitConveyorDefined() {
+        val sink = model.animationSink
+        if (!sink.isActive) return
+        val names = ArrayList<String>()
+        val cells = ArrayList<Int>()
+        for ((loc, cell) in entryCells) { names.add(loc); cells.add(cell.index) }
+        for ((loc, cell) in exitCells) { names.add(loc); cells.add(cell.index) }
+        sink.emit(AnimationEvent.ConveyorDefined(time, name, names, cells))
     }
 
     override fun replicationEnded() {
@@ -1831,6 +1848,19 @@ class Conveyor @JvmOverloads constructor(
                     conveyor.itemReachedDestination(this)
                 }
                 // this should be the end of a segment
+            }
+            emitConveyorMove() // animation: item advanced to a new front cell
+        }
+
+        /**
+         * Emits the item's new cell position for animation. Guarded, so it costs nothing without an
+         * animation sink. No-op once the item is fully off the conveyor (no front cell).
+         */
+        private fun emitConveyorMove() {
+            val fc = frontCell ?: return
+            val sink = this@Conveyor.model.animationSink
+            if (sink.isActive) {
+                sink.emit(AnimationEvent.ConveyorItemMoved(this@Conveyor.time, entity.id, this@Conveyor.name, fc.index))
             }
         }
 

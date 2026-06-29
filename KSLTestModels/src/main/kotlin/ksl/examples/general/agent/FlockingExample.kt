@@ -233,6 +233,7 @@ class FlockingExample(parent: ModelElement, name: String? = null) :
         dynamics.addForce(weighted(separation<Boid>(radius = separationRadius), separationWeight))
         dynamics.addForce(weighted(alignment<Boid>(radius = alignmentRadius), alignmentWeight))
         dynamics.addForce(weighted(cohesion<Boid>(radius = cohesionRadius), cohesionWeight))
+        sky.attachDynamics(dynamics) // expose velocity/force for the G10 overlay (no-op unless captured)
 
         boids.clear()
         val rng = defaultRNStream
