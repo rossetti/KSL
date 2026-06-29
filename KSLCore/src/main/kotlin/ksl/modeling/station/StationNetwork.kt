@@ -197,6 +197,13 @@ class StationNetwork(
         myTypeByClassName[className]?.let { myClassesByType[it]?.numCompleted }
 
     /**
+     *  The registered class name for a QObject [typeId], or null if no class is registered for it
+     *  (e.g. a single-class network where every QObject has the default type). Used by the animation
+     *  emitter to label flowing entities by class so a renderer can style them per type (8G.1).
+     */
+    internal fun classNameForType(typeId: Int): String? = myClassesByType[typeId]?.className
+
+    /**
      *  Registers a QObject class for per-class statistics. The creation helpers
      *  call this automatically when a class is supplied to a source. Registering
      *  the same class (same name and type id) more than once is a no-op;

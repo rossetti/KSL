@@ -90,6 +90,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
+    /**
+     * A point-in-time copy of the entities whose process coroutine is currently suspended (waiting in a
+     * delay, queue, seize, hold, signal, or conveyor request). At any *scheduled event instant* every
+     * in-flight entity is suspended — the only running coroutine, if any, has already been removed by
+     * `Suspended.resume()` before its continuation runs — so when read from a plain scheduled action
+     * (not entity-process code) this is exactly the set of live in-flight entities. Consumed by the
+     * animation opening-frame snapshotter (9B); module-internal, not part of the public modeling API.
+     */
+    internal val suspendedEntitiesSnapshot: Set<Entity>
+        get() = suspendedEntities.toSet()
+
     /** Note that an EntityGenerator relies on the entity having a defined default process.
      *  The generator will create the entity and activate the default process.  If the
      * entity does not have a default process then an illegal state exception will occur.

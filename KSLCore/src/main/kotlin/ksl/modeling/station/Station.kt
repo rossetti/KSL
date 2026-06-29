@@ -43,6 +43,17 @@ fun interface ExitActionIfc {
     fun onExit(qObject: ModelElement.QObject)
 }
 
+/**
+ *  An observer notified when a QObject enters or exits a [Station]. Unlike the single
+ *  [EntryActionIfc]/[ExitActionIfc] slots (which a caller sets and which replace one another),
+ *  any number of observers may be attached without disturbing user logic. Used to animate
+ *  per-station entity flow.
+ */
+interface StationObserverIfc {
+    fun entered(station: Station, qObject: ModelElement.QObject) {}
+    fun exited(station: Station, qObject: ModelElement.QObject) {}
+}
+
 class StationWIPComparator() : Comparator<Station> {
     override fun compare(r1: Station, r2: Station): Int {
         return (r1.numAtStation.value.compareTo(r2.numAtStation.value))
@@ -116,6 +127,7 @@ abstract class Station(
         departureCollection(completedQObject)
         exitAction?.onExit(completedQObject)
         onExit(completedQObject)
+        notifyStationExited(completedQObject)
         if (sender != null) {
             sender!!.send(completedQObject)
         } else {
@@ -161,6 +173,7 @@ abstract class Station(
         arrivalCollection(arrivingQObject)
         entryAction?.onEntry(arrivingQObject)
         onEntry(arrivingQObject)
+        notifyStationEntered(arrivingQObject)
         process(arrivingQObject)
     }
 
@@ -188,6 +201,26 @@ abstract class Station(
      */
     fun exitAction(action: ExitActionIfc?) {
         exitAction = action
+    }
+
+    private val stationObservers = mutableListOf<StationObserverIfc>()
+
+    /** Attaches a [StationObserverIfc] notified when QObjects enter/exit this station. */
+    fun attachStationObserver(observer: StationObserverIfc) {
+        if (!stationObservers.contains(observer)) stationObservers.add(observer)
+    }
+
+    /** Detaches a previously attached [StationObserverIfc]. */
+    fun detachStationObserver(observer: StationObserverIfc) {
+        stationObservers.remove(observer)
+    }
+
+    private fun notifyStationEntered(qObject: QObject) {
+        for (o in stationObservers) o.entered(this, qObject)
+    }
+
+    private fun notifyStationExited(qObject: QObject) {
+        for (o in stationObservers) o.exited(this, qObject)
     }
 
     /**
