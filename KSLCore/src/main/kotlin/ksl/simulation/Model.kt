@@ -20,6 +20,8 @@ package ksl.simulation
 
 import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.datetime.Instant
+import ksl.animation.AnimationSink
+import ksl.animation.NullAnimationSink
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
@@ -146,6 +148,18 @@ class Model @JvmOverloads constructor(
      *  be printed to the console when the simulation run is completed. The default is false.
      */
     var autoPrintSummaryReport: Boolean = false
+
+    /**
+     *  The destination for animation events produced during a run. The model owns a
+     *  single sink, reached by any model element as `model.animationSink`. The default
+     *  is [NullAnimationSink], whose `isActive` is `false`, so when animation is not
+     *  configured the cost is effectively zero: every emission site is guarded by
+     *  `if (animationSink.isActive) animationSink.emit(...)`, and with the null sink the
+     *  guarded event is never even constructed. The animation controller (a
+     *  `RunAttachmentIfc`) installs a real sink before a run and restores the null sink
+     *  afterward.
+     */
+    var animationSink: AnimationSink = NullAnimationSink
 
     /**
      *  If supplied, the configuration manager will be called when the model
