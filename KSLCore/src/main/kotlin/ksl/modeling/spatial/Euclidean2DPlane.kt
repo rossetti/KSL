@@ -54,7 +54,7 @@ class Euclidean2DPlane() : SpatialModel() {
      *
      * @param aName the name of the location, will be assigned based on ID_id if null
      */
-    inner class Point(val x: Double, val y: Double, aName: String? = null) : AbstractLocation(aName) {
+    inner class Point(override val x: Double, override val y: Double, aName: String? = null) : AbstractLocation(aName) {
         override val spatialModel: SpatialModel = this@Euclidean2DPlane
         override fun toString(): String {
             return "Location(x=$x, y=$y, id=$id, name='$name', spatial model=${spatialModel.name})"

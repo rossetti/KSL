@@ -66,6 +66,16 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
         get() = myElements
 
     /**
+     * The named locations this spatial model exposes for animation/placement (10.1g). Empty by default; a
+     * model that maintains a *bounded* set of named locations (e.g. [ksl.modeling.spatial.DistancesModel])
+     * overrides this so those locations are discoverable by the animation inventory before a run. Deliberately
+     * not backed by a registry of every constructed [AbstractLocation] — models may create many transient
+     * locations at run time, and retaining them all would leak.
+     */
+    open val namedLocations: List<LocationIfc>
+        get() = emptyList()
+
+    /**
      *  Causes the element to be tracked, held, by the spatial model. The user
      *  is responsible for maintaining this list
      */

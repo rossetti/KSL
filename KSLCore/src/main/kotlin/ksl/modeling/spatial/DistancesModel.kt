@@ -286,6 +286,10 @@ class DistancesModel: SpatialModel(), DistancesCIfc {
     override val locationNames: Set<String>
         get() = myLocationsAsBiMap.keys
 
+    /** The model's distance-table locations, exposed as the animation inventory's named locations (10.1g). */
+    override val namedLocations: List<LocationIfc>
+        get() = myLocationsAsBiMap.values.toList()
+
     /**
      *  Adds the [distance] from location [fromLoc] to location [toLoc] where [fromLoc] and
      *  [toLoc] are string names of locations.  If a location with the name does not already

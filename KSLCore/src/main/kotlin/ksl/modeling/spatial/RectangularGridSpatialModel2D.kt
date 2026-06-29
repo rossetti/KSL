@@ -469,7 +469,7 @@ class RectangularGridSpatialModel2D(
      *
      * @param aName the name of the location, will be assigned based on ID_id if null
      */
-    inner class GridPoint(val x: Double, val y: Double, aName: String? = null) : AbstractLocation(aName) {
+    inner class GridPoint(override val x: Double, override val y: Double, aName: String? = null) : AbstractLocation(aName) {
         init {
             require(contains(x, y)) { "The grid does not contain the supplied x = $x and y = $y" }
         }

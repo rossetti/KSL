@@ -25,6 +25,26 @@ interface LocationIfc : IdentityIfc {
     val spatialModel: SpatialModel
 
     /**
+     *  The Cartesian x-coordinate of this location, used by the animation system and
+     *  any coordinate-based rendering. Defaults to [Double.NaN] for non-Cartesian
+     *  spatial models (distance-, network-, or great-circle-based) that have no planar
+     *  coordinate; Cartesian location types (e.g. `Euclidean2DPlane.Point`) override it.
+     */
+    val x: Double
+        get() = Double.NaN
+
+    /** The Cartesian y-coordinate of this location; see [x]. Defaults to [Double.NaN]. */
+    val y: Double
+        get() = Double.NaN
+
+    /**
+     *  The Cartesian z-coordinate of this location; defaults to `0.0` (2D). Three-
+     *  dimensional spatial models override it. See [x].
+     */
+    val z: Double
+        get() = 0.0
+
+    /**
      * Computes the distance between the current location and [location] based on
      * the spatial model's distance metric
      * @return the distance between the two locations
