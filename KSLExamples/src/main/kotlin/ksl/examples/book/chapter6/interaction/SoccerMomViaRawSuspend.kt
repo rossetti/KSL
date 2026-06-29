@@ -36,6 +36,7 @@ class SoccerMomViaRawSuspend(
             activate(daughter.daughterProcess)
             println("$time> mom = ${this@Mom.name} suspending for daughter to exit van")
             //TODO suspend mom's process
+            @Suppress("DEPRECATION")
             suspend("mom suspended for daughter to exit van")
             println("$time> mom = ${this@Mom.name} running errands...")
             delay(45.0)
@@ -44,11 +45,13 @@ class SoccerMomViaRawSuspend(
             //TODO suspend if daughter isn't done playing
             if (daughter.isPlaying){
                 println("$time> mom, ${this@Mom.name}, mom suspending because daughter is still playing")
+                @Suppress("DEPRECATION")
                 suspend("mom suspended for daughter playing")
             } else {
                 println("$time> mom, ${this@Mom.name}, mom resuming daughter done playing after errands")
                 daughter.resumeProcess()
             }
+            @Suppress("DEPRECATION")
             suspend("mom suspended for daughter entering van")
             println("$time> mom = ${this@Mom.name} driving home")
             delay(30.0)
@@ -77,6 +80,7 @@ class SoccerMomViaRawSuspend(
             //TODO suspend if mom isn't here
             if (!mom.errandsCompleted){
                 println("$time> daughter, ${this@Daughter.name}, mom errands not completed suspending")
+                @Suppress("DEPRECATION")
                 suspend("daughter waiting on mom to complete errand")
             }else {
                 // mom's errand was completed and mom suspended because daughter was playing
