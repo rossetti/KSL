@@ -19,19 +19,17 @@
 package ksl.app.config
 
 import kotlinx.serialization.Serializable
+import ksl.animation.CaptureSpec
 import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Animation trace capture settings embedded in a [RunConfiguration].
  *
  * When [animationTraceFile] is `null` (the default), tracing is disabled and the
- * `AnimationTraceAttachment` (Phase 7) is never created — zero overhead.
- *
- * The [CaptureLevel] taxonomy is a placeholder until Phase 7, where the full set
- * of observable events in `ksl.modeling` will be inventoried and classified.
+ * `AnimationTraceAttachment` is never created — zero overhead.
  *
  * @property animationTraceFile file-system path for the trace output file; `null` disables tracing
- * @property captureLevel       how much detail to capture; see [CaptureLevel]
+ * @property capture            what/when to capture (Phase 9); the default captures everything, no window
  * @property flushEveryNEvents  how often (in events) the trace writer should flush its buffer to disk
  */
 @Serializable
@@ -45,19 +43,27 @@ data class TracingConfig(
     val animationTraceFile: String? = null,
 
     @TomlComment(
-        "How much detail to capture when tracing is enabled.  Allowed\n" +
-        "values: 'NONE', 'MINIMAL', 'STANDARD', 'DETAILED'.\n" +
-        "Default: 'MINIMAL'.  Has no effect when animationTraceFile is\n" +
-        "omitted."
+        "What and when to capture (Phase 9). 'mode' = ALL (default, every\n" +
+        "animatable element) or SELECTED (only the include list, minus\n" +
+        "exclude).  Optional 'captureWindow' = [startTime, endTime] bounds\n" +
+        "capture in simulated time.  Defaults capture everything, no window."
     )
-    val captureLevel: CaptureLevel = CaptureLevel.MINIMAL,
+    val capture: CaptureSpec = CaptureSpec(),
 
     @TomlComment(
         "Integer (positive). How often (in observed events) the trace\n" +
         "writer flushes its buffer to disk.  Lower values trade I/O\n" +
         "overhead for crash-survivability of the trace.  Default: 1000."
     )
-    val flushEveryNEvents: Int = 1000
+    val flushEveryNEvents: Int = 1000,
+
+    @TomlComment(
+        "Opt-in 'agent debugging / teaching' overlays (G10-G12): velocity/force\n" +
+        "vectors, the flow-field gradient, and planned routes.  All off by\n" +
+        "default (zero capture cost).  Records internal computation that drives\n" +
+        "agent behavior; the viewer has separate show/hide toggles."
+    )
+    val overlays: ksl.animation.OverlaySpec = ksl.animation.OverlaySpec.OFF
 ) {
     init {
         require(animationTraceFile == null || animationTraceFile.isNotBlank()) {

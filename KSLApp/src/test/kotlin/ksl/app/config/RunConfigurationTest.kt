@@ -231,7 +231,6 @@ class RunConfigurationTest {
             reports = ["HTML"]
 
             [tracingConfig]
-            captureLevel = "MINIMAL"
             flushEveryNEvents = 1000
         """.trimIndent()
         val cfg = RunConfigurationToml.decode(legacy).outputConfig
@@ -368,7 +367,6 @@ class RunConfigurationTest {
             reports = ["HTML"]
 
             [tracingConfig]
-            captureLevel = "MINIMAL"
             flushEveryNEvents = 1000
         """.trimIndent()
         val decoded = RunConfigurationToml.decode(legacy)

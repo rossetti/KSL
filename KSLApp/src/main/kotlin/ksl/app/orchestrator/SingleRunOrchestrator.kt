@@ -18,9 +18,12 @@
 
 package ksl.app.orchestrator
 
+import ksl.animation.AnimationStateSnapshotter
 import ksl.app.KSLAppSession
 import ksl.app.config.RunConfiguration
+import ksl.app.config.TracingConfig
 import ksl.app.config.sanitizeAnalysisName
+import ksl.app.session.AnimationTraceAttachment
 import ksl.app.session.RunAttachmentIfc
 import ksl.app.single.results.SingleAppPaths
 import ksl.app.session.RunHandle
@@ -90,7 +93,36 @@ object SingleRunOrchestrator {
         }
         val spec = config.scenarios.single()
         val model = buildScenarioModel(spec, provider, config.outputConfig)
-        return Runner().submit(RunRequest.SingleRun(model, attachments), scope, preRunWarnings)
+        // Opening-frame snapshotter (9B): no-op unless a capture window starting after run-start is set.
+        installAnimationSnapshotter(model, config.tracingConfig)
+        // Append the config-requested animation trace attachment; caller attachments are preserved.
+        val allAttachments = attachments + listOfNotNull(animationAttachment(config.tracingConfig))
+        return Runner().submit(RunRequest.SingleRun(model, allAttachments), scope, preRunWarnings)
+    }
+
+    /**
+     * Maps a [TracingConfig] to an [AnimationTraceAttachment], or `null` when tracing is off.
+     * Tracing is enabled exactly when [TracingConfig.animationTraceFile] is non-null, so a trace
+     * can be captured purely from configuration (no code).
+     */
+    private fun animationAttachment(tracingConfig: TracingConfig): AnimationTraceAttachment? {
+        val file = tracingConfig.animationTraceFile ?: return null
+        return AnimationTraceAttachment.replay(
+            java.nio.file.Path.of(file),
+            captureSpec = tracingConfig.capture,
+            overlays = tracingConfig.overlays
+        )
+    }
+
+    /**
+     * Installs an [AnimationStateSnapshotter] on the just-built [model] when tracing is on and a
+     * capture window is configured, so a mid-run capture window opens with a correct opening-frame
+     * keyframe (9B).  No-op when tracing is off or no window is set.
+     */
+    private fun installAnimationSnapshotter(model: ksl.simulation.Model, tracingConfig: TracingConfig) {
+        if (tracingConfig.animationTraceFile == null) return
+        val window = tracingConfig.capture.captureWindow ?: return
+        AnimationStateSnapshotter(model, tracingConfig.capture, window.startTime)
     }
 
     /**
