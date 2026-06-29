@@ -249,8 +249,11 @@ open class AgentResource @JvmOverloads constructor(
     }
 
     init {
-        // Notify registry observers (the mailbox above is already
-        // constructed; a subclass-configured statechart is not yet).
-        agentModel.notifyAgentRegistered(this)
+        // Register with the model so this resource-agent participates in the registry snapshot
+        // (which announces its type and wires its statechart for animation) and `agents` reporting,
+        // mirroring Agent/PermanentAgent. The mailbox above is already constructed; a
+        // subclass-configured statechart is not yet — the replication-start snapshot wires the chart
+        // once it exists, so setup-time resource-agents are covered.
+        agentModel.registerResourceAgent(this)
     }
 }

@@ -18,6 +18,7 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -176,6 +177,12 @@ class ContinuousProjection<A : AgentLike> @JvmOverloads constructor(
         positions[agent] = point
         agentBucket[agent] = newBucket
         buckets.getOrPut(newBucket) { mutableSetOf() }.add(agent)
+        // Universal position chokepoint: travel, steering dynamics, and manual moves all
+        // route through here, so one emission animates every kind of agent movement (D6/3A.1).
+        val sink = context.model.animationSink
+        if (sink.isActive) {
+            sink.emit(AnimationEvent.AgentPositionChanged(context.time, agent.name, name, point.x, point.y))
+        }
     }
 
     /** Update [agent]'s position. Identical to [placeAt]. */
@@ -187,6 +194,18 @@ class ContinuousProjection<A : AgentLike> @JvmOverloads constructor(
      *  assigned position (never placed, or has left the context).
      */
     fun positionOf(agent: A): Point2D? = positions[agent]
+
+    /**
+     * Re-emits every placed agent's current position as an [AnimationEvent.AgentPositionChanged] to
+     * [sink] at [time], mirroring [placeAt]'s emission. Used by the animation opening-frame snapshotter
+     * (9B.2b) so a mid-run capture window shows agents where they already are. Internal: an animation
+     * concern, not part of the modeling API.
+     */
+    internal fun snapshotPositions(sink: ksl.animation.AnimationSink, time: Double) {
+        for ((agent, point) in positions) {
+            sink.emit(AnimationEvent.AgentPositionChanged(time, agent.name, name, point.x, point.y))
+        }
+    }
 
     // ── Distance ────────────────────────────────────────────────────────────
 

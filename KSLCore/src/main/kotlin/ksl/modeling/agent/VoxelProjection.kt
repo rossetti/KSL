@@ -18,6 +18,7 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.sqrt
@@ -128,6 +129,11 @@ class VoxelProjection<A : AgentLike> @JvmOverloads constructor(
         }
         agentToVoxel[agent] = v
         voxelToAgents.getOrPut(v) { mutableListOf() }.add(agent)
+        // Emit so voxel agents animate, flattened to the col/row plane (layer carried as z, ignored in 2D) — G8.
+        val sink = context.model.animationSink
+        if (sink.isActive) {
+            sink.emit(AnimationEvent.AgentPositionChanged(context.time, agent.name, name, v.col.toDouble(), v.row.toDouble(), v.layer.toDouble()))
+        }
     }
 
     fun placeAt(agent: A, col: Int, row: Int, layer: Int) =
@@ -159,6 +165,13 @@ class VoxelProjection<A : AgentLike> @JvmOverloads constructor(
 
     /** Voxel currently occupied by [agent], or null if not placed. */
     fun voxelOf(agent: A): Voxel? = agentToVoxel[agent]
+
+    /** Re-emits every placed agent's current voxel (flattened to col/row) for the opening-frame snapshot — G8. */
+    internal fun snapshotPositions(sink: ksl.animation.AnimationSink, time: Double) {
+        for ((agent, v) in agentToVoxel) {
+            sink.emit(AnimationEvent.AgentPositionChanged(time, agent.name, name, v.col.toDouble(), v.row.toDouble(), v.layer.toDouble()))
+        }
+    }
 
     /** All agents currently on [voxel]. Empty list if the voxel is unoccupied. */
     fun agentsAt(voxel: Voxel): List<A> {

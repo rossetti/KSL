@@ -23,6 +23,7 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlinx.serialization.Serializable
 
 /**
  *  A discrete cell in a [GridProjection] addressed by integer
@@ -34,6 +35,7 @@ import kotlin.math.sqrt
  *  symmetrically). Distance helpers are provided for the three
  *  standard grid metrics; see [GridMetric].
  */
+@Serializable
 data class Cell(val col: Int, val row: Int) {
 
     /**

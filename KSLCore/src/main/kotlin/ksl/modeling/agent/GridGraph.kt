@@ -19,6 +19,7 @@
 package ksl.modeling.agent
 
 import kotlin.math.sqrt
+import kotlinx.serialization.Serializable
 
 /**
  *  Movement rule for a [GridGraph]. Selects the allowed neighbors of
@@ -29,6 +30,7 @@ import kotlin.math.sqrt
  *     Used when diagonals are not allowed (tile-aligned movement,
  *     some board games).
  */
+@Serializable
 enum class MovementRule { MOORE, VON_NEUMANN }
 
 /**
@@ -165,6 +167,29 @@ class GridGraph @JvmOverloads constructor(
     /** Number of cells currently marked as blocked. */
     val blockedCount: Int
         get() = blockedCells.size
+
+    /** A read-only snapshot of the blocked (impassable) cells — for extraction/animation (P5a/G2). */
+    val blockedCellSet: Set<Cell>
+        get() = blockedCells.toSet()
+
+    /** A read-only snapshot of the per-cell traversal costs (only cells with a non-default cost). */
+    val cellCostMap: Map<Cell, Double>
+        get() = cellCosts.toMap()
+
+    /**
+     * A neutral [GridGeometrySpec] snapshot of this graph's structure (dims, topology, obstacles, costs) for
+     * the space drawn as [spaceName]. [originX]/[originY]/[cellSize] optionally pin the grid's physical
+     * placement in world coordinates (else the renderer derives it from the space's bounds). P5a/G2.
+     */
+    fun toSpec(spaceName: String, originX: Double? = null, originY: Double? = null, cellSize: Double? = null): GridGeometrySpec =
+        GridGeometrySpec(
+            spaceName = spaceName, cols = columns, rows = rows, torus = torus, movementRule = movementRule,
+            allowCornerCutting = allowCornerCutting,
+            blockedCells = blockedCells.sortedWith(compareBy({ it.col }, { it.row })),
+            cellCosts = cellCostMap.entries.sortedWith(compareBy({ it.key.col }, { it.key.row }))
+                .map { (c, w) -> CellCost(c.col, c.row, w) },
+            originX = originX, originY = originY, cellSize = cellSize
+        )
 
     /** Total cell count (columns × rows). */
     val cellCount: Int

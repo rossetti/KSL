@@ -18,6 +18,8 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
+
 /**
  *  A directed edge in a [NetworkProjection], with an optional weight.
  *  For undirected networks each "logical" edge is stored as a single
@@ -190,6 +192,33 @@ class NetworkProjection<A : AgentLike> @JvmOverloads constructor(
      *  logical edge appears once, in the original `connect` argument
      *  ordering.
      */
+    /**
+     * Snapshots the graph for animation (G7): assigns each member a position via a deterministic circular
+     * layout (by membership order), emits a [AnimationEvent.NetworkDefined] (positioned nodes + weighted
+     * edges), and emits an [AnimationEvent.AgentPositionChanged] per member so agents render — with their
+     * state colors — at their node slots, on top of the edges. A [NetworkProjection] is non-spatial, so the
+     * positions are a presentation layout assigned here, not model state. Internal: an animation concern.
+     */
+    internal fun snapshotNetwork(sink: ksl.animation.AnimationSink, time: Double) {
+        val members = context.members.toList()
+        if (members.isEmpty()) return
+        val n = members.size
+        val radius = n.coerceAtLeast(1).toDouble() // ~1 world unit of circumference per node; renderer scales to fit
+        val cx = radius; val cy = radius
+        val pos = HashMap<A, Pair<Double, Double>>(n)
+        members.forEachIndexed { i, a ->
+            val theta = 2.0 * Math.PI * i / n
+            pos[a] = (cx + radius * Math.cos(theta)) to (cy + radius * Math.sin(theta))
+        }
+        val nodes = members.map { a -> ksl.animation.NetworkNodeDef(a.name, pos.getValue(a).first, pos.getValue(a).second) }
+        val edgeDefs = edges().map { e -> ksl.animation.NetworkEdgeDef(e.from.name, e.to.name, e.weight) }
+        sink.emit(AnimationEvent.NetworkDefined(time, name, nodes, edgeDefs))
+        for (a in members) {
+            val (x, y) = pos.getValue(a)
+            sink.emit(AnimationEvent.AgentPositionChanged(time, a.name, name, x, y))
+        }
+    }
+
     fun edges(): List<Edge<A>> {
         if (directed) {
             val out = mutableListOf<Edge<A>>()

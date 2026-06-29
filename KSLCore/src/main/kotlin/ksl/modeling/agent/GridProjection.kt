@@ -18,6 +18,7 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
@@ -121,6 +122,11 @@ class GridProjection<A : AgentLike> @JvmOverloads constructor(
         }
         agentToCell[agent] = c
         cellToAgents.getOrPut(c) { mutableListOf() }.add(agent)
+        // Position chokepoint for grid moves: x = column, y = row (cell coordinates).
+        val sink = context.model.animationSink
+        if (sink.isActive) {
+            sink.emit(AnimationEvent.AgentPositionChanged(context.time, agent.name, name, c.col.toDouble(), c.row.toDouble()))
+        }
     }
 
     fun placeAt(agent: A, col: Int, row: Int) = placeAt(agent, Cell(col, row))
@@ -150,6 +156,18 @@ class GridProjection<A : AgentLike> @JvmOverloads constructor(
 
     /** Cell currently occupied by [agent], or null if not placed. */
     fun cellOf(agent: A): Cell? = agentToCell[agent]
+
+    /**
+     * Re-emits every placed agent's current position as an [AnimationEvent.AgentPositionChanged] to
+     * [sink] at [time], mirroring [placeAt]'s emission. Used by the animation opening-frame snapshotter
+     * (9B.2b) so a mid-run capture window shows agents where they already are. Internal: an animation
+     * concern, not part of the modeling API.
+     */
+    internal fun snapshotPositions(sink: ksl.animation.AnimationSink, time: Double) {
+        for ((agent, cell) in agentToCell) {
+            sink.emit(AnimationEvent.AgentPositionChanged(time, agent.name, name, cell.col.toDouble(), cell.row.toDouble()))
+        }
+    }
 
     /** All agents currently on [cell]. Empty list if the cell is unoccupied. */
     fun agentsAt(cell: Cell): List<A> {

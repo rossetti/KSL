@@ -142,6 +142,29 @@ class Dynamics<A : AgentLike> @JvmOverloads constructor(
         get() = forces.size
 
     /**
+     * The summed net steering force on [agent] right now, without integrating — for the force overlay (G10).
+     * [dt] is passed through to the force factories (most are dt-independent). Returns ORIGIN if the agent has
+     * no position.
+     */
+    fun netForceOn(agent: A, dt: Double = 1.0): Point2D {
+        space.positionOf(agent) ?: return Point2D.ORIGIN
+        var fx = 0.0; var fy = 0.0
+        for (force in forces) { val f = force.compute(agent, this, dt); fx += f.x; fy += f.y }
+        return Point2D(fx, fy)
+    }
+
+    /**
+     * Type-erased per-agent velocity/force samples for the animation overlay (G10). Computing the members here
+     * (typed [A]) avoids leaking the generic to the (non-generic) sampler. NaN marks an uncaptured component.
+     */
+    fun overlaySample(wantVelocity: Boolean, wantForce: Boolean): List<AgentVectorSample> =
+        space.context.members.map { a ->
+            val v = if (wantVelocity) velocityOf(a) else null
+            val f = if (wantForce) netForceOn(a) else null
+            AgentVectorSample(a.name, v?.x ?: Double.NaN, v?.y ?: Double.NaN, f?.x ?: Double.NaN, f?.y ?: Double.NaN)
+        }
+
+    /**
      *  One Euler integration step for [agent]: sum the registered
      *  forces, integrate velocity by `(sumForce / mass) * dt`, clamp
      *  to `[minSpeed, maxSpeed]`, compute the candidate position
@@ -289,3 +312,6 @@ suspend fun <A : AgentLike> KSLProcessBuilder.runDynamicsAll(
         delay(dt)
     }
 }
+
+/** A type-erased per-agent velocity/force sample for the G10 overlay; NaN components are uncaptured. */
+data class AgentVectorSample(val name: String, val vx: Double, val vy: Double, val fx: Double, val fy: Double)

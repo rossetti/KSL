@@ -18,6 +18,7 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -188,6 +189,12 @@ class ContinuousVolume<A : AgentLike> @JvmOverloads constructor(
         positions[agent] = point
         agentBucket[agent] = newBucket
         buckets.getOrPut(newBucket) { mutableSetOf() }.add(agent)
+        // Universal position chokepoint (mirrors ContinuousProjection): emit so 3D agents animate, flattened
+        // to the x–y plane (z is carried but the 2D renderer ignores it) — G8.
+        val sink = context.model.animationSink
+        if (sink.isActive) {
+            sink.emit(AnimationEvent.AgentPositionChanged(context.time, agent.name, name, point.x, point.y, point.z))
+        }
     }
 
     /** Update [agent]'s position. Identical to [placeAt]. */
@@ -199,6 +206,13 @@ class ContinuousVolume<A : AgentLike> @JvmOverloads constructor(
      *  assigned position (never placed, or has left the context).
      */
     fun positionOf(agent: A): Point3D? = positions[agent]
+
+    /** Re-emits every placed agent's current position (flattened to x–y) for the opening-frame snapshot — G8. */
+    internal fun snapshotPositions(sink: ksl.animation.AnimationSink, time: Double) {
+        for ((agent, point) in positions) {
+            sink.emit(AnimationEvent.AgentPositionChanged(time, agent.name, name, point.x, point.y, point.z))
+        }
+    }
 
     // ── Distance ────────────────────────────────────────────────────────────
 

@@ -18,6 +18,7 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.entity.ProcessModel
@@ -86,11 +87,17 @@ open class AgentModel(
 
     private val _agents: MutableList<AgentLike> = mutableListOf()
 
+    /** Contexts created in this model, for the animation layer to enumerate spaces (8K.6a). */
+    private val _animationContexts: MutableList<Context<*>> = mutableListOf()
+
+    /** The model's contexts, so the animation coordinator can emit their projections' spaces (8K.6a). */
+    internal fun animationContexts(): List<Context<*>> = _animationContexts
+
     /**
-     *  All setup-time agents (Agent, PermanentAgent, AgentResource)
-     *  registered with this model. Transient `Agent`s created *during*
-     *  a replication are not added to this list — they manage their
-     *  own lifecycle via the immediate-start path in `statechart { }`.
+     *  The setup-time agents that drive the per-replication restart: `Agent` and `PermanentAgent`.
+     *  By design this registry does **not** include `AgentResource`s (which manage their own
+     *  statechart lifecycle) or transient `Agent`s created *during* a replication; both are instead
+     *  surfaced via [AgentRegistryObserver]. (See `AgentRegistryObserverTest`.)
      */
     val agents: List<AgentLike>
         get() = _agents
@@ -100,6 +107,36 @@ open class AgentModel(
 
     fun removeAgent(agent: AgentLike) {
         _agents.remove(agent)
+    }
+
+    /**
+     *  Setup-time resource-agents ([ksl.modeling.agent.AgentResource]). Kept **separate** from
+     *  [_agents] on purpose: by design (see `AgentRegistryObserverTest`) the public [agents]
+     *  registry holds only `Agent`/`PermanentAgent` (the per-replication-restart drivers), not
+     *  `AgentResource`s. This list exists so integrations (e.g. the animation registry snapshot)
+     *  can still find setup-time resource-agents whose construction predates their attach.
+     */
+    private val _setupResourceAgents: MutableList<AgentLike> = mutableListOf()
+
+    /**
+     *  All setup-time agents an integration should announce/wire at replication start: the public
+     *  [agents] plus setup-time [ksl.modeling.agent.AgentResource]s. Used by the animation
+     *  registry-snapshot so resource-agents (and their statecharts) are covered without polluting
+     *  the public [agents] registry.
+     */
+    internal fun snapshotAgents(): List<AgentLike> = _agents + _setupResourceAgents
+
+    /**
+     *  Registers a resource-agent. It is announced to observers (so a registry observer present at
+     *  construction sees it) and, when created at setup time, recorded in [_setupResourceAgents] for
+     *  the replication-start snapshot — but it is deliberately NOT added to the public [agents]
+     *  registry.
+     */
+    internal fun registerResourceAgent(agent: AgentLike) {
+        if (!model.isRunning) {
+            _setupResourceAgents.add(agent)
+        }
+        notifyAgentRegistered(agent)
     }
 
     private val registryObservers: MutableList<AgentRegistryObserver> = mutableListOf()
@@ -989,10 +1026,59 @@ open class AgentModel(
      *
      *  @param aName an optional name for the agent
      */
+    /**
+     *  Emits an animation state-change for [agentName] (8I.2), reusing [AnimationEvent.AgentStateEntered]
+     *  (which the renderer already consumes for state-based coloring). Lets a plain-field agent — one
+     *  without a statechart — drive `agentStateColor` styling. Guarded, so it costs nothing when no
+     *  animation sink is installed.
+     */
+    internal fun emitAgentAnimationState(agentName: String, stateName: String) {
+        val sink = model.animationSink
+        if (sink.isActive) sink.emit(AnimationEvent.AgentStateEntered(time, agentName, stateName))
+    }
+
+    /** Whether the planned-path overlay (G12) is being captured this run; set by the animation coordinator. */
+    private var capturePlannedPaths = false
+    internal fun setCapturePlannedPaths(on: Boolean) { capturePlannedPaths = on }
+
+    /**
+     * Report a route the model just planned for [agentName] as the world-coordinate polyline [worldPoints]
+     * (G12 overlay). A no-op unless the planned-path overlay is being captured, so models can call it
+     * unconditionally with zero cost when the overlay is off. Needs ≥ 2 points to draw.
+     */
+    fun reportPlannedPath(agentName: String, worldPoints: List<Point2D>) {
+        if (!capturePlannedPaths || worldPoints.size < 2) return
+        val sink = model.animationSink
+        if (sink.isActive) sink.emit(AnimationEvent.PlannedPath(time, agentName, worldPoints.map { ksl.animation.PathPoint(it.x, it.y) }))
+    }
+
+    /** Whether the marker-pulse overlay (G-animated) is being captured this run; set by the animation coordinator. */
+    private var captureMarkerPulses = false
+    internal fun setCaptureMarkerPulses(on: Boolean) { captureMarkerPulses = on }
+
+    /**
+     * Report a transient highlight ("pulse") at world location ([x],[y]) — e.g. when a delivery completes at a
+     * drop-off point (G-animated overlay). The renderer draws an expanding, fading ring over the window
+     * `[now, now + holdTime]` (model time). A no-op unless the marker-pulse overlay is being captured, so models
+     * can call it unconditionally with zero cost when the overlay is off. [label]/[colorHex] are optional styling.
+     */
+    fun reportMarkerPulse(x: Double, y: Double, holdTime: Double = 1.0, label: String? = null, colorHex: String? = null) {
+        if (!captureMarkerPulses) return
+        val sink = model.animationSink
+        if (sink.isActive) sink.emit(AnimationEvent.MarkerPulsed(time, x, y, holdTime = holdTime, label = label, colorHex = colorHex))
+    }
+
     open inner class Agent(aName: String? = null) : Entity(aName), AgentLike {
 
         /** The enclosing [AgentModel] (for helpers like Contract-Net). */
         internal val agentModel: AgentModel get() = this@AgentModel
+
+        /**
+         *  Reports a state change for animation (8I.2). For a plain-field agent (no statechart), call
+         *  this whenever the agent's state changes to drive state-based coloring (`agentStateColor`).
+         *  A no-op when no animation sink is installed.
+         */
+        fun reportAnimationState(stateName: String) = emitAgentAnimationState(name, stateName)
 
         override val mailbox: AgentMailbox<AgentMessage> = AgentMailbox(this)
 
@@ -1270,6 +1356,13 @@ open class AgentModel(
         override val currentTime: Double
             get() = time
 
+        /**
+         *  Reports a state change for animation (8I.2). For a plain-field agent (no statechart), call
+         *  this whenever the agent's state changes to drive state-based coloring (`agentStateColor`).
+         *  A no-op when no animation sink is installed.
+         */
+        fun reportAnimationState(stateName: String) = emitAgentAnimationState(name, stateName)
+
         override var statechart: Statechart? = null
             internal set
 
@@ -1401,6 +1494,11 @@ open class AgentModel(
     open inner class Context<A : AgentLike>(name: String? = null) :
         ModelElement(this@AgentModel, name) {
 
+        init {
+            // Register so the animation layer can enumerate this model's spaces (8K.6a).
+            this@AgentModel._animationContexts.add(this)
+        }
+
         private val _members: MutableSet<A> = LinkedHashSet()
         private val _projections: MutableList<Projection<A>> = mutableListOf()
 
@@ -1435,6 +1533,56 @@ open class AgentModel(
         val projections: List<Projection<A>>
             get() = _projections
 
+        /** Obstacle/cost geometry declared for a projection, keyed by the projection's name (P5a/G2). */
+        private val _geometries: MutableMap<String, GridGraph> = mutableMapOf()
+
+        /**
+         *  Declare that [graph] supplies the obstacles/costs for the space drawn as [projection]. This is for
+         *  animation/extraction only — it does **not** change simulation behavior (the model still uses the
+         *  graph however it already does). Lets the animation layer find a graph it otherwise can't discover
+         *  (a [GridGraph] is not a model element and projections don't reference one). P5a/G2.
+         */
+        fun attachGeometry(projection: Projection<*>, graph: GridGraph) {
+            _geometries[projection.name] = graph
+        }
+
+        /** The geometry graphs declared via [attachGeometry], keyed by projection name. */
+        val geometries: Map<String, GridGraph>
+            get() = _geometries
+
+        /** Flow fields declared for the flow-field overlay (G11), keyed by the space they overlay. */
+        private val _flowFields: MutableMap<String, FlowField> = mutableMapOf()
+
+        /**
+         *  Declare that [flowField] is the distance gradient drawn over the space named [spaceName], for the
+         *  opt-in flow-field overlay (G11). Animation-only — no effect on the simulation. A [FlowField] is not
+         *  a model element and projections don't reference one, so the animation layer can't find it otherwise.
+         */
+        fun attachFlowField(spaceName: String, flowField: FlowField) {
+            _flowFields[spaceName] = flowField
+        }
+
+        /** The flow fields declared via [attachFlowField], keyed by space name. */
+        val flowFields: Map<String, FlowField>
+            get() = _flowFields
+
+        /** Dynamics declared for the velocity/force overlay (G10), keyed by the projection space they drive. */
+        private val _dynamics: MutableMap<String, Dynamics<*>> = mutableMapOf()
+
+        /**
+         *  Declare a [dynamics] so the velocity/force overlay (G10) can sample its per-agent velocities and net
+         *  forces. Animation-only — no effect on the simulation. A [Dynamics] is a plain object the model holds,
+         *  so the animation layer can't find it otherwise. Keyed by space name, so re-declaring each replication
+         *  (e.g. from initialize()) overwrites rather than accumulates.
+         */
+        fun attachDynamics(dynamics: Dynamics<*>) {
+            _dynamics[dynamics.space.name] = dynamics
+        }
+
+        /** The dynamics declared via [attachDynamics]. */
+        val dynamicsLinks: Collection<Dynamics<*>>
+            get() = _dynamics.values
+
         /**
          *  Add [agent] to this context. Notifies every attached
          *  projection via `onAgentJoined`. No-op if already a member.
@@ -1452,6 +1600,11 @@ open class AgentModel(
          */
         fun remove(agent: A) {
             if (_members.remove(agent)) {
+                // Animation: the agent has left the population — emit a removal so a renderer can
+                // stop drawing it (otherwise it would ghost at its last position). Guarded, so it
+                // costs nothing when no sink is installed.
+                val sink = model.animationSink
+                if (sink.isActive) sink.emit(AnimationEvent.AgentRemoved(time, agent.name))
                 // Snapshot: a projection callback may mutate the context.
                 for (p in _projections.toList()) p.onAgentLeft(agent)
             }

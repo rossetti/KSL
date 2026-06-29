@@ -154,6 +154,20 @@ class VoxelGraph @JvmOverloads constructor(
     val blockedCount: Int
         get() = blockedVoxels.size
 
+    /** A read-only snapshot of the blocked (impassable) voxels. */
+    val blockedVoxelSet: Set<Voxel>
+        get() = blockedVoxels.toSet()
+
+    /**
+     * A 2D [GridGraph] whose blocked cells are this 3D grid's **no-fly footprint**: cell (col,row) is blocked
+     * if any layer at (col,row) is blocked. Flattens 3D obstacles for the 2D animation, so a voxel model's
+     * obstacles can be drawn via the existing grid-obstacle overlay (reuses P5; the app is 2D).
+     */
+    fun toFlattenedGridGraph(): GridGraph =
+        GridGraph(columns, rows, torus = torus).also { g ->
+            blockedVoxels.map { Cell(it.col, it.row) }.toSet().forEach { g.block(it) }
+        }
+
     /** Total voxel count (columns × rows × layers). */
     val voxelCount: Int
         get() = columns * rows * layers
