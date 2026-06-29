@@ -138,3 +138,47 @@ tasks.register<Jar>("sampleBundleJar") {
     // Single-bundle ServiceLoader registration (MM1 only).
     from("bundle-meta/mm1-sample")
 }
+
+// ── Animation Examples bundle (the 16 worked animation gallery models) ────────
+// Mirrors bookExamplesBundleJar: a plain builders JAR (the 16 ModelBuilderIfc
+// wrappers + the example models' class closure) assembled by `kslpkg assemble`
+// into a manifest bundle.  Dropped into the user's KSLWork/bundles folder, it
+// makes every animation example pickable in the apps' Open Model… picker.
+//
+//     ./gradlew :KSLExamples:animationExamplesBundleJar
+//     -> KSLExamples/build/libs/animation-examples.jar   (drop into KSLWork/bundles)
+tasks.register<Jar>("animationBuildersJar") {
+    description = "Plain builders JAR for the animation-examples bundle (input to kslpkg assemble)."
+    archiveBaseName.set("animation-builders")
+    archiveVersion.set("")
+    dependsOn(tasks.named("classes"))
+    from(sourceSets["main"].output) {
+        include("ksl/examples/general/animationbundle/**")          // the 16 builders + example objects (incl. inline AnnotatedClinic)
+        include("ksl/examples/general/agent/**")                    // duplicated agent models (epidemic, flocking, AGV, drone, …)
+        include("ksl/examples/book/chapter6/DriveThroughPharmacy*")
+        include("ksl/examples/book/chapter7/StemFairMixerEnhanced*")
+        include("ksl/examples/book/chapter8/TandemQueueWithConveyors*")
+        include("ksl/examples/book/chapter8/TandemQueueWithUnconstrainedMovement*")
+        include("ksl/examples/book/chapter8/TestAndRepairShopWithMovableResources*")
+        include("ksl/examples/general/models/station/**")           // StationNetworkTandemQueue / MultiClass + their closure
+    }
+}
+
+tasks.register<JavaExec>("animationExamplesBundleJar") {
+    group = "ksl bundle"
+    description = "Assemble the KSL Animation Examples manifest bundle JAR (kslpkg assemble)."
+    dependsOn("animationBuildersJar")
+    classpath = kslpkgClasspath
+    mainClass.set("ksl.bundle.tools.MainKt")
+    args(
+        "assemble", layout.buildDirectory.file("libs/animation-builders.jar").get().asFile.path,
+        "--id", "edu.uark.ksl.animation-examples",
+        "--name", "KSL Animation Examples",
+        "--version", "1.0.0",
+        "--description", "The 16 worked KSL animation examples (process view, stations, conveyors, " +
+            "movable/transport resources, and agent-based grid/continuous/network models), each ready " +
+            "to capture and replay in the KSL animation app.",
+        "-o", layout.buildDirectory.file("libs/animation-examples.jar").get().asFile.path,
+        "--force",
+    )
+}

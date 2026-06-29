@@ -18,7 +18,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
 
     // Test fixtures (example models) live in KSLTestModels; the released app ships no
-    // baked-in models — it discovers bundles from ~/.ksl/bundles/ at runtime.
+    // baked-in models — it discovers bundles from the workspace bundles dir (KSLWork/bundles) at runtime.
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
     testImplementation(kotlin("test"))
@@ -28,7 +28,7 @@ dependencies {
 application {
     // The animation authoring/playback app in bundle-picker mode (Capture · Run · Layout · Replay),
     // matching the other KSL apps: starts with no baked-in model and discovers bundles the user
-    // installed into ~/.ksl/bundles/ (or loaded via Open Model… → Load JAR…).
+    // installed into their KSLWork/bundles folder (or loaded via Open Model… → Load JAR…).
     mainClass.set("ksl.app.swing.animation.app.MainKt")
 }
 

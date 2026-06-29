@@ -271,7 +271,7 @@ private class PickerDialog(
         if (bundles.isEmpty()) {
             banner.foreground = Color(0x6B, 0x6B, 0x6B)
             banner.text = "No bundles loaded.  Click Load JAR… to load one, " +
-                "or drop a bundle JAR into ~/.ksl/bundles/."
+                "or drop a bundle JAR into your KSLWork/bundles folder."
         } else if (banner.text.isBlank()) {
             banner.text = " "
         }

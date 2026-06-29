@@ -25,8 +25,8 @@ class NoModelStartupTest {
 
     @Test
     fun `forNoModel opens an empty, inert controller that still carries the bundle library`() {
-        // KSL discovers bundles from ~/.ksl/bundles/ (no classpath SPI); a fresh library has none, which is
-        // exactly the no-model startup case — the controller must still open clean and carry the library.
+        // KSL discovers bundles from the workspace bundles dir (KSLWork/bundles), not the classpath; a fresh
+        // library has none, which is exactly the no-model startup case — the controller must still open clean.
         val lib = BundleLibraryController()
         controller = AnimationAppController.forNoModel("TestAnimationApp", lib)
 
