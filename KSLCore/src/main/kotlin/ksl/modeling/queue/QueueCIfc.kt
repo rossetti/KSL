@@ -4,10 +4,11 @@ import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.ModelElement
+import ksl.utilities.NameIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 
-interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
+interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc, NameIfc {
 
     /**
      * Allows access to number in queue response information
