@@ -108,11 +108,13 @@ class GridEpidemicExample(parent: ModelElement, name: String? = null) :
             state = HealthState.INFECTED
             timeOfInfection = currentTime
             numSusceptible.decrement(); numInfected.increment()
+            reportAnimationState("Infected") // 8I.2: drive state-based coloring (no statechart here)
         }
 
         private fun recover() {
             state = HealthState.RECOVERED
             numInfected.decrement(); numRecovered.increment()
+            reportAnimationState("Recovered")
         }
 
         val script: KSLProcess = process(isDefaultProcess = true) {
@@ -179,6 +181,7 @@ class GridEpidemicExample(parent: ModelElement, name: String? = null) :
             val r = stream.randInt(0, gridSize - 1)
             grid.placeAt(p, c, r)
             numSusceptible.increment()
+            p.reportAnimationState("Susceptible") // 8I.2: initial state for coloring
             activate(p.script)
             if (i < initialInfected) p.infect()
         }

@@ -122,6 +122,11 @@ class BuildingEvacuationExample(parent: ModelElement, name: String? = null) :
         context = pedestrians, columns = gridSize, rows = gridSize,
     )
 
+    init {
+        // Link the wall graph to the animated grid so the obstacles can be extracted into the layout (P5a/G2).
+        pedestrians.attachGeometry(grid, graph)
+    }
+
     // ── Responses ──────────────────────────────────────────────────────────
 
     val evacuationTime: Response = Response(this, "EvacuationTime")

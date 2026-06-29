@@ -397,6 +397,7 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
             if (agv.currentCell == target) return
             val path = graph.shortestPath(agv.currentCell, target)
                 ?: error("no path from ${agv.currentCell} to $target in warehouse graph")
+            reportPlannedPath(agv.name, path.nodes.map { cellCenter(it) }) // G12 overlay (no-op unless captured)
             val waypoints = path.nodes.drop(1).map { cellCenter(it) }
             travelThrough(
                 agent = agv, space = space,

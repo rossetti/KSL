@@ -284,6 +284,8 @@ class PedestrianCrowdExample(parent: ModelElement, name: String? = null) :
 
         // Build the flow field for this replication. (Cheap — one Dijkstra.)
         field = FlowField(graph, exits, cellSize = cellSize)
+        // Link it so the opt-in flow-field overlay (G11) can draw the gradient over the agent space.
+        crowd.attachFlowField(space.name, field)
 
         // Build the dynamics and compose forces. Each force is a factory
         // call from `Forces.kt`; the falloff lambdas close over the
@@ -308,6 +310,7 @@ class PedestrianCrowdExample(parent: ModelElement, name: String? = null) :
                 aWall * exp((pedRadius - d) / bWall)
             },
         )
+        crowd.attachDynamics(dynamics) // expose velocity/force for the G10 overlay (no-op unless captured)
 
         // (Re)populate. Place each pedestrian in a unique passable cell
         // in the room half (columns 0..wallCol-1), at the cell center
