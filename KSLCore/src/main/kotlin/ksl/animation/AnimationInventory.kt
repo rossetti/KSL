@@ -197,7 +197,7 @@ private fun processesOf(cls: KClass<out ProcessModel.Entity>): List<ProcessInfo>
  * `null` for elements that aren't directly selectable here — e.g. `Response`/`Counter`, which are taken
  * from the model's curated lists. `MovableResource` is matched before `Resource` (it is a `Resource`).
  */
-internal fun elementKindOf(e: ModelElement): ElementKind? = when (e) {
+fun elementKindOf(e: ModelElement): ElementKind? = when (e) {
     is EntityType -> ElementKind.ENTITY_TYPE
     is Queue<*> -> ElementKind.QUEUE
     is MovableResource -> ElementKind.MOVABLE_RESOURCE
@@ -214,6 +214,13 @@ internal fun elementKindOf(e: ModelElement): ElementKind? = when (e) {
     is AgentModel -> ElementKind.AGENT
     else -> null
 }
+
+/**
+ * The model's elements in parent-child order, for animation emitter registration (e.g. the trace
+ * attachment). A public, animation-scoped view over the engine-internal element list, so a downstream
+ * module can register emitters without `Model.getModelElements()` itself becoming public API.
+ */
+fun Model.animatableModelElements(): List<ModelElement> = getModelElements()
 
 fun Model.animationInventory(): AnimationInventory {
     val queues = LinkedHashSet<String>()
