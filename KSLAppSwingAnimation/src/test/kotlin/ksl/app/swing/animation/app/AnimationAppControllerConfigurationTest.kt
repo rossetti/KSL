@@ -12,6 +12,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,6 +27,9 @@ import kotlin.test.assertTrue
  * with two-document dirty tracking, TOML config round-trip (incl. capture), and inventory validation.
  */
 class AnimationAppControllerConfigurationTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(
@@ -114,7 +119,7 @@ class AnimationAppControllerConfigurationTest {
         assertTrue(c.layoutDirty.value, "setting a layout marks the layout document dirty")
         assertFalse(c.isDirty.value, "the config document is untouched by a layout edit")
 
-        val path = Files.createTempFile("anim-layout", ".lay.json")
+        val path = Files.createTempFile(tempRoot, "anim-layout", ".lay.json")
         try {
             c.saveLayout(path)
             assertFalse(c.layoutDirty.value, "saving clears the layout dirty flag")
@@ -159,7 +164,7 @@ class AnimationAppControllerConfigurationTest {
         c.updateRunOverride { it.copy(numberOfReplications = 9) }
         c.setCaptureMode(CaptureMode.SELECTED)
         c.scaffoldLayout()
-        c.markSaved(Files.createTempFile("anim-cfg", ".toml"))
+        c.markSaved(Files.createTempFile(tempRoot, "anim-cfg", ".toml"))
 
         c.resetConfiguration()
         assertEquals(CaptureSpec(), c.captureSpec.value)
@@ -178,7 +183,7 @@ class AnimationAppControllerConfigurationTest {
         c.updateRunOverride { it.copy(numberOfReplications = 7) }
         val expectedCapture = c.captureSpec.value
 
-        val path = Files.createTempFile("anim-cfg", ".toml")
+        val path = Files.createTempFile(tempRoot, "anim-cfg", ".toml")
         try {
             c.saveConfiguration(path)
             assertFalse(c.isDirty.value, "saving clears dirty")
@@ -199,7 +204,7 @@ class AnimationAppControllerConfigurationTest {
     @Test
     fun `openConfiguration on a malformed file leaves state unchanged`() {
         val c = fresh()
-        val path = Files.createTempFile("anim-bad", ".toml")
+        val path = Files.createTempFile(tempRoot, "anim-bad", ".toml")
         try {
             Files.writeString(path, "scenarios = []\n") // valid TOML, zero scenarios
             val result = c.openConfiguration(path)
@@ -215,7 +220,7 @@ class AnimationAppControllerConfigurationTest {
         val c = fresh()
         c.updateRunOverride { it.copy(numberOfReplications = 2) }
         assertTrue(c.isDirty.value)
-        val path = Files.createTempFile("anim-cfg", ".toml")
+        val path = Files.createTempFile(tempRoot, "anim-cfg", ".toml")
         try {
             c.markSaved(path)
             assertFalse(c.isDirty.value)

@@ -10,6 +10,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -21,6 +23,9 @@ import kotlin.test.assertTrue
  * and can enumerate existing traces and layouts. Headless.
  */
 class WorkspaceLayoutTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -36,7 +41,7 @@ class WorkspaceLayoutTest {
 
     @Test
     fun `artifact directories follow the KSLAnimation per-model structure`() {
-        val ws = Files.createTempDirectory("anim-ws")
+        val ws = Files.createTempDirectory(tempRoot, "anim-ws")
         val c = controller(ws)
         try {
             assertEquals(ws.resolve("KSLAnimation"), c.appWorkspace)
@@ -51,7 +56,7 @@ class WorkspaceLayoutTest {
 
     @Test
     fun `a run writes its atf into traces and it is enumerable`() {
-        val ws = Files.createTempDirectory("anim-ws")
+        val ws = Files.createTempDirectory(tempRoot, "anim-ws")
         val c = controller(ws)
         try {
             assertTrue(c.listTraces().isEmpty(), "no traces before a run")
@@ -70,7 +75,7 @@ class WorkspaceLayoutTest {
 
     @Test
     fun `layouts are enumerated from the layouts folder, newest first`() {
-        val ws = Files.createTempDirectory("anim-ws")
+        val ws = Files.createTempDirectory(tempRoot, "anim-ws")
         val c = controller(ws)
         try {
             assertTrue(c.listLayouts().isEmpty(), "no layouts before any are saved")

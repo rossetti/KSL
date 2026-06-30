@@ -16,6 +16,8 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,6 +28,9 @@ import kotlin.test.assertTrue
  * answers frame queries (queue length, resource state, response value, entity existence) at time t.
  */
 class ReplayModelTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private class ShopModel(parent: ModelElement) : ProcessModel(parent, "Shop") {
         val worker = ResourceWithQ(parent = this, name = "Worker", capacity = 1)
@@ -50,7 +55,7 @@ class ReplayModelTest {
 
     @Test
     fun `builds a queryable replay model from a real two-file trace`() {
-        val tmp = Files.createTempDirectory("replaytest")
+        val tmp = Files.createTempDirectory(tempRoot, "replaytest")
         val traceFile = tmp.resolve("run.atf")
         val layoutFile = tmp.resolve("run.lay.json")
 

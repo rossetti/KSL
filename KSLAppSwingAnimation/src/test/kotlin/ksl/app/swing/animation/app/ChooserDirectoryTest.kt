@@ -5,7 +5,9 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,6 +17,9 @@ import kotlin.test.assertTrue
  * on demand), instead of silently falling back to the user home.
  */
 class ChooserDirectoryTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -29,7 +34,7 @@ class ChooserDirectoryTest {
 
     @Test
     fun `layout choosers start in the created layouts folder`() {
-        val ws = Files.createTempDirectory("anim-chooser")
+        val ws = Files.createTempDirectory(tempRoot, "anim-chooser")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             // Nothing saved yet → the folder does not exist on disk.
@@ -42,7 +47,7 @@ class ChooserDirectoryTest {
 
     @Test
     fun `replay browse choosers start in the created traces and layouts folders`() {
-        val ws = Files.createTempDirectory("anim-chooser")
+        val ws = Files.createTempDirectory(tempRoot, "anim-chooser")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             val dirs = onEdt {

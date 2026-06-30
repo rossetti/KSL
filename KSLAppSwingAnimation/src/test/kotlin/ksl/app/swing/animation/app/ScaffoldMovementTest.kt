@@ -16,6 +16,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -29,6 +31,9 @@ import kotlin.test.assertTrue
  * actually move). Headless.
  */
 class ScaffoldMovementTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -59,7 +64,7 @@ class ScaffoldMovementTest {
 
     @Test
     fun `transporters resolve to on-canvas positions during replay`() {
-        val ws = Files.createTempDirectory("anim-move")
+        val ws = Files.createTempDirectory(tempRoot, "anim-move")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             c.submit()

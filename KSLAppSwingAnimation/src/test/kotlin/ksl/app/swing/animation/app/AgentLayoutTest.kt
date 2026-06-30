@@ -6,7 +6,9 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -16,6 +18,9 @@ import kotlin.test.assertTrue
  * cells) frame at a sensible cell size instead of collapsing into a blob. §7.1: the space list is legible.
  */
 class AgentLayoutTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -30,7 +35,7 @@ class AgentLayoutTest {
 
     @Test
     fun `agent auto-layout places the grid space with a positive display cell size`() {
-        val c = AnimationAppController("agent", builder).apply { workspaceOverride = Files.createTempDirectory("agentlay") }
+        val c = AnimationAppController("agent", builder).apply { workspaceOverride = Files.createTempDirectory(tempRoot, "agentlay") }
         try {
             val layout = c.buildScaffoldLayout()
             assertNotNull(layout, "scaffold built")
@@ -43,7 +48,7 @@ class AgentLayoutTest {
 
     @Test
     fun `space list shows the grid's dimensions`() {
-        val c = AnimationAppController("agent", builder).apply { workspaceOverride = Files.createTempDirectory("agentlay2") }
+        val c = AnimationAppController("agent", builder).apply { workspaceOverride = Files.createTempDirectory(tempRoot, "agentlay2") }
         try {
             val shown = onEdt {
                 val panel = LayoutPanel(c)

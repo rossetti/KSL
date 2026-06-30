@@ -19,6 +19,7 @@ import ksl.simulation.ModelBuilderIfc
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -30,6 +31,9 @@ import kotlin.test.assertTrue
  * (offscreen [BufferedImage] render, the module's standard canvas-test technique).
  */
 class ReplayScaffoldFallbackTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(
@@ -62,7 +66,7 @@ class ReplayScaffoldFallbackTest {
 
     @Test
     fun `produced trace renders blank with no layout but populated with the scaffold fallback`() {
-        val workspace = Files.createTempDirectory("anim-scaffold")
+        val workspace = Files.createTempDirectory(tempRoot, "anim-scaffold")
         val controller = AnimationAppController("TRScaffold", builder)
         controller.workspaceOverride = workspace
         try {

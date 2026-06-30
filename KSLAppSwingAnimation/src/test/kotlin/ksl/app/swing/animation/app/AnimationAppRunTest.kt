@@ -14,6 +14,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -24,6 +26,9 @@ import kotlin.test.assertTrue
  * own workspace subfolder, honoring the authored capture spec. Headless (a real simulation needs no display).
  */
 class AnimationAppRunTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(
@@ -40,7 +45,7 @@ class AnimationAppRunTest {
 
     @Test
     fun `submit produces a selective trace in the model workspace`() {
-        val workspace = Files.createTempDirectory("anim-ws")
+        val workspace = Files.createTempDirectory(tempRoot, "anim-ws")
         val controller = AnimationAppController("TRApp", builder)
         controller.workspaceOverride = workspace
         try {

@@ -5,7 +5,9 @@ import ksl.examples.book.chapter8.TestAndRepairShopWithMovableResources
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -17,6 +19,9 @@ import kotlin.test.assertTrue
  * run on the EDT (as in the real app) so they serialize with the panel's own `layout` subscription.
  */
 class LayoutPanelTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -680,7 +685,7 @@ class LayoutPanelTest {
     fun `layouts save and load as TOML by default, JSON still supported`() {
         val c = controller()
         try {
-            val dir = java.nio.file.Files.createTempDirectory("lay")
+            val dir = java.nio.file.Files.createTempDirectory(tempRoot, "lay")
             val res = c.inventory.namesOf(ElementKind.RESOURCE).first()
             val r = onEdt {
                 c.newBlankLayout(); c.addLayoutElement(ElementKind.RESOURCE, res)

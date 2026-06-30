@@ -9,7 +9,9 @@ import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.modeling.entity.ProcessModel
 import ksl.utilities.random.rvariable.ConstantRV
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -19,6 +21,9 @@ import kotlin.test.assertTrue
  * home base whose location is placed — its tool drops it at home.
  */
 class MoverPlacementTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     /** A minimal model: a DistancesModel with Home/Depot and a Truck whose home base is Home. */
     private class HomeModel(m: Model) : ProcessModel(m, "Fleet") {
@@ -92,7 +97,7 @@ class MoverPlacementTest {
     fun `loadLayout backfills mover home base from the inventory`() {
         val c = AnimationAppController("fleet", builder)
         try {
-            val dir = java.nio.file.Files.createTempDirectory("fleet-load")
+            val dir = java.nio.file.Files.createTempDirectory(tempRoot, "fleet-load")
             val file = dir.resolve("legacy.lay.toml")
             // A "legacy" layout (saved before homeBase existed): a placed Home station and a mover with a stale
             // parked position and no homeBase. Loading should backfill the home base from the inventory.

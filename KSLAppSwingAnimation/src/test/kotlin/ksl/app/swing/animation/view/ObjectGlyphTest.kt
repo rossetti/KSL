@@ -12,7 +12,9 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.imageio.ImageIO
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -22,12 +24,15 @@ import kotlin.test.assertTrue
  */
 class ObjectGlyphTest {
 
+    @TempDir
+    lateinit var tempRoot: Path
+
     private fun stationaryMove(id: Long, x: Double, y: Double) =
         AnimationEvent.MoveStarted(0.0, id, fromX = x, fromY = y, toX = x, toY = y, velocity = 1.0, duration = 100.0, arrivalTime = 100.0)
 
     @Test
     fun `triangle and diamond draw in color, image draws its icon (8I3c)`() {
-        val dir = Files.createTempDirectory("ksl-glyph")
+        val dir = Files.createTempDirectory(tempRoot, "ksl-glyph")
         // A pure-red icon; the IMAGE object class color is blue, so red pixels prove the icon drew.
         val red = Color(0xff, 0x00, 0x00)
         val icon = BufferedImage(24, 24, BufferedImage.TYPE_INT_RGB)

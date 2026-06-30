@@ -6,6 +6,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,6 +21,9 @@ import kotlin.test.assertTrue
  */
 class LayoutDocumentTest {
 
+    @TempDir
+    lateinit var tempRoot: Path
+
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
             Model("TRLayout").also { TestAndRepairShopWithMovableResources(it, "TR") }
@@ -29,7 +34,7 @@ class LayoutDocumentTest {
 
     @Test
     fun `new blank layout is active, empty, dirty and unbound`() {
-        val ws = Files.createTempDirectory("anim-lay")
+        val ws = Files.createTempDirectory(tempRoot, "anim-lay")
         val c = controller(ws)
         try {
             assertNull(c.layout.value)
@@ -43,7 +48,7 @@ class LayoutDocumentTest {
 
     @Test
     fun `granular edits mutate the active layout and mark it dirty`() {
-        val ws = Files.createTempDirectory("anim-lay")
+        val ws = Files.createTempDirectory(tempRoot, "anim-lay")
         val c = controller(ws)
         try {
             // Editing with no active layout auto-starts a blank one.
@@ -61,7 +66,7 @@ class LayoutDocumentTest {
 
     @Test
     fun `starter (scaffold) layout is populated`() {
-        val ws = Files.createTempDirectory("anim-lay")
+        val ws = Files.createTempDirectory(tempRoot, "anim-lay")
         val c = controller(ws)
         try {
             c.scaffoldLayout()
@@ -71,7 +76,7 @@ class LayoutDocumentTest {
 
     @Test
     fun `layout validation reflects whether bindings match the inventory`() {
-        val ws = Files.createTempDirectory("anim-lay")
+        val ws = Files.createTempDirectory(tempRoot, "anim-lay")
         val c = controller(ws)
         try {
             // Build from real inventory names → valid.
@@ -87,7 +92,7 @@ class LayoutDocumentTest {
 
     @Test
     fun `save and reopen round-trips a layout through the layouts folder`() {
-        val ws = Files.createTempDirectory("anim-lay")
+        val ws = Files.createTempDirectory(tempRoot, "anim-lay")
         val c = controller(ws)
         try {
             c.newBlankLayout()

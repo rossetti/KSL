@@ -9,6 +9,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -19,6 +21,9 @@ import kotlin.test.assertTrue
  */
 class SuspensionNameTraceTest {
 
+    @TempDir
+    lateinit var tempRoot: Path
+
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
             Example12StemFairStorage.buildModel()
@@ -26,7 +31,7 @@ class SuspensionNameTraceTest {
 
     @Test
     fun `named suspensions are harvested from the last trace`() {
-        val workspace = Files.createTempDirectory("anim-suspname")
+        val workspace = Files.createTempDirectory(tempRoot, "anim-suspname")
         val controller = AnimationAppController("StemFair", builder).apply { workspaceOverride = workspace }
 
         // No run yet: nothing to harvest.

@@ -6,7 +6,9 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -17,6 +19,9 @@ import kotlin.test.assertTrue
  * reference (`images/<name>`) so a layout + its images form a portable bundle.
  */
 class ImageEditingTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -31,7 +36,7 @@ class ImageEditingTest {
 
     @Test
     fun `an image is selectable, mouse-resizable, and deletable`() {
-        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory("anim-img") }
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory(tempRoot, "anim-img") }
         try {
             val (hadGrip, sizeAfter) = onEdt {
                 val panel = LayoutPanel(c)
@@ -63,9 +68,9 @@ class ImageEditingTest {
 
     @Test
     fun `import copies the file into the workspace and stores a relative reference`() {
-        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory("anim-img") }
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory(tempRoot, "anim-img") }
         try {
-            val src = Files.createTempFile("floorplan", ".png").toFile().apply { writeBytes(byteArrayOf(1, 2, 3)) }
+            val src = Files.createTempFile(tempRoot, "floorplan", ".png").toFile().apply { writeBytes(byteArrayOf(1, 2, 3)) }
             val ref = onEdt { LayoutPanel(c).importImageRefForTest(src) }
             assertEquals("images/${src.name}", ref, "stored ref is layout-relative")
             val copied = c.layoutsDir.resolve("images").resolve(src.name)
@@ -76,7 +81,7 @@ class ImageEditingTest {
 
     @Test
     fun `the editor preview resolves relative image refs against the layout folder`() {
-        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory("anim-img") }
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory(tempRoot, "anim-img") }
         try {
             val base = onEdt {
                 val panel = LayoutPanel(c)

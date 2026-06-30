@@ -10,7 +10,9 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
@@ -22,6 +24,9 @@ import kotlin.test.assertTrue
  * trace is selectable, and a loaded-state line reports what's loaded. Headless.
  */
 class ReplayLoadFlowTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -36,7 +41,7 @@ class ReplayLoadFlowTest {
 
     @Test
     fun `no trace yet means Load is disabled and nothing is loaded`() {
-        val ws = Files.createTempDirectory("anim-load")
+        val ws = Files.createTempDirectory(tempRoot, "anim-load")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             val state = onEdt {
@@ -50,7 +55,7 @@ class ReplayLoadFlowTest {
 
     @Test
     fun `replay view-bar toggles grid and pan on the canvas`() {
-        val ws = Files.createTempDirectory("anim-view")
+        val ws = Files.createTempDirectory(tempRoot, "anim-view")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             val r = onEdt {
@@ -72,7 +77,7 @@ class ReplayLoadFlowTest {
 
     @Test
     fun `pressing Load pairs the trace and reports the loaded state`() {
-        val ws = Files.createTempDirectory("anim-load")
+        val ws = Files.createTempDirectory(tempRoot, "anim-load")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             c.submit()

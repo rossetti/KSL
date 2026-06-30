@@ -12,8 +12,10 @@ import ksl.simulation.ModelBuilderIfc
 import java.awt.GraphicsEnvironment
 import java.awt.image.BufferedImage
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.imageio.ImageIO
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -23,6 +25,9 @@ import kotlin.test.assertTrue
  * assert the canvas is populated by the trace-derived fallback layout rather than blank.
  */
 class OpenTraceProbeTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -42,7 +47,7 @@ class OpenTraceProbeTest {
     @Test
     fun `Open trace renders via the trace-derived fallback layout`() {
         if (GraphicsEnvironment.isHeadless()) { println("headless; skipping Open-trace probe"); return }
-        val workspace = Files.createTempDirectory("anim-open")
+        val workspace = Files.createTempDirectory(tempRoot, "anim-open")
         val controller = AnimationAppController("TROpen", builder).apply { workspaceOverride = workspace }
         try {
             controller.submit()

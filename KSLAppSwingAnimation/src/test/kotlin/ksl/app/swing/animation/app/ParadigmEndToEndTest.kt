@@ -20,6 +20,8 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertIs
@@ -32,13 +34,16 @@ import kotlin.test.assertTrue
  */
 class ParadigmEndToEndTest {
 
+    @TempDir
+    lateinit var tempRoot: Path
+
     private fun builderOf(make: () -> Model, len: Double) = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
             make().apply { numberOfReplications = 1; lengthOfReplication = len }
     }
 
     private fun run(label: String, builder: ModelBuilderIfc): Pair<AnimationAppController, List<AnimationEvent>> {
-        val c = AnimationAppController(label, builder).apply { workspaceOverride = Files.createTempDirectory("e2e") }
+        val c = AnimationAppController(label, builder).apply { workspaceOverride = Files.createTempDirectory(tempRoot, "e2e") }
         c.submit()
         val r = runBlocking { withTimeout(120_000) { c.lastResult.filterNotNull().first() } }
         assertIs<RunResult.Completed>(r)

@@ -10,12 +10,17 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 /** Tests the pure workflow-status derivation (9F.5) and the controller's live status transitions. */
 class WorkflowStatusTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     // ── Pure derivation ──────────────────────────────────────────────────────
 
@@ -59,7 +64,7 @@ class WorkflowStatusTest {
 
     @Test
     fun `controller status advances as a run and a layout are produced`() {
-        val ws = Files.createTempDirectory("anim-flow")
+        val ws = Files.createTempDirectory(tempRoot, "anim-flow")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             // Fresh: no trace, no layout.

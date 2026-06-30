@@ -11,7 +11,9 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.SwingUtilities
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -24,6 +26,9 @@ import kotlin.test.assertTrue
  * loaded trace without reloading it (one .atf, many layouts). Headless.
  */
 class ReplayPanelPairingTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
         override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
@@ -42,7 +47,7 @@ class ReplayPanelPairingTest {
 
     @Test
     fun `the same trace renders through different layouts without reloading`() {
-        val ws = Files.createTempDirectory("anim-pair")
+        val ws = Files.createTempDirectory(tempRoot, "anim-pair")
         val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
         try {
             // Produce a trace.

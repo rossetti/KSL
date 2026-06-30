@@ -12,7 +12,9 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.imageio.ImageIO
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -22,9 +24,12 @@ import kotlin.test.assertTrue
  */
 class BackgroundImageTest {
 
+    @TempDir
+    lateinit var tempRoot: Path
+
     @Test
     fun `relative background image is resolved against baseDir and drawn`() {
-        val dir = Files.createTempDirectory("ksl-bg")
+        val dir = Files.createTempDirectory(tempRoot, "ksl-bg")
         // A distinctly-colored background image (teal) written into the layout directory.
         val teal = Color(0x00, 0x80, 0x80)
         val bg = BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB)

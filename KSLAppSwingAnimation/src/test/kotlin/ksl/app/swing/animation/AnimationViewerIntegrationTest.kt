@@ -23,7 +23,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 import javax.imageio.ImageIO
+import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -34,6 +36,9 @@ import kotlin.test.assertTrue
  * non-blank and saves a PNG so the rendered result can be inspected.
  */
 class AnimationViewerIntegrationTest {
+
+    @TempDir
+    lateinit var tempRoot: Path
 
     private class ShopModel(parent: ModelElement) : ProcessModel(parent, "Shop") {
         val worker = ResourceWithQ(parent = this, name = "Worker", capacity = 1)
@@ -58,7 +63,7 @@ class AnimationViewerIntegrationTest {
 
     @Test
     fun `renders a mid-run frame from a real two-file trace`() {
-        val tmp = Files.createTempDirectory("vieweritest")
+        val tmp = Files.createTempDirectory(tempRoot, "vieweritest")
         val traceFile = tmp.resolve("run.atf")
         val layoutFile = tmp.resolve("run.lay.json")
 
