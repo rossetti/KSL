@@ -1529,6 +1529,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // rather than the internal hold on a conveyor hold queue.
             private var inConveyorHold: Boolean = false
 
+            // True while the delay below is the internal 0.0-time delay of yield() (used only to
+            // order seize/yield resumptions in the event calendar): suppress its DelayStarted/
+            // DelayEnded so this purely internal ordering step never surfaces as a modeler-visible
+            // delay (e.g. an auto-placed storage or noise in the suspension-name harvest).
+            private var inYieldDelay: Boolean = false
+
             /**
              *  Used to invoke activation of a process
              */
@@ -1959,7 +1965,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : YIELD: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                inYieldDelay = true // internal ordering delay only — suppress its Delay animation events
                 delay(0.0, yieldPriority, suspensionName = "DELAY for YIELD: $suspensionName")
+                inYieldDelay = false
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : YIELD: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
             }
 
@@ -2150,11 +2158,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
-                if (!inMoveDelay) emitAnimation { AnimationEvent.DelayStarted(time, entity.id, delayDuration, myDelayEvent!!.time, suspensionName) }
+                if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayStarted(time, entity.id, delayDuration, myDelayEvent!!.time, suspensionName) }
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                if (!inMoveDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, suspensionName) }
+                if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, suspensionName) }
                 require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: suspension name = $currentSuspendName : entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
