@@ -56,7 +56,7 @@ object Example03GridEpidemic {
     }
 
     /**
-     * Layout in **cell units**: a [GRID]×[GRID] grid space drawn 1 world-unit per cell so the agent
+     * Layout in **cell units**: a GRID×GRID grid space drawn 1 world-unit per cell so the agent
      * (column, row) positions register on it, three SIR population bars below the grid, and a clock.
      * Agent dots are sized in world units (sub-cell). (The need to hand-match the world scale to
      * cell coordinates is itself a finding: the renderer has no grid-cell coordinate awareness yet.)

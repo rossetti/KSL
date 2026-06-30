@@ -55,7 +55,7 @@ data class CellCost(val col: Int, val row: Int, val cost: Double)
  * Rebuilds a [GridGraph] from this structural spec — the consume side of the round-trip (P5b/G2). A modeler
  * who wants the layout to be authoritative for geometry loads the layout, looks up the spec
  * (`AnimationLayout.gridGeometry(name)`), and builds the graph from it. Reproduces dims, topology, obstacles,
- * and costs exactly; the physical placement fields ([originX]/[originY]/[cellSize]) are layout/render concerns
+ * and costs exactly; the physical placement fields (`originX`/`originY`/`cellSize`) are layout/render concerns
  * and are not part of the graph.
  */
 fun GridGeometrySpec.toGridGraph(): GridGraph =

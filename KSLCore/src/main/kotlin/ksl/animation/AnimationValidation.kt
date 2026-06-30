@@ -179,7 +179,7 @@ fun AnimationInventory.validateTrace(events: Iterable<AnimationEvent>): Validati
  * starter layout; the author adds the stats they want (value/bar/plot displays).
  * Movable/transport resources are placed as `movableResource(...)` glyphs
  * (not static boxes), and when the model moves them over a [DistancesModel] its named locations are
- * placed as station anchors (via [placeStations]) so the transporters animate between them. The
+ * placed as station anchors (via `placeStations`) so the transporters animate between them. The
  * placement is deliberately rough — the author then drags elements into their final positions. No
  * `objectClass` styling is emitted (entity/agent types are runtime; the renderer falls back to
  * defaults). By construction `scaffoldLayout().validateAgainst(model).isValid`.

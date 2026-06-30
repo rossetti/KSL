@@ -31,15 +31,14 @@ import ksl.simulation.Model
  * WIP bar and a WIP time-series plot). This is the right starting point for understanding what a
  * zero-geometry model looks like in the viewer.
  *
- * End-to-end shape of every example:
- *   1. build the KSL [Model] (here, reuse [DriveThroughPharmacy] from KSLExamples),
+ * Shape of every animation example:
+ *   1. build the KSL [Model] (here, reuse [DriveThroughPharmacy] from KSLExamples) — see [buildModel],
  *   2. author an [AnimationLayout] with the `model.animation { … }` DSL — placing each element by
  *      the **same name the model uses** (resource "Pharmacists", its queue "Pharmacists:Q", the WIP
- *      response "DriveThrough:NumInSystem"),
- *   3. hand both to AnimationDemo, which runs one replication with the trace attachment and opens
- *      the viewer on the resulting two files.
+ *      response "DriveThrough:NumInSystem") — see [buildLayout].
  *
- * Run `main` to generate the files and open the viewer.
+ * The animation app drives the rest: it runs the model with the trace attachment to capture a
+ * replication, then replays the trace against a layout the user authors and saves.
  */
 object Example01DriveThroughPharmacy {
 

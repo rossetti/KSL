@@ -259,7 +259,7 @@ private class PickerDialog(
             is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
                 showBannerInfo("Already loaded (no change): " + outcome.bundleIds.joinToString(", "))
             BundleLibraryController.LoadBundleResult.NoBundles ->
-                showBannerError("$path declares no KSLModelBundle service.")
+                showBannerError("$path contains no KSL model bundle.")
             is BundleLibraryController.LoadBundleResult.Failed ->
                 showBannerError("Could not load $path: ${outcome.reason}")
             is BundleLibraryController.LoadBundleResult.Rejected ->
