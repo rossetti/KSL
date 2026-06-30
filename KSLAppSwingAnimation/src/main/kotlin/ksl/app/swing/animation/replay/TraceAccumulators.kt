@@ -192,3 +192,47 @@ class FlowOrder : TraceAccumulator<FlowOrderResult> {
     override fun result(): FlowOrderResult =
         FlowOrderResult(index.mapValues { (_, a) -> Math.round(a.sum / a.n).toInt() }, queueOf)
 }
+
+/**
+ * Network stations ranked by the average position they hold in entities' `StationEntered` sequences, so a
+ * layout can place them left-to-right in observed flow order. Mirrors [FlowOrder] for the station network:
+ * cycle-safe (the average index blends a re-entrant flow), bounded O(stations) plus an O(WIP) per-entity
+ * counter evicted on `ExitedNetwork`.
+ */
+class StationFlow : TraceAccumulator<Map<String, Int>> {
+    private class Avg { var sum = 0.0; var n = 0 }
+
+    private val visits = HashMap<Long, Int>()         // entityId -> stations entered so far
+    private val index = LinkedHashMap<String, Avg>()  // station -> average entry index
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.StationEntered -> {
+                val i = visits.getOrDefault(event.entityId, 0)
+                index.getOrPut(event.stationName) { Avg() }.let { it.sum += i; it.n++ }
+                visits[event.entityId] = i + 1
+            }
+            is AnimationEvent.ExitedNetwork -> visits.remove(event.entityId)
+            else -> {}
+        }
+    }
+
+    override fun result(): Map<String, Int> = index.mapValues { (_, a) -> Math.round(a.sum / a.n).toInt() }
+}
+
+/**
+ * Each conveyor's anchor locations paired with their cell indices (from `ConveyorDefined`), so a layout can
+ * lay the belt out as a straight line spaced by cell index rather than scattering the anchors on a ring. The
+ * first definition seen per conveyor wins.
+ */
+class ConveyorAnchors : TraceAccumulator<Map<String, List<Pair<String, Int>>>> {
+    private val byConveyor = LinkedHashMap<String, List<Pair<String, Int>>>()
+
+    override fun accept(event: AnimationEvent) {
+        if (event is AnimationEvent.ConveyorDefined) {
+            byConveyor.putIfAbsent(event.conveyorName, event.anchorLocations.zip(event.anchorCells))
+        }
+    }
+
+    override fun result(): Map<String, List<Pair<String, Int>>> = byConveyor
+}

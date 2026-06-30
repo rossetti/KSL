@@ -20,6 +20,7 @@ package ksl.app.swing.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
+import ksl.animation.ConveyorLayoutElement
 import ksl.animation.LayoutPoint
 import ksl.animation.MovableResourceLayoutElement
 import ksl.animation.QueueLayoutElement
@@ -29,18 +30,18 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Builds an [AnimationLayout] from what a trace contains, so a trace opened with no accompanying layout
- * (the Replay "Quick view") still animates instead of showing a blank canvas. A single streaming pass mines
- * the trace (see the trace accumulators): movable/transport resources become `movableResource` glyphs seeded
- * at their mined home position; the named locations they travel between become station anchors at their real
- * centroids (the renderer interpolates movers between those); and the canvas is framed to the declared
- * spatial space unioned with where movement actually happened (9F.6 / UX U3).
+ * Builds an [AnimationLayout] from what a trace contains, so a trace opened with no accompanying layout (an
+ * opened trace, or the unified Auto Layout fallback) still animates instead of showing a blank canvas. A
+ * single streaming pass mines the trace (see the trace accumulators): movable/transport resources become
+ * `movableResource` glyphs seeded at their mined home position; the named locations they travel between become
+ * station anchors at their real centroids (the renderer interpolates movers between those); and the canvas is
+ * framed to the declared spatial space unioned with where movement actually happened (9F.6 / UX U3).
  *
- * Non-Cartesian spatial models (distance-, network-, great-circle-based) emit `NaN` coordinates (see
- * `LocationIfc.x`), so they carry no extent or centroids; for those the layout falls back to two columns of
- * resources/queues with the named locations on a ring — faithful geometry then comes from "Auto-Layout from
- * Model" (which uses the distance matrix). Response statistics are not placed (a model can expose dozens,
- * crushing the auto-grid).
+ * Non-Cartesian models (distance-, network-, conveyor-based) emit `NaN` coordinates (see `LocationIfc.x`), so
+ * they carry no extent or centroids; for those the layout uses flow-ordered columns of resources/queues, plus
+ * network stations (from `StationEntered`) in a left-to-right flow lane and conveyors (from `ConveyorDefined`)
+ * as straight belts spaced by cell index, with any remaining name-only mover locations on a ring. Response
+ * statistics are not placed (a model can expose dozens, crushing the auto-grid).
  */
 fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null): AnimationLayout {
     // One streaming pass mines positions, named travel locations, movers, and agent states. Non-Cartesian
@@ -52,12 +53,17 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val stateAcc = AgentStateNames()
     val flowAcc = FlowOrder()
     val typeAcc = ObjectTypeNames()
-    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc)).run(events.asSequence())
+    val stationFlowAcc = StationFlow()
+    val conveyorAcc = ConveyorAnchors()
+    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc, stationFlowAcc, conveyorAcc))
+        .run(events.asSequence())
 
     val observed = extentAcc.result()
     val location = locationAcc.result()
     val mover = moverAcc.result()
     val flow = flowAcc.result()
+    val stationFlow = stationFlowAcc.result()
+    val conveyorAnchors = conveyorAcc.result()
 
     // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
     // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
@@ -90,7 +96,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         }
         val qColX = resColX + unit * 7
         val queues = queueNames.sorted().mapIndexed { i, name ->
-            QueueLayoutElement(queueName = name, position = LayoutPoint(qColX, frame.y + margin + i * rowGap), spacing = unit * 0.7)
+            QueueLayoutElement(queueName = name, position = LayoutPoint(qColX, frame.y + margin + i * rowGap), growthDegrees = 180.0, spacing = unit * 0.7)
         }
         // Named travel locations with a mined centroid become station anchors at their true positions.
         val stations = location.names.sorted().mapNotNull { name ->
@@ -127,9 +133,9 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         names.sorted().forEachIndexed { i, name ->
             val y = originY + i * rowGap
             resources += ResourceLayoutElement(resourceName = name, position = LayoutPoint(colX, y))
-            // Place this resource's queue just to its left, so entities read queue -> server.
+            // Place this resource's queue just to its left, growing back to the left so entities read queue -> server.
             flow.queueOfResource[name]?.let { q ->
-                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(colX - 90.0, y))
+                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(colX - 90.0, y), growthDegrees = 180.0)
                 placedQueues += q
             }
         }
@@ -137,18 +143,54 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     }
     // Queues with no observed server (never seen in a SeizeQueued) fall back to a left column.
     queueNames.filter { it !in placedQueues }.sorted().forEachIndexed { i, name ->
-        queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap))
+        queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap), growthDegrees = 180.0)
         maxRows = maxOf(maxRows, i + 1)
     }
     val lastRank = byRank.keys.maxOrNull() ?: 0
-    val height = (originY + maxRows * rowGap + 80.0).coerceAtLeast(400.0)
-    val width = (firstColX + lastRank * columnGap + 320.0).coerceAtLeast(800.0)
-    val locationNames = location.names.toSortedSet()
-    val stations = if (locationNames.isEmpty()) emptyList() else {
+
+    // B1: network stations (from StationEntered) placed left-to-right by observed flow, in a lane below the
+    // resources — the renderer draws station-network entities at these positions, so they finally render (07).
+    var laneY = originY + maxRows * rowGap + 60.0
+    val stationOrder = stationFlow.keys.sortedWith(compareBy({ stationFlow[it] ?: 0 }, { it }))
+    val stationGap = 150.0
+    val networkStations = if (stationOrder.isEmpty()) emptyList() else {
+        val y = laneY; laneY += 90.0
+        stationOrder.mapIndexed { i, name ->
+            StationLayoutElement(stationName = name, position = LayoutPoint(firstColX + i * stationGap, y), label = name)
+        }
+    }
+
+    // B2: conveyors (from ConveyorDefined) — each belt a straight horizontal line, anchors spaced by cell index
+    // (not a meaningless ring), so the belt resolves and draws; a synthesized route adds color + direction arrows (08).
+    val beltSpan = 600.0
+    val conveyorAnchorPos = LinkedHashMap<String, LayoutPoint>()
+    val conveyorElements = mutableListOf<ConveyorLayoutElement>()
+    conveyorAnchors.forEach { (conveyorName, anchors) ->
+        val y = laneY; laneY += 80.0
+        val maxCell = (anchors.maxOfOrNull { it.second } ?: 0).coerceAtLeast(1)
+        anchors.forEach { (loc, cell) ->
+            conveyorAnchorPos.putIfAbsent(loc, LayoutPoint(firstColX + beltSpan * cell / maxCell, y))
+        }
+        conveyorElements += ConveyorLayoutElement(conveyorName = conveyorName, showDirection = true)
+    }
+    val conveyorStations = conveyorAnchorPos.map { (loc, p) -> StationLayoutElement(stationName = loc, position = p, label = loc) }
+
+    val height = (maxOf(laneY, originY + maxRows * rowGap) + 80.0).coerceAtLeast(400.0)
+    val width = (maxOf(
+        firstColX + lastRank * columnGap,
+        firstColX + beltSpan,
+        firstColX + (stationOrder.size - 1).coerceAtLeast(0) * stationGap
+    ) + 320.0).coerceAtLeast(800.0)
+
+    // Remaining named travel locations (name-only SpatialElementMoved movers) not already placed as a network
+    // station or a conveyor anchor: a ring, so name-resolved mover movement still animates.
+    val placedNames = stationOrder.toSet() + conveyorAnchorPos.keys
+    val ringNames = location.names.filter { it !in placedNames }.toSortedSet()
+    val ringStations = if (ringNames.isEmpty()) emptyList() else {
         val cx = width / 2.0; val cy = height / 2.0
         val radius = minOf(width, height) * 0.32
-        locationNames.toList().mapIndexed { i, name ->
-            val a = 2.0 * Math.PI * i / locationNames.size - Math.PI / 2.0 // first location at top
+        ringNames.toList().mapIndexed { i, name ->
+            val a = 2.0 * Math.PI * i / ringNames.size - Math.PI / 2.0 // first location at top
             StationLayoutElement(stationName = name, position = LayoutPoint(cx + radius * cos(a), cy + radius * sin(a)), label = name)
         }
     }
@@ -160,7 +202,8 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         // No auto-placed clock: the clock is an opt-in element the user adds from the Layout palette.
         resources = resources,
         queues = queues,
-        stations = stations,
+        stations = networkStations + conveyorStations + ringStations,
+        conveyors = conveyorElements,
         movableResources = movers
     ).withSeededObjectClasses(objectTypes, glyphSize)
 }

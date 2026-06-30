@@ -89,6 +89,35 @@ class AutoLayoutTest {
         assertEquals(0.7, person.size, 1e-9)
     }
 
+    @Test
+    fun `a station-network trace places stations left-to-right in flow order`() {
+        val net = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.EnteredNetwork(0.0, 1L, "Net", "In"),
+            AnimationEvent.StationEntered(0.0, 1L, "S1"),
+            AnimationEvent.StationExited(1.0, 1L, "S1"),
+            AnimationEvent.StationEntered(1.0, 1L, "S2"),
+            AnimationEvent.ExitedNetwork(2.0, 1L, "Net", "Out"),
+            AnimationEvent.EnteredNetwork(0.5, 2L, "Net", "In"),
+            AnimationEvent.StationEntered(0.5, 2L, "S1"),
+            AnimationEvent.StationEntered(1.5, 2L, "S2"),
+            AnimationEvent.ExitedNetwork(2.5, 2L, "Net", "Out")
+        )
+        val layout = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = net)).autoLayout(net)
+        val s1 = layout.stations.firstOrNull { it.stationName == "S1" }
+        val s2 = layout.stations.firstOrNull { it.stationName == "S2" }
+        assertNotNull(s1, "the upstream station is placed (so network entities render)")
+        assertNotNull(s2, "the downstream station is placed")
+        assertTrue(s1.position.x < s2.position.x, "S1 (upstream) is left of S2: ${s1.position.x} vs ${s2.position.x}")
+    }
+
+    @Test
+    fun `auto-placed queues grow toward the left (180 degrees, head-right)`() {
+        val layout = model(null).autoLayout(events)
+        assertTrue(layout.queues.isNotEmpty(), "the WaitQ is placed")
+        assertTrue(layout.queues.all { it.growthDegrees == 180.0 }, "auto queues grow at 180°")
+    }
+
     private fun paintedPixels(replay: ReplayModel): Int {
         val canvas = SimulationCanvas().apply { setSize(600, 400); this.replay = replay; currentTime = 0.0 }
         val image = BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)
