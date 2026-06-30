@@ -66,27 +66,27 @@ class ReplayPanelPairingTest {
                 panel.loadTraceForTest(trace)
                 val traceShown = panel.traceChoicesForTest().any { it == trace.fileName.toString() }
 
-                panel.selectQuickViewForTest()
-                val quickSize = panel.renderedLayoutSizeForTest()
-                val quickText = panel.compatibilityTextForTest()
+                panel.selectAutoLayoutForTest()
+                val autoSize = panel.renderedLayoutSizeForTest()
+                val autoLabel = panel.loadedTextForTest()
 
                 panel.selectSavedLayoutForTest("mini.lay.json")
                 val miniSize = panel.renderedLayoutSizeForTest()
                 val miniText = panel.compatibilityTextForTest()
 
-                listOf(traceShown, quickSize, quickText, miniSize, miniText)
+                listOf(traceShown, autoSize, autoLabel, miniSize, miniText)
             }
             val traceShown = outcome[0] as Boolean
-            val quickSize = outcome[1]
-            val quickText = outcome[2] as String
+            val autoSize = outcome[1]
+            val autoLabel = outcome[2] as String
             val miniSize = outcome[3]
             val miniText = outcome[4] as String
 
             assertTrue(traceShown, "the produced trace appears in the picker")
-            // Quick view auto-derives a fuller layout; the mini saved layout has exactly one resource, no queues.
-            assertNotEquals(quickSize, miniSize, "swapping the layout re-renders the same trace differently")
+            // Auto layout auto-derives a fuller layout; the mini saved layout has exactly one resource, no queues.
+            assertNotEquals(autoSize, miniSize, "swapping the layout re-renders the same trace differently")
             assertEquals(1 to 0, miniSize, "mini layout places exactly one resource and no queues")
-            assertContains(quickText, "Auto layout")
+            assertContains(autoLabel, "Auto layout", message = "the auto layout is identified in the loaded read-out")
             // The mini layout omits many animated elements present in the trace.
             assertTrue(miniText.startsWith("⚠"), "mini layout reports unplaced animated elements: $miniText")
         } finally {

@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+import ksl.animation.AnimationEvent
 import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
 import ksl.animation.TraceFileReader
@@ -433,16 +434,32 @@ class AnimationAppController(
     }
 
     /**
-     * Builds a layout from the latest trace, or null to defer to the scaffold. Smart-select: only a trace that
-     * carries real (Cartesian) coordinates is used; a coordinate-free model (DistancesModel/network) emits NaN
-     * positions, for which the scaffold's MDS placement is faithful and the trace would only give a crude ring.
+     * Builds a layout from the latest trace, or null to defer to the scaffold. The scaffold wins only for a
+     * coordinate-free spatial-mover model (a true DistancesModel): it emits NaN positions, so the trace yields
+     * only a crude ring while the scaffold's MDS placement is faithful. Every other model class — process /
+     * station / conveyor (no movers) and agent models (their declared space frames them) — renders from the
+     * richer trace, even without planar coordinates.
      */
     private fun buildTraceLayout(): AnimationLayout? {
         val trace = myLastTraceFile.value ?: listTraces().firstOrNull() ?: return null
         return runCatching {
             val (header, events) = TraceFileReader.readAll(trace)
-            // Defer to the scaffold unless the trace has real planar coordinates to place elements by.
-            if (ObservedExtent().also { acc -> events.forEach(acc::accept) }.result() == null) return@runCatching null
+            // One pass: planar extent (finite mover coords) + whether the model has any movers / agents.
+            val extentAcc = ObservedExtent()
+            var hasMovers = false
+            var hasAgents = false
+            for (event in events) {
+                extentAcc.accept(event)
+                when (event) {
+                    is AnimationEvent.SpatialElementMoved -> hasMovers = true
+                    is AnimationEvent.AgentPositionChanged -> hasAgents = true
+                    else -> {}
+                }
+            }
+            // Defer to the scaffold ONLY for a coordinate-free spatial-mover model (true DistancesModel): MDS
+            // beats the trace's crude ring. Process/station/conveyor (no movers) and agent models render from
+            // the trace, framed by their declared space even without planar coordinates.
+            if (extentAcc.result() == null && hasMovers && !hasAgents) return@runCatching null
             val replay = ReplayModel.build(AnimationSource(layout = null, header = header, events = events))
             withModelGeometry(replay.autoLayout(events))
         }.getOrNull()

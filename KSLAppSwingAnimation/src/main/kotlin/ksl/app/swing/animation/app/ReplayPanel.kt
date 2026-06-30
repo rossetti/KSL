@@ -48,9 +48,10 @@ import javax.swing.filechooser.FileNameExtensionFilter
  * The **Replay** tab (9F.4): pairs a chosen trace (`.atf`) with a chosen layout and plays it. Replay is
  * explicitly *trace × layout* — a layout binds to elements by name, so one trace can be viewed through
  * many layouts and the layout can be swapped without reloading the trace. The toolbar offers a **trace**
- * picker (the model's `traces/`, plus Browse), a **layout** picker (**Quick view** = a layout auto-derived
- * from the trace, the **active** editing layout, the saved `layouts/`, plus Browse), and a compatibility
- * read-out of how the pairing lines up. A [PlaybackPanel] drives time over the [SimulationCanvas].
+ * picker (the model's `traces/`, plus Browse), a **layout** picker (the **active** editing layout, an
+ * **Auto layout** derived from the model + trace via the same generator the Layout tab uses, the saved
+ * `layouts/`, plus Browse), and a compatibility read-out of how the pairing lines up. A [PlaybackPanel]
+ * drives time over the [SimulationCanvas].
  */
 class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout()) {
 
@@ -184,10 +185,13 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     private fun refreshLayoutChoices() = withUpdating {
         val previous = layoutCombo.selectedItem as? LayoutChoice
         layoutCombo.removeAllItems()
-        layoutCombo.addItem(LayoutChoice.QuickView)
+        // Default to the active editing layout (so Replay shows exactly what the Layout tab shows); fall back
+        // to the unified Auto layout — the SAME generator the Layout tab uses — when nothing is authored yet.
         if (app.layout.value != null) layoutCombo.addItem(LayoutChoice.Active)
+        layoutCombo.addItem(LayoutChoice.AutoLayout)
         app.listLayouts().forEach { layoutCombo.addItem(LayoutChoice.Saved(it)) }
-        // Keep the prior selection when it still exists, else default to Quick view.
+        // Keep the prior selection when it still exists; else the combo defaults to its first item (the active
+        // layout when one exists, otherwise the auto layout).
         if (previous != null) selectComboItem(layoutCombo) { it == previous }
     }
 
@@ -204,7 +208,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     }
 
     /**
-     * After a run, refresh the choices, prefer the active authored layout (else Quick view), and load the
+     * After a run, refresh the choices, prefer the active authored layout (else the Auto layout), and load the
      * just-produced [path] — so Simulate → watch flows without manual picking.
      */
     fun showProducedTrace(path: Path) {
@@ -215,7 +219,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
                 traceCombo.addItem(TraceItem(path))
             }
             selectComboItem(traceCombo) { it.path == path }
-            selectComboItem(layoutCombo) { it == if (app.layout.value != null) LayoutChoice.Active else LayoutChoice.QuickView }
+            selectComboItem(layoutCombo) { it == if (app.layout.value != null) LayoutChoice.Active else LayoutChoice.AutoLayout }
         }
         loadTrace(path)
     }
@@ -224,11 +228,12 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     private fun applyLayout() {
         val header = cachedHeader ?: return
         if (cachedEvents.isEmpty()) return
-        val choice = layoutCombo.selectedItem as? LayoutChoice ?: LayoutChoice.QuickView
-        // null layout → loadSource derives a quick-view auto layout from the trace.
+        val choice = layoutCombo.selectedItem as? LayoutChoice ?: LayoutChoice.AutoLayout
         val layout: AnimationLayout? = when (choice) {
-            LayoutChoice.QuickView -> null
-            LayoutChoice.Active -> app.layout.value // may be null → behaves like quick view
+            // The unified generator — trace positions + model geometry, the SAME path the Layout tab uses.
+            // null (e.g. no model / probe failure) → loadSource's trace-only safety net still renders elements.
+            LayoutChoice.AutoLayout -> app.buildAutoLayout()
+            LayoutChoice.Active -> app.layout.value // may be null → behaves like the auto fallback
             is LayoutChoice.Saved -> runCatching { AnimationLayout.read(choice.path) }
                 .getOrElse { showError("Failed to open layout: ${it.message}"); return }
         }
@@ -319,8 +324,8 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
 
     /** A layout choice in the picker. */
     private sealed class LayoutChoice {
-        object QuickView : LayoutChoice() { override fun toString() = "Quick view (auto layout)" }
         object Active : LayoutChoice() { override fun toString() = "Active layout (editing)" }
+        object AutoLayout : LayoutChoice() { override fun toString() = "Auto layout" }
         data class Saved(val path: Path) : LayoutChoice() { override fun toString(): String = path.fileName.toString() }
     }
 
@@ -329,9 +334,9 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     /** Loads [path] and returns immediately (the EDT-free path used by tests). */
     internal fun loadTraceForTest(path: Path) = loadTrace(path)
 
-    /** Selects the Quick-view layout choice and re-renders. */
-    internal fun selectQuickViewForTest() {
-        withUpdating { selectComboItem(layoutCombo) { it == LayoutChoice.QuickView } }
+    /** Selects the Auto-layout choice and re-renders. */
+    internal fun selectAutoLayoutForTest() {
+        withUpdating { selectComboItem(layoutCombo) { it == LayoutChoice.AutoLayout } }
         applyLayout()
     }
 
