@@ -1595,8 +1595,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             toolTipText = "Start an empty layout and place elements yourself"
             addActionListener { controller.newBlankLayout(); afterEdit() }
         })
-        add(JButton("Auto-Layout from Model").apply {
-            toolTipText = "Place all of this model's elements automatically (resources, queues, stations, movers)"
+        add(JButton("Auto Layout").apply {
+            toolTipText = "Generate a layout automatically — from the latest run when one exists " +
+                "(faithful positions and geometry), otherwise from the model"
+            addActionListener { controller.autoLayout(); afterEdit() }
+        })
+        add(JButton("from Model").apply {
+            toolTipText = "Generate a layout from the static model only (ignore any run)"
             addActionListener { controller.scaffoldLayout(); afterEdit() }
         })
         add(JButton("Open…").apply { toolTipText = "Open a saved layout (.lay.toml / .lay.json)"; addActionListener { onOpen() } })
@@ -2239,13 +2244,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     }
 
     private fun onSave() {
-        if (controller.layout.value == null) return showError("There is no layout to save. Use New (blank) or Auto-Layout from Model first.")
+        if (controller.layout.value == null) return showError("There is no layout to save. Use New (blank) or Auto Layout first.")
         val target = controller.layoutFile.value ?: return onSaveAs()
         runCatching { controller.saveLayout(target) }.onFailure { showError("Failed to save layout: ${it.message}") }
     }
 
     private fun onSaveAs() {
-        if (controller.layout.value == null) return showError("There is no layout to save. Use New (blank) or Auto-Layout from Model first.")
+        if (controller.layout.value == null) return showError("There is no layout to save. Use New (blank) or Auto Layout first.")
         val path = chooseLayoutFile(open = false) ?: return
         runCatching { controller.saveLayout(path) }.onFailure { showError("Failed to save layout: ${it.message}") }
     }

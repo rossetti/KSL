@@ -322,7 +322,8 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
             add(JMenuItem("Open Model…").apply { addActionListener { handleOpenModel() } })
         })
         add(JMenu("Layout").apply {
-            add(JMenuItem("Scaffold from Model").apply { addActionListener { controller.scaffoldLayout() } })
+            add(JMenuItem("Auto Layout").apply { addActionListener { controller.autoLayout() } })
+            add(JMenuItem("Layout from Model").apply { addActionListener { controller.scaffoldLayout() } })
             add(JMenuItem("Open…").apply { addActionListener { handleOpenLayout() } })
             addSeparator()
             add(JMenuItem("Save").apply { addActionListener { handleSaveLayout() } })
