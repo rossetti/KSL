@@ -71,7 +71,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     // Process colors (10.1e): edit the selected process's tint color.
     private val processColorField = JTextField(7).apply { text = "#ff7f0e" }
     // Editable tables (batch 3): one row per discovered entity type / process; edit the selected row in the strip.
-    private val styleTypeNames: List<String> by lazy { controller.inventory.namesOf(ElementKind.ENTITY_TYPE) }
+    // Object-style rows: structural entity types (inventory) ∪ agent/entity types observed in the last trace
+    // (agents are trace-only — not in the inventory), recomputed when a new run produces a trace (C3).
+    private var styleTypeNames: List<String> = controller.inventory.namesOf(ElementKind.ENTITY_TYPE)
     private val processNames: List<String> by lazy { controller.inventory.entityTypes.flatMap { it.processes }.map { it.name }.distinct() }
     private var styleTableModel: javax.swing.table.AbstractTableModel? = null
     private var procTableModel: javax.swing.table.AbstractTableModel? = null
@@ -128,6 +130,14 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         refreshAll()
         // Reflect external layout changes (open/new/scaffold from the menu) live.
         controller.edtScope.launch { controller.layout.collect { refreshAll() } }
+        // Fold the latest trace's entity/agent types into the object-style rows when a run produces one (C3).
+        controller.edtScope.launch { controller.lastTraceFile.collect { recomputeStyleTypeNames() } }
+    }
+
+    /** Object-style rows = inventory entity types ∪ the last trace's entity/agent types; refreshes the table (C3). */
+    private fun recomputeStyleTypeNames() {
+        styleTypeNames = (controller.inventory.namesOf(ElementKind.ENTITY_TYPE) + controller.objectTypeNamesFromLastTrace()).distinct()
+        refreshObjectStyles()
     }
 
     /** Opens (creating once) the Elements dialog that hosts the per-kind tables + styling tabs (10.3). */
@@ -1861,7 +1871,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     private fun buildObjectStylesTab(): JComponent {
         val model = object : javax.swing.table.AbstractTableModel() {
-            private val cols = arrayOf("Type", "Shape", "Color", "Size", "Image")
+            private val cols = arrayOf("", "Type", "Shape", "Color", "Size", "Image")
             override fun getRowCount() = styleTypeNames.size
             override fun getColumnCount() = cols.size
             override fun getColumnName(c: Int) = cols[c]
@@ -1869,10 +1879,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 val t = styleTypeNames[r]
                 val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == t }
                 return when (c) {
-                    0 -> t
-                    1 -> oc?.shape?.name ?: "—"
-                    2 -> oc?.color ?: "—"
-                    3 -> oc?.size?.let { trimNum(it) } ?: "—"
+                    0 -> t                  // glyph swatch (painted by GlyphSwatchRenderer); value carries the type name
+                    1 -> t
+                    2 -> oc?.shape?.name ?: "—"
+                    3 -> oc?.color ?: "—"
+                    4 -> oc?.size?.let { trimNum(it) } ?: "—"
                     else -> oc?.imageRef?.let { java.io.File(it).name } ?: ""
                 }
             }
@@ -1880,6 +1891,10 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         styleTableModel = model
         val table = javax.swing.JTable(model).apply { setSelectionMode(ListSelectionModel.SINGLE_SELECTION) }
         table.selectionModel.addListSelectionListener { if (!it.valueIsAdjusting) loadStyleStrip(table.selectedRow) }
+        // A glyph preview in the leading column, so the modeler sees the shape/color a type draws as (C3).
+        table.columnModel.getColumn(0).apply {
+            cellRenderer = GlyphSwatchRenderer(); minWidth = 34; maxWidth = 34; preferredWidth = 34
+        }
         return JPanel(BorderLayout()).apply {
             border = BorderFactory.createTitledBorder("Object styles — select a type, then set its glyph below")
             add(JScrollPane(table), BorderLayout.CENTER)
@@ -1900,6 +1915,44 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                     addActionListener { table.selectedRow.takeIf { it in styleTypeNames.indices }?.let { controller.removeObjectClass(styleTypeNames[it]); afterEdit() } }
                 })
             }, BorderLayout.SOUTH)
+        }
+    }
+
+    /** Paints a small shape+color preview of an object-style row's type, for the style table's glyph column (C3). */
+    private inner class GlyphSwatchRenderer : javax.swing.JComponent(), javax.swing.table.TableCellRenderer {
+        private var shape: ksl.animation.LayoutShape = ksl.animation.LayoutShape.CIRCLE
+        private var fill: java.awt.Color = java.awt.Color.LIGHT_GRAY
+        private var bg: java.awt.Color = java.awt.Color.WHITE
+
+        override fun getTableCellRendererComponent(
+            table: javax.swing.JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int
+        ): java.awt.Component {
+            val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == value?.toString() }
+            shape = oc?.shape ?: ksl.animation.LayoutShape.CIRCLE
+            fill = oc?.color?.let { ksl.app.swing.animation.view.VisualStyle.parseColor(it) } ?: java.awt.Color.LIGHT_GRAY
+            bg = if (isSelected) table.selectionBackground else table.background
+            return this
+        }
+
+        override fun paintComponent(g: java.awt.Graphics) {
+            val g2 = g as java.awt.Graphics2D
+            g2.color = bg
+            g2.fillRect(0, 0, width, height)
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+            val d = (minOf(width, height) - 10).coerceAtLeast(4)
+            val x = (width - d) / 2.0; val y = (height - d) / 2.0
+            g2.color = fill
+            when (shape) {
+                ksl.animation.LayoutShape.SQUARE, ksl.animation.LayoutShape.IMAGE ->
+                    g2.fill(java.awt.geom.Rectangle2D.Double(x, y, d.toDouble(), d.toDouble()))
+                ksl.animation.LayoutShape.TRIANGLE -> g2.fill(java.awt.Polygon(
+                    intArrayOf((x + d / 2.0).toInt(), x.toInt(), (x + d).toInt()),
+                    intArrayOf(y.toInt(), (y + d).toInt(), (y + d).toInt()), 3))
+                ksl.animation.LayoutShape.DIAMOND -> g2.fill(java.awt.Polygon(
+                    intArrayOf((x + d / 2.0).toInt(), (x + d).toInt(), (x + d / 2.0).toInt(), x.toInt()),
+                    intArrayOf(y.toInt(), (y + d / 2.0).toInt(), (y + d).toInt(), (y + d / 2.0).toInt()), 4))
+                else -> g2.fill(java.awt.geom.Ellipse2D.Double(x, y, d.toDouble(), d.toDouble()))
+            }
         }
     }
 

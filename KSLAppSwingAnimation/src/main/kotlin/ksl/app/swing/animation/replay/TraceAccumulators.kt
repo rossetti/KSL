@@ -138,6 +138,25 @@ class AgentStateNames : TraceAccumulator<List<String>> {
 }
 
 /**
+ * The distinct entity types (`EntityCreated.entityType`) and agent types (`AgentRegistered.agentType`) a trace
+ * reports, in first-seen order — the keys the renderer styles object glyphs by, so auto-layout can seed an
+ * editable object-class per type instead of leaving the invisible default size (C1).
+ */
+class ObjectTypeNames : TraceAccumulator<Set<String>> {
+    private val types = LinkedHashSet<String>()
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.EntityCreated -> types.add(event.entityType)
+            is AnimationEvent.AgentRegistered -> types.add(event.agentType)
+            else -> {}
+        }
+    }
+
+    override fun result(): Set<String> = types
+}
+
+/**
  * Resources ordered by observed process flow: [ranks] (0 = most upstream, ties = parallel servers in the
  * same stage) and [queueOfResource], each resource's queue name where the trace showed one.
  */

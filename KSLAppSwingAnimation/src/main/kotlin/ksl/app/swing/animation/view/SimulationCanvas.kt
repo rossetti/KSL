@@ -916,7 +916,14 @@ class SimulationCanvas : JPanel() {
         when (space) {
             is SpatialSpaceDescriptor.Continuous -> {
                 val a = screen(tx, LayoutPoint(space.xMin, space.yMin)); val b = screen(tx, LayoutPoint(space.xMax, space.yMax))
-                g2.draw(Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)))
+                val rect = Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y))
+                // A faint translucent fill + a slightly stronger border so a room / airspace reads as a region
+                // rather than a single hairline outline (C2).
+                g2.color = Color(0x42, 0x85, 0xf4, 0x14)
+                g2.fill(rect)
+                g2.color = Color(0xaa, 0xaa, 0xaa)
+                g2.stroke = BasicStroke(1.5f)
+                g2.draw(rect)
             }
             is SpatialSpaceDescriptor.Grid -> {
                 for (c in 0..space.cols) {

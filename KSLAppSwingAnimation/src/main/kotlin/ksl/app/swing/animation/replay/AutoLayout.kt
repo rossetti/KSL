@@ -51,12 +51,18 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val moverAcc = MoverHomes()
     val stateAcc = AgentStateNames()
     val flowAcc = FlowOrder()
-    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc)).run(events.asSequence())
+    val typeAcc = ObjectTypeNames()
+    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc)).run(events.asSequence())
 
     val observed = extentAcc.result()
     val location = locationAcc.result()
     val mover = moverAcc.result()
     val flow = flowAcc.result()
+
+    // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
+    // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
+    val objectTypes = typeAcc.result()
+    val glyphSize = objectGlyphSize(effectiveSpaces)
 
     // Agent state colors from the trace, so agent-state coloring works in Quick view (P5): assign a palette to the
     // distinct states the trace reports (the renderer falls back to the type color for any unmapped state).
@@ -101,7 +107,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
             queues = queues,
             stations = stations,
             movableResources = movers
-        )
+        ).withSeededObjectClasses(objectTypes, glyphSize)
     }
 
     // No spatial space and no planar coordinates (non-Cartesian / process-view): resources in flow-ordered
@@ -156,7 +162,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         queues = queues,
         stations = stations,
         movableResources = movers
-    )
+    ).withSeededObjectClasses(objectTypes, glyphSize)
 }
 
 /** A standard categorical palette for assigning colors to agent states discovered in a trace (P5). */

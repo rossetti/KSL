@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -69,6 +70,23 @@ class AutoLayoutTest {
         // Agent state colors are assigned from the trace's distinct states.
         assertContains(layout.agentStateColors.keys, "Infected")
         assertContains(layout.agentStateColors.keys, "Recovered")
+    }
+
+    @Test
+    fun `a spatial trace seeds an editable object-class per type sized to the grid`() {
+        val spatial = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.SpaceDefined(0.0, "grid", "Grid", cols = 20, rows = 20, cellSize = 1.0),
+            AnimationEvent.AgentRegistered(0.0, "a1", "Person"),
+            AnimationEvent.AgentPositionChanged(0.0, "a1", "grid", 1.0, 1.0),
+            AnimationEvent.AgentRegistered(0.0, "a2", "Person"),
+            AnimationEvent.AgentPositionChanged(1.0, "a2", "grid", 5.0, 8.0)
+        )
+        val layout = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = spatial)).autoLayout(spatial)
+        val person = layout.objectClasses.singleOrNull { it.typeName == "Person" }
+        assertNotNull(person, "an object-class is seeded for the discovered agent type")
+        // ~0.7 of the cell size (1.0), not the renderer's invisible 10-unit default (the blob).
+        assertEquals(0.7, person.size, 1e-9)
     }
 
     private fun paintedPixels(replay: ReplayModel): Int {

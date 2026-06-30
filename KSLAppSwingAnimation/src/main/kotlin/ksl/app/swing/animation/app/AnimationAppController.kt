@@ -35,9 +35,12 @@ import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
 import ksl.animation.TraceFileReader
 import ksl.app.swing.animation.io.AnimationSource
+import ksl.app.swing.animation.replay.ObjectTypeNames
 import ksl.app.swing.animation.replay.ObservedExtent
 import ksl.app.swing.animation.replay.ReplayModel
 import ksl.app.swing.animation.replay.autoLayout
+import ksl.app.swing.animation.replay.objectGlyphSize
+import ksl.app.swing.animation.replay.withSeededObjectClasses
 import ksl.app.swing.animation.replay.withSpaceGeometry
 import ksl.animation.CaptureMode
 import ksl.animation.CaptureSpec
@@ -415,7 +418,9 @@ class AnimationAppController(
      * scaffolded or opened a layout yet. Returns null on build failure.
      */
     fun buildScaffoldLayout(): AnimationLayout? =
-        runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()?.let { withScaffoldedSpaces(it) }
+        runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()
+            ?.let { withScaffoldedSpaces(it) }
+            ?.let { withModelObjectClasses(it) }
 
     /** Generate and apply an auto-layout from the richest available source (see [buildAutoLayout]). */
     fun autoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO) {
@@ -471,6 +476,17 @@ class AnimationAppController(
      */
     fun withModelGeometry(layout: AnimationLayout): AnimationLayout =
         layout.withSpaceGeometry(inventory.spaces.mapNotNull { it.geometry })
+
+    /**
+     * Seeds an editable object-class per discovered entity type, sized to [layout]'s spaces (C1). Agent types
+     * aren't structural (they appear only in a trace), so the scaffold seeds entity types from the inventory;
+     * the trace path additionally seeds agent types it observes.
+     */
+    fun withModelObjectClasses(layout: AnimationLayout): AnimationLayout =
+        layout.withSeededObjectClasses(
+            inventory.entityTypes.filter { it.include }.map { it.typeName },
+            objectGlyphSize(layout.spaces)
+        )
 
     /**
      * Ensures an agent model's space(s) are placed in the scaffolded [layout] (10.8, §7.2). Grid agents emit
@@ -994,6 +1010,20 @@ class AnimationAppController(
                 .filterIsInstance<ksl.animation.AnimationEvent.DelayStarted>()
                 .mapNotNull { it.suspensionName?.trim()?.takeIf { n -> n.isNotEmpty() } }
                 .distinct()
+        }.getOrElse { emptyList() }
+    }
+
+    /**
+     * Distinct entity/agent **type** names from the most recent trace (its `EntityCreated`/`AgentRegistered`
+     * events), so the object-style editor can list agent types — which aren't structural, so aren't in the
+     * inventory — once a trace exists (C3). Falls back to the newest trace on disk; empty when there is none.
+     */
+    fun objectTypeNamesFromLastTrace(): List<String> {
+        val path = lastTraceFile.value ?: listTraces().firstOrNull() ?: return emptyList()
+        return runCatching {
+            val acc = ObjectTypeNames()
+            ksl.animation.TraceFileReader.readAll(path).second.forEach(acc::accept)
+            acc.result().toList()
         }.getOrElse { emptyList() }
     }
 
