@@ -217,7 +217,7 @@ fun Model.scaffoldLayout(
     return animation {
         this.title = resTitle
         size(width, height)
-        clock(originX, originY / 2)
+        // No auto-placed clock: the clock is an opt-in element the user adds from the Layout palette.
 
         // Column 1 — resources (with their queues when ResourceWithQ).
         val resColX = originX + 160.0

@@ -280,7 +280,11 @@ class SimulationCanvas : JPanel() {
         layout?.clocks?.forEach { clock ->
             val s = screen(tx, clock.position)
             g2.color = Color.BLACK
+            val oldFont = g2.font
+            val px = (clock.fontSize * scaleOf(tx)).toFloat().coerceAtLeast(4f) // size in layout units, scales with zoom
+            g2.font = oldFont.deriveFont(px)
             g2.drawString("${clock.label ?: "Time"}: ${"%.1f".format(t)}", s.x.toFloat(), s.y.toFloat())
+            g2.font = oldFont
         }
         if (showLegend) drawLegend(g2)
     }
@@ -1013,6 +1017,10 @@ class SimulationCanvas : JPanel() {
     var shapeResizeGrips: List<Point2D> = emptyList()
         set(value) { field = value; repaint() }
 
+    /** A world-space rectangle outlining the selected clock display. */
+    var clockHighlightWorld: Rectangle2D? = null
+        set(value) { field = value; repaint() }
+
     /** Resize grip(s) for the selected storage (far corner); drag to set width/height (item 2). */
     var storageResizeGrips: List<Point2D> = emptyList()
         set(value) { field = value; repaint() }
@@ -1050,6 +1058,14 @@ class SimulationCanvas : JPanel() {
             g2.draw(Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)))
         }
         shapeHighlightWorld?.let { wr -> // selected background shape: a dashed blue outline around its bounds
+            val a = tx.transform(Point2D.Double(wr.minX, wr.minY), null)
+            val b = tx.transform(Point2D.Double(wr.maxX, wr.maxY), null)
+            g2.color = Color(0x15, 0x6e, 0xc8)
+            g2.stroke = BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1f, floatArrayOf(5f, 4f), 0f)
+            g2.draw(Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)))
+            g2.stroke = BasicStroke(1f)
+        }
+        clockHighlightWorld?.let { wr -> // selected clock: a dashed blue outline around its bounds
             val a = tx.transform(Point2D.Double(wr.minX, wr.minY), null)
             val b = tx.transform(Point2D.Double(wr.maxX, wr.maxY), null)
             g2.color = Color(0x15, 0x6e, 0xc8)

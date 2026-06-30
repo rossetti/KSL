@@ -575,6 +575,20 @@ class AnimationAppController(
     fun setBackgroundAt(index: Int, element: ksl.animation.BackgroundElement) =
         setLayout(activeOrBlank().withBackgroundReplacedAt(index, element))
 
+    /** Add a clock display ([label]/[format], size [fontSize]) anchored at ([x],[y]) — the Clock palette tool. */
+    fun addClock(x: Double, y: Double, label: String? = "Time", format: String = "0.0", fontSize: Double = 12.0) =
+        setLayout(activeOrBlank().withClock(x, y, label, format, fontSize))
+
+    /** Remove the clock at [index]. */
+    fun removeClockAt(index: Int) = setLayout(activeOrBlank().withClockRemovedAt(index))
+
+    /** Translate the clock at [index] by ([dx],[dy]) — canvas drag-to-move. */
+    fun moveClockAt(index: Int, dx: Double, dy: Double) = setLayout(activeOrBlank().withClockMovedAt(index, dx, dy))
+
+    /** Replace the clock at [index] — the clock editor (label/format) and resize (fontSize). */
+    fun setClockAt(index: Int, element: ksl.animation.ClockDisplayElement) =
+        setLayout(activeOrBlank().withClockReplacedAt(index, element))
+
     /** Add a path named [name] routed through the placed [stationNames] (needs >= 2 resolvable stations). */
     fun addPathThroughStations(name: String, stationNames: List<String>) {
         val base = activeOrBlank()

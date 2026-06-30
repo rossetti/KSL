@@ -22,6 +22,7 @@ import ksl.animation.AnimationLayout
 import ksl.animation.BackgroundElement
 import ksl.animation.BackgroundKind
 import ksl.animation.BarDisplayElement
+import ksl.animation.ClockDisplayElement
 import ksl.animation.ConveyorLayoutElement
 import ksl.animation.ElementLabel
 import ksl.animation.ElementKind
@@ -368,6 +369,29 @@ fun AnimationLayout.withBackgroundMovedAt(index: Int, dx: Double, dy: Double): A
 fun AnimationLayout.withBackgroundReplacedAt(index: Int, element: BackgroundElement): AnimationLayout =
     if (index !in background.indices) this
     else copy(background = background.mapIndexed { i, b -> if (i == index) element else b })
+
+// ── Clock display widgets (model-less, index-keyed — mirrors the background-text widget above) ──────
+
+/** A copy with a clock display ([label]/[format], size [fontSize]) anchored at ([x],[y]). */
+fun AnimationLayout.withClock(
+    x: Double, y: Double, label: String? = "Time", format: String = "0.0", fontSize: Double = 12.0
+): AnimationLayout = copy(clocks = clocks + ClockDisplayElement(LayoutPoint(x, y), format, label, fontSize))
+
+/** A copy with the clock at [index] removed (no-op when out of range). */
+fun AnimationLayout.withClockRemovedAt(index: Int): AnimationLayout =
+    if (index !in clocks.indices) this else copy(clocks = clocks.filterIndexed { i, _ -> i != index })
+
+/** A copy with the clock at [index] translated by ([dx],[dy]) — canvas drag-to-move. */
+fun AnimationLayout.withClockMovedAt(index: Int, dx: Double, dy: Double): AnimationLayout =
+    if (index !in clocks.indices) this
+    else copy(clocks = clocks.mapIndexed { i, c ->
+        if (i != index) c else c.copy(position = LayoutPoint(c.position.x + dx, c.position.y + dy))
+    })
+
+/** A copy with the clock at [index] replaced by [element] (no-op when out of range) — clock editor / resize. */
+fun AnimationLayout.withClockReplacedAt(index: Int, element: ClockDisplayElement): AnimationLayout =
+    if (index !in clocks.indices) this
+    else copy(clocks = clocks.mapIndexed { i, c -> if (i == index) element else c })
 
 /** A copy with a path [name] of [points] (replaces any path of the same name). */
 fun AnimationLayout.withPath(name: String, points: List<LayoutPoint>): AnimationLayout =

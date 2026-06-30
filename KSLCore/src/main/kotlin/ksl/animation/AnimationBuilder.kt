@@ -372,8 +372,8 @@ class AnimationBuilder {
         storage(name, x, y, block)
 
     /** Adds a clock display. */
-    fun clock(x: Double, y: Double, label: String? = "Time", format: String = "0.0") {
-        clocks.add(ClockDisplayElement(LayoutPoint(x, y), format, label))
+    fun clock(x: Double, y: Double, label: String? = "Time", format: String = "0.0", fontSize: Double = 12.0) {
+        clocks.add(ClockDisplayElement(LayoutPoint(x, y), format, label, fontSize))
     }
 
     /**

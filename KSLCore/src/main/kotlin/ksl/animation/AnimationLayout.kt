@@ -245,7 +245,9 @@ data class PlotDisplayElement(
 data class ClockDisplayElement(
     val position: LayoutPoint,
     val format: String = "0.0",
-    val label: String? = "Time"
+    val label: String? = "Time",
+    /** Text size in layout units (scales with zoom). Appended with a default so older layouts are unaffected. */
+    val fontSize: Double = 12.0
 )
 
 /**

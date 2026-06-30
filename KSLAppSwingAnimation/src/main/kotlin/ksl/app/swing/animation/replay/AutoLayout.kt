@@ -20,7 +20,6 @@ package ksl.app.swing.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
-import ksl.animation.ClockDisplayElement
 import ksl.animation.LayoutPoint
 import ksl.animation.MovableResourceLayoutElement
 import ksl.animation.QueueLayoutElement
@@ -111,7 +110,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         width = width,
         height = height,
         agentStateColors = agentStateColors,
-        clocks = listOf(ClockDisplayElement(position = LayoutPoint(originX, originY / 2))),
+        // No auto-placed clock: the clock is an opt-in element the user adds from the Layout palette.
         resources = resources,
         queues = queues,
         stations = stations,

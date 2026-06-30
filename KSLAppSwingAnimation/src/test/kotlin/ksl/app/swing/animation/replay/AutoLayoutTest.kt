@@ -29,12 +29,12 @@ class AutoLayoutTest {
         ReplayModel.build(AnimationSource(layout = layout, header = AnimationTraceHeader(), events = events))
 
     @Test
-    fun `auto layout places the trace's resources and queues plus a clock`() {
+    fun `auto layout places the trace's resources and queues but no clock`() {
         val layout = model(null).autoLayout(events, "My Trace")
         assertEquals("My Trace", layout.title)
         assertContains(layout.resources.map { it.resourceName }, "Server")
         assertContains(layout.queues.map { it.queueName }, "WaitQ")
-        assertTrue(layout.clocks.isNotEmpty(), "a clock is always placed")
+        assertTrue(layout.clocks.isEmpty(), "the clock is opt-in (added from the palette), not auto-placed")
         // Response stats are intentionally omitted to avoid a tall, overlapping auto-grid.
         assertTrue(layout.values.isEmpty(), "responses are not auto-placed")
     }

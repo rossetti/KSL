@@ -96,6 +96,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private var pathButton: JButton? = null
     private var bgButton: JButton? = null
     private var shapeButton: JButton? = null
+    private var clockButton: JButton? = null
     private var conveyorButton: JButton? = null
     private var storageButton: JButton? = null
     private val defaultButtonBorder = javax.swing.UIManager.getBorder("Button.border")
@@ -223,6 +224,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         }
         shapeButton = shb
         add(shb)
+        // Clock: click-to-place a simulation-time clock. Like Text, it's first-class (select/move/edit/delete).
+        val clkb = JButton("Clock").apply {
+            toolTipText = "Place a simulation-time clock (click): set label/format/size. Afterward: click to select, drag to move, double-click to edit, Delete to remove."
+            addActionListener { openClockDialog() }
+        }
+        clockButton = clkb
+        add(clkb)
     }
 
     /** Choose which (unplaced) element of [kind] to place, then arm the canvas for a placement click. */
@@ -253,6 +261,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         conveyorButton?.border = defaultButtonBorder
         storageButton?.border = defaultButtonBorder
         shapeButton?.border = defaultButtonBorder
+        clockButton?.border = defaultButtonBorder
         kind?.let { toolButtons[it]?.border = armedButtonBorder }
     }
 
@@ -265,6 +274,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         conveyorRouteName = null; conveyorRouteSeg = -1; conveyorWaypoints.clear()
         storageArm = null; storageStart = null
         textArm = false
+        clockArm = false
     }
 
     private val crosshair = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.CROSSHAIR_CURSOR)
@@ -509,6 +519,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private var shapeText: String = "Label"
     private var shapeFontSize: Double = 14.0
     private var shapeFontFamily: String = "SansSerif"
+    // Clock tool defaults (the model-less time-display widget; mirrors the Text tool above).
+    private var clockArm: Boolean = false
+    private var clockLabel: String = "Time"
+    private var clockFormat: String = "0.0"
+    private var clockFontSize: Double = 14.0
 
     /** Logical font families, guaranteed available on every JVM (cross-platform). */
     private val fontFamilies = arrayOf("SansSerif", "Serif", "Monospaced")
@@ -882,9 +897,10 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** Replaces the selection with [hit] (or clears it when null) and refreshes the highlight rings. */
     private fun selectOnly(hit: Pair<ElementKind, String>?) {
         selected.clear(); hit?.let { selected.add(it) }
-        if (hit != null) { // a glyph selection drops any storage outline / shape selection
+        if (hit != null) { // a glyph selection drops any storage outline / shape / clock selection
             selectedStorage = null; canvas.highlightRectWorld = null
             selectedShapeIndex = null; canvas.shapeHighlightWorld = null
+            selectedClockIndex = null; canvas.clockHighlightWorld = null
         }
         updateSelectionHandles()
     }
@@ -904,11 +920,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun removeSelected() {
         val storage = selectedStorage
         val shapeIdx = selectedShapeIndex
-        if (selected.isEmpty() && storage == null && shapeIdx == null) return
+        val clockIdx = selectedClockIndex
+        if (selected.isEmpty() && storage == null && shapeIdx == null && clockIdx == null) return
         selected.toList().forEach { (k, n) -> controller.removeLayoutElement(k, n) }
         selected.clear()
         if (storage != null) { controller.removeStorage(storage); selectedStorage = null; canvas.highlightRectWorld = null }
         if (shapeIdx != null) { controller.removeBackgroundAt(shapeIdx); selectedShapeIndex = null; canvas.shapeHighlightWorld = null }
+        if (clockIdx != null) { controller.removeClockAt(clockIdx); selectedClockIndex = null; canvas.clockHighlightWorld = null }
         afterEdit()
     }
 
@@ -927,6 +945,12 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 javax.swing.JPopupMenu().apply {
                     add(javax.swing.JMenuItem("Remove $kindLabel").apply {
                         addActionListener { controller.removeBackgroundAt(idx); selectedShapeIndex = null; canvas.shapeHighlightWorld = null; afterEdit() }
+                    })
+                }.show(canvas, e.x, e.y)
+            } ?: pickClock(e.x, e.y)?.let { idx ->
+                javax.swing.JPopupMenu().apply {
+                    add(javax.swing.JMenuItem("Remove clock").apply {
+                        addActionListener { controller.removeClockAt(idx); selectedClockIndex = null; canvas.clockHighlightWorld = null; afterEdit() }
                     })
                 }.show(canvas, e.x, e.y)
             }
@@ -1023,7 +1047,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** Marks [name] as the selected storage (clearing the generic selection), or clears it; refreshes the outline. */
     private fun selectStorage(name: String?) {
         selectedStorage = name
-        if (name != null) { selectOnly(null); selectedShapeIndex = null; canvas.shapeHighlightWorld = null } // exclusive
+        if (name != null) { selectOnly(null); selectedShapeIndex = null; canvas.shapeHighlightWorld = null; selectedClockIndex = null; canvas.clockHighlightWorld = null } // exclusive
         refreshStorageHighlight()
     }
 
@@ -1108,6 +1132,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private var shapeMoveDrag: Int? = null
     private var shapeDragLast: Pair<Double, Double>? = null
     private var shapeResizeDrag: Int? = null
+    private var selectedClockIndex: Int? = null
+    private var clockMoveDrag: Int? = null
+    private var clockDragLast: Pair<Double, Double>? = null
 
     /** The world-coordinate bounding box of background element [b], padded so thin shapes/text are clickable. */
     private fun shapeBounds(b: ksl.animation.BackgroundElement): java.awt.geom.Rectangle2D.Double {
@@ -1139,7 +1166,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** Selects background shape [index] (clearing glyph/storage selection), or clears it; refreshes the outline. */
     private fun selectShape(index: Int?) {
         selectedShapeIndex = index
-        if (index != null) { selectOnly(null); selectStorage(null) } // shape selection is exclusive
+        if (index != null) { selectOnly(null); selectStorage(null); selectedClockIndex = null; canvas.clockHighlightWorld = null } // shape selection is exclusive
         refreshShapeHighlight()
     }
 
@@ -1194,6 +1221,99 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             else -> return
         }
         refreshShapeHighlight()
+    }
+
+    // ── Clock display widget (model-less, index-keyed — mirrors the background-text widget above) ──────
+
+    /** Toolbar Clock tool: enter the label, format, and size, then click the canvas to place it (Esc to cancel). */
+    private fun openClockDialog() {
+        if (clockArm) { disarmClock(); return } // re-clicking the armed tool cancels
+        val label = JTextField(clockLabel, 12)
+        val format = JTextField(clockFormat, 8)
+        val size = javax.swing.JSpinner(javax.swing.SpinnerNumberModel(clockFontSize, 4.0, 400.0, 1.0))
+        val form = JPanel(java.awt.GridLayout(0, 2, 6, 4)).apply {
+            add(JLabel("label")); add(label)
+            add(JLabel("number format")); add(format)
+            add(JLabel("size")); add(size)
+        }
+        if (JOptionPane.showConfirmDialog(this, form, "Add clock", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return
+        clockLabel = label.text.trim().ifBlank { "Time" }
+        clockFormat = format.text.trim().ifBlank { "0.0" }
+        clockFontSize = (size.value as Number).toDouble()
+        armClock()
+    }
+
+    private fun armClock() {
+        clearArmState()
+        clockArm = true
+        canvas.cursor = crosshair
+        coordLabel.text = "Click to place the clock  (Esc to cancel)"
+        highlightTool(null); clockButton?.border = armedButtonBorder
+    }
+
+    private fun disarmClock() {
+        clockArm = false
+        canvas.cursor = java.awt.Cursor.getDefaultCursor(); highlightTool(null)
+    }
+
+    /** Places a clock at the clicked point. It becomes a first-class widget (select/move/edit/delete). */
+    private fun placeClock(wx: Double, wy: Double) {
+        if (!clockArm) return
+        controller.addClock(wx, wy, clockLabel, clockFormat, clockFontSize)
+        disarmClock(); afterEdit()
+    }
+
+    /** The world-coordinate bounding box of clock [c] (anchor baseline-left; padded so the text is clickable). */
+    private fun clockBounds(c: ksl.animation.ClockDisplayElement): java.awt.geom.Rectangle2D.Double {
+        val ax = c.position.x; val ay = c.position.y; val fs = c.fontSize.coerceAtLeast(4.0)
+        // The rendered text is "label: <time>"; the time value varies, so estimate a generous width.
+        val chars = (c.label ?: "Time").length + 8
+        return java.awt.geom.Rectangle2D.Double(ax, ay - fs, maxOf(fs, chars * fs * 0.6), fs * 1.3)
+    }
+
+    /** The top-most clock whose bounds contain screen point ([sx],[sy]), or null. */
+    private fun pickClock(sx: Int, sy: Int): Int? {
+        val cs = controller.layout.value?.clocks ?: return null
+        val w = canvas.screenToWorld(sx.toDouble(), sy.toDouble())
+        for (i in cs.indices.reversed()) if (clockBounds(cs[i]).contains(w.x, w.y)) return i // last drawn = topmost
+        return null
+    }
+
+    /** Selects clock [index] (clearing glyph/storage/shape selection), or clears it; refreshes the outline. */
+    private fun selectClock(index: Int?) {
+        selectedClockIndex = index
+        if (index != null) { selectOnly(null); selectStorage(null); selectShape(null) } // clock selection is exclusive
+        refreshClockHighlight()
+    }
+
+    /** Reflects the selected clock's bounding box onto the canvas (or clears it; drops a stale index). */
+    private fun refreshClockHighlight() {
+        val cs = controller.layout.value?.clocks
+        val idx = selectedClockIndex
+        if (cs == null || idx == null || idx !in cs.indices) {
+            selectedClockIndex = null; canvas.clockHighlightWorld = null; return
+        }
+        canvas.clockHighlightWorld = clockBounds(cs[idx])
+    }
+
+    /** Double-click editor for a clock: label, number format, and size (resize). */
+    private fun showClockEditor(index: Int) {
+        val c = controller.layout.value?.clocks?.getOrNull(index) ?: return
+        val label = JTextField(c.label ?: "Time", 12)
+        val format = JTextField(c.format, 8)
+        val size = javax.swing.JSpinner(javax.swing.SpinnerNumberModel(c.fontSize, 4.0, 400.0, 1.0))
+        val form = JPanel(java.awt.GridLayout(0, 2, 6, 4)).apply {
+            add(JLabel("label")); add(label)
+            add(JLabel("number format")); add(format)
+            add(JLabel("size")); add(size)
+        }
+        if (JOptionPane.showConfirmDialog(this, form, "Edit clock", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return
+        controller.setClockAt(index, c.copy(
+            label = label.text.trim().ifBlank { "Time" },
+            format = format.text.trim().ifBlank { "0.0" },
+            fontSize = (size.value as Number).toDouble()
+        ))
+        refreshClockHighlight(); afterEdit()
     }
 
     /** Double-click editor for a background shape: text/font/size/color (TEXT), or color + stroke (rect/line). */
@@ -1289,6 +1409,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                     placeShapeText(w.x, w.y)
                     return
                 }
+                if (clockArm) { // clock tool: a click places the clock
+                    val w = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble())
+                    placeClock(w.x, w.y)
+                    return
+                }
                 if (bgArmRef != null) { // background: press starts the rectangle (10.4)
                     bgStart = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble()).let { it.x to it.y }
                     return
@@ -1323,12 +1448,16 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                     shapeMoveDrag = idx; shapeDragLast = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble()).let { it.x to it.y }
                     selectShape(idx); return
                 }
+                if (hit == null) pickClock(e.x, e.y)?.let { idx -> // select+drag a clock display
+                    clockMoveDrag = idx; clockDragLast = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble()).let { it.x to it.y }
+                    selectClock(idx); return
+                }
                 if (hit != null) {
                     if (hit !in selected) selectOnly(hit) // clicking an unselected element selects just it;
                     // (clicking one already in a multi-selection keeps the selection so the drag moves the group)
                     groupDragLast = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble()).let { it.x to it.y }
                 } else {
-                    selectStorage(null); selectShape(null) // empty space → drop any storage/shape outline, then marquee
+                    selectStorage(null); selectShape(null); selectClock(null) // empty space → drop any storage/shape/clock outline, then marquee
                     selectOnly(null)
                     marqueeStartScreen = java.awt.Point(e.x, e.y)
                     marqueeStartWorld = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble()).let { it.x to it.y }
@@ -1356,7 +1485,8 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                         if (hp != null) showElementEditor(hp.first, hp.second)
                         else { // G6: edit a storage in place; else edit a background shape (color/stroke/text)
                             val st = pickStorage(e.x, e.y)
-                            if (st != null) showStorageEditor(st) else pickShape(e.x, e.y)?.let { showShapeEditor(it) }
+                            if (st != null) showStorageEditor(st)
+                            else pickShape(e.x, e.y)?.let { showShapeEditor(it) } ?: pickClock(e.x, e.y)?.let { showClockEditor(it) }
                         }
                     }
                 }
@@ -1387,6 +1517,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                     shapeDragLast?.let { last -> controller.moveBackgroundAt(idx, w.x - last.first, w.y - last.second) }
                     shapeDragLast = w.x to w.y
                     refreshShapeHighlight()
+                    return
+                }
+                clockMoveDrag?.let { idx -> // moving a clock by dragging it (translate by the drag delta)
+                    val w = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble())
+                    clockDragLast?.let { last -> controller.moveClockAt(idx, w.x - last.first, w.y - last.second) }
+                    clockDragLast = w.x to w.y
+                    refreshClockHighlight()
                     return
                 }
                 qRotateDrag?.let { name -> // rotating a queue by dragging its tail grip (P3)
@@ -1427,6 +1564,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 groupDragLast = null; qRotateDrag = null; labelDrag = null
                 storageStart = null; storageMoveDrag = null; storageResizeDrag = null
                 shapeMoveDrag = null; shapeDragLast = null; shapeResizeDrag = null
+                clockMoveDrag = null; clockDragLast = null
                 marqueeStartScreen = null; marqueeStartWorld = null; canvas.marqueeScreen = null
             }
             override fun mouseMoved(e: java.awt.event.MouseEvent) {
@@ -2295,6 +2433,19 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     internal fun pickShapeAtWorldForTest(wx: Double, wy: Double): Int? {
         val bg = controller.layout.value?.background ?: return null
         for (i in bg.indices.reversed()) if (shapeBounds(bg[i]).contains(wx, wy)) return i
+        return null
+    }
+
+    /** Selects the clock at [index] (as a canvas click would); returns whether its outline is shown. */
+    internal fun selectClockForTest(index: Int?): Boolean { selectClock(index); return canvas.clockHighlightWorld != null }
+
+    /** The currently selected clock index, or null. */
+    internal fun selectedClockIndexForTest(): Int? = selectedClockIndex
+
+    /** The index of the top-most clock whose bounds contain world ([wx],[wy]), or null — the hit test. */
+    internal fun pickClockAtWorldForTest(wx: Double, wy: Double): Int? {
+        val cs = controller.layout.value?.clocks ?: return null
+        for (i in cs.indices.reversed()) if (clockBounds(cs[i]).contains(wx, wy)) return i
         return null
     }
 
