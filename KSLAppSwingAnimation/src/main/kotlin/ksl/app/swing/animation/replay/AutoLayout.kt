@@ -26,6 +26,7 @@ import ksl.animation.MovableResourceLayoutElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.StationLayoutElement
+import ksl.animation.StorageLayoutElement
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -55,7 +56,8 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val typeAcc = ObjectTypeNames()
     val stationFlowAcc = StationFlow()
     val conveyorAcc = ConveyorAnchors()
-    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc, stationFlowAcc, conveyorAcc))
+    val storageAcc = DelayStorages()
+    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc, stationFlowAcc, conveyorAcc, storageAcc))
         .run(events.asSequence())
 
     val observed = extentAcc.result()
@@ -64,6 +66,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val flow = flowAcc.result()
     val stationFlow = stationFlowAcc.result()
     val conveyorAnchors = conveyorAcc.result()
+    val storageKeys = storageAcc.result()
 
     // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
     // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
@@ -175,12 +178,16 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     }
     val conveyorStations = conveyorAnchorPos.map { (loc, p) -> StationLayoutElement(stationName = loc, position = p, label = loc) }
 
-    val height = (maxOf(laneY, originY + maxRows * rowGap) + 80.0).coerceAtLeast(400.0)
     val width = (maxOf(
         firstColX + lastRank * columnGap,
         firstColX + beltSpan,
         firstColX + (stationOrder.size - 1).coerceAtLeast(0) * stationGap
     ) + 320.0).coerceAtLeast(800.0)
+
+    // D1: storages for named delays + entity-types with bare-delay activity, as a wrapping row below the lanes.
+    val (storages, storageBottom) = layoutStorages(storageKeys, originX, laneY + 30.0, width)
+
+    val height = (maxOf(storageBottom, laneY, originY + maxRows * rowGap) + 80.0).coerceAtLeast(400.0)
 
     // Remaining named travel locations (name-only SpatialElementMoved movers) not already placed as a network
     // station or a conveyor anchor: a ring, so name-resolved mover movement still animates.
@@ -204,6 +211,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         queues = queues,
         stations = networkStations + conveyorStations + ringStations,
         conveyors = conveyorElements,
+        storages = storages,
         movableResources = movers
     ).withSeededObjectClasses(objectTypes, glyphSize)
 }
@@ -224,4 +232,21 @@ private fun spaceBounds(s: ksl.animation.SpatialSpaceDescriptor): java.awt.geom.
         java.awt.geom.Rectangle2D.Double(xs.min(), ys.min(), xs.max() - xs.min(), ys.max() - ys.min())
     }
     else -> null
+}
+
+/**
+ * Lays storages out as a wrapping row of boxes from ([x0], [y0]) within [maxX]; returns the placed elements and
+ * the bottom y they reach, so the caller can grow the canvas to fit them (D1).
+ */
+private fun layoutStorages(keys: List<String>, x0: Double, y0: Double, maxX: Double): Pair<List<StorageLayoutElement>, Double> {
+    if (keys.isEmpty()) return emptyList<StorageLayoutElement>() to y0
+    val w = 160.0; val h = 48.0; val gap = 24.0
+    var x = x0; var y = y0
+    val out = keys.map { key ->
+        if (x + w > maxX && x > x0) { x = x0; y += h + gap } // wrap to the next row
+        val e = StorageLayoutElement(suspensionName = key, position = LayoutPoint(x, y), width = w, height = h, label = key)
+        x += w + gap
+        e
+    }
+    return out to (y + h)
 }

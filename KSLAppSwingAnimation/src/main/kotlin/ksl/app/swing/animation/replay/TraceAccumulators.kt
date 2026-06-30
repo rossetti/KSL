@@ -236,3 +236,32 @@ class ConveyorAnchors : TraceAccumulator<Map<String, List<Pair<String, Int>>>> {
 
     override fun result(): Map<String, List<Pair<String, Int>>> = byConveyor
 }
+
+/**
+ * Storage keys to auto-place from the trace's delays (D1): every named delay (`DelayStarted.suspensionName`),
+ * plus every entity type that shows a *bare* (unnamed) delay — EXCEPT types whose entities are ever seized,
+ * whose bare delays are the service phase of a seize-delay-release and are already drawn inside the resource
+ * glyph (a type-storage there would double-draw them). The keys match `ReplayModel`'s storage keying
+ * (`suspensionName ?: entityType`), so each placed storage binds to the trace's members. Named delays are
+ * always kept: naming a delay is an intentional "show this as a storage" signal.
+ */
+class DelayStorages : TraceAccumulator<List<String>> {
+    private val entityType = HashMap<Long, String>()
+    private val named = LinkedHashSet<String>()
+    private val bareTypes = LinkedHashSet<String>()
+    private val seizedTypes = HashSet<String>()
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.EntityCreated -> entityType[event.entityId] = event.entityType
+            is AnimationEvent.SeizeAllocated -> entityType[event.entityId]?.let { seizedTypes.add(it) }
+            is AnimationEvent.DelayStarted -> {
+                val name = event.suspensionName
+                if (name != null) named.add(name) else entityType[event.entityId]?.let { bareTypes.add(it) }
+            }
+            else -> {}
+        }
+    }
+
+    override fun result(): List<String> = (named + (bareTypes - seizedTypes)).toList()
+}
