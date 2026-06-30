@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
+import ksl.app.swing.animation.replay.withSpaceGeometry
 import ksl.animation.CaptureMode
 import ksl.animation.CaptureSpec
 import ksl.animation.CaptureWindow
@@ -411,17 +412,21 @@ class AnimationAppController(
         runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()?.let { withScaffoldedSpaces(it) }
 
     /**
+     * Stamps the model's faithful space geometry (obstacle maps / grid-graph costs) onto [layout] from the
+     * inventory — the static source a trace can't carry (P5a/G2). Shared by the scaffold and trace paths.
+     */
+    fun withModelGeometry(layout: AnimationLayout): AnimationLayout =
+        layout.withSpaceGeometry(inventory.spaces.mapNotNull { it.geometry })
+
+    /**
      * Ensures an agent model's space(s) are placed in the scaffolded [layout] (10.8, §7.2). Grid agents emit
      * (col,row) cells; without the space the fit collapses them into a blob, so map each inventory [SpaceInfo]
-     * to a descriptor (a display cell size for grids, framing ~70% of the canvas) when the layout has none.
+     * to a descriptor (a display cell size for grids, framing ~70% of the canvas) when the layout has none,
+     * then bring the model-linked obstacles/costs along via the shared geometry overlay.
      */
     private fun withScaffoldedSpaces(layout: AnimationLayout): AnimationLayout {
         if (layout.spaces.isNotEmpty() || inventory.spaces.isEmpty()) return layout
-        return layout.copy(
-            spaces = inventory.spaces.map { it.toDescriptor(layout.width, layout.height) },
-            // Bring any model-linked obstacles/costs along with the scaffolded spaces (P5a/G2).
-            spaceGeometry = if (layout.spaceGeometry.isEmpty()) inventory.spaces.mapNotNull { it.geometry } else layout.spaceGeometry
-        )
+        return withModelGeometry(layout.copy(spaces = inventory.spaces.map { it.toDescriptor(layout.width, layout.height) }))
     }
 
     private fun ksl.animation.SpaceInfo.toDescriptor(w: Double, h: Double): ksl.animation.SpatialSpaceDescriptor =
