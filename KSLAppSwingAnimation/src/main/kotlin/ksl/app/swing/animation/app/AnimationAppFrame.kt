@@ -396,9 +396,15 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
         }
     }
 
-    /** Opens a fresh frame on [next], then disposes this frame and closes the old controller. */
+    /** Opens a fresh frame on [next] at the current frame's geometry (so loading a model doesn't reset the
+     *  window size/position), then disposes this frame and closes the old controller. */
     private fun reopenWith(next: AnimationAppController) {
-        AnimationAppFrame(next).isVisible = true
+        val replacement = AnimationAppFrame(next)
+        // Carry over the live window geometry so the model switch is seamless; this overrides the
+        // constructor's pack()/setLocationRelativeTo(null), which is meant for first launch only.
+        replacement.bounds = bounds
+        replacement.extendedState = extendedState
+        replacement.isVisible = true
         dispose()
         runCatching { controller.close() }
     }
