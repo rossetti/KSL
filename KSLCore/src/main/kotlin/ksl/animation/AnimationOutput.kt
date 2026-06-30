@@ -152,5 +152,16 @@ class TraceFileReader(
                 return header to traceReader.events().toList()
             }
         }
+
+        /**
+         * Streams the trace at [path] to [block] — its header plus a lazy event sequence — and
+         * closes the reader when [block] returns, so early termination (e.g. a saturation stop)
+         * can't leak it. Use this for large traces; [readAll] is the load-everything convenience.
+         */
+        fun <R> readStreaming(path: Path, block: (AnimationTraceHeader, Sequence<AnimationEvent>) -> R): R =
+            openTraceReader(path).use { reader ->
+                val traceReader = TraceFileReader(reader)
+                block(traceReader.readHeader(), traceReader.events())
+            }
     }
 }
