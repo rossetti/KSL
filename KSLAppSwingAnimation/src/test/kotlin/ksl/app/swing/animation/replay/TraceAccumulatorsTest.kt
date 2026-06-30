@@ -150,4 +150,70 @@ class TraceAccumulatorsTest {
         // Movers with no finite coordinates carry no seeded position.
         assertNull(layout.movableResources.first { it.name == "M" }.position)
     }
+
+    // ----- FlowOrder + flow-ordered placement -----
+
+    private fun seize(entityId: Long, resource: String, t: Double = 1.0) =
+        AnimationEvent.SeizeAllocated(simTime = t, entityId = entityId, resourceName = resource, amountAllocated = 1)
+
+    private fun queued(entityId: Long, resource: String, queue: String, t: Double = 1.0) =
+        AnimationEvent.SeizeQueued(simTime = t, entityId = entityId, resourceName = resource, queueName = queue, amountRequested = 1)
+
+    private fun disposed(entityId: Long, t: Double = 1.0) =
+        AnimationEvent.EntityDisposed(simTime = t, entityId = entityId)
+
+    private fun resourceState(resource: String, t: Double = 0.0) =
+        AnimationEvent.ResourceStateChanged(simTime = t, resourceName = resource, state = "idle", busyUnits = 0, capacity = 1)
+
+    @Test
+    fun `FlowOrder ranks resources by average seize order`() {
+        val acc = FlowOrder()
+        listOf(
+            seize(1, "R1"), seize(1, "R2"), seize(1, "R3"),
+            seize(2, "R1"), seize(2, "R2"), seize(2, "R3"),
+        ).forEach(acc::accept)
+        val r = acc.result()
+        assertEquals(0, r.ranks["R1"]); assertEquals(1, r.ranks["R2"]); assertEquals(2, r.ranks["R3"])
+    }
+
+    @Test
+    fun `FlowOrder gives parallel servers the same rank`() {
+        val acc = FlowOrder()
+        listOf(seize(1, "R1"), seize(1, "A"), seize(2, "R1"), seize(2, "B")).forEach(acc::accept)
+        val r = acc.result()
+        assertEquals(0, r.ranks["R1"])
+        assertEquals(r.ranks["A"], r.ranks["B"], "parallel servers share a rank")
+        assertEquals(1, r.ranks["A"])
+    }
+
+    @Test
+    fun `FlowOrder maps each resource to its queue`() {
+        val acc = FlowOrder()
+        listOf(queued(1, "R1", "Q1"), seize(1, "R1")).forEach(acc::accept)
+        assertEquals("Q1", acc.result().queueOfResource["R1"])
+    }
+
+    @Test
+    fun `FlowOrder evicts per-entity state on dispose`() {
+        val acc = FlowOrder()
+        listOf(seize(1, "R1"), seize(1, "R2"), disposed(1), seize(1, "R3")).forEach(acc::accept)
+        val r = acc.result()
+        // R3 is seized at index 0 again (a fresh sequence after dispose), so it shares rank 0 with R1.
+        assertEquals(0, r.ranks["R1"]); assertEquals(1, r.ranks["R2"]); assertEquals(0, r.ranks["R3"])
+    }
+
+    @Test
+    fun `autoLayout places resources left-to-right in flow order`() {
+        // Tandem R1 -> R2 -> R3, no spatial movement (non-spatial branch). ResourceStateChanged registers the
+        // resources with the ReplayModel; SeizeAllocated drives the flow order.
+        val events = listOf(
+            resourceState("R1"), resourceState("R2"), resourceState("R3"),
+            seize(1, "R1", 1.0), seize(1, "R2", 2.0), seize(1, "R3", 3.0),
+            seize(2, "R1", 4.0), seize(2, "R2", 5.0), seize(2, "R3", 6.0),
+        )
+        val layout = replayOf(events).autoLayout(events)
+        val x = { name: String -> layout.resources.first { it.resourceName == name }.position.x }
+        assertTrue(x("R1") < x("R2"), "R1 left of R2")
+        assertTrue(x("R2") < x("R3"), "R2 left of R3")
+    }
 }

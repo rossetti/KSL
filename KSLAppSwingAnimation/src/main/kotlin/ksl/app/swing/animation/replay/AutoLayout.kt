@@ -50,11 +50,13 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val locationAcc = LocationCentroids()
     val moverAcc = MoverHomes()
     val stateAcc = AgentStateNames()
-    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc)).run(events.asSequence())
+    val flowAcc = FlowOrder()
+    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc)).run(events.asSequence())
 
     val observed = extentAcc.result()
     val location = locationAcc.result()
     val mover = moverAcc.result()
+    val flow = flowAcc.result()
 
     // Agent state colors from the trace, so agent-state coloring works in Quick view (P5): assign a palette to the
     // distinct states the trace reports (the renderer falls back to the type color for any unmapped state).
@@ -102,20 +104,39 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         )
     }
 
-    // No spatial space and no planar coordinates (non-Cartesian / process-view): resources and queues in two
-    // columns, and any named travel locations placed on a ring so name-resolved movement / conveyors animate.
+    // No spatial space and no planar coordinates (non-Cartesian / process-view): resources in flow-ordered
+    // columns (left to right by observed seize order) with each queue beside its server, and any named travel
+    // locations placed on a ring so name-resolved movement / conveyors animate.
     val originX = 80.0; val originY = 80.0; val rowGap = 70.0; val columnGap = 240.0
-    val resColX = originX + 160.0
-    val resources = resourceNames.sorted().mapIndexed { i, name ->
-        ResourceLayoutElement(resourceName = name, position = LayoutPoint(resColX, originY + i * rowGap))
+    val firstColX = originX + 160.0
+    // Group resources into flow-stage columns; resources never seized in the trace trail as a final column.
+    val maxRank = flow.ranks.values.maxOrNull() ?: -1
+    val byRank = resourceNames.groupBy { flow.ranks[it] ?: (maxRank + 1) }.toSortedMap()
+    val resources = mutableListOf<ResourceLayoutElement>()
+    val queues = mutableListOf<QueueLayoutElement>()
+    val placedQueues = mutableSetOf<String>()
+    var maxRows = 1
+    byRank.forEach { (rank, names) ->
+        val colX = firstColX + rank * columnGap
+        names.sorted().forEachIndexed { i, name ->
+            val y = originY + i * rowGap
+            resources += ResourceLayoutElement(resourceName = name, position = LayoutPoint(colX, y))
+            // Place this resource's queue just to its left, so entities read queue -> server.
+            flow.queueOfResource[name]?.let { q ->
+                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(colX - 90.0, y))
+                placedQueues += q
+            }
+        }
+        maxRows = maxOf(maxRows, names.size)
     }
-    val qColX = resColX + columnGap
-    val queues = queueNames.sorted().mapIndexed { i, name ->
-        QueueLayoutElement(queueName = name, position = LayoutPoint(qColX, originY + i * rowGap))
+    // Queues with no observed server (never seen in a SeizeQueued) fall back to a left column.
+    queueNames.filter { it !in placedQueues }.sorted().forEachIndexed { i, name ->
+        queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap))
+        maxRows = maxOf(maxRows, i + 1)
     }
-    val rows = maxOf(resources.size, queues.size, 1)
-    val height = (originY + rows * rowGap + 80.0).coerceAtLeast(400.0)
-    val width = (qColX + 320.0).coerceAtLeast(800.0)
+    val lastRank = byRank.keys.maxOrNull() ?: 0
+    val height = (originY + maxRows * rowGap + 80.0).coerceAtLeast(400.0)
+    val width = (firstColX + lastRank * columnGap + 320.0).coerceAtLeast(800.0)
     val locationNames = location.names.toSortedSet()
     val stations = if (locationNames.isEmpty()) emptyList() else {
         val cx = width / 2.0; val cy = height / 2.0

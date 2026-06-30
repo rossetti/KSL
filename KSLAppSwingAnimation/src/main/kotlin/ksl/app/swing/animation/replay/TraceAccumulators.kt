@@ -136,3 +136,40 @@ class AgentStateNames : TraceAccumulator<List<String>> {
 
     override fun result(): List<String> = states.toList()
 }
+
+/**
+ * Resources ordered by observed process flow: [ranks] (0 = most upstream, ties = parallel servers in the
+ * same stage) and [queueOfResource], each resource's queue name where the trace showed one.
+ */
+data class FlowOrderResult(val ranks: Map<String, Int>, val queueOfResource: Map<String, String>)
+
+/**
+ * Ranks resources by the average position they hold in entities' seize sequences, so a layout can place them
+ * left-to-right in flow order rather than alphabetically. Using the average index (rather than an edge graph
+ * with a longest-path rank) is cycle-safe: a re-entrant flow simply blends. Bounded: O(resources) running
+ * stats plus an O(WIP) per-entity counter, evicted on `EntityDisposed` (entities with no dispose event —
+ * e.g. station-network QObjects — leave a bounded residue but never affect the ranking).
+ */
+class FlowOrder : TraceAccumulator<FlowOrderResult> {
+    private class Avg { var sum = 0.0; var n = 0 }
+
+    private val visits = HashMap<Long, Int>()              // entityId -> seizes so far
+    private val index = LinkedHashMap<String, Avg>()       // resource -> average visit index
+    private val queueOf = LinkedHashMap<String, String>()  // resource -> its queue (from SeizeQueued)
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.SeizeAllocated -> {
+                val i = visits.getOrDefault(event.entityId, 0)
+                index.getOrPut(event.resourceName) { Avg() }.let { it.sum += i; it.n++ }
+                visits[event.entityId] = i + 1
+            }
+            is AnimationEvent.SeizeQueued -> queueOf.putIfAbsent(event.resourceName, event.queueName)
+            is AnimationEvent.EntityDisposed -> visits.remove(event.entityId)
+            else -> {}
+        }
+    }
+
+    override fun result(): FlowOrderResult =
+        FlowOrderResult(index.mapValues { (_, a) -> Math.round(a.sum / a.n).toInt() }, queueOf)
+}
