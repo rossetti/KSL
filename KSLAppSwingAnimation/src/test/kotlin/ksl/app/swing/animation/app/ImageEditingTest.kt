@@ -31,7 +31,7 @@ class ImageEditingTest {
 
     @Test
     fun `an image is selectable, mouse-resizable, and deletable`() {
-        val c = AnimationAppController("Anim", builder)
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory("anim-img") }
         try {
             val (hadGrip, sizeAfter) = onEdt {
                 val panel = LayoutPanel(c)
@@ -63,7 +63,7 @@ class ImageEditingTest {
 
     @Test
     fun `import copies the file into the workspace and stores a relative reference`() {
-        val c = AnimationAppController("Anim", builder)
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory("anim-img") }
         try {
             val src = Files.createTempFile("floorplan", ".png").toFile().apply { writeBytes(byteArrayOf(1, 2, 3)) }
             val ref = onEdt { LayoutPanel(c).importImageRefForTest(src) }
@@ -76,7 +76,7 @@ class ImageEditingTest {
 
     @Test
     fun `the editor preview resolves relative image refs against the layout folder`() {
-        val c = AnimationAppController("Anim", builder)
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = Files.createTempDirectory("anim-img") }
         try {
             val base = onEdt {
                 val panel = LayoutPanel(c)
