@@ -32,6 +32,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
+import ksl.animation.TraceFileReader
+import ksl.app.swing.animation.io.AnimationSource
+import ksl.app.swing.animation.replay.ObservedExtent
+import ksl.app.swing.animation.replay.ReplayModel
+import ksl.app.swing.animation.replay.autoLayout
 import ksl.app.swing.animation.replay.withSpaceGeometry
 import ksl.animation.CaptureMode
 import ksl.animation.CaptureSpec
@@ -410,6 +415,38 @@ class AnimationAppController(
      */
     fun buildScaffoldLayout(): AnimationLayout? =
         runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()?.let { withScaffoldedSpaces(it) }
+
+    /** Generate and apply an auto-layout from the richest available source (see [buildAutoLayout]). */
+    fun autoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO) {
+        if (!hasModel) return
+        buildAutoLayout(source)?.let { setLayout(it) }
+    }
+
+    /**
+     * Builds (without applying) the auto-layout for [source]: the most-recent trace — real positions (mined
+     * from the trace) plus the model's faithful geometry — when one exists, carries real coordinates, and
+     * [source] allows it; otherwise the static model scaffold. Always falls through to the scaffold.
+     */
+    fun buildAutoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO): AnimationLayout? {
+        val tryTrace = source == AutoLayoutSource.AUTO && hasTrace()
+        return (if (tryTrace) buildTraceLayout() else null) ?: buildScaffoldLayout()
+    }
+
+    /**
+     * Builds a layout from the latest trace, or null to defer to the scaffold. Smart-select: only a trace that
+     * carries real (Cartesian) coordinates is used; a coordinate-free model (DistancesModel/network) emits NaN
+     * positions, for which the scaffold's MDS placement is faithful and the trace would only give a crude ring.
+     */
+    private fun buildTraceLayout(): AnimationLayout? {
+        val trace = myLastTraceFile.value ?: listTraces().firstOrNull() ?: return null
+        return runCatching {
+            val (header, events) = TraceFileReader.readAll(trace)
+            // Defer to the scaffold unless the trace has real planar coordinates to place elements by.
+            if (ObservedExtent().also { acc -> events.forEach(acc::accept) }.result() == null) return@runCatching null
+            val replay = ReplayModel.build(AnimationSource(layout = null, header = header, events = events))
+            withModelGeometry(replay.autoLayout(events))
+        }.getOrNull()
+    }
 
     /**
      * Stamps the model's faithful space geometry (obstacle maps / grid-graph costs) onto [layout] from the
