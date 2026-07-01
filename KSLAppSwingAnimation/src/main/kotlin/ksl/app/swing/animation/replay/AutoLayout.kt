@@ -26,7 +26,7 @@ import ksl.animation.LocationLayoutElement
 import ksl.animation.MovableResourceLayoutElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.StorageLayoutElement
 import kotlin.math.cos
 import kotlin.math.sin
@@ -161,7 +161,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val networkStations = if (stationOrder.isEmpty()) emptyList() else {
         val y = laneY; laneY += 90.0
         stationOrder.mapIndexed { i, name ->
-            StationLayoutElement(stationName = name, position = LayoutPoint(firstColX + i * stationGap, y), label = name)
+            NetworkStationLayoutElement(stationName = name, position = LayoutPoint(firstColX + i * stationGap, y), label = name)
         }
     }
 

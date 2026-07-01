@@ -5,7 +5,7 @@ import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.image.BufferedImage
@@ -23,7 +23,7 @@ class LocationResolveTest {
     @Test
     fun `a name-based move resolves to a location, preferring it over a same-named station`() {
         val layout = AnimationLayout(
-            stations = listOf(StationLayoutElement("B", LayoutPoint(0.0, 0.0))),   // same name as the location B
+            stations = listOf(NetworkStationLayoutElement("B", LayoutPoint(0.0, 0.0))),   // same name as the location B
             locations = listOf(
                 LocationLayoutElement("A", LayoutPoint(10.0, 10.0)),
                 LocationLayoutElement("B", LayoutPoint(100.0, 20.0))

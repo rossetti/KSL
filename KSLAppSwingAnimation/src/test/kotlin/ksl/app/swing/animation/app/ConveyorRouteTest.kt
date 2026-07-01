@@ -6,7 +6,7 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.ConveyorLayoutElement
 import ksl.animation.LayoutPoint
 import ksl.animation.SegmentRoute
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import ksl.examples.general.animationbundle.Example08ConveyorTandem
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.replay.ReplayModel
@@ -27,8 +27,8 @@ import kotlin.test.assertTrue
 class ConveyorRouteTest {
 
     private val stations = listOf(
-        StationLayoutElement("A", LayoutPoint(0.0, 0.0)),
-        StationLayoutElement("B", LayoutPoint(100.0, 0.0))
+        NetworkStationLayoutElement("A", LayoutPoint(0.0, 0.0)),
+        NetworkStationLayoutElement("B", LayoutPoint(100.0, 0.0))
     )
     private val events = listOf(
         AnimationEvent.ConveyorDefined(0.0, "C", anchorLocations = listOf("A", "B"), anchorCells = listOf(0, 10))

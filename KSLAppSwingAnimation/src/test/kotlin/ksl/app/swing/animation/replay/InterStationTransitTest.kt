@@ -3,7 +3,7 @@ package ksl.app.swing.animation.replay
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.animation.AnimationEvent
 import kotlin.test.Test
@@ -15,8 +15,8 @@ class InterStationTransitTest {
 
     private val layout = AnimationLayout(
         stations = listOf(
-            StationLayoutElement("A", LayoutPoint(0.0, 0.0)),
-            StationLayoutElement("B", LayoutPoint(100.0, 0.0))
+            NetworkStationLayoutElement("A", LayoutPoint(0.0, 0.0)),
+            NetworkStationLayoutElement("B", LayoutPoint(100.0, 0.0))
         )
     )
 

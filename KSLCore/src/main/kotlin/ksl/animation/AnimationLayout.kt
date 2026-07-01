@@ -185,13 +185,21 @@ data class ElementLabel(
     val valueVisible: Boolean = true
 )
 
-/** Where to draw a station (flow-network node). Keyed by [stationName]. */
+/**
+ * Where to draw a **network station** — the animation of a `ksl.modeling.station.Station` (a flow-network node),
+ * distinct from a spatial [LocationLayoutElement]. Keyed by [stationName].
+ */
 @Serializable
-data class StationLayoutElement(
+data class NetworkStationLayoutElement(
     val stationName: String,
     val position: LayoutPoint,
     val label: String? = null
 )
+
+/** Renamed to [NetworkStationLayoutElement] (Phase 7); kept one cycle. Wire-compatible: the layout field stays
+ *  `stations` and the element's properties are unchanged, so serialized layouts are unaffected. */
+@Deprecated("Renamed to NetworkStationLayoutElement.", ReplaceWith("NetworkStationLayoutElement"))
+typealias StationLayoutElement = NetworkStationLayoutElement
 
 /**
  * The animation of a spatial `LocationIfc` — a named place entities and movers travel between (move endpoints,
@@ -394,7 +402,7 @@ data class AnimationLayout(
     val paths: List<PathDefinition> = emptyList(),
     val queues: List<QueueLayoutElement> = emptyList(),
     val resources: List<ResourceLayoutElement> = emptyList(),
-    val stations: List<StationLayoutElement> = emptyList(),
+    val stations: List<NetworkStationLayoutElement> = emptyList(),
     val bars: List<BarDisplayElement> = emptyList(),
     val plots: List<PlotDisplayElement> = emptyList(),
     val clocks: List<ClockDisplayElement> = emptyList(),

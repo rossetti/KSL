@@ -3,7 +3,7 @@ package ksl.app.swing.animation.app
 import ksl.animation.AnimationLayout
 import ksl.animation.LayoutPoint
 import ksl.animation.ResourceLayoutElement
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.withScaffoldOverlapsNudged
 import kotlin.math.hypot
 import kotlin.test.Test
@@ -19,7 +19,7 @@ class ScaffoldOverlapTest {
     @Test
     fun `nudge separates a co-located resource and station, keeping the station fixed (item 5)`() {
         val layout = AnimationLayout(
-            stations = listOf(StationLayoutElement("S", LayoutPoint(100.0, 100.0))),
+            stations = listOf(NetworkStationLayoutElement("S", LayoutPoint(100.0, 100.0))),
             resources = listOf(ResourceLayoutElement("R", LayoutPoint(100.0, 100.0)))
         )
         val nudged = layout.withScaffoldOverlapsNudged(minDist = 48.0)
@@ -32,7 +32,7 @@ class ScaffoldOverlapTest {
     @Test
     fun `non-overlapping glyphs are left where they are`() {
         val layout = AnimationLayout(
-            stations = listOf(StationLayoutElement("S", LayoutPoint(100.0, 100.0))),
+            stations = listOf(NetworkStationLayoutElement("S", LayoutPoint(100.0, 100.0))),
             resources = listOf(ResourceLayoutElement("R", LayoutPoint(400.0, 100.0)))
         )
         val nudged = layout.withScaffoldOverlapsNudged()

@@ -25,20 +25,20 @@ import ksl.animation.PathDefinition
 /**
  * Resolves layout anchor names to world positions and answers "is there an authored path between A and B?".
  * It holds separate network-station and location position maps — the typed split from the Station/Location/Path
- * disentanglement. A move endpoint is a *location*, so [resolve] is location-first with a station fallback (this
- * keeps legacy layouts that stored places as stations working); network transit anchors are strictly stations, for
- * which [station] is exact. [pathBetween] backs path-following motion (consumed by the position interpolator).
+ * disentanglement. [resolve] returns strictly the requested kind's position: a move endpoint is a *location* and
+ * a network transit anchor is a *station* (legacy locations-saved-as-stations are upgraded at load — Phase 7 — so
+ * no cross-map fallback is needed). [pathBetween] backs path-following motion (consumed by the position interpolator).
  */
 class AnchorResolver(
     private val stationPos: Map<String, WorldPoint>,
     private val locationPos: Map<String, WorldPoint>,
     private val paths: List<PathDefinition> = emptyList()
 ) {
-    /** The world position of [name], preferring [preferKind]'s map then falling back to the other; null if unknown. */
+    /** The world position of [name] as the requested [preferKind] (locations vs network stations are distinct); null if unknown. */
     fun resolve(name: String, preferKind: AnchorKind = AnchorKind.LOCATION): WorldPoint? =
         when (preferKind) {
-            AnchorKind.LOCATION -> locationPos[name] ?: stationPos[name]
-            AnchorKind.NETWORK_STATION -> stationPos[name] ?: locationPos[name]
+            AnchorKind.LOCATION -> locationPos[name]
+            AnchorKind.NETWORK_STATION -> stationPos[name]
         }
 
     /** The world position of the network station named [name], or null — no location fallback. */

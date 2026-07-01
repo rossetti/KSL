@@ -77,7 +77,7 @@ class AnimationBuilder {
     private val paths = mutableListOf<PathDefinition>()
     private val queues = mutableListOf<QueueLayoutElement>()
     private val resources = mutableListOf<ResourceLayoutElement>()
-    private val stations = mutableListOf<StationLayoutElement>()
+    private val stations = mutableListOf<NetworkStationLayoutElement>()
     private val locations = mutableListOf<LocationLayoutElement>()
     private val bars = mutableListOf<BarDisplayElement>()
     private val plots = mutableListOf<PlotDisplayElement>()
@@ -175,7 +175,7 @@ class AnimationBuilder {
 
     /** Places a station (by trace name). */
     fun station(name: String, x: Double, y: Double, label: String? = null) {
-        stations.add(StationLayoutElement(name, LayoutPoint(x, y), label))
+        stations.add(NetworkStationLayoutElement(name, LayoutPoint(x, y), label))
     }
 
     /** Places a named spatial location (a `LocationIfc`) at ([x], [y]) — a move endpoint / conveyor anchor /

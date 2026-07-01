@@ -2,6 +2,7 @@ package ksl.animation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** Verifies an [AnimationLayout] round-trips through the TOML codec (8E.2), including the sealed
  *  spatial-space hierarchy and the agent-state-color map. */
@@ -28,7 +29,7 @@ class AnimationLayoutTomlTest {
     @Test
     fun `locations round-trip through TOML (placed and unplaced)`() {
         val layout = AnimationLayout(
-            stations = listOf(StationLayoutElement("S1", LayoutPoint(1.0, 2.0))),
+            stations = listOf(NetworkStationLayoutElement("S1", LayoutPoint(1.0, 2.0))),
             locations = listOf(
                 LocationLayoutElement("Depot", LayoutPoint(10.0, 20.0), label = "Depot (pickup)"),
                 LocationLayoutElement("drop-0") // unplaced: null position
@@ -42,7 +43,7 @@ class AnimationLayoutTomlTest {
 
     @Test
     fun `a layout without a locations block still loads (wire-safe default)`() {
-        val back = AnimationLayout.fromToml(AnimationLayout(stations = listOf(StationLayoutElement("A", LayoutPoint(0.0, 0.0)))).toToml())
+        val back = AnimationLayout.fromToml(AnimationLayout(stations = listOf(NetworkStationLayoutElement("A", LayoutPoint(0.0, 0.0)))).toToml())
         assertEquals(emptyList(), back.locations)
     }
 
@@ -134,5 +135,14 @@ class AnimationLayoutTomlTest {
         val legacy = back.paths.first { it.name == "legacy" }
         assertEquals(null, legacy.from, "a legacy path has null anchors")
         assertEquals(true, legacy.bidirectional, "bidirectional defaults true")
+    }
+
+    @Test
+    fun `the NetworkStationLayoutElement rename is wire-safe (stable stations and stationName keys)`() {
+        val layout = AnimationLayout(stations = listOf(NetworkStationLayoutElement("S", LayoutPoint(1.0, 2.0))))
+        val json = layout.toJson()
+        assertTrue("\"stations\"" in json, "the layout field key stays 'stations'")
+        assertTrue("\"stationName\"" in json, "the element property key stays 'stationName'")
+        assertEquals(layout, AnimationLayout.fromJson(json))
     }
 }

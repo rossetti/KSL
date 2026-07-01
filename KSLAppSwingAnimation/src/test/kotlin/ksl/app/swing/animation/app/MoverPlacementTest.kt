@@ -102,7 +102,7 @@ class MoverPlacementTest {
             // A "legacy" layout (saved before homeBase existed): a placed Home station and a mover with a stale
             // parked position and no homeBase. Loading should backfill the home base from the inventory.
             ksl.animation.AnimationLayout(
-                stations = listOf(ksl.animation.StationLayoutElement("Home", ksl.animation.LayoutPoint(300.0, 90.0))),
+                stations = listOf(ksl.animation.NetworkStationLayoutElement("Home", ksl.animation.LayoutPoint(300.0, 90.0))),
                 movableResources = listOf(ksl.animation.MovableResourceLayoutElement(
                     name = "Truck", position = ksl.animation.LayoutPoint(700.0, 50.0)))
             ).writeTomlToFile(file)

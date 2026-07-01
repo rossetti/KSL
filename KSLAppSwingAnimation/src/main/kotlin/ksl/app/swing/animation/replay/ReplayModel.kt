@@ -597,8 +597,12 @@ class ReplayModel(
                         .add(event.simTime, event) // G10 velocity/force sample
                     is AnimationEvent.MarkerPulsed -> markerPulses.add(event) // G-animated transient highlight
                     is AnimationEvent.ConveyorDefined -> {
+                        // A conveyor anchor is a place that may be authored as a location or a network station
+                        // (explicit dual-kind resolution — distinct from move endpoints, which are strictly locations).
                         val anchors = event.anchorLocations.zip(event.anchorCells)
-                            .mapNotNull { (loc, cell) -> anchorResolver.resolve(loc)?.let { Triple(loc, cell, it) } }
+                            .mapNotNull { (loc, cell) ->
+                                (anchorResolver.resolve(loc) ?: anchorResolver.station(loc))?.let { Triple(loc, cell, it) }
+                            }
                         val route = source.layout?.conveyors?.firstOrNull { it.conveyorName == event.conveyorName }
                         conveyorGeom[event.conveyorName] = ConveyorGeometry.build(anchors, route) // arc-length routing (10.5c)
                         conveyorMaxCell[event.conveyorName] = event.anchorCells.maxOrNull() ?: 0

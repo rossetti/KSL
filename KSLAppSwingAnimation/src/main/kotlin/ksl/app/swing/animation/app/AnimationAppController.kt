@@ -557,10 +557,24 @@ class AnimationAppController(
 
     /** Load a layout from [path]; the loaded state is, by definition, the saved state. */
     fun loadLayout(path: Path) {
-        // Backfill mover home bases from the inventory so older layouts (saved before homeBase existed) still
-        // anchor their at-rest movers to the home station, matching what the replay draws.
-        myLayout.value = withMoverHomeBases(AnimationLayout.read(path)) // codec by extension: .toml -> TOML, else JSON
+        // Upgrade legacy layouts (locations saved as stations, Phase 7) before backfilling mover home bases so at-rest
+        // movers still anchor to their home, matching what the replay draws.
+        myLayout.value = withMoverHomeBases(withStationsMigratedToLocations(AnimationLayout.read(path)))
         layoutLifecycle.markSaved(path)
+    }
+
+    /**
+     * Reclassify any legacy `stations` entry whose name is a model location into `locations` (Phase 7 migration), so
+     * layouts saved before the Station/Location split load with the right kinds and render identically. Idempotent.
+     */
+    private fun withStationsMigratedToLocations(layout: AnimationLayout): AnimationLayout {
+        val locNames = inventory.locations.toSet()
+        if (locNames.isEmpty() || layout.stations.none { it.stationName in locNames }) return layout
+        val (toLocations, keepStations) = layout.stations.partition { it.stationName in locNames }
+        val have = layout.locations.map { it.locationName }.toSet()
+        val migrated = toLocations.filterNot { it.stationName in have }
+            .map { LocationLayoutElement(it.stationName, it.position, it.label) }
+        return layout.copy(stations = keepStations, locations = layout.locations + migrated)
     }
 
     /** Fill each mover's [MovableResourceLayoutElement.homeBase] from the inventory when absent (10.8 follow-up). */

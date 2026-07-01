@@ -6,19 +6,20 @@ import ksl.animation.AnimationLayout
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
 import ksl.animation.PathDefinition
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Phase 4b: `AnchorResolver` resolves station/location names (location-first, with a station fallback) and finds
- * authored functional paths (forward, and reversed for a bidirectional one).
+ * `AnchorResolver` resolves a name strictly as the requested kind (Phase 7: no cross-map fallback — legacy
+ * locations-as-stations are upgraded at load) and finds authored functional paths (forward, and reversed for a
+ * bidirectional one).
  */
 class AnchorResolverTest {
 
     private val layout = AnimationLayout(
-        stations = listOf(StationLayoutElement("B", LayoutPoint(0.0, 0.0)), StationLayoutElement("S", LayoutPoint(1.0, 1.0))),
+        stations = listOf(NetworkStationLayoutElement("B", LayoutPoint(0.0, 0.0)), NetworkStationLayoutElement("S", LayoutPoint(1.0, 1.0))),
         locations = listOf(LocationLayoutElement("A", LayoutPoint(10.0, 10.0)), LocationLayoutElement("B", LayoutPoint(100.0, 20.0))),
         paths = listOf(
             PathDefinition(
@@ -34,10 +35,11 @@ class AnchorResolverTest {
     private val r = AnchorResolver.from(layout)
 
     @Test
-    fun `resolve is location-first with a station fallback`() {
-        assertEquals(WorldPoint(100.0, 20.0), r.resolve("B"), "B resolves to the location, not the same-named station")
-        assertEquals(WorldPoint(1.0, 1.0), r.resolve("S"), "S has only a station, so it falls back")
-        assertEquals(WorldPoint(0.0, 0.0), r.resolve("B", AnchorKind.NETWORK_STATION), "station-first prefers station B")
+    fun `resolve returns strictly the requested kind (no cross fallback)`() {
+        assertEquals(WorldPoint(100.0, 20.0), r.resolve("B"), "B resolves to the location (LOCATION kind)")
+        assertNull(r.resolve("S"), "S is a station only, so LOCATION resolution finds nothing (no fallback)")
+        assertEquals(WorldPoint(0.0, 0.0), r.resolve("B", AnchorKind.NETWORK_STATION), "NETWORK_STATION resolves station B")
+        assertEquals(WorldPoint(1.0, 1.0), r.resolve("S", AnchorKind.NETWORK_STATION), "S resolves as a station")
         assertNull(r.resolve("nope"))
     }
 

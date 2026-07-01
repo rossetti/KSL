@@ -2,7 +2,10 @@ package ksl.app.swing.animation.app
 
 import ksl.animation.AnchorKind
 import ksl.animation.AnchorRef
+import ksl.animation.AnimationLayout
 import ksl.animation.ElementKind
+import ksl.animation.LayoutPoint
+import ksl.animation.NetworkStationLayoutElement
 import ksl.examples.book.chapter8.TestAndRepairShopWithMovableResources
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
@@ -411,6 +414,23 @@ class LayoutPanelTest {
             assertTrue(r.first[1], "locations appear in the Location editor")
             assertTrue(r.first[2], "a location can be placed")
             assertEquals(123.0, r.second?.x); assertEquals(45.0, r.second?.y)
+        } finally { c.close() }
+    }
+
+    @Test
+    fun `loadLayout migrates a legacy location-saved-as-station into locations (Phase 7)`() {
+        val c = controller()
+        try {
+            val locName = c.inventory.locations.first()
+            // A legacy layout that stored this location as a network station.
+            val legacy = AnimationLayout(stations = listOf(NetworkStationLayoutElement(locName, LayoutPoint(7.0, 8.0))))
+            val file = tempRoot.resolve("legacy.lay.json")
+            java.nio.file.Files.writeString(file, legacy.toJson())
+            onEdt { c.loadLayout(file) }
+            val layout = c.layout.value!!
+            assertTrue(layout.locations.any { it.locationName == locName }, "the location-named station migrated to locations")
+            assertFalse(layout.stations.any { it.stationName == locName }, "it is no longer a station")
+            assertEquals(7.0, layout.positionOf(ElementKind.LOCATION, locName)?.x, "position preserved through migration")
         } finally { c.close() }
     }
 

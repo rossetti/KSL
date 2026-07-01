@@ -42,7 +42,7 @@ import ksl.animation.LocationLayoutElement
 import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.StorageLayoutElement
 import ksl.animation.StorageStyle
-import ksl.animation.StationLayoutElement
+import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.SummaryDisplayElement
 import ksl.animation.ValueDisplayElement
 
@@ -446,7 +446,7 @@ fun AnimationLayout.withElementAdded(kind: ElementKind, name: String, x: Double,
         // Editor default: tail ---- head, left to right (growthDegrees 180), showing up to 10 members.
         ElementKind.QUEUE -> copy(queues = queues + QueueLayoutElement(queueName = name, position = p, growthDegrees = 180.0, maxShown = 10))
         ElementKind.RESOURCE -> copy(resources = resources + ResourceLayoutElement(resourceName = name, position = p))
-        ElementKind.STATION -> copy(stations = stations + StationLayoutElement(stationName = name, position = p, label = name))
+        ElementKind.STATION -> copy(stations = stations + NetworkStationLayoutElement(stationName = name, position = p, label = name))
         ElementKind.LOCATION -> copy(locations = locations + LocationLayoutElement(locationName = name, position = p, label = name))
         ElementKind.RESPONSE, ElementKind.COUNTER -> copy(values = values + ValueDisplayElement(responseName = name, position = p))
         ElementKind.MOVABLE_RESOURCE -> copy(movableResources = movableResources + MovableResourceLayoutElement(name = name, position = p))
