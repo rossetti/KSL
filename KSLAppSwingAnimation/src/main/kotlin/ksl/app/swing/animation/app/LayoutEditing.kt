@@ -37,6 +37,8 @@ import ksl.animation.PathDefinition
 import ksl.animation.PlotDisplayElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
+import ksl.animation.AnchorRef
+import ksl.animation.LocationLayoutElement
 import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.StorageLayoutElement
 import ksl.animation.StorageStyle
@@ -57,8 +59,8 @@ import ksl.animation.ValueDisplayElement
  * unsupported kind throws [IllegalArgumentException].
  */
 val SUPPORTED_LAYOUT_KINDS: Set<ElementKind> = setOf(
-    ElementKind.QUEUE, ElementKind.RESOURCE, ElementKind.STATION, ElementKind.RESPONSE, ElementKind.COUNTER,
-    ElementKind.MOVABLE_RESOURCE
+    ElementKind.QUEUE, ElementKind.RESOURCE, ElementKind.STATION, ElementKind.LOCATION, ElementKind.RESPONSE,
+    ElementKind.COUNTER, ElementKind.MOVABLE_RESOURCE
 )
 
 /** How a response/counter is displayed (V5c). */
@@ -129,6 +131,7 @@ fun AnimationLayout.withElementMoved(kind: ElementKind, name: String, x: Double,
         ElementKind.QUEUE -> copy(queues = queues.map { if (it.queueName == name) it.copy(position = p) else it })
         ElementKind.RESOURCE -> copy(resources = resources.map { if (it.resourceName == name) it.copy(position = p) else it })
         ElementKind.STATION -> copy(stations = stations.map { if (it.stationName == name) it.copy(position = p) else it })
+        ElementKind.LOCATION -> copy(locations = locations.map { if (it.locationName == name) it.copy(position = p) else it })
         ElementKind.RESPONSE, ElementKind.COUNTER -> copy(
             values = values.map { if (it.responseName == name) it.copy(position = p) else it },
             bars = bars.map { if (it.responseName == name) it.copy(position = p) else it },
@@ -146,6 +149,7 @@ fun AnimationLayout.withElementRemoved(kind: ElementKind, name: String): Animati
     ElementKind.QUEUE -> copy(queues = queues.filterNot { it.queueName == name })
     ElementKind.RESOURCE -> copy(resources = resources.filterNot { it.resourceName == name })
     ElementKind.STATION -> copy(stations = stations.filterNot { it.stationName == name })
+    ElementKind.LOCATION -> copy(locations = locations.filterNot { it.locationName == name })
     ElementKind.RESPONSE, ElementKind.COUNTER -> copy(
         values = values.filterNot { it.responseName == name },
         bars = bars.filterNot { it.responseName == name },
@@ -401,6 +405,13 @@ fun AnimationLayout.withClockReplacedAt(index: Int, element: ClockDisplayElement
 fun AnimationLayout.withPath(name: String, points: List<LayoutPoint>): AnimationLayout =
     copy(paths = paths.filterNot { it.name == name } + PathDefinition(name, points))
 
+/** A copy with a **functional** path [name]: intermediate [waypoints] between anchors [from] and [to], so movement
+ *  between them follows the polyline (Phase 6). Replaces any path of the same name. */
+fun AnimationLayout.withFunctionalPath(
+    name: String, from: AnchorRef, to: AnchorRef, waypoints: List<LayoutPoint>, bidirectional: Boolean = true
+): AnimationLayout =
+    copy(paths = paths.filterNot { it.name == name } + PathDefinition(name, waypoints, from, to, bidirectional))
+
 /** A copy with the path [name] removed. */
 fun AnimationLayout.withPathRemoved(name: String): AnimationLayout =
     copy(paths = paths.filterNot { it.name == name })
@@ -436,6 +447,7 @@ fun AnimationLayout.withElementAdded(kind: ElementKind, name: String, x: Double,
         ElementKind.QUEUE -> copy(queues = queues + QueueLayoutElement(queueName = name, position = p, growthDegrees = 180.0, maxShown = 10))
         ElementKind.RESOURCE -> copy(resources = resources + ResourceLayoutElement(resourceName = name, position = p))
         ElementKind.STATION -> copy(stations = stations + StationLayoutElement(stationName = name, position = p, label = name))
+        ElementKind.LOCATION -> copy(locations = locations + LocationLayoutElement(locationName = name, position = p, label = name))
         ElementKind.RESPONSE, ElementKind.COUNTER -> copy(values = values + ValueDisplayElement(responseName = name, position = p))
         ElementKind.MOVABLE_RESOURCE -> copy(movableResources = movableResources + MovableResourceLayoutElement(name = name, position = p))
         else -> throw IllegalArgumentException("Layout editing does not support kind $kind")

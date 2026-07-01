@@ -63,6 +63,21 @@ class LayoutEditingTest {
     }
 
     @Test
+    fun `locations add, move, and remove as a first-class editable kind (Phase 6)`() {
+        assertTrue(ElementKind.LOCATION in SUPPORTED_LAYOUT_KINDS)
+        var layout = AnimationLayout()
+            .withElementAdded(ElementKind.LOCATION, "Dock", 10.0, 20.0)
+            .withElementAdded(ElementKind.LOCATION, "Bay", 30.0, 40.0)
+        assertTrue(layout.isPlaced(ElementKind.LOCATION, "Dock"))
+        assertEquals(setOf("Dock", "Bay"), layout.placedNames(ElementKind.LOCATION).toSet())
+        layout = layout.withElementMoved(ElementKind.LOCATION, "Dock", 99.0, 99.0)
+        assertEquals(99.0, layout.positionOf(ElementKind.LOCATION, "Dock")?.x)
+        layout = layout.withElementRemoved(ElementKind.LOCATION, "Dock")
+        assertFalse(layout.isPlaced(ElementKind.LOCATION, "Dock"))
+        assertTrue(layout.isPlaced(ElementKind.LOCATION, "Bay"), "removing one location leaves the other")
+    }
+
+    @Test
     fun `responses and counters both map to value displays`() {
         val layout = AnimationLayout()
             .withElementAdded(ElementKind.RESPONSE, "NumInSystem", 0.0, 0.0)

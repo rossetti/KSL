@@ -58,26 +58,25 @@ object Example13MovableResources {
         objectClass("Part") { color = "#1f77b4"; size = 12.0 }
 
         // 8K.6b: place the DistancesModel's 5 named locations automatically from its distance matrix
-        // (classical MDS) — no hand-picked coordinates. Worker (and part) moves resolve against these.
-        // (Legacy hand-authored layout — station-based; the app auto-layout uses locations, see Phase 5.)
-        @Suppress("DEPRECATION") placeStations(distances!!)
+        // (classical MDS) — no hand-picked coordinates. Worker (and part) moves resolve against these locations.
+        placeLocations(distances!!)
 
-        // Service resources (all ResourceWithQ) co-located with their stations — read the MDS-derived
-        // station positions back via stationPosition (8B.3) so each resource sits on its marker, and draw
-        // its waiting line "<name>:Q" growing downward (90°) below it.
-        fun stationResource(stationName: String, resourceName: String, size: Double) {
-            val (x, y) = stationPosition(stationName)
+        // Service resources (all ResourceWithQ) co-located with their locations — read the MDS-derived location
+        // positions back via locationPosition (Phase 6) so each resource sits on its marker, and draw its waiting
+        // line "<name>:Q" growing downward (90°) below it.
+        fun locationResource(locationName: String, resourceName: String, size: Double) {
+            val (x, y) = locationPosition(locationName)
             resource(resourceName, x, y) { this.size = size }
             queue("$resourceName:Q", x, y + size) { growthDegrees = 90.0 } // waiting parts stack downward
         }
-        stationResource("DiagnosticStation", "DiagnosticWorkers", 30.0)
-        stationResource("TestStation1", "Test1", 26.0)
-        stationResource("TestStation2", "Test2", 26.0)
-        stationResource("TestStation3", "Test3", 26.0)
-        stationResource("RepairStation", "RepairWorkers", 30.0)
+        locationResource("DiagnosticStation", "DiagnosticWorkers", 30.0)
+        locationResource("TestStation1", "Test1", 26.0)
+        locationResource("TestStation2", "Test2", 26.0)
+        locationResource("TestStation3", "Test3", 26.0)
+        locationResource("RepairStation", "RepairWorkers", 30.0)
 
         // Parts waiting for an available transport worker (the movable-resource pool's queue).
-        stationPosition("DiagnosticStation").let { (x, y) -> queue("TransportWorkerPool:Q", x - 70.0, y) { growthDegrees = 270.0 } }
+        locationPosition("DiagnosticStation").let { (x, y) -> queue("TransportWorkerPool:Q", x - 70.0, y) { growthDegrees = 270.0 } }
 
         // The 3 transport workers (pool "TransportWorkerPool" -> members :R1.. :R3), drawn as moving
         // triangles. They have no fixed position — the renderer animates them from their move stream.

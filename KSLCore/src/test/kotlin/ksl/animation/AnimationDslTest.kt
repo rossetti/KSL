@@ -193,4 +193,14 @@ class AnimationDslTest {
         )
         assertTrue(layout.stations.isEmpty(), "placeLocations emits locations, not stations")
     }
+
+    @Test
+    fun `locationPosition reads back a placed location`() {
+        var read: Pair<Double, Double>? = null
+        Model("dslLocPos").animation {
+            location("Dock", 10.0, 20.0)
+            read = locationPosition("Dock")
+        }
+        assertEquals(10.0 to 20.0, read)
+    }
 }

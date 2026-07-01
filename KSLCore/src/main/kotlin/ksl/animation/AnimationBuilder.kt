@@ -479,6 +479,14 @@ class AnimationBuilder {
         return p.x to p.y
     }
 
+    /** The position of a previously-placed location (e.g. from `placeLocations`), for positioning elements
+     *  relative to it — the location analogue of [stationPosition] (Phase 6). */
+    fun locationPosition(locationName: String): Pair<Double, Double> {
+        val p = locations.firstOrNull { it.locationName == locationName }?.position
+            ?: error("locationPosition('$locationName'): location is not defined or has no position")
+        return p.x to p.y
+    }
+
     /** Describes a continuous (Euclidean) agent space with the given bounds ([torus] wraps edges). */
     fun continuousSpace(name: String, xMin: Double, xMax: Double, yMin: Double, yMax: Double, torus: Boolean = false) {
         spaces.add(SpatialSpaceDescriptor.Continuous(name, xMin, xMax, yMin, yMax, torus))

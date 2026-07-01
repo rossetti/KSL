@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
@@ -630,7 +631,8 @@ class AnimationAppController(
      */
     fun placeMoverAtHome(name: String): Boolean {
         val home = inventory.movableHomeBases[name] ?: return false
-        val pos = activeOrBlank().positionOf(ElementKind.STATION, home) ?: return false
+        val base0 = activeOrBlank()
+        val pos = base0.positionOf(ElementKind.LOCATION, home) ?: base0.positionOf(ElementKind.STATION, home) ?: return false
         placeLayoutElement(ElementKind.MOVABLE_RESOURCE, name, pos.x, pos.y)
         setLayout(activeOrBlank().copy(movableResources = activeOrBlank().movableResources.map {
             if (it.name == name) it.copy(homeBase = home) else it
@@ -707,12 +709,18 @@ class AnimationAppController(
     fun setClockAt(index: Int, element: ksl.animation.ClockDisplayElement) =
         setLayout(activeOrBlank().withClockReplacedAt(index, element))
 
-    /** Add a path named [name] routed through the placed [stationNames] (needs >= 2 resolvable stations). */
-    fun addPathThroughStations(name: String, stationNames: List<String>) {
+    /** Add a decorative path named [name] routed through the placed [anchorNames] (needs >= 2 resolvable
+     *  anchors; each resolves as a location first, then a station). */
+    fun addPathThroughStations(name: String, anchorNames: List<String>) {
         val base = activeOrBlank()
-        val points = stationNames.mapNotNull { base.positionOf(ElementKind.STATION, it) }
+        val points = anchorNames.mapNotNull { base.positionOf(ElementKind.LOCATION, it) ?: base.positionOf(ElementKind.STATION, it) }
         if (points.size >= 2) setLayout(base.withPath(name, points))
     }
+
+    /** Add a **functional** path named [name] between anchors [from] and [to] with intermediate [waypoints], so a
+     *  move between those anchors follows the polyline (Phase 6). */
+    fun addFunctionalPath(name: String, from: AnchorRef, to: AnchorRef, waypoints: List<LayoutPoint>, bidirectional: Boolean = true) =
+        setLayout(activeOrBlank().withFunctionalPath(name, from, to, waypoints, bidirectional))
 
     /** Remove the path named [name]. */
     fun removePath(name: String) = setLayout(activeOrBlank().withPathRemoved(name))

@@ -1,5 +1,7 @@
 package ksl.app.swing.animation.app
 
+import ksl.animation.AnchorKind
+import ksl.animation.AnchorRef
 import ksl.animation.ElementKind
 import ksl.examples.book.chapter8.TestAndRepairShopWithMovableResources
 import ksl.simulation.ExperimentRunParametersIfc
@@ -12,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -257,23 +260,26 @@ class LayoutPanelTest {
     }
 
     @Test
-    fun `path tool routes a named path through the stations clicked in order`() {
+    fun `path tool routes a functional path between anchors with waypoints`() {
         val c = controller()
         try {
-            val stations = listOf("S1", "S2", "S3")
             val r = onEdt {
                 val panel = LayoutPanel(c)
-                // Put stations on the canvas (the Station tool would; this model has none in inventory).
-                stations.forEachIndexed { i, s -> c.placeLayoutElement(ElementKind.STATION, s, 100.0 + i * 80, 120.0) }
+                // Place two stations (the Station tool would; this model has none in inventory).
+                c.placeLayoutElement(ElementKind.STATION, "S1", 100.0, 120.0)
+                c.placeLayoutElement(ElementKind.STATION, "S2", 300.0, 120.0)
                 panel.armPathForTest("Route1")
                 val armed = panel.isPathArmedForTest()
-                stations.forEach { panel.clickPathStationForTest(it) }
-                panel.clickPathStationForTest(stations.last()) // immediate repeat is ignored
-                panel.finishPathForTest()
+                panel.setPathFromForTest(AnchorRef(AnchorKind.NETWORK_STATION, "S1"))
+                panel.addPathWaypointForTest(200.0, 60.0)
+                panel.finishPathForTest(AnchorRef(AnchorKind.NETWORK_STATION, "S2"))
                 Triple(armed, c.layout.value!!.paths.firstOrNull { it.name == "Route1" }, panel.isPathArmedForTest())
             }
             assertTrue(r.first, "armed after choosing the path tool")
-            assertEquals(stations.size, r.second?.points?.size, "one point per clicked station (no repeat)")
+            val path = assertNotNull(r.second)
+            assertEquals(AnchorRef(AnchorKind.NETWORK_STATION, "S1"), path.from, "from anchor persisted")
+            assertEquals(AnchorRef(AnchorKind.NETWORK_STATION, "S2"), path.to, "to anchor persisted")
+            assertEquals(1, path.points.size, "the one dropped waypoint is stored")
             assertFalse(r.third, "disarmed after finishing")
         } finally { c.close() }
     }
@@ -388,22 +394,22 @@ class LayoutPanelTest {
     }
 
     @Test
-    fun `spatial locations are placeable as stations and editable`() {
+    fun `spatial locations are placeable and editable as their own kind (Phase 6)`() {
         val c = controller()
         try {
             val r = onEdt {
                 val panel = LayoutPanel(c)
                 val locs = c.inventory.locations
                 val loc = locs.first()
-                val shown = panel.namesShownForTest(ElementKind.STATION) // station editor now includes locations
-                panel.addForTest(ElementKind.STATION, loc)               // place a location (as a station glyph)
-                panel.moveForTest(ElementKind.STATION, loc, 123.0, 45.0)
-                arrayOf(locs.isNotEmpty(), loc in shown, c.layout.value!!.isPlaced(ElementKind.STATION, loc)) to
-                    c.layout.value!!.positionOf(ElementKind.STATION, loc)
+                val shown = panel.namesShownForTest(ElementKind.LOCATION) // locations have their own editor now
+                panel.addForTest(ElementKind.LOCATION, loc)               // place a location (its own glyph)
+                panel.moveForTest(ElementKind.LOCATION, loc, 123.0, 45.0)
+                arrayOf(locs.isNotEmpty(), loc in shown, c.layout.value!!.isPlaced(ElementKind.LOCATION, loc)) to
+                    c.layout.value!!.positionOf(ElementKind.LOCATION, loc)
             }
             assertTrue(r.first[0], "the model exposes spatial locations")
-            assertTrue(r.first[1], "locations appear in the Stations/Locations editor")
-            assertTrue(r.first[2], "a location can be placed as a station")
+            assertTrue(r.first[1], "locations appear in the Location editor")
+            assertTrue(r.first[2], "a location can be placed")
             assertEquals(123.0, r.second?.x); assertEquals(45.0, r.second?.y)
         } finally { c.close() }
     }

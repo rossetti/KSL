@@ -19,6 +19,8 @@
 package ksl.app.swing.animation.app
 
 import kotlinx.coroutines.launch
+import ksl.animation.AnchorKind
+import ksl.animation.AnchorRef
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.ElementKind
 import ksl.app.swing.animation.io.AnimationSource
@@ -169,17 +171,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     // ── Element toolbar: click-to-place (10.3) ────────────────────────────────────
 
     /**
-     * Names placeable as [kind]. For STATION this also includes the model's spatial **locations**
-     * (`inventory.locations`) — coordinate-free models (e.g. a DistancesModel) expose their anchors as
-     * locations, not Station elements; both are placed as station glyphs so paths/conveyors can anchor (P2).
+     * Names placeable as [kind]. Network stations and spatial locations are now distinct tools (Phase 6):
+     * STATION offers `inventory.namesOf(STATION)`, LOCATION offers the model's locations — no longer merged.
      */
-    private fun placeableNames(kind: ElementKind): List<String> =
-        if (kind == ElementKind.STATION) (controller.inventory.namesOf(ElementKind.STATION) + controller.inventory.locations).distinct()
-        else controller.inventory.namesOf(kind)
+    private fun placeableNames(kind: ElementKind): List<String> = controller.inventory.namesOf(kind)
 
-    /** Toolbar/dialog label for [kind] (STATION reads "Station / Location" when the model exposes locations). */
-    private fun placeableLabel(kind: ElementKind): String =
-        if (kind == ElementKind.STATION && controller.inventory.locations.isNotEmpty()) "Station / Location" else kind.label()
+    /** Toolbar/dialog label for [kind]. */
+    private fun placeableLabel(kind: ElementKind): String = kind.label()
 
     /** "Add ▸" toolbar: one button per placeable element kind the model exposes. */
     private fun buildElementToolbar(): JComponent = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
@@ -196,9 +194,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             add(btn)
         }
         // Path is authored from placed stations/locations (not an inventory element), so it gets a dedicated tool.
-        if (placeableNames(ElementKind.STATION).isNotEmpty()) {
+        if (placeableNames(ElementKind.STATION).isNotEmpty() || placeableNames(ElementKind.LOCATION).isNotEmpty()) {
             val pb = JButton("Path").apply {
-                toolTipText = "Click placed stations/locations in order; double-click to finish (Esc to cancel)"
+                toolTipText = "Click a from-anchor, then a to-anchor (placed stations/locations), dropping waypoints between; double-click to finish (Esc to cancel)"
                 addActionListener { armPathPlacement() }
             }
             pathButton = pb
@@ -279,7 +277,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun clearArmState() {
         placeArmedKind = null; placeArmedName = null
         queueArm = null; queueHead = null
-        pathArmName = null; pathStations.clear()
+        pathArmName = null; pathFrom = null; pathWaypoints.clear()
         bgArmRef = null; bgStart = null
         conveyorRouteName = null; conveyorRouteSeg = -1; conveyorWaypoints.clear()
         storageArm = null; storageStart = null
@@ -442,8 +440,8 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         var bestDist = radius
         for (conv in layout.conveyors) {
             conv.segments.forEachIndexed { i, seg ->
-                val a = layout.positionOf(ElementKind.STATION, seg.entryLocation)
-                val b = layout.positionOf(ElementKind.STATION, seg.exitLocation)
+                val a = layout.positionOf(ElementKind.LOCATION, seg.entryLocation) ?: layout.positionOf(ElementKind.STATION, seg.entryLocation)
+                val b = layout.positionOf(ElementKind.LOCATION, seg.exitLocation) ?: layout.positionOf(ElementKind.STATION, seg.exitLocation)
                 if (a != null && b != null) {
                     val pts = listOf(a.x to a.y) + seg.waypoints.map { it.x to it.y } + listOf(b.x to b.y)
                     val d = distToPolyline(pts, wx, wy)
@@ -658,57 +656,79 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         disarmStorage(); afterEdit()
     }
 
-    // ── Path-through-stations (10.4): click placed stations in order, double-click to finish ──────
+    // ── Functional path (Phase 6): click the FROM anchor, drop waypoints in open space, double-click the TO anchor ──
 
     private var pathArmName: String? = null
-    private val pathStations = mutableListOf<String>()
+    private var pathFrom: AnchorRef? = null
+    private val pathWaypoints = mutableListOf<ksl.animation.LayoutPoint>()
 
-    /** Toolbar Path tool: name the path, then collect placed stations by clicking them in order. */
+    /** Toolbar Path tool: name the path, then pick a from-anchor, optional free waypoints, and a to-anchor. */
     private fun armPathPlacement() {
         if (pathArmName != null) { disarmPath(); return } // re-clicking the armed tool cancels
-        if (placedStationCount() < 2) {
-            JOptionPane.showMessageDialog(this, "Place at least two stations before routing a path."); return
+        if (placedAnchorCount() < 2) {
+            JOptionPane.showMessageDialog(this, "Place at least two stations/locations before routing a path."); return
         }
         val name = JOptionPane.showInputDialog(this, "Path name", "Add Path", JOptionPane.QUESTION_MESSAGE)
             ?.trim()?.takeIf { it.isNotEmpty() } ?: return
         clearArmState()
         pathArmName = name
         canvas.cursor = crosshair
-        coordLabel.text = "Click stations in order; double-click to finish  (Esc to cancel)"
+        coordLabel.text = "Click the FROM anchor (a placed station/location)  (Esc to cancel)"
         highlightTool(null); pathButton?.border = armedButtonBorder
     }
 
-    private fun placedStationCount(): Int = controller.layout.value?.stations?.size ?: 0
-
-    /** Append [station] to the path being built (ignoring an immediate repeat) and update the status line. */
-    private fun addPathStation(station: String) {
-        if (pathStations.lastOrNull() == station) return
-        pathStations.add(station)
-        coordLabel.text = "Path ${pathArmName}: ${pathStations.joinToString(" → ")}  (double-click to finish)"
+    private fun placedAnchorCount(): Int {
+        val l = controller.layout.value ?: return 0
+        return l.stations.size + l.locations.count { it.position != null }
     }
 
-    /** Finish the path: route it through the collected stations (needs >= 2) and disarm. */
-    private fun finishPath() {
+    /** One single click: set the from-anchor if unset, else add a free waypoint (anchor clicks finish via double-click). */
+    private fun onPathClick(sx: Int, sy: Int) {
+        val anchor = pickAnchor(sx, sy)
+        if (pathFrom == null) {
+            if (anchor == null) { coordLabel.text = "Click a placed station/location to start the path"; return }
+            pathFrom = anchor
+            coordLabel.text = "From ${anchor.name}: click waypoints, then double-click the TO anchor"
+        } else {
+            if (anchor != null) return // near an anchor: ignore (the finishing double-click sets the destination)
+            val w = canvas.screenToWorld(sx.toDouble(), sy.toDouble())
+            pathWaypoints.add(ksl.animation.LayoutPoint(w.x, w.y))
+            coordLabel.text = "From ${pathFrom!!.name}: ${pathWaypoints.size} waypoint(s); double-click the TO anchor"
+        }
+    }
+
+    /** Finish at [to] (the double-clicked anchor): persist a functional path when it is a distinct destination. */
+    private fun onPathFinish(to: AnchorRef?) {
         val name = pathArmName ?: return
-        if (pathStations.size >= 2) controller.addPathThroughStations(name, pathStations.toList())
-        disarmPath(); afterEdit()
+        val from = pathFrom
+        if (from != null && to != null && to != from) {
+            controller.addFunctionalPath(name, from, to, pathWaypoints.toList())
+            disarmPath(); afterEdit()
+        } else {
+            coordLabel.text = "Double-click a placed station/location (different from the start) to finish"
+        }
     }
 
     private fun disarmPath() {
         pathArmName = null
-        pathStations.clear()
+        pathFrom = null
+        pathWaypoints.clear()
         canvas.cursor = java.awt.Cursor.getDefaultCursor()
         highlightTool(null)
     }
 
-    /** The placed station nearest screen point ([sx], [sy]) within the grab radius, or null. */
-    private fun pickStation(sx: Int, sy: Int): String? {
+    /** The placed anchor (location-first, then station) nearest screen ([sx], [sy]) within the grab radius, or null. */
+    private fun pickAnchor(sx: Int, sy: Int): AnchorRef? {
         val layout = controller.layout.value ?: return null
         val world = canvas.screenToWorld(sx.toDouble(), sy.toDouble())
         val scale = canvas.worldTransform().scaleX.coerceAtLeast(1e-6)
         val radius = HIT_RADIUS_PX / scale
-        return layout.stations.minByOrNull { kotlin.math.hypot(it.position.x - world.x, it.position.y - world.y) }
-            ?.takeIf { kotlin.math.hypot(it.position.x - world.x, it.position.y - world.y) <= radius }?.stationName
+        fun dist(p: ksl.animation.LayoutPoint) = kotlin.math.hypot(p.x - world.x, p.y - world.y)
+        layout.locations.filter { it.position != null }.minByOrNull { dist(it.position!!) }
+            ?.takeIf { dist(it.position!!) <= radius }
+            ?.let { return AnchorRef(AnchorKind.LOCATION, it.locationName) }
+        return layout.stations.minByOrNull { dist(it.position) }?.takeIf { dist(it.position) <= radius }
+            ?.let { AnchorRef(AnchorKind.NETWORK_STATION, it.stationName) }
     }
 
     /** Handle one canvas click of the queue flow: first sets the head, second derives direction and finishes. */
@@ -1474,9 +1494,10 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 }
             }
             override fun mouseClicked(e: java.awt.event.MouseEvent) {
-                // Path tool: single clicks collect stations in order; a double-click finishes (10.4).
+                // Path tool: first click sets the from-anchor, single clicks add waypoints, a double-click on an
+                // anchor sets the destination and finishes (Phase 6).
                 if (pathArmName != null) {
-                    if (e.clickCount >= 2) finishPath() else pickStation(e.x, e.y)?.let { addPathStation(it) }
+                    if (e.clickCount >= 2) onPathFinish(pickAnchor(e.x, e.y)) else onPathClick(e.x, e.y)
                     return
                 }
                 // Conveyor tool: single clicks collect segment waypoints; a double-click finishes (10.5d).
@@ -1628,7 +1649,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun buildEditorTabs(): JComponent {
         val tabs = JTabbedPane()
         for (kind in SUPPORTED_LAYOUT_KINDS) {
-            val names = placeableNames(kind) // STATION includes spatial locations (P2)
+            val names = placeableNames(kind)
             if (names.isEmpty()) continue
             if (kind == ElementKind.RESPONSE) { // split tally vs time-weighted (V4)
                 val tally = names.filterNot { controller.inventory.isTimeWeighted(it) }
@@ -1636,8 +1657,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 if (tally.isNotEmpty()) addEditorTab(tabs, "Responses", kind, tally)
                 if (tw.isNotEmpty()) addEditorTab(tabs, "Time-Weighted Responses", kind, tw)
             } else {
-                val tabLabel = if (kind == ElementKind.STATION && controller.inventory.locations.isNotEmpty()) "Stations / Locations" else kind.label()
-                addEditorTab(tabs, tabLabel, kind, names)
+                addEditorTab(tabs, kind.label(), kind, names) // Station and Location are now distinct tabs (Phase 6)
             }
         }
         tabs.addTab("Background & Paths", buildBackgroundPathsTab())
@@ -2021,7 +2041,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun buildBackgroundPathsTab(): JComponent {
         val bgList = javax.swing.JList(bgListModel)
         val pathList = javax.swing.JList(pathListModel)
-        val stationList = javax.swing.JList(controller.inventory.namesOf(ElementKind.STATION).toTypedArray()).apply {
+        val stationList = javax.swing.JList(
+            (controller.inventory.namesOf(ElementKind.STATION) + controller.inventory.namesOf(ElementKind.LOCATION)).toTypedArray()
+        ).apply {
             selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         }
         val bg = JPanel(BorderLayout()).apply {
@@ -2035,7 +2057,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             }, BorderLayout.SOUTH)
         }
         val paths = JPanel(BorderLayout()).apply {
-            border = BorderFactory.createTitledBorder("Paths (a route through stations)")
+            border = BorderFactory.createTitledBorder("Paths (a route through stations/locations)")
             add(JScrollPane(stationList), BorderLayout.CENTER)
             add(JPanel(FlowLayout(FlowLayout.LEFT)).apply {
                 add(JLabel("name")); add(pathNameField)
@@ -2575,11 +2597,14 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         clearArmState(); pathArmName = name; highlightTool(null); pathButton?.border = armedButtonBorder
     }
 
-    /** Collects [station] into the path being built, as clicking it would. */
-    internal fun clickPathStationForTest(station: String) = addPathStation(station)
+    /** Sets the from-anchor, as clicking it would. */
+    internal fun setPathFromForTest(anchor: AnchorRef) { pathFrom = anchor }
 
-    /** Finishes the path (double-click), routing it through the collected stations. */
-    internal fun finishPathForTest() = finishPath()
+    /** Adds a free waypoint, as clicking open canvas would. */
+    internal fun addPathWaypointForTest(x: Double, y: Double) { pathWaypoints.add(ksl.animation.LayoutPoint(x, y)) }
+
+    /** Finishes at [to] (the double-clicked destination anchor). */
+    internal fun finishPathForTest(to: AnchorRef) = onPathFinish(to)
 
     /** True while the path tool is armed. */
     internal fun isPathArmedForTest(): Boolean = pathArmName != null
