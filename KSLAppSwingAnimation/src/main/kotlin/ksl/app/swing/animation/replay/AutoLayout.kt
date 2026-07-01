@@ -74,7 +74,17 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // modeler can still add either from the editor's Resource/Queue tools. Their resource name == their agent name
     // (both agent.name); their default request queue is "<name>:Q".
     val staticResources = resourceNames.filterNot { it in agentNames }
-    val staticQueues = queueNames.filterNot { qn -> agentNames.any { qn == "$it:Q" } }
+    // Conveyor internal hold/access queues animate as part of the belt, so don't auto-place them either (still
+    // editor-placeable). Match their stable name suffixes, scoped to a mined conveyor prefix to avoid false hits.
+    val conveyorNames = conveyorAnchors.keys
+    val conveyorQueueSuffixes = listOf(":ExitingHoldQ", ":RidingHoldQ", ":AccessingHoldQ", ":AccessQ")
+    val staticQueues = queueNames
+        .filterNot { qn -> agentNames.any { qn == "$it:Q" } }
+        .filterNot { qn -> conveyorQueueSuffixes.any { qn.endsWith(it) } &&
+            (conveyorNames.isEmpty() || conveyorNames.any { qn.startsWith("$it:") }) }
+    // Auto-placed queues show a shorter run than a hand-authored queue (whose maxShown defaults to 25): a starter
+    // layout shouldn't draw a long extent line for a queue that's usually short (Ex01).
+    val autoQueueMaxShown = 10
 
     // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
     // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
@@ -115,13 +125,13 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val queues = mutableListOf<QueueLayoutElement>()
         staticResources.sorted().forEach { r ->
             flow.queueOfResource[r]?.let { q ->
-                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(resourceRow.getValue(r))), growthDegrees = 180.0, spacing = unit * 0.7)
+                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(resourceRow.getValue(r))), growthDegrees = 180.0, spacing = unit * 0.7, maxShown = autoQueueMaxShown)
                 placedQueues += q
             }
         }
         var extraRow = staticResources.size
         staticQueues.filter { it !in placedQueues }.sorted().forEach { q ->
-            queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(extraRow++)), growthDegrees = 180.0, spacing = unit * 0.7)
+            queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(extraRow++)), growthDegrees = 180.0, spacing = unit * 0.7, maxShown = autoQueueMaxShown)
         }
         // Named travel locations with a mined centroid become location anchors at their true positions (Phase 5:
         // these are locations, not network stations; the renderer interpolates movers between them).
@@ -161,7 +171,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
             resources += ResourceLayoutElement(resourceName = name, position = LayoutPoint(colX, y))
             // Place this resource's queue just to its left, growing back to the left so entities read queue -> server.
             flow.queueOfResource[name]?.let { q ->
-                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(colX - 90.0, y), growthDegrees = 180.0)
+                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(colX - 90.0, y), growthDegrees = 180.0, maxShown = autoQueueMaxShown)
                 placedQueues += q
             }
         }
@@ -169,7 +179,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     }
     // Queues with no observed server (never seen in a SeizeQueued) fall back to a left column.
     staticQueues.filter { it !in placedQueues }.sorted().forEachIndexed { i, name ->
-        queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap), growthDegrees = 180.0)
+        queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap), growthDegrees = 180.0, maxShown = autoQueueMaxShown)
         maxRows = maxOf(maxRows, i + 1)
     }
     val lastRank = byRank.keys.maxOrNull() ?: 0

@@ -235,6 +235,30 @@ class AutoLayoutTest {
     }
 
     @Test
+    fun `auto-layout excludes conveyor hold-access queues but keeps genuine queues (Ex08)`() {
+        val evs = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.ConveyorDefined(0.0, "Conv", anchorLocations = listOf("Enter", "Exit"), anchorCells = listOf(0, 5)),
+            AnimationEvent.QueueLengthChanged(0.0, "Conv:Enter:AccessQ", 1),
+            AnimationEvent.QueueLengthChanged(0.0, "Conv:ExitingHoldQ", 1),
+            AnimationEvent.QueueLengthChanged(0.0, "Conv:RidingHoldQ", 1),
+            AnimationEvent.ResourceStateChanged(0.0, "Server", "Server_Busy", busyUnits = 1, capacity = 1),
+            AnimationEvent.QueueLengthChanged(0.0, "Server:Q", 2)
+        )
+        val placed = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = evs))
+            .autoLayout(evs).queues.map { it.queueName }
+        assertTrue(placed.none { it.startsWith("Conv:") }, "conveyor internal queues not auto-placed: $placed")
+        assertContains(placed, "Server:Q", "a genuine request queue is still placed")
+    }
+
+    @Test
+    fun `auto-placed queues use a shorter default length than the element default (Ex01)`() {
+        val layout = model(null).autoLayout(events)
+        assertTrue(layout.queues.isNotEmpty(), "a queue is placed")
+        assertTrue(layout.queues.all { it.maxShown == 10 }, "auto queues use maxShown=10, not the element default 25")
+    }
+
+    @Test
     fun `functional path with no waypoints renders on the canvas (Ex09)`() {
         val locs = listOf(
             LocationLayoutElement("Enter", LayoutPoint(200.0, 350.0)),

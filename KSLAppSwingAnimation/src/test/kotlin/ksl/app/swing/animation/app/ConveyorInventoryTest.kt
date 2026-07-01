@@ -1,6 +1,8 @@
 package ksl.app.swing.animation.app
 
+import ksl.animation.ElementKind
 import ksl.animation.animationInventory
+import ksl.animation.scaffoldLayout
 import ksl.examples.general.animationbundle.Example08ConveyorTandem
 import kotlin.test.Test
 import kotlin.test.assertNotNull
@@ -27,5 +29,19 @@ class ConveyorInventoryTest {
         info.segments.zipWithNext().forEach { (a, b) ->
             assertTrue(a.exitLocation == b.entryLocation, "segments chain: ${a.exitLocation} -> ${b.entryLocation}")
         }
+    }
+
+    @Test
+    fun `conveyor internal queues are not auto-placed but stay editor-placeable (F1)`() {
+        val m = Example08ConveyorTandem.buildModel()
+        val suffixes = listOf(":ExitingHoldQ", ":RidingHoldQ", ":AccessingHoldQ", ":AccessQ")
+        // Opt-in preserved: the conveyor's hold/access queues are still classified as placeable QUEUEs.
+        val queueNames = m.animationInventory().namesOf(ElementKind.QUEUE)
+        assertTrue(queueNames.any { qn -> suffixes.any { qn.endsWith(it) } },
+            "conveyor queues remain editor-placeable: $queueNames")
+        // But the scaffold does NOT auto-place them (they animate as part of the belt).
+        val scaffold = m.scaffoldLayout()
+        assertTrue(scaffold.queues.none { q -> suffixes.any { q.queueName.endsWith(it) } },
+            "no conveyor internal queue auto-placed: ${scaffold.queues.map { it.queueName }}")
     }
 }

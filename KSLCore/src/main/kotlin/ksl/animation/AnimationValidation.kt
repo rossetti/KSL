@@ -19,6 +19,7 @@
 package ksl.animation
 
 import ksl.modeling.agent.AgentLike
+import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.Resource
 import ksl.modeling.entity.ResourceWithQCIfc
 import ksl.modeling.queue.Queue
@@ -212,9 +213,14 @@ fun Model.scaffoldLayout(
     val consumed = resourceList.filterIsInstance<ResourceWithQCIfc>().map { it.waitingQ.name }.toSet()
     // Agent-resources' request queues aren't auto-placed either (their owners animate as agents); still editor-placeable.
     val agentQueues = elements.filterIsInstance<ResourceWithQCIfc>().filter { it is AgentLike }.map { it.waitingQ.name }.toSet()
+    // Conveyor internal hold/access queues (children of a Conveyor) animate as part of the belt; not auto-placed
+    // (their reporting AccessQ would otherwise leak into the starter layout), but still editor-placeable.
+    val conveyorQueues = allQueues.filter { it.parent is Conveyor }.map { it.name }.toSet()
     // Honor each queue's reporting intent (P5): non-reporting queues (e.g. a movable resource's internal
     // :HomeBaseQ) are still captured, but not auto-placed — they otherwise clutter the starter layout.
-    val standaloneQueues = allQueues.filter { it.name !in consumed && it.name !in agentQueues && it.defaultReportingOption }
+    val standaloneQueues = allQueues.filter {
+        it.name !in consumed && it.name !in agentQueues && it.name !in conveyorQueues && it.defaultReportingOption
+    }
     val resTitle = title
 
     return animation {
