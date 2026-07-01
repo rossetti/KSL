@@ -85,11 +85,11 @@ class ParadigmEndToEndTest {
         try {
             assertContains(c.inventory.conveyors, "Conveyor")
             val define = events.filterIsInstance<AnimationEvent.ConveyorDefined>().first()
-            // Quick view places the conveyor's anchor locations as stations, so the belt resolves.
+            // Quick view places the conveyor's anchor locations, so the belt resolves.
             val probe = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = events))
             assertContains(probe.conveyorNames, "Conveyor")
             val auto = probe.autoLayout(events)
-            define.anchorLocations.forEach { assertContains(auto.stations.map { s -> s.stationName }, it) }
+            define.anchorLocations.forEach { assertContains(auto.locations.map { s -> s.locationName }, it) }
             val model = ReplayModel.build(AnimationSource(layout = auto, header = AnimationTraceHeader(), events = events))
             val cell = define.anchorCells.first()
             val p = model.conveyorCellPosition("Conveyor", cell)

@@ -240,9 +240,9 @@ fun Model.scaffoldLayout(
         val sy = height - 100.0
         for (s in stationList) { station(s, sx, sy, label = s.name); sx += 140.0 }
 
-        // Spatial layer — place the DistancesModel's named locations as station anchors and declare the
-        // movable/transport resources, so transporters animate between resolved locations (Regime A).
-        distances?.let { placeStations(it) }
+        // Spatial layer — place the DistancesModel's named locations (MDS) and declare the movable/transport
+        // resources, so transporters animate between resolved locations (Regime A / Phase 5: these are locations).
+        distances?.let { placeLocations(it) }
         for (mr in movableList) movableResource(mr.name)
     }.withScaffoldOverlapsNudged()
 }

@@ -59,7 +59,8 @@ object Example13MovableResources {
 
         // 8K.6b: place the DistancesModel's 5 named locations automatically from its distance matrix
         // (classical MDS) — no hand-picked coordinates. Worker (and part) moves resolve against these.
-        placeStations(distances!!)
+        // (Legacy hand-authored layout — station-based; the app auto-layout uses locations, see Phase 5.)
+        @Suppress("DEPRECATION") placeStations(distances!!)
 
         // Service resources (all ResourceWithQ) co-located with their stations — read the MDS-derived
         // station positions back via stationPosition (8B.3) so each resource sits on its marker, and draw

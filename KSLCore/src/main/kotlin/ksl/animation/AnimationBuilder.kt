@@ -193,12 +193,20 @@ class AnimationBuilder {
         station(station.name, x, y, label)
 
     /**
-     * Places a `station(...)` marker for every location of a [DistancesModel] at coordinates derived from
-     * its distance matrix via classical MDS (8K.6b) — so a coordinate-free distance model is laid out
-     * without hand-picking positions. Coordinates fit the canvas with [margin] padding; MDS orientation
-     * is arbitrary (rotation/reflection-invariant). The location names match the move events' location
-     * names, so entity/movable-resource moves resolve against these markers (8H.3).
+     * Places a `location(...)` for every location of a [DistancesModel] at coordinates derived from its
+     * distance matrix via classical MDS (8K.6b) — so a coordinate-free distance model is laid out without
+     * hand-picking positions. Coordinates fit the canvas with [margin] padding; MDS orientation is arbitrary
+     * (rotation/reflection-invariant). The location names match the move events' location names, so entity /
+     * movable-resource moves resolve against these markers (8H.3).
      */
+    fun placeLocations(distancesModel: DistancesModel, margin: Double = 60.0) {
+        for ((name, p) in distancesModel.proposeCoordinates(width, height, margin)) location(name, p.x, p.y, label = name)
+    }
+
+    /** MDS-places a [DistancesModel]'s named places as `station(...)` markers. Deprecated: these are locations,
+     *  not network stations — use `placeLocations` (its markers are read back with a location accessor, not
+     *  `stationPosition`). Kept station-emitting so existing layouts that read positions back still work. */
+    @Deprecated("Distance-model places are locations, not network stations; prefer placeLocations.")
     fun placeStations(distancesModel: DistancesModel, margin: Double = 60.0) {
         for ((name, p) in distancesModel.proposeCoordinates(width, height, margin)) station(name, p.x, p.y, label = name)
     }

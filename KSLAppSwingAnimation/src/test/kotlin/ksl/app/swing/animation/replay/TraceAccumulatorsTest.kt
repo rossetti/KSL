@@ -137,10 +137,10 @@ class TraceAccumulatorsTest {
         )
         val layout = replayOf(events).autoLayout(events)
 
-        val dock = layout.stations.firstOrNull { it.stationName == "Dock" }
-        assertNotNull(dock); assertEquals(0.0, dock.position.x); assertEquals(0.0, dock.position.y)
-        val shelf = layout.stations.firstOrNull { it.stationName == "Shelf" }
-        assertNotNull(shelf); assertEquals(100.0, shelf.position.x); assertEquals(50.0, shelf.position.y)
+        val dock = layout.locations.firstOrNull { it.locationName == "Dock" }
+        assertNotNull(dock); assertEquals(0.0, dock.position!!.x); assertEquals(0.0, dock.position!!.y)
+        val shelf = layout.locations.firstOrNull { it.locationName == "Shelf" }
+        assertNotNull(shelf); assertEquals(100.0, shelf.position!!.x); assertEquals(50.0, shelf.position!!.y)
 
         val agvPos = layout.movableResources.first { it.name == "AGV1" }.position
         assertNotNull(agvPos); assertEquals(0.0, agvPos.x) // seeded at home (Dock, via RETURNING_HOME)
@@ -154,11 +154,11 @@ class TraceAccumulatorsTest {
         )
         val layout = replayOf(events).autoLayout(events)
 
-        assertEquals(setOf("A", "B", "C"), layout.stations.map { it.stationName }.toSet())
-        // Ring placement: every station is equidistant from the canvas center (not at a real coordinate).
+        assertEquals(setOf("A", "B", "C"), layout.locations.map { it.locationName }.toSet())
+        // Ring placement: every location is equidistant from the canvas center (not at a real coordinate).
         val cx = layout.width / 2.0; val cy = layout.height / 2.0
-        val radii = layout.stations.map { Math.hypot(it.position.x - cx, it.position.y - cy) }
-        assertTrue(radii.all { kotlin.math.abs(it - radii.first()) < 1e-6 }, "ring stations equidistant from center")
+        val radii = layout.locations.map { Math.hypot(it.position!!.x - cx, it.position!!.y - cy) }
+        assertTrue(radii.all { kotlin.math.abs(it - radii.first()) < 1e-6 }, "ring locations equidistant from center")
         // Movers with no finite coordinates carry no seeded position.
         assertNull(layout.movableResources.first { it.name == "M" }.position)
     }

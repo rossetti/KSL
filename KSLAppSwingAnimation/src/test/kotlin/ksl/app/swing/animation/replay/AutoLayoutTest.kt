@@ -112,6 +112,25 @@ class AutoLayoutTest {
     }
 
     @Test
+    fun `network stations stay stations, travel locations become locations, no name in both`() {
+        val evs = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.StationEntered(0.0, 1L, "Drill"),                        // a network station
+            AnimationEvent.SpatialElementMoved(                                     // a mover between named places
+                0.0, "AGV", fromX = Double.NaN, fromY = Double.NaN, toX = Double.NaN, toY = Double.NaN,
+                velocity = 1.0, duration = 5.0, arrivalTime = 5.0, fromLocationName = "Dock", toLocationName = "Bay"
+            )
+        )
+        val layout = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = evs)).autoLayout(evs)
+        val stations = layout.stations.map { it.stationName }
+        val locations = layout.locations.map { it.locationName }
+        assertContains(stations, "Drill")
+        assertTrue("Dock" in locations && "Bay" in locations, "travel endpoints are locations: $locations")
+        assertTrue("Dock" !in stations && "Bay" !in stations, "travel endpoints are not stations")
+        assertTrue(stations.none { it in locations }, "no name is both a station and a location")
+    }
+
+    @Test
     fun `auto-placed queues grow toward the left (180 degrees, head-right)`() {
         val layout = model(null).autoLayout(events)
         assertTrue(layout.queues.isNotEmpty(), "the WaitQ is placed")

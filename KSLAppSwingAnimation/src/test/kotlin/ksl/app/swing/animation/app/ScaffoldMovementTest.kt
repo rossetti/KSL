@@ -53,8 +53,8 @@ class ScaffoldMovementTest {
         inv.movableResources.forEach { name ->
             assertFalse(scaffold.resources.any { it.resourceName == name }, "$name must not be a static resource")
         }
-        // DistancesModel locations are placed as station anchors so movement can resolve.
-        assertTrue(scaffold.stations.isNotEmpty(), "distance-model locations placed as stations")
+        // DistancesModel locations are placed (MDS) as location anchors so movement can resolve (Phase 5).
+        assertTrue(scaffold.locations.isNotEmpty(), "distance-model locations placed as locations")
         // V2: responses/counters are no longer auto-placed (declutter).
         assertTrue(scaffold.values.isEmpty(), "scaffold omits response/counter read-outs")
         // The fix restores the documented invariant (relaxed in 9F.2): a scaffold validates.

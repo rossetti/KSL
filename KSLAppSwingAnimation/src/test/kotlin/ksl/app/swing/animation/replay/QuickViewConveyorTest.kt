@@ -26,7 +26,7 @@ class QuickViewConveyorTest {
     fun `quick view places conveyor anchor stations and the belt resolves`() {
         val probe = ReplayModel.build(AnimationSource(layout = null, header = header, events = events))
         val auto = probe.autoLayout(events)
-        listOf("In", "Mid", "Out").forEach { assertContains(auto.stations.map { s -> s.stationName }, it) }
+        listOf("In", "Mid", "Out").forEach { assertContains(auto.locations.map { s -> s.locationName }, it) }
 
         val model = ReplayModel.build(AnimationSource(layout = auto, header = header, events = events))
         assertContains(model.conveyorNames, "Belt")

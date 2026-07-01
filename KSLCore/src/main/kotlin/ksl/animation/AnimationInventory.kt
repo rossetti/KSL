@@ -31,6 +31,7 @@ import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.Resource
 import ksl.modeling.queue.Queue
+import ksl.modeling.spatial.DistancesModel
 import ksl.modeling.spatial.MovableResource
 import ksl.modeling.station.NetworkEgress
 import ksl.modeling.station.NetworkIngress
@@ -252,6 +253,7 @@ fun Model.animationInventory(): AnimationInventory {
     val spaces = LinkedHashMap<String, SpaceInfo>()
     val locations = LinkedHashSet<String>()
     val locationInfos = LinkedHashMap<String, LocationInfo>()
+    val mdsCache = HashMap<DistancesModel, Map<String, LayoutPoint>>() // MDS proposed once per distance model (Phase 5)
     // Entity types are collected as KClasses (keyed by simpleName) so their @KSLAnimatedProcess members can be
     // reflected (10.1b); EntityType elements are handled here rather than in the when below.
     val entityClasses = LinkedHashMap<String, KClass<out ProcessModel.Entity>>()
@@ -308,10 +310,18 @@ fun Model.animationInventory(): AnimationInventory {
             }
             else -> {} // RESPONSE/COUNTER come from the curated lists below; SPACE handled per-projection
         }
-        // Any SpatialModel's named locations contribute (10.1g): DistancesModel exposes its distance-table
-        // locations; other spatial models can override SpatialModel.namedLocations. Generalizes the former
-        // DistancesModel-only path (8H/8K.6) without depending on a concrete spatial-model type.
-        e.spatialModel?.namedLocations?.forEach { locations += it.name }
+        // Any SpatialModel's named locations contribute (10.1g / Phase 5): the name always; a position where known
+        // — a Cartesian LocationIfc gives finite x/y, and a DistancesModel is placed by MDS (proposeCoordinates),
+        // so a coordinate-free distance model still gets distance-faithful positions. An agent Context's own
+        // position (added above) wins via putIfAbsent.
+        e.spatialModel?.let { sm ->
+            val mds = if (sm is DistancesModel) mdsCache.getOrPut(sm) { sm.proposeCoordinates() } else emptyMap()
+            for (loc in sm.namedLocations) {
+                locations += loc.name
+                val p = mds[loc.name] ?: if (loc.x.isFinite() && loc.y.isFinite()) LayoutPoint(loc.x, loc.y) else null
+                locationInfos.putIfAbsent(loc.name, if (p != null) LocationInfo(loc.name, p.x, p.y) else LocationInfo(loc.name))
+            }
+        }
     }
 
     // Entity types (10.1a/b): declared entityType<T>() registrations give the KClass directly; a best-effort

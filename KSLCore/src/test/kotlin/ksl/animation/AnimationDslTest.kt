@@ -6,6 +6,7 @@ import ksl.modeling.entity.Resource
 import ksl.modeling.entity.ResourcePoolWithQ
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.entity.Signal
+import ksl.modeling.spatial.DistancesModel
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.simulation.ModelElement
@@ -175,5 +176,21 @@ class AnimationDslTest {
         val spec = layout.spaceGeometry.single()
         assertEquals("floor", spec.spaceName)
         assertEquals(listOf(ksl.modeling.agent.Cell(3, 3), ksl.modeling.agent.Cell(3, 4)), spec.blockedCells)
+    }
+
+    @Test
+    fun `placeLocations MDS-places a distance model's locations`() {
+        val dm = DistancesModel()
+        val a = dm.Location("A"); val b = dm.Location("B"); val c = dm.Location("C")
+        dm.addDistance(a, b, 10.0, symmetric = true)
+        dm.addDistance(b, c, 10.0, symmetric = true)
+        dm.addDistance(a, c, 10.0, symmetric = true)
+        val layout = Model("dslMds").animation { placeLocations(dm) }
+        assertEquals(listOf("A", "B", "C"), layout.locations.map { it.locationName }.sorted())
+        assertTrue(
+            layout.locations.all { it.position?.x?.isFinite() == true && it.position?.y?.isFinite() == true },
+            "every location gets a finite MDS position"
+        )
+        assertTrue(layout.stations.isEmpty(), "placeLocations emits locations, not stations")
     }
 }

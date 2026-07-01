@@ -2,6 +2,8 @@ package ksl.animation
 
 import ksl.modeling.agent.AgentLike
 import ksl.modeling.agent.AgentModel
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.spatial.DistancesModel
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import kotlin.test.Test
@@ -46,5 +48,27 @@ class AgentLocationInventoryTest {
         val inv = m.animationInventory()
         assertTrue(inv.entityTypes.first { it.typeName == "Drone" }.isAgent, "Drone is an Agent subclass")
         assertFalse(inv.entityTypes.first { it.typeName == "Widget" }.isAgent, "Widget is a plain process entity")
+    }
+
+    /** Phase 5: a coordinate-free DistancesModel's locations get MDS-proposed positions in the inventory. */
+    private class DistModel(parent: ModelElement) : ProcessModel(parent, "dist") {
+        init {
+            val dm = DistancesModel()
+            val a = dm.Location("A"); val b = dm.Location("B"); val c = dm.Location("C")
+            dm.addDistance(a, b, 10.0, symmetric = true)
+            dm.addDistance(b, c, 10.0, symmetric = true)
+            dm.addDistance(a, c, 10.0, symmetric = true)
+            spatialModel = dm
+        }
+    }
+
+    @Test
+    fun `a DistancesModel's locations get MDS positions in the inventory`() {
+        val m = Model("t")
+        DistModel(m)
+        val inv = m.animationInventory()
+        assertTrue(inv.locations.containsAll(listOf("A", "B", "C")), "names surface: ${inv.locations}")
+        val a = inv.locationInfos.first { it.name == "A" }
+        assertTrue(a.x?.isFinite() == true && a.y?.isFinite() == true, "A has a finite MDS position: $a")
     }
 }

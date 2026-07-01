@@ -23,15 +23,15 @@ class ConveyorLayoutTest {
     @Test
     fun `conveyor anchors are collinear, spaced by cell index, and a belt element is synthesized`() {
         val layout = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = events)).autoLayout(events)
-        val inS = layout.stations.first { it.stationName == "In" }
-        val midS = layout.stations.first { it.stationName == "Mid" }
-        val outS = layout.stations.first { it.stationName == "Out" }
+        val inS = layout.locations.first { it.locationName == "In" }
+        val midS = layout.locations.first { it.locationName == "Mid" }
+        val outS = layout.locations.first { it.locationName == "Out" }
         // Same lane (collinear) and x increasing by cell index.
-        assertEquals(inS.position.y, midS.position.y, 1e-9)
-        assertEquals(inS.position.y, outS.position.y, 1e-9)
-        assertTrue(inS.position.x < midS.position.x && midS.position.x < outS.position.x)
+        assertEquals(inS.position!!.y, midS.position!!.y, 1e-9)
+        assertEquals(inS.position!!.y, outS.position!!.y, 1e-9)
+        assertTrue(inS.position!!.x < midS.position!!.x && midS.position!!.x < outS.position!!.x)
         // Mid (cell 5 of 10) sits halfway between the endpoints.
-        assertEquals((inS.position.x + outS.position.x) / 2.0, midS.position.x, 1e-6)
+        assertEquals((inS.position!!.x + outS.position!!.x) / 2.0, midS.position!!.x, 1e-6)
         // A belt element is synthesized so the renderer colors it and draws direction arrows.
         assertContains(layout.conveyors.map { it.conveyorName }, "Belt")
         assertTrue(layout.conveyors.first { it.conveyorName == "Belt" }.showDirection)

@@ -41,12 +41,12 @@ class QuickViewMovementTest {
         val probe = ReplayModel.build(AnimationSource(layout = null, header = header, events = moveEvents))
         val auto = probe.autoLayout(moveEvents)
         assertContains(auto.movableResources.map { it.name }, "T")
-        assertContains(auto.stations.map { it.stationName }, "A")
-        assertContains(auto.stations.map { it.stationName }, "B")
+        assertContains(auto.locations.map { it.locationName }, "A")
+        assertContains(auto.locations.map { it.locationName }, "B")
 
         val model = ReplayModel.build(AnimationSource(layout = auto, header = header, events = moveEvents))
         val pos = model.spatialElementPositionAt("T", 5.0) // mid first move
-        assertNotNull(pos, "the mover resolves to a position against the ring stations")
+        assertNotNull(pos, "the mover resolves to a position against the ring locations")
         assertTrue(pos.x in 0.0..auto.width && pos.y in 0.0..auto.height, "resolved position is on-canvas: $pos")
     }
 

@@ -22,6 +22,7 @@ import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.ConveyorLayoutElement
 import ksl.animation.LayoutPoint
+import ksl.animation.LocationLayoutElement
 import ksl.animation.MovableResourceLayoutElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
@@ -101,9 +102,10 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val queues = queueNames.sorted().mapIndexed { i, name ->
             QueueLayoutElement(queueName = name, position = LayoutPoint(qColX, frame.y + margin + i * rowGap), growthDegrees = 180.0, spacing = unit * 0.7)
         }
-        // Named travel locations with a mined centroid become station anchors at their true positions.
-        val stations = location.names.sorted().mapNotNull { name ->
-            location.centroids[name]?.let { StationLayoutElement(stationName = name, position = it, label = name) }
+        // Named travel locations with a mined centroid become location anchors at their true positions (Phase 5:
+        // these are locations, not network stations; the renderer interpolates movers between them).
+        val locations = location.names.sorted().mapNotNull { name ->
+            location.centroids[name]?.let { LocationLayoutElement(locationName = name, position = it, label = name) }
         }
         val rightExtent = if (queues.isEmpty() && resources.isEmpty()) frame.maxX + margin else qColX + unit * 7
         return AnimationLayout(
@@ -114,7 +116,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
             agentStateColors = agentStateColors,
             resources = resources,
             queues = queues,
-            stations = stations,
+            locations = locations,
             movableResources = movers
         ).withSeededObjectClasses(objectTypes, glyphSize)
     }
@@ -176,7 +178,10 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         }
         conveyorElements += ConveyorLayoutElement(conveyorName = conveyorName, showDirection = true)
     }
-    val conveyorStations = conveyorAnchorPos.map { (loc, p) -> StationLayoutElement(stationName = loc, position = p, label = loc) }
+    // Conveyor anchors are locations, not network stations (Phase 5); exclude any name that is a network station.
+    val stationNameSet = stationOrder.toSet()
+    val conveyorLocations = conveyorAnchorPos.filterKeys { it !in stationNameSet }
+        .map { (loc, p) -> LocationLayoutElement(locationName = loc, position = p, label = loc) }
 
     val width = (maxOf(
         firstColX + lastRank * columnGap,
@@ -191,14 +196,16 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
 
     // Remaining named travel locations (name-only SpatialElementMoved movers) not already placed as a network
     // station or a conveyor anchor: a ring, so name-resolved mover movement still animates.
-    val placedNames = stationOrder.toSet() + conveyorAnchorPos.keys
+    val placedNames = stationNameSet + conveyorAnchorPos.keys
     val ringNames = location.names.filter { it !in placedNames }.toSortedSet()
-    val ringStations = if (ringNames.isEmpty()) emptyList() else {
+    // Coordinate-free travel locations on a ring (Phase 5: locations, not stations). A DistancesModel's MDS
+    // positions later override these via withModelLocations (inventory positions are authoritative).
+    val ringLocations = if (ringNames.isEmpty()) emptyList() else {
         val cx = width / 2.0; val cy = height / 2.0
         val radius = minOf(width, height) * 0.32
         ringNames.toList().mapIndexed { i, name ->
             val a = 2.0 * Math.PI * i / ringNames.size - Math.PI / 2.0 // first location at top
-            StationLayoutElement(stationName = name, position = LayoutPoint(cx + radius * cos(a), cy + radius * sin(a)), label = name)
+            LocationLayoutElement(locationName = name, position = LayoutPoint(cx + radius * cos(a), cy + radius * sin(a)), label = name)
         }
     }
     return AnimationLayout(
@@ -209,7 +216,8 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         // No auto-placed clock: the clock is an opt-in element the user adds from the Layout palette.
         resources = resources,
         queues = queues,
-        stations = networkStations + conveyorStations + ringStations,
+        stations = networkStations,
+        locations = conveyorLocations + ringLocations,
         conveyors = conveyorElements,
         storages = storages,
         movableResources = movers

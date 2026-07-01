@@ -423,8 +423,8 @@ class AnimationAppController(
         runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()
             ?.let { withScaffoldedSpaces(it) }
             ?.let { withModelObjectClasses(it) }
-            ?.let { withMoverPositionsAtHome(it) }
-            ?.let { withModelLocations(it) }
+            ?.let { withModelLocations(it) }        // finalize location positions (MDS) first...
+            ?.let { withMoverPositionsAtHome(it) }  // ...so movers anchor to the final home-location position
 
     /**
      * Anchors each scaffolded movable resource at its home-base station's placed position (filling `homeBase`
@@ -433,11 +433,12 @@ class AnimationAppController(
      */
     private fun withMoverPositionsAtHome(layout: AnimationLayout): AnimationLayout {
         if (layout.movableResources.isEmpty()) return layout
-        val fallback = layout.stations.firstOrNull()?.position // park homeless movers somewhere visible
+        // A mover's home base is a location (fall back to a station for legacy layouts); park homeless movers somewhere.
+        val fallback = layout.locations.firstOrNull { it.position != null }?.position ?: layout.stations.firstOrNull()?.position
         return layout.copy(movableResources = layout.movableResources.map { mr ->
             if (mr.position != null) return@map mr // already positioned
             val hb = mr.homeBase ?: inventory.movableHomeBases[mr.name]
-            val pos = hb?.let { layout.positionOf(ElementKind.STATION, it) } ?: fallback
+            val pos = hb?.let { layout.positionOf(ElementKind.LOCATION, it) ?: layout.positionOf(ElementKind.STATION, it) } ?: fallback
             mr.copy(homeBase = hb ?: mr.homeBase, position = pos)
         })
     }
@@ -516,12 +517,18 @@ class AnimationAppController(
      * between them still surfaces them. Coordinate-free names (null position) are left for MDS placement.
      */
     fun withModelLocations(layout: AnimationLayout): AnimationLayout {
-        val have = layout.locations.map { it.locationName }.toSet()
-        val add = inventory.locationInfos.mapNotNull { li ->
+        // Inventory positions are authoritative (Phase 5 / D1): override a same-named layout location's position with
+        // the model position and add any that are absent. Positions come from an agent Context.location, finite
+        // LocationIfc coords, or a DistancesModel's MDS placement — so MDS wins over auto-layout's arbitrary ring.
+        val known = inventory.locationInfos.mapNotNull { li ->
             val x = li.x; val y = li.y // local vals: a cross-module nullable prop won't smart-cast
-            if (x != null && y != null && li.name !in have) LocationLayoutElement(li.name, LayoutPoint(x, y)) else null
-        }
-        return if (add.isEmpty()) layout else layout.copy(locations = layout.locations + add)
+            if (x != null && y != null) li.name to LayoutPoint(x, y) else null
+        }.toMap()
+        if (known.isEmpty()) return layout
+        val have = layout.locations.map { it.locationName }.toSet()
+        val overridden = layout.locations.map { loc -> known[loc.locationName]?.let { loc.copy(position = it) } ?: loc }
+        val added = known.filterKeys { it !in have }.map { (name, p) -> LocationLayoutElement(name, p) }
+        return layout.copy(locations = overridden + added)
     }
 
     /**
