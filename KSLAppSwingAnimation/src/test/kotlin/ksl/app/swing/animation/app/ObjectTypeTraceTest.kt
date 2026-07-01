@@ -41,6 +41,8 @@ class ObjectTypeTraceTest {
                     listOf(
                         AnimationEvent.EntityCreated(0.0, 1L, "Customer"),
                         AnimationEvent.AgentRegistered(0.0, "a1", "Person"),
+                        AnimationEvent.AgentPositionChanged(0.0, "a1", "space", 1.0, 1.0), // Person moves → animatable
+                        AnimationEvent.AgentRegistered(0.0, "ctrl", "Dispatcher"),          // registered, never moves → excluded
                         AnimationEvent.EntityCreated(1.0, 2L, "Customer"), // duplicate type collapses
                     )
                 )
@@ -63,9 +65,14 @@ class ObjectTypeTraceTest {
             Files.createDirectories(controller.tracesDir)
             JsonLinesAnimationOutput.toFile(controller.tracesDir.resolve("t.atf")).use { out ->
                 out.writeHeader(AnimationTraceHeader())
-                out.writeAll(listOf(AnimationEvent.EntityCreated(0.0, 1L, "Customer"), AnimationEvent.AgentRegistered(0.0, "a1", "Person")))
+                out.writeAll(listOf(
+                    AnimationEvent.EntityCreated(0.0, 1L, "Customer"),
+                    AnimationEvent.AgentRegistered(0.0, "a1", "Person"),
+                    AnimationEvent.AgentPositionChanged(0.0, "a1", "space", 1.0, 1.0), // moving agent → animatable
+                    AnimationEvent.AgentRegistered(0.0, "ctrl", "Dispatcher"),          // control agent → not offered
+                ))
             }
-            // With a trace, only the types actually seen animating are offered (control-only entities excluded).
+            // With a trace, only the types actually seen animating are offered (control-only agents excluded).
             assertEquals(setOf("Customer", "Person"), controller.objectStyleTypeNames().toSet())
         } finally {
             controller.close()

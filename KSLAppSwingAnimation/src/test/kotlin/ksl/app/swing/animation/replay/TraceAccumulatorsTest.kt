@@ -112,6 +112,18 @@ class TraceAccumulatorsTest {
         assertEquals(listOf("idle", "busy", "blocked"), acc.result())
     }
 
+    @Test
+    fun `ObjectTypeNames lists entity types and moving agent types, excluding static control agents`() {
+        val acc = ObjectTypeNames()
+        listOf(
+            AnimationEvent.EntityCreated(0.0, 1L, "Customer"),
+            AnimationEvent.AgentRegistered(0.0, "a1", "Person"),
+            AnimationEvent.AgentPositionChanged(0.0, "a1", "space", 1.0, 1.0), // Person moves → animatable
+            AnimationEvent.AgentRegistered(0.0, "ctrl", "Dispatcher"),          // registered, never moves → excluded
+        ).forEach(acc::accept)
+        assertEquals(setOf("Customer", "Person"), acc.result())
+    }
+
     // ----- autoLayout integration -----
 
     private fun replayOf(events: List<AnimationEvent>) =

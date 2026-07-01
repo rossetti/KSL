@@ -138,22 +138,31 @@ class AgentStateNames : TraceAccumulator<List<String>> {
 }
 
 /**
- * The distinct entity types (`EntityCreated.entityType`) and agent types (`AgentRegistered.agentType`) a trace
- * reports, in first-seen order — the keys the renderer styles object glyphs by, so auto-layout can seed an
- * editable object-class per type instead of leaving the invisible default size (C1).
+ * The distinct **animatable** object types a trace reports: every entity type (`EntityCreated.entityType`)
+ * plus the agent types that actually draw — i.e. agents that report a position via `AgentPositionChanged`. A
+ * registered-but-static control agent (e.g. a dispatcher / order-generator that never moves) is excluded,
+ * since it never appears on screen. These are the keys the renderer styles glyphs by, so auto-layout seeds
+ * and the editor lists only genuinely animatable types (C1 / G4).
  */
 class ObjectTypeNames : TraceAccumulator<Set<String>> {
-    private val types = LinkedHashSet<String>()
+    private val entityTypes = LinkedHashSet<String>()
+    private val agentTypeOf = HashMap<String, String>() // agentName -> type (from AgentRegistered)
+    private val movedAgents = LinkedHashSet<String>()    // agentNames that reported a position
 
     override fun accept(event: AnimationEvent) {
         when (event) {
-            is AnimationEvent.EntityCreated -> types.add(event.entityType)
-            is AnimationEvent.AgentRegistered -> types.add(event.agentType)
+            is AnimationEvent.EntityCreated -> entityTypes.add(event.entityType)
+            is AnimationEvent.AgentRegistered -> agentTypeOf[event.agentName] = event.agentType
+            is AnimationEvent.AgentPositionChanged -> movedAgents.add(event.agentName)
             else -> {}
         }
     }
 
-    override fun result(): Set<String> = types
+    override fun result(): Set<String> {
+        val out = LinkedHashSet(entityTypes)
+        for (name in movedAgents) agentTypeOf[name]?.let { out.add(it) }
+        return out
+    }
 }
 
 /**

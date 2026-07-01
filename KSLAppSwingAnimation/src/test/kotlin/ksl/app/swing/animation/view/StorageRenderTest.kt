@@ -48,4 +48,22 @@ class StorageRenderTest {
             if (image.getRGB(x, y) and 0xffffff == red) redPx++
         assertTrue(redPx > 50, "expected the storage to draw its red Part members, got $redPx red px")
     }
+
+    @Test
+    fun `an empty storage still draws its footprint box (G4)`() {
+        val layout = AnimationLayout(
+            title = "Storage", width = 200.0, height = 100.0,
+            storages = listOf(StorageLayoutElement("inspect", LayoutPoint(20.0, 50.0), width = 160.0, height = 40.0))
+        )
+        // No events → no members → empty storage, but its footprint box must still render (Ex12).
+        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), emptyList()))
+        val canvas = SimulationCanvas().apply { setSize(400, 200); replay = model; currentTime = 0.0 }
+        val image = BufferedImage(400, 200, BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics(); canvas.paint(g); g.dispose()
+
+        var nonWhite = 0
+        for (y in 0 until image.height) for (x in 0 until image.width)
+            if (image.getRGB(x, y) and 0xffffff != 0xffffff) nonWhite++
+        assertTrue(nonWhite > 1000, "an empty storage should still draw its footprint box, got $nonWhite non-white px")
+    }
 }

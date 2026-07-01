@@ -467,6 +467,11 @@ class SimulationCanvas : JPanel() {
         val scale = scaleOf(tx)
         val members = r.storageMembersAt(st.suspensionName, t)
         val count = members.size
+        // Footprint box: draw the storage's region + label ALWAYS, so it's visible and selectable even when
+        // empty (e.g. on the static Layout-tab preview, which has no replay members) — not just a bare "(0)".
+        val bw = (st.width * scale).coerceAtLeast(12.0); val bh = (st.height * scale).coerceAtLeast(10.0)
+        g2.color = Color(0x42, 0x85, 0xf4, 0x12); g2.fill(Rectangle2D.Double(anchor.x, anchor.y, bw, bh))
+        g2.color = Color(0xbb, 0xbb, 0xbb); g2.stroke = BasicStroke(1f); g2.draw(Rectangle2D.Double(anchor.x, anchor.y, bw, bh))
         g2.color = Color.DARK_GRAY
         g2.drawString("${st.label ?: st.suspensionName} ($count)", anchor.x.toFloat(), (anchor.y - 6.0).toFloat())
         if (count == 0) return
