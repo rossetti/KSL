@@ -94,20 +94,33 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val margin = (maxOf(frame.width, frame.height) * 0.08).coerceAtLeast(1.0)
         val unit = (frame.height / 16.0).coerceAtLeast(0.5)   // element/glyph size relative to the frame
         val rowGap = unit * 1.8
-        val resColX = frame.maxX + margin + unit
+        // Servers sit at the right of the strip; each queue's head is just to their left with members growing
+        // further left, so a row reads "members -> head -> server" (fixes the server-left-of-its-queue-head look).
+        val rowY = { i: Int -> frame.y + margin + i * rowGap }
+        val qHeadX = frame.maxX + margin + unit * 8   // queue-head column (members fill the gap to its left)
+        val resColX = qHeadX + unit * 3               // servers, to the right of their queue head
+        val resourceRow = resourceNames.sorted().withIndex().associate { (i, n) -> n to i }
         val resources = resourceNames.sorted().mapIndexed { i, name ->
-            ResourceLayoutElement(resourceName = name, position = LayoutPoint(resColX, frame.y + margin + i * rowGap), size = unit)
+            ResourceLayoutElement(resourceName = name, position = LayoutPoint(resColX, rowY(i)), size = unit)
         }
-        val qColX = resColX + unit * 7
-        val queues = queueNames.sorted().mapIndexed { i, name ->
-            QueueLayoutElement(queueName = name, position = LayoutPoint(qColX, frame.y + margin + i * rowGap), growthDegrees = 180.0, spacing = unit * 0.7)
+        val placedQueues = mutableSetOf<String>()
+        val queues = mutableListOf<QueueLayoutElement>()
+        resourceNames.sorted().forEach { r ->
+            flow.queueOfResource[r]?.let { q ->
+                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(resourceRow.getValue(r))), growthDegrees = 180.0, spacing = unit * 0.7)
+                placedQueues += q
+            }
+        }
+        var extraRow = resourceNames.size
+        queueNames.filter { it !in placedQueues }.sorted().forEach { q ->
+            queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(extraRow++)), growthDegrees = 180.0, spacing = unit * 0.7)
         }
         // Named travel locations with a mined centroid become location anchors at their true positions (Phase 5:
         // these are locations, not network stations; the renderer interpolates movers between them).
         val locations = location.names.sorted().mapNotNull { name ->
             location.centroids[name]?.let { LocationLayoutElement(locationName = name, position = it, label = name) }
         }
-        val rightExtent = if (queues.isEmpty() && resources.isEmpty()) frame.maxX + margin else qColX + unit * 7
+        val rightExtent = if (queues.isEmpty() && resources.isEmpty()) frame.maxX + margin else resColX + unit * 3
         return AnimationLayout(
             title = title ?: "Replay",
             width = rightExtent.coerceAtLeast(frame.maxX + margin),
