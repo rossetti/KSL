@@ -78,6 +78,7 @@ class AnimationBuilder {
     private val queues = mutableListOf<QueueLayoutElement>()
     private val resources = mutableListOf<ResourceLayoutElement>()
     private val stations = mutableListOf<StationLayoutElement>()
+    private val locations = mutableListOf<LocationLayoutElement>()
     private val bars = mutableListOf<BarDisplayElement>()
     private val plots = mutableListOf<PlotDisplayElement>()
     private val clocks = mutableListOf<ClockDisplayElement>()
@@ -175,6 +176,16 @@ class AnimationBuilder {
     /** Places a station (by trace name). */
     fun station(name: String, x: Double, y: Double, label: String? = null) {
         stations.add(StationLayoutElement(name, LayoutPoint(x, y), label))
+    }
+
+    /** Places a named spatial location (a `LocationIfc`) at ([x], [y]) — a move endpoint / conveyor anchor /
+     *  landmark. Distinct from a flow-network `station(...)`; drawn with its own glyph. */
+    fun location(name: String, x: Double, y: Double, label: String? = null) {
+        locations.add(LocationLayoutElement(name, LayoutPoint(x, y), label))
+    }
+    /** Declares a named location without a position (placed later, or proposed by MDS auto-layout). */
+    fun location(name: String, label: String? = null) {
+        locations.add(LocationLayoutElement(name, null, label))
     }
 
     /** Places a station by passing the station itself; its trace name is taken from [station] (8K.1). */
@@ -465,7 +476,7 @@ class AnimationBuilder {
         title, baseTimeUnit, width, height,
         objectClasses, background, paths, queues, resources, stations, bars, plots, clocks, spaces, values,
         agentStateColors, summaries, histograms, storages, movableResources,
-        spaceGeometry = spaceGeometry
+        spaceGeometry = spaceGeometry, locations = locations
     )
 }
 

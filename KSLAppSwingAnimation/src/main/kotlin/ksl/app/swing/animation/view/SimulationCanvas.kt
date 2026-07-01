@@ -149,6 +149,11 @@ class SimulationCanvas : JPanel() {
             drawMarker(g2, tx, it.position, Color(0x55, 0x55, 0x55), "") // dot only; label honors overrides (C3)
             drawElementLabel(g2, layout, screen(tx, it.position), ksl.animation.ElementKind.STATION, it.stationName, it.label ?: it.stationName)
         }
+        layout?.locations?.forEach { loc ->
+            val p = loc.position ?: return@forEach // unplaced (no MDS yet) → nothing to draw
+            drawLocationMarker(g2, tx, p) // open square: a spatial location, visually distinct from a station's filled dot (L1)
+            drawElementLabel(g2, layout, screen(tx, p), ksl.animation.ElementKind.LOCATION, loc.locationName, loc.label ?: loc.locationName)
+        }
         layout?.queues?.forEach { drawQueue(g2, tx, it, r, t) }
         layout?.storages?.forEach { drawStorage(g2, tx, it, r, t) } // entities in named delays (8K.4)
         layout?.resources?.forEach { drawResource(g2, tx, it, r, t) }
@@ -247,8 +252,10 @@ class SimulationCanvas : JPanel() {
         val drawnMovers = ArrayList<DrawnMover>()
         layout?.movableResources?.forEach { mr ->
             val p = r.spatialElementPositionAt(mr.name, t)
-                ?: mr.homeBase?.let { hb -> layout.stations.firstOrNull { it.stationName == hb }?.position }
-                    ?.let { WorldPoint(it.x, it.y, 0.0) }
+                ?: mr.homeBase?.let { hb ->
+                    layout.locations.firstOrNull { it.locationName == hb }?.position
+                        ?: layout.stations.firstOrNull { it.stationName == hb }?.position
+                }?.let { WorldPoint(it.x, it.y, 0.0) }
                 ?: mr.position?.let { WorldPoint(it.x, it.y, 0.0) }
                 ?: return@forEach
             drawnMovers.add(DrawnMover(mr, r.moverStateAt(mr.name, t), p))
@@ -728,6 +735,14 @@ class SimulationCanvas : JPanel() {
         g2.fill(Ellipse2D.Double(s.x - 4, s.y - 4, 8.0, 8.0))
         g2.color = Color.DARK_GRAY
         g2.drawString(label, (s.x + 6).toFloat(), s.y.toFloat())
+    }
+
+    /** Draws a spatial location as an open square — deliberately distinct from a station's filled dot (L1). */
+    private fun drawLocationMarker(g2: Graphics2D, tx: AffineTransform, p: LayoutPoint) {
+        val s = screen(tx, p)
+        g2.color = Color(0x55, 0x55, 0x55)
+        g2.stroke = BasicStroke(1.5f)
+        g2.draw(Rectangle2D.Double(s.x - 5, s.y - 5, 10.0, 10.0))
     }
 
     /**

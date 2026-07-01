@@ -193,6 +193,19 @@ data class StationLayoutElement(
     val label: String? = null
 )
 
+/**
+ * The animation of a spatial `LocationIfc` — a named place entities and movers travel between (move endpoints,
+ * conveyor anchors, agent points-of-interest). [position] is nullable: unknown until placed or MDS-proposed
+ * (mirrors `MovableResourceLayoutElement`). Distinct from a flow-network station; the renderer draws it with its
+ * own glyph. Keyed by [locationName].
+ */
+@Serializable
+data class LocationLayoutElement(
+    val locationName: String,
+    val position: LayoutPoint? = null,
+    val label: String? = null
+)
+
 /** A static background element (lines, rectangles, text, images). */
 @Serializable
 data class BackgroundElement(
@@ -382,7 +395,11 @@ data class AnimationLayout(
     val labels: List<ElementLabel> = emptyList(),
     /** Grid obstacle/cost overlays extracted from (or authored for) the model's geometry, keyed by space name
      *  (P5a/G2). Appended last so positional `AnimationLayout(...)` callers are unaffected. */
-    val spaceGeometry: List<ksl.modeling.agent.GridGeometrySpec> = emptyList()
+    val spaceGeometry: List<ksl.modeling.agent.GridGeometrySpec> = emptyList(),
+    /** Named spatial locations (`LocationIfc`): move endpoints, conveyor anchors, agent landmarks — the
+     *  animation counterpart of a NetworkStation. Appended last (defaulted) for positional-constructor and
+     *  wire safety, so old layouts keep loading and old code keeps constructing. */
+    val locations: List<LocationLayoutElement> = emptyList()
 ) {
     /** The grid obstacle/cost overlay for the space named [spaceName], or null — the consume-side lookup (P5b/G2). */
     fun gridGeometry(spaceName: String): ksl.modeling.agent.GridGeometrySpec? =

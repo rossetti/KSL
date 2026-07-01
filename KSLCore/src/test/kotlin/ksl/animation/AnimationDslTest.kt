@@ -38,6 +38,17 @@ class AnimationDslTest {
     }
 
     @Test
+    fun `location DSL adds placed and unplaced spatial locations`() {
+        val layout = Model("dslLoc").animation {
+            location("Depot", 10.0, 20.0, label = "Depot")
+            location("drop-0")
+        }
+        assertEquals(listOf("Depot", "drop-0"), layout.locations.map { it.locationName })
+        assertEquals(LayoutPoint(10.0, 20.0), layout.locations[0].position)
+        assertEquals(null, layout.locations[1].position, "an unplaced location has a null position")
+    }
+
+    @Test
     fun `pathThrough reuses station positions`() {
         val layout = Model("dsl2").animation {
             station("A", 0.0, 0.0)

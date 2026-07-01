@@ -468,8 +468,11 @@ class ReplayModel(
             var tMax = Double.NEGATIVE_INFINITY
 
             // For name-based moves (e.g. DistancesModel, whose coordinates are NaN), resolve the
-            // move's endpoints against the layout's named station positions (8H.3).
+            // move's endpoints against the layout's named positions. A move endpoint / conveyor anchor is a
+            // *location*, so resolve location-first, then fall back to a station (keeps legacy layouts that
+            // stored those places as stations working — L1 / disentanglement Phase 2).
             val stationPos = source.layout?.stations?.associate { it.stationName to it.position } ?: emptyMap()
+            val locationPos = source.layout?.locations?.mapNotNull { l -> l.position?.let { l.locationName to it } }?.toMap() ?: emptyMap()
 
             // Toroidal space bounds (8F.7), for wrap-correcting agent segments and drawing.
             val torus: TorusBounds? = source.layout?.spaces?.firstNotNullOfOrNull { sp ->
@@ -483,7 +486,7 @@ class ReplayModel(
             }
             fun resolvePoint(x: Double, y: Double, z: Double, name: String?): Triple<Double, Double, Double> {
                 if (x.isFinite() && y.isFinite()) return Triple(x, y, z)
-                val p = name?.let { stationPos[it] }
+                val p = name?.let { locationPos[it] ?: stationPos[it] }
                 return if (p != null) Triple(p.x, p.y, p.z) else Triple(x, y, z)
             }
 
@@ -608,7 +611,7 @@ class ReplayModel(
                     is AnimationEvent.MarkerPulsed -> markerPulses.add(event) // G-animated transient highlight
                     is AnimationEvent.ConveyorDefined -> {
                         val anchors = event.anchorLocations.zip(event.anchorCells)
-                            .mapNotNull { (loc, cell) -> stationPos[loc]?.let { Triple(loc, cell, WorldPoint(it.x, it.y, it.z)) } }
+                            .mapNotNull { (loc, cell) -> (locationPos[loc] ?: stationPos[loc])?.let { Triple(loc, cell, WorldPoint(it.x, it.y, it.z)) } }
                         val route = source.layout?.conveyors?.firstOrNull { it.conveyorName == event.conveyorName }
                         conveyorGeom[event.conveyorName] = ConveyorGeometry.build(anchors, route) // arc-length routing (10.5c)
                         conveyorMaxCell[event.conveyorName] = event.anchorCells.maxOrNull() ?: 0

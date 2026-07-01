@@ -74,6 +74,7 @@ fun AnimationLayout.placedNames(kind: ElementKind): List<String> = when (kind) {
     ElementKind.QUEUE -> queues.map { it.queueName }
     ElementKind.RESOURCE -> resources.map { it.resourceName }
     ElementKind.STATION -> stations.map { it.stationName }
+    ElementKind.LOCATION -> locations.filter { it.position != null }.map { it.locationName }
     ElementKind.RESPONSE, ElementKind.COUNTER -> responseNamesPlaced()
     ElementKind.MOVABLE_RESOURCE -> movableResources.map { it.name }
     else -> throw IllegalArgumentException("Layout editing does not support kind $kind")
@@ -90,16 +91,19 @@ fun AnimationLayout.positionOf(kind: ElementKind, name: String): LayoutPoint? = 
     ElementKind.QUEUE -> queues.firstOrNull { it.queueName == name }?.position
     ElementKind.RESOURCE -> resources.firstOrNull { it.resourceName == name }?.position
     ElementKind.STATION -> stations.firstOrNull { it.stationName == name }?.position
+    ElementKind.LOCATION -> locations.firstOrNull { it.locationName == name }?.position
     ElementKind.RESPONSE, ElementKind.COUNTER ->
         values.firstOrNull { it.responseName == name }?.position
             ?: bars.firstOrNull { it.responseName == name }?.position
             ?: plots.firstOrNull { it.responseName == name }?.position
             ?: summaries.firstOrNull { it.responseName == name }?.position
             ?: histograms.firstOrNull { it.responseName == name }?.position
-    // Prefer the home-base station's position when known, so the editor's selection/hit-box tracks where the
-    // glyph is actually drawn (anchored to its home station) rather than a vestigial parked position (10.8).
+    // Prefer the home-base's position when known (location first, then station), so the editor's selection/hit-box
+    // tracks where the glyph is actually drawn (anchored to its home) rather than a vestigial parked position (10.8).
     ElementKind.MOVABLE_RESOURCE -> movableResources.firstOrNull { it.name == name }?.let { mr ->
-        mr.homeBase?.let { hb -> stations.firstOrNull { it.stationName == hb }?.position } ?: mr.position
+        mr.homeBase?.let { hb ->
+            locations.firstOrNull { it.locationName == hb }?.position ?: stations.firstOrNull { it.stationName == hb }?.position
+        } ?: mr.position
     }
     else -> throw IllegalArgumentException("Layout editing does not support kind $kind")
 }

@@ -26,6 +26,27 @@ class AnimationLayoutTomlTest {
     }
 
     @Test
+    fun `locations round-trip through TOML (placed and unplaced)`() {
+        val layout = AnimationLayout(
+            stations = listOf(StationLayoutElement("S1", LayoutPoint(1.0, 2.0))),
+            locations = listOf(
+                LocationLayoutElement("Depot", LayoutPoint(10.0, 20.0), label = "Depot (pickup)"),
+                LocationLayoutElement("drop-0") // unplaced: null position
+            )
+        )
+        val back = AnimationLayout.fromToml(layout.toToml())
+        assertEquals(layout, back)
+        assertEquals(2, back.locations.size)
+        assertEquals(null, back.locations.first { it.locationName == "drop-0" }.position, "unplaced location keeps a null position")
+    }
+
+    @Test
+    fun `a layout without a locations block still loads (wire-safe default)`() {
+        val back = AnimationLayout.fromToml(AnimationLayout(stations = listOf(StationLayoutElement("A", LayoutPoint(0.0, 0.0)))).toToml())
+        assertEquals(emptyList(), back.locations)
+    }
+
+    @Test
     fun `conveyor routes round-trip through TOML`() {
         val layout = AnimationLayout(
             conveyors = listOf(ksl.animation.ConveyorLayoutElement(

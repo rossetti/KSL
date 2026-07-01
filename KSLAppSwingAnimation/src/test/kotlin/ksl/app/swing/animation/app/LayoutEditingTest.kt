@@ -2,6 +2,8 @@ package ksl.app.swing.animation.app
 
 import ksl.animation.AnimationLayout
 import ksl.animation.ElementKind
+import ksl.animation.LayoutPoint
+import ksl.animation.LocationLayoutElement
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -44,6 +46,20 @@ class LayoutEditingTest {
             .withElementRemoved(ElementKind.STATION, "S1")
         assertFalse(layout.isPlaced(ElementKind.STATION, "S1"))
         assertTrue(layout.isPlaced(ElementKind.STATION, "S2"))
+    }
+
+    @Test
+    fun `locations resolve by positionOf and count as placed only when positioned (L1)`() {
+        val layout = AnimationLayout(
+            locations = listOf(
+                LocationLayoutElement("Depot", LayoutPoint(5.0, 6.0)),
+                LocationLayoutElement("drop-0") // unplaced (null position)
+            )
+        )
+        assertEquals(5.0, layout.positionOf(ElementKind.LOCATION, "Depot")?.x)
+        assertNull(layout.positionOf(ElementKind.LOCATION, "drop-0"))
+        assertTrue(layout.isPlaced(ElementKind.LOCATION, "Depot"))
+        assertFalse(layout.isPlaced(ElementKind.LOCATION, "drop-0"), "an unplaced (null-position) location is not 'placed'")
     }
 
     @Test
