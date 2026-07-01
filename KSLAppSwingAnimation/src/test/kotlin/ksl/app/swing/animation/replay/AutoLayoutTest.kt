@@ -1,10 +1,13 @@
 package ksl.app.swing.animation.replay
 
+import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
+import ksl.animation.LocationLayoutElement
 import ksl.animation.NetworkStationLayoutElement
+import ksl.animation.PathDefinition
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
 import ksl.app.swing.animation.view.VisualStyle
@@ -229,6 +232,22 @@ class AutoLayoutTest {
         assertNotEquals(sa.agentStateColor("Informed"), sa.agentStateColor("Uninformed"), "the two states must differ")
         assertEquals(sa.agentStateColor("Informed"), sb.agentStateColor("Informed"), "deterministic, not trace order-dependent")
         assertEquals(sa.agentStateColor("Uninformed"), sb.agentStateColor("Uninformed"), "deterministic for both states")
+    }
+
+    @Test
+    fun `functional path with no waypoints renders on the canvas (Ex09)`() {
+        val locs = listOf(
+            LocationLayoutElement("Enter", LayoutPoint(200.0, 350.0)),
+            LocationLayoutElement("Station1", LayoutPoint(800.0, 350.0))
+        )
+        val base = AnimationLayout(locations = locs)
+        val withPath = base.copy(
+            paths = listOf(PathDefinition("Enter->Station1", points = emptyList(),
+                from = AnchorRef.location("Enter"), to = AnchorRef.location("Station1")))
+        )
+        fun painted(layout: AnimationLayout) =
+            paintedPixels(ReplayModel.build(AnimationSource(layout = layout, header = AnimationTraceHeader(), events = emptyList())))
+        assertTrue(painted(withPath) > painted(base), "the connecting path adds painted pixels between the two locations")
     }
 
     private fun paintedPixels(replay: ReplayModel): Int {

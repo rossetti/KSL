@@ -437,6 +437,30 @@ data class AnimationLayout(
     fun gridGeometry(spaceName: String): ksl.modeling.agent.GridGeometrySpec? =
         spaceGeometry.firstOrNull { it.spaceName == spaceName }
 
+    /**
+     * The placed position of anchor [ref] — the location (else the network station) of that name, falling back to
+     * the other kind when the declared one isn't placed — or null if neither is placed.
+     */
+    fun anchorPosition(ref: AnchorRef): LayoutPoint? = when (ref.kind) {
+        AnchorKind.LOCATION -> locations.firstOrNull { it.locationName == ref.name }?.position
+            ?: stations.firstOrNull { it.stationName == ref.name }?.position
+        AnchorKind.NETWORK_STATION -> stations.firstOrNull { it.stationName == ref.name }?.position
+            ?: locations.firstOrNull { it.locationName == ref.name }?.position
+    }
+
+    /**
+     * The full poly-line for [path] in drawing order: for a functional path (its from/to anchors set) the resolved
+     * anchor endpoints bracket the waypoints (fromPos, then the waypoints, then toPos); for a legacy decorative path
+     * (no anchors) just its own points. Endpoints resolve via anchorPosition, so an endpoints-only functional path
+     * (no waypoints) still yields a drawable two-point segment.
+     */
+    fun pathPolyline(path: PathDefinition): List<LayoutPoint> {
+        if (path.from == null && path.to == null) return path.points
+        val fromPos = path.from?.let { anchorPosition(it) }
+        val toPos = path.to?.let { anchorPosition(it) }
+        return listOfNotNull(fromPos) + path.points + listOfNotNull(toPos)
+    }
+
     /** Serializes this layout to pretty-printed JSON (the `.lay.json` content). */
     fun toJson(): String = format.encodeToString(this)
 

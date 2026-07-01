@@ -143,7 +143,9 @@ class SimulationCanvas : JPanel() {
         layout?.spaceGeometry?.forEach { drawObstacles(g2, tx, it, r) } // model-extracted obstacles (P5a/G2)
         if (showPlannedPaths) drawPlannedPaths(g2, tx, r, t) // planned routes under the agents (G12)
         layout?.background?.forEach { drawBackground(g2, tx, it) }
-        layout?.paths?.forEach { path -> drawPolyline(g2, tx, path.points, Color(0xb0, 0xb0, 0xb0), 1.0f) }
+        // A functional path's endpoints (from/to anchors) bracket its waypoints, so an endpoints-only path (no
+        // waypoints — e.g. Enter→Station1) is visible on the static Layout tab, not just during replay motion (E1).
+        layout?.let { lay -> lay.paths.forEach { path -> drawPolyline(g2, tx, lay.pathPolyline(path), Color(0xb0, 0xb0, 0xb0), 1.0f) } }
         for (cName in r.conveyorNames) drawBeltCells(g2, tx, r, cName, t) // belt occupancy overlay (8G.9)
         layout?.stations?.forEach {
             drawMarker(g2, tx, it.position, Color(0x55, 0x55, 0x55), "") // dot only; label honors overrides (C3)
