@@ -156,8 +156,13 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     /** Compact coordinate formatter (drops trailing ".0"). */
     private fun fmt(v: Double): String = if (v == v.toLong().toDouble()) v.toLong().toString() else "%.1f".format(v)
 
-    /** Re-reads the model's folders for new traces/layouts (used by the toolbar and on tab focus). */
-    fun rescan() { refreshTraceChoices(); refreshLayoutChoices(); syncLoadEnabled(); if (currentTraceFile == null) updateEmptyState() }
+    /** Re-reads the model's folders for new traces/layouts (used by the toolbar and on tab focus). When a trace is
+     *  already loaded, also re-applies the current layout so the replay reflects edits made since it was loaded
+     *  (e.g. a location dragged on the Layout tab) — otherwise the replay keeps playing the pre-edit model. */
+    fun rescan() {
+        refreshTraceChoices(); refreshLayoutChoices(); syncLoadEnabled()
+        if (currentTraceFile != null && cachedEvents.isNotEmpty()) applyLayout() else if (currentTraceFile == null) updateEmptyState()
+    }
 
     private fun syncLoadEnabled() { loadButton.isEnabled = traceCombo.selectedItem is TraceItem }
 
