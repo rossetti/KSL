@@ -104,7 +104,10 @@ data class EntityTypeInfo(
     val typeName: String,
     val processes: List<ProcessInfo> = emptyList(),
     /** Whether the type is animated/captured; `false` from `@KSLAnimatedEntity(include=false)` (10.1d). */
-    val include: Boolean = true
+    val include: Boolean = true,
+    /** True when the type is an agent (an `AgentModel.Agent` subclass): its visual-ness is runtime-conditional
+     *  (drawn only if projected/moved), unlike a process entity which the process-view machinery always draws (G3). */
+    val isAgent: Boolean = false
 )
 
 /**
@@ -174,6 +177,10 @@ data class AnimationInventory(
 /** Whether [cls] is included for animation (a `@KSLAnimatedEntity(include=false)` opts it out). Defensive. */
 private fun entityIncluded(cls: KClass<out ProcessModel.Entity>): Boolean =
     try { cls.findAnnotation<KSLAnimatedEntity>()?.include ?: true } catch (_: Throwable) { true }
+
+/** Whether [cls] is an agent type (an `AgentModel.Agent` subclass); its visual-ness is runtime-conditional (G3). */
+private fun entityIsAgent(cls: KClass<out ProcessModel.Entity>): Boolean =
+    try { cls.isSubclassOf(AgentModel.Agent::class) } catch (_: Throwable) { false }
 
 /**
  * The animatable processes declared on entity class [cls] (10.1b): the `@KSLAnimatedProcess`-annotated
@@ -329,7 +336,7 @@ fun Model.animationInventory(): AnimationInventory {
     // Keep all discovered types (10.1d): a @KSLAnimatedEntity(include=false) is recorded with include=false
     // rather than dropped, so the manifest can drive capture exclusion and the editor can show/toggle it.
     val entityTypes = entityClasses
-        .map { (name, cls) -> EntityTypeInfo(name, processesOf(cls), include = entityIncluded(cls)) }
+        .map { (name, cls) -> EntityTypeInfo(name, processesOf(cls), include = entityIncluded(cls), isAgent = entityIsAgent(cls)) }
 
     return AnimationInventory(
         queues = queues.toList(),

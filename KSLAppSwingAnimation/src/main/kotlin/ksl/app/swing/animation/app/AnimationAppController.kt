@@ -504,7 +504,8 @@ class AnimationAppController(
      */
     fun withModelObjectClasses(layout: AnimationLayout): AnimationLayout =
         layout.withSeededObjectClasses(
-            inventory.entityTypes.filter { it.include }.map { it.typeName },
+            // Process entities only: agents are seeded from the trace (movers), since agent visual-ness is runtime (G3).
+            inventory.entityTypes.filter { it.include && !it.isAgent }.map { it.typeName },
             objectGlyphSize(layout.spaces)
         )
 
@@ -1063,12 +1064,16 @@ class AnimationAppController(
     }
 
     /**
-     * Entity/agent type names to offer in the object-style editor: once a trace exists, the types actually seen
-     * animating in it — so control-only entities (e.g. a dispatcher / order-generator) that never draw aren't
-     * listed as styleable; before any run, the structural entity types from the inventory for author-time styling.
+     * Entity/agent type names to offer in the object-style editor. Process entities are always drawn by the
+     * process-view machinery, so they're surfaced structurally (author-time). An agent's visual-ness is a runtime
+     * property (drawn only if projected/moved), so agent types are offered post-run from the trace — the movers it
+     * actually showed — which keeps control-only agents (e.g. a dispatcher / order-generator) that never draw off
+     * the list, before and after a run. See G3.
      */
-    fun objectStyleTypeNames(): List<String> =
-        if (hasTrace()) objectTypeNamesFromLastTrace() else inventory.namesOf(ElementKind.ENTITY_TYPE)
+    fun objectStyleTypeNames(): List<String> {
+        val processEntities = inventory.entityTypes.filter { it.include && !it.isAgent }.map { it.typeName }
+        return if (hasTrace()) (processEntities + objectTypeNamesFromLastTrace()).distinct() else processEntities
+    }
 
     private var currentHandle: RunHandle? = null
 
