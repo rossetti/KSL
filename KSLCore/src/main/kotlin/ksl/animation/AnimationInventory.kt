@@ -108,6 +108,14 @@ data class EntityTypeInfo(
 )
 
 /**
+ * A named spatial location (landmark / point of interest) an agent context declared via `Context.location(...)`
+ * (G1): its [name] and, when the coordinates are known, its ([x], [y]) — so auto-layout can place it. A
+ * coordinate-free location (e.g. a `DistancesModel` name) has null [x]/[y] and is positioned later (MDS).
+ */
+@Serializable
+data class LocationInfo(val name: String, val x: Double? = null, val y: Double? = null)
+
+/**
  * The animatable elements a model exposes (9A.3): the structural model elements, plus spatial spaces
  * (from agent projections) and location names (from any `DistancesModel`). Built from a *probe* model —
  * no simulation — and used to drive the editor pick-lists and author-time validation (9A.5), so capture
@@ -133,8 +141,9 @@ data class AnimationInventory(
     val conveyorInfos: List<ConveyorInfo> = emptyList(),
     val agentModels: List<String> = emptyList(),        // agent-capture granularity (individual agents are runtime)
     val spaces: List<SpaceInfo> = emptyList(),
-    val locations: List<String> = emptyList(),           // DistancesModel location names (e.g. for station markers)
-    val entityTypes: List<EntityTypeInfo> = emptyList()  // entity/agent types + their processes (10.1a/10.1b)
+    val locations: List<String> = emptyList(),           // named spatial locations (DistancesModel + agent Context.location)
+    val entityTypes: List<EntityTypeInfo> = emptyList(),  // entity/agent types + their processes (10.1a/10.1b)
+    val locationInfos: List<LocationInfo> = emptyList()  // named locations with positions where known (G1)
 ) {
     /** True when [responseName] is backed by a time-weighted response (`TWResponse`) rather than a tally. */
     fun isTimeWeighted(responseName: String): Boolean = responseName in timeWeightedResponses
@@ -235,6 +244,7 @@ fun Model.animationInventory(): AnimationInventory {
     val agentModels = LinkedHashSet<String>()
     val spaces = LinkedHashMap<String, SpaceInfo>()
     val locations = LinkedHashSet<String>()
+    val locationInfos = LinkedHashMap<String, LocationInfo>()
     // Entity types are collected as KClasses (keyed by simpleName) so their @KSLAnimatedProcess members can be
     // reflected (10.1b); EntityType elements are handled here rather than in the when below.
     val entityClasses = LinkedHashMap<String, KClass<out ProcessModel.Entity>>()
@@ -280,6 +290,12 @@ fun Model.animationInventory(): AnimationInventory {
                         is VoxelProjection<*> ->
                             spaces.putIfAbsent(p.name, SpaceInfo(p.name, SpaceInfo.SpaceKind.GRID, cols = p.columns, rows = p.rows, torus = p.torus))
                         else -> {} // Network projections have no drawn backdrop yet
+                    }
+                    // Named locations (landmarks / points of interest) declared on the context (G1): carry their
+                    // positions so auto-layout can place them without any hand-authored layout.
+                    for ((locName, pt) in ctx.namedLocations) {
+                        locations += locName
+                        locationInfos.putIfAbsent(locName, LocationInfo(locName, pt.x, pt.y))
                     }
                 }
             }
@@ -331,6 +347,7 @@ fun Model.animationInventory(): AnimationInventory {
         agentModels = agentModels.toList(),
         spaces = spaces.values.toList(),
         locations = locations.toList(),
-        entityTypes = entityTypes
+        entityTypes = entityTypes,
+        locationInfos = locationInfos.values.toList()
     )
 }

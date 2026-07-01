@@ -33,6 +33,8 @@ import kotlinx.coroutines.swing.Swing
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
+import ksl.animation.LayoutPoint
+import ksl.animation.LocationLayoutElement
 import ksl.animation.TraceFileReader
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.replay.ObjectTypeNames
@@ -422,6 +424,7 @@ class AnimationAppController(
             ?.let { withScaffoldedSpaces(it) }
             ?.let { withModelObjectClasses(it) }
             ?.let { withMoverPositionsAtHome(it) }
+            ?.let { withModelLocations(it) }
 
     /**
      * Anchors each scaffolded movable resource at its home-base station's placed position (filling `homeBase`
@@ -483,7 +486,7 @@ class AnimationAppController(
             // the trace, framed by their declared space even without planar coordinates.
             if (extentAcc.result() == null && hasMovers && !hasAgents) return@runCatching null
             val replay = ReplayModel.build(AnimationSource(layout = null, header = header, events = events))
-            withModelGeometry(replay.autoLayout(events))
+            withModelLocations(withModelGeometry(replay.autoLayout(events)))
         }.getOrNull()
     }
 
@@ -504,6 +507,21 @@ class AnimationAppController(
             inventory.entityTypes.filter { it.include }.map { it.typeName },
             objectGlyphSize(layout.spaces)
         )
+
+    /**
+     * Stamps a `LocationLayoutElement` for each model-declared named location that has known coordinates
+     * (an agent `Context.location(...)` — e.g. a depot / drop-off), unless the layout already has it (G1).
+     * These are structural (from the inventory), like the space geometry, so a trace that never *moves*
+     * between them still surfaces them. Coordinate-free names (null position) are left for MDS placement.
+     */
+    fun withModelLocations(layout: AnimationLayout): AnimationLayout {
+        val have = layout.locations.map { it.locationName }.toSet()
+        val add = inventory.locationInfos.mapNotNull { li ->
+            val x = li.x; val y = li.y // local vals: a cross-module nullable prop won't smart-cast
+            if (x != null && y != null && li.name !in have) LocationLayoutElement(li.name, LayoutPoint(x, y)) else null
+        }
+        return if (add.isEmpty()) layout else layout.copy(locations = layout.locations + add)
+    }
 
     /**
      * Ensures an agent model's space(s) are placed in the scaffolded [layout] (10.8, §7.2). Grid agents emit

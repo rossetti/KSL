@@ -1550,6 +1550,25 @@ open class AgentModel(
         val geometries: Map<String, GridGraph>
             get() = _geometries
 
+        /** Named locations (landmarks / points of interest) declared in this context's space (G1). */
+        private val _namedLocations = LinkedHashMap<String, Point2D>()
+
+        /**
+         * Declare a named location (a landmark / point of interest) at ([x], [y]) in this context's space — a
+         * depot, drop-off, station, etc. Like [attachGeometry], this is for animation/extraction only: the
+         * animation layer surfaces and places it (no hand-authored layout needed); it does **not** change
+         * simulation behavior. Re-declaring a name overwrites its position.
+         */
+        fun location(name: String, x: Double, y: Double) { _namedLocations[name] = Point2D(x, y) }
+        /** Declares a named location at [point]. */
+        fun location(name: String, point: Point2D) = location(name, point.x, point.y)
+        /** Declares a named location at [point], flattening 3-D to its x–y footprint (G8). */
+        fun location(name: String, point: Point3D) = location(name, point.x, point.y)
+
+        /** The named locations declared via [location], keyed by name. */
+        val namedLocations: Map<String, Point2D>
+            get() = _namedLocations
+
         /** Flow fields declared for the flow-field overlay (G11), keyed by the space they overlay. */
         private val _flowFields: MutableMap<String, FlowField> = mutableMapOf()
 

@@ -233,6 +233,13 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
         Voxel(15, 28, 0),   // middle of north edge
     )
 
+    init {
+        // Name the depot and drop-off points so the animation surfaces and auto-places them (G1) — no
+        // hand-authored layout. Positions are the voxel centers, flattened to x–y; extraction-only.
+        sky.location("Depot", voxelCenter(depot))
+        deliveryPoints.forEachIndexed { i, v -> sky.location("Drop ${i + 1}", voxelCenter(v)) }
+    }
+
     // ── Order type ─────────────────────────────────────────────────────────
 
     data class Order(val deliveryVoxel: Voxel, val createdAt: Double)
