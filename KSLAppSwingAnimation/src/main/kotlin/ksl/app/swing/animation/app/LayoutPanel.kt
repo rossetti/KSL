@@ -843,8 +843,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         form.add(JLabel("label text")); form.add(labelText)
         form.add(JLabel("label dx,dy")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(labelDx); add(labelDy) })
         form.add(JLabel("")); form.add(labelShow)
-        form.add(JLabel("value dx,dy")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(valueDx); add(valueDy) })
-        form.add(JLabel("")); form.add(valueShow)
+        // The live value/state annotation applies only to elements that draw one; a station/location has none, so
+        // its "show value" control would be inert — hide it there (the name label above still applies).
+        val showsLiveValue = kind != ElementKind.STATION && kind != ElementKind.LOCATION
+        if (showsLiveValue) {
+            form.add(JLabel("value dx,dy")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(valueDx); add(valueDy) })
+            form.add(JLabel("")); form.add(valueShow)
+        }
 
         val choice = JOptionPane.showConfirmDialog(
             this, form, "Edit $name (${kind.label()})", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE

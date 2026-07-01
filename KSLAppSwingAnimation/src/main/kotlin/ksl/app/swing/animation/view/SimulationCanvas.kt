@@ -198,8 +198,8 @@ class SimulationCanvas : JPanel() {
         }
         // Station-network entities (QObjects): placed at their current station's layout position
         // (name→position resolution). They have no type, so use a default "QObject" style. Multiple
-        // at one station are fanned out slightly so they don't fully overlap (8G.2).
-        if (layout?.stations?.isNotEmpty() == true) {
+        // at one station are fanned out slightly so they don't fully overlap (8G.2). Off by default (opt-in).
+        if (showStationContents && layout?.stations?.isNotEmpty() == true) {
             val perStation = HashMap<String, Int>()
             for (id in r.networkEntitiesAt(t)) {
                 val key = r.networkEntityTypeOf(id) ?: "QObject"
@@ -1139,6 +1139,11 @@ class SimulationCanvas : JPanel() {
         set(value) { field = value; repaint() }
 
     var showGrid: Boolean = false
+        set(value) { field = value; repaint() }
+
+    /** Whether to draw the station-network entities (QObjects) currently at each station. Off by default — the
+     *  per-station item glyphs are noisy and obscure the station icons; opt in from the toolbar. */
+    var showStationContents: Boolean = false
         set(value) { field = value; repaint() }
 
     private fun drawGrid(g2: Graphics2D, tx: AffineTransform) {

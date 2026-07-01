@@ -69,6 +69,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     private val pathsToggle = JCheckBox("Show paths", true)
     private val vectorsToggle = JCheckBox("Show vectors", true)
     private val pulsesToggle = JCheckBox("Show pulses", true)
+    private val stationItemsToggle = JCheckBox("Show station items") // off by default; the per-station glyphs are noisy
     private val panToggle = JToggleButton("Pan", true)
     private val coordLabel = JLabel(" ")
 
@@ -136,6 +137,10 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
         add(pulsesToggle.apply {
             toolTipText = "Show transient event highlights (e.g. completed deliveries), when the trace carries them"
             addActionListener { canvas.showMarkerPulses = isSelected }
+        })
+        add(stationItemsToggle.apply {
+            toolTipText = "Show the items currently at each network station (off by default — the per-station glyphs are noisy)"
+            addActionListener { canvas.showStationContents = isSelected }
         })
         add(JButton("Zoom +").apply { addActionListener { canvas.zoomIn() } })
         add(JButton("Zoom −").apply { addActionListener { canvas.zoomOut() } })

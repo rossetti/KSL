@@ -1,13 +1,17 @@
 package ksl.app.swing.animation.replay
 
 import ksl.animation.AnimationEvent
+import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
+import ksl.animation.LayoutPoint
+import ksl.animation.NetworkStationLayoutElement
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -160,6 +164,30 @@ class AutoLayoutTest {
         assertNotNull(enter, "Enter is placed")
         assertEquals(80.0, enter.x, 1e-9, "Enter at its real coordinate (Cartesian branch, not a ring)")
         assertEquals(380.0, enter.y, 1e-9)
+    }
+
+    @Test
+    fun `station contents draw only when the toggle is on (off by default)`() {
+        assertFalse(SimulationCanvas().showStationContents, "station contents are off by default")
+        val layout = AnimationLayout(
+            width = 200.0, height = 200.0,
+            stations = listOf(NetworkStationLayoutElement("S", LayoutPoint(100.0, 100.0)))
+        )
+        val evs = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.EnteredNetwork(0.0, 1L, "Net", "S"),
+            AnimationEvent.StationEntered(0.0, 1L, "S")
+        )
+        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), evs))
+        fun painted(showContents: Boolean): Int {
+            val canvas = SimulationCanvas().apply { setSize(300, 300); replay = model; currentTime = 1.0; showStationContents = showContents }
+            val img = BufferedImage(300, 300, BufferedImage.TYPE_INT_RGB)
+            val g = img.createGraphics(); canvas.paint(g); g.dispose()
+            var n = 0
+            for (y in 0 until img.height) for (x in 0 until img.width) if (img.getRGB(x, y) and 0xffffff != 0xffffff) n++
+            return n
+        }
+        assertTrue(painted(true) > painted(false), "the item at the station draws only with the toggle on")
     }
 
     private fun paintedPixels(replay: ReplayModel): Int {
