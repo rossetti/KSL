@@ -1,7 +1,12 @@
 package ksl.app.swing.animation.replay
 
+import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
+import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
+import ksl.animation.LayoutPoint
+import ksl.animation.LocationLayoutElement
+import ksl.animation.PathDefinition
 import ksl.app.swing.animation.io.AnimationSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -61,5 +66,42 @@ class PositionInterpolatorTest {
 
         // Agent samples 0 -> 4 over [0,2]; halfway at t=1.
         assertEquals(2.0, replay.agentPositionAt("boid", 1.0)!!.x, 1e-9, "agent interpolated between samples")
+    }
+
+    @Test
+    fun `pointOn follows via waypoints by arc length`() {
+        // A(0,0) -> B(10,0) via a bump at (5,5): the two legs are equal length, so the arc-length midpoint is the bump.
+        val seg = MotionSegment(0.0, 10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, via = listOf(WorldPoint(5.0, 5.0)))
+        assertEquals(WorldPoint(0.0, 0.0, 0.0), PositionInterpolator.pointOn(seg, 0.0), "start")
+        assertEquals(WorldPoint(5.0, 5.0, 0.0), PositionInterpolator.pointOn(seg, 5.0), "midpoint sits on the waypoint, off the straight line")
+        assertEquals(WorldPoint(10.0, 0.0, 0.0), PositionInterpolator.pointOn(seg, 10.0), "end")
+    }
+
+    @Test
+    fun `bounds includes via waypoints`() {
+        val track = MotionTrack().apply { add(MotionSegment(0.0, 10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, via = listOf(WorldPoint(5.0, 8.0)))) }
+        assertEquals(8.0, track.bounds()!!.maxY, 1e-9, "the via waypoint extends the bbox above the endpoints")
+    }
+
+    @Test
+    fun `a mover follows an authored functional path between locations`() {
+        val layout = AnimationLayout(
+            locations = listOf(LocationLayoutElement("A", LayoutPoint(0.0, 0.0)), LocationLayoutElement("B", LayoutPoint(10.0, 0.0))),
+            paths = listOf(PathDefinition("p", listOf(LayoutPoint(5.0, 5.0)), from = AnchorRef.location("A"), to = AnchorRef.location("B")))
+        )
+        val events = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.SpatialElementMoved(
+                0.0, "T", fromX = Double.NaN, fromY = Double.NaN, toX = Double.NaN, toY = Double.NaN,
+                velocity = 1.0, duration = 10.0, arrivalTime = 10.0, fromLocationName = "A", toLocationName = "B"
+            )
+        )
+        val replay = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), events))
+        val mid = replay.spatialElementPositionAt("T", 5.0)!!
+        assertEquals(5.0, mid.x, 1e-9)
+        assertEquals(5.0, mid.y, 1e-9, "mid-move sits on the waypoint, off the straight y=0 line")
+        val end = replay.spatialElementPositionAt("T", 10.0)!!
+        assertEquals(10.0, end.x, 1e-9, "arrives at B")
+        assertEquals(0.0, end.y, 1e-9)
     }
 }

@@ -21,32 +21,64 @@ package ksl.app.swing.animation.replay
 /** A position in world coordinates (z defaults to 0 for 2D). */
 data class WorldPoint(val x: Double, val y: Double, val z: Double = 0.0)
 
-/** A constant-velocity straight-line move from one point to another over `[t0, t1]`. */
+/**
+ * A move from one point to another over `[t0, t1]`. Straight-line by default; when [via] carries intermediate
+ * waypoints (an authored functional path) the move follows the polyline start · via · end, arc-length-timed.
+ */
 data class MotionSegment(
     val t0: Double, val t1: Double,
     val x0: Double, val y0: Double, val z0: Double,
-    val x1: Double, val y1: Double, val z1: Double
+    val x1: Double, val y1: Double, val z1: Double,
+    val via: List<WorldPoint> = emptyList()
 )
 
+/** The point at arc-length fraction [f] (0..1) along the polyline [poly]; a plain lerp when [poly] has two points. */
+fun pointAlongPolyline(poly: List<WorldPoint>, f: Double): WorldPoint {
+    if (poly.isEmpty()) return WorldPoint(0.0, 0.0, 0.0)
+    if (poly.size == 1) return poly[0]
+    fun dist(a: WorldPoint, b: WorldPoint) =
+        kotlin.math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z))
+    val lens = DoubleArray(poly.size - 1) { dist(poly[it], poly[it + 1]) }
+    val total = lens.sum()
+    if (total <= 1e-9) return poly.first()
+    var target = f.coerceIn(0.0, 1.0) * total
+    for (i in lens.indices) {
+        if (target <= lens[i] || i == lens.size - 1) {
+            val ff = (target / lens[i].coerceAtLeast(1e-9)).coerceIn(0.0, 1.0)
+            val a = poly[i]; val b = poly[i + 1]
+            return WorldPoint(a.x + ff * (b.x - a.x), a.y + ff * (b.y - a.y), a.z + ff * (b.z - a.z))
+        }
+        target -= lens[i]
+    }
+    return poly.last()
+}
+
 /**
- * Pure linear interpolation over a [MotionSegment]. The renderer's smooth movement: given a move's
- * endpoints and times, the position at any replay time is computed without intermediate events.
+ * Pure interpolation over a [MotionSegment]. The renderer's smooth movement: given a move's endpoints and
+ * times, the position at any replay time is computed without intermediate events.
  */
 object PositionInterpolator {
     /**
-     * The point on [seg] at time [t]: the start point at/ before `t0`, the end point at/after `t1`
-     * (so an entity holds at its destination after arriving), and a linear blend in between. A
-     * zero/negative-duration segment yields the start point.
+     * The point on [seg] at time [t]: the start point at/before `t0`, the end point at/after `t1` (so an entity
+     * holds at its destination after arriving), and a blend in between — a straight lerp, or along the segment's
+     * waypoints when set. A zero/negative-duration segment yields the start point.
      */
     fun pointOn(seg: MotionSegment, t: Double): WorldPoint {
         if (t <= seg.t0 || seg.t1 <= seg.t0) return WorldPoint(seg.x0, seg.y0, seg.z0)
         if (t >= seg.t1) return WorldPoint(seg.x1, seg.y1, seg.z1)
         val f = (t - seg.t0) / (seg.t1 - seg.t0)
-        return WorldPoint(
-            seg.x0 + f * (seg.x1 - seg.x0),
-            seg.y0 + f * (seg.y1 - seg.y0),
-            seg.z0 + f * (seg.z1 - seg.z0)
-        )
+        if (seg.via.isEmpty()) {
+            return WorldPoint(
+                seg.x0 + f * (seg.x1 - seg.x0),
+                seg.y0 + f * (seg.y1 - seg.y0),
+                seg.z0 + f * (seg.z1 - seg.z0)
+            )
+        }
+        val poly = ArrayList<WorldPoint>(seg.via.size + 2)
+        poly.add(WorldPoint(seg.x0, seg.y0, seg.z0))
+        poly.addAll(seg.via)
+        poly.add(WorldPoint(seg.x1, seg.y1, seg.z1))
+        return pointAlongPolyline(poly, f)
     }
 }
 
@@ -70,7 +102,8 @@ class MotionTrack {
         var minX = Double.POSITIVE_INFINITY; var minY = Double.POSITIVE_INFINITY
         var maxX = Double.NEGATIVE_INFINITY; var maxY = Double.NEGATIVE_INFINITY
         for (s in segments) {
-            for ((x, y) in listOf(s.x0 to s.y0, s.x1 to s.y1)) {
+            val pts = listOf(s.x0 to s.y0, s.x1 to s.y1) + s.via.map { it.x to it.y }
+            for ((x, y) in pts) {
                 if (x.isNaN() || y.isNaN()) continue
                 if (x < minX) minX = x; if (x > maxX) maxX = x
                 if (y < minY) minY = y; if (y > maxY) maxY = y

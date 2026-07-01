@@ -46,8 +46,12 @@ enum class EntityActivityKind { IN_QUEUE, IN_SERVICE, FREE }
 /** An entity occupying a storage at a point in time, with the delay window for progress (8K.4). */
 data class StorageMember(val entityId: Long, val startTime: Double, val arrivalTime: Double)
 
-/** A network entity's straight-line transit between two stations over [tStart, tEnd] (8I.4). */
-data class TransitSegment(val tStart: Double, val from: WorldPoint, val tEnd: Double, val to: WorldPoint)
+/** A network entity's transit between two stations over [tStart, tEnd] (8I.4); [via] carries an authored path's
+ *  intermediate waypoints when one exists (else empty = straight line). */
+data class TransitSegment(
+    val tStart: Double, val from: WorldPoint, val tEnd: Double, val to: WorldPoint,
+    val via: List<WorldPoint> = emptyList()
+)
 
 /** Bookkeeping for an entity's currently-open delay, so [DelayEnded] can find its storage key (8K.4). */
 internal data class OpenDelay(val key: String, val member: StorageMember)
@@ -108,7 +112,7 @@ class ConveyorGeometry private constructor(private val segments: List<Seg>) {
         if (cell >= segments.last().endCell) return segments.last().poly.last()
         val seg = segments.firstOrNull { cell in it.startCell..it.endCell } ?: return null
         val span = seg.endCell - seg.startCell
-        return pointAlong(seg.poly, if (span <= 0) 0.0 else (cell - seg.startCell).toDouble() / span)
+        return pointAlongPolyline(seg.poly, if (span <= 0) 0.0 else (cell - seg.startCell).toDouble() / span)
     }
 
     companion object {
@@ -126,27 +130,6 @@ class ConveyorGeometry private constructor(private val segments: List<Seg>) {
             if (segs.isEmpty() && sorted.size == 1) sorted[0].let { segs.add(Seg(it.second, it.second, listOf(it.third))) }
             return ConveyorGeometry(segs)
         }
-
-        /** The point at arc-length fraction [f] (0..1) along [poly]. */
-        private fun pointAlong(poly: List<WorldPoint>, f: Double): WorldPoint {
-            if (poly.size == 1) return poly[0]
-            val lens = DoubleArray(poly.size - 1) { dist(poly[it], poly[it + 1]) }
-            val total = lens.sum()
-            if (total <= 1e-9) return poly.first()
-            var target = f.coerceIn(0.0, 1.0) * total
-            for (i in lens.indices) {
-                if (target <= lens[i] || i == lens.size - 1) {
-                    val ff = (target / lens[i].coerceAtLeast(1e-9)).coerceIn(0.0, 1.0)
-                    val a = poly[i]; val b = poly[i + 1]
-                    return WorldPoint(a.x + ff * (b.x - a.x), a.y + ff * (b.y - a.y), a.z + ff * (b.z - a.z))
-                }
-                target -= lens[i]
-            }
-            return poly.last()
-        }
-
-        private fun dist(a: WorldPoint, b: WorldPoint): Double =
-            kotlin.math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z))
     }
 }
 
@@ -396,11 +379,14 @@ class ReplayModel(
     fun networkEntityTransitAt(id: Long, t: Double): WorldPoint? {
         val seg = networkTransit[id]?.firstOrNull { t >= it.tStart && t < it.tEnd } ?: return null
         val f = ((t - seg.tStart) / (seg.tEnd - seg.tStart)).coerceIn(0.0, 1.0)
-        return WorldPoint(
-            seg.from.x + f * (seg.to.x - seg.from.x),
-            seg.from.y + f * (seg.to.y - seg.from.y),
-            seg.from.z + f * (seg.to.z - seg.from.z)
-        )
+        if (seg.via.isEmpty()) {
+            return WorldPoint(
+                seg.from.x + f * (seg.to.x - seg.from.x),
+                seg.from.y + f * (seg.to.y - seg.from.y),
+                seg.from.z + f * (seg.to.z - seg.from.z)
+            )
+        }
+        return pointAlongPolyline(listOf(seg.from) + seg.via + seg.to, f)
     }
 
     /** The conveyor entry location an entity is blocked at (waiting to board) at [t], else null (8G.8). */
@@ -547,15 +533,17 @@ class ReplayModel(
                     is AnimationEvent.MoveStarted -> {
                         val (fx, fy, fz) = resolvePoint(event.fromX, event.fromY, event.fromZ, event.fromLocationName)
                         val (tx, ty, tz) = resolvePoint(event.toX, event.toY, event.toZ, event.toLocationName)
+                        val via = anchorResolver.pathBetween(event.fromLocationName, event.toLocationName) ?: emptyList()
                         entityMotion.getOrPut(event.entityId) { MotionTrack() }
-                            .add(MotionSegment(event.simTime, event.arrivalTime, fx, fy, fz, tx, ty, tz))
+                            .add(MotionSegment(event.simTime, event.arrivalTime, fx, fy, fz, tx, ty, tz, via))
                     }
                     is AnimationEvent.SpatialElementMoved -> {
                         // A movable/transport resource moving (8K.5); same interpolation + name resolution as entities.
                         val (fx, fy, fz) = resolvePoint(event.fromX, event.fromY, event.fromZ, event.fromLocationName)
                         val (tx, ty, tz) = resolvePoint(event.toX, event.toY, event.toZ, event.toLocationName)
+                        val via = anchorResolver.pathBetween(event.fromLocationName, event.toLocationName) ?: emptyList()
                         spatialMotion.getOrPut(event.name) { MotionTrack() }
-                            .add(MotionSegment(event.simTime, event.arrivalTime, fx, fy, fz, tx, ty, tz))
+                            .add(MotionSegment(event.simTime, event.arrivalTime, fx, fy, fz, tx, ty, tz, via))
                         moverStates.getOrPut(event.name) { StepTimeline() }
                             .add(event.simTime, MoverState(event.mode, event.carriedEntityId, event.carriedEntityType))
                     }
@@ -697,8 +685,9 @@ class ReplayModel(
                         lastStationExit.remove(event.entityId)?.let { (fromName, exitTime) ->
                             val from = anchorResolver.station(fromName); val to = anchorResolver.station(event.stationName)
                             if (from != null && to != null && event.simTime > exitTime) {
+                                val via = anchorResolver.pathBetween(fromName, event.stationName) ?: emptyList()
                                 networkTransit.getOrPut(event.entityId) { ArrayList() }
-                                    .add(TransitSegment(exitTime, from, event.simTime, to))
+                                    .add(TransitSegment(exitTime, from, event.simTime, to, via))
                             }
                         }
                     }
