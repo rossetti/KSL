@@ -104,4 +104,27 @@ class PositionInterpolatorTest {
         assertEquals(10.0, end.x, 1e-9, "arrives at B")
         assertEquals(0.0, end.y, 1e-9)
     }
+
+    @Test
+    fun `a Cartesian move follows its named location's placed position (drag stays connected)`() {
+        // The trace says the entity moves to (560,180); the layout places "Station2" elsewhere, as if the user
+        // dragged it. The animation must follow the layout position, not the raw trace coordinate.
+        val layout = AnimationLayout(
+            locations = listOf(
+                LocationLayoutElement("Enter", LayoutPoint(80.0, 380.0)),
+                LocationLayoutElement("Station2", LayoutPoint(600.0, 200.0)) // moved from the trace's (560,180)
+            )
+        )
+        val events = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.MoveStarted(
+                0.0, 1L, fromX = 80.0, fromY = 380.0, toX = 560.0, toY = 180.0,
+                velocity = 30.0, duration = 10.0, arrivalTime = 10.0, fromLocationName = "Enter", toLocationName = "Station2"
+            )
+        )
+        val replay = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), events))
+        val end = replay.entityPositionAt(1L, 10.0)!!
+        assertEquals(600.0, end.x, 1e-9, "arrives at the placed location, not the trace coordinate (560)")
+        assertEquals(200.0, end.y, 1e-9)
+    }
 }

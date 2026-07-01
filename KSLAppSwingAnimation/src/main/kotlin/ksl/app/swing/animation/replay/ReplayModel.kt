@@ -470,9 +470,12 @@ class ReplayModel(
                 }
             }
             fun resolvePoint(x: Double, y: Double, z: Double, name: String?): Triple<Double, Double, Double> {
-                if (x.isFinite() && y.isFinite()) return Triple(x, y, z)
-                val p = name?.let { anchorResolver.resolve(it) }
-                return if (p != null) Triple(p.x, p.y, p.z) else Triple(x, y, z)
+                // Prefer the named location's placed layout position, so moving a location on the canvas moves where
+                // the animation actually goes (the marker stays connected to the motion). Fall back to the raw trace
+                // coordinate for moves with no named/placed location. A location's default position is its mined
+                // centroid (== the trace coordinate), so an unedited layout renders identically.
+                name?.let { anchorResolver.resolve(it) }?.let { return Triple(it.x, it.y, it.z) }
+                return Triple(x, y, z)
             }
 
             // Adjusts [x1] so the move from [x0] takes the short way around a torus of span [w].
