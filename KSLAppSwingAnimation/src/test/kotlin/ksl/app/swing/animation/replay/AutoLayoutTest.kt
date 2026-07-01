@@ -137,6 +137,31 @@ class AutoLayoutTest {
         assertTrue(layout.queues.all { it.growthDegrees == 180.0 }, "auto queues grow at 180°")
     }
 
+    @Test
+    fun `process-entity MoveStarted events surface named locations at their real coordinates`() {
+        // A process entity walking between named Euclidean points emits MoveStarted (movers emit
+        // SpatialElementMoved) — the miners must honor both so the endpoints show as located anchors, not just a
+        // moving glyph with nothing on the layout (Example02 MovingParts).
+        val evs = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.MoveStarted(
+                0.0, 1L, fromX = 80.0, fromY = 380.0, toX = 300.0, toY = 180.0,
+                velocity = 30.0, duration = 1.0, arrivalTime = 1.0, fromLocationName = "Enter", toLocationName = "Station1"
+            ),
+            AnimationEvent.MoveStarted(
+                1.0, 1L, fromX = 300.0, fromY = 180.0, toX = 560.0, toY = 180.0,
+                velocity = 30.0, duration = 1.0, arrivalTime = 2.0, fromLocationName = "Station1", toLocationName = "Station2"
+            )
+        )
+        val layout = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = evs)).autoLayout(evs)
+        val byName = layout.locations.associateBy { it.locationName }
+        assertTrue(byName.keys.containsAll(listOf("Enter", "Station1", "Station2")), "named endpoints surface: ${byName.keys}")
+        val enter = byName["Enter"]?.position
+        assertNotNull(enter, "Enter is placed")
+        assertEquals(80.0, enter.x, 1e-9, "Enter at its real coordinate (Cartesian branch, not a ring)")
+        assertEquals(380.0, enter.y, 1e-9)
+    }
+
     private fun paintedPixels(replay: ReplayModel): Int {
         val canvas = SimulationCanvas().apply { setSize(600, 400); this.replay = replay; currentTime = 0.0 }
         val image = BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)

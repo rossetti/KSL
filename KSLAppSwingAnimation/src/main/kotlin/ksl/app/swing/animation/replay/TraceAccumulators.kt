@@ -36,9 +36,10 @@ data class LocationSummary(val names: Set<String>, val centroids: Map<String, La
 data class MoverSummary(val names: Set<String>, val homes: Map<String, LayoutPoint>)
 
 /**
- * The world bounding box over the FINITE coordinates carried by `SpatialElementMoved` events. Non-Cartesian
- * spatial models (distance-, network-, great-circle-based) emit `NaN` coordinates (see `LocationIfc.x`), so
- * those are skipped and [result] is null when the trace carries no planar coordinate at all.
+ * The world bounding box over the FINITE coordinates carried by move events — `SpatialElementMoved` (movers) and
+ * `MoveStarted` (process entities). Non-Cartesian spatial models (distance-, network-, great-circle-based) emit
+ * `NaN` coordinates (see `LocationIfc.x`), so those are skipped and [result] is null when the trace carries no
+ * planar coordinate at all.
  */
 class ObservedExtent : TraceAccumulator<Rectangle2D.Double?> {
     private var minX = Double.POSITIVE_INFINITY
@@ -48,9 +49,10 @@ class ObservedExtent : TraceAccumulator<Rectangle2D.Double?> {
     private var any = false
 
     override fun accept(event: AnimationEvent) {
-        if (event is AnimationEvent.SpatialElementMoved) {
-            include(event.fromX, event.fromY)
-            include(event.toX, event.toY)
+        when (event) {
+            is AnimationEvent.SpatialElementMoved -> { include(event.fromX, event.fromY); include(event.toX, event.toY) }
+            is AnimationEvent.MoveStarted -> { include(event.fromX, event.fromY); include(event.toX, event.toY) }
+            else -> {}
         }
     }
 
@@ -66,10 +68,10 @@ class ObservedExtent : TraceAccumulator<Rectangle2D.Double?> {
 }
 
 /**
- * Collects every named travel location (from `SpatialElementMoved` location names and `ConveyorDefined`
- * anchors) and the running centroid of each one that reported FINITE coordinates. Names with only
- * non-Cartesian (`NaN`) coordinates are still listed but have no centroid, so the caller falls back to a
- * crude placement for them.
+ * Collects every named travel location (from `SpatialElementMoved` (movers) and `MoveStarted` (process entities)
+ * location names, and `ConveyorDefined` anchors) and the running centroid of each one that reported FINITE
+ * coordinates. Names with only non-Cartesian (`NaN`) coordinates are still listed but have no centroid, so the
+ * caller falls back to a crude placement for them.
  */
 class LocationCentroids : TraceAccumulator<LocationSummary> {
     private class Mean { var sx = 0.0; var sy = 0.0; var n = 0 }
@@ -80,6 +82,10 @@ class LocationCentroids : TraceAccumulator<LocationSummary> {
     override fun accept(event: AnimationEvent) {
         when (event) {
             is AnimationEvent.SpatialElementMoved -> {
+                add(event.fromLocationName, event.fromX, event.fromY)
+                add(event.toLocationName, event.toX, event.toY)
+            }
+            is AnimationEvent.MoveStarted -> { // process entities move via MoveStarted (movers via SpatialElementMoved)
                 add(event.fromLocationName, event.fromX, event.fromY)
                 add(event.toLocationName, event.toX, event.toY)
             }
