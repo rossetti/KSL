@@ -146,6 +146,14 @@ class PedestrianCrowdExample(parent: ModelElement, name: String? = null) :
         crowd, xRange = 0.0..worldSize, yRange = 0.0..worldSize,
     )
 
+    init {
+        // Name the doorway exits so the animation surfaces them as locations (the wall is already extracted as
+        // blocked cells). Cell center matches FlowField.centerOf via cellSize.
+        exits.forEachIndexed { i, c ->
+            crowd.location("Door ${i + 1}", c.col * cellSize + cellSize / 2.0, c.row * cellSize + cellSize / 2.0)
+        }
+    }
+
     /** Built per replication in [initialize]; sources = [exits]. */
     private lateinit var field: FlowField
 

@@ -125,6 +125,8 @@ class BuildingEvacuationExample(parent: ModelElement, name: String? = null) :
     init {
         // Link the wall graph to the animated grid so the obstacles can be extracted into the layout (P5a/G2).
         pedestrians.attachGeometry(grid, graph)
+        // Name the exits so the animation surfaces them as locations (unit grid cells, origin 0 → center col+0.5).
+        exits.forEachIndexed { i, c -> pedestrians.location("Exit ${i + 1}", c.col + 0.5, c.row + 0.5) }
     }
 
     // ── Responses ──────────────────────────────────────────────────────────

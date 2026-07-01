@@ -172,6 +172,11 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
     fun cellCenter(cell: Cell): Point2D =
         Point2D(cell.col * cellSize + cellSize / 2.0, cell.row * cellSize + cellSize / 2.0)
 
+    init {
+        // Surface the charger stations as named locations so the animation places them (extraction-first, no layout).
+        chargers.forEachIndexed { i, c -> world.location("Charger ${i + 1}", cellCenter(c)) }
+    }
+
     // ── AGV: the seizable, position-tracked body ───────────────────────────
 
     /**
