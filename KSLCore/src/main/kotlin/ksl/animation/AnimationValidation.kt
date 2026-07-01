@@ -18,6 +18,7 @@
 
 package ksl.animation
 
+import ksl.modeling.agent.AgentLike
 import ksl.modeling.entity.Resource
 import ksl.modeling.entity.ResourceWithQCIfc
 import ksl.modeling.queue.Queue
@@ -194,12 +195,12 @@ fun Model.scaffoldLayout(
     rowGap: Double = 70.0
 ): AnimationLayout {
     val elements = getModelElements()
-    // Movable/transport resources are Resources, but they animate as moving glyphs (drawn at interpolated
-    // positions), not as static boxes — keep them out of the static resource column and place them as
-    // movableResource(...) below. (Fixes the inventory-classification mismatch: the inventory reports them
-    // as MOVABLE_RESOURCE, so a static resource binding never matched.)
+    // Movable/transport resources and agent-resources (AgentResource/MovableAgentResource) are Resources, but they
+    // animate as moving glyphs (movers) or agents — not static boxes — so keep them out of the auto-placed resource
+    // column (movers are placed as movableResource(...) below; agent-resources animate from the trace). A modeler
+    // can still add either from the editor's Resource/Queue tools.
     val movableList = elements.filterIsInstance<MovableResource>()
-    val resourceList = elements.filterIsInstance<Resource>().filterNot { it is MovableResource }
+    val resourceList = elements.filterIsInstance<Resource>().filterNot { it is MovableResource || it is AgentLike }
     val allQueues = elements.filterIsInstance<Queue<*>>()
     val stationList = elements.filterIsInstance<Station>()
     // The DistancesModel (if any) whose named locations the movers travel between; used to place those
@@ -209,9 +210,11 @@ fun Model.scaffoldLayout(
         ?: elements.firstNotNullOfOrNull { it.spatialModel as? DistancesModel }
     // Queues owned by a ResourceWithQ are placed by resourceWithQ(); don't also place them standalone.
     val consumed = resourceList.filterIsInstance<ResourceWithQCIfc>().map { it.waitingQ.name }.toSet()
+    // Agent-resources' request queues aren't auto-placed either (their owners animate as agents); still editor-placeable.
+    val agentQueues = elements.filterIsInstance<ResourceWithQCIfc>().filter { it is AgentLike }.map { it.waitingQ.name }.toSet()
     // Honor each queue's reporting intent (P5): non-reporting queues (e.g. a movable resource's internal
     // :HomeBaseQ) are still captured, but not auto-placed — they otherwise clutter the starter layout.
-    val standaloneQueues = allQueues.filter { it.name !in consumed && it.defaultReportingOption }
+    val standaloneQueues = allQueues.filter { it.name !in consumed && it.name !in agentQueues && it.defaultReportingOption }
     val resTitle = title
 
     return animation {

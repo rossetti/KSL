@@ -1,6 +1,8 @@
 package ksl.app.swing.animation.app
 
+import ksl.animation.ElementKind
 import ksl.animation.animationInventory
+import ksl.animation.scaffoldLayout
 import ksl.examples.general.agent.BuildingEvacuationExample
 import ksl.examples.general.agent.DroneDeliveryExample
 import ksl.examples.general.agent.PedestrianCrowdExample
@@ -42,5 +44,19 @@ class ExampleLandmarkLocationsTest {
         val inv = Model("drone").also { DroneDeliveryExample(it, "d") }.animationInventory()
         assertTrue(inv.locations.containsAll(listOf("Depot", "Drop 1", "Drop 4")), "locations: ${inv.locations}")
         assertTrue(inv.locationInfos.any { it.name == "Depot" && it.x != null }, "Depot has a position")
+    }
+
+    @Test
+    fun `WarehouseAGV agent-resources are not auto-placed as static resources or queues, but stay editor-placeable`() {
+        val m = Model("agv").also { WarehouseAGVExample(it, "w") }
+        // Opt-in preserved (Batch C): the AGVs are still classified as resources/queues in the inventory, so a
+        // modeler can add a busy/idle glyph or their request queue from the editor's Resource/Queue tools.
+        val inv = m.animationInventory()
+        assertTrue(inv.namesOf(ElementKind.RESOURCE).any { it.startsWith("agv") }, "AGVs remain editor-placeable resources: ${inv.namesOf(ElementKind.RESOURCE)}")
+        assertTrue(inv.namesOf(ElementKind.QUEUE).any { it.startsWith("agv") }, "AGV request queues remain editor-placeable: ${inv.namesOf(ElementKind.QUEUE)}")
+        // But the scaffold does NOT auto-place them (they animate as moving agents, not static boxes/queues).
+        val scaffold = m.scaffoldLayout()
+        assertTrue(scaffold.resources.none { it.resourceName.startsWith("agv") }, "no AGV auto-placed as a static resource: ${scaffold.resources.map { it.resourceName }}")
+        assertTrue(scaffold.queues.none { it.queueName.startsWith("agv") }, "no AGV request queue auto-placed: ${scaffold.queues.map { it.queueName }}")
     }
 }

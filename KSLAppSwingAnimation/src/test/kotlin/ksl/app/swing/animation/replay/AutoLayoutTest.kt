@@ -190,6 +190,24 @@ class AutoLayoutTest {
         assertTrue(painted(true) > painted(false), "the item at the station draws only with the toggle on")
     }
 
+    @Test
+    fun `auto-layout excludes agent-resources (resource that is also an agent) and their queues`() {
+        // "agv-0" appears as a resource (ResourceStateChanged) + a queue AND as a moving agent — an agent-resource;
+        // it should animate only as an agent, not be auto-placed as a static resource + queue. "Server" is genuine.
+        val evs = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.ResourceStateChanged(0.0, "agv-0", "agv-0_Busy", busyUnits = 1, capacity = 1),
+            AnimationEvent.QueueLengthChanged(0.0, "agv-0:Q", 1),
+            AnimationEvent.AgentPositionChanged(0.0, "agv-0", "space", 5.0, 5.0),
+            AnimationEvent.ResourceStateChanged(0.0, "Server", "Server_Busy", busyUnits = 1, capacity = 1),
+            AnimationEvent.QueueLengthChanged(0.0, "Server:Q", 2)
+        )
+        val layout = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = evs)).autoLayout(evs)
+        assertTrue(layout.resources.none { it.resourceName == "agv-0" }, "agent-resource not auto-placed: ${layout.resources.map { it.resourceName }}")
+        assertTrue(layout.queues.none { it.queueName == "agv-0:Q" }, "its request queue not auto-placed: ${layout.queues.map { it.queueName }}")
+        assertTrue(layout.resources.any { it.resourceName == "Server" }, "a genuine service resource is still placed")
+    }
+
     private fun paintedPixels(replay: ReplayModel): Int {
         val canvas = SimulationCanvas().apply { setSize(600, 400); this.replay = replay; currentTime = 0.0 }
         val image = BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)

@@ -69,6 +69,13 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val conveyorAnchors = conveyorAcc.result()
     val storageKeys = storageAcc.result()
 
+    // Agent-resources (MovableAgentResource/AgentResource) emit resource + queue events AND animate as agents, so
+    // don't auto-place a static resource glyph + request queue for them (they'd double the moving-agent glyph). A
+    // modeler can still add either from the editor's Resource/Queue tools. Their resource name == their agent name
+    // (both agent.name); their default request queue is "<name>:Q".
+    val staticResources = resourceNames.filterNot { it in agentNames }
+    val staticQueues = queueNames.filterNot { qn -> agentNames.any { qn == "$it:Q" } }
+
     // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
     // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
     val objectTypes = typeAcc.result()
@@ -99,20 +106,20 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val rowY = { i: Int -> frame.y + margin + i * rowGap }
         val qHeadX = frame.maxX + margin + unit * 8   // queue-head column (members fill the gap to its left)
         val resColX = qHeadX + unit * 3               // servers, to the right of their queue head
-        val resourceRow = resourceNames.sorted().withIndex().associate { (i, n) -> n to i }
-        val resources = resourceNames.sorted().mapIndexed { i, name ->
+        val resourceRow = staticResources.sorted().withIndex().associate { (i, n) -> n to i }
+        val resources = staticResources.sorted().mapIndexed { i, name ->
             ResourceLayoutElement(resourceName = name, position = LayoutPoint(resColX, rowY(i)), size = unit)
         }
         val placedQueues = mutableSetOf<String>()
         val queues = mutableListOf<QueueLayoutElement>()
-        resourceNames.sorted().forEach { r ->
+        staticResources.sorted().forEach { r ->
             flow.queueOfResource[r]?.let { q ->
                 queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(resourceRow.getValue(r))), growthDegrees = 180.0, spacing = unit * 0.7)
                 placedQueues += q
             }
         }
-        var extraRow = resourceNames.size
-        queueNames.filter { it !in placedQueues }.sorted().forEach { q ->
+        var extraRow = staticResources.size
+        staticQueues.filter { it !in placedQueues }.sorted().forEach { q ->
             queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(extraRow++)), growthDegrees = 180.0, spacing = unit * 0.7)
         }
         // Named travel locations with a mined centroid become location anchors at their true positions (Phase 5:
@@ -141,7 +148,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val firstColX = originX + 160.0
     // Group resources into flow-stage columns; resources never seized in the trace trail as a final column.
     val maxRank = flow.ranks.values.maxOrNull() ?: -1
-    val byRank = resourceNames.groupBy { flow.ranks[it] ?: (maxRank + 1) }.toSortedMap()
+    val byRank = staticResources.groupBy { flow.ranks[it] ?: (maxRank + 1) }.toSortedMap()
     val resources = mutableListOf<ResourceLayoutElement>()
     val queues = mutableListOf<QueueLayoutElement>()
     val placedQueues = mutableSetOf<String>()
@@ -160,7 +167,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         maxRows = maxOf(maxRows, names.size)
     }
     // Queues with no observed server (never seen in a SeizeQueued) fall back to a left column.
-    queueNames.filter { it !in placedQueues }.sorted().forEachIndexed { i, name ->
+    staticQueues.filter { it !in placedQueues }.sorted().forEachIndexed { i, name ->
         queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap), growthDegrees = 180.0)
         maxRows = maxOf(maxRows, i + 1)
     }
