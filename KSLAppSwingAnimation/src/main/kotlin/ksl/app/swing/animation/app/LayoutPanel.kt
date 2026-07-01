@@ -71,9 +71,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     // Process colors (10.1e): edit the selected process's tint color.
     private val processColorField = JTextField(7).apply { text = "#ff7f0e" }
     // Editable tables (batch 3): one row per discovered entity type / process; edit the selected row in the strip.
-    // Object-style rows: structural entity types (inventory) ∪ agent/entity types observed in the last trace
-    // (agents are trace-only — not in the inventory), recomputed when a new run produces a trace (C3).
-    private var styleTypeNames: List<String> = controller.inventory.namesOf(ElementKind.ENTITY_TYPE)
+    // Object-style rows: the types actually seen animating in the last trace once a run exists (so control-only
+    // entities aren't offered), else the structural entity types from the inventory; recomputed on a new run.
+    private var styleTypeNames: List<String> = controller.objectStyleTypeNames()
     private val processNames: List<String> by lazy { controller.inventory.entityTypes.flatMap { it.processes }.map { it.name }.distinct() }
     private var styleTableModel: javax.swing.table.AbstractTableModel? = null
     private var procTableModel: javax.swing.table.AbstractTableModel? = null
@@ -136,7 +136,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     /** Object-style rows = inventory entity types ∪ the last trace's entity/agent types; refreshes the table (C3). */
     private fun recomputeStyleTypeNames() {
-        styleTypeNames = (controller.inventory.namesOf(ElementKind.ENTITY_TYPE) + controller.objectTypeNamesFromLastTrace()).distinct()
+        styleTypeNames = controller.objectStyleTypeNames()
         refreshObjectStyles()
     }
 
@@ -2335,7 +2335,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
      *  No layout extension — `.lay.toml` is appended exactly once on save. */
     private fun defaultLayoutName(): String {
         controller.layoutFile.value?.let { return stripLayoutExt(it.fileName.toString()) }
-        return (controller.layout.value?.title ?: "layout").replace(Regex("[^A-Za-z0-9-_.]"), "_")
+        // An unsaved layout defaults its file name to the model (like the trace file), not the layout title —
+        // auto-layouts are titled "Replay", which dropped the model prefix the user expects here.
+        return controller.suggestedLayoutBaseName()
     }
 
     /** Strips a trailing `.lay.toml`/`.lay.json` (repeatedly, to undo an accidental double-append) — so the

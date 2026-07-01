@@ -250,11 +250,13 @@ class DelayStorages : TraceAccumulator<List<String>> {
     private val named = LinkedHashSet<String>()
     private val bareTypes = LinkedHashSet<String>()
     private val seizedTypes = HashSet<String>()
+    private var hasAgents = false
 
     override fun accept(event: AnimationEvent) {
         when (event) {
             is AnimationEvent.EntityCreated -> entityType[event.entityId] = event.entityType
             is AnimationEvent.SeizeAllocated -> entityType[event.entityId]?.let { seizedTypes.add(it) }
+            is AnimationEvent.AgentPositionChanged -> hasAgents = true
             is AnimationEvent.DelayStarted -> {
                 val name = event.suspensionName
                 if (name != null) named.add(name) else entityType[event.entityId]?.let { bareTypes.add(it) }
@@ -263,5 +265,9 @@ class DelayStorages : TraceAccumulator<List<String>> {
         }
     }
 
-    override fun result(): List<String> = (named + (bareTypes - seizedTypes)).toList()
+    // In an agent/continuous model a bare delay is a movement/steering step, not a holding area, so a
+    // by-type storage there just double-draws the moving agents — drop bare-type storages when the trace
+    // has agents. Named delays are always kept (naming is intentional).
+    override fun result(): List<String> =
+        (named + (if (hasAgents) emptySet() else bareTypes - seizedTypes)).toList()
 }

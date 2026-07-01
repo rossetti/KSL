@@ -2,6 +2,7 @@ package ksl.app.swing.animation.app
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationTraceHeader
+import ksl.animation.ElementKind
 import ksl.animation.JsonLinesAnimationOutput
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
@@ -45,6 +46,27 @@ class ObjectTypeTraceTest {
                 )
             }
             assertEquals(setOf("Customer", "Person"), controller.objectTypeNamesFromLastTrace().toSet())
+        } finally {
+            controller.close()
+            ws.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `object style type names prefer the trace's animated types over the inventory`() {
+        val ws = Files.createTempDirectory(tempRoot, "anim-styletypes")
+        val controller = AnimationAppController("Types", builder).apply { workspaceOverride = ws }
+        try {
+            // No trace yet → fall back to the inventory's structural entity types (empty for this bare model).
+            assertEquals(controller.inventory.namesOf(ElementKind.ENTITY_TYPE), controller.objectStyleTypeNames())
+
+            Files.createDirectories(controller.tracesDir)
+            JsonLinesAnimationOutput.toFile(controller.tracesDir.resolve("t.atf")).use { out ->
+                out.writeHeader(AnimationTraceHeader())
+                out.writeAll(listOf(AnimationEvent.EntityCreated(0.0, 1L, "Customer"), AnimationEvent.AgentRegistered(0.0, "a1", "Person")))
+            }
+            // With a trace, only the types actually seen animating are offered (control-only entities excluded).
+            assertEquals(setOf("Customer", "Person"), controller.objectStyleTypeNames().toSet())
         } finally {
             controller.close()
             ws.toFile().deleteRecursively()

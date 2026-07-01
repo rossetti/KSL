@@ -421,6 +421,23 @@ class AnimationAppController(
         runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()
             ?.let { withScaffoldedSpaces(it) }
             ?.let { withModelObjectClasses(it) }
+            ?.let { withMoverPositionsAtHome(it) }
+
+    /**
+     * Anchors each scaffolded movable resource at its home-base station's placed position (filling `homeBase`
+     * from the inventory when absent), so it renders on the static Layout tab — the scaffold otherwise declares
+     * movers with no position, leaving them visible only during replay.
+     */
+    private fun withMoverPositionsAtHome(layout: AnimationLayout): AnimationLayout {
+        if (layout.movableResources.isEmpty()) return layout
+        val fallback = layout.stations.firstOrNull()?.position // park homeless movers somewhere visible
+        return layout.copy(movableResources = layout.movableResources.map { mr ->
+            if (mr.position != null) return@map mr // already positioned
+            val hb = mr.homeBase ?: inventory.movableHomeBases[mr.name]
+            val pos = hb?.let { layout.positionOf(ElementKind.STATION, it) } ?: fallback
+            mr.copy(homeBase = hb ?: mr.homeBase, position = pos)
+        })
+    }
 
     /** Generate and apply an auto-layout from the richest available source (see [buildAutoLayout]). */
     fun autoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO) {
@@ -1027,20 +1044,37 @@ class AnimationAppController(
         }.getOrElse { emptyList() }
     }
 
+    /**
+     * Entity/agent type names to offer in the object-style editor: once a trace exists, the types actually seen
+     * animating in it — so control-only entities (e.g. a dispatcher / order-generator) that never draw aren't
+     * listed as styleable; before any run, the structural entity types from the inventory for author-time styling.
+     */
+    fun objectStyleTypeNames(): List<String> =
+        if (hasTrace()) objectTypeNamesFromLastTrace() else inventory.namesOf(ElementKind.ENTITY_TYPE)
+
     private var currentHandle: RunHandle? = null
 
     /**
-     * Filesystem-safe, timestamped trace file name: the analysis name when set, else the model name, plus
-     * `_yyyyMMdd-HHmmss` so successive runs accumulate distinct traces in `traces/` rather than overwriting.
+     * Filesystem-safe base name for this model's artifacts: the analysis name when set, else the model name
+     * (else the app name). Shared by the trace file and the suggested layout file so both prefix with the model.
      */
-    private fun traceFileName(): String {
-        val raw = myOutputConfig.value.analysisName
-            .takeIf { it.isNotBlank() && it != SingleAppPaths.UNTITLED }
-            ?: modelName.ifBlank { appName }
-        val stem = raw.replace(Regex("[^A-Za-z0-9-_]"), "_")
-        val stamp = java.time.LocalDateTime.now().format(TRACE_TIMESTAMP)
-        return "${stem}_$stamp.atf"
-    }
+    private fun artifactBaseName(): String =
+        (myOutputConfig.value.analysisName.takeIf { it.isNotBlank() && it != SingleAppPaths.UNTITLED }
+            ?: modelName.ifBlank { appName })
+            .replace(Regex("[^A-Za-z0-9-_]"), "_")
+
+    /**
+     * Filesystem-safe, timestamped trace file name: the artifact base name plus `_yyyyMMdd-HHmmss` so successive
+     * runs accumulate distinct traces in `traces/` rather than overwriting.
+     */
+    private fun traceFileName(): String =
+        "${artifactBaseName()}_${java.time.LocalDateTime.now().format(TRACE_TIMESTAMP)}.atf"
+
+    /**
+     * Suggested base file name (no extension) for a *Save Layout As*, prefixed with the model exactly like the
+     * produced trace file — so a saved layout reads `<model>.lay.toml` instead of the auto-layout's title.
+     */
+    fun suggestedLayoutBaseName(): String = artifactBaseName()
 
     /**
      * Builds the model fresh, runs it, and writes a `.atf` trace honoring the authored [captureSpec] into

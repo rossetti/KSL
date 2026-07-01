@@ -29,6 +29,18 @@ class ObjectClassSeedingTest {
     }
 
     @Test
+    fun `glyph size is a fraction of a network's node span`() {
+        val net = SpatialSpaceDescriptor.Network(
+            "n",
+            nodes = listOf(
+                ksl.animation.NetworkNode("a", ksl.animation.LayoutPoint(0.0, 0.0)),
+                ksl.animation.NetworkNode("b", ksl.animation.LayoutPoint(100.0, 40.0))
+            )
+        )
+        assertEquals(1.2, objectGlyphSize(listOf(net))!!, 1e-9) // shorter span = 40 → 0.03 * 40
+    }
+
+    @Test
     fun `glyph size is null when there is no planar space`() {
         assertNull(objectGlyphSize(emptyList()))
         assertNull(objectGlyphSize(listOf(SpatialSpaceDescriptor.Network("n"))))

@@ -40,6 +40,21 @@ class StorageAutoLayoutTest {
     }
 
     @Test
+    fun `bare-delay storages are skipped in an agent model, but named delays remain`() {
+        val events = listOf(
+            AnimationEvent.ReplicationStarted(0.0, 1),
+            AnimationEvent.EntityCreated(0.0, 1L, "Pedestrian"),
+            AnimationEvent.AgentPositionChanged(0.0, "p1", "space", 1.0, 1.0),
+            AnimationEvent.DelayStarted(0.0, 1L, duration = 1.0, arrivalTime = 1.0), // bare → would be a "Pedestrian" storage
+            AnimationEvent.DelayStarted(0.0, 1L, duration = 1.0, arrivalTime = 1.0, suspensionName = "rest"),
+            AnimationEvent.DelayEnded(1.0, 1L)
+        )
+        val storages = autoLayoutOf(events).storages.map { it.suspensionName }
+        assertTrue(storages.none { it == "Pedestrian" }, "no by-type storage in an agent model: $storages")
+        assertContains(storages, "rest", "named delays are still placed even with agents")
+    }
+
+    @Test
     fun `a seize-delay-release service phase is not auto-placed (guard against double-drawing)`() {
         val events = listOf(
             AnimationEvent.ReplicationStarted(0.0, 1),

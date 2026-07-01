@@ -32,8 +32,8 @@ import ksl.animation.SpatialSpaceDescriptor
 
 /**
  * A sensible glyph diameter (world units) for objects living in [spaces]: about 0.7 of a grid cell, or a small
- * fraction of a continuous space's shorter span. Null when there is no planar space (process-view layouts,
- * where the default size already reads at canvas scale).
+ * fraction of a continuous/network space's shorter span. Null when there is no planar space (process-view
+ * layouts, where the default size already reads at canvas scale).
  */
 fun objectGlyphSize(spaces: List<SpatialSpaceDescriptor>): Double? {
     spaces.filterIsInstance<SpatialSpaceDescriptor.Grid>().firstOrNull()?.let {
@@ -42,6 +42,13 @@ fun objectGlyphSize(spaces: List<SpatialSpaceDescriptor>): Double? {
     spaces.filterIsInstance<SpatialSpaceDescriptor.Continuous>().firstOrNull()?.let {
         val span = minOf(it.xMax - it.xMin, it.yMax - it.yMin)
         if (span > 0.0) return (0.03 * span).coerceAtLeast(0.1)
+    }
+    spaces.filterIsInstance<SpatialSpaceDescriptor.Network>().firstOrNull()?.let { net ->
+        if (net.nodes.isNotEmpty()) {
+            val xs = net.nodes.map { it.position.x }; val ys = net.nodes.map { it.position.y }
+            val span = minOf(xs.max() - xs.min(), ys.max() - ys.min())
+            if (span > 0.0) return (0.03 * span).coerceAtLeast(0.1)
+        }
     }
     return null
 }

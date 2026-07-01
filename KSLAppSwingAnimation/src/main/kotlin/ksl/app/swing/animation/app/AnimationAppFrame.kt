@@ -444,7 +444,10 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     private fun handleSaveLayoutAs() {
         if (controller.layout.value == null) return showError("There is no layout to save. Scaffold or open one first.")
-        val path = chooseFile(open = false, "Save layout (.lay.toml)", "Animation layout (*.toml, *.json)", "toml", "json") ?: return
+        val path = chooseFile(
+            open = false, "Save layout (.lay.toml)", "Animation layout (*.toml, *.json)", "toml", "json",
+            defaultDir = controller.layoutsDir, defaultName = "${controller.suggestedLayoutBaseName()}.lay.toml"
+        ) ?: return
         runCatching { controller.saveLayout(path) }.onFailure { showError("Failed to save layout: ${it.message}") }
     }
 
@@ -467,10 +470,15 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private fun chooseFile(open: Boolean, dialogTitle: String, filterDesc: String, vararg ext: String): Path? {
+    private fun chooseFile(
+        open: Boolean, dialogTitle: String, filterDesc: String, vararg ext: String,
+        defaultDir: Path? = null, defaultName: String? = null
+    ): Path? {
         val chooser = JFileChooser().apply {
             this.dialogTitle = dialogTitle
             fileFilter = FileNameExtensionFilter(filterDesc, *ext)
+            defaultDir?.let { runCatching { java.nio.file.Files.createDirectories(it) }; currentDirectory = it.toFile() }
+            defaultName?.let { selectedFile = java.io.File(currentDirectory, it) }
         }
         val ok = if (open) chooser.showOpenDialog(this) else chooser.showSaveDialog(this)
         if (ok != JFileChooser.APPROVE_OPTION) return null
