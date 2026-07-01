@@ -147,8 +147,10 @@ class PedestrianCrowdExample(parent: ModelElement, name: String? = null) :
     )
 
     init {
-        // Name the doorway exits so the animation surfaces them as locations (the wall is already extracted as
-        // blocked cells). Cell center matches FlowField.centerOf via cellSize.
+        // Link the wall graph to the animated space so its blocked cells are extracted and drawn as an obstacle
+        // overlay; name the doorway exits so the animation surfaces them as locations in the gap. Cell center
+        // matches FlowField.centerOf via cellSize.
+        crowd.attachGeometry(space, graph)
         exits.forEachIndexed { i, c ->
             crowd.location("Door ${i + 1}", c.col * cellSize + cellSize / 2.0, c.row * cellSize + cellSize / 2.0)
         }

@@ -173,7 +173,9 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
         Point2D(cell.col * cellSize + cellSize / 2.0, cell.row * cellSize + cellSize / 2.0)
 
     init {
-        // Surface the charger stations as named locations so the animation places them (extraction-first, no layout).
+        // Link the rack graph to the animated space so its blocked cells draw as an obstacle overlay; surface the
+        // charger stations as named locations so the animation places them (extraction-first, no hand layout).
+        world.attachGeometry(space, graph)
         chargers.forEachIndexed { i, c -> world.location("Charger ${i + 1}", cellCenter(c)) }
     }
 

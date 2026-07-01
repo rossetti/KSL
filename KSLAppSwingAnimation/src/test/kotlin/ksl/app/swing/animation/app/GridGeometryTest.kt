@@ -6,6 +6,8 @@ import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.animationInventory
 import ksl.examples.general.animationbundle.Example04BuildingEvacuation
 import ksl.examples.general.agent.BuildingEvacuationExample
+import ksl.examples.general.agent.PedestrianCrowdExample
+import ksl.examples.general.agent.WarehouseAGVExample
 import ksl.modeling.agent.Cell
 import ksl.modeling.agent.GridGeometrySpec
 import ksl.modeling.agent.GridGraph
@@ -36,6 +38,27 @@ class GridGeometryTest {
         assertTrue(Cell(4, 5) in geom.blockedCells && Cell(5, 11) in geom.blockedCells)
         assertTrue(Cell(4, 7) !in geom.blockedCells, "row-7 doorway stays open")
         assertEquals(15, geom.cols); assertEquals(15, geom.rows)
+    }
+
+    @Test
+    fun `pedestrian-crowd wall is extracted with an open doorway (continuous space, Batch A)`() {
+        val m = Model("Crowd")
+        PedestrianCrowdExample(m, "crowd")
+        val space = m.animationInventory().spaces.firstOrNull { it.geometry != null }
+        assertNotNull(space, "the space with the linked wall geometry is in the inventory (attachGeometry)")
+        val geom = space.geometry!!
+        assertTrue(geom.blockedCells.isNotEmpty(), "the wall's blocked cells are extracted: ${geom.blockedCells.size}")
+        assertTrue(Cell(15, 0) in geom.blockedCells, "the wall column is blocked")
+        assertTrue(Cell(15, 12) !in geom.blockedCells, "the doorway (rows 11..13) stays open")
+    }
+
+    @Test
+    fun `warehouse-AGV racks are extracted into the inventory (Batch A)`() {
+        val m = Model("AGV")
+        WarehouseAGVExample(m, "agv")
+        val space = m.animationInventory().spaces.firstOrNull { it.geometry != null }
+        assertNotNull(space, "the space with the linked rack geometry is in the inventory (attachGeometry)")
+        assertTrue(space.geometry!!.blockedCells.isNotEmpty(), "the rack blocked cells are extracted")
     }
 
     @Test
