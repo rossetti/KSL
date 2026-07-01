@@ -67,11 +67,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private val pathNameField = JTextField(8)
     // Object styles strip (batch 3): edit the selected entity/agent type's glyph (shape/color/size/image).
     private val styleShape = JComboBox(ksl.animation.LayoutShape.entries.toTypedArray())
-    private val styleColor = JTextField(7).apply { text = "#1f77b4" }
+    private val styleColor = ColorSwatchField("#1f77b4")
     private val styleSize = JTextField(4).apply { text = "12" }
     private val styleImage = JTextField(12).apply { isEditable = false } // chosen image glyph (10.7c), blank = none
     // Process colors (10.1e): edit the selected process's tint color.
-    private val processColorField = JTextField(7).apply { text = "#ff7f0e" }
+    private val processColorField = ColorSwatchField("#ff7f0e")
     // Editable tables (batch 3): one row per discovered entity type / process; edit the selected row in the strip.
     // Object-style rows: the types actually seen animating in the last trace once a run exists (so control-only
     // entities aren't offered), else the structural entity types from the inventory; recomputed on a new run.
@@ -81,13 +81,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private var procTableModel: javax.swing.table.AbstractTableModel? = null
     private val conveyorListModel = javax.swing.DefaultListModel<String>()
     private val convWidth = JTextField(4)
-    private val convColor = JTextField(8)
+    private val convColor = ColorSwatchField("#1f77b4")
     private val convArrows = javax.swing.JCheckBox("direction arrows")
     private val storageListModel = javax.swing.DefaultListModel<String>()
     private val storageStyleCombo = JComboBox(ksl.animation.StorageStyle.entries.toTypedArray())
     private val stateColorListModel = javax.swing.DefaultListModel<String>()
     private val agentState = JTextField(10)
-    private val agentColor = JTextField(7).apply { text = "#d62728" }
+    private val agentColor = ColorSwatchField("#d62728")
     private val spaceListModel = javax.swing.DefaultListModel<String>()
     private val obstacleListModel = javax.swing.DefaultListModel<String>()
 
@@ -536,6 +536,26 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** Logical font families, guaranteed available on every JVM (cross-platform). */
     private val fontFamilies = arrayOf("SansSerif", "Serif", "Monospaced")
 
+    /**
+     * A stateful color swatch button for the always-visible edit strips: shows [hex] as its background, opens a
+     * JColorChooser on click, and can be reprogrammed via `hex = …` when the selected row changes. (The one-shot
+     * dialogs use `colorPicker` instead.)
+     */
+    private inner class ColorSwatchField(initial: String) : JButton() {
+        var hex: String = initial
+            set(value) { field = value; background = runCatching { java.awt.Color.decode(value) }.getOrDefault(java.awt.Color.BLACK) }
+        init {
+            isOpaque = true
+            preferredSize = java.awt.Dimension(48, 20)
+            toolTipText = "Click to choose a color"
+            background = runCatching { java.awt.Color.decode(initial) }.getOrDefault(java.awt.Color.BLACK)
+            addActionListener {
+                val picked = javax.swing.JColorChooser.showDialog(this, "Choose color", background)
+                if (picked != null) hex = String.format("#%02x%02x%02x", picked.red, picked.green, picked.blue)
+            }
+        }
+    }
+
     /** A swatch button that opens a color picker; returns the button plus a getter for the chosen hex color. */
     private fun colorPicker(initialHex: String): Pair<JButton, () -> String> {
         var hex = initialHex
@@ -797,15 +817,15 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         val plotEl = layout.plots.firstOrNull { it.responseName == name }
         val histEl = layout.histograms.firstOrNull { it.responseName == name }
         val barMax = if (!isResponse) null else JTextField(trimNum(barEl?.maxValue ?: 100.0), 6)
-        val barColor = if (!isResponse) null else JTextField(barEl?.color ?: "#1f77b4", 8)
+        val barColor = if (!isResponse) null else colorPicker(barEl?.color ?: "#1f77b4")
         val barW = if (!isResponse) null else JTextField(trimNum(barEl?.width ?: 120.0), 6)
         val barH = if (!isResponse) null else JTextField(trimNum(barEl?.height ?: 20.0), 6)
-        val plotColor = if (!isResponse) null else JTextField(plotEl?.color ?: "#1f77b4", 8)
+        val plotColor = if (!isResponse) null else colorPicker(plotEl?.color ?: "#1f77b4")
         val plotWindow = if (!isResponse) null else JTextField(plotEl?.windowDuration?.let { trimNum(it) } ?: "", 6)
         val plotW = if (!isResponse) null else JTextField(trimNum(plotEl?.width ?: 220.0), 6)
         val plotH = if (!isResponse) null else JTextField(trimNum(plotEl?.height ?: 110.0), 6)
         val histBins = if (!isResponse) null else JTextField((histEl?.bins ?: 10).toString(), 6)
-        val histColor = if (!isResponse) null else JTextField(histEl?.color ?: "#1f77b4", 8)
+        val histColor = if (!isResponse) null else colorPicker(histEl?.color ?: "#1f77b4")
         val histW = if (!isResponse) null else JTextField(trimNum(histEl?.width ?: 220.0), 6)
         val histH = if (!isResponse) null else JTextField(trimNum(histEl?.height ?: 120.0), 6)
         val decimalsEl = layout.values.firstOrNull { it.responseName == name }?.decimals
@@ -815,13 +835,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             form.add(JLabel("display")); form.add(displayCombo)
             form.add(JLabel("")); form.add(discreteCheck)
             barMax?.let { form.add(JLabel("bar max")); form.add(it) }
-            barColor?.let { form.add(JLabel("bar color")); form.add(it) }
+            barColor?.let { form.add(JLabel("bar color")); form.add(it.first) }
             barW?.let { form.add(JLabel("bar w,h")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(barW); add(barH) }) }
-            plotColor?.let { form.add(JLabel("plot color")); form.add(it) }
+            plotColor?.let { form.add(JLabel("plot color")); form.add(it.first) }
             plotWindow?.let { form.add(JLabel("plot window (blank=all)")); form.add(it) }
             plotW?.let { form.add(JLabel("plot w,h")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(plotW); add(plotH) }) }
             histBins?.let { form.add(JLabel("hist bins")); form.add(it) }
-            histColor?.let { form.add(JLabel("hist color")); form.add(it) }
+            histColor?.let { form.add(JLabel("hist color")); form.add(it.first) }
             histW?.let { form.add(JLabel("hist w,h")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(histW); add(histH) }) }
             decimals?.let { form.add(JLabel("decimals")); form.add(it) }
             // The discrete box only applies to a histogram; the rest of the styling applies to whichever display
@@ -843,12 +863,14 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         form.add(JLabel("label text")); form.add(labelText)
         form.add(JLabel("label dx,dy")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(labelDx); add(labelDy) })
         form.add(JLabel("")); form.add(labelShow)
-        // The live value/state annotation applies only to elements that draw one; a station/location has none, so
-        // its "show value" control would be inert — hide it there (the name label above still applies).
-        val showsLiveValue = kind != ElementKind.STATION && kind != ElementKind.LOCATION
-        if (showsLiveValue) {
+        // The live value/state annotation applies only to elements that draw one; a station/location/mover draws
+        // none, so its value controls would be inert — hide them there (the name label above still applies). A
+        // resource's value visibility is the "show value (busy/capacity)" master above, so it doesn't also get the
+        // generic per-element value toggle here (that duplicate confused which checkbox does what) — only its offset.
+        val showsValueOffset = kind != ElementKind.STATION && kind != ElementKind.LOCATION && kind != ElementKind.MOVABLE_RESOURCE
+        if (showsValueOffset) {
             form.add(JLabel("value dx,dy")); form.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(valueDx); add(valueDy) })
-            form.add(JLabel("")); form.add(valueShow)
+            if (kind != ElementKind.RESOURCE) { form.add(JLabel("")); form.add(valueShow) }
         }
 
         val choice = JOptionPane.showConfirmDialog(
@@ -877,15 +899,15 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             if (newForm != curDisplay) controller.setResponseDisplay(name, newForm, discreteCheck!!.isSelected)
             when (newForm) {
                 ResponseDisplay.BAR -> controller.setBarStyle(
-                    name, barMax!!.text.trim().toDoubleOrNull() ?: 100.0, barColor!!.text.trim(),
+                    name, barMax!!.text.trim().toDoubleOrNull() ?: 100.0, barColor!!.second().trim(),
                     barW!!.text.trim().toDoubleOrNull() ?: 120.0, barH!!.text.trim().toDoubleOrNull() ?: 20.0
                 )
                 ResponseDisplay.PLOT -> controller.setPlotStyle(
-                    name, plotColor!!.text.trim(), plotWindow!!.text.trim().toDoubleOrNull(),
+                    name, plotColor!!.second().trim(), plotWindow!!.text.trim().toDoubleOrNull(),
                     plotW!!.text.trim().toDoubleOrNull() ?: 220.0, plotH!!.text.trim().toDoubleOrNull() ?: 110.0
                 )
                 ResponseDisplay.HISTOGRAM -> controller.setHistogramStyle(
-                    name, histBins!!.text.trim().toIntOrNull() ?: 10, histColor!!.text.trim(),
+                    name, histBins!!.text.trim().toIntOrNull() ?: 10, histColor!!.second().trim(),
                     histW!!.text.trim().toDoubleOrNull() ?: 220.0, histH!!.text.trim().toDoubleOrNull() ?: 120.0,
                     discreteCheck!!.isSelected
                 )
@@ -895,7 +917,10 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         controller.setElementLabel(
             kind, name, labelText.text.trim().takeIf { it.isNotEmpty() },
             labelDx.text.trim().toDoubleOrNull() ?: 0.0, labelDy.text.trim().toDoubleOrNull() ?: -12.0, labelShow.isSelected,
-            valueDx.text.trim().toDoubleOrNull() ?: 0.0, valueDy.text.trim().toDoubleOrNull() ?: 14.0, valueShow.isSelected
+            valueDx.text.trim().toDoubleOrNull() ?: 0.0, valueDy.text.trim().toDoubleOrNull() ?: 14.0,
+            // A resource's value visibility is driven by its "show value (busy/capacity)" master, so keep the value
+            // annotation itself visible (positionable) and let that master gate it; other kinds use their toggle.
+            if (kind == ElementKind.RESOURCE) true else valueShow.isSelected
         )
         afterEdit()
     }
@@ -1039,12 +1064,20 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         else listOfNotNull(labelGripScreen(sel.first, sel.second, false), labelGripScreen(sel.first, sel.second, true))
     }
 
-    /** The selected element's text grip within the grab radius of screen ([sx],[sy]) — (kind,name,isValue) or null. */
+    /** The selected element's name/value text under screen ([sx],[sy]) — (kind,name,isValue) or null. The grab area
+     *  spans the rendered text (from its anchor rightward, over ascent/descent), so you can grab the label directly
+     *  instead of hunting for the small handle (G3). */
     private fun pickLabelGrip(sx: Int, sy: Int): Triple<ElementKind, String, Boolean>? {
         val sel = selected.singleOrNull() ?: return null
+        val (k, n) = sel
+        val fm = canvas.getFontMetrics(canvas.font)
         for (isValue in listOf(false, true)) {
-            val g = labelGripScreen(sel.first, sel.second, isValue) ?: continue
-            if (kotlin.math.hypot(g.x - sx, g.y - sy) <= 7.0) return Triple(sel.first, sel.second, isValue)
+            val g = labelGripScreen(k, n, isValue) ?: continue
+            // Text is drawn from the grip point rightward at the baseline; the value text is dynamic (unknown here),
+            // so use a generous fixed width for it and the measured name width for the name.
+            val w = if (isValue) 44 else fm.stringWidth(controller.layout.value?.labelFor(k, n)?.text ?: n).coerceAtLeast(24)
+            if (sx >= g.x - 6 && sx <= g.x + w + 6 && sy >= g.y - fm.ascent - 2 && sy <= g.y + fm.descent + 2)
+                return Triple(k, n, isValue)
         }
         return null
     }
@@ -1686,7 +1719,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 add(JLabel("state")); add(agentState); add(JLabel("color")); add(agentColor)
                 add(JButton("Set").apply {
                     toolTipText = "Color agents whose state name contains this text with the given hex color"
-                    addActionListener { agentState.text.trim().ifBlank { null }?.let { controller.setAgentStateColor(it, agentColor.text.trim().ifBlank { "#d62728" }); afterEdit() } }
+                    addActionListener { agentState.text.trim().ifBlank { null }?.let { controller.setAgentStateColor(it, agentColor.hex.trim().ifBlank { "#d62728" }); afterEdit() } }
                 })
                 add(JButton("Remove selected").apply {
                     toolTipText = "Remove the selected agent state-color mapping"
@@ -1823,7 +1856,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         list.addListSelectionListener {
             if (!it.valueIsAdjusting) selected()?.let { n ->
                 controller.layout.value?.conveyors?.firstOrNull { c -> c.conveyorName == n }?.let { c ->
-                    convWidth.text = trimNum(c.width); convColor.text = c.color; convArrows.isSelected = c.showDirection
+                    convWidth.text = trimNum(c.width); convColor.hex = c.color; convArrows.isSelected = c.showDirection
                 }
             }
         }
@@ -1840,7 +1873,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                         val c = controller.layout.value?.conveyors?.firstOrNull { it.conveyorName == n } ?: return@addActionListener
                         controller.setConveyorLayout(c.copy(
                             width = convWidth.text.trim().toDoubleOrNull() ?: c.width,
-                            color = convColor.text.trim().ifBlank { c.color },
+                            color = convColor.hex.trim().ifBlank { c.color },
                             showDirection = convArrows.isSelected
                         )); afterEdit()
                     }
@@ -1985,7 +2018,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun loadStyleStrip(row: Int) {
         val t = styleTypeNames.getOrNull(row) ?: return
         val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == t } ?: return
-        styleShape.selectedItem = oc.shape; styleColor.text = oc.color; styleSize.text = trimNum(oc.size); styleImage.text = oc.imageRef ?: ""
+        styleShape.selectedItem = oc.shape; styleColor.hex = oc.color; styleSize.text = trimNum(oc.size); styleImage.text = oc.imageRef ?: ""
     }
 
     /** Applies the strip's shape/color/size/image to [type] (a chosen image forces the IMAGE glyph). */
@@ -1993,7 +2026,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         val size = styleSize.text.trim().toDoubleOrNull() ?: 12.0
         val image = styleImage.text.trim().takeIf { it.isNotEmpty() }
         val shape = if (image != null) ksl.animation.LayoutShape.IMAGE else styleShape.selectedItem as ksl.animation.LayoutShape
-        controller.addObjectClass(type, shape, styleColor.text.trim().ifBlank { "#1f77b4" }, size, image)
+        controller.addObjectClass(type, shape, styleColor.hex.trim().ifBlank { "#1f77b4" }, size, image)
         afterEdit()
     }
 
@@ -2014,7 +2047,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         val table = javax.swing.JTable(model).apply { setSelectionMode(ListSelectionModel.SINGLE_SELECTION) }
         table.selectionModel.addListSelectionListener {
             if (!it.valueIsAdjusting) processNames.getOrNull(table.selectedRow)?.let { p ->
-                processColorField.text = controller.layout.value?.processColors?.get(p) ?: "#ff7f0e"
+                processColorField.hex = controller.layout.value?.processColors?.get(p) ?: "#ff7f0e"
             }
         }
         return JPanel(BorderLayout()).apply {
@@ -2025,7 +2058,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 add(JButton("Apply to selected process").apply {
                     addActionListener {
                         table.selectedRow.takeIf { it in processNames.indices }?.let {
-                            controller.setProcessColor(processNames[it], processColorField.text.trim().ifBlank { "#ff7f0e" }); afterEdit()
+                            controller.setProcessColor(processNames[it], processColorField.hex.trim().ifBlank { "#ff7f0e" }); afterEdit()
                         }
                     }
                 })
@@ -2672,7 +2705,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     /** Applies a process tint color, as the Process Colors tab would (batch 3). */
     internal fun setProcessColorForTest(process: String, color: String) {
-        processColorField.text = color; controller.setProcessColor(process, color); afterEdit()
+        processColorField.hex = color; controller.setProcessColor(process, color); afterEdit()
     }
 
     /** Conveyor entries shown in the Conveyors tab (P1). */

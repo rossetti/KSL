@@ -1106,9 +1106,10 @@ class SimulationCanvas : JPanel() {
             g2.color = Color(0xff, 0x7f, 0x0e)
             g2.draw(it)
         }
-        for (p in labelGrips) { // small handles to drag the selected element's name/value text (screen space)
-            g2.color = Color(0xff, 0x7f, 0x0e)
-            g2.fill(Rectangle2D.Double(p.x - 3, p.y - 3, 6.0, 6.0))
+        for (p in labelGrips) { // handles to drag the selected element's name/value text (screen space); drawn a
+            val box = Rectangle2D.Double(p.x - 4, p.y - 4, 8.0, 8.0) //  little larger with a dark outline so they
+            g2.color = Color(0xff, 0x7f, 0x0e); g2.fill(box)          //  stand out and are easy to grab (G3)
+            g2.color = Color(0x33, 0x33, 0x33); g2.stroke = BasicStroke(1.0f); g2.draw(box)
         }
     }
 
