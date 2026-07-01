@@ -315,7 +315,9 @@ fun Model.animationInventory(): AnimationInventory {
         // so a coordinate-free distance model still gets distance-faithful positions. An agent Context's own
         // position (added above) wins via putIfAbsent.
         e.spatialModel?.let { sm ->
-            val mds = if (sm is DistancesModel) mdsCache.getOrPut(sm) { sm.proposeCoordinates() } else emptyMap()
+            // MDS is best-effort: never let a probe/extraction crash on a distance model (defensive — proposeCoordinates
+            // already handles sparse/disconnected matrices). On failure the locations fall back to name-only placement.
+            val mds = if (sm is DistancesModel) mdsCache.getOrPut(sm) { runCatching { sm.proposeCoordinates() }.getOrDefault(emptyMap()) } else emptyMap()
             for (loc in sm.namedLocations) {
                 locations += loc.name
                 val p = mds[loc.name] ?: if (loc.x.isFinite() && loc.y.isFinite()) LayoutPoint(loc.x, loc.y) else null

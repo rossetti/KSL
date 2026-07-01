@@ -203,4 +203,16 @@ class AnimationDslTest {
         }
         assertEquals(10.0 to 20.0, read)
     }
+
+    @Test
+    fun `proposeCoordinates handles a sparse distance model without throwing`() {
+        val dm = DistancesModel()
+        val enter = dm.Location("Enter"); val s1 = dm.Location("S1"); val s2 = dm.Location("S2")
+        // A tandem chain — only consecutive hops are defined; (Enter, S2) is NOT in the model.
+        dm.addDistance(enter, s1, 10.0, symmetric = true)
+        dm.addDistance(s1, s2, 10.0, symmetric = true)
+        val coords = dm.proposeCoordinates()
+        assertEquals(setOf("Enter", "S1", "S2"), coords.keys)
+        assertTrue(coords.values.all { it.x.isFinite() && it.y.isFinite() }, "every location gets finite MDS coords: $coords")
+    }
 }

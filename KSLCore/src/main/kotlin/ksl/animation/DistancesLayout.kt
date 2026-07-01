@@ -19,6 +19,7 @@
 package ksl.animation
 
 import ksl.modeling.spatial.DistancesModel
+import ksl.modeling.spatial.LocationIfc
 import org.hipparchus.linear.EigenDecompositionSymmetric
 import org.hipparchus.linear.MatrixUtils
 import kotlin.math.sqrt
@@ -26,9 +27,10 @@ import kotlin.math.sqrt
 /**
  * Proposes 2-D coordinates for the named locations of this [DistancesModel] via classical (Torgerson)
  * multidimensional scaling (8K.6b) — so a coordinate-free distance model can be placed in a layout
- * without hand-picking coordinates that honor the distance matrix. The directed matrix is symmetrized;
- * coordinates are uniformly scaled (shape-preserving) and centered to fit a [width] × [height] box with
- * [margin] padding. MDS is rotation/reflection-invariant, so orientation is arbitrary.
+ * without hand-picking coordinates that honor the distance matrix. The directed matrix is symmetrized and, for a
+ * sparse model (one that defines only some pairs, e.g. a tandem line), completed by shortest paths; coordinates
+ * are uniformly scaled (shape-preserving) and centered to fit a [width] × [height] box with [margin] padding.
+ * MDS is rotation/reflection-invariant, so orientation is arbitrary.
  *
  * Uses Hipparchus for the eigendecomposition of the double-centered matrix.
  */
@@ -42,15 +44,31 @@ fun DistancesModel.proposeCoordinates(
     if (n == 0) return emptyMap()
     if (n == 1) return mapOf(locs[0].name to LayoutPoint(width / 2.0, height / 2.0))
 
-    // Symmetrized squared-distance matrix.
-    val d2 = Array(n) { i ->
+    // Symmetric distance matrix. A DistancesModel is often sparse (e.g. a tandem line defines only consecutive
+    // hops), so an undefined pair reads as unknown instead of throwing; shortest paths (Floyd–Warshall) fill the
+    // gaps and any still-disconnected pair takes a large finite default, so MDS always gets a complete matrix.
+    fun oneWay(a: LocationIfc, b: LocationIfc): Double? = try { distance(a, b) } catch (_: IllegalArgumentException) { null }
+    val dist = Array(n) { i ->
         DoubleArray(n) { j ->
             if (i == j) 0.0 else {
-                val s = 0.5 * (distance(locs[i], locs[j]) + distance(locs[j], locs[i]))
-                s * s
+                val ab = oneWay(locs[i], locs[j]); val ba = oneWay(locs[j], locs[i])
+                when {
+                    ab != null && ba != null -> 0.5 * (ab + ba)
+                    ab != null -> ab
+                    ba != null -> ba
+                    else -> Double.POSITIVE_INFINITY
+                }
             }
         }
     }
+    for (k in 0 until n) for (i in 0 until n) for (j in 0 until n) {
+        val through = dist[i][k] + dist[k][j]
+        if (through < dist[i][j]) dist[i][j] = through
+    }
+    val maxFinite = dist.flatMap { it.asList() }.filter { it.isFinite() }.maxOrNull() ?: 1.0
+    for (i in 0 until n) for (j in 0 until n) if (!dist[i][j].isFinite()) dist[i][j] = maxFinite * 2.0
+    // Squared distances for classical MDS.
+    val d2 = Array(n) { i -> DoubleArray(n) { j -> dist[i][j] * dist[i][j] } }
     // Double-centering: B = -1/2 · J · D² · J, with J = I - (1/n)·11ᵀ.
     val rowMean = DoubleArray(n) { i -> d2[i].average() }
     val grand = rowMean.average()
