@@ -222,11 +222,35 @@ data class BackgroundElement(
     val fontFamily: String? = null
 )
 
-/** A named path (poly-line) entities can be shown moving along. */
+/** The two kinds of anchor a [PathDefinition] can connect (deliberately a smaller set than `ElementKind`). */
+enum class AnchorKind { NETWORK_STATION, LOCATION }
+
+/** A typed reference to a placement anchor — a network station or a location — used as a [PathDefinition] endpoint. */
+@Serializable
+data class AnchorRef(val kind: AnchorKind, val name: String) {
+    companion object {
+        /** An anchor at the location with the given name. */
+        fun location(name: String): AnchorRef = AnchorRef(AnchorKind.LOCATION, name)
+
+        /** An anchor at the network station with the given name. */
+        fun station(name: String): AnchorRef = AnchorRef(AnchorKind.NETWORK_STATION, name)
+    }
+}
+
+/**
+ * A named path (poly-line) entities/movers can be shown moving along. When [from] and [to] anchors are set the
+ * path is **functional**: [points] are the intermediate waypoints and a move between those two anchors follows the
+ * polyline (fromPos, then [points], then toPos), arc-length-parameterized over the move's time window; with the
+ * anchors null it is decorative (legacy) and [points] is the whole poly-line. [bidirectional] lets a reverse move
+ * (to → from) follow the same waypoints reversed. The anchor fields are appended + defaulted, so old layouts load.
+ */
 @Serializable
 data class PathDefinition(
     val name: String,
-    val points: List<LayoutPoint>
+    val points: List<LayoutPoint>,
+    val from: AnchorRef? = null,
+    val to: AnchorRef? = null,
+    val bidirectional: Boolean = true
 )
 
 /** A live bar bound to a response/counter (by [responseName]). */

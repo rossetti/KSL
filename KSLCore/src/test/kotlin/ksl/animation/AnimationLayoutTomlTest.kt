@@ -112,4 +112,27 @@ class AnimationLayoutTomlTest {
         assertEquals(layout, back)
         assertEquals(true, back.resources.first().showValue)
     }
+
+    @Test
+    fun `functional and legacy paths round-trip (TOML and JSON)`() {
+        val layout = AnimationLayout(
+            paths = listOf(
+                PathDefinition(
+                    "route", listOf(LayoutPoint(5.0, 5.0), LayoutPoint(6.0, 7.0)),
+                    from = AnchorRef.location("A"), to = AnchorRef.station("B"), bidirectional = false
+                ),
+                PathDefinition("legacy", listOf(LayoutPoint(0.0, 0.0), LayoutPoint(1.0, 1.0))) // null anchors, default bidi
+            )
+        )
+        assertEquals(layout, AnimationLayout.fromToml(layout.toToml()))
+        assertEquals(layout, AnimationLayout.fromJson(layout.toJson()))
+        val back = AnimationLayout.fromToml(layout.toToml())
+        val route = back.paths.first { it.name == "route" }
+        assertEquals(AnchorRef(AnchorKind.LOCATION, "A"), route.from)
+        assertEquals(AnchorRef(AnchorKind.NETWORK_STATION, "B"), route.to)
+        assertEquals(false, route.bidirectional)
+        val legacy = back.paths.first { it.name == "legacy" }
+        assertEquals(null, legacy.from, "a legacy path has null anchors")
+        assertEquals(true, legacy.bidirectional, "bidirectional defaults true")
+    }
 }

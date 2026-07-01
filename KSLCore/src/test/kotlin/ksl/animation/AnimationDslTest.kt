@@ -62,6 +62,18 @@ class AnimationDslTest {
     }
 
     @Test
+    fun `pathBetween builds a functional path between anchors`() {
+        val layout = Model("dslPath").animation {
+            pathBetween("route", AnchorRef.location("A"), AnchorRef.location("B"), 5.0 to 5.0, 6.0 to 7.0, bidirectional = false)
+        }
+        val p = layout.paths.single { it.name == "route" }
+        assertEquals(AnchorRef.location("A"), p.from)
+        assertEquals(AnchorRef.location("B"), p.to)
+        assertEquals(false, p.bidirectional)
+        assertEquals(listOf(LayoutPoint(5.0, 5.0), LayoutPoint(6.0, 7.0)), p.points, "waypoints become the intermediate points")
+    }
+
+    @Test
     fun `object-reference overloads derive trace names from the model elements (8K1)`() {
         val m = Model("dslObj")
         val worker = ResourceWithQ(m, "ShirtMakers_R")

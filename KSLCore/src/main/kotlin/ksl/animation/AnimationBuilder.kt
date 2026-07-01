@@ -440,6 +440,30 @@ class AnimationBuilder {
         paths.add(PathDefinition(name, pts))
     }
 
+    /**
+     * Defines a **functional** path between two anchors (network stations or locations): the waypoints are the
+     * intermediate points, and at replay a move between the two anchors follows the polyline. When bidirectional
+     * (the default), the reverse move reuses the waypoints reversed. See `PathDefinition`. Use `AnchorRef.location`
+     * / `AnchorRef.station` for the endpoints.
+     */
+    fun pathBetween(
+        name: String,
+        from: AnchorRef,
+        to: AnchorRef,
+        vararg waypoints: Pair<Double, Double>,
+        bidirectional: Boolean = true
+    ) {
+        paths.add(
+            PathDefinition(
+                name,
+                waypoints.map { LayoutPoint(it.first, it.second) },
+                from = from,
+                to = to,
+                bidirectional = bidirectional
+            )
+        )
+    }
+
     /** The position of a previously-placed station, for positioning elements relative to it (8B.3). */
     fun stationPosition(stationName: String): Pair<Double, Double> {
         val p = stations.firstOrNull { it.stationName == stationName }?.position
