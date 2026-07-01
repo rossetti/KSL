@@ -7,11 +7,13 @@ import ksl.animation.LayoutPoint
 import ksl.animation.NetworkStationLayoutElement
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
+import ksl.app.swing.animation.view.VisualStyle
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -206,6 +208,27 @@ class AutoLayoutTest {
         assertTrue(layout.resources.none { it.resourceName == "agv-0" }, "agent-resource not auto-placed: ${layout.resources.map { it.resourceName }}")
         assertTrue(layout.queues.none { it.queueName == "agv-0:Q" }, "its request queue not auto-placed: ${layout.queues.map { it.queueName }}")
         assertTrue(layout.resources.any { it.resourceName == "Server" }, "a genuine service resource is still placed")
+    }
+
+    @Test
+    fun `auto-layout gives agent states distinct, order-independent colors (rumor Ex16)`() {
+        fun layoutFor(vararg stateOrder: Pair<Double, String>): AnimationLayout {
+            val evs = buildList {
+                add(AnimationEvent.ReplicationStarted(0.0, 1))
+                add(AnimationEvent.AgentPositionChanged(0.0, "p0", "net", 0.0, 0.0))
+                stateOrder.forEach { (t, s) -> add(AnimationEvent.AgentStateEntered(t, "p0", s)) }
+            }
+            return ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = evs)).autoLayout(evs)
+        }
+        // Same states, opposite first-seen order → identical assignment (sorted, not trace order), and the two
+        // rumor states must render as different colors (else the spread is invisible — the Ex16 symptom).
+        val a = layoutFor(0.0 to "Uninformed", 5.0 to "Informed")
+        val b = layoutFor(0.0 to "Informed", 5.0 to "Uninformed")
+        val sa = VisualStyle(a); val sb = VisualStyle(b)
+        assertNotNull(sa.agentStateColor("Informed"), "auto-layout assigns a color to each discovered state")
+        assertNotEquals(sa.agentStateColor("Informed"), sa.agentStateColor("Uninformed"), "the two states must differ")
+        assertEquals(sa.agentStateColor("Informed"), sb.agentStateColor("Informed"), "deterministic, not trace order-dependent")
+        assertEquals(sa.agentStateColor("Uninformed"), sb.agentStateColor("Uninformed"), "deterministic for both states")
     }
 
     private fun paintedPixels(replay: ReplayModel): Int {

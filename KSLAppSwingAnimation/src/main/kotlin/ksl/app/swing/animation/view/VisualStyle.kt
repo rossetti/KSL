@@ -70,23 +70,29 @@ class VisualStyle(layout: AnimationLayout?) {
 
     /**
      * Color for an entity currently in [process], or null if the layout defines no matching process color
-     * (then the caller falls back to the type color). Matches by substring (10.1e), the entity analogue of
-     * [agentStateColor]; e.g. a current process "Triage" matches a `processColors` entry keyed "Triage".
+     * (then the caller falls back to the type color). Matches by exact name first, then the longest containing
+     * substring (10.1e), the entity analogue of [agentStateColor]; e.g. a current process "Triage" matches a
+     * `processColors` entry keyed "Triage".
      */
     fun processColor(process: String?): Color? {
         if (process == null) return null
-        val hex = processColors.entries.firstOrNull { process.contains(it.key, ignoreCase = true) }?.value
+        val hex = processColors.entries.firstOrNull { it.key.equals(process, ignoreCase = true) }?.value
+            ?: processColors.entries.filter { process.contains(it.key, ignoreCase = true) }
+                .maxByOrNull { it.key.length }?.value
         return hex?.let { parseColor(it) }
     }
 
     /**
      * Color for an agent in statechart [state], or null if the layout defines no matching state
-     * color (then the caller falls back to the type color). Matches by substring (8F.1), so a leaf
-     * state like "Working" matches an `agentStateColor("Working", …)` entry.
+     * color (then the caller falls back to the type color). Matches by exact name first, then the longest
+     * containing substring (8F.1), so a specific state like "Uninformed" is never captured by a shorter key
+     * ("Informed") and a leaf state like "Working" still matches an `agentStateColor("Working", …)` entry.
      */
     fun agentStateColor(state: String?): Color? {
         if (state == null) return null
-        val hex = agentStateColors.entries.firstOrNull { state.contains(it.key, ignoreCase = true) }?.value
+        val hex = agentStateColors.entries.firstOrNull { it.key.equals(state, ignoreCase = true) }?.value
+            ?: agentStateColors.entries.filter { state.contains(it.key, ignoreCase = true) }
+                .maxByOrNull { it.key.length }?.value
         return hex?.let { parseColor(it) }
     }
 

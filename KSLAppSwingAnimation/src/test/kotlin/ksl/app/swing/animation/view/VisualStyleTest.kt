@@ -69,4 +69,26 @@ class VisualStyleTest {
         assertEquals(null, style.resourceImageRef(res, "Inactive"), "no inactive image -> null (color fallback)")
         assertEquals("idle.png", style.resourceImageRef(res, "Idle"))
     }
+
+    @Test
+    fun `agent state color prefers exact then longest key (no Uninformed-Informed collision)`() {
+        // "Uninformed" contains "Informed"; if a shorter substring key captured the more specific state, the
+        // rumor model (Ex16) would render every node one color and the spread would be invisible.
+        val layout = AnimationLayout(agentStateColors = mapOf("Informed" to "#1f77b4", "Uninformed" to "#d62728"))
+        val style = VisualStyle(layout)
+        assertEquals(Color(0x1f, 0x77, 0xb4), style.agentStateColor("Informed"), "exact match")
+        assertEquals(Color(0xd6, 0x27, 0x28), style.agentStateColor("Uninformed"), "specific state, not the 'Informed' substring")
+        assertEquals(Color(0x1f, 0x77, 0xb4), style.agentStateColor("Person_Informed"), "qualified state matches by (longest) substring")
+        assertEquals(null, style.agentStateColor("Curious"), "no match -> null (type-color fallback)")
+    }
+
+    @Test
+    fun `process color prefers exact then longest key`() {
+        val layout = AnimationLayout(processColors = mapOf("Serve" to "#1f77b4", "ServeVIP" to "#d62728"))
+        val style = VisualStyle(layout)
+        assertEquals(Color(0xd6, 0x27, 0x28), style.processColor("ServeVIP"), "exact match beats shorter 'Serve' substring")
+        assertEquals(Color(0xd6, 0x27, 0x28), style.processColor("ServeVIP-2"), "longest containing key when no exact match")
+        assertEquals(Color(0x1f, 0x77, 0xb4), style.processColor("Serve"), "exact match")
+        assertEquals(null, style.processColor("Idle"), "no match -> null")
+    }
 }

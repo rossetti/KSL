@@ -82,8 +82,9 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val glyphSize = objectGlyphSize(effectiveSpaces)
 
     // Agent state colors from the trace, so agent-state coloring works in Quick view (P5): assign a palette to the
-    // distinct states the trace reports (the renderer falls back to the type color for any unmapped state).
-    val agentStateColors = stateAcc.result().mapIndexed { i, s -> s to PALETTE[i % PALETTE.size] }.associate { it }
+    // distinct states the trace reports (the renderer falls back to the type color for any unmapped state). Sort the
+    // states first so the assignment is deterministic across runs, not dependent on trace first-seen order.
+    val agentStateColors = stateAcc.result().sorted().mapIndexed { i, s -> s to PALETTE[i % PALETTE.size] }.associate { it }
 
     // Movers carry their mined home position where the trace had finite coordinates; name-only movers
     // (non-Cartesian) get no spot and animate by path.

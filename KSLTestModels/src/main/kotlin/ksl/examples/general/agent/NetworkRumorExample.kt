@@ -102,9 +102,11 @@ class NetworkRumorExample(parent: ModelElement, name: String? = null) :
             if (informed) return
             informed = true
             numInformed.increment()
+            reportAnimationState("Informed") // drives rumor coloring in the animation (no-op without a sink)
         }
 
         val script: KSLProcess = process(isDefaultProcess = true) {
+            reportAnimationState("Uninformed")
             while (true) {
                 delay(stepDuration)
                 if (!informed) continue
