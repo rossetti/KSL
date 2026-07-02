@@ -36,6 +36,58 @@ object KSL {
     val logger: KLogger = KotlinLogging.logger {}
 
     /**
+     *  Controls whether `consoleAdvisory` and `consoleDiagnostic` write to the
+     *  console in addition to logging. Defaults to true so that users who never
+     *  look at log files (especially students running models from an IDE) see
+     *  mistake-preventing advisories directly in their console. Headless or
+     *  test environments can suppress console output by setting the system
+     *  property `ksl.consoleAdvisories` to false or by assigning this property.
+     */
+    var consoleAdvisoriesOption: Boolean =
+        System.getProperty("ksl.consoleAdvisories")?.toBooleanStrictOrNull() ?: true
+
+    /**
+     *  Emits a usability advisory. The message is always logged at WARN via the
+     *  supplied logger and, unless `consoleAdvisoriesOption` is false, is also
+     *  printed to standard output with a "KSL ADVISORY:" prefix.
+     *
+     *  This is the single sanctioned channel for console output in core library
+     *  execution paths (outside explicit print/report APIs). It is intended for
+     *  rare, mistake-preventing messages that must reach users who never look at
+     *  log files, e.g. configurations that would cause a simulation to run forever.
+     *
+     * @param logger the logger that records the advisory at WARN
+     * @param message the advisory message
+     */
+    fun consoleAdvisory(logger: KLogger, message: () -> String) {
+        logger.warn(message)
+        if (consoleAdvisoriesOption) {
+            println("KSL ADVISORY: ${message()}")
+            System.out.flush()
+        }
+    }
+
+    /**
+     *  Emits a failure diagnostic. The message is always logged at ERROR via the
+     *  supplied logger and, unless `consoleAdvisoriesOption` is false, is also
+     *  printed to standard error.
+     *
+     *  Use this only when the diagnostic context is not carried by a thrown
+     *  exception (e.g. the simulation state surrounding a failed event) and would
+     *  otherwise be invisible to users who never look at log files.
+     *
+     * @param logger the logger that records the diagnostic at ERROR
+     * @param message the diagnostic message
+     */
+    fun consoleDiagnostic(logger: KLogger, message: () -> String) {
+        logger.error(message)
+        if (consoleAdvisoriesOption) {
+            System.err.println(message())
+            System.err.flush()
+        }
+    }
+
+    /**
      * Used to assign unique enum constants
      */
     private var myEnumCounter = 0

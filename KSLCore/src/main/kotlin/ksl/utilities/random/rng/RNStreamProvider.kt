@@ -61,7 +61,7 @@ class RNStreamProvider(
     override val defaultStreamNumber: Int = defaultStreamNum
 
     init {
-        logger.info { "Created: RNStreamProvider($name)" }
+        logger.debug { "Created: RNStreamProvider($name)" }
 //        defaultRNStream()
     }
 
@@ -72,7 +72,7 @@ class RNStreamProvider(
             logger.warn { "The number of streams made is now = ${myStreams.size}" }
             logger.warn { "Increase the stream warning limit if you don't want to see this message" }
         }
-        logger.info { "RNStreamProvider($name): nextRNStream(): Provided stream id = ${stream.id}, streamNum = ${lastRNStreamNumber()} of ${myStreams.size} streams" }
+        logger.debug { "RNStreamProvider($name): nextRNStream(): Provided stream id = ${stream.id}, streamNum = ${lastRNStreamNumber()} of ${myStreams.size} streams" }
         stream.streamProvider = this
         return stream
     }
@@ -112,14 +112,14 @@ class RNStreamProvider(
     }
 
     override fun advanceStreamMechanism(n: Int) {
-        logger.info { "RNStreamProvider($name) : advancing stream mechanism by $n"}
+        logger.debug { "RNStreamProvider($name) : advancing stream mechanism by $n"}
         myStreamFactory.advanceSeeds(n)
     }
 
     override fun resetRNStreamSequence() {
         myStreams.clear()
         myStreamFactory.resetFactorySeed()
-        logger.info { "RNStreamProvider($name) : cleared streams and reset random number stream sequence to factory initial seeds"}
+        logger.debug { "RNStreamProvider($name) : cleared streams and reset random number stream sequence to factory initial seeds"}
     }
 
     /**
@@ -154,7 +154,7 @@ class RNStreamProvider(
      */
     fun initialSeed(seed: LongArray = longArrayOf(12345, 12345, 12345, 12345, 12345, 12345)) {
         myStreamFactory.setFactorySeed(seed)
-        logger.info { "RNStreamProvider($name) : setting the initial seed to ${seed.contentToString()}"}
+        logger.debug { "RNStreamProvider($name) : setting the initial seed to ${seed.contentToString()}"}
     }
 
     companion object {

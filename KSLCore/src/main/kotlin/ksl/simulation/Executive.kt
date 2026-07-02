@@ -22,6 +22,7 @@ import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.KSLEventException
+import ksl.utilities.io.KSL
 import ksl.utilities.observers.Observable
 import kotlin.time.Duration
 
@@ -186,8 +187,7 @@ class Executive @JvmOverloads constructor(
                 sb.appendLine()
                 sb.append("The user is responsible for ensuring that the Executive is stopped.")
                 sb.appendLine()
-                Model.logger.warn { sb.toString() }
-                System.out.flush()
+                KSL.consoleAdvisory(Model.logger) { sb.toString() }
             }
         }
         eventExecutionProcess.run()
@@ -234,12 +234,10 @@ class Executive @JvmOverloads constructor(
             sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
             sb.appendLine()
             Model.logger.warn { sb.toString() }
-            System.out.flush()
             throw KSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
             Model.logger.warn { "Attempted to schedule an event before the Current Time!" }
-            System.out.flush()
             throw KSLEventException("Attempted to schedule an event before the Current Time!")
         }
         val eventTime = currentTime + interEventTime
@@ -285,7 +283,6 @@ class Executive @JvmOverloads constructor(
             }
         } catch (e: RuntimeException) {
             Model.logger.error { e.message }
-            System.err.println(e.message)
             val sb = StringBuilder()
             sb.append("######################################")
             sb.appendLine()
@@ -304,10 +301,7 @@ class Executive @JvmOverloads constructor(
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-            Model.logger.error { sb.toString() }
-            System.err.println(sb.toString())
-            System.err.flush()
-            System.out.flush()
+            KSL.consoleDiagnostic(Model.logger) { sb.toString() }
             throw e
         }
     }

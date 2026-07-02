@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test logging defaults for KSLServiceCore.
+
+  Without this file the test classpath has no logback configuration at all
+  (KSLCore's jar deliberately excludes its logback.xml), so logback falls back
+  to its default of DEBUG-to-console and every routine KSLCore message floods
+  the test output. Tests are quiet by default: only WARN and above reach the
+  console.
+
+  To see detailed diagnostics for a focused debugging session, temporarily
+  raise a specific logger, e.g.:
+
+      <logger name="ksl.simulation.Model" level="TRACE"/>
+      <logger name="ksl.utilities.random.rng.RNStreamProvider" level="DEBUG"/>
+
+  or set the root level to DEBUG. Revert before committing.
+-->
+<configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <Pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="consoleAppender"/>
+    </root>
+</configuration>

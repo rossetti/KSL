@@ -397,7 +397,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     override fun afterReplication() {
         // make a copy of the set for iteration purposes
         val set = suspendedEntities.toHashSet()
-        Model.logger.info { "After Replication for ${this.name}: terminating ${set.size} suspended entities" }
+        Model.logger.debug { "After Replication for ${this.name}: terminating ${set.size} suspended entities" }
         for (entity in set) {
             if (entity.isSuspended) {
                 // This check necessary because a terminating process may terminate its calling process and

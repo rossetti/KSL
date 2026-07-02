@@ -1114,17 +1114,17 @@ class Model @JvmOverloads constructor(
             // Use a local variable to avoid repeated non-null assertions
             val endEvent = executive.endEvent
             if (endEvent != null) {
-                logger.info { "Already scheduled end of replication event for time = ${endEvent.time} is being cancelled" }
+                logger.trace { "Already scheduled end of replication event for time = ${endEvent.time} is being cancelled" }
                 // already scheduled end event, cancel it
                 endEvent.cancel = true
             }
         }
         // schedule the new time
         if (time.isFinite()) {
-            logger.info { "Scheduling end of replication at time: $time" }
+            logger.trace { "Scheduling end of replication at time: $time" }
             executive.endEvent = EndEventAction().schedule(time)
         } else {
-            logger.info { "Did not schedule end of replication event because time was $time" }
+            logger.trace { "Did not schedule end of replication event because time was $time" }
         }
     }
 
@@ -1160,7 +1160,7 @@ class Model @JvmOverloads constructor(
         handleAntitheticReplications()
 
         // do all model element beforeReplication() actions
-        logger.info { "Executing before replication actions for model elements" }
+        logger.trace { "Executing before replication actions for model elements" }
         beforeReplicationActions()
 
         // schedule the end of the replication
@@ -1169,19 +1169,19 @@ class Model @JvmOverloads constructor(
         // if necessary, initialize the model elements
         if (replicationInitializationOption) {
             // initialize the model and all model elements with initialize option on
-            logger.info { "Executing initialize() actions for model elements" }
+            logger.trace { "Executing initialize() actions for model elements" }
             initializeActions()
         }
 
         // allow model elements to register conditional actions
-        logger.info { "Registering conditional actions for model elements" }
+        logger.trace { "Registering conditional actions for model elements" }
         registerConditionalActionsWithExecutive()
 
         // if the monte carlo option is on, call the model element's monteCarlo() methods
         if (monteCarloOption) {
             // since the monte carlo option was turned on, assume everyone wants to listen
             setMonteCarloOptionForModelElements(true)
-            logger.info { "Executing monteCarloActions() actions for model elements" }
+            logger.trace { "Executing monteCarloActions() actions for model elements" }
             monteCarloActions()
         }
     }
@@ -1189,7 +1189,7 @@ class Model @JvmOverloads constructor(
     private fun handleAntitheticReplications() {
         // handle antithetic replications
         if (antitheticOption) {
-            logger.info { "Executing handleAntitheticReplications() setup" }
+            logger.trace { "Executing handleAntitheticReplications() setup" }
             if (currentReplicationNumber % 2 == 0) {
                 // even number replications
                 // return to the beginning of sub-stream
@@ -1216,7 +1216,7 @@ class Model @JvmOverloads constructor(
      * @param option The option, true means to reset prior to each experiment
      */
     private fun setAllResetStartStreamOptions(option: Boolean) {
-        RNStreamProvider.logger.info {"Model: $name setting all reset start stream options to: $option"}
+        RNStreamProvider.logger.debug {"Model: $name setting all reset start stream options to: $option"}
         myRNStreamProvider.setAllResetStartStreamOptions(option)
     }
 
@@ -1231,16 +1231,16 @@ class Model @JvmOverloads constructor(
      * @param option The option, true means to reset prior to each replication
      */
     private fun setAllAdvanceToNextSubStreamOptions(option: Boolean) {
-        RNStreamProvider.logger.info {"Model: $name setting all advance to next sub-stream options to: $option"}
+        RNStreamProvider.logger.debug {"Model: $name setting all advance to next sub-stream options to: $option"}
         myRNStreamProvider.setAllAdvanceToNextSubStreamOption(option)
     }
 
     //called from ReplicationProcess, so internal
     internal fun setUpExperiment() {
-        logger.info { "Setting up experiment $experimentName for the simulation." }
-        ModelElement.logger.info { "Setting up experiment $experimentName for the simulation." }
+        logger.debug { "Setting up experiment $experimentName for the simulation." }
+        ModelElement.logger.debug { "Setting up experiment $experimentName for the simulation." }
         executive.initializeCalendar()
-        logger.info { "The executive was initialized prior to any experiments. Current time = $time" }
+        logger.debug { "The executive was initialized prior to any experiments. Current time = $time" }
         executive.terminationWarningMsgOption = false
         markPreOrderTraversalModelElementHierarchy()
 
@@ -1248,30 +1248,30 @@ class Model @JvmOverloads constructor(
             val cMap: Map<String, Double> = experimentalControls
             // extract controls and apply them
             val k: Int = controls().setControlsFromMap(cMap)
-            logger.info { "$k out of ${cMap.size} numeric controls were applied to Model $name to setup the experiment." }
+            logger.debug { "$k out of ${cMap.size} numeric controls were applied to Model $name to setup the experiment." }
         }
 
         if (hasExperimentalStringControls()) {
             val sMap: Map<String, String> = experimentalStringControls
             val k: Int = controls().setStringControlsFromMap(sMap)
-            logger.info { "$k out of ${sMap.size} string controls were applied to Model $name to setup the experiment." }
+            logger.debug { "$k out of ${sMap.size} string controls were applied to Model $name to setup the experiment." }
         }
 
         if (hasExperimentalJsonControls()) {
             val jMap: Map<String, String> = experimentalJsonControls
             val k: Int = controls().setJsonControlsFromMap(jMap)
-            logger.info { "$k out of ${jMap.size} JSON controls were applied to Model $name to setup the experiment." }
+            logger.debug { "$k out of ${jMap.size} JSON controls were applied to Model $name to setup the experiment." }
         }
 
         // if the user has asked for the parameters, then they may have changed
         // thus apply the possibly new parameters to set up the model
         if (myRVParameterSetter != null) {
-            logger.info { "Parameters may have changed. Apply the parameters to the model." }
+            logger.debug { "Parameters may have changed. Apply the parameters to the model." }
             // Use a local variable to avoid non-null assertion
             val parameterSetter = myRVParameterSetter
             if (parameterSetter != null) {
                 parameterSetter.applyParameterChanges(this)
-                logger.info { "The parameter setter applied the parameter changes." }
+                logger.debug { "The parameter setter applied the parameter changes." }
             }
         }
 
@@ -1279,7 +1279,7 @@ class Model @JvmOverloads constructor(
             configuration?.let {
                 modelConfigurationManager?.configure(this, it)
                 if (modelConfigurationManager != null){
-                    logger.info { "Model $name has been configured." }
+                    logger.debug { "Model $name has been configured." }
                     isConfigured = true
                 }
             }
@@ -1295,12 +1295,12 @@ class Model @JvmOverloads constructor(
         }
 
         if (resetStartStreamOption) {
-            logger.info { "Resetting random number streams to the beginning of their starting stream." }
+            logger.debug { "Resetting random number streams to the beginning of their starting stream." }
             resetStartStream()
         }
 
         if (numberOfStreamAdvancesPriorToRunning > 0) {
-            logger.info { "Advancing random number streams $numberOfStreamAdvancesPriorToRunning sub-streams prior to running." }
+            logger.debug { "Advancing random number streams $numberOfStreamAdvancesPriorToRunning sub-streams prior to running." }
             // Explicit pre-run positioning must not depend on the experiment's
             // end-of-replication sub-stream advance option or a prior run's option.
             setAllAdvanceToNextSubStreamOptions(true)
@@ -1324,33 +1324,33 @@ class Model @JvmOverloads constructor(
         if (maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
             executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
         }
-        logger.info { "Initializing the executive" }
-        ModelElement.logger.info { "Initializing the executive" }
+        logger.trace { "Initializing the executive" }
+        ModelElement.logger.trace { "Initializing the executive" }
         executive.initialize()
-        logger.info { "The executive was initialized prior to the replication. Current time = $time" }
-        logger.info { "Setting up the replications for model elements" }
-        ModelElement.logger.info { "Setting up the replications for model elements" }
+        logger.trace { "The executive was initialized prior to the replication. Current time = $time" }
+        logger.trace { "Setting up the replications for model elements" }
+        ModelElement.logger.trace { "Setting up the replications for model elements" }
         setUpReplication()
-        logger.info { "Executing the events" }
-        ModelElement.logger.info { "Executing the events" }
+        logger.trace { "Executing the events" }
+        ModelElement.logger.trace { "Executing the events" }
         executive.executeAllEvents()
-        logger.info { "The executive finished executing events. Current time = $time" }
-        logger.info { "Performing end of replication actions for model elements" }
-        ModelElement.logger.info { "Performing end of replication actions for model elements" }
+        logger.trace { "The executive finished executing events. Current time = $time" }
+        logger.trace { "Performing end of replication actions for model elements" }
+        ModelElement.logger.trace { "Performing end of replication actions for model elements" }
         replicationEndedActions()
         if (advanceNextSubStreamOption) {
-            logger.info { "Advancing random number streams to the next sub-stream" }
-            RNStreamProvider.logger.info {"Model: $name : end replication $currentReplicationNumber : advancing streams to next sub-stream"}
+            logger.trace { "Advancing random number streams to the next sub-stream" }
+            RNStreamProvider.logger.trace {"Model: $name : end replication $currentReplicationNumber : advancing streams to next sub-stream"}
             advanceToNextSubStream()
         }
-        logger.info { "Performing after replication actions for model elements" }
-        ModelElement.logger.info { "Performing after replication actions for model elements" }
+        logger.trace { "Performing after replication actions for model elements" }
+        ModelElement.logger.trace { "Performing after replication actions for model elements" }
         afterReplicationActions()
     }
 
     internal fun endExperiment() {
-        logger.info { "Performing after experiment actions for model elements" }
-        ModelElement.logger.info { "Performing after experiment actions for model elements" }
+        logger.debug { "Performing after experiment actions for model elements" }
+        ModelElement.logger.debug { "Performing after experiment actions for model elements" }
         afterExperimentActions()
     }
 
@@ -1358,9 +1358,9 @@ class Model @JvmOverloads constructor(
 
         override fun initializeIterations() {
             super.initializeIterations()
-            logger.info { "Starting the simulation for $simulationName" }
-            logger.info { "$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
-            logger.info { "$name Initializing the replications ..." }
+            logger.debug { "Starting the simulation for $simulationName" }
+            logger.debug { "$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
+            logger.debug { "$name Initializing the replications ..." }
             myExperiment.resetCurrentReplicationNumber()
             setUpExperiment()
             if (repLengthWarningMessageOption) {
@@ -1375,9 +1375,7 @@ class Model @JvmOverloads constructor(
                         sb.appendLine()
                         sb.append("The user is responsible for ensuring that the replications are stopped.")
                         sb.appendLine()
-                        logger.warn { sb.toString() }
-                        println(sb.toString())
-                        System.out.flush()
+                        KSL.consoleAdvisory(logger) { sb.toString() }
                     }
                 }
             }
@@ -1385,8 +1383,8 @@ class Model @JvmOverloads constructor(
 
         override fun endIterations() {
             endExperiment()
-            logger.info { "$name completed $numberOfReplications replications out of $numberOfReplications." }
-            logger.info { "Ended the simulation for $simulationName" }
+            logger.debug { "$name completed $numberOfReplications replications out of $numberOfReplications." }
+            logger.debug { "Ended the simulation for $simulationName" }
             super.endIterations()
         }
 
@@ -1403,11 +1401,11 @@ class Model @JvmOverloads constructor(
         override fun runStep() {
             myCurrentStep = nextStep()
             myExperiment.incrementCurrentReplicationNumber()
-            logger.info { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
-            ModelElement.logger.info { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
+            logger.debug { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
+            ModelElement.logger.debug { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
             model.runReplication()
-            logger.info { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
-            ModelElement.logger.info { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
+            logger.debug { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
+            ModelElement.logger.debug { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
             if (garbageCollectAfterReplicationFlag) {
                 System.gc()
             }

@@ -148,7 +148,7 @@ interface RNStreamProviderIfc : IdentityIfc {
                 stream.resetStartStream()
             }
         }
-        logger.info { "RNStreamProvider($name) : reset all streams to start"}
+        logger.debug { "RNStreamProvider($name) : reset all streams to start"}
     }
 
     /**
@@ -162,7 +162,7 @@ interface RNStreamProviderIfc : IdentityIfc {
             val stream = itr.next()
             stream.resetStartStreamOption = option
         }
-        logger.info { "RNStreamProvider($name) : set all reset start stream options to $option"}
+        logger.debug { "RNStreamProvider($name) : set all reset start stream options to $option"}
     }
 
     /**
@@ -176,7 +176,7 @@ interface RNStreamProviderIfc : IdentityIfc {
             val stream = itr.next()
             stream.advanceToNextSubStreamOption = option
         }
-        logger.info { "RNStreamProvider($name) : set all advance to next sub-stream options to $option"}
+        logger.debug { "RNStreamProvider($name) : set all advance to next sub-stream options to $option"}
     }
 
     /**
@@ -191,7 +191,7 @@ interface RNStreamProviderIfc : IdentityIfc {
             val stream = itr.next()
             stream.resetStartSubStream()
         }
-        logger.info { "RNStreamProvider($name) : reset all streams to start of current sub-stream"}
+        logger.debug { "RNStreamProvider($name) : reset all streams to start of current sub-stream"}
     }
 
     /**
@@ -208,7 +208,8 @@ interface RNStreamProviderIfc : IdentityIfc {
                 stream.advanceToNextSubStream()
             }
         }
-        logger.info { "RNStreamProvider($name) : advance all streams to next sub-stream"}
+        // TRACE because this fires at the end of every replication during a normal run
+        logger.trace { "RNStreamProvider($name) : advance all streams to next sub-stream"}
     }
 
     /**
@@ -226,7 +227,7 @@ interface RNStreamProviderIfc : IdentityIfc {
                 stream.advanceSubStreams(n)
             }
         }
-        logger.info { "RNStreamProvider($name) : advance all streams by $n sub-streams"}
+        logger.debug { "RNStreamProvider($name) : advance all streams by $n sub-streams"}
     }
 
     /**
@@ -244,7 +245,7 @@ interface RNStreamProviderIfc : IdentityIfc {
             val stream = itr.next()
             stream.antithetic = option
         }
-        logger.info { "RNStreamProvider($name) : set all streams to antithetic option: $option"}
+        logger.debug { "RNStreamProvider($name) : set all streams to antithetic option: $option"}
     }
 
 }

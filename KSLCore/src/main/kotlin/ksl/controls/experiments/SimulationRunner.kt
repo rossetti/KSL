@@ -116,9 +116,9 @@ class SimulationRunner(
             // attach observers
             timer = SimulationTimer(model)
             rdc = ReplicationDataCollector(model, true)
-            Model.logger.info { "SimulationRunner: Running simulation: ${model.simulationName} " }
+            Model.logger.debug { "SimulationRunner: Running simulation: ${model.simulationName} " }
             model.simulate()
-            Model.logger.info { "SimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
+            Model.logger.debug { "SimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
             // detach the observers
             rdc.stopObserving()
             timer.stopObserving()
@@ -154,7 +154,7 @@ class SimulationRunner(
             require(model.modelIdentifier == simulationRun.modelIdentifier) {
                 "The model identifier ${model.modelIdentifier} does not match the identifier ${simulationRun.modelIdentifier} for the simulation run."
             }
-            Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
+            Model.logger.debug { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
             // apply the run parameters to the model
             model.changeRunParameters(simulationRun.experimentRunParameters)
             // stage numeric controls and RV parameters (deferred — applied in setUpExperiment())
@@ -175,31 +175,32 @@ class SimulationRunner(
                     } else if (rvParameters.containsKey(keyName)) {
                         rvParamMap[keyName] = value
                     } else {
-                        Model.logger.info { "SimulationRunner: input $keyName was not a control or a random variable parameter" }
+                        // WARN because the user supplied an input that will be silently skipped otherwise
+                        Model.logger.warn { "SimulationRunner: input $keyName was not a control or a random variable parameter" }
                     }
                 }
                 if (controlsMap.isNotEmpty()) {
                     // stage numeric controls — applied in setUpExperiment() via controls().setControlsFromMap()
                     model.experimentalControls = controlsMap
-                    Model.logger.info { "SimulationRunner: ${controlsMap.size} numeric controls out of ${controls.size} staged for experiment setup." }
+                    Model.logger.debug { "SimulationRunner: ${controlsMap.size} numeric controls out of ${controls.size} staged for experiment setup." }
                 }
                 if (rvParamMap.isNotEmpty()) {
                     // convert to the form used by RVParameterSetter
                     val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
                     // stage RV parameter changes — applied in setUpExperiment() via rvParameterSetter.applyParameterChanges()
                     model.rvParameterSetter.changeParameters(unflattenMap)
-                    Model.logger.info { "SimulationRunner: ${rvParamMap.size} RV parameters out of ${rvParameters.size} staged for experiment setup." }
+                    Model.logger.debug { "SimulationRunner: ${rvParamMap.size} RV parameters out of ${rvParameters.size} staged for experiment setup." }
                 }
             }
             // stage string controls (deferred — applied in setUpExperiment())
             if (simulationRun.stringInputs.isNotEmpty()) {
                 model.experimentalStringControls = simulationRun.stringInputs
-                Model.logger.info { "SimulationRunner: ${simulationRun.stringInputs.size} string controls staged for experiment setup." }
+                Model.logger.debug { "SimulationRunner: ${simulationRun.stringInputs.size} string controls staged for experiment setup." }
             }
             // stage JSON controls (deferred — applied in setUpExperiment())
             if (simulationRun.jsonInputs.isNotEmpty()) {
                 model.experimentalJsonControls = simulationRun.jsonInputs
-                Model.logger.info { "SimulationRunner: ${simulationRun.jsonInputs.size} JSON controls staged for experiment setup." }
+                Model.logger.debug { "SimulationRunner: ${simulationRun.jsonInputs.size} JSON controls staged for experiment setup." }
             }
         }
 
@@ -241,9 +242,7 @@ class SimulationRunner(
             val stackTrace = stackTraceAsString(e)
             simulationRun.runErrorMsg = stackTrace
             simulationRun.results = emptyMap()
-            Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within $sourceName." }
-            Model.logger.error { "No responses were recorded." }
-            Model.logger.error { stackTrace }
+            Model.logger.error(e) { "There was a fatal exception during the running of simulation ${model.simulationName} within $sourceName. No responses were recorded." }
         }
 
         internal fun stackTraceAsString(e: RuntimeException): String {
