@@ -68,11 +68,11 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             DatabaseIfc.logger.error { "The database ${db.label} does not have the required tables for a KSLDatabase" }
             throw KSLDatabaseNotConfigured()
         }
-        DatabaseIfc.logger.info { "KSLDatabase ${db.label} at initialization: Clear data option = $clearDataOption" }
+        DatabaseIfc.logger.debug { "KSLDatabase ${db.label} at initialization: Clear data option = $clearDataOption" }
         if (clearDataOption) {
-            DatabaseIfc.logger.info { "Started clearing all data for KSLDatabase ${db.label} at initialization." }
+            DatabaseIfc.logger.debug { "Started clearing all data for KSLDatabase ${db.label} at initialization." }
             clearAllData()
-            DatabaseIfc.logger.info { "Completed clearing all data for KSLDatabase ${db.label} at initialization." }
+            DatabaseIfc.logger.debug { "Completed clearing all data for KSLDatabase ${db.label} at initialization." }
         }
     }
 
@@ -88,7 +88,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 i++
             }
         }
-        DatabaseIfc.logger.info { "Cleared data for $i tables out of ${TableNames.size} tables for KSLDatabase ${db.label}" }
+        DatabaseIfc.logger.debug { "Cleared data for $i tables out of ${TableNames.size} tables for KSLDatabase ${db.label}" }
     }
 
     private fun checkTableNames(): Boolean {
@@ -297,7 +297,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     fun deleteExperimentWithNameCascading(expName: String) {
         val experimentRecord = fetchExperimentData(expName)
         if (experimentRecord == null) {
-            DatabaseIfc.logger.info { "Database: $label : Delete Experiment Cascade: No experiment called $expName was in database, returning." }
+            DatabaseIfc.logger.debug { "Database: $label : Delete Experiment Cascade: No experiment called $expName was in database, returning." }
             return
         }
         // run a transaction to cascade delete the related records
@@ -341,7 +341,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 }
                 connection.commit()
                 connection.autoCommit = true
-                DatabaseIfc.logger.info { "Database: $label : Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database." }
+                DatabaseIfc.logger.debug { "Database: $label : Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database." }
             } catch (e: SQLException) {
                 connection.rollback()
                 DatabaseIfc.logger.warn { "There was an SQLException when trying to delete Experiment: $expName" }
@@ -405,12 +405,12 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         // get the simulation run identifier
         val simRunID = fetchSimulationRunID(expId, runName)
         if (simRunID == null) {
-            DatabaseIfc.logger.info { "\t Database: $label : There was no simulation run record for experiment: $expId and run name: $runName to delete. Returning" }
+            DatabaseIfc.logger.debug { "\t Database: $label : There was no simulation run record for experiment: $expId and run name: $runName to delete. Returning" }
             return false
         }
         //TODO note that this approach depends on the database allowing cascade delete
         try {
-            DatabaseIfc.logger.info { "\t Database: $label : Getting a connection to delete simulation run $runName from experimentId = $expId" }
+            DatabaseIfc.logger.debug { "\t Database: $label : Getting a connection to delete simulation run $runName from experimentId = $expId" }
             db.getConnection().use { connection ->
                 var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "run_name", defaultSchemaName)
                 sql = "$sql and exp_id_fk = ?"
@@ -420,10 +420,10 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 ps.execute()
                 val deleted = if (ps.updateCount > 0) {
                     // deletions do not have result set, so use updateCount
-                    DatabaseIfc.logger.info { "\t Database: $label : Deleted SimulationRun, $runName, for experiment $expId." }
+                    DatabaseIfc.logger.debug { "\t Database: $label : Deleted SimulationRun, $runName, for experiment $expId." }
                     true
                 } else {
-                    DatabaseIfc.logger.info { "\t Database: $label : PreparedStatement: SimulationRun, $runName, was not deleted, for experiment $expId." }
+                    DatabaseIfc.logger.warn { "\t Database: $label : PreparedStatement: SimulationRun, $runName, was not deleted, for experiment $expId." }
                     false
                 }
                 return deleted
@@ -451,14 +451,14 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         // get the simulation run identifier
         val simRunID = fetchSimulationRunID(expId, runName)
         if (simRunID == null) {
-            DatabaseIfc.logger.info { "\t Database: $label : There was no simulation run record for experiment: $expId and run name: $runName" }
+            DatabaseIfc.logger.debug { "\t Database: $label : There was no simulation run record for experiment: $expId and run name: $runName" }
             return false
         }
         var deleteSimRunStr = DatabaseIfc.deleteFromTableWhereSQL(
             "simulation_run", "run_name", defaultSchemaName
         )
         deleteSimRunStr = "$deleteSimRunStr and exp_id_fk = ?"
-        DatabaseIfc.logger.info { "\t Database: $label : Getting a connection to delete simulation run $runName from experimentId = $expId in database." }
+        DatabaseIfc.logger.debug { "\t Database: $label : Getting a connection to delete simulation run $runName from experimentId = $expId in database." }
         db.getConnection().use { connection ->
             // do a transaction over the deletions
             try {
@@ -473,7 +473,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 ps.execute()
                 connection.commit()
                 connection.autoCommit = true
-                DatabaseIfc.logger.info { "\t Database: $label : Completed cascade delete for run $runName from experimentId = $expId in database." }
+                DatabaseIfc.logger.debug { "\t Database: $label : Completed cascade delete for run $runName from experimentId = $expId in database." }
                 return true
             } catch (e: SQLException) {
                 connection.rollback()
@@ -793,7 +793,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord == null) {
-            DatabaseIfc.logger.info { "\t Database: $label :  The experiment record was null. Insert new experiment record for simulation run = ${model.runName}" }
+            DatabaseIfc.logger.debug { "\t Database: $label :  The experiment record was null. Insert new experiment record for simulation run = ${model.runName}" }
 //            println("**** The experiment record was null. Insert new experiment record: Database: ${db.label} Experiment: ${model.experimentName}")
             // this is a new experiment
             // create and insert the new experiment
@@ -802,12 +802,12 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             if (k == 0) {
                 throw DataAccessException("The experiment was not inserted")
             }
-            DatabaseIfc.logger.info { "\t Database: $label : Inserted new experiment record: exp_id = ${currentExp.exp_id}, exp_name = ${currentExp.exp_name}, model_name = ${currentExp.model_name}, sim_name = ${currentExp.sim_name}, num_chunks = ${currentExp.num_chunks}" }
+            DatabaseIfc.logger.debug { "\t Database: $label : Inserted new experiment record: exp_id = ${currentExp.exp_id}, exp_name = ${currentExp.exp_name}, model_name = ${currentExp.model_name}, sim_name = ${currentExp.sim_name}, num_chunks = ${currentExp.num_chunks}" }
             // create the simulation run associated with the new experiment
             // start simulation run record
             currentSimRun = createSimulationRunData(model)
             db.insertDbDataIntoTable(currentSimRun!!)
-            DatabaseIfc.logger.info { "\t Database: $label : Inserted new simulation_run record: run_id = ${currentSimRun!!.run_id}, exp_id_fk = ${currentSimRun!!.exp_id_fk}, run_name = ${currentSimRun!!.run_name}" }
+            DatabaseIfc.logger.debug { "\t Database: $label : Inserted new simulation_run record: run_id = ${currentSimRun!!.run_id}, exp_id_fk = ${currentSimRun!!.exp_id_fk}, run_name = ${currentSimRun!!.run_name}" }
             // a new experiment requires capturing the model elements, controls, and rv parameters
             // capture the model elements associated with the experiment
             val modelElements: List<ModelElement> = model.getModelElements()
@@ -826,7 +826,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             }
         } else {
 //            println("**** The experiment record was not null. Database: ${db.label} Experiment: ${model.experimentName}")
-            DatabaseIfc.logger.info { "\t Database: $label :  The experiment record was not null. Experiment: ${model.experimentName}" }
+            DatabaseIfc.logger.debug { "\t Database: $label :  The experiment record was not null. Experiment: ${model.experimentName}" }
             // there was already and existing record for this experiment
             // this could be a chunk for an existing experiment
             // the experiment must be chunked or there is a potential user error
@@ -835,7 +835,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 // just assume user wants to write over any existing simulation runs with the same name for this
                 // experiment during this simulation execution
                 currentExp = experimentRecord
-                DatabaseIfc.logger.info { "\t Database: ${label} : Execution has chunks: If necessary delete experiment id = ${experimentRecord.exp_id} with simulation run = ${model.runName}" }
+                DatabaseIfc.logger.debug { "\t Database: ${label} : Execution has chunks: If necessary delete experiment id = ${experimentRecord.exp_id} with simulation run = ${model.runName}" }
                 // deleteSimulationRunWithName(experimentRecord.exp_id, model.runName)
                 //TODO cascading
                 deleteSimulationRunWithNameCascading(experimentRecord.exp_id, model.runName)
@@ -844,7 +844,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 // start simulation run record
                 currentSimRun = createSimulationRunData(model)
                 db.insertDbDataIntoTable(currentSimRun!!)
-                DatabaseIfc.logger.info { "\t Database: $label : Inserted new simulation_run record: run_id = ${currentSimRun!!.run_id}, exp_id_fk = ${currentSimRun!!.exp_id_fk}, run_name = ${currentSimRun!!.run_name}" }
+                DatabaseIfc.logger.debug { "\t Database: $label : Inserted new simulation_run record: run_id = ${currentSimRun!!.run_id}, exp_id_fk = ${currentSimRun!!.exp_id_fk}, run_name = ${currentSimRun!!.run_name}" }
             } else {
                 // println(experimentRecord)
                 // not a chunk, same experiment but not chunked, this is a potential user error
@@ -1631,7 +1631,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         @JvmStatic
         @JvmOverloads
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
-            DatabaseIfc.logger.info { "Create SQLite Database for KSLDatabase: $dbName at path $dbDirectory" }
+            DatabaseIfc.logger.debug { "Create SQLite Database for KSLDatabase: $dbName at path $dbDirectory" }
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
             // database.defaultSchemaName = "main"
             executeSchemaResource(database, "KSL_SQLite.sql")
@@ -1679,7 +1679,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         @JvmStatic
         @JvmOverloads
         fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
-            DatabaseIfc.logger.info { "Create Derby Database for KSLDatabase: $dbName at path $dbDirectory" }
+            DatabaseIfc.logger.debug { "Create Derby Database for KSLDatabase: $dbName at path $dbDirectory" }
             val derbyDatabase = DerbyDb.createDatabase(dbName, dbDirectory)
             executeKSLDbCreationScriptOnDatabase(derbyDatabase)
             derbyDatabase.defaultSchemaName = SCHEMA_NAME
@@ -1699,7 +1699,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 DatabaseIfc.logger.warn { "The database ${db.label} does not contain schema $SCHEMA_NAME" }
                 DatabaseIfc.logger.warn { "Assume the schema has not been made and execute the creation script KSL_Db.sql" }
                 executeSchemaResource(db, "KSL_Db.sql")
-                DatabaseIfc.logger.info { "Executed the creation script KSL_Db.sql for ${db.label}" }
+                DatabaseIfc.logger.debug { "Executed the creation script KSL_Db.sql for ${db.label}" }
             }
         }
 
@@ -1721,7 +1721,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             user: String = "postgres",
             pWord: String = ""
         ): KSLDatabase {
-            DatabaseIfc.logger.info { "Create Postgres Database for KSLDatabase: $dbName" }
+            DatabaseIfc.logger.debug { "Create Postgres Database for KSLDatabase: $dbName" }
             val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
             val db = Database.createDatabaseFromProperties(props)
             db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
@@ -1754,7 +1754,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         ): KSLDatabase {
             val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
             val kslDatabase: KSLDatabase = connectKSLDatabase(clearDataOption, props)
-            DatabaseIfc.logger.info { "Connected to a postgres KSL database ${kslDatabase.db.dbURL} " }
+            DatabaseIfc.logger.debug { "Connected to a postgres KSL database ${kslDatabase.db.dbURL} " }
             return kslDatabase
         }
 

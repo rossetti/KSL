@@ -233,7 +233,7 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
         myInitialSolution = best
         currentSolution = best
         solutionChecker.captureSolution(currentSolution)
-        logger.info { "Solver: $name : initialized GA population of size ${myPopulation.size}" }
+        logger.debug { "Solver: $name : initialized GA population of size ${myPopulation.size}" }
     }
 
     override fun mainIteration() {

@@ -110,7 +110,7 @@ open class SQLiteDb @JvmOverloads constructor(
         override fun deleteDatabase(pathToDb: Path) {
             try {
                 Files.deleteIfExists(pathToDb)
-                DatabaseIfc.logger.info { "Deleting existing SQLite database $pathToDb" }
+                DatabaseIfc.logger.debug { "Deleting existing SQLite database $pathToDb" }
             } catch (e: IOException) {
                 DatabaseIfc.logger.error { "Unable to delete SQLite database $pathToDb" }
                 throw DataAccessException("Unable to delete SQLite database$pathToDb")
@@ -129,7 +129,7 @@ open class SQLiteDb @JvmOverloads constructor(
             // even though the name of the database has been set.
             ds.url = "jdbc:sqlite:$pathToDb"
             ds.config = createDefaultConfiguration()
-            DatabaseIfc.logger.info { "Created SQLite data source $pathToDb" }
+            DatabaseIfc.logger.debug { "Created SQLite data source $pathToDb" }
             return ds
         }
 

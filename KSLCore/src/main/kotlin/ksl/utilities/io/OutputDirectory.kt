@@ -115,7 +115,7 @@ class OutputDirectory(
         return try {
             Files.createDirectories(pathToDir)
         } catch (e: IOException) {
-            KSLFileUtil.logger.info { "There was a problem creating the directories for $pathToDir used program launch directory" }
+            KSLFileUtil.logger.warn { "There was a problem creating the directories for $pathToDir used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -153,7 +153,7 @@ class OutputDirectory(
         return try {
             Files.createDirectories(outDir.resolve(name))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info {
+            KSLFileUtil.logger.warn {
                 "There was a problem creating the directories for ${outDir.resolve(name)} used program launch directory"
             }
             KSLFileUtil.programLaunchDirectory

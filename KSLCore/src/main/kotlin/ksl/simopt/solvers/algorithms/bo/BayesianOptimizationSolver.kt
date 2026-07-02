@@ -235,7 +235,7 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
         myInitialSolution = best
         currentSolution = best
         solutionChecker.captureSolution(currentSolution)
-        logger.info { "Solver: $name : initialized BO with ${archive.size} design points" }
+        logger.debug { "Solver: $name : initialized BO with ${archive.size} design points" }
     }
 
     override fun mainIteration() {

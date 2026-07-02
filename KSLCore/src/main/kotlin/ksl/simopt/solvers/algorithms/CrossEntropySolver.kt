@@ -213,8 +213,8 @@ class CrossEntropySolver @JvmOverloads constructor(
         ceSampler.initializeParameters(initialPoint.inputValues)
         myEliteSolutions.clear()
         solutionChecker.clear()
-        logger.info { "Solver: $name : initialized with CE Sampler's parameters" }
-        logger.info { "Initial parameters = $initialPoint" }
+        logger.debug { "Solver: $name : initialized with CE Sampler's parameters" }
+        logger.debug { "Initial parameters = $initialPoint" }
     }
 
     override fun mainIteration() {

@@ -39,7 +39,7 @@ class RandomRestartSolver(
         // randomly assign a new starting point
         val startPoint = startingPoint()
         restartingSolver.startingPoint = startPoint
-        logger.info { "Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}" }
+        logger.debug { "Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}" }
 //        println("Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}")
         // run the solver until it finds a solution
         restartingSolver.runAllIterations()
@@ -47,10 +47,10 @@ class RandomRestartSolver(
         numReplicationsRequested = numReplicationsRequested + restartingSolver.numReplicationsRequested
         // get the best solution from the solver run
         val bestSolution = restartingSolver.bestSolution
-        logger.info { "Best solution found from the solver run: ${bestSolution.asString()}" }
+        logger.debug { "Best solution found from the solver run: ${bestSolution.asString()}" }
 //        println("Best solution found from the solver run: ${bestSolution.asString()}")
         currentSolution = bestSolution
-        logger.info { "Current best: ${currentSolution.asString()}" }
+        logger.debug { "Current best: ${currentSolution.asString()}" }
     }
 
     override fun toString(): String {

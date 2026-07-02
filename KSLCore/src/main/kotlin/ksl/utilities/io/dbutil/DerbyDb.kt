@@ -136,9 +136,9 @@ open class DerbyDb @JvmOverloads constructor(
         override fun deleteDatabase(pathToDb: Path) {
             val b: Boolean = KSLFileUtil.deleteDirectory(pathToDb.toFile())
             if (b) {
-                DatabaseIfc.logger.info { "Deleting directory to derby database $pathToDb" }
+                DatabaseIfc.logger.debug { "Deleting directory to derby database $pathToDb" }
             } else {
-                DatabaseIfc.logger.info { "Unable to delete directory to derby database $pathToDb" }
+                DatabaseIfc.logger.warn { "Unable to delete directory to derby database $pathToDb" }
             }
         }
 
@@ -193,14 +193,14 @@ open class DerbyDb @JvmOverloads constructor(
             if (pWord != null) ds.password = pWord
             if (create) {
                 //val path = Paths.get(dbName)
-                DatabaseIfc.logger.info { "Create option is on for $pathToDb" }
+                DatabaseIfc.logger.debug { "Create option is on for $pathToDb" }
                 if (databaseExists(pathToDb)) {
-                    DatabaseIfc.logger.info { "Database already exists at location $pathToDb" }
+                    DatabaseIfc.logger.debug { "Database already exists at location $pathToDb" }
                     deleteDatabase(pathToDb)
                 }
                 ds.createDatabase = "create"
             }
-            DatabaseIfc.logger.info { "Created an embedded Derby data source for $pathToDb" }
+            DatabaseIfc.logger.debug { "Created an embedded Derby data source for $pathToDb" }
             return ds
         }
 
@@ -219,7 +219,7 @@ open class DerbyDb @JvmOverloads constructor(
                 dataSource.connection.use { }
             } catch (e: SQLException) {
                 if ("08006" == e.sqlState) {
-                    DatabaseIfc.logger.info { "Derby shutdown succeeded. SQLState=${e.sqlState}" }
+                    DatabaseIfc.logger.debug { "Derby shutdown succeeded. SQLState=${e.sqlState}" }
                     return true
                 }
                 DatabaseIfc.logger.error(e) { "Derby shutdown failed" }
@@ -257,7 +257,7 @@ open class DerbyDb @JvmOverloads constructor(
             if (user != null) ds.user = user
             if (pWord != null) ds.password = pWord
             ds.shutdownDatabase = "shutdown"
-            DatabaseIfc.logger.info { "Created an embedded Derby shutdown data source for $dbName" }
+            DatabaseIfc.logger.debug { "Created an embedded Derby shutdown data source for $dbName" }
             return ds
         }
 
@@ -284,7 +284,7 @@ open class DerbyDb @JvmOverloads constructor(
             if (create) {
                 ds.createDatabase = "create"
             }
-            DatabaseIfc.logger.info { "Created a Derby client data source for $dbName" }
+            DatabaseIfc.logger.debug { "Created a Derby client data source for $dbName" }
             return ds
         }
 

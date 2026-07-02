@@ -65,29 +65,30 @@ class KSLDatabaseObserver(
             super.beforeExperiment(modelElement)
             val simName: String = model.simulationName
             val expName: String = model.experimentName
-            Model.logger.info { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  $expName of simulation $simName for db ${db.label}" }
-            Model.logger.info { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  clearDataBeforeExperimentOption = $clearDataBeforeExperimentOption" }
-            DatabaseIfc.logger.info { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  $expName of simulation $simName for db ${db.label}" }
-            DatabaseIfc.logger.info { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  clearDataBeforeExperimentOption = $clearDataBeforeExperimentOption" }
+            Model.logger.debug { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  $expName of simulation $simName for db ${db.label}" }
+            Model.logger.debug { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  clearDataBeforeExperimentOption = $clearDataBeforeExperimentOption" }
+            DatabaseIfc.logger.debug { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  $expName of simulation $simName for db ${db.label}" }
+            DatabaseIfc.logger.debug { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  clearDataBeforeExperimentOption = $clearDataBeforeExperimentOption" }
             //handle clearing of database here
             if (clearDataBeforeExperimentOption) {
                 db.clearSimulationData(model)
-                Model.logger.info { "KSLDatabaseObserver cleared data for experiment $expName of simulation $simName for db ${db.label}" }
-                DatabaseIfc.logger.info { "KSLDatabaseObserver cleared data for experiment $expName of simulation $simName for db ${db.label}" }
+                Model.logger.debug { "KSLDatabaseObserver cleared data for experiment $expName of simulation $simName for db ${db.label}" }
+                DatabaseIfc.logger.debug { "KSLDatabaseObserver cleared data for experiment $expName of simulation $simName for db ${db.label}" }
             } else {
-                Model.logger.info { "KSLDatabaseObserver no clear option set for experiment $expName of simulation $simName for db ${db.label}" }
-                DatabaseIfc.logger.info { "KSLDatabaseObserver no clear option set for experiment $expName of simulation $simName for db ${db.label}" }
+                Model.logger.debug { "KSLDatabaseObserver no clear option set for experiment $expName of simulation $simName for db ${db.label}" }
+                DatabaseIfc.logger.debug { "KSLDatabaseObserver no clear option set for experiment $expName of simulation $simName for db ${db.label}" }
                 if (model.numChunks > 1) {
-                    Model.logger.info { "Run ${model.runName} is a chunk of Experiment $expName of simulation $simName for db ${db.label}." }
-                    Model.logger.info { "KSLDatabase ACROSS_REP_STAT results only reflect the results for each individual chunk, not the overall experiment for db ${db.label}" }
-                    DatabaseIfc.logger.info { "Run ${model.runName} is a chunk of Experiment $expName of simulation $simName for db ${db.label}." }
-                    DatabaseIfc.logger.info { "KSLDatabase ACROSS_REP_STAT results only reflect the results for each individual chunk, not the overall experiment for db ${db.label}" }
+                    Model.logger.debug { "Run ${model.runName} is a chunk of Experiment $expName of simulation $simName for db ${db.label}." }
+                    // WARN because chunked ACROSS_REP_STAT results change how the database contents must be interpreted
+                    Model.logger.warn { "KSLDatabase ACROSS_REP_STAT results only reflect the results for each individual chunk, not the overall experiment for db ${db.label}" }
+                    DatabaseIfc.logger.debug { "Run ${model.runName} is a chunk of Experiment $expName of simulation $simName for db ${db.label}." }
+                    DatabaseIfc.logger.warn { "KSLDatabase ACROSS_REP_STAT results only reflect the results for each individual chunk, not the overall experiment for db ${db.label}" }
                 }
             }
             // experiment record may exist if run is a chunk
             db.beforeExperiment(model)
-            Model.logger.info { "Before Experiment: KSLDatabaseObserver set up the database for run ${model.runName} of experiment $expName of simulation $simName for db ${db.label}" }
-            DatabaseIfc.logger.info { "Before Experiment: KSLDatabaseObserver set up the database for run ${model.runName} of experiment $expName of simulation $simName for db ${db.label}" }
+            Model.logger.debug { "Before Experiment: KSLDatabaseObserver set up the database for run ${model.runName} of experiment $expName of simulation $simName for db ${db.label}" }
+            DatabaseIfc.logger.debug { "Before Experiment: KSLDatabaseObserver set up the database for run ${model.runName} of experiment $expName of simulation $simName for db ${db.label}" }
         }
 
         override fun afterReplication(modelElement: ModelElement) {
@@ -95,7 +96,7 @@ class KSLDatabaseObserver(
             db.afterReplication(model)
             val simName: String = model.simulationName
             val expName: String = model.experimentName
-            Model.logger.info { "After replication ${model.currentReplicationId}: KSLDatabaseObserver inserted replication results for experiment $expName of simulation $simName for db ${db.label}" }
+            Model.logger.debug { "After replication ${model.currentReplicationId}: KSLDatabaseObserver inserted replication results for experiment $expName of simulation $simName for db ${db.label}" }
         }
 
         override fun afterExperiment(modelElement: ModelElement) {
@@ -103,7 +104,7 @@ class KSLDatabaseObserver(
             db.afterExperiment(model)
             val simName: String = model.simulationName
             val expName: String = model.experimentName
-            Model.logger.info { "After Experiment: KSLDatabaseObserver inserted across replication results for experiment $expName of simulation $simName for db ${db.label}" }
+            Model.logger.debug { "After Experiment: KSLDatabaseObserver inserted across replication results for experiment $expName of simulation $simName for db ${db.label}" }
         }
     }
 

@@ -257,14 +257,14 @@ class SimulationProvider internal constructor(
             else "${modelInputs.modelIdentifier}_Exp_${executionCounter}_Time_${Clock.System.now()}"
             // ensure that the requested number of replications will be executed
             srp.numberOfReplications = modelInputs.numReplications
-            logger.info { "SimulationProvider: Running simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
+            logger.debug { "SimulationProvider: Running simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
             val mySimulationRunner = SimulationRunner(model)
             //run the simulation to produce the simulation run results
             val simulationRun = mySimulationRunner.simulate(
                 modelIdentifier = modelInputs.modelIdentifier,
                 inputs = modelInputs.inputs,
                 experimentRunParameters = srp)
-            logger.info { "SimulationProvider: Completed simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
+            logger.debug { "SimulationProvider: Completed simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
             return simulationRun
         }
     }

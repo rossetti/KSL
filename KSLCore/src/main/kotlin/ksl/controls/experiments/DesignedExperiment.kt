@@ -4,6 +4,7 @@ import ksl.simulation.InMemorySnapshotCollector
 import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
+import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.addColumnsFor
 import ksl.utilities.io.dbutil.KSLDatabase
@@ -474,12 +475,7 @@ class DesignedExperiment @JvmOverloads constructor(
         onDesignPointReplications: ((experimentName: String, replications: List<SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
     ) {
         if (!iterator.hasNext()) {
-            val wm = "WARNING: The supplied iterator for designed experiment, $name, had no design points."
-            Model.logger.warn { wm }
-            println()
-            println(wm)
-            println()
-            System.out.flush()
+            KSL.consoleAdvisory(Model.logger) { "The supplied iterator for designed experiment, $name, had no design points." }
         }
         if (clearRuns) {
             clearSimulationRuns()
@@ -577,13 +573,13 @@ class DesignedExperiment @JvmOverloads constructor(
         model.numberOfReplications = designPoint.numReplications
         model.experimentName = baseExperimentName
         // use SimulationRunner to run the simulation
-        Model.logger.info { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
+        Model.logger.debug { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
         val sr = mySimulationRunner.simulate(
             modelIdentifier = model.modelIdentifier,
             inputs = inputs,
             experimentRunParameters = model.extractRunParameters()
         )
-        Model.logger.info { "DesignedExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
+        Model.logger.debug { "DesignedExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
         // add SimulationRun to simulation run list
         if (addRuns) {
             mySimulationRuns[designPoint] = sr

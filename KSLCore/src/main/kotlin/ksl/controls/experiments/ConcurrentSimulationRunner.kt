@@ -119,7 +119,7 @@ class ConcurrentSimulationRunner(
             }
 
             coroutineContext.ensureActive()
-            Model.logger.info { "ConcurrentSimulationRunner: Running simulation: ${model.simulationName} " }
+            Model.logger.debug { "ConcurrentSimulationRunner: Running simulation: ${model.simulationName} " }
             model.initializeReplications()
             initialized = true
 
@@ -138,7 +138,7 @@ class ConcurrentSimulationRunner(
                 model.print()
             }
 
-            Model.logger.info { "ConcurrentSimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
+            Model.logger.debug { "ConcurrentSimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
             rdc.stopObserving()
             timer.stopObserving()
             SimulationRunner.captureResults(model, simulationRun, timer, rdc)

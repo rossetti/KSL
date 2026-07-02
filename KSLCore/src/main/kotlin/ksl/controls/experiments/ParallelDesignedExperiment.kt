@@ -532,12 +532,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
         val designPoints = iterator.asSequence().toList()
         if (designPoints.isEmpty()) {
-            val wm = "WARNING: The supplied iterator for parallel designed experiment, $name, had no design points."
-            Model.logger.warn { wm }
-            println()
-            println(wm)
-            println()
-            System.out.flush()
+            KSL.consoleAdvisory(Model.logger) { "The supplied iterator for parallel designed experiment, $name, had no design points." }
             return
         }
 

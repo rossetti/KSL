@@ -41,8 +41,7 @@ abstract class SimulationService(
         val simulationRun = executeSimulation(modelInputs, model)
         model.changeRunParameters(originalExpRunParams)
         if (simulationRun.runErrorMsg.isNotEmpty()) {
-            SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
-            SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+            SimulationServiceIfc.logger.warn { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error: ${simulationRun.runErrorMsg}" }
             return Result.failure(SimulationRunException(simulationRun))
         }
         return Result.success(simulationRun)
@@ -81,8 +80,7 @@ abstract class SimulationService(
             results[modelInputs] = if (simulationRun.runErrorMsg.isEmpty()) {
                 Result.success(simulationRun)
             } else {
-                SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
-                SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+                SimulationServiceIfc.logger.warn { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error: ${simulationRun.runErrorMsg}" }
                 Result.failure(SimulationRunException(simulationRun))
             }
         }
@@ -113,8 +111,7 @@ abstract class SimulationService(
             results[modelInputs] = if (simulationRun.runErrorMsg.isEmpty()) {
                 Result.success(simulationRun)
             } else {
-                SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
-                SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+                SimulationServiceIfc.logger.warn { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error: ${simulationRun.runErrorMsg}" }
                 Result.failure(SimulationRunException(simulationRun))
             }
         }

@@ -93,7 +93,7 @@ object ExcelUtil {
     fun createSheet(workbook: Workbook, sheetName: String): Worksheet {
         val safe = createSafeSheetName(sheetName)
         val sheet = workbook.newWorksheet(safe)
-        logger.info { "Created new sheet $safe in workbook" }
+        logger.debug { "Created new sheet $safe in workbook" }
         return sheet
     }
 
@@ -164,7 +164,7 @@ object ExcelUtil {
         }
         return try {
             val wb = ReadableWorkbook(file)
-            logger.info { "Opened workbook for reading only at: $pathToWorkbook" }
+            logger.debug { "Opened workbook for reading only at: $pathToWorkbook" }
             wb
         } catch (e: IOException) {
             logger.error { "There was an IO error when trying to open the workbook at: $pathToWorkbook" }
@@ -451,7 +451,7 @@ object ExcelUtil {
         val wbn = if (!wbName.endsWith(".xlsx")) "$wbName.xlsx" else wbName
         val path = wbDirectory.resolve(wbn)
         FileOutputStream(path.toFile()).use { fos ->
-            logger.info { "Opened workbook $path for writing map $sheetName to Excel" }
+            logger.debug { "Opened workbook $path for writing map $sheetName to Excel" }
             Workbook(fos, APP_NAME, APP_VERSION).use { wb ->
                 val ws = wb.newWorksheet(createSafeSheetName(sheetName))
                 var rowCnt = 0
@@ -471,7 +471,7 @@ object ExcelUtil {
                     rowCnt++
                 }
             }
-            logger.info { "Closed workbook $path after writing map $sheetName to Excel" }
+            logger.debug { "Closed workbook $path after writing map $sheetName to Excel" }
         }
     }
 
@@ -488,7 +488,7 @@ object ExcelUtil {
         workbook.use { wb ->
             val sheet = wb.findSheet(sheetName).orElse(null)
             if (sheet == null) {
-                logger.info { "No corresponding sheet named $sheetName in workbook $pathToWorkbook" }
+                logger.warn { "No corresponding sheet named $sheetName in workbook $pathToWorkbook" }
                 return emptyMap()
             }
             val map = mutableMapOf<String, Double>()
@@ -543,7 +543,7 @@ object ExcelUtil {
         // and Workbook.close() throws "not current zip current". finish() is
         // idempotent, so the later Workbook.close() -> ws.finish() is a no-op.
         ws.finish()
-        DatabaseIfc.logger.info { "Completed exporting ResultSet to Excel worksheet ${ws.name}" }
+        DatabaseIfc.logger.debug { "Completed exporting ResultSet to Excel worksheet ${ws.name}" }
     }
 
     /**
@@ -579,8 +579,8 @@ object ExcelUtil {
      */
     fun exportTablesToExcel(db: DatabaseIfc, path: Path, tableNames: List<String>, schemaName: String?) {
         FileOutputStream(path.toFile()).use { fos ->
-            logger.info { "Opened workbook $path for writing database ${db.label} output" }
-            DatabaseIfc.logger.info { "Writing database ${db.label} to workbook at $path" }
+            logger.debug { "Opened workbook $path for writing database ${db.label} output" }
+            DatabaseIfc.logger.debug { "Writing database ${db.label} to workbook at $path" }
             Workbook(fos, APP_NAME, APP_VERSION).use { wb ->
                 val usedNames = mutableSetOf<String>()
                 for (tableName in tableNames) {
@@ -591,8 +591,8 @@ object ExcelUtil {
                     rs.close()
                 }
             }
-            logger.info { "Closed workbook $path after writing database ${db.label} output" }
-            DatabaseIfc.logger.info { "Completed database ${db.label} export to workbook at $path" }
+            logger.debug { "Closed workbook $path after writing database ${db.label} output" }
+            DatabaseIfc.logger.debug { "Completed database ${db.label} export to workbook at $path" }
         }
     }
 
@@ -610,11 +610,11 @@ object ExcelUtil {
         val workbook = openReadableWorkbook(pathToWorkbook)
             ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
         workbook.use { wb ->
-            DatabaseIfc.logger.info { "Writing workbook $pathToWorkbook to database ${db.label}" }
+            DatabaseIfc.logger.debug { "Writing workbook $pathToWorkbook to database ${db.label}" }
             for (tableName in tableNames) {
                 val sheet = wb.findSheet(tableName).orElse(null)
                 if (sheet == null) {
-                    DatabaseIfc.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
+                    DatabaseIfc.logger.warn { "Skipping table $tableName no corresponding sheet in workbook" }
                     continue
                 }
                 DatabaseIfc.logger.trace { "Processing the sheet for table $tableName." }
@@ -629,12 +629,12 @@ object ExcelUtil {
                     unCompatibleRows = badRowsFile
                 )
                 if (!success) {
-                    DatabaseIfc.logger.info { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
+                    DatabaseIfc.logger.warn { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
                 } else {
-                    DatabaseIfc.logger.info { "Wrote sheet $tableName to database ${db.label}." }
+                    DatabaseIfc.logger.debug { "Wrote sheet $tableName to database ${db.label}." }
                 }
             }
-            DatabaseIfc.logger.info { "Completed writing workbook $pathToWorkbook to database ${db.label}" }
+            DatabaseIfc.logger.debug { "Completed writing workbook $pathToWorkbook to database ${db.label}" }
         }
     }
 
@@ -697,8 +697,14 @@ object ExcelUtil {
                         con.commit()
                         DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
                     }
-                    DatabaseIfc.logger.info {
-                        "Transferred $cntGood out of $rowCnt rows for ${sheet.name}. There were $cntBad incompatible rows written."
+                    if (cntBad > 0) {
+                        DatabaseIfc.logger.warn {
+                            "Transferred $cntGood out of $rowCnt rows for ${sheet.name}. There were $cntBad incompatible rows written."
+                        }
+                    } else {
+                        DatabaseIfc.logger.debug {
+                            "Transferred $cntGood out of $rowCnt rows for ${sheet.name}. There were $cntBad incompatible rows written."
+                        }
                     }
                 }
             }

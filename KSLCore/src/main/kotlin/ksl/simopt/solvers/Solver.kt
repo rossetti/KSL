@@ -991,11 +991,11 @@ abstract class Solver(
 //            println("current solution: ${currentSolution.asString()}")
 //            println("best solution: ${bestSolution.asString()}")
 //            println("best solutions size ${myBestSolutions.size}")
-            logger.info { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
+            logger.debug { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
             if (::myInitialSolution.isInitialized) {
                 val solution = myInitialSolution
-                logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
+                logger.debug { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
             lifeCycleEmitter.emit(SolverStatus.INITIALIZED)
@@ -1033,14 +1033,14 @@ abstract class Solver(
             logger.trace { "Executing beforeMainIteration(): iteration = $iterationCounter of solver $name" }
             beforeMainIteration()
             iterationCounter++
-            logger.info { "Running: iteration = $iterationCounter of solver name: $name" }
+            logger.debug { "Running: iteration = $iterationCounter of solver name: $name" }
             mainIteration()
             if (iterationCounter % snapShotFrequency == 0 && iterationEmitter.isObserved) {
                 val snapshot = makeSolverStateSnapshot()
                 iterationEmitter.emit(snapshot)
             }
 
-            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.penalizedObjFncValue}" }
+            logger.debug { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.penalizedObjFncValue}" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
         }
@@ -1050,7 +1050,7 @@ abstract class Solver(
             mainIterationsEnded()
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             super.endIterations()
-            logger.info { "Ended: solver $name iterations." }
+            logger.debug { "Ended: solver $name iterations." }
             lifeCycleEmitter.emit(SolverStatus.COMPLETED)
         }
 

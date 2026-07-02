@@ -260,13 +260,13 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     override fun writeTableAsText(tableName: String, schemaName: String?, out: PrintWriter) {
         if (!containsTable(tableName, schemaName) && !containsView(tableName, schemaName)) {
-            logger.info { "Table or View: $tableName does not exist in database $label" }
+            logger.warn { "Table or View: $tableName does not exist in database $label" }
             return
         }
         val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
             out.println(tableName)
-            logger.info { "Writing table: $tableName from schema $schemaName as text to output" }
+            logger.debug { "Writing table: $tableName from schema $schemaName as text to output" }
             writeAsText(rowSet, out)
             out.flush()
             rowSet.close()
@@ -323,7 +323,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     override fun writeTableAsMarkdown(tableName: String, schemaName: String?, out: PrintWriter) {
         if (!containsTable(tableName, schemaName) && !containsView(tableName, schemaName)) {
-            logger.info { "Table or View: $tableName does not exist in database $label" }
+            logger.warn { "Table or View: $tableName does not exist in database $label" }
             return
         }
         val rowSet = selectAll(tableName, schemaName)
@@ -606,7 +606,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     override fun exportInsertQueries(tableName: String, schemaName: String?, out: PrintWriter) {
         val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
-            logger.info { "Exporting insert queries for table $tableName in schema $schemaName" }
+            logger.debug { "Exporting insert queries for table $tableName in schema $schemaName" }
             val resultsAsText = DbResultsAsText(rowSet)
             val sql = if (schemaName == null) {
                 "insert into $tableName values "
@@ -622,7 +622,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 logger.trace { "Wrote insert statement: ${sql}${inputs}" }
             }
         } else {
-            logger.info { "Failed to export insert queries for table $tableName in schema $schemaName" }
+            logger.warn { "Failed to export insert queries for table $tableName in schema $schemaName" }
         }
     }
 
@@ -661,9 +661,9 @@ interface DatabaseIfc : DatabaseIOIfc {
         val tables = tableNames(schemaName).toMutableList()
         tables.addAll(viewNames(schemaName))
         if (tables.isEmpty()) {
-            logger.info { "There were no tables or views when exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
+            logger.warn { "There were no tables or views when exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
         } else {
-            logger.info { "Exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
+            logger.debug { "Exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
             exportToExcel(tables, schemaName, wbName, wbDirectory)
         }
     }
@@ -1173,9 +1173,9 @@ interface DatabaseIfc : DatabaseIOIfc {
                     if (autoCreateSchema) {
                         val worked = executeCommand("CREATE SCHEMA ${td.schemaName}")
                         if (worked) {
-                            logger.info { "Db($label): schema ${td.schemaName} has been created." }
+                            logger.debug { "Db($label): schema ${td.schemaName} has been created." }
                         } else {
-                            logger.info { "Db($label): schema ${td.schemaName} was not created." }
+                            logger.warn { "Db($label): schema ${td.schemaName} was not created." }
                         }
                     } else {
                         val msg = "Database $label does not contain ${td.schemaName} to hold table $td.tableName"
@@ -1189,12 +1189,12 @@ interface DatabaseIfc : DatabaseIOIfc {
             require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the simple table must be false." }
             val worked = executeCommand(tableData.createTableSQLStatement())
             if (worked) {
-                logger.info { "Database: $label: table ${tableData.tableName} has been created." }
+                logger.debug { "Database: $label: table ${tableData.tableName} has been created." }
             } else {
-                logger.info { "Database: $label: table ${tableData.tableName} was not created." }
+                logger.warn { "Database: $label: table ${tableData.tableName} was not created." }
             }
         }
-        logger.info { "Database: $label: table definitions have been processed." }
+        logger.debug { "Database: $label: table definitions have been processed." }
     }
 
     private fun List<DbSchemaInfo>.containsTable(tableName: String): Boolean {

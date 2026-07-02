@@ -206,7 +206,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         initialTemperature = when (val config = temperatureConfiguration) {
             is TemperatureConfiguration.Fixed -> config.temperature
             is TemperatureConfiguration.AutoCalibrate -> {
-                logger.info { "Solver: $name : Auto-calibrating initial temperature..." }
+                logger.debug { "Solver: $name : Auto-calibrating initial temperature..." }
                 calibrateTemperature(config.targetProbability, config.sampleSize)
             }
         }
@@ -260,7 +260,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         val averageWorseningCost = totalWorseningCost / worseningMovesCount
         val estimatedTemp = -averageWorseningCost / ln(targetAcceptanceProbability)
 
-        logger.info { "Solver: $name : Calibration complete. Estimated Initial Temperature: $estimatedTemp" }
+        logger.debug { "Solver: $name : Calibration complete. Estimated Initial Temperature: $estimatedTemp" }
         return estimatedTemp
     }
 

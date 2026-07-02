@@ -234,17 +234,17 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.FULL_SCRIPT -> {
-                DatabaseIfc.logger.info { "Attempting to execute full script create task...\n $this" }
+                DatabaseIfc.logger.debug { "Attempting to execute full script create task...\n $this" }
                 execFlag = myDatabase.executeCommands(creationScriptCommands)
             }
 
             Type.TABLES -> {
-                DatabaseIfc.logger.info { "Attempting to execute tables only create task. \n $this" }
+                DatabaseIfc.logger.debug { "Attempting to execute tables only create task. \n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
             }
 
             Type.TABLES_INSERT -> {
-                DatabaseIfc.logger.info { "Attempting to execute tables plus insert create task.\n $this" }
+                DatabaseIfc.logger.debug { "Attempting to execute tables plus insert create task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = myDatabase.executeCommands(insertCommands)
@@ -252,7 +252,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_ALTER -> {
-                DatabaseIfc.logger.info { "Attempting to execute tables plus alter create task.\n $this" }
+                DatabaseIfc.logger.debug { "Attempting to execute tables plus alter create task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = myDatabase.executeCommands(alterCommands)
@@ -260,7 +260,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_INSERT_ALTER -> {
-                DatabaseIfc.logger.info { "Attempting to execute create/insert/alter tables create task.\n $this" }
+                DatabaseIfc.logger.debug { "Attempting to execute create/insert/alter tables create task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = myDatabase.executeCommands(insertCommands)
@@ -271,8 +271,8 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_EXCEL -> {
-                DatabaseIfc.logger.info { "Attempting to execute tables create plus Excel import task.\n $this" }
-                DatabaseIfc.logger.info { "The Excel file holding data for import is $excelWorkbookPathForDataInsert" }
+                DatabaseIfc.logger.debug { "Attempting to execute tables create plus Excel import task.\n $this" }
+                DatabaseIfc.logger.debug { "The Excel file holding data for import is $excelWorkbookPathForDataInsert" }
                 execFlag = myDatabase.executeCommands(tableCommands) //TODO should this be inside the try?
                 if (execFlag) {
                     try {
@@ -289,7 +289,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_EXCEL_ALTER -> {
-                DatabaseIfc.logger.info { "Attempting to execute tables create plus Excel plus alter import task.\n $this" }
+                DatabaseIfc.logger.debug { "Attempting to execute tables create plus Excel plus alter import task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = try {
@@ -307,10 +307,10 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         }
         if (execFlag) {
             state = State.EXECUTED
-            DatabaseIfc.logger.info { "The task was successfully executed." }
+            DatabaseIfc.logger.debug { "The task was successfully executed." }
         } else {
             state = State.EXECUTION_ERROR
-            DatabaseIfc.logger.info { "The task had execution errors." }
+            DatabaseIfc.logger.warn { "The task had execution errors." }
             throw DataAccessException("There was an execution error for task $this see DbLog.log for details")
         }
         return execFlag // note can only get here if execFlag is true because of the execution exception

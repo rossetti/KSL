@@ -253,7 +253,7 @@ class ParticleSwarmSolver @JvmOverloads constructor(
         myInitialSolution = best
         currentSolution = best
         solutionChecker.captureSolution(currentSolution)
-        logger.info { "Solver: $name : initialized PSO swarm of size ${mySwarm.size}" }
+        logger.debug { "Solver: $name : initialized PSO swarm of size ${mySwarm.size}" }
     }
 
     override fun mainIteration() {
