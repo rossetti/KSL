@@ -148,7 +148,13 @@ class DistributionAppController(val appName: String) {
 
     /** This app's home folder under the active workspace — `<activeWorkspace>/<appName>/`. */
     val appWorkspace: Path
-        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), APP_FOLDER)
+
+    companion object {
+        /** This app's stable working-folder name — used for BOTH artifacts and bundle discovery so they never
+         *  diverge (deriving it from the display appName would sanitize spaces to a different folder). */
+        const val APP_FOLDER: String = "KSLDistribution"
+    }
 
     /** Returns [appWorkspace], creating it if missing (e.g. as a file-dialog start dir). */
     fun ensureAppWorkspace(): Path {

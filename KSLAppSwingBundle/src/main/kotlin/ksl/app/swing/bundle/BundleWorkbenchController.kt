@@ -62,9 +62,15 @@ class BundleWorkbenchController(val appName: String) {
     /** Shared workspace/recent-directories settings (`~/.ksl`), as in the other apps. */
     val settingsStore: UserSettingsStore = UserSettingsStore()
 
-    /** This app's folder under the active workspace — `<activeWorkspace>/KSL_Bundle_Workbench/`. */
+    /** This app's folder under the active workspace — `<activeWorkspace>/KSLBundleWorkbench/`. */
     val appWorkspace: java.nio.file.Path
-        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), APP_FOLDER)
+
+    companion object {
+        /** This app's stable working-folder name — used for BOTH artifacts and bundle discovery so they never
+         *  diverge (deriving it from the display appName would sanitize spaces to a different folder). */
+        const val APP_FOLDER: String = "KSLBundleWorkbench"
+    }
 
     /** Returns [appWorkspace], creating it if missing (used as the file-dialog start dir). */
     fun ensureAppWorkspace(): java.nio.file.Path {

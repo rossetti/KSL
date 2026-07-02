@@ -87,11 +87,11 @@ class ResultsAppControllerTest {
         val controller = ResultsAppController("My App")
         controller.openDatabase(File(tempDir.toFile(), dbName))
 
-        // <workspace>/My_App/output/ctrl_db/reports — assert the suffix
-        // regardless of the user's workspace root, and create nothing.
+        // <workspace>/KSLResults/output/ctrl_db/reports — the app folder is the stable APP_FOLDER constant, not the
+        // display appName. Assert the suffix regardless of the user's workspace root, and create nothing.
         val out = controller.outputDir.toString().replace('\\', '/')
         assertTrue(
-            out.contains("/My_App/output/$dbName/reports"),
+            out.contains("/KSLResults/output/$dbName/reports"),
             "unexpected outputDir: $out"
         )
     }

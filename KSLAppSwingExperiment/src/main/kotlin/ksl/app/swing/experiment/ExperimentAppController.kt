@@ -117,6 +117,11 @@ class ExperimentAppController(
          *  vertical scroll target — users who need persistence should
          *  Save. */
         const val MAX_RECENT_FITS: Int = 10
+
+        /** This app's stable working-folder name under the active workspace — used for BOTH artifacts and bundle
+         *  discovery so they never diverge. (Deriving the folder from the display appName would sanitize spaces to a
+         *  different folder, e.g. "KSL Experiment" -> "KSL_Experiment", splitting where the app writes vs. reads.) */
+        const val APP_FOLDER: String = "KSLExperiment"
     }
 
 
@@ -135,7 +140,7 @@ class ExperimentAppController(
      *  controller's KDoc for the same property; rules are identical.
      *  Delegates to [AppWorkspacePaths.appWorkspaceDir]. */
     val appWorkspace: Path
-        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), APP_FOLDER)
 
     // ── Document state ─────────────────────────────────────────────────────
 

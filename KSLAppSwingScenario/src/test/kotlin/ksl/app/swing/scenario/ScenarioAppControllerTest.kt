@@ -133,11 +133,12 @@ class ScenarioAppControllerTest {
     }
 
     @Test
-    fun `appWorkspace nests sanitized appName under settings workspace`() {
+    fun `appWorkspace resolves to the app's stable folder under the settings workspace`() {
         val c = fresh("Queueing Scenarios")
         val parent = c.settingsStore.activeWorkspace()
-        // Spaces sanitize to underscores per the KSL convention.
-        assertEquals(parent.resolve("Queueing_Scenarios"), c.appWorkspace)
+        // The folder is a stable per-app constant (APP_FOLDER), NOT the display appName — so artifacts and bundle
+        // discovery always agree, regardless of a custom appName.
+        assertEquals(parent.resolve(ScenarioAppController.APP_FOLDER), c.appWorkspace)
     }
 
     // ── Document-level mutators ────────────────────────────────────────────

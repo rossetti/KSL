@@ -122,7 +122,13 @@ class SimoptAppController(
      *  `<active-workspace>/<appNameSanitized>/`.  Delegates to
      *  [AppWorkspacePaths.appWorkspaceDir]. */
     val appWorkspace: Path
-        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), APP_FOLDER)
+
+    companion object {
+        /** This app's stable working-folder name — used for BOTH artifacts and bundle discovery so they never
+         *  diverge (deriving it from the display appName would sanitize spaces to a different folder). */
+        const val APP_FOLDER: String = "KSLSimopt"
+    }
 
     // ── Document state ─────────────────────────────────────────────────────
     //

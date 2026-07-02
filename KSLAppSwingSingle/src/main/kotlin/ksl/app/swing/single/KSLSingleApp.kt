@@ -156,7 +156,9 @@ class KSLSingleApp(val appName: String) {
         // Bundle-picker mode.  Discover whatever the user dropped into the
         // app-specific then shared workspace bundle folders.
         val activeWorkspace = UserSettingsStore().activeWorkspace()
-        val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, appName)
+        // Use the app's stable working folder (SingleAppController.APP_FOLDER), NOT the display appName — the
+        // controller writes its artifacts there, and the display name would sanitize to a different folder.
+        val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, SingleAppController.APP_FOLDER)
         val bundleLibrary = BundleLibraryController()
         bundleLibrary.discoverFromDirectories(
             WorkspaceLayout.bundlesDir(appWorkspace),

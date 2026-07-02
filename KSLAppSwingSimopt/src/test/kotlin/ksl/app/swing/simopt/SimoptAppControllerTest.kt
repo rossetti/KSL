@@ -335,8 +335,8 @@ class SimoptAppControllerTest {
             )
             assertTrue(java.nio.file.Files.isDirectory(configsDir),
                 "configsDir(... createIfMissing=true) must create the directory")
-            assertTrue(configsDir.endsWith(java.nio.file.Path.of(c.appNameSanitized, "configs")),
-                "configsDir should resolve to <appNameSanitized>/configs; got $configsDir")
+            assertTrue(configsDir.endsWith(java.nio.file.Path.of(SimoptAppController.APP_FOLDER, "configs")),
+                "configsDir should resolve to <APP_FOLDER>/configs; got $configsDir")
 
             val target = configsDir.resolve("draft.toml")
             c.saveConfiguration(target)

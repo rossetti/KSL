@@ -95,7 +95,7 @@ class ResultsAppController(val appName: String) {
      *  working directory each access so it always reflects the current
      *  workspace. */
     val appWorkspace: Path
-        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), APP_FOLDER)
 
     /** Creates this app's workspace folder (and its `KSLWork` parent) if
      *  missing, returning it.  Called at startup so file choosers open
@@ -232,5 +232,8 @@ class ResultsAppController(val appName: String) {
          *  folds unquoted identifiers to upper-case; must match
          *  `KSLDatabase`'s internal `SCHEMA_NAME`. */
         const val DERBY_KSL_SCHEMA = "KSL_DB"
+
+        /** This app's stable working-folder name — used for artifacts (no divergence with any future discovery). */
+        const val APP_FOLDER: String = "KSLResults"
     }
 }

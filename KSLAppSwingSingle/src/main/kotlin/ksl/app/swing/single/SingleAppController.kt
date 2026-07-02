@@ -251,7 +251,7 @@ class SingleAppController(
             // Root per-analysis folders under the app's own workspace dir
             // (KSLWork/<AppName>/) — the same dir bundle discovery uses — rather than
             // the bare workspace root, so output/configs/reports sit beside bundles/.
-            activeWorkspace = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName),
+            activeWorkspace = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), APP_FOLDER),
             analysisName = myOutputConfig.value.analysisName,
             modelName = modelName
         )
@@ -1054,6 +1054,11 @@ class SingleAppController(
     }
 
     companion object {
+        /** This app's stable working-folder name under the active workspace — used for BOTH artifacts and bundle
+         *  discovery so they never diverge (deriving it from the display appName would sanitize spaces to a
+         *  different folder). Referenced cross-file by KSLSingleApp's bundle discovery. */
+        const val APP_FOLDER: String = "KSLSingle"
+
         /** Bound for [recentReportSaves].  Older records are silently
          *  FIFO-evicted on each new append, matching the Experiment
          *  app's regression-fits cache contract. */
