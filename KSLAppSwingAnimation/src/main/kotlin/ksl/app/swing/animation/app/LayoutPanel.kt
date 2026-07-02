@@ -66,11 +66,6 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private val bgListModel = javax.swing.DefaultListModel<String>()
     private val pathListModel = javax.swing.DefaultListModel<String>()
     private val pathNameField = JTextField(8)
-    // Object styles strip (batch 3): edit the selected entity/agent type's glyph (shape/color/size/image).
-    private val styleShape = JComboBox(ksl.animation.LayoutShape.entries.toTypedArray())
-    private val styleColor = ColorSwatchField("#1f77b4")
-    private val styleSize = JTextField(4).apply { text = "12" }
-    private val styleImage = JTextField(12).apply { isEditable = false } // chosen image glyph (10.7c), blank = none
     // Process colors (10.1e): edit the selected process's tint color.
     private val processColorField = ColorSwatchField("#ff7f0e")
     // Editable tables (batch 3): one row per discovered entity type / process; edit the selected row in the strip.
@@ -694,7 +689,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         clearArmState()
         pathArmed = true; pathArmName = null   // name derived from the from/to anchors at finish
         canvas.cursor = crosshair
-        coordLabel.text = "Click the FROM anchor (a placed station/location)  (Esc to cancel)"
+        coordLabel.text = "Click the FROM anchor, then empty space for waypoints, then the TO anchor to finish  (Esc to cancel)"
         highlightTool(null); pathButton?.border = armedButtonBorder
     }
 
@@ -709,15 +704,17 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         if (pathFrom == null) {
             if (anchor == null) { coordLabel.text = "Click a placed station/location to start the path"; return }
             pathFrom = anchor
-            coordLabel.text = "From ${anchor.name}: click waypoints, then double-click the TO anchor"
+            coordLabel.text = "From ${anchor.name}: click empty space for waypoints, then click the TO anchor to finish"
             refreshPathPreview()   // ring the chosen start anchor so the selection is visible (H1)
-        } else {
-            if (anchor != null) return // near an anchor: ignore (the finishing double-click sets the destination)
+        } else if (anchor != null && anchor != pathFrom) {
+            onPathFinish(anchor)   // clicking a different placed anchor closes the path — no double-click needed
+        } else if (anchor == null) {
             val w = canvas.screenToWorld(sx.toDouble(), sy.toDouble())
             pathWaypoints.add(ksl.animation.LayoutPoint(w.x, w.y))
-            coordLabel.text = "From ${pathFrom!!.name}: ${pathWaypoints.size} waypoint(s); double-click the TO anchor"
+            coordLabel.text = "From ${pathFrom!!.name}: ${pathWaypoints.size} waypoint(s); click the TO anchor to finish"
             refreshPathPreview()   // draw the new waypoint + segment live (H1)
         }
+        // else: clicked the start anchor again → ignore
     }
 
     /** Finish at [to] (the double-clicked anchor): persist a functional path when it is a distinct destination. */
@@ -1968,6 +1965,33 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         }
     }
 
+    /** Applies one changed field of [type]'s object style, preserving the others — the in-row editors call this so a
+     *  single click edits just that column (I). A non-null [image] also switches the glyph to IMAGE. */
+    private fun editObjectStyle(
+        type: String,
+        shape: ksl.animation.LayoutShape? = null,
+        color: String? = null,
+        size: Double? = null,
+        image: String? = null,
+    ) {
+        val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == type }
+        val newShape = shape ?: if (image != null) ksl.animation.LayoutShape.IMAGE else (oc?.shape ?: ksl.animation.LayoutShape.CIRCLE)
+        controller.addObjectClass(type, newShape, color ?: oc?.color ?: "#1f77b4", size ?: oc?.size ?: 12.0, image ?: oc?.imageRef)
+        afterEdit()
+    }
+
+    /** Opens a file chooser and, on selection, sets [type]'s glyph image (switching the shape to IMAGE) — the in-row
+     *  Image editor; use "Reset selected style" to clear it (I). */
+    private fun chooseImageForType(type: String) {
+        val chooser = javax.swing.JFileChooser().apply {
+            dialogTitle = "Choose image for $type"
+            fileFilter = javax.swing.filechooser.FileNameExtensionFilter("Images", "png", "jpg", "jpeg", "gif")
+        }
+        if (chooser.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+            editObjectStyle(type, image = chooser.selectedFile.absolutePath)
+        }
+    }
+
     private fun buildObjectStylesTab(): JComponent {
         val model = object : javax.swing.table.AbstractTableModel() {
             private val cols = arrayOf("", "Type", "Shape", "Color", "Size", "Image")
@@ -1989,46 +2013,45 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         }
         styleTableModel = model
         val table = javax.swing.JTable(model).apply { setSelectionMode(ListSelectionModel.SINGLE_SELECTION) }
-        table.selectionModel.addListSelectionListener { if (!it.valueIsAdjusting) loadStyleStrip(table.selectedRow) }
         // A glyph preview in the leading column, so the modeler sees the shape/color a type draws as (C3).
         table.columnModel.getColumn(0).apply {
             cellRenderer = GlyphSwatchRenderer(); minWidth = 34; maxWidth = 34; preferredWidth = 34
         }
-        // Color column: show a swatch (not hex text), and click it to pick a color applied to that row directly (I).
+        // Color column shows a swatch (not hex). Click any editable cell (Shape/Color/Size/Image) to edit that row
+        // directly — no bottom strip, no Apply step (I).
         table.columnModel.getColumn(3).cellRenderer = colorSwatchCellRenderer()
         table.addMouseListener(object : java.awt.event.MouseAdapter() {
             override fun mouseClicked(e: java.awt.event.MouseEvent) {
-                if (table.columnAtPoint(e.point) != 3) return
                 val type = styleTypeNames.getOrNull(table.rowAtPoint(e.point)) ?: return
                 val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == type }
-                val current = runCatching { java.awt.Color.decode(oc?.color ?: "#1f77b4") }.getOrDefault(java.awt.Color.BLACK)
-                val picked = javax.swing.JColorChooser.showDialog(this@LayoutPanel, "Color for $type", current) ?: return
-                val hex = String.format("#%02x%02x%02x", picked.red, picked.green, picked.blue)
-                controller.addObjectClass(type, oc?.shape ?: ksl.animation.LayoutShape.CIRCLE, hex, oc?.size ?: 12.0, oc?.imageRef)
-                afterEdit()
+                when (table.columnAtPoint(e.point)) {
+                    2 -> { // Shape: pick from the enum
+                        val choice = JOptionPane.showInputDialog(
+                            this@LayoutPanel, "Shape for $type", "Shape", JOptionPane.PLAIN_MESSAGE, null,
+                            ksl.animation.LayoutShape.entries.toTypedArray(), oc?.shape ?: ksl.animation.LayoutShape.CIRCLE
+                        ) as? ksl.animation.LayoutShape ?: return
+                        editObjectStyle(type, shape = choice)
+                    }
+                    3 -> { // Color: pick
+                        val current = runCatching { java.awt.Color.decode(oc?.color ?: "#1f77b4") }.getOrDefault(java.awt.Color.BLACK)
+                        val picked = javax.swing.JColorChooser.showDialog(this@LayoutPanel, "Color for $type", current) ?: return
+                        editObjectStyle(type, color = String.format("#%02x%02x%02x", picked.red, picked.green, picked.blue))
+                    }
+                    4 -> { // Size
+                        val s = JOptionPane.showInputDialog(this@LayoutPanel, "Glyph size for $type:", trimNum(oc?.size ?: 12.0))
+                            ?.trim()?.toDoubleOrNull()?.takeIf { it > 0 } ?: return
+                        editObjectStyle(type, size = s)
+                    }
+                    5 -> chooseImageForType(type) // Image: choose a file (Reset clears it)
+                }
             }
         })
         return JPanel(BorderLayout()).apply {
-            border = BorderFactory.createTitledBorder("Object styles — click a row's Color to pick it, or set shape/size/image below")
+            border = BorderFactory.createTitledBorder("Object styles — click a row's Shape / Color / Size / Image cell to edit it")
             add(JScrollPane(table), BorderLayout.CENTER)
             add(JPanel(FlowLayout(FlowLayout.LEFT)).apply {
-                add(JLabel("shape")); add(styleShape)
-                add(JLabel("color")); add(styleColor)
-                add(JLabel("size")); add(styleSize)
-                add(JLabel("image")); add(styleImage)
-                add(JButton("Choose…").apply {
-                    toolTipText = "Use an image as this type's glyph (sets shape to IMAGE)"
-                    addActionListener { chooseImageInto(styleImage) }
-                })
-                add(JButton("Clear img").apply { addActionListener { styleImage.text = "" } })
-                add(JButton("Apply to selected type").apply {
-                    addActionListener {
-                        val row = table.selectedRow.takeIf { it in styleTypeNames.indices }
-                        if (row == null) JOptionPane.showMessageDialog(this@LayoutPanel, "Select a type row first, then Apply.")
-                        else applyObjectStyle(styleTypeNames[row])
-                    }
-                })
-                add(JButton("Reset selected").apply {
+                add(JButton("Reset selected style").apply {
+                    toolTipText = "Remove the custom style for the selected type (revert to the default glyph)"
                     addActionListener { table.selectedRow.takeIf { it in styleTypeNames.indices }?.let { controller.removeObjectClass(styleTypeNames[it]); afterEdit() } }
                 })
             }, BorderLayout.SOUTH)
@@ -2073,26 +2096,6 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         }
     }
 
-    /** Loads the selected type's current style into the strip (or leaves the last values when unstyled). */
-    private fun loadStyleStrip(row: Int) {
-        val t = styleTypeNames.getOrNull(row) ?: return
-        // For an as-yet-unstyled type (no ObjectClassDefinition), show the seed defaults rather than the previous
-        // row's stale values, so what the strip shows is what Apply would write (I).
-        val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == t }
-        styleShape.selectedItem = oc?.shape ?: ksl.animation.LayoutShape.CIRCLE
-        styleColor.hex = oc?.color ?: "#1f77b4"
-        styleSize.text = trimNum(oc?.size ?: 12.0)
-        styleImage.text = oc?.imageRef ?: ""
-    }
-
-    /** Applies the strip's shape/color/size/image to [type] (a chosen image forces the IMAGE glyph). */
-    private fun applyObjectStyle(type: String) {
-        val size = styleSize.text.trim().toDoubleOrNull() ?: 12.0
-        val image = styleImage.text.trim().takeIf { it.isNotEmpty() }
-        val shape = if (image != null) ksl.animation.LayoutShape.IMAGE else styleShape.selectedItem as ksl.animation.LayoutShape
-        controller.addObjectClass(type, shape, styleColor.hex.trim().ifBlank { "#1f77b4" }, size, image)
-        afterEdit()
-    }
 
     // ── Process Colors tab (batch 3): a table of the model's processes, edited below ─────────────────
 
@@ -2781,9 +2784,10 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     internal fun objectStyleTypesForTest(): List<String> = styleTypeNames
     internal fun processNamesForTest(): List<String> = processNames
 
-    /** Applies an object style for [type] using [image] as its glyph, as the Object Styles tab would. */
+    /** Applies an object style for [type] using [image] as its glyph (blank = none), as the Object Styles tab's
+     *  in-row Image editor would. */
     internal fun addObjectStyleWithImageForTest(type: String, image: String) {
-        styleImage.text = image; applyObjectStyle(type)
+        editObjectStyle(type, image = image.ifBlank { null })
     }
 
     /** Applies a process tint color, as the Process Colors tab would (batch 3). */
