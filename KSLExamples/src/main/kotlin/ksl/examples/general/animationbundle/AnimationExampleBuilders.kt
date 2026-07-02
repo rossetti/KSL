@@ -77,10 +77,10 @@ class Example09DistancesTandemBuilder : ModelBuilderIfc {
         Example09DistancesTandem.buildModel()
 }
 
-class Example10MultiClassStationBuilder : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-        Example10MultiClassStation.buildModel()
-}
+//class Example10MultiClassStationBuilder : ModelBuilderIfc {
+//    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+//        Example10MultiClassStation.buildModel()
+//}
 
 class Example11FlockingBuilder : ModelBuilderIfc {
     override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
@@ -97,17 +97,17 @@ class Example13MovableResourcesBuilder : ModelBuilderIfc {
         Example13MovableResources.buildModel()
 }
 
-class Example14AnnotatedClinicBuilder : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-        Example14AnnotatedClinic.buildModel()
-}
+//class Example14AnnotatedClinicBuilder : ModelBuilderIfc {
+//    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+//        Example14AnnotatedClinic.buildModel()
+//}
 
 class Example15DroneDeliveryBuilder : ModelBuilderIfc {
     override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
         Example15DroneDelivery.buildModel()
 }
 
-class Example16NetworkRumorBuilder : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-        Example16NetworkRumor.buildModel()
-}
+//class Example16NetworkRumorBuilder : ModelBuilderIfc {
+//    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+//        Example16NetworkRumor.buildModel()
+//}
