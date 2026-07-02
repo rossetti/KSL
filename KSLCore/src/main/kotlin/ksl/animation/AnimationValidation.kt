@@ -221,6 +221,10 @@ fun Model.scaffoldLayout(
     val standaloneQueues = allQueues.filter {
         it.name !in consumed && it.name !in agentQueues && it.name !in conveyorQueues && it.defaultReportingOption
     }
+    // Conveyors: place their chained entry/exit anchor locations (in the builder below) so the belt renders on the
+    // pre-run Layout tab too — the app synthesizes belt geometry from the inventory but needs the anchors placed.
+    val conveyors = elements.filterIsInstance<Conveyor>()
+    val distanceLocationNames = distances?.locations?.map { it.name }?.toSet() ?: emptySet()
     val resTitle = title
 
     return animation {
@@ -253,6 +257,28 @@ fun Model.scaffoldLayout(
         // resources, so transporters animate between resolved locations (Regime A / Phase 5: these are locations).
         distances?.let { placeLocations(it) }
         for (mr in movableList) movableResource(mr.name)
+
+        // Conveyor belt anchors: place each conveyor's chained entry→exit locations in a horizontal lane, spaced by
+        // cumulative cell length, so the belt (synthesized from the inventory) resolves and draws before the first
+        // run. Skip an anchor a DistancesModel already placed via MDS above; dedup shared entry/exit names.
+        val beltWidth = (width - 2 * originX) * 0.9
+        var beltY = height * 0.4
+        for (conv in conveyors) {
+            val ordered = mutableListOf<Pair<String, Int>>()
+            var cell = 0
+            conv.segments.forEachIndexed { i, seg ->
+                if (i == 0) seg.entryCell.location?.let { ordered.add(it to 0) }
+                cell += seg.cells.size
+                seg.exitCell.location?.let { ordered.add(it to cell) }
+            }
+            val total = (ordered.lastOrNull()?.second ?: 1).coerceAtLeast(1)
+            val seen = HashSet<String>()
+            for ((locName, c) in ordered) {
+                if (!seen.add(locName) || locName in distanceLocationNames) continue
+                location(locName, originX + (c.toDouble() / total) * beltWidth, beltY)
+            }
+            beltY += rowGap
+        }
     }.withScaffoldOverlapsNudged()
 }
 

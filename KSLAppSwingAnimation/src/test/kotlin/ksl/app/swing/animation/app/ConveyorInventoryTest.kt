@@ -44,4 +44,15 @@ class ConveyorInventoryTest {
         assertTrue(scaffold.queues.none { q -> suffixes.any { q.queueName.endsWith(it) } },
             "no conveyor internal queue auto-placed: ${scaffold.queues.map { it.queueName }}")
     }
+
+    @Test
+    fun `scaffold places the conveyor's chained anchor locations so the belt renders pre-run (E2)`() {
+        val m = Example08ConveyorTandem.buildModel()
+        val anchors = m.animationInventory().conveyorInfos
+            .flatMap { it.segments.flatMap { s -> listOf(s.entryLocation, s.exitLocation) } }.toSet()
+        assertTrue(anchors.isNotEmpty(), "the conveyor exposes entry/exit anchors")
+        // The pre-run scaffold must place every anchor (with a position) so the synthesized belt geometry resolves.
+        val placed = m.scaffoldLayout().locations.filter { it.position != null }.map { it.locationName }.toSet()
+        assertTrue(placed.containsAll(anchors), "scaffold places all conveyor anchors: placed=$placed anchors=$anchors")
+    }
 }

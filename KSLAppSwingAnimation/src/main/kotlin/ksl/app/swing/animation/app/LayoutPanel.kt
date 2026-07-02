@@ -66,8 +66,6 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private val bgListModel = javax.swing.DefaultListModel<String>()
     private val pathListModel = javax.swing.DefaultListModel<String>()
     private val pathNameField = JTextField(8)
-    // Process colors (10.1e): edit the selected process's tint color.
-    private val processColorField = ColorSwatchField("#ff7f0e")
     // Editable tables (batch 3): one row per discovered entity type / process; edit the selected row in the strip.
     // Object-style rows: the types actually seen animating in the last trace once a run exists (so control-only
     // entities aren't offered), else the structural entity types from the inventory; recomputed on a new run.
@@ -2112,11 +2110,6 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         }
         procTableModel = model
         val table = javax.swing.JTable(model).apply { setSelectionMode(ListSelectionModel.SINGLE_SELECTION) }
-        table.selectionModel.addListSelectionListener {
-            if (!it.valueIsAdjusting) processNames.getOrNull(table.selectedRow)?.let { p ->
-                processColorField.hex = controller.layout.value?.processColors?.get(p) ?: "#ff7f0e"
-            }
-        }
         // Color column: show a swatch, and click it to pick a color applied to that process directly (I).
         table.columnModel.getColumn(1).cellRenderer = colorSwatchCellRenderer()
         table.addMouseListener(object : java.awt.event.MouseAdapter() {
@@ -2132,15 +2125,8 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             border = BorderFactory.createTitledBorder("Process colors — click a row's Color to pick it (tints entities by their current process)")
             add(JScrollPane(table), BorderLayout.CENTER)
             add(JPanel(FlowLayout(FlowLayout.LEFT)).apply {
-                add(JLabel("color")); add(processColorField)
-                add(JButton("Apply to selected process").apply {
-                    addActionListener {
-                        val row = table.selectedRow.takeIf { it in processNames.indices }
-                        if (row == null) JOptionPane.showMessageDialog(this@LayoutPanel, "Select a process row first, then Apply.")
-                        else { controller.setProcessColor(processNames[row], processColorField.hex.trim().ifBlank { "#ff7f0e" }); afterEdit() }
-                    }
-                })
-                add(JButton("Reset selected").apply {
+                add(JButton("Reset selected color").apply {
+                    toolTipText = "Remove the color for the selected process (revert to the entity's type color)"
                     addActionListener { table.selectedRow.takeIf { it in processNames.indices }?.let { controller.removeProcessColor(processNames[it]); afterEdit() } }
                 })
             }, BorderLayout.SOUTH)
@@ -2790,9 +2776,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         editObjectStyle(type, image = image.ifBlank { null })
     }
 
-    /** Applies a process tint color, as the Process Colors tab would (batch 3). */
+    /** Applies a process tint color, as the Process Colors tab's in-row color pick would (batch 3). */
     internal fun setProcessColorForTest(process: String, color: String) {
-        processColorField.hex = color; controller.setProcessColor(process, color); afterEdit()
+        controller.setProcessColor(process, color); afterEdit()
     }
 
     /** Conveyor entries shown in the Conveyors tab (P1). */
