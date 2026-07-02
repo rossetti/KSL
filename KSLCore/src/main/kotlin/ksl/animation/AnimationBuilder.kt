@@ -565,7 +565,7 @@ class QueueBuilder(private val name: String, private val position: LayoutPoint) 
     /** Direction the line grows from its head: 0° = right, clockwise (90° = down, 180° = left, 270° = up). */
     var growthDegrees: Double = 0.0
     var spacing: Double = 12.0
-    var maxShown: Int = 25
+    var maxShown: Int = 10   // matches QueueLayoutElement's default; a short starter run, raise it if desired
     fun build() = QueueLayoutElement(name, position, growthDegrees, spacing, maxShown)
 }
 

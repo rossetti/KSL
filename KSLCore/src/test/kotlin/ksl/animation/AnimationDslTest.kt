@@ -39,6 +39,15 @@ class AnimationDslTest {
     }
 
     @Test
+    fun `queue maxShown defaults to a short run (10) for the DSL and the element`() {
+        // J: the default drawn extent is short everywhere — the DSL/scaffold builder and the data class agree, so a
+        // hand-authored or scaffolded queue matches the auto-layout's short run instead of an over-long line.
+        val layout = Model("dslQMax").animation { queue("Q", 0.0, 0.0) }
+        assertEquals(10, layout.queues[0].maxShown, "DSL queue default maxShown is 10")
+        assertEquals(10, QueueLayoutElement("Q", LayoutPoint(0.0, 0.0)).maxShown, "element default maxShown is 10")
+    }
+
+    @Test
     fun `location DSL adds placed and unplaced spatial locations`() {
         val layout = Model("dslLoc").animation {
             location("Depot", 10.0, 20.0, label = "Depot")

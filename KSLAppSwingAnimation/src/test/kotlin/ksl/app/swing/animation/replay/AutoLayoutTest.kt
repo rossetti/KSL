@@ -257,7 +257,7 @@ class AutoLayoutTest {
     fun `auto-placed queues use a shorter default length than the element default (Ex01)`() {
         val layout = model(null).autoLayout(events)
         assertTrue(layout.queues.isNotEmpty(), "a queue is placed")
-        assertTrue(layout.queues.all { it.maxShown == 10 }, "auto queues use maxShown=10, not the element default 25")
+        assertTrue(layout.queues.all { it.maxShown == 10 }, "auto queues use the short default run (maxShown=10)")
     }
 
     @Test

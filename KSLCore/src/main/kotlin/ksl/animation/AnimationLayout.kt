@@ -70,7 +70,9 @@ data class QueueLayoutElement(
     val position: LayoutPoint,
     val growthDegrees: Double = 0.0,
     val spacing: Double = 12.0,
-    val maxShown: Int = 25
+    // A starter/scaffold queue shouldn't render an over-long extent line for a queue that's usually short, so the
+    // default run is short; a hand-authored layout can raise it. The extent drawn is spacing × maxShown.
+    val maxShown: Int = 10
 )
 
 /**
