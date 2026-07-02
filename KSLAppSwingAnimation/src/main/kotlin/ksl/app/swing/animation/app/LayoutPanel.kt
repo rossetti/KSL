@@ -25,6 +25,7 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.ElementKind
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.replay.ReplayModel
+import ksl.app.swing.animation.replay.conveyorDefinedEvents
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -2455,8 +2456,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         // Resolve relative image refs (images/<name>) against the layout file's folder, or the layouts dir when
         // the layout is still untitled — so imported background images render in the editor preview, not just replay.
         val imageBase = controller.layoutFile.value?.toAbsolutePath()?.parent ?: controller.layoutsDir
+        // Seed the preview with synthetic ConveyorDefined events from the inventory so the belt cells show on the
+        // static Layout tab (they otherwise only appear during replay, which carries the real ConveyorDefined) — E2.
+        val conveyorEvents = conveyorDefinedEvents(controller.inventory.conveyorInfos)
         canvas.replay = layout?.let {
-            ReplayModel.build(AnimationSource(layout = it, header = AnimationTraceHeader(), events = emptyList(), baseDir = imageBase))
+            ReplayModel.build(AnimationSource(layout = it, header = AnimationTraceHeader(), events = conveyorEvents, baseDir = imageBase))
         }
         canvas.currentTime = 0.0
     }

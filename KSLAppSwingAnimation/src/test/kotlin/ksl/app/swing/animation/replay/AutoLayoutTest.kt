@@ -4,10 +4,12 @@ import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
+import ksl.animation.ConveyorInfo
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
 import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.PathDefinition
+import ksl.animation.SegmentInfo
 import ksl.app.swing.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
 import ksl.app.swing.animation.view.VisualStyle
@@ -272,6 +274,32 @@ class AutoLayoutTest {
         fun painted(layout: AnimationLayout) =
             paintedPixels(ReplayModel.build(AnimationSource(layout = layout, header = AnimationTraceHeader(), events = emptyList())))
         assertTrue(painted(withPath) > painted(base), "the connecting path adds painted pixels between the two locations")
+    }
+
+    @Test
+    fun `conveyorDefinedEvents reconstructs chained anchors at cumulative cells`() {
+        val infos = listOf(ConveyorInfo(
+            name = "Conveyor", cellSize = 1, accumulating = false,
+            segments = listOf(SegmentInfo("Enter", "Station1", 3), SegmentInfo("Station1", "Station2", 4))
+        ))
+        val e = conveyorDefinedEvents(infos).single()
+        assertEquals("Conveyor", e.conveyorName)
+        assertEquals(listOf("Enter", "Station1", "Station2"), e.anchorLocations)
+        assertEquals(listOf(0, 3, 7), e.anchorCells, "cumulative cell indices along the chained segments")
+    }
+
+    @Test
+    fun `conveyor belt renders on the static preview from the inventory (E2)`() {
+        val layout = AnimationLayout(locations = listOf(
+            LocationLayoutElement("Enter", LayoutPoint(100.0, 350.0)),
+            LocationLayoutElement("Station1", LayoutPoint(700.0, 350.0))
+        ))
+        val evs = conveyorDefinedEvents(listOf(ConveyorInfo("Belt", 1, false, listOf(SegmentInfo("Enter", "Station1", 6)))))
+        val replay = ReplayModel.build(AnimationSource(layout = layout, header = AnimationTraceHeader(), events = evs))
+        assertContains(replay.conveyorNames, "Belt")
+        assertNotNull(replay.conveyorCellPosition("Belt", 0), "belt geometry resolves against the placed anchors")
+        val bare = paintedPixels(ReplayModel.build(AnimationSource(layout = layout, header = AnimationTraceHeader(), events = emptyList())))
+        assertTrue(paintedPixels(replay) > bare, "the belt cells add painted pixels on the static preview (no trace)")
     }
 
     private fun paintedPixels(replay: ReplayModel): Int {

@@ -19,6 +19,7 @@
 package ksl.app.swing.animation.replay
 
 import ksl.animation.AnimationEvent
+import ksl.animation.ConveyorInfo
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
@@ -131,6 +132,26 @@ class ConveyorGeometry private constructor(private val segments: List<Seg>) {
             return ConveyorGeometry(segs)
         }
     }
+}
+
+/**
+ * Synthesizes [AnimationEvent.ConveyorDefined] events from the inventory's conveyor structure ([infos]) so the
+ * static Layout-tab preview can draw the belt cells without a trace (E2). Each conveyor's chained segments become
+ * ordered anchor locations at cumulative cell indices — the same shape the runtime emits — so the existing
+ * ConveyorDefined handler resolves those anchors against the layout's placed locations/stations and builds the
+ * belt geometry. Conveyors whose anchor places aren't placed in the layout simply resolve to nothing (no belt).
+ */
+fun conveyorDefinedEvents(infos: List<ConveyorInfo>): List<AnimationEvent.ConveyorDefined> = infos.mapNotNull { info ->
+    if (info.segments.isEmpty()) return@mapNotNull null
+    val locs = ArrayList<String>()
+    val cells = ArrayList<Int>()
+    var cell = 0
+    info.segments.forEachIndexed { i, seg ->
+        if (i == 0) { locs.add(seg.entryLocation); cells.add(0) }
+        cell += seg.lengthCells
+        locs.add(seg.exitLocation); cells.add(cell)
+    }
+    AnimationEvent.ConveyorDefined(simTime = 0.0, conveyorName = info.name, anchorLocations = locs, anchorCells = cells)
 }
 
 /**
