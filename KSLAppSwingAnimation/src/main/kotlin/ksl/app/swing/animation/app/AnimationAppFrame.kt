@@ -84,7 +84,10 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
     private val bundleLibrary: BundleLibraryController by lazy {
         controller.bundleLibrary ?: BundleLibraryController().also {
             val activeWorkspace = UserSettingsStore().activeWorkspace()
-            val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, controller.appName)
+            // Use the app's working folder (APP_FOLDER = "KSLAnimation"), not the sanitized display appName — the
+            // display name resolves to a different folder ("KSL_Animation_App"), so discovery missed the app's own
+            // bundles dir (see AnimationApp.resolveController).
+            val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, AnimationAppController.APP_FOLDER)
             it.discoverFromDirectories(
                 WorkspaceLayout.bundlesDir(appWorkspace),
                 WorkspaceLayout.bundlesDir(activeWorkspace),

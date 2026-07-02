@@ -99,7 +99,11 @@ class KSLAnimationApp(val appName: String) {
         // Bundle-picker mode: discover bundles from the app-specific then shared workspace folders
         // (no classpath/SPI scan — examples ship as a discoverable bundle JAR, Phase 7).
         val activeWorkspace = UserSettingsStore().activeWorkspace()
-        val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, appName)
+        // Discover bundles from the app's own working folder — the stable APP_FOLDER ("KSLAnimation"), the same
+        // folder the controller writes layouts/traces to — NOT the sanitized display name. Passing the display
+        // appName here resolved to "KSL_Animation_App" ("KSL Animation App" with spaces → underscores), so the app
+        // looked for bundles in a different folder than the one it works in, silently loading a stale/absent JAR.
+        val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, AnimationAppController.APP_FOLDER)
         val bundleLibrary = BundleLibraryController()
         bundleLibrary.discoverFromDirectories(
             WorkspaceLayout.bundlesDir(appWorkspace),
