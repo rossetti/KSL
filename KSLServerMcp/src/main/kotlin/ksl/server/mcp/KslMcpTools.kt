@@ -86,6 +86,7 @@ import ksl.service.capability.run.dto.mapping.toDto
 import ksl.service.capability.run.dto.mapping.withArtifacts
 import ksl.service.capability.run.schema.SchemaTranslator
 import ksl.service.config.ConfigDocuments
+import ksl.service.config.ServerConfig
 import ksl.service.job.JobAtCapacityException
 import ksl.service.job.JobManager
 import ksl.service.job.JobStatus
@@ -125,9 +126,6 @@ class KslMcpTools(
     runDeadline: kotlin.time.Duration? = null,
 ) : AutoCloseable {
 
-    /** The MCP server's app name, used to carve its subdirectory out of the workspace. */
-    private val mcpAppName = "KSL MCP Server"
-
     /** Hard cap on a single variate-generation request; guards against runaway samples. */
     private val MAX_VARIATES = 10_000
 
@@ -136,13 +134,12 @@ class KslMcpTools(
     private val INLINE_THRESHOLD = 1_000
 
     /**
-     * Resolves `<activeWorkspace>/KSL_MCP_Server/<sub>/`, creating it on demand.
-     * Every file-writing tool routes through this so the server's artifacts land
-     * under the same shared workspace the other KSL apps use (consistent with
-     * [ksl.app.session.AppWorkspacePaths]). `~/.ksl/` stays settings-only.
+     * Resolves `<activeWorkspace>/KSL_MCP_APPS/<sub>/`, creating it on demand. Every file-writing tool routes
+     * through this so the server's artifacts (reports, data) land in the SAME app folder as its bundles and run
+     * outputs (`ServerConfig.SERVER_APP_FOLDER`) — not a separate one. `~/.ksl/` stays settings-only.
      */
     private fun workspaceAppDir(sub: String): java.nio.file.Path {
-        val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), mcpAppName)
+        val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), ServerConfig.SERVER_APP_FOLDER)
         val dir = appDir.resolve(sub)
         java.nio.file.Files.createDirectories(dir)
         return dir
@@ -1539,7 +1536,7 @@ class KslMcpTools(
         }
         return try {
             // Write under the shared KSL workspace (not ~/.ksl, which is settings-only),
-            // beside the other apps' artifacts: <workspace>/KSL_MCP_Server/reports/.
+            // beside the other apps' artifacts: <workspace>/KSL_MCP_APPS/reports/.
             val file = workspaceAppDir("reports").resolve("$id.html").toAbsolutePath()
             java.nio.file.Files.writeString(file, html)
             val note = if (withPlots) {
@@ -1721,7 +1718,7 @@ class KslMcpTools(
 
     /**
      * Writes [values] as a single-column CSV (a `<name>` header then one value per line) to
-     * `<workspace>/KSL_MCP_Server/data/<sanitizedName>.csv`, overwriting a same-named file.
+     * `<workspace>/KSL_MCP_APPS/data/<sanitizedName>.csv`, overwriting a same-named file.
      * The name is sanitized to a filesystem-safe form; the file lands beside the other KSL
      * apps' artifacts under the shared workspace.
      */
@@ -1881,7 +1878,7 @@ class KslMcpTools(
      */
     fun getWorkspace(): CallToolResult {
         val workspace = settingsStore.activeWorkspace()
-        val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(workspace, mcpAppName)
+        val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(workspace, ServerConfig.SERVER_APP_FOLDER)
         val isDefault = settingsStore.settings.value.workspace.currentDirectory == null
         val structured = buildJsonObject {
             put("workspace", workspace.toString())
@@ -1919,7 +1916,7 @@ class KslMcpTools(
         val previous = settingsStore.activeWorkspace().toString()
         settingsStore.setCurrentDirectory(path)
         val workspace = settingsStore.activeWorkspace()
-        val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(workspace, mcpAppName)
+        val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(workspace, ServerConfig.SERVER_APP_FOLDER)
         val structured = buildJsonObject {
             put("workspace", workspace.toString())
             put("appDir", appDir.toString())
