@@ -1030,6 +1030,11 @@ class SimulationCanvas : JPanel() {
     var labelGrips: List<Point2D> = emptyList()
         set(value) { field = value; repaint() }
 
+    /** In-progress functional-path preview in **screen** coordinates: the chosen start anchor, then each dropped
+     *  waypoint, then (optionally) the cursor. Drawn live while the path tool is armed (H1); empty when idle. */
+    var pathPreviewScreen: List<Point2D> = emptyList()
+        set(value) { field = value; repaint() }
+
     /** Queue rotation grips (at each queue's tail); drag one to rotate that queue's orientation (P3). */
     var queueRotateGrips: List<Point2D> = emptyList()
         set(value) { field = value; repaint() }
@@ -1110,6 +1115,17 @@ class SimulationCanvas : JPanel() {
             val box = Rectangle2D.Double(p.x - 4, p.y - 4, 8.0, 8.0) //  little larger with a dark outline so they
             g2.color = Color(0xff, 0x7f, 0x0e); g2.fill(box)          //  stand out and are easy to grab (G3)
             g2.color = Color(0x33, 0x33, 0x33); g2.stroke = BasicStroke(1.0f); g2.draw(box)
+        }
+        if (pathPreviewScreen.isNotEmpty()) { // in-progress functional path: start anchor → waypoints → cursor (H1)
+            g2.color = Color(0xb0, 0xb0, 0xb0); g2.stroke = BasicStroke(1.5f)
+            for (i in 0 until pathPreviewScreen.size - 1) {
+                val a = pathPreviewScreen[i]; val b = pathPreviewScreen[i + 1]
+                g2.drawLine(a.x.toInt(), a.y.toInt(), b.x.toInt(), b.y.toInt())
+            }
+            val start = pathPreviewScreen.first() // ring the chosen FROM anchor so the selection is obvious
+            g2.color = Color(0xff, 0x7f, 0x0e); g2.stroke = BasicStroke(2.0f)
+            g2.draw(Ellipse2D.Double(start.x - 8, start.y - 8, 16.0, 16.0))
+            g2.stroke = BasicStroke(1f)
         }
     }
 

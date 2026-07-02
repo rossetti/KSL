@@ -288,6 +288,51 @@ class LayoutPanelTest {
     }
 
     @Test
+    fun `path tool auto-derives the name from the endpoints and disambiguates duplicates (H2)`() {
+        val c = controller()
+        try {
+            val names = onEdt {
+                val panel = LayoutPanel(c)
+                c.placeLayoutElement(ElementKind.STATION, "Enter", 100.0, 120.0)
+                c.placeLayoutElement(ElementKind.STATION, "Station1", 300.0, 120.0)
+                // First A→B: name derived as "Enter → Station1" (no prompt, no explicit name).
+                panel.armPathAutoForTest()
+                panel.setPathFromForTest(AnchorRef(AnchorKind.NETWORK_STATION, "Enter"))
+                panel.finishPathForTest(AnchorRef(AnchorKind.NETWORK_STATION, "Station1"))
+                // A second A→B must not clobber the first (withFunctionalPath replaces by name) — disambiguated.
+                panel.armPathAutoForTest()
+                panel.setPathFromForTest(AnchorRef(AnchorKind.NETWORK_STATION, "Enter"))
+                panel.finishPathForTest(AnchorRef(AnchorKind.NETWORK_STATION, "Station1"))
+                c.layout.value!!.paths.map { it.name }
+            }
+            assertTrue("Enter → Station1" in names, "name derived from the endpoints: $names")
+            assertTrue("Enter → Station1 (2)" in names, "a second same-endpoint path is disambiguated: $names")
+        } finally { c.close() }
+    }
+
+    @Test
+    fun `path preview shows the start anchor then waypoints while arming, and clears on finish (H1)`() {
+        val c = controller()
+        try {
+            val (afterFrom, afterWp, afterFinish) = onEdt {
+                val panel = LayoutPanel(c)
+                c.placeLayoutElement(ElementKind.STATION, "S1", 100.0, 120.0)
+                c.placeLayoutElement(ElementKind.STATION, "S2", 300.0, 120.0)
+                panel.armPathAutoForTest()
+                panel.setPathFromForTest(AnchorRef(AnchorKind.NETWORK_STATION, "S1"))
+                val a = panel.previewCanvasForTest().pathPreviewScreen.size
+                panel.addPathWaypointForTest(200.0, 60.0)
+                val b = panel.previewCanvasForTest().pathPreviewScreen.size
+                panel.finishPathForTest(AnchorRef(AnchorKind.NETWORK_STATION, "S2"))
+                Triple(a, b, panel.previewCanvasForTest().pathPreviewScreen.size)
+            }
+            assertEquals(1, afterFrom, "preview shows the chosen start anchor")
+            assertEquals(2, afterWp, "preview adds the dropped waypoint")
+            assertEquals(0, afterFinish, "preview cleared when the tool disarms")
+        } finally { c.close() }
+    }
+
+    @Test
     fun `background tool adds an image spanning the dragged rectangle`() {
         val c = controller()
         try {

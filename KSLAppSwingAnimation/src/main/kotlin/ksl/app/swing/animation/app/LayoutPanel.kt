@@ -278,7 +278,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun clearArmState() {
         placeArmedKind = null; placeArmedName = null
         queueArm = null; queueHead = null
-        pathArmName = null; pathFrom = null; pathWaypoints.clear()
+        pathArmed = false; pathArmName = null; pathFrom = null; pathWaypoints.clear(); canvas.pathPreviewScreen = emptyList()
         bgArmRef = null; bgStart = null
         conveyorRouteName = null; conveyorRouteSeg = -1; conveyorWaypoints.clear()
         storageArm = null; storageStart = null
@@ -355,7 +355,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private fun cancelPlacement() {
         if (placeArmedName != null) disarmPlace()
         if (queueArm != null) disarmQueue()
-        if (pathArmName != null) disarmPath()
+        if (pathArmed) disarmPath()
         if (bgArmRef != null) disarmBackground()
         if (conveyorRouteName != null) disarmConveyorRoute()
         if (storageArm != null) disarmStorage()
@@ -679,20 +679,20 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     // ── Functional path (Phase 6): click the FROM anchor, drop waypoints in open space, double-click the TO anchor ──
 
-    private var pathArmName: String? = null
+    private var pathArmed: Boolean = false          // is the functional-path tool active?
+    private var pathArmName: String? = null         // optional pre-supplied name; null ⇒ derive from the endpoints
     private var pathFrom: AnchorRef? = null
     private val pathWaypoints = mutableListOf<ksl.animation.LayoutPoint>()
 
-    /** Toolbar Path tool: name the path, then pick a from-anchor, optional free waypoints, and a to-anchor. */
+    /** Toolbar Path tool: pick a from-anchor, drop optional free waypoints, and double-click a to-anchor. The path
+     *  name is derived from the two endpoints on finish — no up-front prompt (H2). */
     private fun armPathPlacement() {
-        if (pathArmName != null) { disarmPath(); return } // re-clicking the armed tool cancels
+        if (pathArmed) { disarmPath(); return } // re-clicking the armed tool cancels
         if (placedAnchorCount() < 2) {
             JOptionPane.showMessageDialog(this, "Place at least two stations/locations before routing a path."); return
         }
-        val name = JOptionPane.showInputDialog(this, "Path name", "Add Path", JOptionPane.QUESTION_MESSAGE)
-            ?.trim()?.takeIf { it.isNotEmpty() } ?: return
         clearArmState()
-        pathArmName = name
+        pathArmed = true; pathArmName = null   // name derived from the from/to anchors at finish
         canvas.cursor = crosshair
         coordLabel.text = "Click the FROM anchor (a placed station/location)  (Esc to cancel)"
         highlightTool(null); pathButton?.border = armedButtonBorder
@@ -710,30 +710,57 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             if (anchor == null) { coordLabel.text = "Click a placed station/location to start the path"; return }
             pathFrom = anchor
             coordLabel.text = "From ${anchor.name}: click waypoints, then double-click the TO anchor"
+            refreshPathPreview()   // ring the chosen start anchor so the selection is visible (H1)
         } else {
             if (anchor != null) return // near an anchor: ignore (the finishing double-click sets the destination)
             val w = canvas.screenToWorld(sx.toDouble(), sy.toDouble())
             pathWaypoints.add(ksl.animation.LayoutPoint(w.x, w.y))
             coordLabel.text = "From ${pathFrom!!.name}: ${pathWaypoints.size} waypoint(s); double-click the TO anchor"
+            refreshPathPreview()   // draw the new waypoint + segment live (H1)
         }
     }
 
     /** Finish at [to] (the double-clicked anchor): persist a functional path when it is a distinct destination. */
     private fun onPathFinish(to: AnchorRef?) {
-        val name = pathArmName ?: return
+        if (!pathArmed) return
         val from = pathFrom
         if (from != null && to != null && to != from) {
-            controller.addFunctionalPath(name, from, to, pathWaypoints.toList())
+            controller.addFunctionalPath(pathName(from, to), from, to, pathWaypoints.toList())
             disarmPath(); afterEdit()
         } else {
             coordLabel.text = "Double-click a placed station/location (different from the start) to finish"
         }
     }
 
+    /** The new path's name: the pre-supplied [pathArmName] if any, else "<from> → <to>" disambiguated against the
+     *  existing names (withFunctionalPath replaces by name, so a second A→B becomes "A → B (2)"). */
+    private fun pathName(from: AnchorRef, to: AnchorRef): String {
+        pathArmName?.let { return it }
+        val existing = controller.layout.value?.paths?.map { it.name }?.toSet() ?: emptySet()
+        val base = "${from.name} → ${to.name}"
+        return if (base !in existing) base else generateSequence(2) { it + 1 }.map { "$base ($it)" }.first { it !in existing }
+    }
+
+    /** Rebuilds the on-canvas preview of the in-progress path (start anchor → waypoints → optional [cursor]) so the
+     *  chosen anchor + each waypoint show live; empty when the tool is idle (H1). */
+    private fun refreshPathPreview(cursor: java.awt.Point? = null) {
+        val from = pathFrom
+        val start = if (pathArmed && from != null) controller.layout.value?.anchorPosition(from) else null
+        if (start == null) { canvas.pathPreviewScreen = emptyList(); return }
+        val tx = canvas.worldTransform()
+        val pts = mutableListOf<java.awt.geom.Point2D>()
+        pts.add(tx.transform(java.awt.geom.Point2D.Double(start.x, start.y), null))
+        pathWaypoints.forEach { pts.add(tx.transform(java.awt.geom.Point2D.Double(it.x, it.y), null)) }
+        cursor?.let { pts.add(java.awt.geom.Point2D.Double(it.x.toDouble(), it.y.toDouble())) }
+        canvas.pathPreviewScreen = pts
+    }
+
     private fun disarmPath() {
+        pathArmed = false
         pathArmName = null
         pathFrom = null
         pathWaypoints.clear()
+        canvas.pathPreviewScreen = emptyList()
         canvas.cursor = java.awt.Cursor.getDefaultCursor()
         highlightTool(null)
     }
@@ -1472,7 +1499,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         val handler = object : java.awt.event.MouseAdapter() {
             override fun mousePressed(e: java.awt.event.MouseEvent) {
                 if (maybePopup(e)) return // right-click → Remove context menu
-                if (pathArmName != null || conveyorRouteName != null) return // collect on click, never drag
+                if (pathArmed || conveyorRouteName != null) return // collect on click, never drag
                 if (textArm) { // text tool: a click places the annotation
                     val w = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble())
                     placeShapeText(w.x, w.y)
@@ -1535,7 +1562,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             override fun mouseClicked(e: java.awt.event.MouseEvent) {
                 // Path tool: first click sets the from-anchor, single clicks add waypoints, a double-click on an
                 // anchor sets the destination and finishes (Phase 6).
-                if (pathArmName != null) {
+                if (pathArmed) {
                     if (e.clickCount >= 2) onPathFinish(pickAnchor(e.x, e.y)) else onPathClick(e.x, e.y)
                     return
                 }
@@ -1638,6 +1665,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 marqueeStartScreen = null; marqueeStartWorld = null; canvas.marqueeScreen = null
             }
             override fun mouseMoved(e: java.awt.event.MouseEvent) {
+                if (pathArmed) refreshPathPreview(e.point) // live rubber-band from the last point to the cursor (H1)
                 val w = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble())
                 val base = "x = ${trimNum(w.x)}, y = ${trimNum(w.y)}"
                 val hit = pickPlaced(e.x, e.y) // name the element under the cursor (hover read-out)
@@ -2634,22 +2662,27 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** True while the queue head→tail flow is armed. */
     internal fun isQueueArmedForTest(): Boolean = queueArm != null
 
-    /** Arms the path tool for [name] (bypassing the name prompt) — 10.4. */
+    /** Arms the path tool with an explicit [name] override (bypassing the auto-derive) — 10.4. */
     internal fun armPathForTest(name: String) {
-        clearArmState(); pathArmName = name; highlightTool(null); pathButton?.border = armedButtonBorder
+        clearArmState(); pathArmed = true; pathArmName = name; highlightTool(null); pathButton?.border = armedButtonBorder
+    }
+
+    /** Arms the path tool with auto-derived naming — the toolbar behavior (no explicit name) — H2. */
+    internal fun armPathAutoForTest() {
+        clearArmState(); pathArmed = true; pathArmName = null; highlightTool(null); pathButton?.border = armedButtonBorder
     }
 
     /** Sets the from-anchor, as clicking it would. */
-    internal fun setPathFromForTest(anchor: AnchorRef) { pathFrom = anchor }
+    internal fun setPathFromForTest(anchor: AnchorRef) { pathFrom = anchor; refreshPathPreview() }
 
     /** Adds a free waypoint, as clicking open canvas would. */
-    internal fun addPathWaypointForTest(x: Double, y: Double) { pathWaypoints.add(ksl.animation.LayoutPoint(x, y)) }
+    internal fun addPathWaypointForTest(x: Double, y: Double) { pathWaypoints.add(ksl.animation.LayoutPoint(x, y)); refreshPathPreview() }
 
     /** Finishes at [to] (the double-clicked destination anchor). */
     internal fun finishPathForTest(to: AnchorRef) = onPathFinish(to)
 
     /** True while the path tool is armed. */
-    internal fun isPathArmedForTest(): Boolean = pathArmName != null
+    internal fun isPathArmedForTest(): Boolean = pathArmed
 
     /** Arms the background tool with [imageRef] (bypassing the file chooser) — 10.4. */
     internal fun armBackgroundForTest(imageRef: String) = armBackground(imageRef)
