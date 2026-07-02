@@ -732,7 +732,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         }
     }
 
-    /** The new path's name: the pre-supplied [pathArmName] if any, else "<from> → <to>" disambiguated against the
+    /** The new path's name: the pre-supplied `pathArmName` if any, else "<from> → <to>" disambiguated against the
      *  existing names (withFunctionalPath replaces by name, so a second A→B becomes "A → B (2)"). */
     private fun pathName(from: AnchorRef, to: AnchorRef): String {
         pathArmName?.let { return it }
@@ -1956,6 +1956,18 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     // ── Object Styles tab (batch 3): a table of the model's entity/agent types, edited below ─────────
 
+    /** A table cell renderer that paints a hex color value as a filled swatch (hex as tooltip) — used by the
+     *  object-styles and process-colors color columns so a row shows the color, not raw hex text (I). */
+    private fun colorSwatchCellRenderer() = javax.swing.table.TableCellRenderer { tbl, value, sel, _, _, _ ->
+        javax.swing.JPanel().apply {
+            isOpaque = true
+            val hex = value?.toString()
+            background = runCatching { java.awt.Color.decode(hex) }.getOrDefault(tbl.background)
+            border = if (sel) BorderFactory.createLineBorder(tbl.selectionBackground, 2) else BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            toolTipText = hex
+        }
+    }
+
     private fun buildObjectStylesTab(): JComponent {
         val model = object : javax.swing.table.AbstractTableModel() {
             private val cols = arrayOf("", "Type", "Shape", "Color", "Size", "Image")
@@ -1982,8 +1994,22 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         table.columnModel.getColumn(0).apply {
             cellRenderer = GlyphSwatchRenderer(); minWidth = 34; maxWidth = 34; preferredWidth = 34
         }
+        // Color column: show a swatch (not hex text), and click it to pick a color applied to that row directly (I).
+        table.columnModel.getColumn(3).cellRenderer = colorSwatchCellRenderer()
+        table.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                if (table.columnAtPoint(e.point) != 3) return
+                val type = styleTypeNames.getOrNull(table.rowAtPoint(e.point)) ?: return
+                val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == type }
+                val current = runCatching { java.awt.Color.decode(oc?.color ?: "#1f77b4") }.getOrDefault(java.awt.Color.BLACK)
+                val picked = javax.swing.JColorChooser.showDialog(this@LayoutPanel, "Color for $type", current) ?: return
+                val hex = String.format("#%02x%02x%02x", picked.red, picked.green, picked.blue)
+                controller.addObjectClass(type, oc?.shape ?: ksl.animation.LayoutShape.CIRCLE, hex, oc?.size ?: 12.0, oc?.imageRef)
+                afterEdit()
+            }
+        })
         return JPanel(BorderLayout()).apply {
-            border = BorderFactory.createTitledBorder("Object styles — select a type, then set its glyph below")
+            border = BorderFactory.createTitledBorder("Object styles — click a row's Color to pick it, or set shape/size/image below")
             add(JScrollPane(table), BorderLayout.CENTER)
             add(JPanel(FlowLayout(FlowLayout.LEFT)).apply {
                 add(JLabel("shape")); add(styleShape)
@@ -1996,7 +2022,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 })
                 add(JButton("Clear img").apply { addActionListener { styleImage.text = "" } })
                 add(JButton("Apply to selected type").apply {
-                    addActionListener { table.selectedRow.takeIf { it in styleTypeNames.indices }?.let { applyObjectStyle(styleTypeNames[it]) } }
+                    addActionListener {
+                        val row = table.selectedRow.takeIf { it in styleTypeNames.indices }
+                        if (row == null) JOptionPane.showMessageDialog(this@LayoutPanel, "Select a type row first, then Apply.")
+                        else applyObjectStyle(styleTypeNames[row])
+                    }
                 })
                 add(JButton("Reset selected").apply {
                     addActionListener { table.selectedRow.takeIf { it in styleTypeNames.indices }?.let { controller.removeObjectClass(styleTypeNames[it]); afterEdit() } }
@@ -2046,8 +2076,13 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** Loads the selected type's current style into the strip (or leaves the last values when unstyled). */
     private fun loadStyleStrip(row: Int) {
         val t = styleTypeNames.getOrNull(row) ?: return
-        val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == t } ?: return
-        styleShape.selectedItem = oc.shape; styleColor.hex = oc.color; styleSize.text = trimNum(oc.size); styleImage.text = oc.imageRef ?: ""
+        // For an as-yet-unstyled type (no ObjectClassDefinition), show the seed defaults rather than the previous
+        // row's stale values, so what the strip shows is what Apply would write (I).
+        val oc = controller.layout.value?.objectClasses?.firstOrNull { it.typeName == t }
+        styleShape.selectedItem = oc?.shape ?: ksl.animation.LayoutShape.CIRCLE
+        styleColor.hex = oc?.color ?: "#1f77b4"
+        styleSize.text = trimNum(oc?.size ?: 12.0)
+        styleImage.text = oc?.imageRef ?: ""
     }
 
     /** Applies the strip's shape/color/size/image to [type] (a chosen image forces the IMAGE glyph). */
@@ -2079,16 +2114,27 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
                 processColorField.hex = controller.layout.value?.processColors?.get(p) ?: "#ff7f0e"
             }
         }
+        // Color column: show a swatch, and click it to pick a color applied to that process directly (I).
+        table.columnModel.getColumn(1).cellRenderer = colorSwatchCellRenderer()
+        table.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                if (table.columnAtPoint(e.point) != 1) return
+                val p = processNames.getOrNull(table.rowAtPoint(e.point)) ?: return
+                val current = runCatching { java.awt.Color.decode(controller.layout.value?.processColors?.get(p) ?: "#ff7f0e") }.getOrDefault(java.awt.Color.BLACK)
+                val picked = javax.swing.JColorChooser.showDialog(this@LayoutPanel, "Color for $p", current) ?: return
+                controller.setProcessColor(p, String.format("#%02x%02x%02x", picked.red, picked.green, picked.blue)); afterEdit()
+            }
+        })
         return JPanel(BorderLayout()).apply {
-            border = BorderFactory.createTitledBorder("Process colors — tint entities by their current process; select a process, then set its color")
+            border = BorderFactory.createTitledBorder("Process colors — click a row's Color to pick it (tints entities by their current process)")
             add(JScrollPane(table), BorderLayout.CENTER)
             add(JPanel(FlowLayout(FlowLayout.LEFT)).apply {
                 add(JLabel("color")); add(processColorField)
                 add(JButton("Apply to selected process").apply {
                     addActionListener {
-                        table.selectedRow.takeIf { it in processNames.indices }?.let {
-                            controller.setProcessColor(processNames[it], processColorField.hex.trim().ifBlank { "#ff7f0e" }); afterEdit()
-                        }
+                        val row = table.selectedRow.takeIf { it in processNames.indices }
+                        if (row == null) JOptionPane.showMessageDialog(this@LayoutPanel, "Select a process row first, then Apply.")
+                        else { controller.setProcessColor(processNames[row], processColorField.hex.trim().ifBlank { "#ff7f0e" }); afterEdit() }
                     }
                 })
                 add(JButton("Reset selected").apply {
