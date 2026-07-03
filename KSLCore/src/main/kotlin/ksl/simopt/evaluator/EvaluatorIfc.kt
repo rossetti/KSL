@@ -40,6 +40,19 @@ interface EvaluatorIfc {
     val cache: SolutionCacheIfc?
 
     /**
+     * Resets the evaluation clock: the per-call counter stamped into produced solutions
+     * as their evaluation number, which drives dynamic penalty-function ramps (the
+     * iteration count in Park-and-Kim-style penalties). Restart-style solvers reset the
+     * clock between independent runs so each run's penalty ramp begins fresh instead of
+     * inheriting ever-steeper multipliers from earlier runs. Resetting the clock does
+     * NOT disturb the cumulative statistics counters (totalEvaluatorCalls and friends),
+     * which feed post-run evaluator metrics. The default implementation does nothing,
+     * for evaluators without a clock.
+     */
+    fun resetEvaluationClock() {
+    }
+
+    /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present or allowed) or via evaluations by the simulation oracle.
      *  The CRN option is applied to the set of requests and does not permit

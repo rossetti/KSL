@@ -36,10 +36,20 @@ class Evaluator @JvmOverloads constructor(
     override var totalCachedReplications: Int = 0
         private set
 
+    // The evaluation clock stamped into produced solutions as their evaluation number.
+    // Tracks totalEvaluatorCalls except that it can be reset independently (e.g. between
+    // random restarts) without disturbing the cumulative statistics counters above.
+    private var myEvaluationClock: Int = 0
+
+    override fun resetEvaluationClock() {
+        EvaluatorIfc.logger.trace { "Resetting the evaluation clock" }
+        myEvaluationClock = 0
+    }
+
     /**
      *  The evaluator collects some basic counts (statistics) on its evaluations.
-     *  This function resets all counters to 0, perhaps in preparation for another
-     *  evaluation run.
+     *  This function resets all counters to 0 (including the evaluation clock),
+     *  perhaps in preparation for another evaluation run.
      */
     @Suppress("unused")
     fun resetEvaluationCounts() {
@@ -48,12 +58,14 @@ class Evaluator @JvmOverloads constructor(
         totalDesignPointsEvaluated = 0
         totalOracleReplications = 0
         totalCachedReplications = 0
+        myEvaluationClock = 0
     }
 
     override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
         EvaluatorIfc.logger.trace { "Evaluator: evaluate() : $evaluationRequest" }
-        // 1. Increment the call counter (used as the batch/generation ID)
+        // 1. Increment the call counter (used as the batch/generation ID) and the clock
         totalEvaluatorCalls++
+        myEvaluationClock++
         // 2. Increment the total unique design points requested
         totalDesignPointsEvaluated = totalDesignPointsEvaluated + evaluationRequest.modelInputs.size
         if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed) {
@@ -222,7 +234,7 @@ class Evaluator @JvmOverloads constructor(
             inputMap,
             estimatedObjFnc,
             responseEstimates,
-            totalEvaluatorCalls
+            myEvaluationClock
         )
         return solution
     }
