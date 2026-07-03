@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.inventory
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
@@ -34,6 +36,10 @@ open class InventoryPolicyReorderPointOrderUpToLevelPeriodic @JvmOverloads const
     val reviewPeriod: Double get() = myReviewPeriod
     val initialReviewTime: Double get() = myInitialReviewTime
 
+    // Backing for the SDelta control: the gap S − r (always >= 1). Kept in sync by
+    // setInitialPolicyParameters so programmatic (r, S) writes and control writes agree.
+    private var myInitialOrderUpToPointDelta: Int = orderUpToPoint - reorderPoint
+
     private val reviewAction = ReviewAction()
 
     init {
@@ -41,6 +47,63 @@ open class InventoryPolicyReorderPointOrderUpToLevelPeriodic @JvmOverloads const
             reorderPoint, orderUpToPoint, reviewPeriod, initialReviewTime,
         )
     }
+
+    /**
+     * The initial reorder point r applied at the start of each replication. See the
+     * continuous-review variant `InventoryPolicyReorderPointOrderUpToLevel` for the
+     * initial-vs-current contract and the S = r + SDelta parameterization rationale;
+     * they are identical here.
+     */
+    @set:KSLControl(controlType = ControlType.INTEGER, name = "r")
+    var initialReorderPoint: Int
+        get() = myInitialPolicyParameters[0].toInt()
+        set(value) {
+            require(!model.isRunning) {
+                "The initial reorder point cannot be changed while the model is running; " +
+                        "initial policy parameters are replication initial conditions."
+            }
+            myInitialPolicyParameters[0] = value.toDouble()
+            myInitialPolicyParameters[1] = (value + myInitialOrderUpToPointDelta).toDouble()
+        }
+
+    /**
+     * The initial order-up-to gap SDelta = S − r (>= 1), applied at the start of each
+     * replication; S is derived as r + SDelta.
+     */
+    @set:KSLControl(controlType = ControlType.INTEGER, name = "SDelta", lowerBound = 1.0)
+    var initialOrderUpToPointDelta: Int
+        get() = myInitialOrderUpToPointDelta
+        set(value) {
+            require(!model.isRunning) {
+                "The initial order-up-to gap cannot be changed while the model is running; " +
+                        "initial policy parameters are replication initial conditions."
+            }
+            require(value >= 1) { "SDelta (the order-up-to gap S - r) must be >= 1" }
+            myInitialOrderUpToPointDelta = value
+            myInitialPolicyParameters[1] = (initialReorderPoint + value).toDouble()
+        }
+
+    /** The initial order-up-to level S = r + SDelta (derived, read-only). */
+    val initialOrderUpToPoint: Int
+        get() = myInitialPolicyParameters[1].toInt()
+
+    /**
+     * The initial review period R applied at the start of each replication.
+     * The control-set path stores the value without the strict positivity check so a
+     * clamped write can never throw; R > 0 is validated when the initial parameters
+     * are applied at replication start (`setPolicyParameters`), which fails fast with
+     * a clear message before any simulation effort is spent.
+     */
+    @set:KSLControl(controlType = ControlType.DOUBLE, name = "R", lowerBound = 0.0)
+    var initialReviewPeriod: Double
+        get() = myInitialPolicyParameters[2]
+        set(value) {
+            require(!model.isRunning) {
+                "The initial review period cannot be changed while the model is running; " +
+                        "initial policy parameters are replication initial conditions."
+            }
+            myInitialPolicyParameters[2] = value
+        }
 
     override fun checkInventory() { /* periodic — review on schedule, not on demand */ }
 
@@ -91,6 +154,8 @@ open class InventoryPolicyReorderPointOrderUpToLevelPeriodic @JvmOverloads const
             reviewPeriod,
             initialReviewTime,
         )
+        // keep the SDelta control's backing in sync with programmatic (r, S) writes
+        myInitialOrderUpToPointDelta = orderUpToPoint - reorderPoint
     }
 
     override fun getPolicyParameters(): DoubleArray = doubleArrayOf(

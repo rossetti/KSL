@@ -195,4 +195,135 @@ class SupplyChainControlsTest {
         assertNotNull(typeCarrier)
         assertNotNull(networkCarrier)
     }
+
+    // ── Tier 1: inventory policy decision variables ───────────────────────────
+
+    @Test
+    @DisplayName("Tier 1: policy decision-variable keys are discoverable (r/SDelta parameterization)")
+    fun tier1PolicyKeysDiscoverable() {
+        val f = fixture()
+        ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevel(
+            f.sc, reorderPoint = 10, orderUpToPoint = 20, name = "RS")
+        ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevelPeriodic(
+            f.sc, reorderPoint = 10, orderUpToPoint = 20, reviewPeriod = 5.0, name = "RSP")
+        ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointReorderQuantity(
+            f.sc, reorderPoint = 2, reorderQty = 4, name = "RQ")
+        val keys = f.model.controls().controlKeys()
+        val expected = listOf(
+            "RS.initialReorderPoint", "RS.initialOrderUpToPointDelta",
+            "RSP.initialReorderPoint", "RSP.initialOrderUpToPointDelta", "RSP.initialReviewPeriod",
+            "RQ.initialReorderPointDelta", "RQ.initialReorderQty", "RQ.separateBatchOrders"
+        )
+        for (key in expected) {
+            assertTrue(key in keys) { "expected control key '$key'; got $keys" }
+        }
+    }
+
+    @Test
+    @DisplayName("Tier 1: the delta parameterization makes control writes order-independent")
+    fun tier1DeltaParameterizationOrderIndependence() {
+        // Under a direct (r, S) parameterization with a per-setter r < S check, moving
+        // (10, 20) to the valid destination (30, 40) would throw when r is set first.
+        // The delta form must accept either order.
+        val f = fixture()
+        val policy = ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevel(
+            f.sc, reorderPoint = 10, orderUpToPoint = 20, name = "RS")
+        val controls = f.model.controls()
+
+        controls.control("RS.initialReorderPoint")!!.value = 30.0        // r first — must not throw
+        controls.control("RS.initialOrderUpToPointDelta")!!.value = 10.0
+        assertEquals(30, policy.initialReorderPoint)
+        assertEquals(10, policy.initialOrderUpToPointDelta)
+        assertEquals(40, policy.initialOrderUpToPoint, "S must derive as r + SDelta")
+
+        // reverse order works too
+        controls.control("RS.initialOrderUpToPointDelta")!!.value = 3.0
+        controls.control("RS.initialReorderPoint")!!.value = -2.0
+        assertEquals(1, policy.initialOrderUpToPoint, "S = -2 + 3 = 1")
+
+        // SDelta clamps at its lower bound of 1 rather than throwing
+        controls.control("RS.initialOrderUpToPointDelta")!!.value = 0.0
+        assertEquals(1, policy.initialOrderUpToPointDelta)
+    }
+
+    @Test
+    @DisplayName("Tier 1: programmatic (r, S) writes keep the SDelta control in sync")
+    fun tier1ProgrammaticWritesSyncDelta() {
+        val f = fixture()
+        val policy = ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevel(
+            f.sc, reorderPoint = 10, orderUpToPoint = 20, name = "RS")
+        policy.setInitialPolicyParameters(5, 12)
+        assertEquals(7, policy.initialOrderUpToPointDelta,
+            "SDelta must resync after a programmatic (r, S) write")
+        // and a subsequent r change preserves the gap
+        f.model.controls().control("RS.initialReorderPoint")!!.value = 6.0
+        assertEquals(13, policy.initialOrderUpToPoint)
+    }
+
+    /** Probe that attempts to change an initial policy parameter mid-replication. */
+    private class MidRunChangeProbe(
+        parent: ModelElement,
+        private val attempt: () -> Unit
+    ) : ModelElement(parent) {
+        var gateThrew: Boolean = false
+            private set
+
+        override fun initialize() {
+            schedule(this::tryChange, 1.0)
+        }
+
+        private fun tryChange(event: ksl.simulation.KSLEvent<Nothing>) {
+            try {
+                attempt()
+            } catch (_: IllegalArgumentException) {
+                gateThrew = true
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Tier 1: initial policy parameters cannot be changed during a replication")
+    fun tier1InitialSettersGatedMidReplication() {
+        val f = fixture()
+        val policy = ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevel(
+            f.sc, reorderPoint = 10, orderUpToPoint = 20, name = "RS")
+        // pre-run changes are allowed (controls configure initial conditions)
+        policy.initialReorderPoint = 12
+        assertEquals(12, policy.initialReorderPoint)
+
+        val probe = MidRunChangeProbe(f.sc) { policy.initialReorderPoint = 99 }
+        f.model.lengthOfReplication = 2.0
+        f.model.numberOfReplications = 1
+        f.model.simulate()
+        assertTrue(probe.gateThrew,
+            "changing an initial policy parameter mid-replication must be rejected")
+        assertEquals(12, policy.initialReorderPoint,
+            "the rejected mid-run change must not alter the initial value")
+    }
+
+    @Test
+    @DisplayName("Tier 1: a clamped review period of 0 fails fast when applied at replication start")
+    fun tier1ReviewPeriodValidatedAtApplyTime() {
+        val f = fixture()
+        val policy = ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevelPeriodic(
+            f.sc, reorderPoint = 10, orderUpToPoint = 20, reviewPeriod = 5.0, name = "RSP")
+        // The control write clamps to the bound (0.0) without throwing...
+        f.model.controls().control("RSP.initialReviewPeriod")!!.value = -2.0
+        assertEquals(0.0, policy.initialReviewPeriod, 0.0)
+        // ...and the invalid value is rejected when the initials are applied at
+        // replication start, before any simulation effort is spent.
+        f.model.lengthOfReplication = 2.0
+        f.model.numberOfReplications = 1
+        var failed = false
+        try {
+            f.model.simulate()
+        } catch (e: Exception) {
+            failed = true
+            assertTrue(e.message?.contains("review period") == true ||
+                e.cause?.message?.contains("review period") == true) {
+                "expected the review-period validation message; got ${e.message}"
+            }
+        }
+        assertTrue(failed, "an invalid review period must fail at replication start")
+    }
 }

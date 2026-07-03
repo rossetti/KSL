@@ -35,6 +35,7 @@ open class InventoryPolicyReorderPointReorderQuantity @JvmOverloads constructor(
      * reorder point, place n separate replenishment requests of size
      * [reorderQty] (rather than one consolidated `n × reorderQty` order).
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var separateBatchOrders: Boolean = false
 
     val reorderPoint: Int get() = myReorderPoint
@@ -71,6 +72,10 @@ open class InventoryPolicyReorderPointReorderQuantity @JvmOverloads constructor(
     var initialReorderPointDelta: Int
         get() = myReorderPointDelta
         set(value) {
+            require(!model.isRunning) {
+                "The initial reorder-point delta cannot be changed while the model is running; " +
+                        "initial policy parameters are replication initial conditions."
+            }
             require(value >= 1) { "rDelta must be strictly positive" }
             myReorderPointDelta = value
             updateReorderPointFromDelta()
@@ -81,6 +86,10 @@ open class InventoryPolicyReorderPointReorderQuantity @JvmOverloads constructor(
     var initialReorderQty: Int
         get() = myInitialPolicyParameters[1].toInt()
         set(value) {
+            require(!model.isRunning) {
+                "The initial reorder quantity cannot be changed while the model is running; " +
+                        "initial policy parameters are replication initial conditions."
+            }
             require(value >= 1) { "q must be strictly positive" }
             myInitialPolicyParameters[1] = value.toDouble()
             myReorderQty = value
