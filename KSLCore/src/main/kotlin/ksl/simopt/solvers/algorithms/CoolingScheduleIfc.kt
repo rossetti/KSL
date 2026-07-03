@@ -196,3 +196,23 @@ class LogarithmicCoolingSchedule(
         return initialTemperature / ln(iteration.toDouble() - 1.0 + E)
     }
 }
+
+/**
+ * Creates a fresh, independent cooling schedule configured like this one, or null when the
+ * concrete type is not one of the library-provided schedules and therefore cannot be
+ * copied generically.
+ *
+ * Cooling schedules are mutable (a simulated annealing solver writes the calibrated
+ * initial temperature into its schedule), so concurrently running solver instances must
+ * not share one schedule object. Concurrent-restart construction uses this to give each
+ * restart its own schedule; a custom schedule type yields null and concurrent execution
+ * is rejected with an actionable message.
+ */
+internal fun CoolingScheduleIfc.freshCopy(): CoolingScheduleIfc? {
+    return when (this) {
+        is ExponentialCoolingSchedule -> ExponentialCoolingSchedule(initialTemperature, coolingRate)
+        is LinearCoolingSchedule -> LinearCoolingSchedule(initialTemperature, stoppingTemperature, maxIterations)
+        is LogarithmicCoolingSchedule -> LogarithmicCoolingSchedule(initialTemperature)
+        else -> null
+    }
+}

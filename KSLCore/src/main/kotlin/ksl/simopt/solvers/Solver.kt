@@ -40,6 +40,10 @@ import ksl.simopt.solvers.algorithms.bo.BayesianOptimizationSolver
 import ksl.simopt.solvers.algorithms.bo.ExpectedImprovement
 import ksl.simopt.solvers.algorithms.isc.ISCSolver
 import ksl.simopt.solvers.algorithms.TemperatureConfiguration
+import ksl.simopt.solvers.algorithms.freshCopy
+import ksl.simopt.solvers.concurrent.ConcurrentRunOptions
+import ksl.simopt.solvers.concurrent.PooledMemberEvaluatorFactory
+import ksl.simopt.solvers.concurrent.SolverFactoryIfc
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
@@ -1186,6 +1190,80 @@ abstract class Solver(
         }
 
         /**
+         * Assembles a RandomRestartSolver from an inner-solver builder, choosing the
+         * sequential (single reused instance) or concurrent (factory-per-restart)
+         * construction based on the requested concurrency. Shared by the
+         * createRandomRestart* factories that support concurrent restarts.
+         *
+         * The inner-solver builder is invoked with the evaluator the instance must be
+         * bound to and a suggested name. It MUST return a fresh instance per call whose
+         * collaborators (stream providers, cooling schedules, samplers, operators) are
+         * private to that instance — under concurrent restarts, instances run on
+         * different threads.
+         */
+        private fun assembleRandomRestartSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            evaluator: Evaluator,
+            innerSolverBuilder: (EvaluatorIfc, String?) -> Solver,
+            maxNumRestarts: Int,
+            concurrentRestarts: Int,
+            concurrentOptions: ConcurrentRunOptions,
+            parallelOptions: ParallelEvaluationOptions,
+            replicationsPerEvaluation: Int,
+            experimentRunParameters: ExperimentRunParametersIfc?,
+            startingPoint: MutableMap<String, Double>?,
+            streamNum: Int,
+            streamProvider: RNStreamProviderIfc,
+            name: String?
+        ): RandomRestartSolver {
+            require(concurrentRestarts >= 1) { "concurrentRestarts must be >= 1" }
+            val restartSolver = if (concurrentRestarts > 1) {
+                require(!parallelOptions.enabled) {
+                    "Parallel evaluation (parallelOptions.enabled) and concurrent restarts are mutually " +
+                            "exclusive: the concurrency budget is spent at the restart level and inner solvers " +
+                            "evaluate sequentially. Disable one of them."
+                }
+                RandomRestartSolver(
+                    problemDefinition = problemDefinition,
+                    evaluator = evaluator,
+                    solverFactory = SolverFactoryIfc { memberEvaluator, _, memberName ->
+                        innerSolverBuilder(memberEvaluator, memberName)
+                    },
+                    memberEvaluatorFactory = PooledMemberEvaluatorFactory(
+                        problemDefinition = problemDefinition,
+                        modelBuilder = modelBuilder,
+                        baseRunParameters = experimentRunParameters,
+                        substreamBlockSize = concurrentOptions.substreamBlockSize
+                    ),
+                    maxNumRestarts = maxNumRestarts,
+                    concurrentRestarts = concurrentRestarts,
+                    concurrentOptions = concurrentOptions,
+                    replicationsPerEvaluation = FixedReplicationsPerEvaluation(replicationsPerEvaluation),
+                    streamNum = streamNum,
+                    streamProvider = streamProvider,
+                    name = name
+                )
+            } else {
+                // Sequential: one reused inner instance bound to the (shared) evaluator —
+                // the historical construction, byte-for-byte.
+                RandomRestartSolver(
+                    restartingSolver = innerSolverBuilder(evaluator, name),
+                    maxNumRestarts = maxNumRestarts,
+                    streamNum = streamNum,
+                    streamProvider = streamProvider,
+                    name = name
+                )
+            }
+            // The random restart solver orchestrates the starting points. The user's specific
+            // point seeds the outer driver (and, in concurrent mode, restart 0).
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return restartSolver
+        }
+
+        /**
          * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
@@ -1202,6 +1280,11 @@ abstract class Solver(
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
          * @param streamProvider the provider of random number streams for the outer driver; defaults to a fresh RNStreamProvider
+         * @param parallelOptions selects and configures parallel evaluation of multi-point requests;
+         * mutually exclusive with concurrentRestarts greater than 1
+         * @param concurrentRestarts the number of restarts allowed to run at the same time, each on its own
+         * worker with private evaluation resources; 1 (the default) preserves the sequential behavior
+         * @param concurrentOptions stream-block size and optional confirmation stage for concurrent restarts
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1220,31 +1303,44 @@ abstract class Solver(
             streamNum: Int = 0,
             streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
-            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions(),
+            concurrentRestarts: Int = 1,
+            concurrentOptions: ConcurrentRunOptions = ConcurrentRunOptions()
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
                 parallelOptions = parallelOptions
             )
-            val shc = StochasticHillClimber(
-                problemDefinition = problemDefinition,
-                evaluator = evaluator,
-                maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation,
-                name = name
-            )
+            // A hill climber's collaborators are all instance-private (it takes a fresh
+            // stream provider by default), so the builder is trivially safe per restart.
+            val innerSolverBuilder = { innerEvaluator: EvaluatorIfc, innerName: String? ->
+                StochasticHillClimber(
+                    problemDefinition = problemDefinition,
+                    evaluator = innerEvaluator,
+                    maxIterations = maxIterations,
+                    replicationsPerEvaluation = replicationsPerEvaluation,
+                    name = innerName
+                )
+            }
             // streamNum/streamProvider configure the outer random-restart driver (the returned solver);
             // the inner solver keeps its own provider.
-            val restartSolver = RandomRestartSolver(
-                restartingSolver = shc, maxNumRestarts = maxNumRestarts,
-                streamNum = streamNum, streamProvider = streamProvider, name = name
+            val restartSolver = assembleRandomRestartSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                evaluator = evaluator,
+                innerSolverBuilder = innerSolverBuilder,
+                maxNumRestarts = maxNumRestarts,
+                concurrentRestarts = concurrentRestarts,
+                concurrentOptions = concurrentOptions,
+                parallelOptions = parallelOptions,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                experimentRunParameters = experimentRunParameters,
+                startingPoint = startingPoint,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                name = name
             )
-            // The random restart solver orchestrates the starting points. We pass the user's
-            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
-            if (startingPoint != null) {
-                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
-            }
             return restartSolver
         }
 
@@ -1343,6 +1439,12 @@ abstract class Solver(
          * @param experimentRunParameters Optional parameters defining the simulation run properties.
          * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
          * @param streamProvider the provider of random number streams for the outer driver; defaults to a fresh RNStreamProvider
+         * @param parallelOptions selects and configures parallel evaluation of multi-point requests;
+         * mutually exclusive with concurrentRestarts greater than 1
+         * @param concurrentRestarts the number of restarts allowed to run at the same time, each on its own
+         * worker with private evaluation resources (and its own copy of the cooling schedule);
+         * 1 (the default) preserves the sequential behavior
+         * @param concurrentOptions stream-block size and optional confirmation stage for concurrent restarts
          * @return A [RandomRestartSolver] wrapping a dynamically configuring [SimulatedAnnealing] inner solver.
          */
         @Suppress("unused")
@@ -1364,7 +1466,9 @@ abstract class Solver(
             streamNum: Int = 0,
             streamProvider: RNStreamProviderIfc = RNStreamProvider(),
             name: String? = null,
-            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions(),
+            concurrentRestarts: Int = 1,
+            concurrentOptions: ConcurrentRunOptions = ConcurrentRunOptions()
         ): RandomRestartSolver {
 
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1376,32 +1480,54 @@ abstract class Solver(
                 parallelOptions = parallelOptions
             )
 
-            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-
-            val saSolver = SimulatedAnnealing(
-                problemDefinition = problemDefinition,
-                evaluator = evaluator,
-                temperatureConfiguration = temperatureConfiguration,
-                coolingSchedule = coolingSchedule,
-                stoppingTemperature = stoppingTemperature,
-                maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation,
-                name = name
-            )
+            // Cooling schedules are mutable (the solver writes its calibrated initial
+            // temperature into the schedule), so concurrently running restarts must not
+            // share one. Library-provided schedules are copied per restart; a custom
+            // schedule type cannot be copied generically and is rejected under concurrency.
+            // Sequentially, the user's schedule instance is used as-is (historical behavior).
+            val scheduleForInnerSolver: () -> CoolingScheduleIfc
+            if (concurrentRestarts > 1) {
+                requireNotNull(coolingSchedule.freshCopy()) {
+                    "Concurrent restarts require a library-provided cooling schedule " +
+                            "(exponential, linear, or logarithmic) so each restart can receive its own copy. " +
+                            "Supply one of those, or use concurrentRestarts = 1 with the custom schedule " +
+                            "${coolingSchedule::class.simpleName}."
+                }
+                scheduleForInnerSolver = { coolingSchedule.freshCopy()!! }
+            } else {
+                scheduleForInnerSolver = { coolingSchedule }
+            }
+            val innerSolverBuilder = { innerEvaluator: EvaluatorIfc, innerName: String? ->
+                SimulatedAnnealing(
+                    problemDefinition = problemDefinition,
+                    evaluator = innerEvaluator,
+                    temperatureConfiguration = temperatureConfiguration,
+                    coolingSchedule = scheduleForInnerSolver(),
+                    stoppingTemperature = stoppingTemperature,
+                    maxIterations = maxIterations,
+                    replicationsPerEvaluation = replicationsPerEvaluation,
+                    name = innerName
+                )
+            }
 
             // streamNum/streamProvider configure the outer random-restart driver (the returned solver);
             // the inner solver keeps its own provider.
-            val restartSolver = RandomRestartSolver(
-                restartingSolver = saSolver, maxNumRestarts = maxNumRestarts,
-                streamNum = streamNum, streamProvider = streamProvider, name = name
+            return assembleRandomRestartSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                evaluator = evaluator,
+                innerSolverBuilder = innerSolverBuilder,
+                maxNumRestarts = maxNumRestarts,
+                concurrentRestarts = concurrentRestarts,
+                concurrentOptions = concurrentOptions,
+                parallelOptions = parallelOptions,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                experimentRunParameters = experimentRunParameters,
+                startingPoint = startingPoint,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                name = name
             )
-
-            // The random restart solver orchestrates the starting points. We pass the user's
-            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
-            if (startingPoint != null) {
-                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
-            }
-            return restartSolver
         }
 
         /**
