@@ -105,4 +105,39 @@ class SupplyChainControlsTest {
         partial!!.value = 0.0
         assertFalse(f.inv.mayPartiallyFillDemands)
     }
+
+    // ── Tier 3: demand generation ─────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Tier 3: demand-generation booleans are controls; EventGenerator controls are inherited")
+    fun tier3DemandGenerationControls() {
+        val f = fixture()
+        val generator = ksl.modeling.supplychain.inventory.DemandGenerator(
+            f.sc, f.item,
+            timeUntilFirstRV = ksl.utilities.random.rvariable.ExponentialRV(1.0, 1),
+            timeBtwEventsRV = ksl.utilities.random.rvariable.ExponentialRV(1.0, 2),
+            name = "DGen"
+        )
+        val orderCreator = ksl.modeling.supplychain.inventory.RandomOrderCreator(f.sc, name = "OrderMaker")
+        val controls = f.model.controls()
+        val keys = controls.controlKeys()
+        val expected = listOf(
+            "DGen.unitDemandOnly",
+            "DGen.permitBackLogging",
+            "DGen.permitPartialFilling",
+            "OrderMaker.permitBackLogging",
+            // inherited from EventGenerator — must be present without re-annotation
+            "DGen.initialMaximumNumberOfEvents",
+            "DGen.initialEndingTime",
+            "DGen.startOnInitializeOption"
+        )
+        for (key in expected) {
+            assertTrue(key in keys) { "expected control key '$key'; got $keys" }
+        }
+        // round-trip one of each element
+        controls.control("DGen.unitDemandOnly")!!.value = 1.0
+        assertTrue(generator.unitDemandOnly)
+        controls.control("OrderMaker.permitBackLogging")!!.value = 0.0
+        assertFalse(orderCreator.permitBackLogging)
+    }
 }

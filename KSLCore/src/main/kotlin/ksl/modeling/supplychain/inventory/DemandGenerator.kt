@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.inventory
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.variable.RandomVariable
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -41,12 +43,15 @@ open class DemandGenerator @JvmOverloads constructor(
      * If true, a sampled amount of d > 1 produces d separate unit-quantity
      * demands instead of one demand of amount d. Default false.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var unitDemandOnly: Boolean = false
 
     /** Whether emitted demands allow backlogging. */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var permitBackLogging: Boolean = true
 
     /** Whether emitted demands allow partial filling. */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var permitPartialFilling: Boolean = true
 
     private var myAmountRV: RandomVariable? = null

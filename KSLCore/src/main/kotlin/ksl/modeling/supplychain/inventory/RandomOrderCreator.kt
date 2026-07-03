@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.inventory
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
@@ -25,6 +27,7 @@ open class RandomOrderCreator @JvmOverloads constructor(
 ) : ModelElement(supplyChainModel, name), OrderCreatorIfc {
 
     /** Whether the orders created allow backlogging. */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var permitBackLogging: Boolean = true
 
     private data class ItemTypeInfo(
