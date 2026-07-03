@@ -149,15 +149,24 @@ open class Inventory @JvmOverloads constructor(
     // ----------------------------------------------------------------- configuration flags
 
     /** Whether replenishment demands this inventory sends may be partially filled. */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var permitPartialFilling: Boolean = true
 
     /** Whether replenishment demands this inventory sends may be backlogged. */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var permitBackLogging: Boolean = true
 
-    /** Whether incoming customer demands may be backlogged here. */
+    /**
+     * Whether incoming customer demands may be backlogged here.
+     * Deliberately NOT a control: its value is derived from backlog-policy
+     * attachment (see `setBackLogPolicy`), so an independent control could
+     * desynchronize it from the attached policy.
+     */
     var allowBackLogging: Boolean = false
         internal set
 
+    /** Whether incoming customer demands may be partially filled. */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var mayPartiallyFillDemands: Boolean = mayPartiallyFill
 
     // ----------------------------------------------------------------- policy & backlog

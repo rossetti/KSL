@@ -1,5 +1,7 @@
 package ksl.modeling.supplychain
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.RVariableIfc
 
@@ -35,6 +37,7 @@ class ItemType @JvmOverloads constructor(
     }
 
     /** Unit cost; must be >= 0. Defaults to 1.0. */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
     var unitCost: Double = 1.0
         set(value) {
             require(value >= 0.0) { "unit cost must be >= 0" }
