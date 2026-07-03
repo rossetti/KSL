@@ -1049,13 +1049,14 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     private fun reportExistingExperimentRecordError(model: Model) {
         val simName: String = model.simulationName
         val expName: String = model.experimentName
-        KSL.logger.error { "An experiment record exists for simulation: $simName, and experiment: $expName in database ${db.label}" }
-        KSL.logger.error { "The user attempted to run a simulation for an experiment that has " }
-        KSL.logger.error { " the same name as an existing experiment without allowing its data to be cleared." }
-        KSL.logger.error { "The user should consider explicitly clearing data within the database associated with experiment $expName." }
-        KSL.logger.error { " This can be accomplished by using the clearAllData() or deleteExperimentWithName(expName=$expName) functions prior to rerunning." }
-        KSL.logger.error { "Or, the user might change the name of the experiment before calling simulating the model." }
-        KSL.logger.error { "This error is to prevent the user from accidentally losing data associated with simulation: $simName, and experiment: $expName in database ${db.label}" }
+        KSL.logger.error {
+            "An experiment record exists for simulation: $simName, and experiment: $expName in database ${db.label}. " +
+                    "The user attempted to run a simulation for an experiment that has the same name as an existing " +
+                    "experiment without allowing its data to be cleared. Consider explicitly clearing the data associated " +
+                    "with the experiment by using the clearAllData() or deleteExperimentWithName(expName=$expName) functions " +
+                    "prior to rerunning, or change the name of the experiment before simulating the model. This error " +
+                    "prevents the user from accidentally losing data."
+        }
         throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
     }
 
@@ -1527,7 +1528,6 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         val eNames = experimentNames
         for (name in expNames) {
             if (!eNames.contains(name)) {
-                DatabaseIfc.logger.error { "There were no simulation runs with the experiment name $name" }
                 throw IllegalArgumentException("There were no simulation runs with the experiment name $name")
             }
         }
@@ -1617,7 +1617,6 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
                 )
             val executed = db.executeCommands(DatabaseIfc.parseQueriesInString(script))
             if (!executed) {
-                DatabaseIfc.logger.error { "Unable to execute the KSL schema resource '$resourceName'" }
                 throw DataAccessException("The schema resource '$resourceName' did not fully execute")
             }
         }

@@ -739,9 +739,12 @@ abstract class Solver(
             count++
             if (count > maxFeasibleSamplingIterations) {
                 // we tried a lot and were still unsuccessful
-                logger.error { "Solver: $name : could not generate an input feasible random neighbor after $maxFeasibleSamplingIterations attempts, when sampling for an input feasible point." }
-                logger.error { "Solver: $name : Increase the max feasible sampling iterations for this problem, don't require input feasibility, or use a different neighbor generator" }
-                throw IllegalStateException("Could not generate an input feasible random neighbor after $maxFeasibleSamplingIterations attempts, when sampling for an input feasible point.")
+                throw IllegalStateException(
+                    "Solver: $name : could not generate an input feasible random neighbor after " +
+                            "$maxFeasibleSamplingIterations attempts, when sampling for an input feasible point. " +
+                            "Increase the max feasible sampling iterations for this problem, don't require input " +
+                            "feasibility, or use a different neighbor generator."
+                )
             }
         }
         // if we get here, the point is feasible

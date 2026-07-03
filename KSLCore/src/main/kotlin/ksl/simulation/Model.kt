@@ -964,7 +964,6 @@ class Model @JvmOverloads constructor(
             sb.append("Attempted to add a ${modelElement::class.simpleName} : name = ")
             sb.append(modelElement.name)
             sb.append(", while the simulation was running.")
-            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -975,7 +974,6 @@ class Model @JvmOverloads constructor(
             sb.append(" has already been added to the Model.")
             sb.appendLine()
             sb.append("Every model element must have a unique name!")
-            logger.error { sb.toString() }
             throw IllegalArgumentException(sb.toString())
         }
 

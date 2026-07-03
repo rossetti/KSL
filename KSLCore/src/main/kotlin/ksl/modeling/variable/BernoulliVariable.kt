@@ -183,7 +183,7 @@ class BernoulliVariable<T> @JvmOverloads constructor(
             // make sure that the random source is the same
             // as the initial random source for the next replication
             bernoulliRV = initialBernoulliRV
-            Model.logger.info { "The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}." }
+            Model.logger.debug { "The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}." }
         }
     }
 }

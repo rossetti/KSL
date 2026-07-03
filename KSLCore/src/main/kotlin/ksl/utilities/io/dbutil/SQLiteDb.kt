@@ -112,8 +112,7 @@ open class SQLiteDb @JvmOverloads constructor(
                 Files.deleteIfExists(pathToDb)
                 DatabaseIfc.logger.debug { "Deleting existing SQLite database $pathToDb" }
             } catch (e: IOException) {
-                DatabaseIfc.logger.error { "Unable to delete SQLite database $pathToDb" }
-                throw DataAccessException("Unable to delete SQLite database$pathToDb")
+                throw DataAccessException("Unable to delete SQLite database $pathToDb")
             }
         }
 

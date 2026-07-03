@@ -67,7 +67,7 @@ open class Variable @JvmOverloads constructor(
         set(value) {
             require(domain.contains(value)) { "The initial value, $value must be within the specified range for the variable: $domain" }
             if (model.isRunning) {
-                Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
+                Model.logger.warn { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
             field = value
         }

@@ -951,7 +951,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             "intent = $intent : currentSuspendName = $currentSuspendName : " +
                             "delayEventId = ${myDelayEvent?.id}, delayEventTime = ${myDelayEvent?.time}, " +
                             "delayEventIsScheduled = ${myDelayEvent?.isScheduled}, delayEventCancel = ${myDelayEvent?.cancel}"
-                    logger.error { message }
                     throw IllegalStateException(message)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = $id : ResumeAction : before immediateResume() : intent = $intent" }
@@ -1034,7 +1033,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 msg.appendLine()
                 msg.appendLine("You likely did not match a startBlockage(blockage) with a clearBlockage(blockage) call.")
                 msg.appendLine(blockagesAsString())
-                logger.error { msg.toString() }
                 throw IllegalStateException(msg.toString())
             }
             val np = determineNextProcess(completedProcess)
@@ -1050,7 +1048,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess")
                     msg.appendLine()
                     msg.append(allocationsAsString())
-                    logger.error { msg.toString() }
                     throw IllegalStateException(msg.toString())
                 }
                 // okay to dispose of the entity
@@ -1336,7 +1333,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 sb.append(state.toString())
                 sb.appendLine()
                 sb.append(this@Entity.toString())
-                logger.error { sb.toString() }
                 throw IllegalStateException(sb.toString())
             }
 
@@ -2874,7 +2870,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     sb.append(state.processStateName)
                     sb.appendLine()
                     sb.append("for Entity: ${this@Entity}")
-                    logger.error { sb.toString() }
                     throw IllegalStateException(sb.toString())
                 }
             }

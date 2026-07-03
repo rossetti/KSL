@@ -103,7 +103,6 @@ class TWBatchingElement @JvmOverloads constructor(
                 sb.append("is not recommended for batching time-based variables")
                 sb.appendLine()
                 Model.logger.warn { sb.toString() }
-                System.out.flush()
             }
             field = numBatches
         }

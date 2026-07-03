@@ -146,7 +146,6 @@ object ExcelUtil {
                 ws.style(row, col).format("yyyy-MM-dd HH:mm:ss").set()
             }
             else -> {
-                logger.error { "Could not cast type ${value.javaClass.name} to Excel type." }
                 throw ClassCastException("Could not cast database type to Excel type: ${value.javaClass.name}")
             }
         }

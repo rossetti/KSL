@@ -184,7 +184,7 @@ open class Response internal constructor(
         set(value) {
             require(value >= 0) { "The initial count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
-                Model.logger.info { "The user set the initial count stop limit during the replication. The next replication will use a different initial value" }
+                Model.logger.warn { "The user set the initial count stop limit during the replication. The next replication will use a different initial value" }
             }
             field = value
         }
@@ -200,9 +200,9 @@ open class Response internal constructor(
             require(limit >= 0.0) { "The count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
                 if (limit < field) {
-                    Model.logger.info { "The count stop limit was reduced to $limit from $field for $name during the replication" }
+                    Model.logger.debug { "The count stop limit was reduced to $limit from $field for $name during the replication" }
                 } else if (limit > field) {
-                    Model.logger.info { "The count stop limit was increased to $limit from $field for $name during the replication" }
+                    Model.logger.debug { "The count stop limit was increased to $limit from $field for $name during the replication" }
                     if (limit.isInfinite()) {
                         Model.logger.warn { "Setting the count stop limit to infinity during the replication may cause the replication to not stop." }
                     }

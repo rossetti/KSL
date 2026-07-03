@@ -1179,7 +1179,6 @@ interface DatabaseIfc : DatabaseIOIfc {
                         }
                     } else {
                         val msg = "Database $label does not contain ${td.schemaName} to hold table $td.tableName"
-                        logger.error { msg }
                         throw IllegalStateException(msg)
                     }
                 }
@@ -1333,7 +1332,6 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return list
             } catch (e: SQLException) {
                 logger.error { "Unable to get database catalog and schema information. The meta data was not available." }
-                logger.error { "$e" }
                 throw e
             }
         }
@@ -1363,7 +1361,6 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return list
             } catch (e: SQLException) {
                 logger.error { "Unable to get the meta data was not available for a database." }
-                logger.error { "$e" }
                 throw e
             }
         }
@@ -1388,7 +1385,6 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return set.toList()
             } catch (e: SQLException) {
                 logger.error { "Unable to get database schemas. The meta data was not available." }
-                logger.error { "$e" }
                 throw e
             }
         }

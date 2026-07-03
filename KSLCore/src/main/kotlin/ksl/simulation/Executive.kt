@@ -233,11 +233,9 @@ class Executive @JvmOverloads constructor(
             sb.appendLine()
             sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
             sb.appendLine()
-            Model.logger.warn { sb.toString() }
             throw KSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
-            Model.logger.warn { "Attempted to schedule an event before the Current Time!" }
             throw KSLEventException("Attempted to schedule an event before the Current Time!")
         }
         val eventTime = currentTime + interEventTime
@@ -282,12 +280,12 @@ class Executive @JvmOverloads constructor(
                 performCPhase()
             }
         } catch (e: RuntimeException) {
-            Model.logger.error { e.message }
             val sb = StringBuilder()
             sb.append("######################################")
             sb.appendLine()
             sb.append("A RuntimeException occurred near this event:")
             sb.appendLine()
+            sb.appendLine("Exception: $e")
             sb.append(event)
             sb.appendLine()
             if (event.entity != null){

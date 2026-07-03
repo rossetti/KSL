@@ -1969,7 +1969,6 @@ class Conveyor @JvmOverloads constructor(
         private fun errorMessage(routineName: String) {
             val sb = StringBuilder()
             sb.appendLine("Using $routineName : Tried to transition a cell request for $name to an illegal state from state $stateName")
-            ProcessModel.logger.error { sb.toString() }
             throw ksl.utilities.exceptions.IllegalStateException(sb.toString())
         }
     }

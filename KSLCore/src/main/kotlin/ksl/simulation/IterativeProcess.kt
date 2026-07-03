@@ -133,7 +133,6 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
             s.append("Iterative Process: No such step exception!")
             s.appendLine()
             s.append(toString())
-            logger.error { s.toString() }
             throw NoSuchStepException(s.toString())
         }
         logger.trace { "Running a step of the process: $name" }
@@ -314,7 +313,6 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
-            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -327,7 +325,6 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
-            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -340,7 +337,6 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
-            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -353,7 +349,6 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
-            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 

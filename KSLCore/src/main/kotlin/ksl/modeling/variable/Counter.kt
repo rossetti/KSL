@@ -161,7 +161,7 @@ open class Counter @JvmOverloads constructor(
             require(value >= 0) { "The initial counter limit, when set, must be >= 0" }
             require(domain.contains(value)) {"The initial counter limit must be in counter's range $domain"}
             if (model.isRunning) {
-                Model.logger.info { "The user set the initial counter stop limit during the replication. The next replication will use a different initial value" }
+                Model.logger.warn { "The user set the initial counter stop limit during the replication. The next replication will use a different initial value" }
             }
             field = value
         }
@@ -177,9 +177,9 @@ open class Counter @JvmOverloads constructor(
             require(limit >= 0) { "The counter stop limit, when set, must be >= 0" }
             if (model.isRunning) {
                 if (limit < field) {
-                    Model.logger.info { "The counter stop limit was reduced to $limit from $field for $name during the replication" }
+                    Model.logger.debug { "The counter stop limit was reduced to $limit from $field for $name during the replication" }
                 } else if (limit > field) {
-                    Model.logger.info { "The counter stop limit was increased to $limit from $field for $name during the replication" }
+                    Model.logger.debug { "The counter stop limit was increased to $limit from $field for $name during the replication" }
                     if (limit.isInfinite()) {
                         Model.logger.warn { "Setting the counter stop limit to infinity during the replication may cause the replication to not stop." }
                     }
@@ -212,7 +212,7 @@ open class Counter @JvmOverloads constructor(
             require(value >= 0) { "The initial value $value must be >= 0" }
             require(domain.contains(value)) {"The initial value must be in counter's range $domain"}
             if (model.isRunning) {
-                Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
+                Model.logger.warn { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
             field = value
         }

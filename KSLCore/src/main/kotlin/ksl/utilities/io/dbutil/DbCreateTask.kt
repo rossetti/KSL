@@ -310,7 +310,6 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             DatabaseIfc.logger.debug { "The task was successfully executed." }
         } else {
             state = State.EXECUTION_ERROR
-            DatabaseIfc.logger.warn { "The task had execution errors." }
             throw DataAccessException("There was an execution error for task $this see DbLog.log for details")
         }
         return execFlag // note can only get here if execFlag is true because of the execution exception

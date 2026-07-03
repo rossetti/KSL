@@ -244,7 +244,6 @@ abstract class TabularData(tableName: String) {
                         } else {
                             val msg =
                                 "$tableName : the property ${p.name} of type ${rt.classifier} could not be converted to type ${value::class}"
-                            DatabaseIfc.logger.error { msg }
                             throw IllegalStateException(msg)
                         }
                     }
