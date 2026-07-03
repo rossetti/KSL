@@ -340,6 +340,90 @@ class SupplyChainControlsTest {
         assertEquals("RULE", builder.loadFormingOptionName)
     }
 
+    // ── Tier 5: item weight/cube (initial* pattern) and load-forming limits ──
+
+    @Test
+    @DisplayName("Tier 5: initialWeight/initialCube are controls applied at replication start")
+    fun tier5ItemWeightCubeControls() {
+        val f = fixture()
+        val controls = f.model.controls()
+        val keys = controls.controlKeys()
+        assertTrue("SKU.initialWeight" in keys) { "expected SKU.initialWeight; got $keys" }
+        assertTrue("SKU.initialCube" in keys) { "expected SKU.initialCube; got $keys" }
+
+        controls.control("SKU.initialWeight")!!.value = 2.5
+        controls.control("SKU.initialCube")!!.value = 0.5
+        // live values change only at replication start
+        assertEquals(1.0, f.item.weight, 0.0, "live weight unchanged before the run")
+        f.model.lengthOfReplication = 2.0
+        f.model.numberOfReplications = 1
+        f.model.simulate()
+        assertEquals(2.5, f.item.weight, 0.0, "initial weight must be applied at replication start")
+        assertEquals(0.5, f.item.cube, 0.0, "initial cube must be applied at replication start")
+    }
+
+    @Test
+    @DisplayName("Tier 5: a clamped initial weight of 0 fails fast when applied at replication start")
+    fun tier5ZeroWeightFailsAtApplyTime() {
+        val f = fixture()
+        // clamps to the bound (0.0) without throwing...
+        f.model.controls().control("SKU.initialWeight")!!.value = -3.0
+        assertEquals(0.0, f.item.initialWeight, 0.0)
+        // ...and is rejected when applied (weight must be strictly positive)
+        f.model.lengthOfReplication = 2.0
+        f.model.numberOfReplications = 1
+        var failed = false
+        try {
+            f.model.simulate()
+        } catch (e: Exception) {
+            failed = true
+            assertTrue(e.message?.contains("weight") == true ||
+                e.cause?.message?.contains("weight") == true) {
+                "expected the weight validation message; got ${e.message}"
+            }
+        }
+        assertTrue(failed, "a zero initial weight must fail at replication start")
+    }
+
+    @Test
+    @DisplayName("Tier 5: load-forming limits are order-independent controls validated pairwise at replication start")
+    fun tier5LoadFormingLimits() {
+        val f = fixture()
+        val builder = ksl.modeling.supplychain.transport.DemandLoadBuilder(f.sc, name = "Builder")
+        val controls = f.model.controls()
+        val keys = controls.controlKeys()
+        for (key in listOf("Builder.minWeightLimit", "Builder.maxWeightLimit",
+                "Builder.minCubeLimit", "Builder.maxCubeLimit")) {
+            assertTrue(key in keys) { "expected control key '$key'; got $keys" }
+        }
+
+        // Raising both limits with min set first (transiently min > old max) must not
+        // throw — the pairwise invariant is checked at replication start, not per field.
+        controls.control("Builder.minWeightLimit")!!.value = 5.0
+        controls.control("Builder.maxWeightLimit")!!.value = 8.0
+        assertEquals(5.0, builder.minWeightLimit, 0.0)
+        assertEquals(8.0, builder.maxWeightLimit, 0.0)
+
+        // a valid configuration runs
+        f.model.lengthOfReplication = 2.0
+        f.model.numberOfReplications = 1
+        f.model.simulate()
+
+        // an invalid pair fails fast at replication start with a clear message
+        controls.control("Builder.maxWeightLimit")!!.value = 2.0   // now max < min
+        var failed = false
+        try {
+            f.model.simulate()
+        } catch (e: Exception) {
+            failed = true
+            assertTrue(e.message?.contains("maxWeightLimit") == true ||
+                e.cause?.message?.contains("maxWeightLimit") == true) {
+                "expected the pairwise limit message; got ${e.message}"
+            }
+        }
+        assertTrue(failed, "an invalid limit pair must fail at replication start")
+    }
+
     @Test
     @DisplayName("Tier 1: a clamped review period of 0 fails fast when applied at replication start")
     fun tier1ReviewPeriodValidatedAtApplyTime() {

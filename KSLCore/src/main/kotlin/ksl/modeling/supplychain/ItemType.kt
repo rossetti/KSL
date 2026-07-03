@@ -44,19 +44,62 @@ class ItemType @JvmOverloads constructor(
             field = value
         }
 
-    /** Weight per unit; must be > 0. */
+    /** Weight per unit; must be > 0. Re-seeded from [initialWeight] at each
+     *  replication start. */
     var weight: Double = weight
         private set(value) {
             require(value > 0.0) { "weight must be > 0" }
             field = value
         }
 
-    /** Cube per unit; must be >= 0. */
+    /** Cube per unit; must be >= 0. Re-seeded from [initialCube] at each
+     *  replication start. */
     var cube: Double = cube
         private set(value) {
             require(value >= 0.0) { "cube must be >= 0" }
             field = value
         }
+
+    /**
+     * The initial weight per unit, applied to [weight] at the start of each replication
+     * so replications begin under identical settings. A control. Weight must be strictly
+     * positive: the control-set path stores a clamped (>= 0) value without throwing, and
+     * a value of 0 is rejected when the initial value is applied at replication start.
+     * Cannot be changed during a replication (initial values are replication initial
+     * conditions); the live [weight] remains internally managed.
+     */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var initialWeight: Double = weight
+        set(value) {
+            require(!model.isRunning) {
+                "The initial weight cannot be changed while the model is running; " +
+                        "initial values are replication initial conditions."
+            }
+            field = value
+        }
+
+    /**
+     * The initial cube per unit (>= 0), applied to [cube] at the start of each
+     * replication. A control. Cannot be changed during a replication.
+     */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var initialCube: Double = cube
+        set(value) {
+            require(!model.isRunning) {
+                "The initial cube cannot be changed while the model is running; " +
+                        "initial values are replication initial conditions."
+            }
+            field = value
+        }
+
+    override fun beforeReplication() {
+        super.beforeReplication()
+        // Apply the (possibly control-set) initial values; the private setters enforce
+        // the strict invariants (weight > 0, cube >= 0), so an invalid initial fails
+        // fast here, before any simulation effort is spent.
+        weight = initialWeight
+        cube = initialCube
+    }
 
     /** Optional replenishment lead-time source. */
     var leadTime: RVariableIfc? = leadTime

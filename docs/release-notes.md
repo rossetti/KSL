@@ -17,6 +17,15 @@ plus optimization, reporting, and numerics additions.
   `SupplyChainModel` with demand/order flows and concrete multi‑echelon inventory policies
   (rQ, (r,S), continuous & periodic, warehouses, cross‑docks) plus cost and transport layers.
   The largest single addition in this release; the API is new and expected to evolve.
+  The package's decision variables, experimental factors, and configuration toggles are
+  exposed as controls (`ksl.controls`), so supply‑chain models are drivable by designed
+  experiments, scenarios, and simulation optimization by key: inventory policy parameters
+  (following the delta parameterization — a reorder‑point control plus a gap control, so
+  any combination of control values is valid), inventory/item configuration (including
+  initial weight/cube applied at replication start), demand‑generation toggles, carrier
+  fallback flags, and the load‑forming strategy and limits (pairwise limits validated at
+  replication start). Initial‑condition controls are guarded against mid‑replication
+  changes. See `SupplyChainControlsDemo` in KSLExamples.
 - **Queueing‑network station library (new, experimental).** `ksl.modeling.station` provides
   composable source/sink/seize/release/batch/fork/join/match/router stations, an `NHPPSource`,
   and a `StationNetwork` with a builder DSL and TOML‑driven configuration. New and still settling.

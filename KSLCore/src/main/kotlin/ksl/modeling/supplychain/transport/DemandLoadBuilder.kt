@@ -102,15 +102,47 @@ open class DemandLoadBuilder @JvmOverloads constructor(
             loadFormingOption = LoadFormingOption.valueOf(value)
         }
 
-    var minWeightLimit: Double = 1.0
-        private set
-    var maxWeightLimit: Double = 1.0
-        private set
+    /*
+     * The four load-forming limits are validated PAIRWISE (min > 0, max >= min), so the
+     * per-field control setters below are clamp-only and non-throwing — an experiment
+     * may set the four keys in any order without a transient violation. The pairwise
+     * invariants are enforced when the limits are used: at beforeReplication(), which
+     * fails fast with a clear message before any simulation effort is spent. The
+     * setWeightFormingLimits / setCubeFormingLimits methods remain the atomic,
+     * strictly-validated programmatic surface.
+     */
 
+    /** Minimum weight threshold for [LoadFormingOption.WEIGHT]; must be > 0 when used
+     *  (validated pairwise at replication start). */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var minWeightLimit: Double = 1.0
+
+    /** Maximum weight threshold for [LoadFormingOption.WEIGHT]; must be >= the minimum
+     *  when used (validated pairwise at replication start). */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var maxWeightLimit: Double = 1.0
+
+    /** Minimum cube threshold for [LoadFormingOption.CUBE]; must be > 0 when used
+     *  (validated pairwise at replication start). */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
     var minCubeLimit: Double = 1.0
-        private set
+
+    /** Maximum cube threshold for [LoadFormingOption.CUBE]; must be >= the minimum
+     *  when used (validated pairwise at replication start). */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
     var maxCubeLimit: Double = 1.0
-        private set
+
+    override fun beforeReplication() {
+        super.beforeReplication()
+        require(minWeightLimit > 0.0) { "minWeightLimit must be > 0 (was $minWeightLimit)" }
+        require(maxWeightLimit >= minWeightLimit) {
+            "maxWeightLimit ($maxWeightLimit) must be >= minWeightLimit ($minWeightLimit)"
+        }
+        require(minCubeLimit > 0.0) { "minCubeLimit must be > 0 (was $minCubeLimit)" }
+        require(maxCubeLimit >= minCubeLimit) {
+            "maxCubeLimit ($maxCubeLimit) must be >= minCubeLimit ($minCubeLimit)"
+        }
+    }
 
     @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
     var countLimit: Int = 1
