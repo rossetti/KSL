@@ -64,9 +64,11 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
 
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
-    api("org.hipparchus:hipparchus-core:4.0.1")
+    api("org.hipparchus:hipparchus-core:4.0.3")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
-    api("org.hipparchus:hipparchus-stat:4.0.1")
+    api("org.hipparchus:hipparchus-stat:4.0.3")
+// Source: https://mvnrepository.com/artifact/org.hipparchus/hipparchus-optim
+    implementation("org.hipparchus:hipparchus-optim:4.0.3")
 
     // https://db.apache.org/derby/releases
     implementation("org.apache.derby:derby:10.17.1.0")

@@ -38,6 +38,7 @@ import ksl.simopt.solvers.algorithms.pso.ParticleSwarmSolver
 import ksl.simopt.solvers.algorithms.bo.AcquisitionFunctionIfc
 import ksl.simopt.solvers.algorithms.bo.BayesianOptimizationSolver
 import ksl.simopt.solvers.algorithms.bo.ExpectedImprovement
+import ksl.simopt.solvers.algorithms.isc.ISCSolver
 import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
@@ -1977,6 +1978,143 @@ abstract class Solver(
                 restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
             }
             return restartSolver
+        }
+
+        /**
+         * Creates and configures an Industrial Strength COMPASS (ISC) solver for a given problem
+         * definition. ISC is a three-phase discrete-optimization-via-simulation method: a global
+         * Niching-GA exploration phase, a local COMPASS phase per niche, and a clean-up
+         * ranking-and-selection phase.
+         *
+         * The single indifference-zone parameter [deltaC] controls the statistical guarantees and
+         * follows ISC's graceful-degradation convention: with `deltaC > 0` the clean-up phase runs the
+         * Rinott indifference-zone selection and reports a `±δ_C` interval with a correct-selection
+         * guarantee (and, with `deltaL > 0`, COMPASS confirms local optimality via Kim's 2005 test);
+         * with `deltaC = 0` (the default, inherited from the problem's indifference-zone parameter)
+         * the solver still returns a feasible best but the indifference-zone guarantees are dropped.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param deltaC The indifference-zone parameter `δ_C`. Defaults to the problem's indifference-zone
+         * parameter; `0.0` selects the degraded mode (no correct-selection guarantee), `> 0` the full guarantees.
+         * @param deltaL The COMPASS local-optimality indifference zone `δ_L`. Defaults to [deltaC].
+         * @param skipGlobalPhase When true, skip the global Niching-GA phase and run a single COMPASS
+         * search from the starting point (the paper's unimodal shortcut). Defaults to false.
+         * @param globalBudget An optional replication budget added as a soft transition rule to the global phase.
+         * @param maxIterations The maximum number of orchestration macro-steps. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams shared by the ISC sub-solvers; defaults to a fresh RNStreamProvider
+         * @return An instance of [ISCSolver].
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createISCSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            deltaC: Double = problemDefinition.indifferenceZoneParameter,
+            deltaL: Double = deltaC,
+            skipGlobalPhase: Boolean = false,
+            globalBudget: Int? = null,
+            maxIterations: Int = ISCSolver.iscDefaultMaxIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+        ): ISCSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            return ISCSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = streamNum,
+                streamProvider = streamProvider,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                deltaC = deltaC,
+                deltaL = deltaL,
+                skipGlobalPhase = skipGlobalPhase,
+                globalBudget = globalBudget,
+                maxIterations = maxIterations,
+                name = name
+            )
+        }
+
+        /**
+         * Creates and configures an Industrial Strength COMPASS (ISC) solver that uses a random
+         * restart approach, mirroring the other algorithms' random-restart factories.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param deltaC The indifference-zone parameter `δ_C`. Defaults to the problem's indifference-zone parameter.
+         * @param deltaL The COMPASS local-optimality indifference zone `δ_L`. Defaults to [deltaC].
+         * @param skipGlobalPhase When true, each restart runs a single COMPASS search (unimodal shortcut). Defaults to false.
+         * @param globalBudget An optional replication budget added as a soft transition rule to the global phase.
+         * @param maxIterations The maximum number of orchestration macro-steps per restart. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param streamNum the random number stream number for the outer random-restart driver; 0 (the default) means the next available stream
+         * @param streamProvider the provider of random number streams shared by the inner ISC solver and the outer driver; defaults to a fresh RNStreamProvider
+         * @return An instance of [RandomRestartSolver] wrapping an [ISCSolver].
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun createRandomRestartISCSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            deltaC: Double = problemDefinition.indifferenceZoneParameter,
+            deltaL: Double = deltaC,
+            skipGlobalPhase: Boolean = false,
+            globalBudget: Int? = null,
+            maxIterations: Int = ISCSolver.iscDefaultMaxIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            streamNum: Int = 0,
+            streamProvider: RNStreamProviderIfc = RNStreamProvider(),
+            name: String? = null,
+            parallelOptions: ParallelEvaluationOptions = ParallelEvaluationOptions()
+        ): RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                parallelOptions = parallelOptions
+            )
+            // The inner ISC solver keeps its own streams from the shared provider; the outer
+            // random-restart driver (the returned solver) takes the user's streamNum.
+            val isc = ISCSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                streamNum = 0,
+                streamProvider = streamProvider,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                deltaC = deltaC,
+                deltaL = deltaL,
+                skipGlobalPhase = skipGlobalPhase,
+                globalBudget = globalBudget,
+                maxIterations = maxIterations,
+                name = name
+            )
+            return RandomRestartSolver(
+                restartingSolver = isc, maxNumRestarts = maxNumRestarts,
+                streamNum = streamNum, streamProvider = streamProvider, name = name
+            )
         }
 
         /**
