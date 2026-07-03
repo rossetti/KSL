@@ -1,16 +1,18 @@
 package ksl.simopt.solvers.algorithms
 
+import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
+import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.SolutionChecker
 import ksl.simopt.evaluator.SolutionEqualityIfc
+import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.exp
-import kotlin.math.ln
 
 //TODO default initial temperature
 
@@ -223,42 +225,42 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
     /**
      * Executes a brief random walk to estimate the objective function landscape and calculate
-     * an appropriate starting temperature. Because this uses `requestEvaluation()`, all
-     * evaluations accurately count toward the solver's `numOracleCalls`.
+     * an appropriate starting temperature. The walk's geometry never depends on the evaluated
+     * objective values, so the full path is generated first and then evaluated with a single
+     * multi-point request; an evaluator backed by a parallel simulation oracle therefore
+     * evaluates the walk concurrently. Because this uses `requestEvaluations()`, all
+     * evaluations count toward the solver's `numOracleCalls`. A revisited point (possible when
+     * inputs are discrete) is requested once and its solution reused for each visit, so the
+     * oracle-call count can be slightly lower than the sequential walk's; with the default
+     * solution cache the executed replications are identical.
      */
     private fun calibrateTemperature(targetAcceptanceProbability: Double, sampleSize: Int): Double {
-        var totalWorseningCost = 0.0
-        var worseningMovesCount = 0
-
         // Use the evaluated baseline established by super.initializeIterations()
-        var previousWalkSolution = currentSolution
-
-        for (i in 0 until sampleSize) {
-            val nextPoint = generateNeighbor(previousWalkSolution.inputMap, rnStream)
-
-            // AUTOMATIC TRACKING: requestEvaluation inherently increments `numOracleCalls`!
-            val nextSolution = requestEvaluation(nextPoint)
-
-            val costDiff = nextSolution.penalizedObjFncValue - previousWalkSolution.penalizedObjFncValue
-
-            if (costDiff > 0.0) {
-                totalWorseningCost += costDiff
-                worseningMovesCount++
-            }
-            previousWalkSolution = nextSolution
-        }
+        val startSolution = currentSolution
+        val chain = InitialTemperatureEstimator.generateWalkPath(
+            start = startSolution.inputMap,
+            steps = sampleSize,
+            rnStream = rnStream
+        ) { point, stream -> generateNeighbor(point, stream) }
+        // Everything after the (already evaluated) starting point goes into one batched
+        // request; the linked set dedupes revisits while preserving the walk's tape order.
+        val pointsToEvaluate: Set<InputMap> = LinkedHashSet(chain.subList(1, chain.size))
+        val solutions = requestEvaluations(pointsToEvaluate)
+        val byInput = InitialTemperatureEstimator.solutionsByInput(solutions)
+        // The already-evaluated baseline serves as the starting point's solution.
+        byInput[startSolution.inputMap] = startSolution
+        val estimatedTemp = InitialTemperatureEstimator.estimateFromChain(
+            chain, byInput, targetAcceptanceProbability
+        )
 
         // Reset the tracker's current solution back to the true initial point so the optimization
         // starts exactly where the user intended, rather than where the random walk ended.
         currentSolution = myInitialSolution
 
-        if (worseningMovesCount == 0) {
+        if (estimatedTemp == null) {
             logger.warn { "Solver: $name : Calibration found no worsening moves. Falling back to default temperature $defaultInitialTemperature." }
             return defaultInitialTemperature
         }
-
-        val averageWorseningCost = totalWorseningCost / worseningMovesCount
-        val estimatedTemp = -averageWorseningCost / ln(targetAcceptanceProbability)
 
         logger.debug { "Solver: $name : Calibration complete. Estimated Initial Temperature: $estimatedTemp" }
         return estimatedTemp
@@ -386,6 +388,13 @@ class SimulatedAnnealing @JvmOverloads constructor(
          * Estimates a sensible initial temperature by executing an unbiased random walk
          * over the objective function landscape and measuring the average cost increase.
          *
+         * The walk's geometry never depends on the evaluated objective values, so the full
+         * path is generated first and then evaluated with a single multi-point request; an
+         * evaluator backed by a parallel simulation oracle therefore evaluates the walk
+         * concurrently. The random draws (starting point, then one neighbor per step from
+         * the first stream of a fresh provider) match the historical sequential
+         * implementation, so a fixed stream setup yields the same walk path.
+         *
          * @param problemDefinition The problem being solved.
          * @param evaluator The evaluator responsible for assessing solutions.
          * @param targetAcceptanceProbability The desired initial probability of accepting a worse solution (e.g., 0.8).
@@ -404,8 +413,11 @@ class SimulatedAnnealing @JvmOverloads constructor(
             require(targetAcceptanceProbability > 0.0 && targetAcceptanceProbability < 1.0) {
                 "Target probability must be strictly between 0 and 1"
             }
+            require(sampleSize > 0) { "The sample size must be positive" }
 
-            // 1. Construct the reusable Random Walk solver
+            // The solver instance supplies the walk's stream (the first stream of a fresh
+            // provider, matching the historical behavior) and the argument for the
+            // replications strategy. It is never run.
             val randomWalk = RandomWalkSolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
@@ -413,43 +425,37 @@ class SimulatedAnnealing @JvmOverloads constructor(
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = "TempEstimationRandomWalk"
             )
+            val rnStream = randomWalk.rnStream
+            val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(randomWalk)
 
-            // 2. Initialize the solver to generate the starting point/solution
-            randomWalk.initialize()
+            // Generate the full walk path (starting point + sampleSize neighbor steps) with
+            // the default input-randomization neighbor function used by RandomWalkSolver.
+            val start = problemDefinition.startingPoint(rnStream)
+            val chain = InitialTemperatureEstimator.generateWalkPath(
+                start = start,
+                steps = sampleSize,
+                rnStream = rnStream
+            ) { point, stream -> point.randomizeInputVariable(stream) }
 
-            var totalWorseningCost = 0.0
-            var worseningMovesCount = 0
-
-            // Grab the initial solution as our baseline
-            var previousSolution = randomWalk.currentSolution
-
-            // 3. Step through the random walk manually using the base class functions
-            while (randomWalk.hasNextIteration()) {
-                randomWalk.runNextIteration()
-
-                val newSolution = randomWalk.currentSolution
-
-                // Calculate the cost difference
-                val costDiff = newSolution.penalizedObjFncValue - previousSolution.penalizedObjFncValue
-
-                // We only care about worsening moves for the temperature calculation
-                if (costDiff > 0.0) {
-                    totalWorseningCost += costDiff
-                    worseningMovesCount++
-                }
-
-                // Update for the next step
-                previousSolution = newSolution
+            // Evaluate every point of the chain (including the start) as one batched
+            // request; the linked set dedupes revisits while preserving tape order.
+            val pointsToEvaluate: Set<InputMap> = LinkedHashSet(chain)
+            val modelInputs = pointsToEvaluate.map { inputMap ->
+                ModelInputs(
+                    modelIdentifier = problemDefinition.modelIdentifier,
+                    numReplications = numReps,
+                    inputs = inputMap,
+                    responseNames = problemDefinition.allResponseNames.toSet()
+                )
             }
+            val request = EvaluationRequest(problemDefinition.modelIdentifier, modelInputs)
+            val solutions = evaluator.evaluate(request)
+            val byInput = InitialTemperatureEstimator.solutionsByInput(solutions)
 
-            // 4. Fallback in the highly unlikely event that the walk only found improvements
-            if (worseningMovesCount == 0) {
-                return defaultInitialTemperature
-            }
-
-            // 5. Calculate and return the target temperature
-            val averageWorseningCost = totalWorseningCost / worseningMovesCount
-            return -averageWorseningCost / ln(targetAcceptanceProbability)
+            // Fallback covers the (unlikely) all-improving walk and unusable evaluations.
+            return InitialTemperatureEstimator.estimateFromChain(
+                chain, byInput, targetAcceptanceProbability
+            ) ?: defaultInitialTemperature
         }
     }
 
