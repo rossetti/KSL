@@ -50,4 +50,36 @@ class StreamTapePolicyTest {
         policy.reset()
         assertEquals(0, policy.position)
     }
+
+    @Test
+    fun initialPositionOffsetsTheTapeAndReset() {
+        val policy = StreamTapePolicy(initialPosition = 100)
+        assertEquals(100, policy.position)
+        assertEquals(100, policy.initialPosition)
+        assertEquals(listOf(100, 103), policy.advancesFor(inputs(3, 3), crnOption = false))
+        assertEquals(106, policy.position)
+        // reset returns to the configured initial position, not to zero
+        policy.reset()
+        assertEquals(100, policy.position)
+    }
+
+    @Test
+    fun memberBlockOffsetsProduceNonOverlappingSubStreamRegions() {
+        val blockSize = 1000
+        val consumedPositions = mutableListOf<Int>()
+        for (member in 0 until 4) {
+            val policy = StreamTapePolicy(initialPosition = member * blockSize)
+            val advances = policy.advancesFor(inputs(5, 5, 5), crnOption = false)
+            // each point consumes sub-streams [advance, advance + reps)
+            for (advance in advances) {
+                for (subStream in advance until advance + 5) {
+                    consumedPositions.add(subStream)
+                }
+            }
+            // the member stayed within its own block
+            assertEquals(member * blockSize + 15, policy.position)
+        }
+        // no sub-stream index is consumed by two members
+        assertEquals(consumedPositions.size, consumedPositions.toSet().size)
+    }
 }

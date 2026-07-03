@@ -61,7 +61,7 @@ class ParallelSimulationProvider @JvmOverloads constructor(
     // (e.g. the validation model in Evaluator.createProblemEvaluator) can pass it in to avoid a
     // second build.
     private val myTemplateModel: Model =
-        (templateModel ?: modelBuilder.build(modelConfiguration, baseRunParameters)).also { silence(it) }
+        (templateModel ?: modelBuilder.build(modelConfiguration, baseRunParameters)).also { silenceModelReporting(it) }
 
     /** The identifier of the model produced by the builder, used to validate incoming requests. */
     val modelIdentifier: String = myTemplateModel.modelIdentifier
@@ -152,23 +152,23 @@ class ParallelSimulationProvider @JvmOverloads constructor(
     // Concurrency is bounded by the dispatcher, so the number of live (borrowed) models stays at or
     // below the worker count; over a run the pool settles at that many reused models.
     private fun borrowModel(): Model =
-        myModelPool.poll() ?: modelBuilder.build(modelConfiguration).also { silence(it) }
+        myModelPool.poll() ?: modelBuilder.build(modelConfiguration).also { silenceModelReporting(it) }
 
     private data class PointPlan(
         val modelInputs: ModelInputs,
         val runParameters: ExperimentRunParameters
     )
+}
 
-    private companion object {
-        /**
-         * Suppresses all reporting on a model so concurrent runs stay silent and never trigger the
-         * (lazy) output directory: no summary print, and no CSV reporting of any kind.
-         */
-        fun silence(model: Model) {
-            model.autoPrintSummaryReport = false
-            model.autoCSVReports = false
-            model.autoReplicationCSVReports = false
-            model.autoExperimentCSVReports = false
-        }
-    }
+/**
+ * Suppresses all reporting on a model so concurrent runs stay silent and never trigger the
+ * (lazy) output directory: no summary print, and no CSV reporting of any kind. Shared by
+ * the parallel provider's worker models and the per-member models of concurrent solver
+ * execution (see `ksl.simopt.solvers.concurrent`).
+ */
+internal fun silenceModelReporting(model: Model) {
+    model.autoPrintSummaryReport = false
+    model.autoCSVReports = false
+    model.autoReplicationCSVReports = false
+    model.autoExperimentCSVReports = false
 }

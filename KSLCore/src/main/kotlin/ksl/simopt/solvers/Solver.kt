@@ -480,7 +480,20 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun stopIterations(msg: String? = null) {
+        onStopRequested(msg)
         myMainIterativeProcess.stop(msg)
+    }
+
+    /**
+     *  A hook invoked when stopIterations() is called, before the solver's own iterative
+     *  process is signaled to stop. The stop flag of the iterative process is only checked
+     *  between outer iterations, so a composite solver that blocks inside an iteration
+     *  waiting on inner solvers (possibly running on other threads) overrides this to
+     *  forward the stop request to those in-flight inner solvers. The default does nothing.
+     *
+     *  @param msg the message supplied to stopIterations, possibly null
+     */
+    protected open fun onStopRequested(msg: String?) {
     }
 
     /**

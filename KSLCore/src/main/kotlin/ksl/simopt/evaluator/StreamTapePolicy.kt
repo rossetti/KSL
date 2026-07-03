@@ -19,14 +19,31 @@ package ksl.simopt.evaluator
  *
  * Not thread-safe: [advancesFor] mutates the tape position. It is intended to be called once per
  * request on the single solver thread, before the request fans out to workers.
+ *
+ * @param initialPosition the sub-stream index at which the tape begins; defaults to 0. Concurrent
+ * solver execution (e.g. parallel random restarts) gives each member its own policy starting at a
+ * distinct block offset (member index times a generous block size) so members draw from
+ * non-overlapping regions of the sub-stream tape regardless of scheduling. Sub-stream positioning
+ * is a constant-time jump, so large offsets cost nothing. Must be non-negative.
  */
-class StreamTapePolicy {
+class StreamTapePolicy(initialPosition: Int = 0) {
 
-    private var myPosition: Int = 0
+    init {
+        require(initialPosition >= 0) { "The initial tape position must be non-negative" }
+    }
+
+    private val myInitialPosition: Int = initialPosition
+
+    private var myPosition: Int = initialPosition
 
     /** The current tape position (the next free sub-stream index). */
     val position: Int
         get() = myPosition
+
+    /** The position at which this tape began (and to which reset() returns). */
+    @Suppress("unused")
+    val initialPosition: Int
+        get() = myInitialPosition
 
     /**
      * Returns the pre-run sub-stream advance for each point of [inputs], in request order, and moves
@@ -47,8 +64,8 @@ class StreamTapePolicy {
         return inputs.map { modelInputs -> myPosition.also { myPosition += modelInputs.numReplications } }
     }
 
-    /** Resets the tape to the beginning. Primarily useful for tests. */
+    /** Resets the tape to its initial position. Primarily useful for tests. */
     fun reset() {
-        myPosition = 0
+        myPosition = myInitialPosition
     }
 }
