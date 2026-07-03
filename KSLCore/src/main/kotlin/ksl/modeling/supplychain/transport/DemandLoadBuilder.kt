@@ -4,6 +4,7 @@ import ksl.modeling.supplychain.*
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
+import ksl.controls.KSLStringControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.CounterCIfc
@@ -82,6 +83,24 @@ open class DemandLoadBuilder @JvmOverloads constructor(
     }
 
     var loadFormingOption: LoadFormingOption = LoadFormingOption.ALWAYS
+
+    /**
+     * String view of [loadFormingOption] for the controls machinery (string controls
+     * carry String values; the property itself remains the type-safe enum). Setting a
+     * valid option name applies the corresponding [LoadFormingOption]; values outside
+     * the allowed set are rejected by the control machinery with a
+     * `ControlUpdateException`. Assigning [loadFormingRule] still flips the option to
+     * RULE, exactly as before — this adapter adds a control surface, not new behavior.
+     */
+    @set:KSLStringControl(
+        allowedValues = ["NONE", "COUNT", "WEIGHT", "CUBE", "RULE", "ALWAYS"],
+        comment = "Automatic load-formation strategy"
+    )
+    var loadFormingOptionName: String
+        get() = loadFormingOption.name
+        set(value) {
+            loadFormingOption = LoadFormingOption.valueOf(value)
+        }
 
     var minWeightLimit: Double = 1.0
         private set

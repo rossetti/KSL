@@ -301,6 +301,45 @@ class SupplyChainControlsTest {
             "the rejected mid-run change must not alter the initial value")
     }
 
+    // ── Tier 4.2: load-forming string control ─────────────────────────────────
+
+    @Test
+    @DisplayName("Tier 4.2: load-forming option is a string control with an allowed-value guard")
+    fun tier42LoadFormingStringControl() {
+        val f = fixture()
+        val builder = ksl.modeling.supplychain.transport.DemandLoadBuilder(f.sc, name = "Builder")
+        val controls = f.model.controls()
+        assertTrue("Builder.loadFormingOptionName" in controls.stringControlKeys()) {
+            "expected string control key; got ${controls.stringControlKeys()}"
+        }
+        val option = controls.stringControl("Builder.loadFormingOptionName")
+        assertNotNull(option)
+
+        option!!.value = "COUNT"
+        assertEquals(
+            ksl.modeling.supplychain.transport.DemandLoadBuilder.LoadFormingOption.COUNT,
+            builder.loadFormingOption
+        )
+
+        var rejected = false
+        try {
+            option.value = "NOT_AN_OPTION"
+        } catch (_: ksl.controls.ControlUpdateException) {
+            rejected = true
+        }
+        assertTrue(rejected, "a disallowed value must be rejected with ControlUpdateException")
+        assertEquals(
+            ksl.modeling.supplychain.transport.DemandLoadBuilder.LoadFormingOption.COUNT,
+            builder.loadFormingOption,
+            "a rejected write must not change the option"
+        )
+
+        // assigning a rule still flips the option to RULE (behavior preserved)
+        builder.loadFormingRule =
+            ksl.modeling.supplychain.transport.DemandLoadFormingRuleIfc { _ -> false }
+        assertEquals("RULE", builder.loadFormingOptionName)
+    }
+
     @Test
     @DisplayName("Tier 1: a clamped review period of 0 fails fast when applied at replication start")
     fun tier1ReviewPeriodValidatedAtApplyTime() {
