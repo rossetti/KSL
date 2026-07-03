@@ -50,4 +50,54 @@ class EvaluationClockTest {
             "statistics counters must not be affected by a clock reset")
         assertEquals(3, evaluator.totalDesignPointsEvaluated)
     }
+
+    @Test
+    @DisplayName("Every solver run begins its penalty ramp fresh on a reused evaluator")
+    fun solverRunsResetTheClock() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val evaluator = Evaluator.createProblemEvaluator(pd, BuildLKModel)
+
+        // First run consumes the clock...
+        val first = ksl.simopt.solvers.algorithms.StochasticHillClimber(
+            problemDefinition = pd, evaluator = evaluator,
+            maxIterations = 3, replicationsPerEvaluation = 1, streamNum = 1
+        )
+        first.runAllIterations()
+        assertEquals(1, first.initialSolution!!.evaluationNumber,
+            "a fresh evaluator's first run starts at clock 1")
+
+        // ...and a second, independent run on the SAME evaluator starts fresh too.
+        val second = ksl.simopt.solvers.algorithms.StochasticHillClimber(
+            problemDefinition = pd, evaluator = evaluator,
+            maxIterations = 3, replicationsPerEvaluation = 1, streamNum = 1
+        )
+        second.runAllIterations()
+        assertEquals(1, second.initialSolution!!.evaluationNumber,
+            "a subsequent run on a reused evaluator must begin its penalty ramp fresh")
+    }
+
+    @Test
+    @DisplayName("A preliminary starting-point search does not inflate the main search's ramp")
+    fun startingPointSearchDoesNotInflateMainRamp() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val evaluator = Evaluator.createProblemEvaluator(pd, BuildLKModel)
+        // The outer search uses MORE replications than the preliminary search so its
+        // initial-point evaluation is a partial cache hit (merge), which stamps the
+        // current clock. (A full cache hit would return the cached solution unchanged,
+        // still carrying the stamp from when it was first evaluated — cached solutions
+        // are immutable records of their original evaluation.)
+        val solver = ksl.simopt.solvers.algorithms.StochasticHillClimber(
+            problemDefinition = pd, evaluator = evaluator,
+            maxIterations = 3, replicationsPerEvaluation = 2, streamNum = 1
+        )
+        // The inner best-of-random-starts search runs on the same evaluator before the
+        // main search begins.
+        solver.useRandomlyBestStartingPoint(
+            maxRandomStartingPoints = 4,
+            replicationsPerRandomStartingPoint = 1
+        )
+        solver.runAllIterations()
+        assertEquals(1, solver.initialSolution!!.evaluationNumber,
+            "the main search's ramp must begin fresh after the preliminary search")
+    }
 }

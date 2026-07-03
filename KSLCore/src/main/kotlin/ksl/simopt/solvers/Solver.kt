@@ -628,8 +628,14 @@ abstract class Solver(
      */
     protected open fun initializeIterations() {
         val initialPoint = startingPoint ?: startingPoint()
+        // Each solver run is an independent search: begin its penalty ramp fresh (the
+        // evaluation clock stamps solutions with the evaluation number that drives
+        // dynamic penalty functions), even when the evaluator has already served a
+        // preliminary starting-point search, an earlier restart, or a previous run of
+        // this same solver instance. This must happen after the starting point is
+        // determined, because determining it may itself run a search on this evaluator.
+        evaluator.resetEvaluationClock()
         myInitialSolution = requestEvaluation(initialPoint)
-        //       println("In initializeIterations(): iteration = $iterationCounter : Initial solution: ${myInitialSolution.asString()}")
         currentSolution = myInitialSolution
     }
 

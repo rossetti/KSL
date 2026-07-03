@@ -218,6 +218,9 @@ class SimulatedAnnealing @JvmOverloads constructor(
             "Solver: $name : initial temperature ($currentTemperature) must be strictly greater " +
                     "than the stopping temperature ($stoppingTemperature). Otherwise, the annealing process cannot occur."
         }
+        // The calibration walk (when configured) is pre-search work on this evaluator;
+        // begin the annealing search's penalty ramp fresh.
+        evaluator.resetEvaluationClock()
         lastAcceptanceProbability = 1.0
         costDifference = Double.NaN
         logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }

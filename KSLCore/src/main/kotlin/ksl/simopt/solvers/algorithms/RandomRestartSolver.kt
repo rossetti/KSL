@@ -280,11 +280,10 @@ class RandomRestartSolver private constructor(
         if (clearCacheBetweenRuns) {
             evaluator.cache?.clear()
         }
-        // Each restart is an independent search: restart the evaluation clock so dynamic
-        // penalty ramps begin fresh each run (matching concurrent mode, where every
-        // restart's private evaluator starts its own clock). The evaluator's cumulative
-        // statistics counters are unaffected.
-        evaluator.resetEvaluationClock()
+        // Note: each restart's penalty ramp begins fresh because every solver run resets
+        // the shared evaluator's evaluation clock in Solver.initializeIterations —
+        // matching concurrent mode, where each restart's private evaluator starts its
+        // own clock. The evaluator's cumulative statistics counters are unaffected.
         // The first run honors a user-supplied starting point (the documented contract,
         // matching concurrent mode's restart 0); every other restart draws a random
         // input-feasible point.

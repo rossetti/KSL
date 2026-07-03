@@ -48,6 +48,10 @@ interface EvaluatorIfc {
      * NOT disturb the cumulative statistics counters (totalEvaluatorCalls and friends),
      * which feed post-run evaluator metrics. The default implementation does nothing,
      * for evaluators without a clock.
+     *
+     * Note that the clock stamps newly evaluated (or merged) solutions only: a solution
+     * served entirely from a cache is an immutable record of its original evaluation and
+     * retains the evaluation number it was first stamped with.
      */
     fun resetEvaluationClock() {
     }
