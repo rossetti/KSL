@@ -410,7 +410,8 @@ class RandomRestartSolver private constructor(
          * The member index handed to the solver factory when creating the prototype
          * inner solver (which is never run). Factories that key behavior on the member
          * index can use this to recognize the prototype; most ignore the index.
+         * Same value as `SolverFactoryIfc.PROTOTYPE_MEMBER_INDEX`.
          */
-        const val PROTOTYPE_MEMBER_INDEX: Int = -1
+        const val PROTOTYPE_MEMBER_INDEX: Int = SolverFactoryIfc.PROTOTYPE_MEMBER_INDEX
     }
 }

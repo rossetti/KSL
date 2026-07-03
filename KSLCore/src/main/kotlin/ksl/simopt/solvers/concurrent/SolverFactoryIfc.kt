@@ -38,4 +38,14 @@ fun interface SolverFactoryIfc {
      * @return the newly created solver
      */
     fun create(evaluator: EvaluatorIfc, memberIndex: Int, name: String): Solver
+
+    companion object {
+        /**
+         * The member index handed to a factory when creating a prototype instance —
+         * one that exists only for configuration reporting and tracking probes and is
+         * never run. Factories that key behavior on the member index can use this to
+         * recognize the prototype; most ignore the index.
+         */
+        const val PROTOTYPE_MEMBER_INDEX: Int = -1
+    }
 }
