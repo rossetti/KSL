@@ -22,7 +22,8 @@ import ksl.utilities.random.rvariable.ShiftedGeometricRV
 import ksl.utilities.random.rvariable.TriangularRV
 
 enum class SolverType {
-    SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS
+    SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS,
+    GA, PSO, BO, ISC, GA_RS, PSO_RS, BO_RS, ISC_RS
 }
 
 
@@ -390,6 +391,115 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxNumRestarts = maxNumRestarts,
                 maxIterations = 100,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.GA -> {
+            Solver.createGeneticAlgorithmSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                populationSize = 30,
+                startingPoint = null,
+                maxIterations = 100,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.PSO -> {
+            // PSO evaluates the whole swarm in parallel by default; BuildTwoEchelonModel yields an
+            // independent model per call, so parallel evaluation is safe.
+            Solver.createParticleSwarmSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                swarmSize = 20,
+                startingPoint = null,
+                maxIterations = 100,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.BO -> {
+            // BO is sample-efficient: a small initial design and a modest iteration budget.
+            Solver.createBayesianOptimizationSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                initialDesignSize = 12,
+                startingPoint = null,
+                maxIterations = 30,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.ISC -> {
+            // Three-phase ISC; the global phase is bounded with a replication budget. deltaC defaults
+            // to the problem's indifference-zone parameter (0.0 => degraded mode). Set a positive
+            // deltaC for the full correct-selection guarantee and +/-deltaC interval.
+            Solver.createISCSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                globalBudget = 3000,
+                maxIterations = 100,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.GA_RS -> {
+            Solver.createRandomRestartGeneticAlgorithmSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                maxNumRestarts = maxNumRestarts,
+                populationSize = 30,
+                maxIterations = 100,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.PSO_RS -> {
+            Solver.createRandomRestartParticleSwarmSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                maxNumRestarts = maxNumRestarts,
+                swarmSize = 20,
+                maxIterations = 100,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.BO_RS -> {
+            Solver.createRandomRestartBayesianOptimizationSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                maxNumRestarts = maxNumRestarts,
+                initialDesignSize = 12,
+                maxIterations = 30,
+                replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters
+            )
+        }
+
+        SolverType.ISC_RS -> {
+            Solver.createRandomRestartISCSolver(
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                maxNumRestarts = maxNumRestarts,
+                globalBudget = 3000,
+                maxIterations = 100,
+                replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters
             )
