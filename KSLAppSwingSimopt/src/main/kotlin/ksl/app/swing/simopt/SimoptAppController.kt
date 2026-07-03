@@ -1583,9 +1583,98 @@ class SimoptAppController(
     /** Set the random-restart wrapper.  `null` = no restart. */
     fun setRandomRestart(spec: RandomRestartSpec?) {
         if (myRandomRestart.value == spec) return
+        val previous = myRandomRestart.value
         myRandomRestart.value = spec
         recomputeSolverSpec()
         markDirtyStructural()
+        // Edge-triggered conflict prompt: fresh documents default parallel evaluation to
+        // ON, so entering concurrent-restart territory collides with it for essentially
+        // every user. Offer a one-click resolution right here instead of a pre-run
+        // validation error later. (Edge, not level: firing only on the 1 -> >1 transition
+        // avoids re-prompting on every keystroke in the editor's text field.)
+        val enteredConcurrent = (spec?.concurrentRestarts ?: 1) > 1 &&
+                (previous?.concurrentRestarts ?: 1) <= 1
+        if (enteredConcurrent && myEvaluationSpec.value.parallelEvaluation) {
+            promptConcurrencyConflict()
+        }
+    }
+
+    /** How the user chose to resolve a concurrent-restarts / parallel-evaluation collision. */
+    enum class ConcurrencyConflictResolution {
+        /** Turn parallel evaluation off; concurrent restarts carry the parallelism. */
+        USE_CONCURRENT_RESTARTS,
+
+        /** Set concurrent restarts back to 1; parallel evaluation stays on. */
+        KEEP_PARALLEL_EVALUATION,
+
+        /** Leave both set; pre-run validation still blocks the run until resolved. */
+        DECIDE_LATER
+    }
+
+    /**
+     * Asks the user how to resolve the concurrent-restarts / parallel-evaluation
+     * collision. Injectable so tests (and headless runs) can supply an answer without
+     * a display; the default shows a modal option dialog.
+     */
+    var concurrencyConflictPrompter: () -> ConcurrencyConflictResolution =
+        { showConcurrencyConflictDialog() }
+
+    /**
+     * Shows the conflict prompt after the current EDT event completes (the trigger may
+     * fire from inside a document-listener callback, where opening a modal dialog is
+     * unsafe), re-checks that the conflict still exists, and applies the chosen
+     * resolution through the normal setters so the panels re-sync from the flows.
+     */
+    private fun promptConcurrencyConflict() {
+        javax.swing.SwingUtilities.invokeLater {
+            val restart = myRandomRestart.value ?: return@invokeLater
+            if (restart.concurrentRestarts <= 1) return@invokeLater
+            if (!myEvaluationSpec.value.parallelEvaluation) return@invokeLater
+            when (concurrencyConflictPrompter()) {
+                ConcurrencyConflictResolution.USE_CONCURRENT_RESTARTS ->
+                    setEvaluationSpec(myEvaluationSpec.value.copy(parallelEvaluation = false))
+                ConcurrencyConflictResolution.KEEP_PARALLEL_EVALUATION ->
+                    setRandomRestart(restart.copy(concurrentRestarts = 1))
+                ConcurrencyConflictResolution.DECIDE_LATER -> Unit
+            }
+        }
+    }
+
+    private fun showConcurrencyConflictDialog(): ConcurrencyConflictResolution {
+        if (java.awt.GraphicsEnvironment.isHeadless()) {
+            return ConcurrencyConflictResolution.DECIDE_LATER
+        }
+        val options = arrayOf(
+            "Use concurrent restarts (turn off parallel evaluation)",
+            "Keep parallel evaluation (set concurrent restarts to 1)",
+            "Decide later"
+        )
+        val message = "<html><body style='width: 430px'>" +
+            "<b>Choose one level of parallelism.</b><br><br>" +
+            "<b>Parallel evaluation</b> runs the many design points of one batch request " +
+            "concurrently — it only helps population algorithms (Cross-Entropy, GA, PSO, " +
+            "R-SPLINE) that evaluate whole generations at once.<br><br>" +
+            "Hill climbing and simulated annealing evaluate <b>one point per iteration</b>, " +
+            "so parallel evaluation has nothing to parallelize for them.  " +
+            "<b>Concurrent restarts</b> is how these algorithms use multiple cores: whole " +
+            "independent searches run side by side.<br><br>" +
+            "The two settings cannot both be enabled — they would compete for the same " +
+            "workers.</body></html>"
+        val choice = javax.swing.JOptionPane.showOptionDialog(
+            java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow,
+            message,
+            "Concurrent restarts vs. parallel evaluation",
+            javax.swing.JOptionPane.DEFAULT_OPTION,
+            javax.swing.JOptionPane.INFORMATION_MESSAGE,
+            null,
+            options,
+            options[0]
+        )
+        return when (choice) {
+            0 -> ConcurrencyConflictResolution.USE_CONCURRENT_RESTARTS
+            1 -> ConcurrencyConflictResolution.KEEP_PARALLEL_EVALUATION
+            else -> ConcurrencyConflictResolution.DECIDE_LATER
+        }
     }
 
     /** Recompute [solverSpec] from the per-piece flows.  Publishes
@@ -1648,8 +1737,15 @@ class SimoptAppController(
      *  [lastResult]. */
     fun setEvaluationSpec(spec: EvaluationSpec) {
         if (myEvaluationSpec.value == spec) return
+        val previous = myEvaluationSpec.value
         myEvaluationSpec.value = spec
         markDirtyPreference()
+        // Mirror of the setRandomRestart edge: enabling parallel evaluation while
+        // concurrent restarts are already configured collides the two levels.
+        val enabledParallel = spec.parallelEvaluation && !previous.parallelEvaluation
+        if (enabledParallel && (myRandomRestart.value?.concurrentRestarts ?: 1) > 1) {
+            promptConcurrencyConflict()
+        }
     }
 
     /** Replace the tracking settings.  Preference — does not drop

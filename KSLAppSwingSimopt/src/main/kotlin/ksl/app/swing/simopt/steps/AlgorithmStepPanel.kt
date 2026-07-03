@@ -269,12 +269,14 @@ class AlgorithmStepPanel(
      *  collapses everything else by default. */
     private fun buildRandomRestartBody(): JPanel = JPanel(BorderLayout()).apply {
         border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
+        // The width style is what makes the HTML label wrap: an unconstrained HTML
+        // JLabel computes its preferred size as one unbroken line and gets clipped.
         val help = JLabel(
-            "<html><i>When enabled, the solver factory wraps the chosen algorithm " +
-                "in a RandomRestartSolver that runs the algorithm up to N times from " +
-                "randomly-drawn starting points.  Concurrent restarts &gt; 1 runs that " +
-                "many restarts at the same time (Stochastic Hill Climbing and Simulated " +
-                "Annealing only; incompatible with parallel evaluation).</i></html>"
+            "<html><body style='width: 380px'><i>When enabled, the solver factory wraps " +
+                "the chosen algorithm in a RandomRestartSolver that runs the algorithm up " +
+                "to N times from randomly-drawn starting points.  Concurrent restarts " +
+                "&gt; 1 runs several restarts at once (Stochastic Hill Climbing and " +
+                "Simulated Annealing only; see the field's tooltip).</i></body></html>"
         ).apply {
             foreground = Color(0x55, 0x55, 0x55)
             border = BorderFactory.createEmptyBorder(0, 0, 6, 0)

@@ -30,7 +30,10 @@ import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.Rectangle
+import java.awt.Toolkit
 import java.awt.Window
+import java.awt.datatransfer.StringSelection
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -39,6 +42,9 @@ import javax.swing.JDialog
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JTextArea
+import javax.swing.Scrollable
+import javax.swing.UIManager
 
 /**
  * Modal dialog listing every document and model-aware validation
@@ -74,10 +80,33 @@ class ValidationDetailsDialog(
         addActionListener { isVisible = false }
     }
 
-    private val rowsContainer = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.Y_AXIS)
-        isOpaque = false
+    private val copyButton = JButton("Copy issues").apply {
+        toolTipText = "Copies every listed issue (severity, code, document path, and full message) " +
+            "to the clipboard as plain text."
+        addActionListener { copyIssuesToClipboard() }
     }
+
+    /**
+     * A vertical column that tracks the viewport width. The scroll pane never shows a
+     * horizontal scrollbar, so the rows must be constrained to the viewport's width —
+     * that constraint is what gives the wrapping message text a width to wrap to.
+     */
+    private class ScrollableColumn : JPanel(), Scrollable {
+        init {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+        }
+        override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+        override fun getScrollableUnitIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int = 16
+        override fun getScrollableBlockIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int = 64
+        override fun getScrollableTracksViewportWidth(): Boolean = true
+        override fun getScrollableTracksViewportHeight(): Boolean = false
+    }
+
+    private val rowsContainer = ScrollableColumn()
+
+    /** The issues currently rendered, kept for the clipboard copy. */
+    private var myLatestMerged: ValidationResult = ValidationResult()
 
     init {
         layout = BorderLayout(0, 6)
@@ -99,13 +128,14 @@ class ValidationDetailsDialog(
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         ).apply {
             border = BorderFactory.createEmptyBorder()
-            preferredSize = Dimension(640, 240)
+            preferredSize = Dimension(640, 280)
         }
         add(rowScroll, BorderLayout.CENTER)
 
-        // Footer — Re-check + Close.
+        // Footer — Copy + Re-check + Close.
         val footer = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
+            add(copyButton)
             add(recheckButton)
             add(closeButton)
         }
@@ -129,6 +159,7 @@ class ValidationDetailsDialog(
         val stale = controller.modelAwareStale.value
         val modelCache = cached?.takeIf { !stale }
         val merged = merge(doc, modelCache)
+        myLatestMerged = merged
 
         statusLabel.text = if (merged.isValid) {
             val w = merged.warnings.size
@@ -171,38 +202,81 @@ class ValidationDetailsDialog(
         )
     }
 
-    private fun buildRow(error: FieldError, isError: Boolean): JPanel =
-        JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
+    /**
+     * One issue row: severity glyph on the left, the full message as *wrapping,
+     * selectable* text in the center (a transparent non-editable text area — an HTML
+     * JLabel neither wraps nor allows copying), and the jump link underneath.
+     * The row's maximum height tracks its (wrap-dependent) preferred height so the
+     * BoxLayout column doesn't stretch rows when the viewport has spare space.
+     */
+    private fun buildRow(error: FieldError, isError: Boolean): JPanel {
+        val row = object : JPanel(BorderLayout(6, 2)) {
+            override fun getMaximumSize(): Dimension = Dimension(Int.MAX_VALUE, preferredSize.height)
+        }
+        row.isOpaque = false
+        row.border = BorderFactory.createEmptyBorder(4, 2, 4, 2)
+        row.alignmentX = LEFT_ALIGNMENT
+
+        val icon = JLabel(if (isError) "✗" else "⚠").apply {
+            foreground = if (isError) Color(0xB5, 0x40, 0x40) else Color(0xB5, 0x80, 0x00)
+            font = font.deriveFont(Font.BOLD, 13f)
+            preferredSize = Dimension(16, 16)
+            verticalAlignment = JLabel.TOP
+        }
+        val iconHolder = JPanel(BorderLayout()).apply {
             isOpaque = false
-            val icon = JLabel(if (isError) "✗" else "⚠").apply {
-                foreground = if (isError) Color(0xB5, 0x40, 0x40) else Color(0xB5, 0x80, 0x00)
-                font = font.deriveFont(Font.BOLD, 13f)
-                preferredSize = Dimension(16, 16)
+            add(icon, BorderLayout.NORTH)
+        }
+        row.add(iconHolder, BorderLayout.WEST)
+
+        val msg = JTextArea("${error.message}  [${error.code}]").apply {
+            lineWrap = true
+            wrapStyleWord = true
+            isEditable = false
+            isOpaque = false
+            border = null
+            font = UIManager.getFont("Label.font") ?: JLabel().font
+            toolTipText = "Path: ${error.path}"
+        }
+        row.add(msg, BorderLayout.CENTER)
+
+        val targetStep = jumpTarget(error.path)
+        if (targetStep != null) {
+            val link = JLabel("<html><a href='#'>Jump to ${targetStep.title}</a></html>").apply {
+                cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                addMouseListener(object : java.awt.event.MouseAdapter() {
+                    override fun mouseClicked(e: java.awt.event.MouseEvent?) {
+                        controller.jumpToStep(targetStep)
+                        isVisible = false
+                    }
+                })
             }
-            val msg = JLabel(buildString {
-                append("<html>")
-                append(error.message)
-                append(" <span style='color:#888;'>[")
-                append(error.code)
-                append("]</span></html>")
-            })
-            msg.toolTipText = "Path: ${error.path}"
-            add(icon)
-            add(msg)
-            val targetStep = jumpTarget(error.path)
-            if (targetStep != null) {
-                val link = JLabel("<html><a href='#'>Jump to ${targetStep.title}</a></html>").apply {
-                    cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-                    addMouseListener(object : java.awt.event.MouseAdapter() {
-                        override fun mouseClicked(e: java.awt.event.MouseEvent?) {
-                            controller.jumpToStep(targetStep)
-                            isVisible = false
-                        }
-                    })
-                }
+            val linkHolder = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+                isOpaque = false
+                border = BorderFactory.createEmptyBorder(2, 0, 0, 0)
                 add(link)
             }
+            row.add(linkHolder, BorderLayout.SOUTH)
         }
+        return row
+    }
+
+    /** Puts every currently listed issue on the system clipboard as plain text. */
+    private fun copyIssuesToClipboard() {
+        val merged = myLatestMerged
+        val text = buildString {
+            if (merged.errors.isEmpty() && merged.warnings.isEmpty()) {
+                appendLine("No validation issues.")
+            }
+            for (error in merged.errors) {
+                appendLine("ERROR [${error.code}] ${error.path}: ${error.message}")
+            }
+            for (warning in merged.warnings) {
+                appendLine("WARNING [${warning.code}] ${warning.path}: ${warning.message}")
+            }
+        }
+        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
+    }
 
     private fun jumpTarget(path: String): Step? = when {
         path.startsWith("model") -> Step.MODEL

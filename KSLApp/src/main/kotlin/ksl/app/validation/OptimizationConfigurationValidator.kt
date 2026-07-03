@@ -300,19 +300,24 @@ object OptimizationConfigurationValidator {
             builder.error(
                 path = "solver.randomRestart.concurrentRestarts",
                 code = "CONCURRENT_RESTARTS_UNSUPPORTED_ALGORITHM",
-                message = "concurrentRestarts (${restart.concurrentRestarts}) is only supported for " +
-                    "the stochasticHillClimbing and simulatedAnnealing algorithms; this solver's " +
-                    "algorithm runs restarts sequentially.  Set concurrentRestarts = 1 or omit it."
+                message = "Concurrent restarts are only available for Stochastic Hill Climbing and " +
+                    "Simulated Annealing — set Concurrent restarts to 1 (Algorithm step, Random " +
+                    "restart panel; TOML key solver.randomRestart.concurrentRestarts) or switch " +
+                    "the algorithm.  Population algorithms already parallelize within each " +
+                    "iteration via parallel evaluation, so their restarts run sequentially."
             )
         }
         if (evaluation.parallelEvaluation) {
             builder.error(
                 path = "solver.randomRestart.concurrentRestarts",
                 code = "CONCURRENT_RESTARTS_PARALLEL_EVALUATION_CONFLICT",
-                message = "concurrentRestarts (${restart.concurrentRestarts}) and " +
-                    "evaluation.parallelEvaluation are mutually exclusive: the concurrency budget " +
-                    "is spent at the restart level and each restart evaluates sequentially.  " +
-                    "Disable one of them."
+                message = "Concurrent restarts and parallel evaluation cannot both be enabled — " +
+                    "disable one: set Concurrent restarts to 1 (Algorithm step, Random restart " +
+                    "panel), or untick 'Run evaluations in parallel' (Run Setup step, Evaluation " +
+                    "settings; TOML key evaluation.parallelEvaluation).  Hill climbing and " +
+                    "simulated annealing evaluate one design point at a time, so parallel " +
+                    "evaluation has nothing to parallelize for them — running the restarts " +
+                    "concurrently is how these algorithms use multiple cores."
             )
         }
     }

@@ -344,4 +344,78 @@ class SimoptAppControllerTest {
             assertFalse(c.isDirty.value, "Save should clear the dirty flag")
         }
     }
+
+    // ── Concurrency-conflict prompt (concurrent restarts vs parallel evaluation) ──
+
+    /** The prompt is deferred with invokeLater; run the EDT queue dry before asserting. */
+    private fun flushEdt() {
+        javax.swing.SwingUtilities.invokeAndWait { }
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("Enabling concurrent restarts under parallel evaluation prompts; choosing restarts turns parallel evaluation off")
+    fun conflictPromptTurnsOffParallelEvaluation() {
+        controller().use { c ->
+            assertTrue(c.evaluationSpec.value.parallelEvaluation,
+                "fresh documents default parallel evaluation to on")
+            var prompted = 0
+            c.concurrencyConflictPrompter = {
+                prompted++
+                SimoptAppController.ConcurrencyConflictResolution.USE_CONCURRENT_RESTARTS
+            }
+            c.setRandomRestart(
+                ksl.app.config.optimization.RandomRestartSpec(maxNumRestarts = 4, concurrentRestarts = 2))
+            flushEdt()
+            assertEquals(1, prompted, "the prompt must fire once on the 1 -> >1 edge")
+            assertFalse(c.evaluationSpec.value.parallelEvaluation,
+                "choosing concurrent restarts must turn parallel evaluation off")
+            assertEquals(2, c.randomRestart.value?.concurrentRestarts)
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("Choosing to keep parallel evaluation reverts concurrent restarts to 1")
+    fun conflictPromptRevertsConcurrentRestarts() {
+        controller().use { c ->
+            c.concurrencyConflictPrompter = {
+                SimoptAppController.ConcurrencyConflictResolution.KEEP_PARALLEL_EVALUATION
+            }
+            c.setRandomRestart(
+                ksl.app.config.optimization.RandomRestartSpec(maxNumRestarts = 4, concurrentRestarts = 2))
+            flushEdt()
+            assertTrue(c.evaluationSpec.value.parallelEvaluation,
+                "keeping parallel evaluation must leave it on")
+            assertEquals(1, c.randomRestart.value?.concurrentRestarts,
+                "keeping parallel evaluation must revert concurrent restarts to 1")
+            assertEquals(4, c.randomRestart.value?.maxNumRestarts,
+                "only the concurrency, not the restart count, is reverted")
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("The prompt is edge-triggered: silent when no conflict, mirrored when parallel is re-enabled, no re-fire above 1")
+    fun conflictPromptEdgeTriggered() {
+        controller().use { c ->
+            var prompted = 0
+            c.concurrencyConflictPrompter = {
+                prompted++
+                SimoptAppController.ConcurrencyConflictResolution.DECIDE_LATER
+            }
+            // No conflict when parallel evaluation is off.
+            c.setEvaluationSpec(c.evaluationSpec.value.copy(parallelEvaluation = false))
+            c.setRandomRestart(
+                ksl.app.config.optimization.RandomRestartSpec(maxNumRestarts = 4, concurrentRestarts = 2))
+            flushEdt()
+            assertEquals(0, prompted, "no prompt without a conflict")
+            // Mirror edge: re-enabling parallel evaluation while concurrent restarts are set.
+            c.setEvaluationSpec(c.evaluationSpec.value.copy(parallelEvaluation = true))
+            flushEdt()
+            assertEquals(1, prompted, "re-enabling parallel evaluation must prompt")
+            // Edits that stay above 1 do not re-fire (DECIDE_LATER left both set).
+            c.setRandomRestart(
+                ksl.app.config.optimization.RandomRestartSpec(maxNumRestarts = 4, concurrentRestarts = 3))
+            flushEdt()
+            assertEquals(1, prompted, "staying above 1 must not re-prompt")
+        }
+    }
 }
