@@ -280,8 +280,14 @@ class RandomRestartSolver private constructor(
         if (clearCacheBetweenRuns) {
             evaluator.cache?.clear()
         }
-        // randomly assign a new starting point
-        val startPoint = startingPoint()
+        // The first run honors a user-supplied starting point (the documented contract,
+        // matching concurrent mode's restart 0); every other restart draws a random
+        // input-feasible point.
+        val startPoint = if (iterationCounter == 1 && startingPoint != null) {
+            startingPoint!!
+        } else {
+            startingPoint()
+        }
         restartingSolver.startingPoint = startPoint
         logger.debug { "Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}" }
         // run the solver until it finds a solution

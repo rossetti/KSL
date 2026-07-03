@@ -170,6 +170,44 @@ class RandomRestartConcurrentTest {
         assertNotEquals(userPoint, observed[2], "later restarts must begin at random points")
     }
 
+    @Test
+    @DisplayName("Sequential mode: the first restart honors a user-supplied starting point")
+    fun sequentialFirstRestartHonorsUserStartingPoint() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val userPoint = pd.toInputMap(mutableMapOf(
+            "Inventory.orderQuantity" to 42.0, "Inventory.reorderPoint" to 17.0))
+        val inner = StochasticHillClimber(
+            problemDefinition = pd,
+            evaluator = makeEvaluator(pd),
+            maxIterations = INNER_ITERATIONS,
+            replicationsPerEvaluation = REPS
+        )
+        // With a single restart, the inner solver's last-assigned starting point is
+        // observable after the run: it must be the user's point, not a random draw.
+        val solver = RandomRestartSolver(restartingSolver = inner, maxNumRestarts = 1, streamNum = 1)
+        solver.startingPoint = userPoint
+        solver.runAllIterations()
+        assertEquals(userPoint, inner.startingPoint,
+            "the first sequential restart must begin at the user-supplied point")
+
+        // And with two restarts, the second draws a random point (the last-assigned
+        // starting point is no longer the user's).
+        val pd2 = makeLKInventoryModelProblemDefinition()
+        val userPoint2 = pd2.toInputMap(mutableMapOf(
+            "Inventory.orderQuantity" to 42.0, "Inventory.reorderPoint" to 17.0))
+        val inner2 = StochasticHillClimber(
+            problemDefinition = pd2,
+            evaluator = makeEvaluator(pd2),
+            maxIterations = INNER_ITERATIONS,
+            replicationsPerEvaluation = REPS
+        )
+        val solver2 = RandomRestartSolver(restartingSolver = inner2, maxNumRestarts = 2, streamNum = 1)
+        solver2.startingPoint = userPoint2
+        solver2.runAllIterations()
+        assertNotEquals(userPoint2, inner2.startingPoint,
+            "later sequential restarts must begin at random points")
+    }
+
     // ── Cache guard ───────────────────────────────────────────────────────────
 
     @Test

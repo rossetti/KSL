@@ -45,6 +45,13 @@ import kotlin.math.min
  * yields a failed [SolverMemberResult] carrying the problem's bad solution; sibling
  * members are unaffected. Cooperative cancellation exceptions propagate.
  *
+ * Thread-safety expectations on shared problem objects: members share the (read-only)
+ * problem definition. Its configuration must not be mutated while a run is in flight,
+ * and any custom penalty functions attached to the problem's constraints must be
+ * stateless (pure functions of their arguments, like the library-provided ones) —
+ * members evaluate penalized objective values concurrently, so a penalty function that
+ * keeps internal mutable state would race.
+ *
  * @param problemDefinition the problem all members solve; supplies the bad solution for
  * failed or never-started members
  * @param tasks the members to run, in order; labels must be unique
