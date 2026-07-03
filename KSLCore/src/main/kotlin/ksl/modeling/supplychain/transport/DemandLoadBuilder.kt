@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.transport
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.CounterCIfc
@@ -91,6 +93,7 @@ open class DemandLoadBuilder @JvmOverloads constructor(
     var maxCubeLimit: Double = 1.0
         private set
 
+    @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
     var countLimit: Int = 1
         set(value) {
             require(value > 0) { "countLimit must be > 0" }

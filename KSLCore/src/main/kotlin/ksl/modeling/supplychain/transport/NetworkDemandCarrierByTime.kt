@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.transport
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -50,6 +52,7 @@ open class NetworkDemandCarrierByTime @JvmOverloads constructor(
      * edge are shipped and delivered immediately. When false, the
      * carrier throws [NoCarrierOptionException].
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var demandGeneratorImmediateTransportFlag: Boolean = true
 
     /**
@@ -58,6 +61,7 @@ open class NetworkDemandCarrierByTime @JvmOverloads constructor(
      * customer) edge are shipped and delivered immediately. When
      * false, the carrier throws [NoCarrierOptionException].
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var externalSupplierImmediateTransportFlag: Boolean = true
 
     /** Returns the [TransportDelay] for the pair, or null if unset. */

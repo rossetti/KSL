@@ -140,4 +140,59 @@ class SupplyChainControlsTest {
         controls.control("OrderMaker.permitBackLogging")!!.value = 0.0
         assertFalse(orderCreator.permitBackLogging)
     }
+
+    // ── Tier 4.1: transport & load formation ─────────────────────────────────
+
+    @Test
+    @DisplayName("Tier 4.1: carrier and load-builder controls are discoverable and write through")
+    fun tier41TransportControls() {
+        val f = fixture()
+        val demandCarrier = ksl.modeling.supplychain.transport.TimeBasedDemandCarrier(f.sc, name = "DCarrier")
+        val orderCarrier = ksl.modeling.supplychain.transport.TimeBasedOrderCarrier(f.sc, name = "OCarrier")
+        val loadCarrier = ksl.modeling.supplychain.transport.TimeBasedLoadCarrier(f.sc, name = "LCarrier")
+        val typeCarrier = ksl.modeling.supplychain.transport
+            .TimeBasedTypeLocationIndependentDemandCarrier(f.sc, name = "TCarrier")
+        val networkCarrier = ksl.modeling.supplychain.transport
+            .TimeBasedNetworkDemandCarrier(f.sc, name = "NCarrier")
+        val byTimeCarrier = ksl.modeling.supplychain.transport
+            .NetworkDemandCarrierByTime(f.sc, name = "BCarrier")
+        val builder = ksl.modeling.supplychain.transport.DemandLoadBuilder(f.sc, name = "Builder")
+
+        val controls = f.model.controls()
+        val keys = controls.controlKeys()
+        val expected = listOf(
+            "DCarrier.immediateTransportFlag",
+            "OCarrier.immediateTransportFlag",
+            // inherited from TimeBasedDemandCarrier — not re-annotated on the subclass
+            "LCarrier.immediateTransportFlag",
+            "LCarrier.reactToLoadBuildersFlag",
+            "TCarrier.immediateTransportFlag",
+            "NCarrier.immediateTransportFlag",
+            "BCarrier.demandGeneratorImmediateTransportFlag",
+            "BCarrier.externalSupplierImmediateTransportFlag",
+            "Builder.countLimit"
+        )
+        for (key in expected) {
+            assertTrue(key in keys) { "expected control key '$key'; got $keys" }
+        }
+
+        // round-trip: inherited flag on the load carrier, and countLimit clamping at 1
+        controls.control("LCarrier.immediateTransportFlag")!!.value = 1.0
+        assertTrue(loadCarrier.immediateTransportFlag)
+        val countLimit = controls.control("Builder.countLimit")
+        assertNotNull(countLimit)
+        countLimit!!.value = 12.0
+        assertEquals(12, builder.countLimit)
+        countLimit.value = 0.0   // clamps to the lower bound of 1
+        assertEquals(1, builder.countLimit)
+
+        // the flags that default true can be turned off by key
+        controls.control("BCarrier.demandGeneratorImmediateTransportFlag")!!.value = 0.0
+        assertFalse(byTimeCarrier.demandGeneratorImmediateTransportFlag)
+        // silence unused warnings for elements exercised only via discovery
+        assertNotNull(demandCarrier)
+        assertNotNull(orderCarrier)
+        assertNotNull(typeCarrier)
+        assertNotNull(networkCarrier)
+    }
 }

@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.transport
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.AggregateCounter
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.CounterCIfc
@@ -59,8 +61,10 @@ open class TimeBasedLoadCarrier @JvmOverloads constructor(
      * If true, every load formed automatically by an attached
      * [DemandLoadBuilder] is shipped immediately via [loadFormed].
      * Default false (loads sit in the builder's outgoing queue until
-     * drained).
+     * drained). Note: `immediateTransportFlag` is inherited (as a
+     * control) from the parent carrier.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var reactToLoadBuildersFlag: Boolean = false
 
     private val deliveryAction = DeliveryAction()

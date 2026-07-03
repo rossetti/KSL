@@ -2,6 +2,8 @@ package ksl.modeling.supplychain.transport
 
 import ksl.modeling.supplychain.*
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
@@ -35,6 +37,7 @@ open class TimeBasedOrderCarrier @JvmOverloads constructor(
      * are shipped and delivered immediately (zero simulated time)
      * instead of throwing [NoCarrierOptionException]. Default false.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var immediateTransportFlag: Boolean = false
 
     private val deliveryAction = DeliveryAction()
