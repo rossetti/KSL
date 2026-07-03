@@ -172,6 +172,15 @@ class OptimizationSolverFactory(
         parallelOptions: ParallelEvaluationOptions
     ): Solver {
         val starting: MutableMap<String, Double>? = spec.startingPoint?.toMutableMap()
+        // The validator rejects these combinations gracefully; this is the defensive
+        // backstop for configurations that bypass validation.
+        val restart = spec.randomRestart
+        if (restart != null && restart.concurrentRestarts > 1) {
+            require(spec is SolverSpec.StochasticHillClimbing || spec is SolverSpec.SimulatedAnnealing) {
+                "concurrentRestarts (${restart.concurrentRestarts}) is only supported for the " +
+                        "stochasticHillClimbing and simulatedAnnealing algorithms."
+            }
+        }
         return when (spec) {
             is SolverSpec.StochasticHillClimbing ->
                 if (spec.randomRestart == null)
@@ -201,7 +210,8 @@ class OptimizationSolverFactory(
                         experimentRunParameters   = templateRunParameters,
                         streamNum                 = spec.streamNum,
                         name                      = spec.name,
-                        parallelOptions           = parallelOptions
+                        parallelOptions           = parallelOptions,
+                        concurrentRestarts        = spec.randomRestart.concurrentRestarts
                     )
 
             is SolverSpec.SimulatedAnnealing -> {
@@ -240,7 +250,8 @@ class OptimizationSolverFactory(
                         experimentRunParameters   = templateRunParameters,
                         streamNum                 = spec.streamNum,
                         name                      = spec.name,
-                        parallelOptions           = parallelOptions
+                        parallelOptions           = parallelOptions,
+                        concurrentRestarts        = spec.randomRestart.concurrentRestarts
                     )
             }
 

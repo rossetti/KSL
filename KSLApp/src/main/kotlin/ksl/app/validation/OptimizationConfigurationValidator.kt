@@ -19,6 +19,7 @@
 package ksl.app.validation
 
 import ksl.app.config.optimization.CoolingScheduleSpec
+import ksl.app.config.optimization.EvaluationSpec
 import ksl.app.config.optimization.LinearConstraintSpec
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationProblemSpec
@@ -108,6 +109,7 @@ object OptimizationConfigurationValidator {
         )
         validateSimulatedAnnealing(solver, builder)
         validateRSpline(solver, problem.inputs, builder)
+        validateConcurrentRestarts(solver, config.evaluation, builder)
         return builder.build()
     }
 
@@ -272,6 +274,45 @@ object OptimizationConfigurationValidator {
                 code = "RSPLINE_REQUIRES_INTEGER_ORDERED",
                 message = "R-SPLINE requires an integer-ordered problem: every decision variable must " +
                     "have granularity = 1.0.  The following do not: $offenders."
+            )
+        }
+    }
+
+    /**
+     * Concurrent restarts (randomRestart.concurrentRestarts greater than 1) are only
+     * wired for the two point-per-iteration algorithms whose inner solvers have
+     * instance-private collaborators, and are mutually exclusive with parallel
+     * evaluation (the concurrency budget is spent at the restart level). The engine
+     * factories enforce both rules with hard requires; these document-level checks
+     * surface them as graceful validation errors before a run is launched.
+     */
+    private fun validateConcurrentRestarts(
+        solver: SolverSpec,
+        evaluation: EvaluationSpec,
+        builder: RunConfigurationValidator.ValidationResultBuilder
+    ) {
+        val restart = solver.randomRestart ?: return
+        if (restart.concurrentRestarts <= 1) return
+
+        val supported = solver is SolverSpec.StochasticHillClimbing ||
+                solver is SolverSpec.SimulatedAnnealing
+        if (!supported) {
+            builder.error(
+                path = "solver.randomRestart.concurrentRestarts",
+                code = "CONCURRENT_RESTARTS_UNSUPPORTED_ALGORITHM",
+                message = "concurrentRestarts (${restart.concurrentRestarts}) is only supported for " +
+                    "the stochasticHillClimbing and simulatedAnnealing algorithms; this solver's " +
+                    "algorithm runs restarts sequentially.  Set concurrentRestarts = 1 or omit it."
+            )
+        }
+        if (evaluation.parallelEvaluation) {
+            builder.error(
+                path = "solver.randomRestart.concurrentRestarts",
+                code = "CONCURRENT_RESTARTS_PARALLEL_EVALUATION_CONFLICT",
+                message = "concurrentRestarts (${restart.concurrentRestarts}) and " +
+                    "evaluation.parallelEvaluation are mutually exclusive: the concurrency budget " +
+                    "is spent at the restart level and each restart evaluates sequentially.  " +
+                    "Disable one of them."
             )
         }
     }

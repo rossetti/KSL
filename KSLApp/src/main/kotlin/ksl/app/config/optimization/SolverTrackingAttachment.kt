@@ -26,6 +26,8 @@ import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 import ksl.simopt.solvers.trackers.CsvSolverStateTracker
 import ksl.simopt.solvers.trackers.NestedCsvSolverStateTracker
 import java.nio.file.Path
+import java.util.Queue
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Handle to every tracker attached to a single solver run.
@@ -48,20 +50,26 @@ import java.nio.file.Path
  */
 class SolverTrackerHandles internal constructor(
     private val singleTrackers: List<AbstractSolverStateTracker>,
-    private val nestedTrackers: List<AbstractNestedSolverStateTracker>
+    private val nestedTrackers: List<AbstractNestedSolverStateTracker>,
+    private val lateTrackers: Queue<AbstractSolverStateTracker> = ConcurrentLinkedQueue()
 ) {
     /**
      *  Detach every attached tracker.  Idempotent — calling [stopAll]
      *  on a tracker that has already been stopped is a safe no-op
      *  (handled by the substrate's own `stopTracking()` implementation).
+     *
+     *  Includes trackers attached lazily during the run (the per-restart
+     *  trackers of a concurrent random-restart run, created on worker
+     *  threads as each restart's solver comes into existence).
      */
     fun stopAll() {
         singleTrackers.forEach { it.stopTracking() }
         nestedTrackers.forEach { it.stopTracking() }
+        lateTrackers.forEach { it.stopTracking() }
     }
 
-    /** Total count of attached trackers. */
-    val size: Int get() = singleTrackers.size + nestedTrackers.size
+    /** Total count of attached trackers (including lazily attached ones). */
+    val size: Int get() = singleTrackers.size + nestedTrackers.size + lateTrackers.size
 }
 
 /**
@@ -70,15 +78,22 @@ class SolverTrackerHandles internal constructor(
  *
  * Dispatch summary:
  *
- * - When [SolverTrackingSpec.enableCsvTrace] is `true`, one CSV
- *   tracker is attached:
+ * - When [SolverTrackingSpec.enableCsvTrace] is `true`, CSV
+ *   tracking is attached:
  *   - a [CsvSolverStateTracker] when [solver] is a plain
  *     [ksl.simopt.solvers.Solver];
- *   - a [NestedCsvSolverStateTracker] when [solver] is a
+ *   - a [NestedCsvSolverStateTracker] when [solver] is a *sequential*
  *     [RandomRestartSolver] — its `restartingSolver` becomes the
- *     micro solver so the CSV interleaves MACRO + MICRO rows.
- *   The single-vs-nested choice is made at attachment time and is
- *   **not** persisted in the spec.
+ *     micro solver so the CSV interleaves MACRO + MICRO rows;
+ *   - for a *concurrent* [RandomRestartSolver] (restarts run on worker
+ *     threads, so there is no single reusable inner instance), a plain
+ *     [CsvSolverStateTracker] records the outer per-restart rows in the
+ *     main trace file, and each restart's freshly created inner solver
+ *     receives its own tracker writing to a per-restart file named
+ *     `<stem>_restart_NN.csv` (attached via the solver's
+ *     `innerSolverDecorator` hook, on the restart's worker thread).
+ *   The choice is made at attachment time and is **not** persisted in
+ *   the spec.
  * - When [SolverTrackingSpec.enableConsoleTrace] is `true`, a
  *   [ConsoleSolverStateTracker] is additionally attached.  The
  *   substrate has no nested-console variant, so the console tracker
@@ -116,11 +131,12 @@ fun SolverTrackingSpec.attachTo(
 ): SolverTrackerHandles {
     val single = mutableListOf<AbstractSolverStateTracker>()
     val nested = mutableListOf<AbstractNestedSolverStateTracker>()
+    val late = ConcurrentLinkedQueue<AbstractSolverStateTracker>()
 
     if (enableCsvTrace) {
         val stem = csvFileName ?: defaultFileName()
         val file = optimizationDir.resolve("$stem.csv").toFile()
-        if (solver is RandomRestartSolver) {
+        if (solver is RandomRestartSolver && !solver.isConcurrentMode) {
             val tracker = NestedCsvSolverStateTracker(
                 macroSolver = solver,
                 microSolver = solver.restartingSolver,
@@ -138,6 +154,24 @@ fun SolverTrackingSpec.attachTo(
             tracker.startTracking()
             single += tracker
         }
+        if (solver is RandomRestartSolver && solver.isConcurrentMode) {
+            // Restart instances are created per restart on worker threads; give each
+            // its own tracker and per-restart file as it comes into existence. The
+            // trackers are collected thread-safely and stopped with the rest.
+            val label = experimentLabel
+            solver.innerSolverDecorator = { innerSolver, restartIndex ->
+                val innerFile = optimizationDir
+                    .resolve("${stem}_restart_%02d.csv".format(restartIndex))
+                    .toFile()
+                val tracker = CsvSolverStateTracker(
+                    solver = innerSolver,
+                    outputFile = innerFile
+                )
+                tracker.experimentName = label
+                tracker.startTracking()
+                late.add(tracker)
+            }
+        }
     }
 
     if (enableConsoleTrace) {
@@ -147,5 +181,5 @@ fun SolverTrackingSpec.attachTo(
         single += tracker
     }
 
-    return SolverTrackerHandles(single, nested)
+    return SolverTrackerHandles(single, nested, late)
 }

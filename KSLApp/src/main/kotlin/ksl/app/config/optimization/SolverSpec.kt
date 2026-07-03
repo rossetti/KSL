@@ -37,6 +37,12 @@ import net.peanuuutz.tomlkt.TomlComment
  *
  * @property maxNumRestarts maximum number of restarts; must be positive when
  *           validated
+ * @property concurrentRestarts number of restarts allowed to run at the same
+ *           time, each on its own worker with private evaluation resources;
+ *           1 (the default) preserves the sequential behavior. Only supported
+ *           for the stochastic-hill-climbing and simulated-annealing
+ *           algorithms, and mutually exclusive with parallel evaluation —
+ *           both rules are enforced by the configuration validator.
  */
 @Serializable
 data class RandomRestartSpec(
@@ -44,11 +50,23 @@ data class RandomRestartSpec(
         "Integer. Maximum number of random restarts the wrapper performs\n" +
         "from independently-drawn starting points.  Must be > 0."
     )
-    val maxNumRestarts: Int
+    val maxNumRestarts: Int,
+    @TomlComment(
+        "Integer, default 1. Number of restarts allowed to run at the same time,\n" +
+        "each on its own worker with private evaluation resources (own model,\n" +
+        "cache, and random-number block; results are reproducible and do not\n" +
+        "depend on the worker count).  1 = sequential (the historical behavior).\n" +
+        "Only supported for stochasticHillClimbing and simulatedAnnealing, and\n" +
+        "mutually exclusive with evaluation.parallelEvaluation."
+    )
+    val concurrentRestarts: Int = 1
 ) {
     init {
         require(maxNumRestarts > 0) {
             "maxNumRestarts must be > 0; was $maxNumRestarts"
+        }
+        require(concurrentRestarts >= 1) {
+            "concurrentRestarts must be >= 1; was $concurrentRestarts"
         }
     }
 }

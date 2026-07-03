@@ -272,7 +272,9 @@ class AlgorithmStepPanel(
         val help = JLabel(
             "<html><i>When enabled, the solver factory wraps the chosen algorithm " +
                 "in a RandomRestartSolver that runs the algorithm up to N times from " +
-                "randomly-drawn starting points.</i></html>"
+                "randomly-drawn starting points.  Concurrent restarts &gt; 1 runs that " +
+                "many restarts at the same time (Stochastic Hill Climbing and Simulated " +
+                "Annealing only; incompatible with parallel evaluation).</i></html>"
         ).apply {
             foreground = Color(0x55, 0x55, 0x55)
             border = BorderFactory.createEmptyBorder(0, 0, 6, 0)

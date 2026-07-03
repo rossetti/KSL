@@ -66,7 +66,12 @@ class EvaluationSettingsPanel(
     private val overrideSolutionPrecisionCheckbox = JCheckBox("Override solution precision")
     private val solutionPrecisionField = JTextField(10)
 
-    private val parallelCheckbox = JCheckBox("Run evaluations in parallel")
+    private val parallelCheckbox = JCheckBox("Run evaluations in parallel").apply {
+        toolTipText = "<html>Evaluates the points of a multi-point request (a population or " +
+                "neighborhood)<br>concurrently across worker models.  Mutually exclusive with " +
+                "concurrent random<br>restarts (Algorithm step) — the concurrency budget is " +
+                "spent at one level only.</html>"
+    }
     private val overrideWorkersCheckbox = JCheckBox("Override number of evaluation workers")
     private val workersField = JTextField(10)
 
