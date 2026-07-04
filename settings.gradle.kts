@@ -18,6 +18,7 @@ include(":KSLBundleTools")
 include(":KSLServiceCore")
 include(":KSLServerMcp")
 include(":KSLServerRest")
+include(":KSLCodeMCPServer")
 
 // KSLProjectTemplate is intentionally NOT part of this build. It is a standalone
 // starter project (its own settings.gradle.kts) that depends on the PUBLISHED
