@@ -47,6 +47,12 @@ These guides cross-reference each other in their §7 "See also"
 sections — if the right view isn't obvious from the table, start with
 `ksl-entity` and follow the pointers.
 
+## Simulation optimization
+
+| Guide | What it covers |
+|---|---|
+| [`ksl-simopt-benchmark`](ksl-simopt-benchmark.md) | Benchmarking simopt solvers: the `ksl.simopt.benchmark` harness (problems × solver cases × macro-reps under equal budgets), the synthetic problem ladder, the results database and analysis feeds, and the pilot-study walkthrough |
+
 ## Running as a server
 
 Drive your models from outside the JVM — an AI assistant over MCP, or
