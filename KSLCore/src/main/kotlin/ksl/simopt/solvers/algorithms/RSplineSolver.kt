@@ -480,6 +480,17 @@ class RSplineSolver @JvmOverloads constructor(
         for ((i, indexValue) in simplexData.sortedFractionIndices.withIndex()) {
             gradients[indexValue] = results[i + 1].penalizedObjFncValue - results[i].penalizedObjFncValue
         }
+        if (KSLArrays.euclideanNorm(gradients) == 0.0) {
+            // An exactly-zero interpolated gradient carries no direction information: at
+            // this sample size the interpolation sees no slope here. On integer-lattice
+            // problems whose CRN-paired differences are discrete this is a
+            // positive-probability event (and in one dimension the single component is
+            // the whole vector), so it must be routed through the no-gradient channel —
+            // SPLI then skips its line search, exactly as when the simplex is missing
+            // vertices — rather than reach direction(), which requires a positive norm.
+            logger.trace { "\t \t \t \t PLI search: zero pseudo-gradient (no direction information), returning current best solution without gradients" }
+            return PLIResults(numOracleCalls = results.size * sampleSize, gradients = null, solution = bestSolution)
+        }
         // Return the current best solution along with the computed gradients.
         logger.trace { "\t \t \t \t PLI search: returning current best solution along with the computed gradients" }
         return PLIResults(numOracleCalls = results.size * sampleSize, gradients = gradients, solution = bestSolution)
