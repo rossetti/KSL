@@ -4,4 +4,4 @@
 // search index, but ships as its own independently-versioned jar so the student
 // tool is decoupled from the library build. Build it from this directory:
 //   ./gradlew shadowJar
-rootProject.name = "code-mcp-server"
+rootProject.name = "KSLCodeMCPServer"

@@ -11,13 +11,13 @@ on:
     paths:
       - "KSLCore/src/main/kotlin/**"
       - "KSLExamples/src/main/kotlin/**"
-      - "code-mcp-server/**"
+      - "../../KSLCodeMCPServer/**"
       - ".github/workflows/build-code-mcp.yml"
   pull_request:
     paths:
       - "KSLCore/src/main/kotlin/**"
       - "KSLExamples/src/main/kotlin/**"
-      - "code-mcp-server/**"
+      - "../../KSLCodeMCPServer/**"
       - ".github/workflows/build-code-mcp.yml"
   workflow_dispatch:
     inputs:
