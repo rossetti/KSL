@@ -1,4 +1,4 @@
-package ksl.simopt.benchmark.problems
+package ksl.examples.general.simopt.problems
 
 /**
  *  The unimodal sanity check of the synthetic ladder: the sphere function, shifted so

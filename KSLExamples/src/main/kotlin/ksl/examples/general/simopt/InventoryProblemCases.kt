@@ -7,7 +7,7 @@ import ksl.simopt.solvers.concurrent.PooledMemberEvaluatorFactory
  *  The classic inventory teaching problems as benchmark-ready problem cases. Each case
  *  pairs the problem definition with a pooled, model-backed member-evaluator factory
  *  over the corresponding model builder — the DEDS counterpart of the synthetic ladder
- *  in `ksl.simopt.benchmark.problems`. Neither problem has a known optimum, so runs are
+ *  in `ksl.examples.general.simopt.problems`. Neither problem has a known optimum, so runs are
  *  gapped against the best found within the experiment.
  */
 

@@ -98,10 +98,10 @@ sequentially.
 |---|---|
 | `ksl.simopt.benchmark` (KSLCore) | The engine: `BenchmarkExperiment`, `ProblemCase`, `SolverCase`, `BenchmarkSolverFactoryIfc`, `FunctionMemberEvaluatorFactory`, result records (`BenchmarkSummary` etc.), `ReferenceSolution`/`GapType` |
 | `ksl.simopt.benchmark.io` (KSLCore) | `BenchmarkResultsDb` (SQLite) + one table-data class per table + analysis feeds (`mcbDataMap`, `performanceProfile`) |
-| `ksl.simopt.benchmark.problems` (KSLCore) | The synthetic ladder: noisy sphere / Rosenbrock / Rastrigin, constrained noisy quadratic, single- and multi-item newsvendor, `NoiseLevel` |
 | `ksl.simopt.evaluator` (KSLCore, additions) | `ResponseFunctionIfc` + `ResponseFunctionOracle` — lets a plain function stand in for a DEDS model at the oracle seam |
 | `ksl.simopt.solvers` (KSLCore, addition) | `ReplicationBudgetStoppingCriterion` — the equal-effort termination rule |
 | `ksl.examples.general.simopt` (KSLExamples) | `standardSolverCases()` registry, LK/RQ problem cases, `BenchmarkDemo`, `PilotStudy` |
+| `ksl.examples.general.simopt.problems` (KSLExamples) | The synthetic ladder: noisy sphere / Rosenbrock / Rastrigin, constrained noisy quadratic, single- and multi-item newsvendor, `NoiseLevel` |
 | `ksl.examples.general.models.inventory` (KSLExamples) | `twoEchelonProblemCase(...)` + its model builder |
 | `ksl.examples.general.supplychain` (KSLExamples) | `multiEchelonNetworkProblemCase()` + its model builder |
 
@@ -116,8 +116,8 @@ import ksl.examples.general.simopt.lkInventoryProblemCase
 import ksl.examples.general.simopt.standardSolverCases
 import ksl.simopt.benchmark.BenchmarkExperiment
 import ksl.simopt.benchmark.io.BenchmarkResultsDb
-import ksl.simopt.benchmark.problems.NoiseLevel
-import ksl.simopt.benchmark.problems.NoisySphere
+import ksl.examples.general.simopt.problems.NoiseLevel
+import ksl.examples.general.simopt.problems.NoisySphere
 import ksl.utilities.io.KSL
 
 fun main() {
@@ -300,7 +300,7 @@ assumed.
 
 ## 7. Running an experiment
 
-```kotlin
+```
 BenchmarkExperiment(
     name = "...",
     problems = ...,                          // List<ProblemCase>, unique names
@@ -352,7 +352,7 @@ one file. Pass `deleteIfExists = true` to start clean.
 
 Getting data back out:
 
-```kotlin
+```
 val db = BenchmarkResultsDb("pilotStudy.db", KSL.dbDir, deleteIfExists = false)
 db.experiments(); db.problems(expId); db.runs(expId); db.traces(expId); ...   // typed rows
 

@@ -4,9 +4,9 @@ import ksl.examples.general.models.inventory.twoEchelonProblemCase
 import ksl.examples.general.supplychain.multiEchelonNetworkProblemCase
 import ksl.simopt.benchmark.BenchmarkExperiment
 import ksl.simopt.benchmark.io.BenchmarkResultsDb
-import ksl.simopt.benchmark.problems.NoiseLevel
-import ksl.simopt.benchmark.problems.NoisyRastrigin
-import ksl.simopt.benchmark.problems.NoisySphere
+import ksl.examples.general.simopt.problems.NoiseLevel
+import ksl.examples.general.simopt.problems.NoisyRastrigin
+import ksl.examples.general.simopt.problems.NoisySphere
 import ksl.utilities.io.KSL
 import ksl.utilities.io.plotting.MultiSeriesStateVariablePlot
 import ksl.utilities.io.plotting.PlotIfc

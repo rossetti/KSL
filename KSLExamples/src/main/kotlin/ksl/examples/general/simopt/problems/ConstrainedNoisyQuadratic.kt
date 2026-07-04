@@ -1,4 +1,4 @@
-package ksl.simopt.benchmark.problems
+package ksl.examples.general.simopt.problems
 
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rng.RNStreamIfc

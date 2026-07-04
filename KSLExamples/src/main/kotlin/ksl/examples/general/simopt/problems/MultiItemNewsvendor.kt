@@ -1,4 +1,4 @@
-package ksl.simopt.benchmark.problems
+package ksl.examples.general.simopt.problems
 
 import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase

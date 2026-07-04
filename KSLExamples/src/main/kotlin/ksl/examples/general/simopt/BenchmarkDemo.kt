@@ -1,9 +1,9 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.benchmark.BenchmarkExperiment
-import ksl.simopt.benchmark.problems.NoiseLevel
-import ksl.simopt.benchmark.problems.Newsvendor
-import ksl.simopt.benchmark.problems.NoisySphere
+import ksl.examples.general.simopt.problems.NoiseLevel
+import ksl.examples.general.simopt.problems.Newsvendor
+import ksl.examples.general.simopt.problems.NoisySphere
 import ksl.simopt.benchmark.io.BenchmarkResultsDb
 import ksl.utilities.io.KSL
 

@@ -1,4 +1,4 @@
-package ksl.simopt.benchmark.problems
+package ksl.examples.general.simopt.problems
 
 /**
  *  The ill-conditioned valley of the synthetic ladder: the Rosenbrock function over the

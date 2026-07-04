@@ -1,4 +1,4 @@
-package ksl.simopt.benchmark.problems
+package ksl.examples.general.simopt.problems
 
 import kotlin.math.PI
 import kotlin.math.cos

@@ -1,4 +1,4 @@
-package ksl.simopt.benchmark.problems
+package ksl.examples.general.simopt.problems
 
 /**
  *  The named noise levels of the synthetic benchmark ladder: the standard deviation of

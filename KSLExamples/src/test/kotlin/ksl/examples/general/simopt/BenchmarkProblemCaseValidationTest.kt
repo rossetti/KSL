@@ -4,8 +4,8 @@ import ksl.examples.general.models.inventory.twoEchelonProblemCase
 import ksl.examples.general.supplychain.BuildMultiEchelonNetworkOptModel
 import ksl.examples.general.supplychain.multiEchelonNetworkProblemCase
 import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
-import ksl.simopt.benchmark.problems.NoiseLevel
-import ksl.simopt.benchmark.problems.NoisySphere
+import ksl.examples.general.simopt.problems.NoiseLevel
+import ksl.examples.general.simopt.problems.NoisySphere
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue
