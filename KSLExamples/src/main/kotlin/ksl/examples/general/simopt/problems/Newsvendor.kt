@@ -4,9 +4,11 @@ import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
 import ksl.simopt.benchmark.ReferenceSolution
 import ksl.simopt.benchmark.ReferenceType
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.OptimizationType
 import ksl.simopt.problem.ProblemDefinition
+import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -73,15 +75,18 @@ class Newsvendor(
     }
 
     /** The response function: one profit observation per replication, demand drawn
-     *  from the supplied stream. */
-    fun responseFunction(): ResponseFunctionIfc {
-        return ResponseFunctionIfc { inputs, stream ->
-            val orderQuantity = inputs.getValue(inputName)
-            val demand = stream.rExponential(demandMean)
-            val profit = unitPrice * min(demand, orderQuantity) +
-                    salvageValue * max(orderQuantity - demand, 0.0) -
-                    unitCost * orderQuantity
-            mapOf(objectiveResponseName to profit)
+     *  from a demand random variable acquired at construction (stream 1). */
+    fun responseFunctionBuilder(): ResponseFunctionBuilderIfc {
+        return ResponseFunctionBuilderIfc { streamProvider ->
+            val demandRV = ExponentialRV(demandMean, streamNum = 1, streamProvider = streamProvider)
+            ResponseFunctionIfc { inputs ->
+                val orderQuantity = inputs.getValue(inputName)
+                val demand = demandRV.value
+                val profit = unitPrice * min(demand, orderQuantity) +
+                        salvageValue * max(orderQuantity - demand, 0.0) -
+                        unitCost * orderQuantity
+                mapOf(objectiveResponseName to profit)
+            }
         }
     }
 
@@ -107,12 +112,21 @@ class Newsvendor(
         )
     }
 
-    /** The benchmark-ready problem case. */
-    fun problemCase(): ProblemCase {
+    /**
+     *  The benchmark-ready problem case.
+     *
+     *  @param microRepSampleSize the number of demand realizations averaged into one
+     *  replication (observation); the default of 1 makes an observation a single
+     *  period's profit — see `ResponseFunctionOracle`
+     */
+    @JvmOverloads
+    fun problemCase(microRepSampleSize: Int = 1): ProblemCase {
         return ProblemCase(
             name = problemName,
             problemDefinitionFactory = { problemDefinition() },
-            evaluatorFactoryProvider = { pd -> FunctionMemberEvaluatorFactory(pd, responseFunction()) },
+            evaluatorFactoryProvider = { pd ->
+                FunctionMemberEvaluatorFactory(pd, responseFunctionBuilder(), microRepSampleSize)
+            },
             referenceSolution = referenceSolution(),
             tags = mapOf(
                 "family" to "newsvendor",

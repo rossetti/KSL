@@ -1,7 +1,9 @@
 package ksl.examples.general.simopt.problems
 
+import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.NormalRV
 
 /**
  *  The penalty-dynamics isolator of the synthetic ladder: a quadratic whose
@@ -38,12 +40,18 @@ class ConstrainedNoisyQuadratic(
         return sum
     }
 
-    override fun replication(point: DoubleArray, stream: RNStreamIfc): Map<String, Double> {
+    override fun buildResponseFunction(streamProvider: RNStreamProviderIfc): ResponseFunctionIfc {
         val variance = noiseLevel.sigma * noiseLevel.sigma
-        return mapOf(
-            objectiveResponseName to trueObjective(point) + stream.rNormal(0.0, variance),
-            CONSTRAINT_RESPONSE to point.sum() + stream.rNormal(0.0, variance)
-        )
+        // dedicated streams per randomness source, like a model's random variables
+        val objectiveNoiseRV = NormalRV(0.0, variance, streamNum = 1, streamProvider = streamProvider)
+        val constraintNoiseRV = NormalRV(0.0, variance, streamNum = 2, streamProvider = streamProvider)
+        return ResponseFunctionIfc { inputs ->
+            val point = point(inputs)
+            mapOf(
+                objectiveResponseName to trueObjective(point) + objectiveNoiseRV.value,
+                CONSTRAINT_RESPONSE to point.sum() + constraintNoiseRV.value
+            )
+        }
     }
 
     override fun configureProblem(problemDefinition: ProblemDefinition) {

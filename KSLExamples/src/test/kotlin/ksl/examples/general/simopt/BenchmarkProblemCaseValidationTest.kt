@@ -73,7 +73,7 @@ class BenchmarkProblemCaseValidationTest {
         // an integer-ordered synthetic problem serves all five (R-SPLINE included)
         val sphere = NoisySphere(2, NoiseLevel.LOW)
         val pd = sphere.problemDefinition()
-        val evaluatorFactory = FunctionMemberEvaluatorFactory(pd, sphere.responseFunction())
+        val evaluatorFactory = FunctionMemberEvaluatorFactory(pd, sphere.responseFunctionBuilder())
         for (case in cases) {
             val evaluator = evaluatorFactory.createEvaluator(0)
             val first = case.solverFactory.create(pd, evaluator, 0, "${case.label}_a")

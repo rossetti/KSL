@@ -1,6 +1,8 @@
 package ksl.simopt.evaluator
 
 import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistics
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -11,11 +13,13 @@ import org.junit.jupiter.api.assertThrows
 
 /**
  * Tests for the response-function oracle adaptor: summary-statistics correctness against
- * closed forms, independent-vs-CRN stream semantics, tape continuity across requests,
- * per-member tape offsets, and per-point failure mapping.
+ * closed forms, macro/micro replication semantics, independent-vs-CRN stream semantics
+ * (including source-synchronized CRN with multiple dedicated streams), tape continuity
+ * across requests, per-member tape offsets, the construction-time stream-acquisition
+ * contract, and per-point failure mapping.
  *
- * The stream-semantics tests compare the oracle's output exactly against a hand-driven
- * reference stream (fresh default providers produce identical streams), so they assert
+ * The stream-semantics tests compare the oracle's output exactly against hand-driven
+ * reference streams (fresh default providers produce identical streams), so they assert
  * the positioning discipline bit-for-bit rather than probabilistically.
  */
 class ResponseFunctionOracleTest {
@@ -25,13 +29,20 @@ class ResponseFunctionOracleTest {
         const val OBJ = "objFn"
     }
 
-    /** An oracle whose single response is the first uniform draw of each replication's
-     *  sub-stream — the most direct probe of the stream positioning discipline. */
-    private fun uniformDrawOracle(tapePolicy: StreamTapePolicy = StreamTapePolicy()): ResponseFunctionOracle {
+    /** An oracle whose single response is one uniform draw per call from a stream
+     *  acquired at construction — the most direct probe of the positioning discipline. */
+    private fun uniformDrawOracle(
+        microRepSampleSize: Int = 1,
+        tapePolicy: StreamTapePolicy = StreamTapePolicy()
+    ): ResponseFunctionOracle {
         return ResponseFunctionOracle(
             modelIdentifier = MODEL_ID,
             responseNames = setOf(OBJ),
-            responseFunction = ResponseFunctionIfc { _, stream -> mapOf(OBJ to stream.randU01()) },
+            responseFunctionBuilder = ResponseFunctionBuilderIfc { streamProvider ->
+                val stream = streamProvider.rnStream(1)
+                ResponseFunctionIfc { _ -> mapOf(OBJ to stream.randU01()) }
+            },
+            microRepSampleSize = microRepSampleSize,
             streamTapePolicy = tapePolicy
         )
     }
@@ -40,20 +51,30 @@ class ResponseFunctionOracleTest {
         return ModelInputs(MODEL_ID, numReplications, mapOf("x" to x))
     }
 
-    /** The draws the uniform-draw oracle must produce for a point positioned at
-     *  startSubStream: replication r draws the first uniform of sub-stream startSubStream + r. */
-    private fun referenceUniformDraws(startSubStream: Int, numReplications: Int): DoubleArray {
+    /** The uniform draws the oracle must produce for a point positioned at
+     *  startSubStream: replication r takes drawsPerReplication consecutive uniforms
+     *  from sub-stream startSubStream + r of stream 1. */
+    private fun referenceUniformDraws(
+        startSubStream: Int,
+        numReplications: Int,
+        drawsPerReplication: Int = 1
+    ): List<DoubleArray> {
         val stream = RNStreamProvider().rnStream(1)
-        val out = DoubleArray(numReplications)
         stream.resetStartStream()
         stream.advanceSubStreams(startSubStream.toLong())
+        val out = mutableListOf<DoubleArray>()
         for (r in 0 until numReplications) {
             if (r > 0) {
                 stream.advanceToNextSubStream()
             }
-            out[r] = stream.randU01()
+            out.add(DoubleArray(drawsPerReplication) { stream.randU01() })
         }
         return out
+    }
+
+    private fun averageOf(oracle: ResponseFunctionOracle, modelInputs: ModelInputs): Double {
+        return oracle.simulate(EvaluationRequest(MODEL_ID, listOf(modelInputs)))
+            .getValue(modelInputs).getOrThrow().getValue(OBJ).average
     }
 
     @Test
@@ -61,14 +82,16 @@ class ResponseFunctionOracleTest {
     fun statisticsMatchClosedForm() {
         val oracle = ResponseFunctionOracle(
             MODEL_ID, setOf(OBJ, "twice"),
-            ResponseFunctionIfc { inputs, _ ->
-                val x = inputs.getValue("x")
-                mapOf(OBJ to x + 1.0, "twice" to 2.0 * x)
+            ResponseFunctionBuilderIfc {
+                ResponseFunctionIfc { inputs ->
+                    val x = inputs.getValue("x")
+                    mapOf(OBJ to x + 1.0, "twice" to 2.0 * x)
+                }
             }
         )
         val p = point(3.0, 5)
-        val results = oracle.simulate(EvaluationRequest(MODEL_ID, listOf(p)))
-        val responseMap = results.getValue(p).getOrThrow()
+        val responseMap = oracle.simulate(EvaluationRequest(MODEL_ID, listOf(p)))
+            .getValue(p).getOrThrow()
         val obj = responseMap.getValue(OBJ)
         assertEquals(4.0, obj.average)
         assertEquals(0.0, obj.variance)
@@ -88,6 +111,22 @@ class ResponseFunctionOracleTest {
     }
 
     @Test
+    @DisplayName("One replication averages microRepSampleSize consecutive micro draws; count is replications")
+    fun microReplicationsAverageIntoOneObservation() {
+        val microSampleSize = 4
+        val numReplications = 3
+        val oracle = uniformDrawOracle(microRepSampleSize = microSampleSize)
+        val p = point(0.0, numReplications)
+        val estimate = oracle.simulate(EvaluationRequest(MODEL_ID, listOf(p)))
+            .getValue(p).getOrThrow().getValue(OBJ)
+        assertEquals(numReplications.toDouble(), estimate.count)
+        val reference = referenceUniformDraws(0, numReplications, drawsPerReplication = microSampleSize)
+        val expectedObservations = reference.map { it.average() }.toDoubleArray()
+        assertEquals(expectedObservations.statistics().average, estimate.average, 1e-12)
+        assertEquals(expectedObservations.statistics().variance, estimate.variance, 1e-12)
+    }
+
+    @Test
     @DisplayName("Independent points draw from consecutive, non-overlapping sub-stream blocks")
     fun independentPointsDrawFromDisjointSubStreamBlocks() {
         val oracle = uniformDrawOracle()
@@ -95,10 +134,10 @@ class ResponseFunctionOracleTest {
         val p2 = point(2.0, 2)
         val results = oracle.simulate(EvaluationRequest(MODEL_ID, listOf(p1, p2)))
         // point 1 occupies sub-streams 0..2; point 2 starts where point 1's block ends
-        val expected1 = referenceUniformDraws(0, 3).statistics().average
-        val expected2 = referenceUniformDraws(3, 2).statistics().average
-        assertEquals(expected1, results.getValue(p1).getOrThrow().getValue(OBJ).average)
-        assertEquals(expected2, results.getValue(p2).getOrThrow().getValue(OBJ).average)
+        val expected1 = referenceUniformDraws(0, 3).map { it.single() }.toDoubleArray()
+        val expected2 = referenceUniformDraws(3, 2).map { it.single() }.toDoubleArray()
+        assertEquals(expected1.statistics().average, results.getValue(p1).getOrThrow().getValue(OBJ).average)
+        assertEquals(expected2.statistics().average, results.getValue(p2).getOrThrow().getValue(OBJ).average)
     }
 
     @Test
@@ -113,7 +152,34 @@ class ResponseFunctionOracleTest {
         val avg2 = results.getValue(p2).getOrThrow().getValue(OBJ).average
         // the response function ignores the inputs, so paired draws mean identical averages
         assertEquals(avg1, avg2)
-        assertEquals(referenceUniformDraws(0, 4).statistics().average, avg1)
+        val expected = referenceUniformDraws(0, 4).map { it.single() }.toDoubleArray()
+        assertEquals(expected.statistics().average, avg1)
+    }
+
+    @Test
+    @DisplayName("Multiple dedicated streams get source-synchronized CRN: per-source noise pairs exactly")
+    fun multiSourceCrnPairsPerStream() {
+        // y = x + normal noise (stream 1) + exponential shock (stream 2): under CRN both
+        // points see identical noise from each source, so avg - x matches exactly
+        fun makeOracle(): ResponseFunctionOracle {
+            return ResponseFunctionOracle(
+                MODEL_ID, setOf(OBJ),
+                ResponseFunctionBuilderIfc { streamProvider ->
+                    val noiseRV = NormalRV(0.0, 4.0, streamNum = 1, streamProvider = streamProvider)
+                    val shockRV = ExponentialRV(2.0, streamNum = 2, streamProvider = streamProvider)
+                    ResponseFunctionIfc { inputs ->
+                        mapOf(OBJ to inputs.getValue("x") + noiseRV.value + shockRV.value)
+                    }
+                }
+            )
+        }
+        val p1 = point(1.0, 6)
+        val p2 = point(-4.0, 6)
+        val request = EvaluationRequest(MODEL_ID, listOf(p1, p2), crnOption = true, cachingAllowed = false)
+        val results = makeOracle().simulate(request)
+        val avg1 = results.getValue(p1).getOrThrow().getValue(OBJ).average
+        val avg2 = results.getValue(p2).getOrThrow().getValue(OBJ).average
+        assertEquals(avg1 - 1.0, avg2 - (-4.0), 1e-12)
     }
 
     @Test
@@ -136,18 +202,39 @@ class ResponseFunctionOracleTest {
     @DisplayName("Per-member tape offsets give disjoint randomness; equal offsets reproduce exactly")
     fun memberTapeOffsetsYieldDisjointRandomness() {
         val p = point(1.0, 3)
-        val member0Avg = uniformDrawOracle(StreamTapePolicy(initialPosition = 0))
-            .simulate(EvaluationRequest(MODEL_ID, listOf(p)))
-            .getValue(p).getOrThrow().getValue(OBJ).average
-        val member1Avg = uniformDrawOracle(StreamTapePolicy(initialPosition = 1000))
-            .simulate(EvaluationRequest(MODEL_ID, listOf(p)))
-            .getValue(p).getOrThrow().getValue(OBJ).average
+        val member0Avg = averageOf(uniformDrawOracle(tapePolicy = StreamTapePolicy(initialPosition = 0)), p)
+        val member1Avg = averageOf(uniformDrawOracle(tapePolicy = StreamTapePolicy(initialPosition = 1000)), p)
         assertNotEquals(member0Avg, member1Avg)
-        assertEquals(referenceUniformDraws(1000, 3).statistics().average, member1Avg)
-        val member1AgainAvg = uniformDrawOracle(StreamTapePolicy(initialPosition = 1000))
-            .simulate(EvaluationRequest(MODEL_ID, listOf(p)))
-            .getValue(p).getOrThrow().getValue(OBJ).average
+        val expected = referenceUniformDraws(1000, 3).map { it.single() }.toDoubleArray()
+        assertEquals(expected.statistics().average, member1Avg)
+        val member1AgainAvg = averageOf(uniformDrawOracle(tapePolicy = StreamTapePolicy(initialPosition = 1000)), p)
         assertEquals(member1Avg, member1AgainAvg)
+    }
+
+    @Test
+    @DisplayName("Acquiring a new stream during evaluation violates the contract and fails loudly")
+    fun lateStreamAcquisitionFailsLoudly() {
+        val oracle = ResponseFunctionOracle(
+            MODEL_ID, setOf(OBJ),
+            ResponseFunctionBuilderIfc { streamProvider ->
+                val stream = streamProvider.rnStream(1)
+                var callCount = 0
+                ResponseFunctionIfc { _ ->
+                    callCount++
+                    // contract violation: a second stream requested mid-evaluation
+                    val value = if (callCount > 1) {
+                        streamProvider.rnStream(2).randU01()
+                    } else {
+                        stream.randU01()
+                    }
+                    mapOf(OBJ to value)
+                }
+            }
+        )
+        val exception = assertThrows<IllegalStateException> {
+            oracle.simulate(EvaluationRequest(MODEL_ID, listOf(point(0.0, 3))))
+        }
+        assertTrue(exception.message!!.contains("new stream"))
     }
 
     @Test
@@ -155,9 +242,11 @@ class ResponseFunctionOracleTest {
     fun nonFiniteValueMapsThatPointToFailure() {
         val oracle = ResponseFunctionOracle(
             MODEL_ID, setOf(OBJ),
-            ResponseFunctionIfc { inputs, _ ->
-                val x = inputs.getValue("x")
-                mapOf(OBJ to if (x > 0.0) Double.POSITIVE_INFINITY else x)
+            ResponseFunctionBuilderIfc {
+                ResponseFunctionIfc { inputs ->
+                    val x = inputs.getValue("x")
+                    mapOf(OBJ to if (x > 0.0) Double.POSITIVE_INFINITY else x)
+                }
             }
         )
         val bad = point(1.0, 2)
@@ -173,9 +262,11 @@ class ResponseFunctionOracleTest {
     fun thrownExceptionMapsThatPointToFailure() {
         val oracle = ResponseFunctionOracle(
             MODEL_ID, setOf(OBJ),
-            ResponseFunctionIfc { inputs, _ ->
-                check(inputs.getValue("x") <= 0.0) { "injected replication failure" }
-                mapOf(OBJ to 0.0)
+            ResponseFunctionBuilderIfc {
+                ResponseFunctionIfc { inputs ->
+                    check(inputs.getValue("x") <= 0.0) { "injected replication failure" }
+                    mapOf(OBJ to 0.0)
+                }
             }
         )
         val bad = point(1.0, 2)
@@ -190,7 +281,9 @@ class ResponseFunctionOracleTest {
     fun missingResponseMapsToFailure() {
         val oracle = ResponseFunctionOracle(
             MODEL_ID, setOf(OBJ, "neverProduced"),
-            ResponseFunctionIfc { _, _ -> mapOf(OBJ to 0.0) }
+            ResponseFunctionBuilderIfc {
+                ResponseFunctionIfc { _ -> mapOf(OBJ to 0.0) }
+            }
         )
         val p = point(0.0, 2)
         val results = oracle.simulate(EvaluationRequest(MODEL_ID, listOf(p)))
@@ -222,20 +315,26 @@ class ResponseFunctionOracleTest {
     fun mcReplicationOracleMatchesEquivalentResponseFunctionOracle() {
         val mcOracle = MCReplicationOracle(
             MODEL_ID, OBJ,
-            { inputs, stream -> inputs.getValue("x") * 10.0 + stream.randU01() }
+            replicationFunctionBuilder = { streamProvider ->
+                val stream = streamProvider.rnStream(1)
+                MCReplicationFunctionIfc { inputs -> inputs.getValue("x") * 10.0 + stream.randU01() }
+            }
         )
         val directOracle = ResponseFunctionOracle(
             MODEL_ID, setOf(OBJ),
-            ResponseFunctionIfc { inputs, stream ->
-                mapOf(OBJ to inputs.getValue("x") * 10.0 + stream.randU01())
+            ResponseFunctionBuilderIfc { streamProvider ->
+                val stream = streamProvider.rnStream(1)
+                ResponseFunctionIfc { inputs ->
+                    mapOf(OBJ to inputs.getValue("x") * 10.0 + stream.randU01())
+                }
             }
         )
         val p = point(2.0, 4)
-        val mcAvg = mcOracle.simulate(EvaluationRequest(MODEL_ID, listOf(p)))
-            .getValue(p).getOrThrow().getValue(OBJ).average
-        val directAvg = directOracle.simulate(EvaluationRequest(MODEL_ID, listOf(p)))
-            .getValue(p).getOrThrow().getValue(OBJ).average
+        val request = EvaluationRequest(MODEL_ID, listOf(p))
+        val mcAvg = mcOracle.simulate(request).getValue(p).getOrThrow().getValue(OBJ).average
+        val directAvg = directOracle.simulate(request).getValue(p).getOrThrow().getValue(OBJ).average
         assertEquals(directAvg, mcAvg)
-        assertEquals(20.0 + referenceUniformDraws(0, 4).statistics().average, mcAvg, 1e-12)
+        val expected = referenceUniformDraws(0, 4).map { it.single() }.toDoubleArray()
+        assertEquals(20.0 + expected.statistics().average, mcAvg, 1e-12)
     }
 }

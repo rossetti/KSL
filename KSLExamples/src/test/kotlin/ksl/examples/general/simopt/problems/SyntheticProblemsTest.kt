@@ -97,7 +97,7 @@ class SyntheticProblemsTest {
         for (problem in ladderFamilies(2, NoiseLevel.MED)) {
             val responseNames = (listOf(problem.objectiveResponseName) + problem.extraResponseNames).toSet()
             val oracle = ResponseFunctionOracle(
-                problem.problemName, responseNames, problem.responseFunction()
+                problem.problemName, responseNames, problem.responseFunctionBuilder()
             )
             val point1 = ModelInputs(problem.problemName, 8, mapOf("x1" to 1.0, "x2" to 2.0))
             val point2 = ModelInputs(problem.problemName, 8, mapOf("x1" to -3.0, "x2" to 4.0))
@@ -117,13 +117,51 @@ class SyntheticProblemsTest {
     }
 
     @Test
+    @DisplayName("A replication with a micro sample averages that many raw draws, shrinking noise exactly")
+    fun microSampleAveragesRawDraws() {
+        // the same problem observed at micro sample sizes 1 and 4: with identical
+        // positioning, the size-4 observation is the average of four consecutive raw
+        // draws, so its noise equals the average of the size-1 noise draws would be —
+        // verified here by exact construction against the problem's own noise model
+        val problem = NoisySphere(2, NoiseLevel.MED)
+        val inputs = mapOf("x1" to 1.0, "x2" to 2.0)
+        val trueValue = problem.trueObjective(doubleArrayOf(1.0, 2.0))
+        val microSampleSize = 4
+        val oracle = ResponseFunctionOracle(
+            problem.problemName, setOf(problem.objectiveResponseName),
+            problem.responseFunctionBuilder(),
+            microRepSampleSize = microSampleSize
+        )
+        val request = ModelInputs(problem.problemName, 3, inputs)
+        val estimate = oracle.simulate(EvaluationRequest(problem.problemName, listOf(request)))
+            .getValue(request).getOrThrow().getValue(problem.objectiveResponseName)
+        assertEquals(3.0, estimate.count)
+        // reference: same builder against a fresh provider, positioned the same way,
+        // averaging microSampleSize raw draws per sub-stream
+        val referenceProvider = ksl.utilities.random.rng.RNStreamProvider()
+        val referenceFunction = problem.responseFunctionBuilder().build(referenceProvider)
+        referenceProvider.resetAllStreamsToStart()
+        val observations = DoubleArray(3)
+        for (r in 0 until 3) {
+            if (r > 0) referenceProvider.advanceAllStreamsToNextSubStream()
+            var sum = 0.0
+            repeat(microSampleSize) {
+                sum += referenceFunction.replication(inputs).getValue(problem.objectiveResponseName)
+            }
+            observations[r] = sum / microSampleSize
+        }
+        assertEquals(observations.average(), estimate.average, 1e-9)
+        assertTrue(kotlin.math.abs(estimate.average - trueValue) < 4.0 * NoiseLevel.MED.sigma)
+    }
+
+    @Test
     @DisplayName("The newsvendor's CRN demand draws match a hand-driven reference stream")
     fun newsvendorCrnSharesDemandDraws() {
         val newsvendor = Newsvendor()
         val oracle = ResponseFunctionOracle(
             newsvendor.problemName,
             setOf(newsvendor.objectiveResponseName),
-            newsvendor.responseFunction()
+            newsvendor.responseFunctionBuilder()
         )
         val numReplications = 5
         val q1 = 40.0

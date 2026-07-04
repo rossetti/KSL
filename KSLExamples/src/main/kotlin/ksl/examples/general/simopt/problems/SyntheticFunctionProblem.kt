@@ -4,9 +4,11 @@ import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
 import ksl.simopt.benchmark.ReferenceSolution
 import ksl.simopt.benchmark.ReferenceType
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.NormalRV
 
 /**
  *  The base of the synthetic benchmark ladder: a deterministic test function observed
@@ -18,13 +20,15 @@ import ksl.utilities.random.rng.RNStreamIfc
  *    such as R-SPLINE participate,
  *  - the optimum placed on an integer lattice point, recorded as a
  *    KNOWN-OPTIMUM reference solution so gaps are exact,
- *  - all randomness drawn from the stream the oracle supplies (never a global stream),
- *    preserving common random numbers and whole-experiment reproducibility, and
+ *  - randomness held as random variables with explicit stream numbers against the
+ *    provider each instance is built with (the standard KSL component style, exactly
+ *    like a simulation model's random variables), preserving common random numbers and
+ *    whole-experiment reproducibility, and
  *  - analysis tags: family, dimension, noiseLevel, constrained.
  *
- *  The default replication observes only the objective. Subclasses with response
- *  constraints override the extra response names, the replication, and the problem
- *  configuration hook.
+ *  The default response function observes only the objective, with one noise random
+ *  variable on stream 1. Subclasses with extra responses override the extra response
+ *  names, the response-function builder, and the problem configuration hook.
  *
  *  @param dimension the number of decision variables; must be at least 1
  *  @param noiseLevel the additive Gaussian noise level
@@ -67,27 +71,34 @@ abstract class SyntheticFunctionProblem(
     val inputNames: List<String> = (1..dimension).map { "x$it" }
 
     /**
-     *  One noisy replication: the true objective plus one Gaussian draw at the noise
-     *  level. Subclasses with extra responses override and must draw all randomness
-     *  from the supplied stream.
+     *  Builds a fresh response function against the supplied provider: one observation
+     *  is the true objective plus one draw of a noise random variable on stream 1.
+     *  Subclasses with extra responses override, acquiring every random variable at
+     *  construction (never inside the returned function's replication call).
      */
-    open fun replication(point: DoubleArray, stream: RNStreamIfc): Map<String, Double> {
-        return mapOf(
-            objectiveResponseName to
-                    trueObjective(point) + stream.rNormal(0.0, noiseLevel.sigma * noiseLevel.sigma)
+    open fun buildResponseFunction(streamProvider: RNStreamProviderIfc): ResponseFunctionIfc {
+        val noiseRV = NormalRV(
+            0.0, noiseLevel.sigma * noiseLevel.sigma,
+            streamNum = 1, streamProvider = streamProvider
         )
+        return ResponseFunctionIfc { inputs ->
+            mapOf(objectiveResponseName to trueObjective(point(inputs)) + noiseRV.value)
+        }
+    }
+
+    /** Extracts the design point from the input map, in input-name order. */
+    protected fun point(inputs: Map<String, Double>): DoubleArray {
+        return DoubleArray(dimension) { i -> inputs.getValue(inputNames[i]) }
     }
 
     /** Hook for subclasses to add constraints to a freshly built problem definition. */
     protected open fun configureProblem(problemDefinition: ProblemDefinition) {
     }
 
-    /** The response function over this synthetic, suitable for a `ResponseFunctionOracle`. */
-    fun responseFunction(): ResponseFunctionIfc {
-        return ResponseFunctionIfc { inputs, stream ->
-            val point = DoubleArray(dimension) { i -> inputs.getValue(inputNames[i]) }
-            replication(point, stream)
-        }
+    /** The builder over this synthetic, suitable for a `ResponseFunctionOracle` or a
+     *  [FunctionMemberEvaluatorFactory]. */
+    fun responseFunctionBuilder(): ResponseFunctionBuilderIfc {
+        return ResponseFunctionBuilderIfc { streamProvider -> buildResponseFunction(streamProvider) }
     }
 
     /** A fresh problem definition: integer-lattice inputs over the family's box, plus
@@ -116,12 +127,21 @@ abstract class SyntheticFunctionProblem(
         )
     }
 
-    /** The benchmark-ready problem case for this synthetic. */
-    fun problemCase(): ProblemCase {
+    /**
+     *  The benchmark-ready problem case for this synthetic.
+     *
+     *  @param microRepSampleSize the number of raw function evaluations averaged into
+     *  one replication (observation); the default of 1 makes an observation a single
+     *  raw evaluation — see `ResponseFunctionOracle`
+     */
+    @JvmOverloads
+    fun problemCase(microRepSampleSize: Int = 1): ProblemCase {
         return ProblemCase(
             name = problemName,
             problemDefinitionFactory = { problemDefinition() },
-            evaluatorFactoryProvider = { pd -> FunctionMemberEvaluatorFactory(pd, responseFunction()) },
+            evaluatorFactoryProvider = { pd ->
+                FunctionMemberEvaluatorFactory(pd, responseFunctionBuilder(), microRepSampleSize)
+            },
             referenceSolution = referenceSolution(),
             tags = mapOf(
                 "family" to familyName,

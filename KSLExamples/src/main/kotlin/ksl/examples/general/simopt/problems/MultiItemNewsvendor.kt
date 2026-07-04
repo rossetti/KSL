@@ -4,9 +4,11 @@ import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
 import ksl.simopt.benchmark.ReferenceSolution
 import ksl.simopt.benchmark.ReferenceType
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.OptimizationType
 import ksl.simopt.problem.ProblemDefinition
+import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -112,19 +114,25 @@ class MultiItemNewsvendor(
         quantities
     }
 
-    /** The response function: one total-profit observation per replication, item
-     *  demands drawn (in item order) from the supplied stream. */
-    fun responseFunction(): ResponseFunctionIfc {
-        return ResponseFunctionIfc { inputs, stream ->
-            var profit = 0.0
-            for (item in 0 until numItems) {
-                val orderQuantity = inputs.getValue(inputNames[item])
-                val demand = stream.rExponential(demandMeans[item])
-                profit += unitPrices[item] * min(demand, orderQuantity) +
-                        salvageValue * max(orderQuantity - demand, 0.0) -
-                        unitCost * orderQuantity
+    /** The response function: one total-profit observation per replication, each
+     *  item's demand drawn from its own dedicated random variable (item i on stream
+     *  i + 1) acquired at construction — source-synchronized common random numbers. */
+    fun responseFunctionBuilder(): ResponseFunctionBuilderIfc {
+        return ResponseFunctionBuilderIfc { streamProvider ->
+            val demandRVs = List(numItems) { item ->
+                ExponentialRV(demandMeans[item], streamNum = item + 1, streamProvider = streamProvider)
             }
-            mapOf(objectiveResponseName to profit)
+            ResponseFunctionIfc { inputs ->
+                var profit = 0.0
+                for (item in 0 until numItems) {
+                    val orderQuantity = inputs.getValue(inputNames[item])
+                    val demand = demandRVs[item].value
+                    profit += unitPrices[item] * min(demand, orderQuantity) +
+                            salvageValue * max(orderQuantity - demand, 0.0) -
+                            unitCost * orderQuantity
+                }
+                mapOf(objectiveResponseName to profit)
+            }
         }
     }
 
@@ -160,11 +168,14 @@ class MultiItemNewsvendor(
     }
 
     /** The benchmark-ready problem case. */
-    fun problemCase(): ProblemCase {
+    @JvmOverloads
+    fun problemCase(microRepSampleSize: Int = 1): ProblemCase {
         return ProblemCase(
             name = problemName,
             problemDefinitionFactory = { problemDefinition() },
-            evaluatorFactoryProvider = { pd -> FunctionMemberEvaluatorFactory(pd, responseFunction()) },
+            evaluatorFactoryProvider = { pd ->
+                FunctionMemberEvaluatorFactory(pd, responseFunctionBuilder(), microRepSampleSize)
+            },
             referenceSolution = referenceSolution(),
             tags = mapOf(
                 "family" to "newsvendor",

@@ -6,6 +6,7 @@ import ksl.simopt.benchmark.BenchmarkSummary
 import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
 import ksl.simopt.benchmark.SolverCase
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
@@ -54,10 +55,13 @@ class BenchmarkResultsDbTest {
                 pd
             },
             evaluatorFactoryProvider = { pd ->
-                FunctionMemberEvaluatorFactory(pd, ResponseFunctionIfc { inputs, stream ->
-                    val x1 = inputs.getValue("x1")
-                    val x2 = inputs.getValue("x2")
-                    mapOf(OBJ to x1 * x1 + x2 * x2 + 0.1 * stream.randU01())
+                FunctionMemberEvaluatorFactory(pd, ResponseFunctionBuilderIfc { streamProvider ->
+                    val stream = streamProvider.rnStream(1)
+                    ResponseFunctionIfc { inputs ->
+                        val x1 = inputs.getValue("x1")
+                        val x2 = inputs.getValue("x2")
+                        mapOf(OBJ to x1 * x1 + x2 * x2 + 0.1 * stream.randU01())
+                    }
                 })
             },
             tags = mapOf("family" to "sphere", "noiseLevel" to "LOW")

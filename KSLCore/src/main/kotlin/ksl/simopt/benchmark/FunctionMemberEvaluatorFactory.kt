@@ -6,7 +6,7 @@ import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.EvaluatorIfc
-import ksl.simopt.evaluator.ResponseFunctionIfc
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionOracle
 import ksl.simopt.evaluator.StreamTapePolicy
 import ksl.simopt.problem.ProblemDefinition
@@ -22,30 +22,37 @@ import java.util.concurrent.ConcurrentHashMap
  *  draw from non-overlapping regions of the sub-stream tape regardless of scheduling.
  *
  *  There is nothing expensive to pool (no built models), so every member simply receives
- *  fresh resources. On release the factory checks the member's tape consumption and logs
+ *  fresh resources: a fresh, identically seeded stream provider, a fresh response
+ *  function built against it (the `ResponseFunctionBuilderIfc` contract — the same
+ *  fresh-instance-per-member pattern as a model builder), and a tape at the member's
+ *  block offset. On release the factory checks the member's tape consumption and logs
  *  a warning if the member exceeded its block — that would mean overlap with the next
  *  member's block and calls for a larger block size.
  *
- *  The response function is shared across members and invoked concurrently, so it must
- *  be safe for concurrent calls: pure apart from the supplied stream (which is private
- *  to each member), with no shared mutable state.
+ *  The builder is shared across members and invoked concurrently on worker threads, so
+ *  it must be safe for concurrent calls; the instances it returns are member-private.
  *
  *  @param problemDefinition the problem the member evaluators serve; the oracle serves
  *  the problem's model identifier and its full response-name set
- *  @param responseFunction one replication of every response at a design point; shared
- *  by all members, so it must be pure apart from the supplied (member-private) stream
+ *  @param responseFunctionBuilder builds each member's fresh response function against
+ *  that member's provider, acquiring all randomness at construction
+ *  @param microRepSampleSize the number of response-function evaluations averaged into
+ *  one replication (observation); the default of 1 makes an observation a single raw
+ *  evaluation — see `ResponseFunctionOracle`
  *  @param substreamBlockSize the per-member sub-stream block; see `ConcurrentRunOptions`
  *  @param solutionCacheFactory creates each member's private solution cache; return null
  *  for no caching. The default creates a fresh in-memory cache per member.
  */
 class FunctionMemberEvaluatorFactory(
     private val problemDefinition: ProblemDefinition,
-    private val responseFunction: ResponseFunctionIfc,
+    private val responseFunctionBuilder: ResponseFunctionBuilderIfc,
+    private val microRepSampleSize: Int = 1,
     private val substreamBlockSize: Int = ConcurrentRunOptions.DEFAULT_SUBSTREAM_BLOCK_SIZE,
     private val solutionCacheFactory: () -> SolutionCacheIfc? = { MemorySolutionCache() }
 ) : MemberEvaluatorFactoryIfc {
 
     init {
+        require(microRepSampleSize >= 1) { "The micro replication sample size must be >= 1" }
         require(substreamBlockSize > 0) { "substreamBlockSize must be > 0" }
     }
 
@@ -66,7 +73,8 @@ class FunctionMemberEvaluatorFactory(
         val oracle = ResponseFunctionOracle(
             modelIdentifier = problemDefinition.modelIdentifier,
             responseNames = problemDefinition.allResponseNames.toSet(),
-            responseFunction = responseFunction,
+            responseFunctionBuilder = responseFunctionBuilder,
+            microRepSampleSize = microRepSampleSize,
             streamTapePolicy = tapePolicy
         )
         return Evaluator(problemDefinition, oracle, solutionCacheFactory())

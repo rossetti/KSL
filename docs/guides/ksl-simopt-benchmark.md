@@ -98,7 +98,7 @@ sequentially.
 |---|---|
 | `ksl.simopt.benchmark` (KSLCore) | The engine: `BenchmarkExperiment`, `ProblemCase`, `SolverCase`, `BenchmarkSolverFactoryIfc`, `FunctionMemberEvaluatorFactory`, result records (`BenchmarkSummary` etc.), `ReferenceSolution`/`GapType` |
 | `ksl.simopt.benchmark.io` (KSLCore) | `BenchmarkResultsDb` (SQLite) + one table-data class per table + analysis feeds (`mcbDataMap`, `performanceProfile`) |
-| `ksl.simopt.evaluator` (KSLCore, additions) | `ResponseFunctionIfc` + `ResponseFunctionOracle` — lets a plain function stand in for a DEDS model at the oracle seam |
+| `ksl.simopt.evaluator` (KSLCore, additions) | `ResponseFunctionIfc`/`ResponseFunctionBuilderIfc` + `ResponseFunctionOracle` — lets a response-function component stand in for a DEDS model at the oracle seam, with macro/micro replication semantics |
 | `ksl.simopt.solvers` (KSLCore, addition) | `ReplicationBudgetStoppingCriterion` — the equal-effort termination rule |
 | `ksl.examples.general.simopt` (KSLExamples) | `standardSolverCases()` registry, LK/RQ problem cases, `BenchmarkDemo`, `PilotStudy` |
 | `ksl.examples.general.simopt.problems` (KSLExamples) | The synthetic ladder: noisy sphere / Rosenbrock / Rastrigin, constrained noisy quadratic, single- and multi-item newsvendor, `NoiseLevel` |
@@ -178,24 +178,53 @@ sub-stream tape).
 
 ### 5.1 Synthetic / static Monte Carlo problems
 
-Implement one replication of the responses as a pure function of the design
-point and a supplied random stream:
+Write the problem as a small component in the standard KSL style — random
+variables with explicit stream numbers, acquired at construction against the
+provider the instance is built with, exactly like a simulation model's random
+variables — and supply a builder that creates a fresh instance per concurrent
+member (the response-function counterpart of `ModelBuilderIfc`):
 
 ```kotlin
 fun interface ResponseFunctionIfc {
-    fun replication(inputs: Map<String, Double>, stream: RNStreamIfc): Map<String, Double>
+    fun replication(inputs: Map<String, Double>): Map<String, Double>   // one observation
+}
+fun interface ResponseFunctionBuilderIfc {
+    fun build(streamProvider: RNStreamProviderIfc): ResponseFunctionIfc
+}
+
+// a noisy function with two randomness sources, each on its own dedicated stream
+val builder = ResponseFunctionBuilderIfc { streamProvider ->
+    val demandRV = ExponentialRV(50.0, streamNum = 1, streamProvider = streamProvider)
+    val noiseRV = NormalRV(0.0, 4.0, streamNum = 2, streamProvider = streamProvider)
+    ResponseFunctionIfc { inputs ->
+        mapOf("profit" to profit(inputs.getValue("q"), demandRV.value) + noiseRV.value)
+    }
 }
 ```
 
-The purity rules are the reproducibility contract: draw **all** randomness
-from the supplied stream (never a global one) and keep no mutable state. In
-exchange, common random numbers, per-cell stream isolation, and bit-for-bit
-experiment reproducibility all work exactly as they do for simulation models.
+The contract is the reproducibility guarantee: acquire **all** streams at
+construction (never inside `replication` — the oracle detects a mid-evaluation
+stream request and fails loudly, because a stream created after positioning
+would silently break common random numbers), draw nothing from a global
+stream, and keep no other mutable state. In exchange, CRN — synchronized *per
+randomness source* when each source has its own stream — per-member isolation,
+and bit-for-bit experiment reproducibility all work exactly as they do for
+simulation models.
 
-Wrap the function with `FunctionMemberEvaluatorFactory(problemDefinition,
-responseFunction)` in the `evaluatorFactoryProvider` — or skip all of this and
-use the ready-made ladder (§9), whose classes produce complete `ProblemCase`s
-with known-optimum references and tags via `.problemCase()`.
+**Replication semantics** mirror the simulation case and the macro/micro
+vocabulary of `ksl.utilities.mcintegration`: one *replication* (the unit
+solvers request and the budget counts) is one statistical observation — the
+average of `microRepSampleSize` calls of the function (default 1, so an
+observation is a single raw evaluation). A larger micro sample gives
+observations the averaged, near-normal character of a DEDS replication's
+within-replication average; the budget then costs `microRepSampleSize` raw
+evaluations per replication, which a study should report.
+
+Wrap the builder with `FunctionMemberEvaluatorFactory(problemDefinition,
+builder, microRepSampleSize)` in the `evaluatorFactoryProvider` — or skip all
+of this and use the ready-made ladder (§9), whose classes produce complete
+`ProblemCase`s with known-optimum references and tags via
+`.problemCase(microRepSampleSize)`.
 
 ### 5.2 DEDS (simulation-model) problems
 
@@ -386,7 +415,8 @@ Two honesty rules for analysis:
 Cheap problems with known optima, so gaps are exact and studies can use noise
 level as a controlled factor. All inputs are on the integer lattice
 (granularity 1) so integer-ordered solvers such as R-SPLINE participate; all
-randomness flows through the supplied stream, so CRN works. Each class yields
+randomness is held as random variables acquired at construction against each
+instance's provider, so CRN works per source. Each class yields
 a complete `ProblemCase` via `.problemCase()`.
 
 | Class | Purpose | Optimum (value) |
@@ -486,14 +516,17 @@ grid was dominated entirely by the RQ problem's 80 ms replications.
   criterion (deliberately — see §2, policy 1). If you specifically want to study
   early-stopping behavior, that is a different experimental design than
   equal-budget comparison.
-- **Response functions and model builders must be pure/fresh** (no shared
-  mutable state; a new model per builder call). The same applies to custom
-  penalty functions on problem definitions — cells evaluate concurrently.
+- **Builders must return fresh instances** (a new model per model-builder
+  call, a new response function per response-function-builder call, with all
+  streams acquired at construction). The same freshness logic applies to
+  custom penalty functions on problem definitions — cells evaluate
+  concurrently.
 - **Reproducibility recipe:** fixed problem/solver lists, fixed
   `macroReplications` and budget, default (or explicitly seeded) stream
-  providers, and pure response functions ⇒ identical results at any worker
-  count. Draw nothing from `KSLRandom.defaultRNStream()` inside a response
-  function.
+  providers, and response functions that follow the construction-time
+  acquisition contract ⇒ identical results at any worker count. Draw nothing
+  from `KSLRandom.defaultRNStream()` inside a response function; the oracle
+  fails loudly on mid-evaluation stream acquisition.
 - **The database is append-only by convention** — treat `deleteIfExists =
   true` as a deliberate act. Experiment ids, not names, are the keys; the
   same experiment name may legitimately appear under several ids.

@@ -1,5 +1,6 @@
 package ksl.simopt.benchmark
 
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
@@ -30,10 +31,13 @@ class BenchmarkExperimentTest {
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
-    private fun sphereFunction(inputNames: List<String>): ResponseFunctionIfc {
-        return ResponseFunctionIfc { inputs, stream ->
-            val sum = inputNames.sumOf { name -> val v = inputs.getValue(name); v * v }
-            mapOf(OBJ to sum + 0.1 * stream.randU01())
+    private fun sphereFunction(inputNames: List<String>): ResponseFunctionBuilderIfc {
+        return ResponseFunctionBuilderIfc { streamProvider ->
+            val stream = streamProvider.rnStream(1)
+            ResponseFunctionIfc { inputs ->
+                val sum = inputNames.sumOf { name -> val v = inputs.getValue(name); v * v }
+                mapOf(OBJ to sum + 0.1 * stream.randU01())
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package ksl.simopt.solvers
 
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.evaluator.ResponseFunctionOracle
 import ksl.simopt.problem.ProblemDefinition
@@ -52,10 +53,13 @@ class ReplicationBudgetStoppingCriterionTest {
     private fun makeEvaluator(pd: ProblemDefinition): EvaluatorIfc {
         val oracle = ResponseFunctionOracle(
             MODEL_ID, setOf(OBJ),
-            ResponseFunctionIfc { inputs, stream ->
-                val x1 = inputs.getValue("x1")
-                val x2 = inputs.getValue("x2")
-                mapOf(OBJ to x1 * x1 + x2 * x2 + stream.randU01())
+            ResponseFunctionBuilderIfc { streamProvider ->
+                val stream = streamProvider.rnStream(1)
+                ResponseFunctionIfc { inputs ->
+                    val x1 = inputs.getValue("x1")
+                    val x2 = inputs.getValue("x2")
+                    mapOf(OBJ to x1 * x1 + x2 * x2 + stream.randU01())
+                }
             }
         )
         return Evaluator(pd, oracle)
