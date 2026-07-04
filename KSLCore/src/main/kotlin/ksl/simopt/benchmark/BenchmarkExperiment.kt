@@ -2,6 +2,10 @@ package ksl.simopt.benchmark
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.datetime.Clock
+import ksl.simopt.evaluator.EvaluationRequest
+import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.ReplicationBudgetStoppingCriterion
@@ -65,6 +69,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param macroReplications the number of macro-replications per (problem, solver) pair
  *  @param replicationBudgetPerRun the per-cell replication budget
  *  @param confirmation confirmation-stage options; null disables confirmation
+ *  @param captureIterationTraces when true, every cell solver's per-iteration progress
+ *  (iteration, cumulative replications, best penalized objective) is captured into the
+ *  summary's traces, keyed by cell label — opt-in because traces grow with the budget
+ *  @param verificationReplications when non-null, each problem's winning point is
+ *  re-simulated at this replication count on a dedicated evaluator and recorded — the
+ *  classic verify-at-elevated-replications step
  *  @param numWorkers the maximum number of cells running at the same time; null uses
  *  the smaller of the cell count and the available processors
  *  @param experimentStreamProvider the stream provider for experiment-level draws
@@ -81,6 +91,8 @@ class BenchmarkExperiment(
     val macroReplications: Int,
     val replicationBudgetPerRun: Int,
     val confirmation: ConfirmationOptions? = ConfirmationOptions(),
+    val captureIterationTraces: Boolean = false,
+    val verificationReplications: Int? = null,
     val numWorkers: Int? = null,
     experimentStreamProvider: RNStreamProviderIfc = RNStreamProvider(),
     private val cellSolverDecorator: ((solver: Solver, problemName: String, solverLabel: String, repNum: Int) -> Unit)? = null
@@ -100,10 +112,15 @@ class BenchmarkExperiment(
         }
         require(macroReplications >= 1) { "macroReplications must be >= 1" }
         require(replicationBudgetPerRun >= 1) { "replicationBudgetPerRun must be >= 1" }
+        require(verificationReplications == null || verificationReplications >= 1) {
+            "verificationReplications must be >= 1 when specified"
+        }
         require(numWorkers == null || numWorkers > 0) { "numWorkers must be > 0 when specified" }
     }
 
     private val myExperimentStream: RNStreamIfc = experimentStreamProvider.rnStream(1)
+    private val myTraces = java.util.concurrent.ConcurrentHashMap<String, MutableList<IterationTracePoint>>()
+    private val mySolverConfigurations = java.util.concurrent.ConcurrentHashMap<String, Map<String, String>>()
 
     /**
      *  Runs the full grid: for each problem (in order), launches all of its cells
@@ -115,13 +132,22 @@ class BenchmarkExperiment(
      */
     fun run(): BenchmarkSummary {
         logger.info { "Benchmark experiment '$name': ${problems.size} problems x ${solverCases.size} solver cases x $macroReplications reps, budget $replicationBudgetPerRun" }
+        val startTime = Clock.System.now()
         val problemResults = problems.map { runProblem(it) }
+        val endTime = Clock.System.now()
         logger.info { "Benchmark experiment '$name' complete" }
         return BenchmarkSummary(
             experimentName = name,
             macroReplications = macroReplications,
             replicationBudgetPerRun = replicationBudgetPerRun,
-            problemResults = problemResults
+            confirmation = confirmation,
+            verificationReplications = verificationReplications,
+            startTime = startTime,
+            endTime = endTime,
+            problemResults = problemResults,
+            solverCaseDescriptions = solverCases.associate { it.label to it.description },
+            solverConfigurations = mySolverConfigurations.toMap(),
+            traces = myTraces.mapValues { (_, points) -> points.toList() }
         )
     }
 
@@ -140,7 +166,7 @@ class BenchmarkExperiment(
                 val cellLabel = "${problemCase.name}_${solverCase.label}_r$repNum"
                 tasks.add(
                     SolverMemberTask(
-                        solverFactory = budgeted(problemDefinition, solverCase.solverFactory),
+                        solverFactory = budgeted(problemDefinition, solverCase),
                         label = cellLabel,
                         // a private copy: starting points are shared across cells by value
                         startingPoint = problemDefinition.toInputMap(startingPoints[repNum - 1].toMutableMap()),
@@ -159,37 +185,61 @@ class BenchmarkExperiment(
         } finally {
             runner.shutdown()
         }
-        // confirmation across the problem's valid candidates, on a dedicated evaluator
-        // provisioned as an extra member index so it gets its own stream block
+        // confirmation and verification share a dedicated evaluator, provisioned as an
+        // extra member index so it gets its own stream block
         var confirmationOutcome: ConfirmationOutcome? = null
-        if (confirmation != null) {
-            val candidates = memberResults.filter { it.isSuccess }.map { it.bestSolution }
-            if (candidates.isNotEmpty()) {
-                val confirmationEvaluator = evaluatorFactory.createEvaluator(tasks.size)
-                try {
+        var verification: Solution? = null
+        val candidates = memberResults.filter { it.isSuccess && it.bestSolution.isValid }.map { it.bestSolution }
+        if (candidates.isNotEmpty() && (confirmation != null || verificationReplications != null)) {
+            val extraEvaluator = evaluatorFactory.createEvaluator(tasks.size)
+            try {
+                if (confirmation != null) {
                     confirmationOutcome = SolutionConfirmation.confirmBest(
-                        candidates, confirmationEvaluator, problemDefinition, confirmation
+                        candidates, extraEvaluator, problemDefinition, confirmation
                     )
-                } finally {
-                    evaluatorFactory.release(tasks.size, confirmationEvaluator, true)
                 }
+                if (verificationReplications != null) {
+                    val winningPoint = confirmationOutcome?.winner
+                        ?: candidates.minByOrNull { it.penalizedObjFncValue }
+                    if (winningPoint != null) {
+                        val modelInputs = ModelInputs(
+                            modelIdentifier = problemDefinition.modelIdentifier,
+                            numReplications = verificationReplications,
+                            inputs = winningPoint.inputMap,
+                            responseNames = problemDefinition.allResponseNames.toSet()
+                        )
+                        val request = EvaluationRequest(
+                            modelIdentifier = problemDefinition.modelIdentifier,
+                            modelInputs = listOf(modelInputs),
+                            cachingAllowed = false
+                        )
+                        verification = extraEvaluator.evaluate(request).values.firstOrNull()
+                    }
+                }
+            } finally {
+                evaluatorFactory.release(tasks.size, extraEvaluator, true)
             }
         }
-        return recordProblem(problemCase, problemDefinition, startingPoints, memberResults, confirmationOutcome)
+        return recordProblem(
+            problemCase, problemDefinition, startingPoints, memberResults,
+            confirmationOutcome, verification
+        )
     }
 
     /**
      *  Binds a case's factory to the problem and wraps it so every created solver
      *  receives the experiment's budget criterion (composed with any criterion the case
-     *  installed) and an iteration ceiling equal to the budget.
+     *  installed) and an iteration ceiling equal to the budget. The wrap also captures
+     *  the case's actually-running configuration (once, from the first instance) and
+     *  attaches the iteration-trace listener when trace capture is on.
      */
     private fun budgeted(
         problemDefinition: ProblemDefinition,
-        baseFactory: BenchmarkSolverFactoryIfc
+        solverCase: SolverCase
     ): SolverFactoryIfc {
         val budgetCriterion = ReplicationBudgetStoppingCriterion(replicationBudgetPerRun)
         return SolverFactoryIfc { evaluator, memberIndex, solverName ->
-            val solver = baseFactory.create(problemDefinition, evaluator, memberIndex, solverName)
+            val solver = solverCase.solverFactory.create(problemDefinition, evaluator, memberIndex, solverName)
             solver.maximumNumberIterations = replicationBudgetPerRun
             val caseCriterion = solver.solutionQualityEvaluator
             solver.solutionQualityEvaluator = if (caseCriterion == null) {
@@ -197,6 +247,23 @@ class BenchmarkExperiment(
             } else {
                 SolutionQualityEvaluatorIfc { s ->
                     budgetCriterion.isStoppingCriteriaReached(s) || caseCriterion.isStoppingCriteriaReached(s)
+                }
+            }
+            mySolverConfigurations.putIfAbsent(solverCase.label, solver.configurationProperties.toMap())
+            if (captureIterationTraces) {
+                // the cell's worker owns the list; the map is concurrent because cells
+                // are created on different workers
+                val tracePoints = mutableListOf<IterationTracePoint>()
+                myTraces[solverName] = tracePoints
+                solver.snapShotFrequency = 1
+                solver.iterationEmitter.attach { snapshot ->
+                    tracePoints.add(
+                        IterationTracePoint(
+                            iteration = snapshot.iterationNumber,
+                            cumulativeReplications = snapshot.numReplicationsRequested,
+                            bestPenalizedObjective = snapshot.penalizedObjFncValue
+                        )
+                    )
                 }
             }
             solver
@@ -208,7 +275,8 @@ class BenchmarkExperiment(
         problemDefinition: ProblemDefinition,
         startingPoints: List<InputMap>,
         memberResults: List<SolverMemberResult>,
-        confirmationOutcome: ConfirmationOutcome?
+        confirmationOutcome: ConfirmationOutcome?,
+        verification: Solution?
     ): ProblemBenchmarkResult {
         // orient objectives so that smaller is always better for basis/gap computations
         val orientation = problemDefinition.objFncFactor
@@ -266,9 +334,13 @@ class BenchmarkExperiment(
         return ProblemBenchmarkResult(
             problemName = problemCase.name,
             tags = problemCase.tags,
+            dimension = problemDefinition.inputSize,
+            optimizationType = problemDefinition.optimizationType,
+            numResponseConstraints = problemDefinition.responseConstraints.size,
             runs = runs,
             confirmation = confirmationOutcome,
             winner = winner,
+            verification = verification,
             gapBasisObjective = gapBasis,
             gapType = gapType
         )

@@ -1,8 +1,28 @@
 package ksl.simopt.benchmark
 
+import kotlinx.datetime.Instant
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.OptimizationType
+import ksl.simopt.solvers.concurrent.ConfirmationOptions
 import ksl.simopt.solvers.concurrent.ConfirmationOutcome
 import ksl.simopt.solvers.concurrent.MemberStatus
+
+/**
+ *  One point of a cell's iteration trace: the solver's progress at the end of an
+ *  iteration, recorded when the experiment captures traces. Iteration 0 is the
+ *  initialized state before the first main iteration.
+ *
+ *  @param iteration the solver's iteration counter at the snapshot
+ *  @param cumulativeReplications the solver's cumulative requested replications at the
+ *  snapshot — the x-axis for budget-normalized convergence plots
+ *  @param bestPenalizedObjective the penalized objective (minimization-oriented) of the
+ *  best solution found so far
+ */
+data class IterationTracePoint(
+    val iteration: Int,
+    val cumulativeReplications: Int,
+    val bestPenalizedObjective: Double
+)
 
 /**
  *  The recorded outcome of one benchmark cell: one solver configuration run once
@@ -69,6 +89,10 @@ data class BenchmarkRunResult(
  *
  *  @param problemName the problem case's name
  *  @param tags the problem case's descriptive tags
+ *  @param dimension the number of input (decision) variables
+ *  @param optimizationType whether the problem minimizes or maximizes
+ *  @param numResponseConstraints the number of response constraints (zero means the
+ *  problem is unconstrained apart from input ranges)
  *  @param runs the cell results, in deterministic cell order (solver case major,
  *  macro-replication minor)
  *  @param confirmation the CRN confirmation outcome across the problem's finalists;
@@ -76,6 +100,8 @@ data class BenchmarkRunResult(
  *  @param winner the winning solution for the problem: the confirmation winner when
  *  confirmation ran, otherwise the best valid solution by point estimate; null when
  *  every cell failed
+ *  @param verification the winner's point re-simulated at the experiment's verification
+ *  replication count; null when verification was disabled or there was no winner
  *  @param gapBasisObjective the objective value runs were gapped against; null when no
  *  reference exists and no run produced a valid solution
  *  @param gapType the kind of basis the gaps were computed against
@@ -83,9 +109,13 @@ data class BenchmarkRunResult(
 data class ProblemBenchmarkResult(
     val problemName: String,
     val tags: Map<String, String>,
+    val dimension: Int,
+    val optimizationType: OptimizationType,
+    val numResponseConstraints: Int,
     val runs: List<BenchmarkRunResult>,
     val confirmation: ConfirmationOutcome?,
     val winner: Solution?,
+    val verification: Solution?,
     val gapBasisObjective: Double?,
     val gapType: GapType?
 )
@@ -97,13 +127,28 @@ data class ProblemBenchmarkResult(
  *  @param experimentName the experiment's name
  *  @param macroReplications the number of macro-replications per (problem, solver) pair
  *  @param replicationBudgetPerRun the per-cell replication budget
+ *  @param startTime when the experiment's run() began
+ *  @param endTime when the experiment's run() completed
  *  @param problemResults the per-problem results, in the experiment's problem order
+ *  @param solverCaseDescriptions solver case label to its description
+ *  @param solverConfigurations solver case label to the configuration properties read
+ *  from the first solver instance the case created — the configuration that actually
+ *  ran, not what was assumed
+ *  @param traces cell label to the cell's iteration trace; empty unless the experiment
+ *  captured traces
  */
 data class BenchmarkSummary(
     val experimentName: String,
     val macroReplications: Int,
     val replicationBudgetPerRun: Int,
-    val problemResults: List<ProblemBenchmarkResult>
+    val confirmation: ConfirmationOptions?,
+    val verificationReplications: Int?,
+    val startTime: Instant,
+    val endTime: Instant,
+    val problemResults: List<ProblemBenchmarkResult>,
+    val solverCaseDescriptions: Map<String, String>,
+    val solverConfigurations: Map<String, Map<String, String>>,
+    val traces: Map<String, List<IterationTracePoint>>
 ) {
     /** All cell-level run records across all problems, in deterministic order. */
     val allRuns: List<BenchmarkRunResult>
