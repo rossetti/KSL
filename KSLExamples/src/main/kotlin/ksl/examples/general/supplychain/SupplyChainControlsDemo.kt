@@ -1,54 +1,69 @@
 package ksl.examples.general.supplychain
 
-import ksl.modeling.supplychain.ItemType
 import ksl.modeling.supplychain.SupplyChainModel
-import ksl.modeling.supplychain.inventory.DemandGenerator
-import ksl.modeling.supplychain.inventory.Inventory
-import ksl.modeling.supplychain.inventory.InventoryPolicyReorderPointOrderUpToLevel
+import ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation
+import ksl.modeling.supplychain.network.MultiEchelonNetwork
+import ksl.modeling.supplychain.network.TransportStrategy
 import ksl.simulation.Model
+import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 
 /**
  * Demonstrates driving a supply-chain model through the controls machinery
  * (`ksl.controls`): discovering the model's controllable parameters by key, setting
  * them without referencing the model classes, and running replications that all begin
- * under the configured initial conditions.
+ * under the configured initial conditions — plus reading the cost formulation's
+ * Responses, including the grand-total network cost that a simulation-optimization
+ * problem uses as its objective function.
+ *
+ * The model is built with the `MultiEchelonNetwork` API (the supported construction
+ * path — it wires the external supplier, transport, and demand flow): one store holding
+ * one SKU under an (r, S) order-up-to policy, replenished from the external supplier,
+ * serving a stream of unit customer demands.
  *
  * The key ideas on display:
  *
  * 1. **Discovery.** `model.controls()` reflects over the element tree and finds every
  *    annotated parameter. Keys are `elementName.propertyName` — name your elements
- *    meaningfully so keys are stable.
- * 2. **Initial-vs-current contract.** Policy controls (e.g. the (r, S) policy's
- *    `initialReorderPoint` / `initialOrderUpToPointDelta`) configure replication
- *    INITIAL conditions: the current policy parameters are re-seeded from the initial
- *    values before each replication, so every replication starts under the same
- *    settings. Changing an initial value during a replication is rejected.
+ *    meaningfully so keys are stable (helpers may generate composite names, so this
+ *    demo derives keys from the live element names rather than hardcoding them).
+ * 2. **Initial-vs-current contract.** Policy controls configure replication INITIAL
+ *    conditions: the current policy parameters are re-seeded from the initial values
+ *    before each replication, so every replication starts under the same settings.
+ *    Changing an initial value during a replication is rejected.
  * 3. **The delta parameterization.** The order-up-to level is controlled as
- *    SDelta = S − r (with S derived as r + SDelta), following the (r,Q) policy's
- *    RDelta precedent: any combination of clamped control values is valid, so
- *    experiments and optimizers can set the keys independently, in any order.
+ *    SDelta = S − r (with S derived as r + SDelta), so any combination of clamped
+ *    control values is valid and the keys can be set independently, in any order.
+ * 4. **Cost as a controllable output.** The cost formulation surfaces network-level
+ *    rate controls (carrying, ordering, backorder, stockout) and rollup Responses:
+ *    per line, per tier, per node (location), and the grand total — whose name
+ *    (`totalCostResponseName`) is exactly what an optimization problem's
+ *    `objFnResponseName` should reference.
  *
- * This is exactly how `ksl.controls.experiments` (factorial designs, scenarios) and
- * the simopt machinery parameterize models — this demo just does it by hand so the
- * mechanics are visible.
+ * This is how `ksl.controls.experiments` (factorial designs, scenarios) and the simopt
+ * machinery parameterize models — this demo just does it by hand so the mechanics are
+ * visible.
  */
 fun main() {
     val model = Model("SupplyChainControlsDemo")
-    val sc = SupplyChainModel(model)
-    val item = ItemType(sc, name = "SKU")
-    val policy = InventoryPolicyReorderPointOrderUpToLevel(
-        sc, reorderPoint = 5, orderUpToPoint = 15, name = "RS"
+    val sc = SupplyChainModel(model, name = "SC")
+    val net = MultiEchelonNetwork(
+        sc, name = "Net",
+        transportStrategy = TransportStrategy.PerIHPTimeBased,
     )
-    val inventory = Inventory(sc, item, policy, initialOnHand = 20, name = "Store")
-    // customers arrive ~every 2 time units and pull unit demands from the store
-    val demand = DemandGenerator(
-        sc, item,
-        timeUntilFirstRV = ExponentialRV(2.0, streamNum = 1),
-        timeBtwEventsRV = ExponentialRV(2.0, streamNum = 2),
-        name = "Customers"
+    val item = net.addItemType("SKU", leadTime = ConstantRV(5.0))
+    val store = net.addInventoryHoldingPoint("Store")
+    val inventory = store.addReorderPointOrderUpToLevelInventory(
+        item, reorderPoint = 5, orderUpToPoint = 15, initialOnHand = 20, name = "StoreInv",
     )
-    demand.demandFiller = inventory
+    net.attachToExternalSupplier(store, ConstantRV(5.0))
+    // unit customer demands arriving ~every 2 time units
+    net.attachDemandGenerator(
+        store, item, ExponentialRV(2.0, streamNum = 1),
+        name = "Customers", transportTime = ConstantRV.ZERO,
+    )
+    // Attach the cost formulation AFTER the topology is final (its documented contract).
+    val costs = DefaultMultiEchelonCostFormulation(net, name = "Costs")
 
     // 1. Discover what is controllable — no references to the classes above needed.
     val controls = model.controls()
@@ -58,26 +73,39 @@ fun main() {
     }
     println()
 
-    // 2. Configure the experiment by key: raise the policy to (r = 10, S = 30) and
-    //    start with more stock. SDelta = S - r = 20; order of the sets does not matter.
-    controls.control("RS.initialReorderPoint")!!.value = 10.0
-    controls.control("RS.initialOrderUpToPointDelta")!!.value = 20.0
-    controls.control("Store.initialOnHand")!!.value = 30.0
+    // 2. Configure the experiment by key. Element names drive the keys; the policy's
+    //    name was generated by the construction helper, so derive it from the element.
+    val policyName = inventory.inventoryPolicy.name
+    controls.control("$policyName.initialReorderPoint")!!.value = 10.0
+    controls.control("$policyName.initialOrderUpToPointDelta")!!.value = 20.0
+    controls.control("StoreInv.initialOnHand")!!.value = 30.0
+    controls.control("Costs.carryingRate")!!.value = 0.25
+    controls.control("Costs.orderingCost")!!.value = 10.0
 
-    println("Configured initial conditions:")
-    println("   r = ${policy.initialReorderPoint}, S = ${policy.initialOrderUpToPoint} " +
-            "(SDelta = ${policy.initialOrderUpToPointDelta})")
-    println("   initial on hand = ${inventory.initialOnHand}")
+    println("Configured initial conditions (applied at the start of every replication):")
+    println("   policy '$policyName': r = 10, SDelta = 20 (so S = 30)")
+    println("   StoreInv.initialOnHand = 30")
+    println("   Costs.carryingRate = 0.25, Costs.orderingCost = 10.0")
     println()
 
     // 3. Run. Every replication begins from these initial conditions because the
-    //    current policy parameters are re-seeded from the initials at replication start.
+    //    current values are re-seeded from the initials at replication start.
     model.lengthOfReplication = 1000.0
     model.lengthOfReplicationWarmUp = 100.0
     model.numberOfReplications = 5
     model.simulate()
-    model.print()
 
-    println("Policy parameters used during the run: r = ${policy.reorderPoint}, " +
-            "S = ${policy.orderUpToPoint}")
+    // 4. Read the cost rollups: the grand total is the simopt objective function.
+    println("Cost results (averages across ${model.numberOfReplications} replications):")
+    println("   objective response name = ${costs.totalCostResponseName}")
+    println("   grand total network cost = " +
+            "${costs.totalCostResponse.acrossReplicationStatistic.average}")
+    for (nodeName in costs.trackedNodeNames.sorted()) {
+        val nodeTotal = costs.byNodeResponse(nodeName)!!
+        println("   node '$nodeName' total cost = " +
+                "${nodeTotal.acrossReplicationStatistic.average}")
+    }
+    println()
+    println("An optimization problem over this model would use:")
+    println("   ProblemDefinition(objFnResponseName = \"${costs.totalCostResponseName}\", ...)")
 }
