@@ -27,7 +27,9 @@ import ksl.simulation.ModelElement
  * @param destination the downstream destination on this edge
  * @param destinationTier tier of the destination — used as
  *        [CostCalculator.tier]
- * @param params cost-rate parameters
+ * @param paramsProvider supplies the cost-rate parameters, resolved at each
+ *        replication end so rate changes made between replications (e.g. via
+ *        controls on the owning formulation) take effect
  */
 class NetworkEdgeInboundCostCalculator @JvmOverloads constructor(
     parent: ModelElement,
@@ -35,7 +37,7 @@ class NetworkEdgeInboundCostCalculator @JvmOverloads constructor(
     private val filler: DemandFillerIfc,
     private val destination: DemandSenderIfc,
     private val destinationTier: NodeTier,
-    private val params: CostParams,
+    private val paramsProvider: () -> CostParams,
     name: String? = null,
 ) : ModelElement(parent,
     name ?: "${networkCarrier.name}:${filler.name}->${destination.name}:In"),
@@ -52,6 +54,9 @@ class NetworkEdgeInboundCostCalculator @JvmOverloads constructor(
 
     private inner class SourceObserver : ModelElementObserver() {
         override fun replicationEnded(modelElement: ModelElement) {
+            // Resolve rates live so changes made between replications
+            // (e.g. via controls on the owning formulation) take effect.
+            val params = paramsProvider()
             val n = networkCarrier.getNumberOfDemandShipments(filler, destination)
             myUnloading.value = n * params.unloadingCost
         }

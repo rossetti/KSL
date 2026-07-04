@@ -42,7 +42,11 @@ open class PerNodeIHPCostFormulation @JvmOverloads constructor(
     network = network,
     params = defaultParams,
     name = name ?: "PerNodeIHPCostFormulation",
+    // Returning null (no override for this node) falls back to the base
+    // formulation's LIVE network-level bundle, so the rate controls on the
+    // base class govern every non-overridden node; per-node overrides remain
+    // construction-time and take precedence for their nodes.
     paramsResolver = { node: NetworkNodeIfc? ->
-        node?.let { overrides[it.name] } ?: defaultParams
+        node?.let { overrides[it.name] }
     },
 )

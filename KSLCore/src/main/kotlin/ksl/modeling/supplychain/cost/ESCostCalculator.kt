@@ -28,13 +28,15 @@ import ksl.simulation.ModelElement
  * @param esCarrier the ES outbound carrier this calculator observes
  * @param destinations every node currently attached to the ES;
  *        the calculator sums per-destination shipment counts
- * @param params cost-rate parameters
+ * @param paramsProvider supplies the cost-rate parameters, resolved at each
+ *        replication end so rate changes made between replications (e.g. via
+ *        controls on the owning formulation) take effect
  */
 class ESCostCalculator @JvmOverloads constructor(
     parent: ModelElement,
     private val esCarrier: TimeBasedDemandCarrier,
     private val destinations: List<DemandSenderIfc>,
-    private val params: CostParams,
+    private val paramsProvider: () -> CostParams,
     name: String? = null,
 ) : ModelElement(parent, name ?: "${esCarrier.name}:ESCostCalc"),
     CostCalculator {
@@ -50,6 +52,9 @@ class ESCostCalculator @JvmOverloads constructor(
 
     private inner class SourceObserver : ModelElementObserver() {
         override fun replicationEnded(modelElement: ModelElement) {
+            // Resolve rates live so changes made between replications
+            // (e.g. via controls on the owning formulation) take effect.
+            val params = paramsProvider()
             var total = 0.0
             for (dest in destinations) {
                 total += esCarrier.getNumberOfDemandShipments(dest)

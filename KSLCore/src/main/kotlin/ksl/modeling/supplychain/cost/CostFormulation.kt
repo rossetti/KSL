@@ -63,6 +63,20 @@ interface CostFormulation {
     fun byTierAndLineResponse(tier: NodeTier, line: CostLine): ResponseCIfc?
 
     /**
+     * Per-node (location) rollup Response — the sum across every cost
+     * line of every calculator attributed to the named owning node
+     * (an inventory's / backlog's / load-builder's holder, an outbound
+     * edge's supplier, an inbound edge's customer), or null when the
+     * formulation tracks no node with that name. The external
+     * supplier's own outbound has no owning node and contributes only
+     * to the grand total.
+     */
+    fun byNodeResponse(nodeName: String): ResponseCIfc?
+
+    /** The names of the owning nodes this formulation tracks per-node totals for. */
+    val trackedNodeNames: Set<String>
+
+    /**
      * Grand-total rollup Response — the sum across every line and
      * every tier this formulation produces.
      */

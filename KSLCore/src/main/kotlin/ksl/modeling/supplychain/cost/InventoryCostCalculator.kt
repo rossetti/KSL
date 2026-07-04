@@ -38,12 +38,14 @@ import ksl.simulation.ModelElement
  * @param inv the [Inventory] this calculator observes — the
  *        calculator reads `inv.itemType` directly; no separate
  *        `item` constructor argument is needed
- * @param params cost-rate parameters
+ * @param paramsProvider supplies the cost-rate parameters, resolved at each
+ *        replication end so rate changes made between replications (e.g. via
+ *        controls on the owning formulation) take effect
  */
 class InventoryCostCalculator @JvmOverloads constructor(
     parent: ModelElement,
     private val inv: Inventory,
-    private val params: CostParams,
+    private val paramsProvider: () -> CostParams,
     name: String? = null,
 ) : ModelElement(parent, name ?: "${inv.name}:CostCalc"),
     CostCalculator {
@@ -69,6 +71,9 @@ class InventoryCostCalculator @JvmOverloads constructor(
 
     private inner class SourceObserver : ModelElementObserver() {
         override fun replicationEnded(modelElement: ModelElement) {
+            // Resolve rates live so changes made between replications
+            // (e.g. via controls on the owning formulation) take effect.
+            val params = paramsProvider()
             val u = inv.itemType.unitCost
 
             myHolding.value =

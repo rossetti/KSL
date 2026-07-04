@@ -36,14 +36,16 @@ import ksl.simulation.ModelElement
  *        calculator focuses on
  * @param destinationTier tier of the destination — used as the
  *        [CostCalculator.tier]
- * @param params cost-rate parameters
+ * @param paramsProvider supplies the cost-rate parameters, resolved at each
+ *        replication end so rate changes made between replications (e.g. via
+ *        controls on the owning formulation) take effect
  */
 class EdgeInboundCostCalculator @JvmOverloads constructor(
     parent: ModelElement,
     private val carrier: TimeBasedDemandCarrier,
     private val destination: DemandSenderIfc,
     private val destinationTier: NodeTier,
-    private val params: CostParams,
+    private val paramsProvider: () -> CostParams,
     name: String? = null,
 ) : ModelElement(parent, name ?: "${carrier.name}->${destination.name}:In"),
     CostCalculator {
@@ -59,6 +61,9 @@ class EdgeInboundCostCalculator @JvmOverloads constructor(
 
     private inner class SourceObserver : ModelElementObserver() {
         override fun replicationEnded(modelElement: ModelElement) {
+            // Resolve rates live so changes made between replications
+            // (e.g. via controls on the owning formulation) take effect.
+            val params = paramsProvider()
             val n = carrier.getNumberOfDemandShipments(destination)
             myUnloading.value = n * params.unloadingCost
         }

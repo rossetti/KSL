@@ -65,7 +65,7 @@ class CostCalculatorClassesTest {
             lostSaleCost = 13.0,
             unitShortageCost = 17.0,
         )
-        val calc = InventoryCostCalculator(m, inv, params)
+        val calc = InventoryCostCalculator(m, inv, { params })
 
         m.numberOfReplications = 1
         m.lengthOfReplication = 5.5
@@ -125,7 +125,7 @@ class CostCalculatorClassesTest {
 
         val backlog = inv.backLogPolicy ?: error("expected attached backlog")
         val params = CostParams(backorderRate = 3.0)
-        val calc = BackorderCostCalculator(m, backlog, params)
+        val calc = BackorderCostCalculator(m, backlog, { params })
 
         m.numberOfReplications = 1
         m.lengthOfReplication = 5.5
@@ -160,7 +160,7 @@ class CostCalculatorClassesTest {
         val esCarrier = net.externalSupplier.demandCarrier as TimeBasedDemandCarrier
         val params = CostParams(loadingCost = 10.0, shippingCost = 20.0)
         val calc = EdgeOutboundCostCalculator(
-            m, esCarrier, ihp, NodeTier.ES, params,
+            m, esCarrier, ihp, NodeTier.ES, { params },
         )
 
         m.numberOfReplications = 1
@@ -198,7 +198,7 @@ class CostCalculatorClassesTest {
         val params = CostParams(unloadingCost = 9.0)
         // ES → IHP edge: destination tier is IHP (priced as IHP unloading)
         val calc = EdgeInboundCostCalculator(
-            m, esCarrier, ihp, NodeTier.IHP, params,
+            m, esCarrier, ihp, NodeTier.IHP, { params },
         )
 
         m.numberOfReplications = 1
@@ -240,7 +240,7 @@ class CostCalculatorClassesTest {
         val carrier = supplier.demandCarrier as TimeBasedLoadCarrier
         val builder = carrier.allLoadBuilders().single()
         val params = CostParams(carryingRate = 0.10)
-        val calc = BuilderCostCalculator(m, builder, NodeTier.IHP, params)
+        val calc = BuilderCostCalculator(m, builder, NodeTier.IHP, { params })
 
         m.numberOfReplications = 1
         m.lengthOfReplication = 30.0
@@ -288,7 +288,7 @@ class CostCalculatorClassesTest {
         val esCarrier = net.externalSupplier.demandCarrier as TimeBasedDemandCarrier
         val params = CostParams(esLoadingCost = 5.0)
         val calc = ESCostCalculator(
-            m, esCarrier, listOf(ihpA, ihpB), params,
+            m, esCarrier, listOf(ihpA, ihpB), { params },
         )
 
         m.numberOfReplications = 1

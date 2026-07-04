@@ -1,5 +1,7 @@
 package ksl.modeling.supplychain.cost
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.supplychain.inventory.InventoryCrossDock
 import ksl.modeling.supplychain.inventory.InventoryHoldingPoint
 import ksl.modeling.supplychain.inventory.NetworkNodeIfc
@@ -60,13 +62,17 @@ import ksl.simulation.ModelElement
  *        should use, keyed by the calculator's *owning* node (the
  *        inventory's / backlog's / builder's holder, an outbound edge's
  *        supplier, an inbound edge's customer; `null` for the external
- *        supplier's own outbound).  Returning the node's override or
- *        falling back to [params] is the resolver's responsibility.
- *        When null (the default), every calculator uses the single
- *        [params] bundle — the uniform-cost behaviour.  Passed as a
- *        constructor parameter (not an overridable method) so it is
- *        available while the `init` block builds calculators, avoiding
- *        the open-call-from-constructor initialization-order trap.
+ *        supplier's own outbound).  Return the node's override, or null
+ *        to fall back to the live network-level bundle (the
+ *        construction-time [params] as adjusted by the rate controls).
+ *        When the resolver itself is null (the default), every
+ *        calculator uses the live network-level bundle — the
+ *        uniform-cost behaviour.  Passed as a constructor parameter
+ *        (not an overridable method) so it is available while the
+ *        `init` block builds calculators, avoiding the
+ *        open-call-from-constructor initialization-order trap.
+ *        Resolution happens at each replication end, so rate changes
+ *        made between replications take effect.
  *
  * @see CostFormulation
  * @see CostCalculator
@@ -76,24 +82,100 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
     network: MultiEchelonNetwork,
     val params: CostParams = CostParams(),
     name: String? = null,
-    private val paramsResolver: ((NetworkNodeIfc?) -> CostParams)? = null,
+    private val paramsResolver: ((NetworkNodeIfc?) -> CostParams?)? = null,
 ) : ModelElement(network, name ?: "DefaultMultiEchelonCostFormulation"),
     CostFormulation {
 
+    // The live network-level parameter bundle. Starts at the construction-time
+    // params and is updated by the rate controls below; calculators resolve their
+    // rates through paramsFor at each replication end, so control changes made
+    // between replications take effect.
+    private var myCurrentParams: CostParams = params
+
+    /** The current (possibly control-adjusted) network-level parameter bundle. */
+    val currentParams: CostParams
+        get() = myCurrentParams
+
     /**
      * The [CostParams] a calculator owned by [node] should use: the
-     * [paramsResolver]'s answer when one was supplied, else the uniform
-     * [params].  `node` is `null` for the external supplier's own
-     * outbound calculator.
+     * [paramsResolver]'s non-null answer when one was supplied for the node,
+     * else the live network-level bundle (the construction-time [params] as
+     * adjusted by the rate controls).  `node` is `null` for the external
+     * supplier's own outbound calculator.  Resolved at each replication end.
      */
     private fun paramsFor(node: NetworkNodeIfc?): CostParams =
-        paramsResolver?.invoke(node) ?: params
+        paramsResolver?.invoke(node) ?: myCurrentParams
+
+    /**
+     * Network-level continuous inventory carrying rate (per unit value per
+     * modeler time unit). A control: rates are pure end-of-replication
+     * multipliers, so changes between replications are always sound; changing a
+     * rate during a replication is rejected (it would alter the in-flight
+     * replication's cost accounting). Per-node resolver overrides (see
+     * `PerNodeIHPCostFormulation`) take precedence for their nodes; this value
+     * governs all other nodes.
+     */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var carryingRate: Double
+        get() = myCurrentParams.carryingRate
+        set(value) {
+            require(!model.isRunning) {
+                "Cost rates cannot be changed while the model is running."
+            }
+            myCurrentParams = myCurrentParams.copy(carryingRate = value)
+        }
+
+    /** Network-level replenishment ordering cost ($ per order event). A control;
+     *  see [carryingRate] for the timing and per-node-precedence semantics. */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var orderingCost: Double
+        get() = myCurrentParams.orderingCost
+        set(value) {
+            require(!model.isRunning) {
+                "Cost rates cannot be changed while the model is running."
+            }
+            myCurrentParams = myCurrentParams.copy(orderingCost = value)
+        }
+
+    /** Network-level continuous backorder carrying rate (per unit per modeler
+     *  time unit; 0 disables the line). A control; see [carryingRate]. */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var backorderRate: Double
+        get() = myCurrentParams.backorderRate
+        set(value) {
+            require(!model.isRunning) {
+                "Cost rates cannot be changed while the model is running."
+            }
+            myCurrentParams = myCurrentParams.copy(backorderRate = value)
+        }
+
+    /** Network-level stockout cost ($ per stockout event; 0 disables the line).
+     *  A control; see [carryingRate]. */
+    @set:KSLControl(controlType = ControlType.DOUBLE, lowerBound = 0.0)
+    var stockoutCost: Double
+        get() = myCurrentParams.stockoutCost
+        set(value) {
+            require(!model.isRunning) {
+                "Cost rates cannot be changed while the model is running."
+            }
+            myCurrentParams = myCurrentParams.copy(stockoutCost = value)
+        }
 
     // Stored so the coverage guard (beforeExperiment) can re-measure the
     // topology after construction.
     private val myNetwork: MultiEchelonNetwork = network
 
     private val myCalculators: MutableList<CostCalculator> = mutableListOf()
+
+    // Owning node name per calculator (null for the external supplier's own
+    // outbound), using the same attribution the params resolver uses. Drives
+    // the per-node rollup Responses.
+    private val myCalculatorOwners: MutableMap<CostCalculator, String?> = mutableMapOf()
+
+    private fun addCalculator(calculator: CostCalculator, owner: NetworkNodeIfc?) {
+        myCalculators += calculator
+        myCalculatorOwners[calculator] = owner?.name
+    }
 
     override val calculators: Collection<CostCalculator>
         get() = myCalculators
@@ -117,6 +199,21 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         }
     private val myTotal: Response =
         Response(this, name = "${this.name}:GrandTotal")
+
+    // Per-node (location) rollup Responses, keyed by node name. Allocated in the
+    // init block after buildCalculators so the tracked node set is known.
+    private val myByNode: MutableMap<String, Response> = mutableMapOf()
+
+    override fun byNodeResponse(nodeName: String): ResponseCIfc? =
+        myByNode[nodeName]
+
+    override val trackedNodeNames: Set<String>
+        get() = myByNode.keys
+
+    /** The name of the grand-total Response — the string an optimization
+     *  problem's objective-function response name should reference. */
+    val totalCostResponseName: String
+        get() = myTotal.name
 
     override fun byLineResponse(line: CostLine): ResponseCIfc? =
         myByLine[line]
@@ -202,6 +299,19 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         }
 
         myTotal.value = grand
+
+        // Per-node (location): sum every line of every calculator owned by the
+        // node, using the same ownership attribution the params resolver uses.
+        for ((nodeName, agg) in myByNode) {
+            var sum = 0.0
+            for (calc in myCalculators) {
+                if (myCalculatorOwners[calc] != nodeName) continue
+                for (r in calc.lineResponses.values) {
+                    sum += r.value
+                }
+            }
+            agg.value = sum
+        }
     }
 
     init {
@@ -211,6 +321,13 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         // so edge calculators are skipped (their flow-line contributions
         // are 0 by construction, matching the legacy behavior).
         buildCalculators(network)
+
+        // Allocate one per-node (location) total Response per owning node the
+        // calculators were attributed to (the external supplier's own outbound
+        // has no owning node and contributes only to the grand total).
+        for (nodeName in myCalculatorOwners.values.filterNotNull().distinct()) {
+            myByNode[nodeName] = Response(this, name = "${this.name}:Node:$nodeName:Total")
+        }
 
         // Suppress the standard half-width report rows for rollup
         // Responses that no calculator in this topology produces.
@@ -333,16 +450,16 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         for (ihp in network.getInventoryHoldingPoints()) {
             for (item in ihp.itemTypes) {
                 val inv = ihp.getInventory(item) ?: continue
-                val ihpParams = paramsFor(ihp)
-                myCalculators += InventoryCostCalculator(
+                val ihpParams = { paramsFor(ihp) }
+                addCalculator(InventoryCostCalculator(
                     this, inv, ihpParams,
                     name = "$calcNamePrefix:${inv.name}:CostCalc",
-                )
+                ), ihp)
                 inv.backLogPolicy?.let { policy ->
-                    myCalculators += BackorderCostCalculator(
+                    addCalculator(BackorderCostCalculator(
                         this, policy, ihpParams,
                         name = "$calcNamePrefix:${policy.name}:CostCalc",
-                    )
+                    ), ihp)
                 }
             }
             buildBuilderCalculators(ihp, NodeTier.IHP)
@@ -380,17 +497,17 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         val esDestinations = network.getNodes()
             .filter { network.isAttachedToExternalSupplier(it) }
             .map { it as ksl.modeling.supplychain.DemandSenderIfc }
-        myCalculators += ESCostCalculator(
-            this, esCarrier, esDestinations, paramsFor(null),
+        addCalculator(ESCostCalculator(
+            this, esCarrier, esDestinations, { paramsFor(null) },
             name = "$calcNamePrefix:${esCarrier.name}:ESCostCalc",
-        )
+        ), null)
         for (dest in esDestinations) {
             val destNode = dest as NetworkNodeIfc
             val destTier = tierOf(destNode) ?: continue
-            myCalculators += EdgeInboundCostCalculator(
-                this, esCarrier, dest, destTier, paramsFor(destNode),
+            addCalculator(EdgeInboundCostCalculator(
+                this, esCarrier, dest, destTier, { paramsFor(destNode) },
                 name = "$calcNamePrefix:${esCarrier.name}->${dest.name}:In",
-            )
+            ), destNode)
         }
     }
 
@@ -404,24 +521,24 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
 
         val nodeCustomers = network.customersOf(node)
         val dgCustomers = network.getDemandGenerators(node)
-        val nodeParams = paramsFor(node)
+        val nodeParams = { paramsFor(node) }
 
         for (customer in nodeCustomers) {
-            myCalculators += EdgeOutboundCostCalculator(
+            addCalculator(EdgeOutboundCostCalculator(
                 this, outboundCarrier, customer, supplierTier, nodeParams,
                 name = "$calcNamePrefix:${outboundCarrier.name}->${customer.name}:Out",
-            )
+            ), node)
             val destTier = tierOf(customer) ?: continue
-            myCalculators += EdgeInboundCostCalculator(
-                this, outboundCarrier, customer, destTier, paramsFor(customer),
+            addCalculator(EdgeInboundCostCalculator(
+                this, outboundCarrier, customer, destTier, { paramsFor(customer) },
                 name = "$calcNamePrefix:${outboundCarrier.name}->${customer.name}:In",
-            )
+            ), customer)
         }
         for (dg in dgCustomers) {
-            myCalculators += EdgeOutboundCostCalculator(
+            addCalculator(EdgeOutboundCostCalculator(
                 this, outboundCarrier, dg, supplierTier, nodeParams,
                 name = "$calcNamePrefix:${outboundCarrier.name}->${dg.name}:Out",
-            )
+            ), node)
         }
     }
 
@@ -438,20 +555,20 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
             .filter { network.isAttachedToExternalSupplier(it) }
             .map { it as ksl.modeling.supplychain.DemandSenderIfc }
         if (esDestinations.isNotEmpty()) {
-            myCalculators += NetworkESCostCalculator(
+            addCalculator(NetworkESCostCalculator(
                 this, networkCarrier, network.externalSupplier,
-                esDestinations, paramsFor(null),
+                esDestinations, { paramsFor(null) },
                 name = "$calcNamePrefix:${networkCarrier.name}:ESCostCalc",
-            )
+            ), null)
             for (dest in esDestinations) {
                 val destNode = dest as NetworkNodeIfc
                 val destTier = tierOf(destNode) ?: continue
-                myCalculators += NetworkEdgeInboundCostCalculator(
+                addCalculator(NetworkEdgeInboundCostCalculator(
                     this, networkCarrier,
-                    network.externalSupplier, dest, destTier, paramsFor(destNode),
+                    network.externalSupplier, dest, destTier, { paramsFor(destNode) },
                     name = "$calcNamePrefix:${networkCarrier.name}:" +
                         "${network.externalSupplier.name}->${dest.name}:In",
-                )
+                ), destNode)
             }
         }
 
@@ -460,29 +577,29 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
             val supplierTier = tierOf(node) ?: continue
             val nodeAsFiller = node as? ksl.modeling.supplychain.DemandFillerIfc
                 ?: continue
-            val nodeParams = paramsFor(node)
+            val nodeParams = { paramsFor(node) }
             for (customer in network.customersOf(node)) {
-                myCalculators += NetworkEdgeOutboundCostCalculator(
+                addCalculator(NetworkEdgeOutboundCostCalculator(
                     this, networkCarrier, nodeAsFiller, customer,
                     supplierTier, nodeParams,
                     name = "$calcNamePrefix:${networkCarrier.name}:" +
                         "${node.name}->${customer.name}:Out",
-                )
+                ), node)
                 val destTier = tierOf(customer) ?: continue
-                myCalculators += NetworkEdgeInboundCostCalculator(
+                addCalculator(NetworkEdgeInboundCostCalculator(
                     this, networkCarrier, nodeAsFiller, customer,
-                    destTier, paramsFor(customer),
+                    destTier, { paramsFor(customer) },
                     name = "$calcNamePrefix:${networkCarrier.name}:" +
                         "${node.name}->${customer.name}:In",
-                )
+                ), customer)
             }
             for (dg in network.getDemandGenerators(node)) {
-                myCalculators += NetworkEdgeOutboundCostCalculator(
+                addCalculator(NetworkEdgeOutboundCostCalculator(
                     this, networkCarrier, nodeAsFiller, dg,
                     supplierTier, nodeParams,
                     name = "$calcNamePrefix:${networkCarrier.name}:" +
                         "${node.name}->${dg.name}:Out",
-                )
+                ), node)
             }
         }
     }
@@ -492,12 +609,12 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         ownerTier: NodeTier,
     ) {
         val loadCarrier = node.demandCarrier as? TimeBasedLoadCarrier ?: return
-        val nodeParams = paramsFor(node)
+        val nodeParams = { paramsFor(node) }
         for (builder in loadCarrier.allLoadBuilders()) {
-            myCalculators += BuilderCostCalculator(
+            addCalculator(BuilderCostCalculator(
                 this, builder, ownerTier, nodeParams,
                 name = "$calcNamePrefix:${builder.name}:CostCalc",
-            )
+            ), node)
         }
     }
 
