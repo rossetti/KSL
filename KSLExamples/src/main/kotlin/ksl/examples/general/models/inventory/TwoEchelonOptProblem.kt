@@ -1,141 +1,90 @@
 package ksl.examples.general.models.inventory
 
-import ksl.simopt.cache.SimulationRunCacheIfc
+import ksl.examples.general.simopt.randomRestartHillClimberCase
+import ksl.examples.general.simopt.stochasticHillClimberCase
+import ksl.simopt.benchmark.BenchmarkExperiment
+import ksl.simopt.benchmark.ProblemCase
+import ksl.simopt.benchmark.io.BenchmarkResultsDb
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
-import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.algorithms.RandomRestartSolver
-import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRestarts
-import ksl.simopt.solvers.algorithms.StochasticHillClimber
-import ksl.simopt.solvers.algorithms.StochasticSolver
-import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
-import ksl.simopt.solvers.trackers.CsvSolverStateTracker
-import ksl.simopt.solvers.trackers.NestedConsoleSolverStateTracker
-import ksl.simopt.solvers.trackers.NestedCsvSolverStateTracker
+import ksl.simopt.solvers.concurrent.PooledMemberEvaluatorFactory
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Interval
+import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.ShiftedGeometricRV
 import ksl.utilities.random.rvariable.TriangularRV
 
-enum class SolverType {
-    SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS,
-    GA, PSO, BO, ISC, GA_RS, PSO_RS, BO_RS, ISC_RS
-}
-
-
+/**
+ *  The two-echelon (DC to base) inventory optimization problem as benchmark-ready
+ *  problem cases: 4 integer decision variables (reorder point and reorder quantity at
+ *  the DC and at the base), minimizing total cost (unconstrained variant) or
+ *  ordering-and-holding cost subject to fill-rate requirements at both echelons
+ *  (constrained variant). Neither variant has a known optimum; runs are gapped against
+ *  the best found within the experiment.
+ *
+ *  The `main` runs a small benchmark on the constrained variant — hill climbing versus
+ *  random restarts under an equal replication budget — and records everything to the
+ *  results database, including the verification stage that re-simulates the winning
+ *  point at elevated replications (this problem's classic "check the recommendation"
+ *  step, now captured in tblVerification instead of hand-rolled printing). NOTE: the
+ *  underlying model is expensive (long replications); expect the demo to take a while.
+ */
 fun main() {
-    val solverType = SolverType.SHC
-    val constrained = true
-    val c = if (constrained) "Constrained" else "Unconstrained"
-
-    var solver = setupSolver(constrained = constrained, solverType)
-
-    //TODO If you are using a particular solver and want to tune its parameters
-    // then uncomment the appropriate line. You can then access the properties of that solver.
-    // solver = solver as StochasticHillClimber
-    // solver = solver as SimulatedAnnealing
-    // solver = solver as RSplineSolver
-    // solver = solver as CrossEntropySolver
-    // solver = solver as RandomRestartSolver
-
-    //TODO  advance random number streams if you want to have different random numbers for a solver run
-    //solver.rnStream.advanceToNextSubStream()
-
-    //TODO attach trackers
-    if (solver is RandomRestartSolver) {
-        val tracker = NestedConsoleSolverStateTracker(solver, solver.restartingSolver)
-        tracker.startTracking()
-        val csvTracker =
-            NestedCsvSolverStateTracker(
-                solver, solver.restartingSolver,
-                "${solverType}_Restart_$c"
-            )
-        csvTracker.startTracking()
-    } else {
-        val tracker = ConsoleSolverStateTracker(solver)
-        tracker.startTracking()
-        val csvTracker = CsvSolverStateTracker(solver, "${solverType}_$c")
-        csvTracker.startTracking()
-    }
-    println()
-    println("Running solver with type = $solverType and $c problem definition")
-    solver.runAllIterations()
-
-    println()
-    println("###############################################################################")
-    println("Solver Results:")
-    println("solver type = $solverType")
-    println(solver)
-    println()
-    println("Solver Results Summary:")
-    solver.printResults()
-    println()
-    println("Final (Best) Solution:")
-    println(solver.bestSolution.asString())
-    println()
-    println("Approximate screening:")
-    val solutions = solver.bestSolutions.possiblyBest()
-    println(solutions)
-    println("###############################################################################")
-
-    //TODO Run the model at the best solution found and print results.
-    val model = BuildTwoEchelonModel.build(null, null)
-
-    val inputs = solver.bestSolution.inputMap.asMutableMap()
-
-    val controls = model.controls()
-    println("Original Inputs:")
-    for (name in inputs.keys) {
-        val control = controls.control(name)
-        if (control != null) {
-            println("$name = ${control.value}")
-        }
-    }
-
-    controls.setControlsFromMap(inputs)
-    println("Best Solution Inputs:")
-    for (name in inputs.keys) {
-        val control = controls.control(name)
-        if (control != null) {
-            println("$name = ${control.value}")
-        }
-    }
-    println()
-    println("Simulating model at best solution found...")
-    model.simulate()
-    model.print()
-
-}
-
-fun setupStochasticHillClimber(
-    constrained: Boolean = false,
-    modelBuilder: ModelBuilderIfc = BuildTwoEchelonModel,
-): StochasticHillClimber {
-    val problemDefinition = if (constrained)
-        constrainedTwoEchelonProblemDefinition()
-    else unconstrainedTwoEchelonProblemDefinition()
-    val solver = Solver.createStochasticHillClimbingSolver(
-        problemDefinition, modelBuilder, startingPoint = null, maxIterations = 100, replicationsPerEvaluation = 50,
+    val experiment = BenchmarkExperiment(
+        name = "TwoEchelonBenchmark",
+        problems = listOf(twoEchelonProblemCase(constrained = true)),
+        solverCases = listOf(stochasticHillClimberCase(), randomRestartHillClimberCase()),
+        macroReplications = 2,
+        replicationBudgetPerRun = 1000,
+        verificationReplications = 100
     )
-    return solver
+    val summary = experiment.run()
+
+    val db = BenchmarkResultsDb("twoEchelonBenchmark.db", KSL.dbDir)
+    val expId = db.saveSummary(summary)
+    println()
+    println("Results database: ${KSL.dbDir.resolve("twoEchelonBenchmark.db")} (experiment id $expId)")
+    val problemResult = summary.problemResults.single()
+    for (run in problemResult.runs) {
+        println(
+            "   ${run.cellLabel}: best = ${run.bestObjective}, feasible violation = " +
+                    "${run.responseConstraintViolation}, consumed = ${run.numReplicationsRequested}"
+        )
+    }
+    println("   winner inputs = ${problemResult.winner?.inputMap}")
+    println("   verified winner estimates:")
+    val verification = problemResult.verification
+    if (verification != null) {
+        println("      ${verification.estimatedObjFnc}")
+        for (estimate in verification.responseEstimates) {
+            println("      $estimate")
+        }
+    }
 }
 
-fun setupSolver(
-    constrained: Boolean = false,
-    solverType: SolverType = SolverType.SHC,
-    problemDefinition: ProblemDefinition = if (constrained) constrainedTwoEchelonProblemDefinition() else unconstrainedTwoEchelonProblemDefinition(),
-    modelBuilder: ModelBuilderIfc = BuildTwoEchelonModel,
-    maxNumRestarts: Int = defaultMaxRestarts,
-    simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null
-): StochasticSolver {
-    return solverFactory(
-        solverType, problemDefinition, modelBuilder,
-        maxNumRestarts, simulationRunCache, experimentRunParameters
+/**
+ *  The two-echelon problem as a benchmark problem case.
+ *
+ *  @param constrained true for the fill-rate-constrained variant (the default), false
+ *  for the unconstrained total-cost variant
+ */
+fun twoEchelonProblemCase(constrained: Boolean = true): ProblemCase {
+    return ProblemCase(
+        name = if (constrained) "TwoEchelonConstrained" else "TwoEchelonUnconstrained",
+        problemDefinitionFactory = {
+            if (constrained) constrainedTwoEchelonProblemDefinition()
+            else unconstrainedTwoEchelonProblemDefinition()
+        },
+        evaluatorFactoryProvider = { pd -> PooledMemberEvaluatorFactory(pd, BuildTwoEchelonModel) },
+        tags = mapOf(
+            "family" to "inventoryDEDS",
+            "dimension" to "4",
+            "constrained" to constrained.toString()
+        )
     )
 }
 
@@ -289,221 +238,3 @@ object BuildTwoEchelonModel : ModelBuilderIfc {
     }
 
 }
-
-fun solverFactory(
-    solverType: SolverType,
-    problemDefinition: ProblemDefinition,
-    modelBuilder: ModelBuilderIfc,
-    maxNumRestarts: Int = defaultMaxRestarts,
-    simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null
-): StochasticSolver {
-    return when (solverType) {
-        SolverType.SHC -> {
-            Solver.createStochasticHillClimbingSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                startingPoint = null,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.SA -> {
-            val initialTemperature = 1000.0
-            val solver = Solver.createSimulatedAnnealingSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                startingPoint = null,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-            solver
-        }
-
-        SolverType.CE -> {
-            Solver.createCrossEntropySolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                startingPoint = null,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.R_SPLINE -> {
-            Solver.createRsplineSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                startingPoint = null,
-                maxIterations = 100,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.SHC_RS -> {
-            Solver.createRandomRestartStochasticHillClimbingSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.SA_RS -> {
-            val initialTemperature = 1000.0
-            Solver.createRandomRestartSimulatedAnnealingSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.CE_RS -> {
-            Solver.createRandomRestartCrossEntropySolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.R_SPLINE_RS -> {
-            Solver.createRandomRestartRsplineSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                maxIterations = 100,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.GA -> {
-            Solver.createGeneticAlgorithmSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                populationSize = 30,
-                startingPoint = null,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.PSO -> {
-            // PSO evaluates the whole swarm in parallel by default; BuildTwoEchelonModel yields an
-            // independent model per call, so parallel evaluation is safe.
-            Solver.createParticleSwarmSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                swarmSize = 20,
-                startingPoint = null,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.BO -> {
-            // BO is sample-efficient: a small initial design and a modest iteration budget.
-            Solver.createBayesianOptimizationSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                initialDesignSize = 12,
-                startingPoint = null,
-                maxIterations = 30,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.ISC -> {
-            // Three-phase ISC; the global phase is bounded with a replication budget. deltaC defaults
-            // to the problem's indifference-zone parameter (0.0 => degraded mode). Set a positive
-            // deltaC for the full correct-selection guarantee and +/-deltaC interval.
-            Solver.createISCSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                globalBudget = 3000,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.GA_RS -> {
-            Solver.createRandomRestartGeneticAlgorithmSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                populationSize = 30,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.PSO_RS -> {
-            Solver.createRandomRestartParticleSwarmSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                swarmSize = 20,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.BO_RS -> {
-            Solver.createRandomRestartBayesianOptimizationSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                initialDesignSize = 12,
-                maxIterations = 30,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-
-        SolverType.ISC_RS -> {
-            Solver.createRandomRestartISCSolver(
-                problemDefinition = problemDefinition,
-                modelBuilder = modelBuilder,
-                maxNumRestarts = maxNumRestarts,
-                globalBudget = 3000,
-                maxIterations = 100,
-                replicationsPerEvaluation = 50,
-                simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters
-            )
-        }
-    }
-}
-
