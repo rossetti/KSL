@@ -87,7 +87,15 @@ class BruteForceRedundancyChecker(
                 if (checkConstants(rows).not()) return false
                 continue
             }
-            val combined = ArrayList<Row>(zero.size + positive.size * negative.size)
+            // Fail open BEFORE allocating if the projected row product would blow past the cap.
+            // The eager capacity below must never exceed maxRows: the pairwise product grows
+            // combinatorially as variables are eliminated (e.g. dimension >= 3 with many
+            // half-spaces reaches millions of rows), and a pre-sized ArrayList of that many
+            // elements exhausts the heap before the per-row guard inside the loop could fire.
+            // Long arithmetic also avoids Int overflow of positive.size * negative.size.
+            val projectedRows = zero.size.toLong() + positive.size.toLong() * negative.size.toLong()
+            if (projectedRows > maxRows) return true // fail open: treat as feasible (conservative)
+            val combined = ArrayList<Row>(projectedRows.toInt())
             combined.addAll(zero)
             for (p in positive) {
                 val ap = p.coeff[j]

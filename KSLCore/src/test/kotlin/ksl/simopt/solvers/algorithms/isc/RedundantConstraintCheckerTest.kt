@@ -2,7 +2,9 @@ package ksl.simopt.solvers.algorithms.isc
 
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 
 /**
  *  Unit tests for [BruteForceRedundancyChecker]'s Fourier–Motzkin redundancy test.
@@ -62,5 +64,29 @@ class RedundantConstraintCheckerTest {
         )
         val target = HalfSpace(doubleArrayOf(1.0, 1.0), 20.0)
         assertFalse(tinyCap.isRedundant(target, others), "exceeding maxRows must fail open (keep the constraint)")
+    }
+
+    @Test
+    @Timeout(20)
+    @DisplayName("A single-step pairwise product past Int range fails open without an oversized allocation")
+    fun hugePairwiseProductFailsOpenWithoutOversizedAllocation() {
+        // Regression for an OutOfMemoryError found by the Study-1 smoke: on dimension >= 3 problems
+        // ISC's niche identifier drove the elimination to a single step whose positive x negative
+        // product was enormous, and the pre-sized ArrayList(zero + positive*negative) exhausted the
+        // heap — and, past Int.MAX_VALUE, overflowed to a negative "illegal capacity" — before the
+        // per-row maxRows guard could fire. Here n*n exceeds Int.MAX_VALUE, so the pre-fix eager
+        // allocation threw/OOMed; the projected-size guard must fail open (return NOT redundant)
+        // first, and quickly.
+        val n = 47_000 // n*n = 2.209e9 > Int.MAX_VALUE (2.147e9)
+        val others = ArrayList<HalfSpace>(2 * n)
+        for (i in 0 until n) {
+            others.add(HalfSpace(doubleArrayOf(1.0, (i % 7).toDouble()), 1000.0 + i))
+            others.add(HalfSpace(doubleArrayOf(-1.0, (i % 5).toDouble()), 1000.0 + i))
+        }
+        val target = HalfSpace(doubleArrayOf(1.0, 1.0), 20.0)
+        assertFalse(
+            checker.isRedundant(target, others),
+            "a pairwise product exceeding the row cap must fail open without an oversized allocation"
+        )
     }
 }
