@@ -119,9 +119,16 @@ fun study1Roster(): List<SolverCase> {
     return standardSolverCases() + listOf(
         geneticAlgorithmCase(),
         particleSwarmCase(),
-        bayesianOptimizationCase()
+        // BO's GP fit is O(n^3) in evaluated points; at the study budgets it would do
+        // hundreds of GP-refit iterations (~2-3 hours). Cap the GP training set to the
+        // best STUDY1_BO_ARCHIVE_CAP points (scalable-BO practice) so each fit is
+        // constant-cost regardless of budget. A study-specific (non-default) BO config.
+        bayesianOptimizationCase(maxArchiveSize = STUDY1_BO_ARCHIVE_CAP)
     )
 }
+
+/** Cap on BO's Gaussian-process training set for Study 1 (bounds the O(n^3) fit cost). */
+const val STUDY1_BO_ARCHIVE_CAP: Int = 100
 
 /**
  *  Per-problem solver exclusions for Study 1 (problem name → solver labels that do NOT

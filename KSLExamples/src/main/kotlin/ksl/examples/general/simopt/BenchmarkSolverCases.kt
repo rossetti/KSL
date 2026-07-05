@@ -175,15 +175,26 @@ fun particleSwarmCase(): SolverCase {
 }
 
 /** Bayesian optimization at library defaults (Gaussian-process surrogate, expected
- *  improvement, Latin-hypercube initial design). Sample-efficient; wall time is
- *  GP-fit-bound rather than replication-bound. */
-fun bayesianOptimizationCase(): SolverCase {
+ *  improvement, Latin-hypercube initial design). Sample-efficient; its wall time is
+ *  GP-fit-bound (O(n³) in the number of evaluated points), not replication-bound, so at
+ *  a large replication budget it does hundreds of GP-refit iterations and becomes very
+ *  slow. Supply a [maxArchiveSize] to cap the surrogate's training set to the best n
+ *  points (standard scalable-BO practice), bounding each GP fit to O(maxArchiveSize³)
+ *  regardless of the budget; null (the default) leaves the archive unbounded.
+ *
+ *  @param maxArchiveSize optional cap on the GP training-set (archive) size
+ */
+@JvmOverloads
+fun bayesianOptimizationCase(maxArchiveSize: Int? = null): SolverCase {
     return SolverCase(
         label = "BO",
         solverFactory = BenchmarkSolverFactoryIfc { pd, evaluator, _, name ->
-            BayesianOptimizationSolver(pd, evaluator, name = name)
+            BayesianOptimizationSolver(pd, evaluator, name = name).also {
+                if (maxArchiveSize != null) it.maxArchiveSize = maxArchiveSize
+            }
         },
-        description = "Bayesian optimization, library defaults (GP surrogate; GP-fit-bound wall time)"
+        description = "Bayesian optimization" +
+                (maxArchiveSize?.let { ", GP archive cap $it" } ?: ", library defaults (GP-fit-bound wall time)")
     )
 }
 
