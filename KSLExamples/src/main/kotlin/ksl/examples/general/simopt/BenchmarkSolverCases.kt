@@ -193,23 +193,41 @@ fun bayesianOptimizationCase(): SolverCase {
  *  for ISC's correct-selection guarantees.
  *
  *  ISC's macro-step is a whole phase that runs to its own termination, and the benchmark
- *  budget criterion is only checked between macro-steps, so a single global phase can
- *  consume orders of magnitude more replications than the benchmark budget. Supply a
- *  [globalBudget] (typically the benchmark's replication budget) to bound ISC's global
- *  phase so its consumption stays comparable to the other solvers; null (the default)
- *  leaves ISC unbounded at library defaults.
+ *  budget criterion is only checked between macro-steps, so a single phase can consume
+ *  orders of magnitude more replications than the benchmark budget. Two knobs bound it:
  *
- *  @param globalBudget optional replication budget for ISC's global phase; null for the
- *  library default (unbounded global phase)
+ *  - [globalBudget] caps the Niching-GA global phase.
+ *  - [deltaL] controls the COMPASS local phase. A between-iteration budget criterion
+ *    cannot bound COMPASS (it overrides the stopping check), and with deltaL > 0 its
+ *    Kim comparison-with-a-standard local-optimality test samples until it can resolve
+ *    deltaL against the noise — on the order of (noise/deltaL)² replications, i.e.
+ *    millions on flat-optimum or high-noise problems. Setting deltaL = 0.0 puts COMPASS
+ *    in degraded mode (it stops on the most-promising-area singleton condition with no
+ *    such sampling), bounding it; the clean-up phase's correct-selection guarantee
+ *    (governed by deltaC, taken from the problem's indifference zone) is unaffected.
+ *
+ *  Null / unset leaves that aspect at ISC's library default.
+ *
+ *  @param globalBudget optional replication budget for ISC's global (Niching-GA) phase
+ *  @param deltaL optional COMPASS local-optimality indifference zone; null leaves the
+ *  library default (deltaL = deltaC = the problem's indifference zone); 0.0 puts COMPASS
+ *  in the bounded degraded mode
  */
 @JvmOverloads
-fun iscCase(globalBudget: Int? = null): SolverCase {
+fun iscCase(globalBudget: Int? = null, deltaL: Double? = null): SolverCase {
     return SolverCase(
         label = "ISC",
         solverFactory = BenchmarkSolverFactoryIfc { pd, evaluator, _, name ->
-            ISCSolver(pd, evaluator, globalBudget = globalBudget, name = name)
+            ISCSolver(
+                pd, evaluator,
+                deltaL = deltaL ?: pd.indifferenceZoneParameter,
+                globalBudget = globalBudget,
+                name = name
+            )
         },
         description = "Industrial-strength COMPASS, IZ from the problem definition" +
-                (globalBudget?.let { ", global phase budget $it" } ?: ", library defaults")
+                (globalBudget?.let { ", global budget $it" } ?: "") +
+                (deltaL?.let { ", deltaL $it" } ?: "") +
+                (if (globalBudget == null && deltaL == null) ", library defaults" else "")
     )
 }

@@ -57,38 +57,44 @@ data class Study1Config(
  *  @param config the run configuration
  *  @return the experiment ids created by this call, keyed by budget tier
  */
-fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<BudgetTier, Int> {
+fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<String, Int> {
     val existingNames = db.experiments().map { it.expName }.toSet()
     val problemsByTier = study1ProblemsByBudgetTier()
-    val results = linkedMapOf<BudgetTier, Int>()
+    val results = linkedMapOf<String, Int>()
     for (tier in BudgetTier.entries) {
-        val problems = problemsByTier[tier] ?: continue
-        val name = config.experimentName(tier)
-        if (name in existingNames) {
-            println("Skipping experiment '$name' (already present in the database).")
-            continue
-        }
+        val tierProblems = problemsByTier[tier] ?: continue
         val budget = config.budget(tier)
-        println(
-            "Running experiment '$name': ${problems.size} problems x 9 solver cases x " +
-                    "${config.macroReplications} reps, budget $budget"
-        )
-        val experiment = BenchmarkExperiment(
-            name = name,
-            problems = problems,
-            // ISC's global phase is bounded to the benchmark budget so its consumption
-            // stays comparable to the other solvers (see iscCase / the study plan).
-            solverCases = study1Roster(iscGlobalBudget = budget),
-            macroReplications = config.macroReplications,
-            replicationBudgetPerRun = config.budget(tier),
-            confirmation = config.confirmation,
-            captureIterationTraces = config.captureTraces,
-            verificationReplications = config.verificationReplications,
-            numWorkers = config.numWorkers
-        )
-        val summary = experiment.run()
-        val expId = db.saveSummary(summary)
-        results[tier] = expId
+        val roster = study1Roster(iscBudget = budget)
+        // Within a tier, one experiment per distinct excluded-solver set: problems with no
+        // exclusions form the main experiment; each excluded problem (e.g. BO/CE on the
+        // multi-item newsvendor) runs as its own experiment with the reduced roster.
+        val groups = tierProblems.groupBy { STUDY1_SOLVER_EXCLUSIONS[it.name] ?: emptySet() }
+        for ((excluded, groupProblems) in groups) {
+            val suffix = if (excluded.isEmpty()) "" else "_ex_" + excluded.sorted().joinToString("_")
+            val name = config.experimentName(tier) + suffix
+            if (name in existingNames) {
+                println("Skipping experiment '$name' (already present in the database).")
+                continue
+            }
+            val groupRoster = roster.filter { it.label !in excluded }
+            println(
+                "Running experiment '$name': ${groupProblems.size} problems x " +
+                        "${groupRoster.size} solver cases x ${config.macroReplications} reps, budget $budget"
+            )
+            val experiment = BenchmarkExperiment(
+                name = name,
+                problems = groupProblems,
+                solverCases = groupRoster,
+                macroReplications = config.macroReplications,
+                replicationBudgetPerRun = budget,
+                confirmation = config.confirmation,
+                captureIterationTraces = config.captureTraces,
+                verificationReplications = config.verificationReplications,
+                numWorkers = config.numWorkers
+            )
+            val summary = experiment.run()
+            results[name] = db.saveSummary(summary)
+        }
     }
     return results
 }
@@ -102,11 +108,26 @@ fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<BudgetTier, Int
  *  @param iscGlobalBudget the replication budget for ISC's global phase (the benchmark
  *  budget of the tier the roster runs in)
  */
-fun study1Roster(iscGlobalBudget: Int): List<SolverCase> {
+fun study1Roster(iscBudget: Int): List<SolverCase> {
     return standardSolverCases() + listOf(
         geneticAlgorithmCase(),
         particleSwarmCase(),
         bayesianOptimizationCase(),
-        iscCase(globalBudget = iscGlobalBudget)
+        // ISC bounded: global Niching-GA phase capped to the budget, and COMPASS put in
+        // degraded mode (deltaL = 0) so its local-optimality test cannot sample without
+        // bound on flat/high-noise problems. The clean-up correct-selection guarantee
+        // (deltaC = the problem's indifference zone) is unaffected.
+        iscCase(globalBudget = iscBudget, deltaL = 0.0)
     )
 }
+
+/**
+ *  Per-problem solver exclusions for Study 1 (problem name → solver labels that do NOT
+ *  run on it), from the smoke-phase V&V findings. BO and CE do not retain a feasible
+ *  incumbent on the budget-constrained multi-item newsvendor (its feasible region is a
+ *  small fraction of the box), so they are excluded there and reported as a finding; all
+ *  other solvers run on it, and BO/CE run on every other problem.
+ */
+val STUDY1_SOLVER_EXCLUSIONS: Map<String, Set<String>> = mapOf(
+    "multiItemNewsvendor_k3" to setOf("BO", "CE")
+)
