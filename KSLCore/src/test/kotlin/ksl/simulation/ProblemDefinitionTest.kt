@@ -425,4 +425,38 @@ class ProblemDefinitionTest {
         assertSame(penalty, constraint.penaltyFunction)
         assertSame(penalty, pd.responseConstraints.first().penaltyFunction)
     }
+
+    // ── badSolution() orientation ─────────────────────────────────────────────
+
+    @Test
+    fun badSolutionIsWorstForMinimization() {
+        val pd = makeProblem() // minimization
+        val bad = pd.badSolution()
+        assertFalse(bad.isValid)
+        // unbelievably large raw objective (worst for a minimization problem)
+        assertEquals(Double.MAX_VALUE, bad.average)
+        // oriented (internal minimization) value is the least-preferred value
+        assertEquals(Double.MAX_VALUE, pd.objFncValue(bad))
+    }
+
+    @Test
+    fun badSolutionIsWorstForMaximization() {
+        // Regression for the maximize+constrained defect found by the Study-1 smoke: a
+        // maximization bad solution must orient to +Double.MAX_VALUE (worst), not
+        // -Double.MAX_VALUE (best), so a real solution always displaces it.
+        val pd = ProblemDefinition(
+            problemName = "MaxProblem",
+            modelIdentifier = "MaxModel",
+            objFnResponseName = "Profit",
+            inputNames = listOf("q"),
+            optimizationType = OptimizationType.MAXIMIZE
+        )
+        pd.inputVariable("q", 0.0, 100.0, 1.0)
+        val bad = pd.badSolution()
+        assertFalse(bad.isValid)
+        // unbelievably small (negative) raw objective (worst for a maximization problem)
+        assertEquals(-Double.MAX_VALUE, bad.average)
+        // oriented (internal minimization) value is the least-preferred value, NOT -MAX
+        assertEquals(Double.MAX_VALUE, pd.objFncValue(bad))
+    }
 }

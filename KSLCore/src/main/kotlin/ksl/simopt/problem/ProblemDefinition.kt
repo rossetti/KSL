@@ -1224,7 +1224,21 @@ class ProblemDefinition @JvmOverloads constructor(
     fun badSolution(): Solution {
         val inputMap = midPoints()
         inputMap.makeInfeasible()
-        val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.NaN, 1.0)
+        // The sentinel must be worst in the PROBLEM'S OWN orientation so that any real
+        // solution always displaces it: an unbelievably large objective for a minimization
+        // problem, an unbelievably small (negative) objective for a maximization problem.
+        // Either way its oriented value (objFncFactor * average) is +Double.MAX_VALUE — the
+        // least-preferred value in the internal minimization sense. Using +Double.MAX_VALUE
+        // unconditionally (as before) orients to -Double.MAX_VALUE for a maximization
+        // problem — the MOST-preferred value — so the bad solution could never be displaced
+        // and solvers that track their best by comparison against it (e.g. cross-entropy,
+        // Bayesian optimization) returned it as their answer.
+        val badObjectiveValue = if (optimizationType == OptimizationType.MAXIMIZE) {
+            -Double.MAX_VALUE
+        } else {
+            Double.MAX_VALUE
+        }
+        val objFunc = EstimatedResponse(objFnResponseName, badObjectiveValue, Double.NaN, 1.0)
         val list = mutableListOf<EstimatedResponse>()
         for (rc in responseConstraints) {
             val rValue = rc.ltRHSValue + Int.MAX_VALUE
