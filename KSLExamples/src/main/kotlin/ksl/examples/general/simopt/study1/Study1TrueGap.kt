@@ -26,13 +26,20 @@ object Study1TrueGap {
         val inputNames: List<String>,
         val trueObjective: (DoubleArray) -> Double,
         val optimumValue: Double,
-        val maximize: Boolean
+        val maximize: Boolean,
+        // the NOISE-FREE constraint predicate; null for unconstrained problems (always feasible)
+        val trueFeasible: ((DoubleArray) -> Boolean)? = null
     ) {
+        private fun point(inputs: Map<String, Double>): DoubleArray =
+            DoubleArray(inputNames.size) { inputs.getValue(inputNames[it]) }
+
         fun gap(inputs: Map<String, Double>): Double {
-            val point = DoubleArray(inputNames.size) { inputs.getValue(inputNames[it]) }
-            val value = trueObjective(point)
+            val value = trueObjective(point(inputs))
             return if (maximize) optimumValue - value else value - optimumValue
         }
+
+        fun feasible(inputs: Map<String, Double>): Boolean =
+            trueFeasible?.invoke(point(inputs)) ?: true
     }
 
     private fun syntheticEntry(problem: SyntheticFunctionProblem): Pair<String, Entry> {
@@ -45,15 +52,24 @@ object Study1TrueGap {
     }
 
     private val entries: Map<String, Entry> = buildMap {
-        // Tier A + the constrained quadratic (minimization, additive-noise families)
+        // Tier A: unconstrained additive-noise families
         for (d in listOf(2, 5)) {
             for (nl in NoiseLevel.entries) {
                 this += syntheticEntry(NoisySphere(d, nl))
                 this += syntheticEntry(NoisyRosenbrock(d, nl))
                 this += syntheticEntry(NoisyRastrigin(d, nl))
             }
+            // constrained quadratic: noise-free constraint is the coordinate sum <= 3d
             for (nl in listOf(NoiseLevel.LOW, NoiseLevel.MED)) {
-                this += syntheticEntry(ConstrainedNoisyQuadratic(d, nl))
+                val q = ConstrainedNoisyQuadratic(d, nl)
+                val budget = 3.0 * d
+                this += q.problemName to Entry(
+                    inputNames = q.inputNames,
+                    trueObjective = { q.trueObjective(it) },
+                    optimumValue = q.trueObjective(q.optimum),
+                    maximize = false,
+                    trueFeasible = { it.sum() <= budget }
+                )
             }
         }
         // Newsvendors (maximization, closed-form expected profit)
@@ -69,7 +85,8 @@ object Study1TrueGap {
             inputNames = multi.inputNames,
             trueObjective = { multi.expectedProfit(it) },
             optimumValue = multi.expectedProfit(multi.optimalOrderQuantities),
-            maximize = true
+            maximize = true,
+            trueFeasible = { it.sum() <= multi.unitBudget.toDouble() }
         )
     }
 
@@ -85,6 +102,20 @@ object Study1TrueGap {
         val entry = entries[problemName] ?: return null
         return try {
             entry.gap(bestInputs)
+        } catch (e: NoSuchElementException) {
+            null
+        }
+    }
+
+    /**
+     *  Whether the recommendation is TRULY feasible (evaluated against the noise-free
+     *  constraint), or null if the problem is unregistered or the inputs are incomplete.
+     *  Unconstrained problems always return true.
+     */
+    fun trueFeasible(problemName: String, bestInputs: Map<String, Double>): Boolean? {
+        val entry = entries[problemName] ?: return null
+        return try {
+            entry.feasible(bestInputs)
         } catch (e: NoSuchElementException) {
             null
         }

@@ -29,6 +29,7 @@ object Study1Analysis {
         val solver: String,
         val rep: Int,
         val trueGap: Double?,
+        val trueFeasible: Boolean,
         val estimatedGap: Double?,
         val bestObjective: Double,
         val consumption: Int,
@@ -65,11 +66,13 @@ object Study1Analysis {
     private fun toRecord(run: RunTableData, tauByProblem: Map<String, Double>): RunRecord {
         val bestInputs = parseInputs(run.bestInputsJson)
         val trueGap = if (run.bestValid) Study1TrueGap.trueGap(run.problemName, bestInputs) else null
+        val trueFeasible = if (run.bestValid) (Study1TrueGap.trueFeasible(run.problemName, bestInputs) ?: false) else false
         return RunRecord(
             problem = run.problemName,
             solver = run.solverLabel,
             rep = run.repNum,
             trueGap = trueGap,
+            trueFeasible = trueFeasible,
             estimatedGap = run.gap,
             bestObjective = run.bestObjective,
             consumption = run.numReplicationsRequested,
@@ -87,10 +90,10 @@ object Study1Analysis {
     private fun writeRunsCsv(records: List<RunRecord>, outputDir: Path) {
         val file = outputDir.resolve("study1_runs.csv").toFile()
         file.bufferedWriter().use { w ->
-            w.appendLine("problem,solver,rep,tau,trueGap,estimatedGap,bestObjective,consumption,iterations,wallMs,inputFeasible,responseViolation,valid")
+            w.appendLine("problem,solver,rep,tau,trueGap,trueFeasible,estimatedGap,bestObjective,consumption,iterations,wallMs,inputFeasible,responseViolation,valid")
             for (r in records) {
                 w.appendLine(
-                    "${r.problem},${r.solver},${r.rep},${r.tau},${r.trueGap ?: ""},${r.estimatedGap ?: ""}," +
+                    "${r.problem},${r.solver},${r.rep},${r.tau},${r.trueGap ?: ""},${r.trueFeasible},${r.estimatedGap ?: ""}," +
                             "${r.bestObjective},${r.consumption},${r.iterations ?: ""},${r.wallMs ?: ""}," +
                             "${r.inputFeasible},${r.responseViolation},${r.valid}"
                 )
@@ -105,38 +108,43 @@ object Study1Analysis {
         val problem: String,
         val solver: String,
         val n: Int,
+        val feasibleRate: Double,
         val meanTrueGap: Double,
         val sdTrueGap: Double,
         val successRate: Double,
         val meanConsumption: Double,
-        val meanTrueGaps: DoubleArray
+        val feasibleGaps: DoubleArray
     )
 
     private fun writeSummaryCsv(records: List<RunRecord>, outputDir: Path): List<SummaryRow> {
         val rows = records.groupBy { it.problem to it.solver }.map { (key, runs) ->
             val (problem, solver) = key
-            val validGaps = runs.mapNotNull { it.trueGap }
             val tau = runs.first().tau
-            val stat = Statistic(validGaps.toDoubleArray())
-            val successes = validGaps.count { it <= tau }
+            // gaps are meaningful only for TRULY-feasible recommendations; an infeasible
+            // recommendation with a lower unconstrained objective would show a spurious
+            // negative gap, so it is excluded from the gap and counts against the success rate.
+            val feasibleGaps = runs.filter { it.trueFeasible }.mapNotNull { it.trueGap }
+            val stat = Statistic(feasibleGaps.toDoubleArray())
+            val successes = runs.count { it.trueFeasible && (it.trueGap ?: Double.MAX_VALUE) <= tau }
             SummaryRow(
                 problem = problem,
                 solver = solver,
                 n = runs.size,
-                meanTrueGap = if (validGaps.isEmpty()) Double.NaN else stat.average,
-                sdTrueGap = if (validGaps.size < 2) Double.NaN else stat.standardDeviation,
+                feasibleRate = if (runs.isEmpty()) Double.NaN else runs.count { it.trueFeasible }.toDouble() / runs.size,
+                meanTrueGap = if (feasibleGaps.isEmpty()) Double.NaN else stat.average,
+                sdTrueGap = if (feasibleGaps.size < 2) Double.NaN else stat.standardDeviation,
                 successRate = if (runs.isEmpty()) Double.NaN else successes.toDouble() / runs.size,
                 meanConsumption = Statistic(runs.map { it.consumption.toDouble() }.toDoubleArray()).average,
-                meanTrueGaps = validGaps.toDoubleArray()
+                feasibleGaps = feasibleGaps.toDoubleArray()
             )
         }.sortedWith(compareBy({ it.problem }, { it.solver }))
         val file = outputDir.resolve("study1_summary.csv").toFile()
         file.bufferedWriter().use { w ->
-            w.appendLine("problem,solver,n,meanTrueGap,sdTrueGap,successRate,meanConsumption")
+            w.appendLine("problem,solver,n,feasibleRate,meanTrueGap,sdTrueGap,successRate,meanConsumption")
             for (r in rows) {
                 w.appendLine(
-                    "${r.problem},${r.solver},${r.n},${fmt(r.meanTrueGap)},${fmt(r.sdTrueGap)}," +
-                            "${fmt(r.successRate)},${fmt(r.meanConsumption)}"
+                    "${r.problem},${r.solver},${r.n},${fmt(r.feasibleRate)},${fmt(r.meanTrueGap)}," +
+                            "${fmt(r.sdTrueGap)},${fmt(r.successRate)},${fmt(r.meanConsumption)}"
                 )
             }
         }
@@ -163,7 +171,7 @@ object Study1Analysis {
 
     private fun printConsumptionBySolver(records: List<RunRecord>) {
         println()
-        println("ACTUAL CONSUMPTION per solver (replications; ISC is not budget-constrained):")
+        println("ACTUAL CONSUMPTION per solver (replications; some solvers stop early, e.g. SA on its cooling schedule):")
         println("   %-12s %12s %12s %12s".format("solver", "median", "max", "cells"))
         for ((solver, runs) in records.groupBy { it.solver }.toSortedMap()) {
             val cons = runs.map { it.consumption }.sorted()
@@ -182,9 +190,9 @@ object Study1Analysis {
             if (ranked.isEmpty()) continue
             val best = ranked.first()
             // MCB feed: solvers with the same (full) number of valid observations
-            val n = ranked.maxOf { it.meanTrueGaps.size }
-            val mcbData = ranked.filter { it.meanTrueGaps.size == n && n >= 2 }
-                .associate { it.solver to it.meanTrueGaps }
+            val n = ranked.maxOf { it.feasibleGaps.size }
+            val mcbData = ranked.filter { it.feasibleGaps.size == n && n >= 2 }
+                .associate { it.solver to it.feasibleGaps }
             val mcbNote = if (mcbData.size >= 2) {
                 val analyzer = MultipleComparisonAnalyzer(mcbData, responseName = problem)
                 " | MCB best (min avg true gap): ${analyzer.nameOfMinimumAverageOfData}"
