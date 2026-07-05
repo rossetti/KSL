@@ -5,8 +5,8 @@ import ksl.utilities.io.KSL
 
 /**
  *  The Study-1 smoke phase (plan P2): the full 24-problem grid × nine solver cases at 3
- *  macro-replications and quarter budgets (500 for dimension ≤ 3, 1250 for dimension
- *  = 5). Its purpose is not results but shakedown — exercise every solver × problem
+ *  macro-replications and quarter budgets (2500 for dimension ≤ 3, 5000 for dimension
+ *  = 5 — a quarter of the main-run budgets). Its purpose is not results but shakedown — exercise every solver × problem
  *  combination once, measure per-solver wall costs (notably BO and ISC) and
  *  generation counts, and run the anomaly screen (failures, budget consumption,
  *  wall-time, iterations) so the main run can be sized with data and any solver defects
@@ -21,8 +21,8 @@ fun main() {
     val config = Study1Config(
         experimentPrefix = "study1Smoke",
         macroReplications = 3,
-        smallBudget = 500,
-        largeBudget = 1250,
+        smallBudget = 2500,
+        largeBudget = 5000,
         // keep confirmation/verification light for the smoke — this is a shakedown
         confirmation = ksl.simopt.solvers.concurrent.ConfirmationOptions(topK = 3, replicationsPerCandidate = 50),
         verificationReplications = 100,

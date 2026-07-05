@@ -190,13 +190,26 @@ fun bayesianOptimizationCase(): SolverCase {
 /** Industrial-strength COMPASS at library defaults (Niching-GA global phase, COMPASS
  *  local phases, clean-up selection). Its indifference zones (deltaC, deltaL) are taken
  *  from the problem's indifferenceZoneParameter — set a meaningful value on each problem
- *  for ISC's correct-selection guarantees. */
-fun iscCase(): SolverCase {
+ *  for ISC's correct-selection guarantees.
+ *
+ *  ISC's macro-step is a whole phase that runs to its own termination, and the benchmark
+ *  budget criterion is only checked between macro-steps, so a single global phase can
+ *  consume orders of magnitude more replications than the benchmark budget. Supply a
+ *  [globalBudget] (typically the benchmark's replication budget) to bound ISC's global
+ *  phase so its consumption stays comparable to the other solvers; null (the default)
+ *  leaves ISC unbounded at library defaults.
+ *
+ *  @param globalBudget optional replication budget for ISC's global phase; null for the
+ *  library default (unbounded global phase)
+ */
+@JvmOverloads
+fun iscCase(globalBudget: Int? = null): SolverCase {
     return SolverCase(
         label = "ISC",
         solverFactory = BenchmarkSolverFactoryIfc { pd, evaluator, _, name ->
-            ISCSolver(pd, evaluator, name = name)
+            ISCSolver(pd, evaluator, globalBudget = globalBudget, name = name)
         },
-        description = "Industrial-strength COMPASS, library defaults (IZ from the problem definition)"
+        description = "Industrial-strength COMPASS, IZ from the problem definition" +
+                (globalBudget?.let { ", global phase budget $it" } ?: ", library defaults")
     )
 }

@@ -1,7 +1,12 @@
 package ksl.examples.general.simopt.study1
 
-import ksl.examples.general.simopt.allSolverCases
+import ksl.examples.general.simopt.bayesianOptimizationCase
+import ksl.examples.general.simopt.geneticAlgorithmCase
+import ksl.examples.general.simopt.iscCase
+import ksl.examples.general.simopt.particleSwarmCase
+import ksl.examples.general.simopt.standardSolverCases
 import ksl.simopt.benchmark.BenchmarkExperiment
+import ksl.simopt.benchmark.SolverCase
 import ksl.simopt.benchmark.io.BenchmarkResultsDb
 import ksl.simopt.solvers.concurrent.ConfirmationOptions
 
@@ -63,14 +68,17 @@ fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<BudgetTier, Int
             println("Skipping experiment '$name' (already present in the database).")
             continue
         }
+        val budget = config.budget(tier)
         println(
             "Running experiment '$name': ${problems.size} problems x 9 solver cases x " +
-                    "${config.macroReplications} reps, budget ${config.budget(tier)}"
+                    "${config.macroReplications} reps, budget $budget"
         )
         val experiment = BenchmarkExperiment(
             name = name,
             problems = problems,
-            solverCases = allSolverCases(),
+            // ISC's global phase is bounded to the benchmark budget so its consumption
+            // stays comparable to the other solvers (see iscCase / the study plan).
+            solverCases = study1Roster(iscGlobalBudget = budget),
             macroReplications = config.macroReplications,
             replicationBudgetPerRun = config.budget(tier),
             confirmation = config.confirmation,
@@ -83,4 +91,22 @@ fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<BudgetTier, Int
         results[tier] = expId
     }
     return results
+}
+
+/**
+ *  The Study-1 nine-case roster with ISC's global phase bounded to the benchmark budget.
+ *  Identical to the general `allSolverCases()` except that the ISC case caps its global
+ *  phase so its replication consumption stays comparable to the other solvers under the
+ *  equal-budget comparison.
+ *
+ *  @param iscGlobalBudget the replication budget for ISC's global phase (the benchmark
+ *  budget of the tier the roster runs in)
+ */
+fun study1Roster(iscGlobalBudget: Int): List<SolverCase> {
+    return standardSolverCases() + listOf(
+        geneticAlgorithmCase(),
+        particleSwarmCase(),
+        bayesianOptimizationCase(),
+        iscCase(globalBudget = iscGlobalBudget)
+    )
 }
