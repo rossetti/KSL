@@ -2,7 +2,6 @@ package ksl.examples.general.simopt.study1
 
 import ksl.examples.general.simopt.bayesianOptimizationCase
 import ksl.examples.general.simopt.geneticAlgorithmCase
-import ksl.examples.general.simopt.iscCase
 import ksl.examples.general.simopt.particleSwarmCase
 import ksl.examples.general.simopt.standardSolverCases
 import ksl.simopt.benchmark.BenchmarkExperiment
@@ -109,18 +108,18 @@ fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<String, Int> {
  *  budget of the tier the roster runs in)
  */
 fun study1Roster(): List<SolverCase> {
+    // ISC is DROPPED from Study 1 (user ruling). Its correct-selection guarantee consumes
+    // ~(noise/IZ)^2 replications — up to ~9.4M per cell — which is fundamentally
+    // incompatible with a fixed-budget benchmark: it overruns the sub-stream block (1M) and
+    // overlaps neighboring cells' streams, and no in-study configuration bounds it without
+    // dropping the guarantee. ISC needs an absolute replication cap in its clean-up/COMPASS
+    // phases (a KSLCore change) before it can participate in equal-budget comparisons; that
+    // and the other ISC findings are recorded for follow-on work (see the study plan §11).
+    // The eight remaining solvers each consume well under the sub-stream block.
     return standardSolverCases() + listOf(
         geneticAlgorithmCase(),
         particleSwarmCase(),
-        bayesianOptimizationCase(),
-        // ISC runs at LIBRARY DEFAULTS and its ACTUAL consumption is reported (user ruling).
-        // Its cost is dominated by the clean-up correct-selection guarantee, which needs
-        // ~(noise/IZ)^2 replications and so ignores the benchmark budget on flat/high-noise
-        // problems — a fundamental property of the R&S guarantee, not a bug. Bounding it
-        // (global cap, COMPASS degraded mode) cannot touch the clean-up cost without
-        // dropping the guarantee, so ISC is characterized as-is and its overshoot reported
-        // as a finding. (The OOM on dimension >= 3 problems was fixed separately in KSLCore.)
-        iscCase()
+        bayesianOptimizationCase()
     )
 }
 
