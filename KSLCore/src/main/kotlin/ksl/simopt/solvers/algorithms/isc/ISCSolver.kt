@@ -52,6 +52,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param cleanUp the clean-up procedure; when null a default is built from [deltaC]
  *  @param globalBudget an optional replication budget that adds a [BudgetRule] to a default global phase
  *  @param maxIterations the maximum number of orchestration macro-steps
+ *  @param maxLocalPhaseReplications the per-run replication cap for a **default** COMPASS local phase
+ *  (see [CompassSolver.maxReplications]); ignored when a [localPhaseFactory] is supplied, since the
+ *  factory then owns its solvers. Defaults to [CompassSolver.defaultMaxReplications].
+ *  @param maxCleanUpReplicationsPerSystem the per-survivor Rinott second-stage cap for a **default**
+ *  clean-up phase (see [CleanUpProcedure.maxReplicationsPerSystem]); ignored when [cleanUp] is supplied.
+ *  Defaults to [CleanUpProcedure.DEFAULT_MAX_REPLICATIONS_PER_SYSTEM].
  *  @param name an optional name for the solver
  */
 class ISCSolver @JvmOverloads constructor(
@@ -68,6 +74,8 @@ class ISCSolver @JvmOverloads constructor(
     cleanUp: CleanUpProcedure? = null,
     globalBudget: Int? = null,
     maxIterations: Int = iscDefaultMaxIterations,
+    maxLocalPhaseReplications: Int = CompassSolver.defaultMaxReplications,
+    maxCleanUpReplicationsPerSystem: Int = CleanUpProcedure.DEFAULT_MAX_REPLICATIONS_PER_SYSTEM,
     name: String? = null
 ) : StochasticSolver(
     problemDefinition, evaluator, maxIterations,
@@ -93,11 +101,14 @@ class ISCSolver @JvmOverloads constructor(
         cleanUp: CleanUpProcedure? = null,
         globalBudget: Int? = null,
         maxIterations: Int = iscDefaultMaxIterations,
+        maxLocalPhaseReplications: Int = CompassSolver.defaultMaxReplications,
+        maxCleanUpReplicationsPerSystem: Int = CleanUpProcedure.DEFAULT_MAX_REPLICATIONS_PER_SYSTEM,
         name: String? = null
     ) : this(
         problemDefinition, evaluator, streamNum, streamProvider,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation), deltaC, deltaL,
-        skipGlobalPhase, globalPhase, localPhaseFactory, cleanUp, globalBudget, maxIterations, name
+        skipGlobalPhase, globalPhase, localPhaseFactory, cleanUp, globalBudget, maxIterations,
+        maxLocalPhaseReplications, maxCleanUpReplicationsPerSystem, name
     )
 
     init {
@@ -119,8 +130,15 @@ class ISCSolver @JvmOverloads constructor(
     private val providedGlobalPhase: NichingGeneticAlgorithmSolver? = globalPhase
     private val providedLocalPhaseFactory: ((InputMap) -> CompassSolver)? = localPhaseFactory
 
+    /** The per-run replication cap applied to a default COMPASS local phase (not to a supplied factory). */
+    private val maxLocalPhaseReplications: Int = maxLocalPhaseReplications
+
+    /** The per-survivor Rinott second-stage cap applied to a default clean-up procedure. */
+    private val maxCleanUpReplicationsPerSystem: Int = maxCleanUpReplicationsPerSystem
+
     /** The clean-up procedure used to screen, select, and report. */
-    val cleanUp: CleanUpProcedure = cleanUp ?: CleanUpProcedure(problemDefinition, deltaC)
+    val cleanUp: CleanUpProcedure = cleanUp
+        ?: CleanUpProcedure(problemDefinition, deltaC, maxReplicationsPerSystem = maxCleanUpReplicationsPerSystem)
 
     /** The phases of the ISC orchestration. */
     enum class Phase { GLOBAL, LOCAL, CLEANUP, DONE }
@@ -165,6 +183,7 @@ class ISCSolver @JvmOverloads constructor(
             streamNum = 0,
             streamProvider = streamProvider,
             deltaL = deltaL,
+            maxReplications = maxLocalPhaseReplications,
             replicationsPerEvaluation = replicationsPerEvaluation
         )
         compass.seed = seed
@@ -290,7 +309,9 @@ class ISCSolver @JvmOverloads constructor(
             "deltaC" to deltaC.toString(),
             "deltaL" to deltaL.toString(),
             "skipGlobalPhase" to skipGlobalPhase.toString(),
-            "globalBudget" to (globalBudget?.toString() ?: "None")
+            "globalBudget" to (globalBudget?.toString() ?: "None"),
+            "maxLocalPhaseReplications" to maxLocalPhaseReplications.toString(),
+            "maxCleanUpReplicationsPerSystem" to maxCleanUpReplicationsPerSystem.toString()
         )
 
     companion object {

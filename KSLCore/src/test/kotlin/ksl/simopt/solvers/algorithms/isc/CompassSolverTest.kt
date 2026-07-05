@@ -63,6 +63,31 @@ class CompassSolverTest {
     }
 
     @Test
+    fun replicationCapStopsTheLocalSearchBeforeItsIterationCeiling() {
+        // A cap of one replication forces COMPASS to stop after its first iteration; the replication
+        // cap, not the iteration ceiling, is what stops it.
+        val capped = makeSolver(maxIterations = 100).also { it.maxReplications = 1 }
+        capped.runAllIterations()
+        assertEquals(1, capped.iterationCounter,
+            "a one-replication cap must stop COMPASS after its first iteration")
+
+        // With the default (generous) cap the same search runs multiple iterations and consumes more.
+        val generous = makeSolver(maxIterations = 100)
+        generous.runAllIterations()
+        assertTrue(generous.iterationCounter > 1,
+            "with a generous cap COMPASS should run multiple iterations to descend the sphere")
+        assertTrue(generous.numReplicationsRequested > capped.numReplicationsRequested,
+            "the generously-capped run should consume more replications than the tightly-capped one")
+    }
+
+    @Test
+    fun rejectsNonPositiveMaxReplications() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            makeSolver().also { it.maxReplications = 0 }
+        }
+    }
+
+    @Test
     fun convergesWithPositiveDeltaLAndLocalOptimalityTest() {
         val solver = makeSolver(deltaL = 1.0, maxIterations = 100)
         solver.runAllIterations()

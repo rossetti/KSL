@@ -43,6 +43,30 @@ class ISCSolverTest {
     }
 
     @Test
+    fun cleanUpAndCompassCapsThreadFromTheIscConstructor() {
+        val pd = problem()
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)
+        val isc = ISCSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            replicationsPerEvaluation = 3,
+            deltaC = 1.0,
+            skipGlobalPhase = true,
+            maxLocalPhaseReplications = 1234,
+            maxCleanUpReplicationsPerSystem = 777
+        )
+        // the clean-up cap flows into the default CleanUpProcedure
+        assertEquals(777, isc.cleanUp.maxReplicationsPerSystem,
+            "maxCleanUpReplicationsPerSystem must configure the default clean-up procedure")
+        // both caps are reported on the configuration surface (the COMPASS cap feeds the lazily-built
+        // default local phase)
+        val props = isc.configurationProperties
+        assertEquals("1234", props["maxLocalPhaseReplications"])
+        assertEquals("777", props["maxCleanUpReplicationsPerSystem"])
+    }
+
+    @Test
     fun degradedConfidenceIntervalIsAFiniteTInterval() {
         val pd = problem()
         val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)

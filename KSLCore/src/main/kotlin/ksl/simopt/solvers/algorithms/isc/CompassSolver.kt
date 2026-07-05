@@ -66,6 +66,8 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  @param deltaL the local-optimality indifference zone `δ_L`; `0.0` (default) selects degraded mode
  *  @param localOptimalityTest the Kim (2005) test used when [deltaL] > 0; built from [deltaL] if null
  *  @param maxIterations the maximum number of COMPASS iterations
+ *  @param maxReplications the cap on the total replications a single COMPASS run may request; defaults
+ *  to [defaultMaxReplications]. A best-effort safety valve bounding a run on a noisy, flat landscape.
  *  @param replicationsPerEvaluation strategy for the number of replications per (new-point) evaluation
  *  @param name an optional name for the solver
  */
@@ -81,6 +83,7 @@ class CompassSolver @JvmOverloads constructor(
     deltaL: Double = 0.0,
     localOptimalityTest: ComparisonWithStandardProcedure? = null,
     maxIterations: Int = compassDefaultMaxIterations,
+    maxReplications: Int = defaultMaxReplications,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
 ) : StochasticSolver(
@@ -105,12 +108,13 @@ class CompassSolver @JvmOverloads constructor(
         deltaL: Double = 0.0,
         localOptimalityTest: ComparisonWithStandardProcedure? = null,
         maxIterations: Int = compassDefaultMaxIterations,
+        maxReplications: Int = defaultMaxReplications,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         name: String? = null
     ) : this(
         problemDefinition, evaluator, streamNum, streamProvider, sampleSize, sar,
         redundancyChecker, pruneEvery, deltaL, localOptimalityTest, maxIterations,
-        FixedReplicationsPerEvaluation(replicationsPerEvaluation), name
+        maxReplications, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name
     )
 
     /** The number of MPA candidate points drawn each iteration. Must be >= 1. */
@@ -150,6 +154,19 @@ class CompassSolver @JvmOverloads constructor(
         }
 
     /**
+     *  The cap on the total number of replications a single COMPASS run may request. When the
+     *  accumulated request count reaches this cap the search stops (best-effort), bounding the run even
+     *  when a noisy, flat landscape would otherwise keep the search moving. Must be >= 1. Complements
+     *  the per-iteration [maxIterations] ceiling and the local-optimality test's own per-system cap.
+     */
+    var maxReplications: Int = maxReplications
+        set(value) {
+            require(value >= 1) { "maxReplications must be >= 1" }
+            require(!iterativeProcess.isRunning) { "maxReplications cannot be changed while the solver is running." }
+            field = value
+        }
+
+    /**
      *  An explicit starting point (e.g., a niche seed from the ISC global phase). When null, the
      *  inherited [startingPoint] is used (a random feasible point or the configured generator).
      */
@@ -185,6 +202,7 @@ class CompassSolver @JvmOverloads constructor(
         require(sampleSize >= 1) { "The MPA sample size must be >= 1" }
         require(pruneEvery >= 1) { "pruneEvery must be >= 1" }
         require(deltaL >= 0.0) { "deltaL must be >= 0" }
+        require(maxReplications >= 1) { "maxReplications must be >= 1" }
     }
 
     private fun localOptimalityTest(): ComparisonWithStandardProcedure {
@@ -270,6 +288,13 @@ class CompassSolver @JvmOverloads constructor(
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
+        if (numReplicationsRequested >= maxReplications) {
+            logger.warn {
+                "Solver: $name : COMPASS replication cap (maxReplications=$maxReplications) reached at " +
+                        "$numReplicationsRequested replications; stopping the local search (best-effort)."
+            }
+            return true
+        }
         val centerValues = sampleBest.inputMap.inputValues
         val otherVisited = visited.keys.filter { it != sampleBest.inputMap }.map { it.inputValues }
         val mpa = MostPromisingArea(problemDefinition, centerValues, otherVisited)
@@ -324,6 +349,7 @@ class CompassSolver @JvmOverloads constructor(
             sampleSize = $sampleSize,
             deltaL = $deltaL,
             pruneEvery = $pruneEvery,
+            maxReplications = $maxReplications,
             sar = ${sar::class.simpleName},
             redundancyChecker = ${redundancyChecker::class.simpleName},
             base = ${super.toString().prependIndent("    ").trimStart()}
@@ -336,6 +362,7 @@ class CompassSolver @JvmOverloads constructor(
             "sampleSize" to sampleSize.toString(),
             "deltaL" to deltaL.toString(),
             "pruneEvery" to pruneEvery.toString(),
+            "maxReplications" to maxReplications.toString(),
             "sar" to (sar::class.simpleName ?: ""),
             "redundancyChecker" to (redundancyChecker::class.simpleName ?: "")
         )
@@ -370,6 +397,18 @@ class CompassSolver @JvmOverloads constructor(
         var compassDefaultMaxIterations: Int = 100
             set(value) {
                 require(value >= 1) { "The default maximum number of iterations must be >= 1" }
+                field = value
+            }
+
+        /**
+         *  The default cap on the total replications a single COMPASS run may request. A best-effort
+         *  safety valve — with the default iteration ceiling and allocation schedule a normal local
+         *  search stays well under it; it bounds only the pathological case of a noisy, flat landscape.
+         */
+        @JvmStatic
+        var defaultMaxReplications: Int = 50_000
+            set(value) {
+                require(value >= 1) { "The default maximum number of replications must be >= 1" }
                 field = value
             }
     }

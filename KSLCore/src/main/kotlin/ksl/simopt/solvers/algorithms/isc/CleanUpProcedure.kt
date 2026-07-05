@@ -1,5 +1,7 @@
 package ksl.simopt.solvers.algorithms.isc
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
@@ -37,19 +39,33 @@ import kotlin.math.sqrt
  *  formulation (independent-sampling standard error of the difference). The Rinott constant itself is
  *  reused from [Rinott].
  *
+ *  **Runaway safety valve (`maxReplicationsPerSystem`).** The Rinott second-stage size grows as
+ *  `(h·S/δ_C)²`, so a survivor with high objective variance relative to a small `δ_C` can demand an
+ *  enormous number of replications (millions for a noisy problem with a tight indifference zone). To
+ *  keep a single clean-up phase bounded, the per-survivor second-stage size is capped at
+ *  [maxReplicationsPerSystem]. When the cap binds, clean-up samples the survivor up to the cap and
+ *  proceeds — the correct-selection guarantee then holds only in a best-effort sense (the indifference
+ *  zone effectively achieved is larger than the requested `δ_C`). A warning is logged whenever the cap
+ *  binds. Raise the cap (or `δ_C`) to restore the exact guarantee.
+ *
  *  @param problemDefinition the problem whose objective is being screened
  *  @param deltaC the clean-up indifference zone `δ_C`; must be >= 0 (`0.0` selects degraded mode)
  *  @param oneMinusAlphaC the target confidence/correct-selection level; must be in (0,1)
+ *  @param maxReplicationsPerSystem the cap on the Rinott second-stage sample size per survivor; must be
+ *  >= 1. Defaults to [DEFAULT_MAX_REPLICATIONS_PER_SYSTEM]. Bounds clean-up cost when the variance-to-
+ *  indifference-zone ratio is large; the guarantee is best-effort once the cap binds.
  */
 class CleanUpProcedure(
     val problemDefinition: ProblemDefinition,
     var deltaC: Double,
-    var oneMinusAlphaC: Double = DEFAULT_CONFIDENCE
+    var oneMinusAlphaC: Double = DEFAULT_CONFIDENCE,
+    var maxReplicationsPerSystem: Int = DEFAULT_MAX_REPLICATIONS_PER_SYSTEM
 ) {
 
     init {
         require(deltaC >= 0.0) { "deltaC must be >= 0" }
         require(oneMinusAlphaC > 0.0 && oneMinusAlphaC < 1.0) { "oneMinusAlphaC must be in (0,1)" }
+        require(maxReplicationsPerSystem >= 1) { "maxReplicationsPerSystem must be >= 1" }
     }
 
     /** True when the procedure runs with full indifference-zone guarantees (`deltaC > 0`). */
@@ -110,8 +126,10 @@ class CleanUpProcedure(
      *  Selects the best survivor. With `deltaC > 0` runs the Rinott two-stage indifference-zone
      *  procedure: each survivor is sampled up to `N_i = max(n0, ⌈(h·S_i/δ_C)²⌉)` replications (with
      *  `n0` the smallest current replication count among the survivors and `h` the Rinott constant),
-     *  then the smallest second-stage sample mean is selected. With `deltaC == 0` (degraded) no extra
-     *  sampling is done and the survivor with the smallest mean is returned.
+     *  then the smallest second-stage sample mean is selected. The per-survivor second-stage size is
+     *  clamped to [maxReplicationsPerSystem]; when the clamp binds the procedure logs a warning and the
+     *  correct-selection guarantee becomes best-effort. With `deltaC == 0` (degraded) no extra sampling
+     *  is done and the survivor with the smallest mean is returned.
      *
      *  @param survivors the screened candidates (must be non-empty)
      *  @param sampleMore obtains a [Solution] carrying the requested number of additional replications
@@ -135,11 +153,27 @@ class CleanUpProcedure(
         if (h.isNaN()) {
             return survivors.minByOrNull { mean(it) }!!
         }
+        val cap = maxReplicationsPerSystem.toDouble()
+        var cappedSystems = 0
+        var maxRequested = 0.0
         val finalized = survivors.map { s ->
             val sd = sqrt(variance(s))
-            val required = max(n0, ceil((h * sd / deltaC) * (h * sd / deltaC)))
+            val rinott = ceil((h * sd / deltaC) * (h * sd / deltaC))
+            if (rinott > cap) {
+                cappedSystems++
+                maxRequested = max(maxRequested, rinott)
+            }
+            val required = max(n0, rinott.coerceAtMost(cap))
             val additional = (required - count(s)).toInt()
             if (additional > 0) mergeSolutions(s, sampleMore(s.inputMap, additional)) else s
+        }
+        if (cappedSystems > 0) {
+            logger.warn {
+                "CleanUpProcedure: Rinott second-stage size capped at maxReplicationsPerSystem=" +
+                        "$maxReplicationsPerSystem for $cappedSystems of $k survivor(s) " +
+                        "(largest requested ~${maxRequested.toLong()}); the correct-selection guarantee " +
+                        "is best-effort. Increase maxReplicationsPerSystem or deltaC to restore it."
+            }
         }
         return finalized.minByOrNull { mean(it) }!!
     }
@@ -171,5 +205,16 @@ class CleanUpProcedure(
 
         /** Minimum first-stage degrees of freedom required to compute the Rinott constant. */
         const val MIN_RINOTT_DOF: Int = 4
+
+        /**
+         *  Default cap on the Rinott second-stage sample size per survivor. Chosen large enough to
+         *  preserve the exact indifference-zone guarantee for moderate variance-to-`δ_C` ratios (a
+         *  standard-deviation-to-`δ_C` ratio up to roughly 50 with the usual Rinott constant) while
+         *  bounding the pathological case where a noisy objective and a tight `δ_C` would otherwise
+         *  demand millions of replications.
+         */
+        const val DEFAULT_MAX_REPLICATIONS_PER_SYSTEM: Int = 20_000
+
+        val logger: KLogger = KotlinLogging.logger {}
     }
 }

@@ -70,6 +70,43 @@ class CleanUpProcedureTest {
     }
 
     @Test
+    fun cleanUpCapsRinottSecondStageSampling() {
+        // High variance with a tight deltaC drives the Rinott size N ~ (h*S/deltaC)^2 into the
+        // thousands; the per-system cap must bound the second-stage request (best-effort selection).
+        val a = sol(1.0, fx = 5.0, variance = 400.0)
+        val b = sol(2.0, fx = 2.0, variance = 400.0) // best
+
+        fun maxRequestedFor(cap: Int): Int {
+            var maxN = 0
+            val cleanUp = CleanUpProcedure(pd, deltaC = 0.5, maxReplicationsPerSystem = cap)
+            cleanUp.select(listOf(a, b)) { input, n ->
+                if (n > maxN) maxN = n
+                val mean = if (input == b.inputMap) 2.0 else 5.0
+                IscTestSupport.solutionWith(pd, input.inputValues, mean, n.toDouble())
+            }
+            return maxN
+        }
+
+        val cap = 100
+        val cappedMax = maxRequestedFor(cap)
+        val uncappedMax = maxRequestedFor(CleanUpProcedure.DEFAULT_MAX_REPLICATIONS_PER_SYSTEM)
+        // first-stage count is 10, so a capped second stage adds at most cap - 10 replications
+        assertTrue(cappedMax in 1..(cap - 10)) {
+            "the cap must bound the second-stage request to at most ${cap - 10}, got $cappedMax"
+        }
+        assertTrue(uncappedMax > cappedMax) {
+            "the uncapped run should request far more ($uncappedMax) than the capped run ($cappedMax)"
+        }
+    }
+
+    @Test
+    fun rejectsNonPositiveMaxReplicationsPerSystem() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            CleanUpProcedure(pd, deltaC = 1.0, maxReplicationsPerSystem = 0)
+        }
+    }
+
+    @Test
     fun estimateWithIndifferenceZoneIsTheMeanPlusMinusDeltaC() {
         val best = sol(2.0, fx = 7.0)
         val ci = CleanUpProcedure(pd, deltaC = 1.5).estimate(best)
