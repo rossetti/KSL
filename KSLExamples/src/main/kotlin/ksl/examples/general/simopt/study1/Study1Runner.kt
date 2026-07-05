@@ -64,7 +64,7 @@ fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<String, Int> {
     for (tier in BudgetTier.entries) {
         val tierProblems = problemsByTier[tier] ?: continue
         val budget = config.budget(tier)
-        val roster = study1Roster(iscBudget = budget)
+        val roster = study1Roster()
         // Within a tier, one experiment per distinct excluded-solver set: problems with no
         // exclusions form the main experiment; each excluded problem (e.g. BO/CE on the
         // multi-item newsvendor) runs as its own experiment with the reduced roster.
@@ -108,16 +108,19 @@ fun runStudy1(db: BenchmarkResultsDb, config: Study1Config): Map<String, Int> {
  *  @param iscGlobalBudget the replication budget for ISC's global phase (the benchmark
  *  budget of the tier the roster runs in)
  */
-fun study1Roster(iscBudget: Int): List<SolverCase> {
+fun study1Roster(): List<SolverCase> {
     return standardSolverCases() + listOf(
         geneticAlgorithmCase(),
         particleSwarmCase(),
         bayesianOptimizationCase(),
-        // ISC bounded: global Niching-GA phase capped to the budget, and COMPASS put in
-        // degraded mode (deltaL = 0) so its local-optimality test cannot sample without
-        // bound on flat/high-noise problems. The clean-up correct-selection guarantee
-        // (deltaC = the problem's indifference zone) is unaffected.
-        iscCase(globalBudget = iscBudget, deltaL = 0.0)
+        // ISC runs at LIBRARY DEFAULTS and its ACTUAL consumption is reported (user ruling).
+        // Its cost is dominated by the clean-up correct-selection guarantee, which needs
+        // ~(noise/IZ)^2 replications and so ignores the benchmark budget on flat/high-noise
+        // problems — a fundamental property of the R&S guarantee, not a bug. Bounding it
+        // (global cap, COMPASS degraded mode) cannot touch the clean-up cost without
+        // dropping the guarantee, so ISC is characterized as-is and its overshoot reported
+        // as a finding. (The OOM on dimension >= 3 problems was fixed separately in KSLCore.)
+        iscCase()
     )
 }
 
