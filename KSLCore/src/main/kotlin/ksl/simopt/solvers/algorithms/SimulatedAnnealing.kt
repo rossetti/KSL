@@ -301,8 +301,13 @@ class SimulatedAnnealing @JvmOverloads constructor(
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
+        // The fallback (temperature-frozen OR no-improvement) applies ONLY when no
+        // solutionQualityEvaluator is set. The parentheses are essential: Kotlin's elvis
+        // (?:) binds tighter than ||, so without them `a ?: b || c` parses as
+        // `(a ?: b) || c`, leaking the no-improvement check past a set quality evaluator
+        // (e.g. a replication-budget criterion) and stopping the search early.
         return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?:
-        checkTemperature() || solutionChecker.checkSolutions()
+            (checkTemperature() || solutionChecker.checkSolutions())
     }
 
     private fun checkTemperature() : Boolean {

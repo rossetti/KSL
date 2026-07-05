@@ -177,4 +177,30 @@ class ReplicationBudgetStoppingCriterionTest {
             ReplicationBudgetStoppingCriterion(0)
         }
     }
+
+    @Test
+    @DisplayName("Simulated annealing honors a set budget criterion instead of its no-improvement check")
+    fun simulatedAnnealingHonorsBudgetCriterion() {
+        // Regression for an operator-precedence bug in SimulatedAnnealing.isStoppingCriteriaSatisfied():
+        // `sqe ?: checkTemperature() || checkSolutions()` parsed as `(sqe ?: checkTemperature()) ||
+        // checkSolutions()`, so the no-improvement check (threshold 5) leaked past a set
+        // solutionQualityEvaluator and stopped SA far short of the replication budget. With the
+        // budget criterion assigned, SA must run to the budget, not quit early on no-improvement.
+        val budget = 600
+        val repsPerEvaluation = 10
+        val pd = makeProblem()
+        val solver = ksl.simopt.solvers.algorithms.SimulatedAnnealing(
+            pd, makeEvaluator(pd),
+            maxIterations = LARGE_ITERATION_CEILING,
+            replicationsPerEvaluation = repsPerEvaluation
+        )
+        solver.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(budget)
+        solver.runAllIterations()
+        // pre-fix: SA stops after ~5-15 iterations (no-improvement) => far under the budget.
+        assertTrue(solver.numReplicationsRequested >= budget) {
+            "SA stopped at ${solver.numReplicationsRequested} replications, short of the budget $budget " +
+                    "(the no-improvement check leaked past the budget criterion)"
+        }
+        assertTrue(solver.iterationCounter < LARGE_ITERATION_CEILING)
+    }
 }
