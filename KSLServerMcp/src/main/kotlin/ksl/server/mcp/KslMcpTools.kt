@@ -1888,6 +1888,94 @@ class KslMcpTools(
         return dataSummaryResult(name, summaryJson, histogramJson)
     }
 
+    /** Parses the required `data` argument (a non-empty array of numbers) into a DoubleArray, or null. */
+    private fun dataArg(arguments: JsonObject?): DoubleArray? {
+        val arr = arguments?.get("data") as? JsonArray ?: return null
+        val values = arr.map { (it as? JsonPrimitive)?.doubleOrNull ?: return null }
+        return values.toDoubleArray().takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * `acf_analysis` — the sample autocorrelation function of a data series: the correlation at
+     * each lag 1..maxLag, a white-noise significance band (±1.96/√n), and a lag-1 independence
+     * verdict — a quick check of whether observations are serially dependent.
+     */
+    fun acfAnalysis(arguments: JsonObject?): CallToolResult {
+        val data = dataArg(arguments) ?: return error("missing or invalid 'data' (a non-empty array of numbers)")
+        if (data.size < 3) return error("need at least 3 values to estimate autocorrelation; got ${data.size}")
+        val maxLag = (arguments.int("maxLag") ?: minOf(20, data.size / 4)).coerceIn(1, data.size - 1)
+        val acf = ksl.utilities.statistic.Statistic.autoCorrelations(data, maxLag)
+        val band = 1.96 / kotlin.math.sqrt(data.size.toDouble())
+        val lag1 = acf.firstOrNull() ?: 0.0
+        val independent = kotlin.math.abs(lag1) < band
+        val structured = buildJsonObject {
+            put("n", data.size)
+            put("maxLag", maxLag)
+            put("whiteNoiseBand", band)
+            put("lag1", lag1)
+            put("independentAtLag1", independent)
+            putJsonArray("acf") {
+                acf.forEachIndexed { i, v ->
+                    add(buildJsonObject { put("lag", i + 1); put("value", v); put("significant", kotlin.math.abs(v) > band) })
+                }
+            }
+        }
+        val verdict = if (independent) "no significant lag-1 dependence" else "significant lag-1 dependence"
+        // Constant (zero-variance) data yields NaN autocorrelations; keep the payload wire-safe.
+        return result("ACF over $maxLag lag(s); lag-1 = $lag1 (band ±$band): $verdict.", sanitizeNonFinite(structured).jsonObject)
+    }
+
+    /**
+     * `shift_analysis` — the left-shift a distribution fit would apply to this data, computed
+     * standalone (otherwise only visible inside a full fit). A positive shift means the data is
+     * offset from a lower bound; subtract it before fitting a lower-bounded distribution.
+     */
+    fun shiftAnalysis(arguments: JsonObject?): CallToolResult {
+        val data = dataArg(arguments) ?: return error("missing or invalid 'data' (a non-empty array of numbers)")
+        val shift = ksl.utilities.distributions.fitting.PDFModeler.estimateLeftShiftParameter(data)
+        val structured = buildJsonObject {
+            put("n", data.size)
+            put("leftShift", shift)
+            put("dataMin", data.minOrNull() ?: 0.0)
+            put("shiftRecommended", shift > 0.0)
+        }
+        val summary = if (shift > 0.0) {
+            "Recommended left shift: $shift (subtract it before fitting a lower-bounded distribution)."
+        } else {
+            "No left shift recommended (shift is 0)."
+        }
+        return result(summary, sanitizeNonFinite(structured).jsonObject)
+    }
+
+    /**
+     * `family_frequency_bootstrap` — resamples the data `numSamples` times, re-runs the full fit
+     * on each resample, and tallies how often each distribution family is the recommended fit
+     * (each cell's `cellLabel` is the family, `proportion` its frequency): a robustness check on
+     * a fit recommendation. Heavier than the other analyses — it re-fits per resample.
+     */
+    fun familyFrequencyBootstrap(arguments: JsonObject?): CallToolResult {
+        val data = dataArg(arguments) ?: return error("missing or invalid 'data' (a non-empty array of numbers)")
+        val name = arguments.string("name") ?: "data"
+        val numSamples = arguments.int("numSamples") ?: 100
+        if (numSamples < 1) return error("'numSamples' must be >= 1")
+        val streamNumber = arguments.int("streamNumber") ?: 0
+        val bootstrapResult = try {
+            ksl.app.dist.runner.FittingRunner.familyFrequencyBootstrap(
+                dataset = ksl.app.dist.data.NamedDataset(name, data),
+                config = ksl.app.dist.config.FamilyBootstrapConfig(numSamples = numSamples, streamNumber = streamNumber),
+            )
+        } catch (e: Exception) {
+            return error("family-frequency bootstrap failed: ${e.message}")
+        }
+        val structured = json.encodeToJsonElement(
+            ksl.app.dist.result.FamilyFrequencyResult.serializer(), bootstrapResult,
+        ).jsonObject
+        val top = bootstrapResult.frequency.cells.maxByOrNull { it.count }
+        val summary = "Family-frequency bootstrap of '$name' ($numSamples resamples): " +
+            (top?.let { "'${it.cellLabel}' recommended in ${it.count.toInt()}/$numSamples resamples." } ?: "no families tallied.")
+        return result(summary, structured)
+    }
+
     /**
      * `get_fit_data_summary` — projects the data summary (and, for a continuous fit, the
      * histogram) that a retained distribution fit already computed, without re-running

@@ -833,6 +833,64 @@ object KslMcpServer {
         ) { request -> tools.summarizeData(request.arguments) }
 
         server.addTool(
+            name = "acf_analysis",
+            description = "Sample autocorrelation function of a numeric series: the correlation at each lag " +
+                "1..maxLag, a white-noise significance band (±1.96/√n), and a lag-1 independence verdict — a check " +
+                "of whether observations are serially dependent. Returns structuredContent {n, maxLag, " +
+                "whiteNoiseBand, lag1, independentAtLag1, acf[{lag, value, significant}]}.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("data") {
+                        put("type", "array"); putJsonObject("items") { put("type", "number") }
+                        put("description", "The numeric observations, in order.")
+                    }
+                    putJsonObject("maxLag") { put("type", "integer"); put("description", "Optional highest lag; default min(20, n/4).") }
+                },
+                required = listOf("data"),
+            ),
+            outputSchema = McpResultSchemas.acf,
+        ) { request -> tools.acfAnalysis(request.arguments) }
+
+        server.addTool(
+            name = "shift_analysis",
+            description = "The left-shift a distribution fit would apply to a numeric series, computed standalone " +
+                "(otherwise only visible inside a full fit). A positive shift means the data is offset from a lower " +
+                "bound; subtract it before fitting a lower-bounded distribution. Returns structuredContent {n, " +
+                "leftShift, dataMin, shiftRecommended}.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("data") {
+                        put("type", "array"); putJsonObject("items") { put("type", "number") }
+                        put("description", "The numeric observations.")
+                    }
+                },
+                required = listOf("data"),
+            ),
+            outputSchema = McpResultSchemas.shift,
+        ) { request -> tools.shiftAnalysis(request.arguments) }
+
+        server.addTool(
+            name = "family_frequency_bootstrap",
+            description = "Resample a numeric series numSamples times, re-run the full distribution fit on each " +
+                "resample, and tally how often each family is the recommended fit — a robustness check on a fit " +
+                "recommendation. Heavier than the other analyses (it re-fits per resample); keep numSamples modest. " +
+                "Returns structuredContent {datasetName, numSamples, frequency:{cells[{cellLabel, count, proportion}]}}.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("data") {
+                        put("type", "array"); putJsonObject("items") { put("type", "number") }
+                        put("description", "The numeric observations to fit and resample.")
+                    }
+                    putJsonObject("name") { put("type", "string"); put("description", "Optional data-series name (default 'data').") }
+                    putJsonObject("numSamples") { put("type", "integer"); put("description", "Bootstrap resamples (default 100); higher = slower.") }
+                    putJsonObject("streamNumber") { put("type", "integer"); put("description", "Optional RNG stream for reproducibility (default 0).") }
+                },
+                required = listOf("data"),
+            ),
+            outputSchema = McpResultSchemas.familyBootstrap,
+        ) { request -> tools.familyFrequencyBootstrap(request.arguments) }
+
+        server.addTool(
             name = "get_fit_data_summary",
             description = "Project the data summary (and, for a continuous fit, the histogram) that a retained " +
                 "distribution fit already computed — no re-run. Returns the same structuredContent {datasetName, " +

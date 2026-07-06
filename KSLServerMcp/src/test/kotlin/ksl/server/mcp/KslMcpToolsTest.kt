@@ -1044,6 +1044,7 @@ class KslMcpToolsTest {
                     "get_fit_scoring", "get_fit_report",
                     "list_distributions", "generate_variates",
                     "summarize_data", "get_fit_data_summary",
+                    "acf_analysis", "shift_analysis", "family_frequency_bootstrap",
                     "get_workspace", "set_workspace",
                 ),
             ),
@@ -1211,6 +1212,46 @@ class KslMcpToolsTest {
         }))
         assertEquals(null, noHist["histogram"], "histogram should be omitted when histogram=false")
         assertNotNull(noHist["dataSummary"], "the data summary is still present")
+    }
+
+    @Test
+    fun `acf_analysis flags serial dependence in an autocorrelated series`() {
+        // A monotone ramp is almost perfectly lag-1 autocorrelated.
+        val result = tools.acfAnalysis(buildJsonObject { putJsonArray("data") { for (i in 0 until 60) add(i.toDouble()) } })
+        assertEquals(false, result.isError ?: false, firstText(result))
+        val sc = structured(result)
+        assertEquals(false, sc["independentAtLag1"]!!.jsonPrimitive.content.toBoolean(), "a ramp is strongly lag-1 dependent")
+        assertTrue(sc["lag1"]!!.jsonPrimitive.content.toDouble() > 0.5, "lag-1 should be strongly positive; got ${sc["lag1"]}")
+        assertTrue(sc["acf"]!!.jsonArray.isNotEmpty(), "acf per lag present")
+    }
+
+    @Test
+    fun `shift_analysis recovers a positive left shift`() {
+        // An exponential sample offset by +100 → the fit should recommend a left shift near 100.
+        val shifted = ksl.utilities.random.rvariable.ExponentialRV(1.0).sample(300).map { it + 100.0 }
+        val result = tools.shiftAnalysis(buildJsonObject { putJsonArray("data") { shifted.forEach { add(it) } } })
+        assertEquals(false, result.isError ?: false, firstText(result))
+        val sc = structured(result)
+        assertEquals(true, sc["shiftRecommended"]!!.jsonPrimitive.content.toBoolean(), "a +100 offset should recommend a shift")
+        assertTrue(sc["leftShift"]!!.jsonPrimitive.content.toDouble() > 50.0, "left shift should recover the offset; got ${sc["leftShift"]}")
+    }
+
+    @Test
+    fun `family_frequency_bootstrap tallies recommended families across resamples`() {
+        val sample = ksl.utilities.random.rvariable.ExponentialRV(10.0).sample(120)
+        val result = tools.familyFrequencyBootstrap(buildJsonObject {
+            putJsonArray("data") { sample.forEach { add(it) } }
+            put("name", "svc")
+            put("numSamples", 15) // small, to keep the test fast
+        })
+        assertEquals(false, result.isError ?: false, firstText(result))
+        val sc = structured(result)
+        assertEquals(15, sc["numSamples"]!!.jsonPrimitive.content.toInt())
+        val cells = sc["frequency"]!!.jsonObject["cells"]!!.jsonArray
+        assertTrue(cells.isNotEmpty(), "expected family tallies")
+        // Each resample recommends exactly one family, so the counts sum to numSamples.
+        val totalCount = cells.sumOf { it.jsonObject["count"]!!.jsonPrimitive.content.toDouble() }
+        assertEquals(15.0, totalCount, 1e-6, "family counts should sum to numSamples")
     }
 
     @Test
