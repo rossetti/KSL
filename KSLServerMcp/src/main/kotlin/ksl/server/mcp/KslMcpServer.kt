@@ -57,7 +57,22 @@ object KslMcpServer {
                     prompts = ServerCapabilities.Prompts(listChanged = false),
                 ),
             ),
+            // Turn-one orientation surfaced by MCP clients on connect (B0): what the server is,
+            // the scope boundary, "call get_started if unsure", and example asks. Single-sourced
+            // from the same renderer the get_started tool/prompt use.
+            instructions = KslMcpPrompts.serverInstructions(tools.availableBundles()),
         )
+
+        // get_started heads the tool list on purpose — the "start here" entry point a model can
+        // call when the user is vague, so orientation is reachable by push, not only by prompt.
+        server.addTool(
+            name = "get_started",
+            description = "Start here. What this KSL server can do and how to ask — routes you to the " +
+                "right workflow (run / experiment / optimize / fit / generate). Call this when the user " +
+                "is unsure what to do, says 'help', or asks what's possible.",
+            inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+            outputSchema = McpResultSchemas.bundles,
+        ) { _ -> tools.getStarted() }
 
         server.addTool(
             name = "list_bundles",

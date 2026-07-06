@@ -411,8 +411,40 @@ object KslMcpPrompts {
             |If the user is unsure, ask one or two clarifying questions (do they have data, or a model and a
             |question?), then start the matching workflow. Define terms as you go.
         """.trimMargin()
-        return assemble(teachingPreamble(), body, glossary())
+        return assemble(teachingPreamble(), scopeBoundary(), body, exampleQuestions(), glossary())
     }
+
+    /** Concrete example asks across the workflow families. Students unstick from examples, not
+     *  capability lists — injected into both [getStartedGuidance] and [serverInstructions]. */
+    fun exampleQuestions(): String =
+        """
+        |Example questions you can ask (each routes to a workflow):
+        |- "Run the pharmacy model and tell me the average wait." → run
+        |- "I have this data — what probability distribution fits?" → fit
+        |- "Is 2 or 3 servers better for the queue?" → experiment / compare
+        |- "Find the reorder point that minimizes total inventory cost." → optimize
+        |- "Generate 1000 exponential(mean=10) samples and summarize them." → generate
+        """.trimMargin()
+
+    /** The scope boundary: this server runs and analyzes *existing* bundled models; it does not
+     *  author them. Stated up front so an out-of-scope "build me a model" ask doesn't flail. */
+    fun scopeBoundary(): String =
+        "Scope: I run and analyze existing bundled models and fit distributions — I do not author or " +
+            "edit models. To create or package a model, use the Bundle Workbench desktop app or the " +
+            "kslpkg CLI, then drop the bundle JAR into ~/.ksl/bundles/."
+
+    /** A concise one-paragraph orientation surfaced by MCP clients on connect (the server-level
+     *  `instructions`): what the server is, the scope boundary, where to start, and examples. */
+    fun serverInstructions(bundles: List<BundleInfo>): String =
+        assemble(
+            "This is the KSL simulation server. It runs and analyzes discrete-event simulations over " +
+                "bundled models — single runs, scenario comparisons, designed experiments, and " +
+                "simulation-optimization — and fits probability distributions and generates random " +
+                "variates. If you are unsure where to begin, call the `get_started` tool.",
+            scopeBoundary(),
+            "Models available now:\n" + catalogMenu(bundles),
+            exampleQuestions(),
+        )
 
     /** Joins the non-blank sections of a prompt with blank-line separators. */
     private fun assemble(vararg sections: String): String =
