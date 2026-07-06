@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 import ksl.animation.AnimationLayout
 

@@ -3,8 +3,8 @@ package ksl.app.swing.animation.app
 import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.animation
 import ksl.app.swing.animation.examples.AnimationDemo
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import ksl.examples.general.agent.NetworkRumorExample
 import ksl.simulation.Model
 import kotlin.test.Test

@@ -3,8 +3,8 @@ package ksl.app.swing.animation.app
 import ksl.animation.OverlaySpec
 import ksl.app.swing.animation.examples.AnimationDemo
 import ksl.examples.general.animationbundle.Example15DroneDelivery
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

@@ -22,12 +22,12 @@ import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.AnimationEvent
 import ksl.animation.TraceFileReader
-import ksl.app.swing.animation.io.AnimationSource
+import ksl.animation.io.AnimationSource
 import ksl.app.swing.animation.playback.PlaybackController
 import ksl.app.swing.animation.playback.PlaybackPanel
-import ksl.app.swing.animation.replay.ReplayModel
-import ksl.app.swing.animation.replay.autoLayout
-import ksl.app.swing.animation.replay.layoutTraceCompatibility
+import ksl.animation.replay.ReplayModel
+import ksl.animation.replay.autoLayout
+import ksl.animation.replay.layoutTraceCompatibility
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.BorderLayout
 import java.awt.FlowLayout

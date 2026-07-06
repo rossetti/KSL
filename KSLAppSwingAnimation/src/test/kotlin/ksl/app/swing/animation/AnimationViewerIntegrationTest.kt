@@ -9,8 +9,8 @@ import ksl.animation.ObjectClassDefinition
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.app.session.AnimationTraceAttachment
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import ksl.app.swing.animation.view.SimulationCanvas
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel

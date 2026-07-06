@@ -7,8 +7,8 @@ import ksl.animation.LayoutPoint
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO

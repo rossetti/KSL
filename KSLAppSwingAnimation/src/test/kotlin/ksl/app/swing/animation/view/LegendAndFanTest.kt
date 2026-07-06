@@ -4,8 +4,8 @@ import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import java.awt.image.BufferedImage
 import kotlin.math.hypot
 import kotlin.test.Test

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 /** A position in world coordinates (z defaults to 0 for 2D). */
 data class WorldPoint(val x: Double, val y: Double, val z: Double = 0.0)

@@ -1,4 +1,4 @@
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -6,7 +6,7 @@ import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.app.session.AnimationTraceAttachment
-import ksl.app.swing.animation.io.AnimationSource
+import ksl.animation.io.AnimationSource
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ

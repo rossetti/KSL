@@ -8,8 +8,8 @@ import ksl.animation.animationInventory
 import ksl.animation.scaffoldLayout
 import ksl.animation.validateAgainst
 import ksl.app.session.RunResult
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import ksl.animation.TraceFileReader
 import ksl.examples.book.chapter8.TestAndRepairShopWithMovableResources
 import ksl.simulation.ExperimentRunParametersIfc

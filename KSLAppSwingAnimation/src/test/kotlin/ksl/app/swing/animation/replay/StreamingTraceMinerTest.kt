@@ -1,4 +1,4 @@
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationTraceHeader

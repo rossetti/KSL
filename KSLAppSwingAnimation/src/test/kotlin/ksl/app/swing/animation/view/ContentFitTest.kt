@@ -4,8 +4,8 @@ import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.MovableResourceLayoutElement
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import java.awt.geom.Point2D
 import kotlin.test.Test
 import kotlin.test.assertNotNull
