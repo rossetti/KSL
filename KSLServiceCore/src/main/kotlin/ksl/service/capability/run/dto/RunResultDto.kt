@@ -91,6 +91,16 @@ sealed class RunResultDto {
 data class BatchItemDto(
     val itemName: String,
     val responses: List<ResponseStatDto>,
+    /**
+     * Per-replication response values behind `responses`, keyed by response name, in
+     * replication (repId) order — the raw observations an after-the-fact multiple-comparison
+     * (MCB) analysis needs, which the aggregate statistics alone cannot reconstruct. Defaulted
+     * for backward compatibility: results retained before this field decode with an empty map,
+     * and the request-hashed cache key is unchanged so nothing is invalidated.
+     */
+    val replicationObservations: Map<String, List<Double>> = emptyMap(),
+    /** The number of completed replications the observations span (0 when none were captured). */
+    val numReplications: Int = 0,
 )
 
 /**

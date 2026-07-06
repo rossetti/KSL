@@ -1081,7 +1081,14 @@ class KslMcpTools(
     fun dbSummary(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val experiment = arguments.string("experimentName") ?: return error("missing required argument 'experimentName'")
-        return dbJsonResult(resultDb.summary(artifactStore.outputDirFor(resultId), experiment), "summary")
+        val dbOutcome = resultDb.summary(artifactStore.outputDirFor(resultId), experiment)
+        // With no database, project the retained batch item's across-replication statistics.
+        val outcome = if (dbOutcome is ksl.service.capability.dbanalysis.DbQueryResult.NoDatabase) {
+            inMemorySummary(resultId, experiment) ?: dbOutcome
+        } else {
+            dbOutcome
+        }
+        return dbJsonResult(outcome, "summary")
     }
 
     /** `db_compare` — multiple-comparison (MCB) analysis of a response, as JSON. */
@@ -1094,9 +1101,37 @@ class KslMcpTools(
         val delta = arguments?.get("delta")?.jsonPrimitive?.doubleOrNull ?: 0.0
         val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
         return dbJsonResult(
-            resultDb.compare(artifactStore.outputDirFor(resultId), response, experiments, delta, level),
+            resultDb.compare(
+                artifactStore.outputDirFor(resultId), response, experiments, delta, level,
+                // With no database (a headless batch), analyze the retained per-replication
+                // observations instead — same analyzer, same JSON, transparent to the caller.
+                fallbackSource = inMemoryComparisonSource(resultId),
+            ),
             "comparison",
         )
+    }
+
+    /** The retained result for [resultId] decoded as a batch, or null when it is not a retained batch. */
+    private fun retainedBatch(resultId: String): RunResultDto.BatchCompleted? {
+        val payload = resultStore.get(resultId)?.payload ?: return null
+        val dto = runCatching { json.decodeFromJsonElement(RunResultDto.serializer(), payload) }.getOrNull()
+        return dto as? RunResultDto.BatchCompleted
+    }
+
+    /** A comparison source rehydrated from a retained batch's per-replication observations (C1),
+     *  or null when there is no retained batch — so the database path's NoDatabase result stands. */
+    private fun inMemoryComparisonSource(resultId: String): ksl.app.comparison.ComparisonDataSourceIfc? =
+        retainedBatch(resultId)?.let { ksl.service.capability.dbanalysis.RunResultComparisonSource.fromBatch(it) }
+
+    /** The retained batch item's across-replication statistics as a summary JSON — the headless
+     *  counterpart to the database summary — or null when there is no matching retained item. */
+    private fun inMemorySummary(resultId: String, experimentName: String): ksl.service.capability.dbanalysis.DbQueryResult? {
+        val item = retainedBatch(resultId)?.items?.firstOrNull { it.itemName == experimentName } ?: return null
+        val payload = json.encodeToJsonElement(
+            kotlinx.serialization.builtins.ListSerializer(ksl.service.capability.run.dto.ResponseStatDto.serializer()),
+            item.responses,
+        )
+        return ksl.service.capability.dbanalysis.DbQueryResult.Json(payload.toString())
     }
 
     /** `db_views` — the statistical DataFrame views available for a result's database. */

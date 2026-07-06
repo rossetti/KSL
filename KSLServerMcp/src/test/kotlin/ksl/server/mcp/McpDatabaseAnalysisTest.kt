@@ -19,6 +19,7 @@
 package ksl.server.mcp
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -38,6 +39,7 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -141,5 +143,57 @@ class McpDatabaseAnalysisTest {
         val status = tools.dbStatus(buildJsonObject { put("resultId", resultId) }).structuredContent!!.jsonObject
         assertTrue(!status["present"]!!.jsonPrimitive.content.toBoolean(), "no database expected; got $status")
         assertTrue(status["message"]!!.jsonPrimitive.content.contains("enableKSLDatabase"), "guidance expected")
+    }
+
+    // ---- C2: in-memory MCB / summary on a headless (database-less) batch ----
+
+    @Test
+    @DisplayName("db_compare answers MCB on a headless batch with no database (in-memory fallback)")
+    fun inMemoryMcbWithoutDatabase() = runBlocking {
+        val resultId = runResultId(enableDb = false)
+        val compare = tools.dbCompare(buildJsonObject {
+            put("resultId", resultId); put("responseName", "System Time")
+        }).structuredContent!!.jsonObject
+        // Not the NoDatabase envelope — a real MCB with results + intervals.
+        assertTrue("present" !in compare, "should not degrade to NoDatabase; got $compare")
+        val comparison = compare["comparison"]!!.jsonObject
+        assertTrue(comparison["results"]!!.jsonArray.isNotEmpty(), "MCB results expected; got $compare")
+        assertTrue(comparison["intervals"]!!.jsonArray.isNotEmpty(), "MCB intervals expected; got $compare")
+    }
+
+    @Test
+    @DisplayName("in-memory MCB matches the database-backed MCB on the same deterministic run")
+    fun inMemoryMcbMatchesDatabase() = runBlocking {
+        fun resultRows(resultId: String): Set<String> =
+            tools.dbCompare(buildJsonObject { put("resultId", resultId); put("responseName", "System Time") })
+                .structuredContent!!.jsonObject["comparison"]!!.jsonObject["results"]!!.jsonArray
+                // Drop the incidental DataFrame record "id" (a per-analysis row counter, not MCB content).
+                .map { JsonObject(it.jsonObject.filterKeys { k -> k != "id" }).toString() }.toSet()
+        // The same config, once with a database and once headless: the two paths differ only in
+        // where the per-replication data came from, so the MCB must be identical.
+        val dbRows = resultRows(runResultId(enableDb = true))
+        val memRows = resultRows(runResultId(enableDb = false))
+        assertEquals(dbRows, memRows, "in-memory MCB results should equal the DB-backed path")
+    }
+
+    @Test
+    @DisplayName("db_summary projects the retained across-replication stats when there is no database")
+    fun inMemorySummaryWithoutDatabase() = runBlocking {
+        val resultId = runResultId(enableDb = false)
+        val summary = tools.dbSummary(buildJsonObject {
+            put("resultId", resultId); put("experimentName", "baseline")
+        }).structuredContent!!.jsonObject
+        assertTrue("present" !in summary, "should not degrade to NoDatabase; got $summary")
+        assertTrue(summary["summary"]!!.jsonArray.isNotEmpty(), "across-rep stats expected; got $summary")
+    }
+
+    @Test
+    @DisplayName("in-memory db_compare rejects an unknown response with a clear verdict")
+    fun inMemoryCompareRejectsUnknownResponse() = runBlocking {
+        val resultId = runResultId(enableDb = false)
+        val compare = tools.dbCompare(buildJsonObject {
+            put("resultId", resultId); put("responseName", "NoSuchResponse")
+        }).structuredContent!!.jsonObject
+        assertTrue("analyzable" in compare && compare["analyzable"]!!.jsonPrimitive.content == "false", "expected analyzable:false; got $compare")
     }
 }

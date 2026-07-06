@@ -32,6 +32,7 @@ import ksl.service.capability.run.dto.RunSummaryDto
 import ksl.service.capability.run.dto.SolutionDto
 import ksl.simopt.solvers.SolverStateSnapshot
 import ksl.utilities.io.dbutil.AcrossRepStatTableData
+import ksl.utilities.io.dbutil.SimulationSnapshot
 
 /**
  * Projects a [RunResult] (whose result types are database-row-shaped and not
@@ -53,9 +54,12 @@ fun RunResult.toDto(artifacts: List<ArtifactRef> = emptyList()): RunResultDto = 
     is RunResult.BatchCompleted -> RunResultDto.BatchCompleted(
         summary = summary.toDto(),
         items = snapshots.map { snap ->
+            val reps = replicationsByItem[snap.experiment.exp_name].orEmpty()
             BatchItemDto(
                 itemName = snap.experiment.exp_name,
                 responses = snap.acrossRepStats.map { it.toDto() },
+                replicationObservations = perRepObservations(snap, reps),
+                numReplications = reps.size,
             )
         },
         artifacts = artifacts,
@@ -111,6 +115,27 @@ internal fun OrchestratorSummary.toDto(): OrchestratorSummaryDto = OrchestratorS
     beginTime = beginTime,
     endTime = endTime,
 )
+
+/**
+ * Per-replication values for each of [snap]'s responses, in `repId` order — mirroring
+ * `BatchCompletedComparisonSource.observations`: a response statistic contributes its
+ * within-replication `average`, a counter its `last_value`. Keyed by the same response
+ * names that appear in the item's aggregate statistics, so the two join by name.
+ */
+private fun perRepObservations(
+    snap: SimulationSnapshot.ExperimentCompleted,
+    reps: List<SimulationSnapshot.ReplicationCompleted>,
+): Map<String, List<Double>> {
+    if (reps.isEmpty()) return emptyMap()
+    val sortedReps = reps.sortedBy { it.repId }
+    return snap.acrossRepStats.associate { stat ->
+        val name = stat.stat_name
+        name to sortedReps.mapNotNull { rep ->
+            rep.withinRepStats.firstOrNull { it.stat_name == name }?.average
+                ?: rep.withinRepCounterStats.firstOrNull { it.stat_name == name }?.last_value
+        }
+    }
+}
 
 internal fun AcrossRepStatTableData.toDto(): ResponseStatDto = ResponseStatDto(
     name = stat_name,
