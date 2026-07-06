@@ -474,6 +474,23 @@ object KslMcpServer {
         ) { request -> tools.animationLayoutFromTrace(request.arguments) }
 
         server.addTool(
+            name = "render_animation_layout",
+            description = "Render a proposed or edited animation layout to a static PNG preview so you can see " +
+                "the placement — the propose (animation_layout_template / _from_trace) → render → look → revise " +
+                "loop. Returns the image inline plus a downloadable artifact (get_artifact). Draws labeled, " +
+                "color-coded glyphs for the placed resources/queues/stations/movers/storages/displays and the " +
+                "paths; it is a static placement preview, not the live animation. 'layout' is a JSON or TOML " +
+                "AnimationLayout.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("layout") { put("type", "string"); put("description", "A JSON or TOML AnimationLayout.") }
+                },
+                required = listOf("layout"),
+            ),
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.renderAnimationLayout(request.arguments) }
+
+        server.addTool(
             name = "experiment_config",
             description = "Run a complete ExperimentConfiguration document (factors + design) as authored, " +
                 "validated first. Returns structuredContent with per-design-point results; when reporting, " +
