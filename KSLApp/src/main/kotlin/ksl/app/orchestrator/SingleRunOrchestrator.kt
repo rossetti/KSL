@@ -146,7 +146,7 @@ object SingleRunOrchestrator {
         provider: ModelProviderIfc?,
         outputConfig: ksl.app.config.OutputConfig
     ): ksl.simulation.Model {
-        val model = buildModelFromReference(spec.modelReference, provider)
+        val model = buildModelFromReference(spec.modelReference, provider, spec.modelConfiguration)
 
         val baseParams = model.extractRunParameters().copy(experimentName = spec.name)
         val finalParams = (spec.runOverrides ?: ksl.app.config.ExperimentRunOverrides.EMPTY).applyTo(baseParams)
@@ -163,10 +163,6 @@ object SingleRunOrchestrator {
             val setter = ksl.utilities.random.rvariable.parameters.RVParameterSetter(model)
             setter.changeParameters(paramMap)
             setter.applyParameterChanges(model)
-        }
-
-        if (spec.modelConfiguration != null && model.modelConfigurationManager != null) {
-            model.configuration = spec.modelConfiguration
         }
 
         outputConfig.outputDirectory?.let { pathString ->
@@ -279,22 +275,23 @@ object SingleRunOrchestrator {
 
     private fun buildModelFromReference(
         ref: ksl.app.config.ModelReference,
-        provider: ModelProviderIfc?
+        provider: ModelProviderIfc?,
+        modelConfiguration: Map<String, String>?
     ): ksl.simulation.Model = when (ref) {
         is ksl.app.config.ModelReference.ByProviderId -> {
             requireNotNull(provider) {
                 "ModelProviderIfc required for ByProviderId reference '${ref.providerId}'"
             }
-            provider.provideModel(ref.providerId)
+            provider.provideModel(ref.providerId, modelConfiguration)
         }
         is ksl.app.config.ModelReference.ByJar ->
-            ksl.utilities.io.JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
+            ksl.utilities.io.JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build(modelConfiguration) }
         is ksl.app.config.ModelReference.ByBundleAndModelId -> {
             require(provider is ksl.app.bundle.BundleModelProvider) {
                 "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
                         (provider?.let { it::class.simpleName } ?: "null")
             }
-            provider.provideModel(ref.bundleId, ref.modelId)
+            provider.provideModel(ref.bundleId, ref.modelId, modelConfiguration)
         }
         is ksl.app.config.ModelReference.Embedded -> {
             requireNotNull(provider) {
@@ -304,7 +301,7 @@ object SingleRunOrchestrator {
                 "Provider has no model with id '${ref.modelName}' for ModelReference.Embedded — " +
                         "was this configuration authored by a different app?"
             }
-            provider.provideModel(ref.modelName)
+            provider.provideModel(ref.modelName, modelConfiguration)
         }
     }
 }

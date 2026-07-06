@@ -286,7 +286,7 @@ class ScenarioOrchestrator {
         // Build a sample model to extract its defaults for run-parameter
         // resolution.  The Scenario then uses its own modelBuilder lambda
         // below to rebuild a fresh, isolated model each time it runs.
-        val sampleModel = buildModelFromReference(spec.modelReference, provider)
+        val sampleModel = buildModelFromReference(spec.modelReference, provider, spec.modelConfiguration)
         val baseParams = sampleModel.extractRunParameters().copy(experimentName = spec.name)
         val finalParams = (spec.runOverrides ?: ExperimentRunOverrides.EMPTY).applyTo(baseParams)
 
@@ -295,7 +295,8 @@ class ScenarioOrchestrator {
                 modelConfiguration: Map<String, String>?,
                 experimentRunParameters: ExperimentRunParametersIfc?
             ): Model {
-                val model = buildModelFromReference(spec.modelReference, provider)
+                val effectiveConfig = spec.modelConfiguration ?: modelConfiguration
+                val model = buildModelFromReference(spec.modelReference, provider, effectiveConfig)
 
                 if (spec.controlOverrides.totalControls > 0) {
                     model.controls().importAll(spec.controlOverrides)
@@ -308,11 +309,6 @@ class ScenarioOrchestrator {
                     val setter = RVParameterSetter(model)
                     setter.changeParameters(paramMap)
                     setter.applyParameterChanges(model)
-                }
-
-                val effectiveConfig = spec.modelConfiguration ?: modelConfiguration
-                if (effectiveConfig != null && model.modelConfigurationManager != null) {
-                    model.configuration = effectiveConfig
                 }
 
                 // Per-scenario CSV reporting flags (Scenario app's per-spec
@@ -356,22 +352,23 @@ class ScenarioOrchestrator {
      */
     private fun buildModelFromReference(
         ref: ModelReference,
-        provider: ModelProviderIfc?
+        provider: ModelProviderIfc?,
+        modelConfiguration: Map<String, String>?
     ): Model = when (ref) {
         is ModelReference.ByProviderId -> {
             requireNotNull(provider) {
                 "ModelProviderIfc required for ByProviderId reference '${ref.providerId}'"
             }
-            provider.provideModel(ref.providerId)
+            provider.provideModel(ref.providerId, modelConfiguration)
         }
         is ModelReference.ByJar ->
-            JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
+            JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build(modelConfiguration) }
         is ModelReference.ByBundleAndModelId -> {
             require(provider is ksl.app.bundle.BundleModelProvider) {
                 "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
                         (provider?.let { it::class.simpleName } ?: "null")
             }
-            provider.provideModel(ref.bundleId, ref.modelId)
+            provider.provideModel(ref.bundleId, ref.modelId, modelConfiguration)
         }
         is ModelReference.Embedded -> {
             requireNotNull(provider) {
@@ -381,7 +378,7 @@ class ScenarioOrchestrator {
                 "Provider has no model with id '${ref.modelName}' for ModelReference.Embedded — " +
                         "was this configuration authored by a different app?"
             }
-            provider.provideModel(ref.modelName)
+            provider.provideModel(ref.modelName, modelConfiguration)
         }
     }
 }
