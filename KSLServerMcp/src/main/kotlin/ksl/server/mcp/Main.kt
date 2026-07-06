@@ -76,7 +76,10 @@ private fun serveStdio() = runBlocking {
     // Run work (capture output, the KSL database, rendered reports/exports) lands in
     // the KSLWork workspace like the desktop apps — NOT under ~/.ksl (settings/cache only).
     val artifactStore = ArtifactStore(config.outputRoot())
-    val tools = KslMcpTools(registry, resultStore, artifactStore, maxConcurrentJobs = config.server.maxConcurrentJobs, runDeadline = config.runDeadline())
+    // Saved config/layout documents live beside the run artifacts in the workspace (KSL_MCP_APPS/documents/),
+    // NOT under ~/.ksl — they are the user's authored files, not cache.
+    val documentStore = ksl.service.store.DocumentStore(config.outputRoot().resolveSibling("documents"))
+    val tools = KslMcpTools(registry, resultStore, artifactStore, documentStore, maxConcurrentJobs = config.server.maxConcurrentJobs, runDeadline = config.runDeadline())
     val server = KslMcpServer.build(tools)
 
     val transport = StdioServerTransport(
