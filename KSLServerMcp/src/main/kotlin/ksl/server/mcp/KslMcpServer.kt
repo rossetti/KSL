@@ -168,6 +168,15 @@ object KslMcpServer {
                                 "result's output directory; leave off unless you intend to run database analysis.",
                         )
                     }
+                    putJsonObject("tracing") {
+                        put("type", "boolean")
+                        put(
+                            "description",
+                            "Optional (default false). Capture an animation trace (.atf) for this run and register it " +
+                                "as a downloadable artifact (get_artifacts / get_artifact). The trace records the " +
+                                "run's events for replay / layout work; leave off for a plain statistical run.",
+                        )
+                    }
                 },
                 required = listOf("bundleId", "modelId"),
             ),

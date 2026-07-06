@@ -569,15 +569,23 @@ class KslMcpTools(
         // detail that does not affect caching.
         val resultId = ResultKeys.forRunConfig(config, salt)
         val reportRequest = reportRequestFor(config.outputConfig)
-        // Redirect output into the server-owned per-result dir when the run produces
-        // any managed output: Welch/trace reports OR a KSL database (for analysis).
-        val capturesOutput = reportRequest != null || config.outputConfig.enableKSLDatabase
+        // An animation trace is requested when the config names a trace file; redirect it into the
+        // result's artifact dir (preserving the chosen filename) so get_artifact returns the .atf.
+        // The attachment writes animationTraceFile verbatim, so the server owns the location.
+        val traceArtifact = config.tracingConfig.animationTraceFile
+            ?.let { artifactStore.dirFor(resultId).resolve(java.nio.file.Path.of(it).fileName.toString()) }
+        // Redirect output into the server-owned per-result dir when the run produces any managed
+        // output: Welch/trace reports OR a KSL database (for analysis) OR an animation trace.
+        val capturesOutput = reportRequest != null || config.outputConfig.enableKSLDatabase || traceArtifact != null
         val captureDir = if (capturesOutput) artifactStore.outputDirFor(resultId) else null
         val cached = try {
             IncrementalRunCache.run(resultStore, json, config, useCache, salt) { cfg ->
-                val runCfg = if (captureDir != null) {
+                var runCfg = if (captureDir != null) {
                     cfg.copy(outputConfig = cfg.outputConfig.copy(outputDirectory = captureDir.toString()))
                 } else cfg
+                if (traceArtifact != null) {
+                    runCfg = runCfg.copy(tracingConfig = runCfg.tracingConfig.copy(animationTraceFile = traceArtifact.toString()))
+                }
                 val result = runJobs.result(runJobs.register { runService.submitRunConfig(runCfg) }.jobId)
                     ?: kotlin.error("run vanished")
                 if (reportRequest != null && captureDir != null) {
@@ -808,10 +816,13 @@ class KslMcpTools(
         val antithetic = arguments?.get("antithetic")?.jsonPrimitive?.booleanOrNull
         // Opt-in KSL database capture (default off): produces the SQLite DB the db_* tools inspect.
         val enableKSLDatabase = arguments?.get("enableKSLDatabase")?.jsonPrimitive?.booleanOrNull ?: false
+        // Opt-in animation trace (default off): names a trace file so the run path captures + registers
+        // the .atf as an artifact (get_artifact). The server rewrites the location under the result id.
+        val tracing = arguments?.get("tracing")?.jsonPrimitive?.booleanOrNull ?: false
         val numReps = arguments.int("numberOfReplications")
         val effectiveReps = numReps ?: descriptor.experimentRunDefaults.numberOfReplications
         val streamAdvances = replicationSet?.let { RunService.streamAdvancesFor(it, effectiveReps) }
-        val config = runService.singleRunConfig(
+        val baseConfig = runService.singleRunConfig(
             modelId,
             numReps,
             arguments.double("lengthOfReplication"),
@@ -821,6 +832,9 @@ class KslMcpTools(
             antithetic = antithetic,
             enableKSLDatabase = enableKSLDatabase,
         )
+        val config = if (tracing) {
+            baseConfig.copy(tracingConfig = ksl.app.config.TracingConfig(animationTraceFile = "animation.atf"))
+        } else baseConfig
         return BuiltRun(
             config = config,
             key = ResultKeys.forRunConfig(config, CacheVersion.forRun(registry, config)),
