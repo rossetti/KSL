@@ -45,6 +45,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import ksl.animation.AnimationLayout
+import ksl.animation.scaffoldLayout
+import ksl.animation.validateAgainst
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationJson
@@ -284,6 +287,65 @@ class KslMcpTools(
             append("  inputs: $inputCount (catalog-led: ${descriptor.catalog != null})")
         }
         return result(summary, payload)
+    }
+
+    /** `animation_layout_template` — a valid starter `AnimationLayout` for a bundled model (a rough
+     *  auto-placement the author then refines in the desktop editor). No run, no trace — reads only
+     *  the model's static structure. */
+    fun animationLayoutTemplate(arguments: JsonObject?): CallToolResult {
+        val bundleId = arguments.string("bundleId") ?: return error("missing required argument 'bundleId'")
+        val modelId = arguments.string("modelId") ?: return error("missing required argument 'modelId'")
+        val model = try {
+            registry.modelProvider().provideModel(bundleId, modelId)
+        } catch (e: Exception) {
+            return error("failed to build model '$modelId' in bundle '$bundleId': ${e.message}")
+        }
+        val layout = model.scaffoldLayout()
+        return if (arguments.string("format")?.equals("toml", ignoreCase = true) == true) {
+            result(layout.toToml(), buildJsonObject { put("documentType", "AnimationLayout"); put("format", "toml") })
+        } else {
+            documentResult("AnimationLayout", layout.toJson())
+        }
+    }
+
+    /** `validate_animation_layout` — validate a (possibly LLM-edited) `AnimationLayout` against a
+     *  model's structure. Reports unmatched queue / resource / movable-resource / response / selector
+     *  bindings, each with a nearest-name "did you mean" hint. Station and objectClass names are NOT
+     *  checked here — those bind to a produced trace, not static structure. */
+    fun validateAnimationLayout(arguments: JsonObject?): CallToolResult {
+        val bundleId = arguments.string("bundleId") ?: return error("missing required argument 'bundleId'")
+        val modelId = arguments.string("modelId") ?: return error("missing required argument 'modelId'")
+        val layoutText = arguments.string("layout")
+            ?: return error("missing required argument 'layout' (a JSON or TOML AnimationLayout)")
+        val model = try {
+            registry.modelProvider().provideModel(bundleId, modelId)
+        } catch (e: Exception) {
+            return error("failed to build model '$modelId' in bundle '$bundleId': ${e.message}")
+        }
+        val layout = try {
+            if (layoutText.trimStart().startsWith("{")) AnimationLayout.fromJson(layoutText)
+            else AnimationLayout.fromToml(layoutText)
+        } catch (e: Exception) {
+            return error("could not parse the layout (expected a JSON or TOML AnimationLayout): ${e.message}")
+        }
+        val report = layout.validateAgainst(model)
+        val structured = buildJsonObject {
+            put("isValid", report.isValid)
+            putJsonArray("issues") {
+                report.issues.forEach { issue ->
+                    add(buildJsonObject {
+                        put("kind", issue.kind.name); put("name", issue.name); put("message", issue.message)
+                    })
+                }
+            }
+        }
+        val summary = if (report.isValid) {
+            "Animation layout is valid — every checked binding matches a model element."
+        } else {
+            "Animation layout has ${report.issues.size} unmatched binding(s):\n" +
+                report.issues.joinToString("\n") { "  - [${it.kind}] ${it.message}" }
+        }
+        return result(summary, structured)
     }
 
     /** A config-document scaffold result: the raw document as text (to edit and submit) plus

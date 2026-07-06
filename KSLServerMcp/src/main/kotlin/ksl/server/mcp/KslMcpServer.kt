@@ -413,6 +413,41 @@ object KslMcpServer {
         ) { request -> tools.experimentTemplate(request.arguments) }
 
         server.addTool(
+            name = "animation_layout_template",
+            description = "Get a valid starter animation layout for a bundled model — a rough auto-placement " +
+                "of its queues, resources, movers, and response displays that an author then refines in the " +
+                "desktop editor. Reads only static structure (no run, no trace). 'format' is json (default) or " +
+                "toml. The text is the layout document; check edits with validate_animation_layout.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("bundleId") { put("type", "string") }
+                    putJsonObject("modelId") { put("type", "string") }
+                    putJsonObject("format") { put("type", "string"); put("description", "json (default) or toml") }
+                },
+                required = listOf("bundleId", "modelId"),
+            ),
+            outputSchema = McpResultSchemas.document,
+        ) { request -> tools.animationLayoutTemplate(request.arguments) }
+
+        server.addTool(
+            name = "validate_animation_layout",
+            description = "Validate a (possibly edited) animation layout against a model's structure: reports " +
+                "unmatched queue / resource / movable-resource / response / selector bindings, each with a " +
+                "nearest-name 'did you mean' hint, so a binding that would silently animate nothing is caught " +
+                "at author time. Station and objectClass names are NOT checked here — they bind to a produced " +
+                "trace, not static structure. 'layout' is a JSON or TOML AnimationLayout.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("bundleId") { put("type", "string") }
+                    putJsonObject("modelId") { put("type", "string") }
+                    putJsonObject("layout") { put("type", "string"); put("description", "A JSON or TOML AnimationLayout.") }
+                },
+                required = listOf("bundleId", "modelId", "layout"),
+            ),
+            outputSchema = McpResultSchemas.animationLayoutValidation,
+        ) { request -> tools.validateAnimationLayout(request.arguments) }
+
+        server.addTool(
             name = "experiment_config",
             description = "Run a complete ExperimentConfiguration document (factors + design) as authored, " +
                 "validated first. Returns structuredContent with per-design-point results; when reporting, " +
