@@ -495,6 +495,68 @@ internal object McpResultSchemas {
         required = listOf("datasetName", "dataSummary"),
     )
 
+    /** acf_analysis: the sample autocorrelation function + a white-noise band and independence verdict. */
+    val acf = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("n") { put("type", "integer") }
+            putJsonObject("maxLag") { put("type", "integer") }
+            putJsonObject("whiteNoiseBand") { put("type", "number"); put("description", "±1.96/√n; |acf| beyond it is significant at ~95%.") }
+            putJsonObject("lag1") { put("type", "number") }
+            putJsonObject("independentAtLag1") { put("type", "boolean") }
+            putJsonObject("acf") {
+                put("type", "array")
+                put("description", "Autocorrelation per lag (1..maxLag).")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("lag") { put("type", "integer") }
+                        putJsonObject("value") { put("type", "number") }
+                        putJsonObject("significant") { put("type", "boolean") }
+                    }
+                }
+            }
+        },
+        required = listOf("n", "maxLag", "acf"),
+    )
+
+    /** shift_analysis: the standalone left-shift estimate for a data series. */
+    val shift = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("n") { put("type", "integer") }
+            putJsonObject("leftShift") { put("type", "number"); put("description", "The left shift a fit would apply; 0 means none.") }
+            putJsonObject("dataMin") { put("type", "number") }
+            putJsonObject("shiftRecommended") { put("type", "boolean") }
+        },
+        required = listOf("n", "leftShift"),
+    )
+
+    /** family_frequency_bootstrap: how often each distribution family is the recommended fit across resamples. */
+    val familyBootstrap = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("datasetName") { put("type", "string") }
+            putJsonObject("numSamples") { put("type", "integer") }
+            putJsonObject("frequency") {
+                put("type", "object")
+                put("description", "Family tally: cells[] each carry cellLabel (the family), count, and proportion across resamples.")
+                putJsonObject("properties") {
+                    putJsonObject("cells") {
+                        put("type", "array")
+                        putJsonObject("items") {
+                            put("type", "object")
+                            putJsonObject("properties") {
+                                putJsonObject("value") { put("type", "integer") }
+                                putJsonObject("count") { put("type", "number") }
+                                putJsonObject("proportion") { put("type", "number") }
+                                putJsonObject("cellLabel") { put("type", "string"); put("description", "The distribution-family name.") }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        required = listOf("datasetName", "numSamples", "frequency"),
+    )
+
     /** get_workspace / set_workspace: the active KSL workspace and the MCP server's app directory. */
     val workspace = ToolSchema(
         properties = buildJsonObject {
