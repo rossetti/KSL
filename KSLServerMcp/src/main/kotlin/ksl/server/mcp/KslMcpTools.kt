@@ -120,6 +120,7 @@ class KslMcpTools(
     private val registry: BundleRegistry,
     private val resultStore: ResultStore = ResultStore(),
     private val artifactStore: ArtifactStore = ArtifactStore(),
+    private val documentStore: ksl.service.store.DocumentStore = ksl.service.store.DocumentStore(),
     private val json: Json = Json {
         prettyPrint = true
         encodeDefaults = true
@@ -1297,6 +1298,82 @@ class KslMcpTools(
                 refs.forEach { appendLine("  - ${it.name} (${it.mediaType})") }
             }.trimEnd()
         }
+        return result(summary, structured)
+    }
+
+    // ─── G2: document persistence (save/reload authored configs + layouts) + result discovery ───
+
+    private val documentKinds = setOf("run", "experiment", "optimization", "fit", "layout")
+
+    /** `save_document` — save a config or layout document under a name so it survives across sessions
+     *  and can be reloaded/restarted (the server analogue of the desktop apps' configs/ folder). */
+    fun saveDocument(arguments: JsonObject?): CallToolResult {
+        val kind = arguments.string("kind")?.lowercase() ?: return error("missing required argument 'kind' (one of $documentKinds)")
+        if (kind !in documentKinds) return error("unknown kind '$kind'; expected one of $documentKinds")
+        val name = arguments.string("name") ?: return error("missing required argument 'name'")
+        val content = arguments.string("content") ?: return error("missing required argument 'content' (the document text — a run/experiment/optimization/fit config or an animation layout)")
+        val path = documentStore.save(kind, name, content)
+        return result(
+            "Saved $kind document '$name' at $path. Reload it with load_document(kind=\"$kind\", name=\"$name\").",
+            buildJsonObject { put("kind", kind); put("name", name); put("path", path.toString()) },
+        )
+    }
+
+    /** `load_document` — the saved content for (kind, name), ready to submit / re-render. */
+    fun loadDocument(arguments: JsonObject?): CallToolResult {
+        val kind = arguments.string("kind") ?: return error("missing required argument 'kind'")
+        val name = arguments.string("name") ?: return error("missing required argument 'name'")
+        val content = documentStore.load(kind, name) ?: return error("no $kind document named '$name' (list them with list_documents)")
+        return result(content, buildJsonObject { put("kind", kind); put("name", name); put("content", content) })
+    }
+
+    /** `list_documents` — the saved documents, optionally filtered by kind. */
+    fun listDocuments(arguments: JsonObject?): CallToolResult {
+        val docs = documentStore.list(arguments.string("kind"))
+        val structured = buildJsonObject {
+            putJsonArray("documents") {
+                docs.forEach { add(buildJsonObject { put("kind", it.kind); put("name", it.name); put("bytes", it.bytes); put("path", it.path) }) }
+            }
+        }
+        val summary = if (docs.isEmpty()) "No saved documents." else
+            "${docs.size} saved document(s):\n" + docs.joinToString("\n") { "  - [${it.kind}] ${it.name}" }
+        return result(summary, structured)
+    }
+
+    /** `delete_document` — remove a saved document. */
+    fun deleteDocument(arguments: JsonObject?): CallToolResult {
+        val kind = arguments.string("kind") ?: return error("missing required argument 'kind'")
+        val name = arguments.string("name") ?: return error("missing required argument 'name'")
+        val removed = documentStore.delete(kind, name)
+        return result(
+            if (removed) "Deleted $kind document '$name'." else "No $kind document named '$name' to delete.",
+            buildJsonObject { put("deleted", removed) },
+        )
+    }
+
+    /** `list_results` — every retained result the server produced (id, kind, artifacts), so a returning
+     *  user can find and fetch their runs / reports / databases / traces / images. */
+    fun listResults(arguments: JsonObject?): CallToolResult {
+        val rows = resultStore.allIds().mapNotNull { id ->
+            resultStore.get(id)?.let { Triple(id, it.kind.name, artifactStore.list(id).map { a -> a.name }) }
+        }
+        val structured = buildJsonObject {
+            putJsonArray("results") {
+                rows.forEach { (id, kind, artifacts) ->
+                    add(buildJsonObject {
+                        put("resultId", id); put("kind", kind)
+                        putJsonArray("artifacts") { artifacts.forEach { add(it) } }
+                    })
+                }
+            }
+        }
+        val summary = if (rows.isEmpty()) "No retained results yet." else buildString {
+            appendLine("${rows.size} retained result(s):")
+            rows.forEach { (id, kind, artifacts) ->
+                appendLine("  - $id [$kind]${if (artifacts.isNotEmpty()) " — ${artifacts.joinToString(", ")}" else ""}")
+            }
+            append("Fetch one with get_result(resultId) / get_artifact(resultId, name), or analyze a database with the db_* tools.")
+        }.trimEnd()
         return result(summary, structured)
     }
 

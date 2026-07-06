@@ -111,6 +111,18 @@ class ResultStore(
     /** Retrieves a retained result for projection (Phase 8.5). */
     fun get(resultId: String): StoredResult? = lookup(resultId)
 
+    /** Every retained result id (a durable on-disk entry with a `result.json`), for discovery
+     *  (`list_results`). Excludes the `_family` index. */
+    fun allIds(): List<String> {
+        if (!Files.isDirectory(dir)) return emptyList()
+        return Files.list(dir).use { stream ->
+            stream.filter { Files.isDirectory(it) && Files.isRegularFile(it.resolve("result.json")) }
+                .map { it.fileName.toString() }
+                .sorted()
+                .toList()
+        }
+    }
+
     /** Stores a result in both tiers, then enforces the disk retention cap. */
     fun put(stored: StoredResult) {
         memory.put(stored.resultId, stored)

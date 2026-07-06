@@ -696,6 +696,80 @@ object KslMcpServer {
         ) { request -> tools.getArtifacts(request.arguments) }
 
         server.addTool(
+            name = "list_results",
+            description = "List every result the server has retained (its runs, experiments, optimizations, " +
+                "and fits) with its id, kind, and artifact names — so you can find and fetch earlier work in a " +
+                "new session. Fetch one with get_result / get_artifact, or analyze its database with the db_* tools.",
+            inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+            outputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("results") { put("type", "array"); put("description", "{resultId, kind, artifacts:[name]}.") }
+                },
+                required = listOf("results"),
+            ),
+        ) { request -> tools.listResults(request.arguments) }
+
+        val documentKeySchema = ToolSchema(
+            properties = buildJsonObject {
+                putJsonObject("kind") { put("type", "string"); put("description", "run | experiment | optimization | fit | layout") }
+                putJsonObject("name") { put("type", "string") }
+            },
+            required = listOf("kind", "name"),
+        )
+        server.addTool(
+            name = "save_document",
+            description = "Save an authored document under a name so it persists across sessions and can be " +
+                "reloaded/restarted — a run/experiment/optimization/fit config, or an animation layout. 'kind' " +
+                "is run | experiment | optimization | fit | layout; 'content' is the document text.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("kind") { put("type", "string"); put("description", "run | experiment | optimization | fit | layout") }
+                    putJsonObject("name") { put("type", "string") }
+                    putJsonObject("content") { put("type", "string"); put("description", "The document text (JSON/TOML).") }
+                },
+                required = listOf("kind", "name", "content"),
+            ),
+            outputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("kind") { put("type", "string") }; putJsonObject("name") { put("type", "string") }; putJsonObject("path") { put("type", "string") } },
+                required = listOf("name"),
+            ),
+        ) { request -> tools.saveDocument(request.arguments) }
+
+        server.addTool(
+            name = "load_document",
+            description = "Load a previously saved document (by kind + name) back as text — ready to submit to " +
+                "run_config / experiment_config / run_optimization_config, or to render/validate for a layout.",
+            inputSchema = documentKeySchema,
+            outputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("kind") { put("type", "string") }; putJsonObject("name") { put("type", "string") }; putJsonObject("content") { put("type", "string") } },
+                required = listOf("content"),
+            ),
+        ) { request -> tools.loadDocument(request.arguments) }
+
+        server.addTool(
+            name = "list_documents",
+            description = "List the saved documents (configs + layouts), optionally filtered by 'kind'.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("kind") { put("type", "string"); put("description", "Optional filter: run | experiment | optimization | fit | layout.") } },
+                required = emptyList(),
+            ),
+            outputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("documents") { put("type", "array"); put("description", "{kind, name, bytes, path}.") } },
+                required = listOf("documents"),
+            ),
+        ) { request -> tools.listDocuments(request.arguments) }
+
+        server.addTool(
+            name = "delete_document",
+            description = "Delete a saved document by kind + name.",
+            inputSchema = documentKeySchema,
+            outputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("deleted") { put("type", "boolean") } },
+                required = listOf("deleted"),
+            ),
+        ) { request -> tools.deleteDocument(request.arguments) }
+
+        server.addTool(
             name = "get_artifact",
             description = "Fetch one artifact by name. Text artifacts (HTML/Markdown/text/CSV/JSON/SVG) come " +
                 "back inline as the text content; structuredContent carries {name, mediaType, path, content?} " +
