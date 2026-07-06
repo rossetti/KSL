@@ -297,7 +297,9 @@ object KslMcpServer {
                 "Returns structuredContent with per-design-point results. When reporting, present EVERY " +
                 "design point — its factor settings and the resulting response means — and state the design. " +
                 "For full control (fractional or central-composite designs, replication policies), author an " +
-                "ExperimentConfiguration for experiment_config; experiment_template scaffolds one.",
+                "ExperimentConfiguration for experiment_config; experiment_template scaffolds one. " +
+                "Set enableKSLDatabase=true to retain the design in a database so experiment_regression " +
+                "(factor-effects / ANOVA) and the db_* analysis tools can run against this result.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("bundleId") { put("type", "string") }
@@ -316,6 +318,11 @@ object KslMcpServer {
                         }
                     }
                     putJsonObject("numRepsPerDesignPoint") { put("type", "integer") }
+                    putJsonObject("enableKSLDatabase") {
+                        put("type", "boolean")
+                        put("description", "Retain the experiment in a KSL database (default false) so " +
+                            "experiment_regression and db_* tools can analyze it. Off = results only.")
+                    }
                 },
                 required = listOf("bundleId", "modelId", "factors"),
             ),
@@ -692,6 +699,38 @@ object KslMcpServer {
             ),
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.dbSummaryReport(request.arguments) }
+
+        server.addTool(
+            name = "experiment_regression",
+            description = "Fit a factor-effects regression — main effects plus optional interactions, with " +
+                "ANOVA, coefficients, p-values and R² — to a designed experiment that was run with the " +
+                "database enabled (run_experiment enableKSLDatabase=true, or an ExperimentConfiguration whose " +
+                "OutputConfig sets enableKSLDatabase). Answers \"which factors matter, and by how much\" " +
+                "(distinct from db_summary_report's per-point means). Renders a downloadable HTML report " +
+                "(structuredContent {artifacts:[...]}; fetch with get_artifact). 'effects' are the control keys " +
+                "to regress on; 'interactions' are '*'-joined products like \"A*B\"; 'coded' (default true) uses " +
+                "±1-coded factor levels. Without a database it guides you to re-run with one enabled.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("responseName") { put("type", "string") }
+                    putJsonObject("effects") {
+                        put("type", "array")
+                        put("description", "Control keys to regress on (the experiment's factors).")
+                        putJsonObject("items") { put("type", "string") }
+                    }
+                    putJsonObject("interactions") {
+                        put("type", "array")
+                        put("description", "Optional interaction terms as '*'-joined products of effects, e.g. \"A*B\".")
+                        putJsonObject("items") { put("type", "string") }
+                    }
+                    putJsonObject("coded") { put("type", "boolean") }
+                    putJsonObject("level") { put("type", "number") }
+                },
+                required = listOf("resultId", "responseName", "effects"),
+            ),
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.experimentRegression(request.arguments) }
 
         server.addTool(
             name = "get_design_point",

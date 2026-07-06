@@ -58,7 +58,9 @@ import ksl.simulation.ModelBuilderIfc
 import ksl.simulation.ModelProviderIfc
 import ksl.service.job.JobHandleView
 import ksl.service.job.asJobView
+import ksl.utilities.io.dbutil.KSLDatabase
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * One factor in a two-level factorial experiment: a display [name], the model
@@ -245,6 +247,7 @@ class RunService(
         modelId: String,
         factors: List<ExperimentFactorSpec>,
         numRepsPerDesignPoint: Int? = null,
+        captureDir: Path? = null,
     ): JobHandleView<RunEvent, RunResult> {
         require(factors.size >= 2) { "a two-level factorial experiment needs at least two factors" }
         // The same TwoLevelFactor instances key both the design and the binding map.
@@ -261,16 +264,23 @@ class RunService(
                 experimentRunParameters: ExperimentRunParametersIfc?,
             ): Model = provider.provideModel(modelId, modelConfiguration, experimentRunParameters)
         }
-        val workspace = Files.createTempDirectory("ksl-experiment")
+        // When [captureDir] is supplied the caller wants the per-design-point
+        // results retained in a KSL database (for downstream regression / MCB), so
+        // write into that server-owned directory and keep it; otherwise fall back to
+        // a throwaway workspace with the incidental database suppressed.
+        val retain = captureDir != null
+        val outputDir = if (retain) captureDir!!.also { Files.createDirectories(it) }
+                        else Files.createTempDirectory("ksl-experiment")
         val experiment = ParallelDesignedExperiment(
             name = "exp-$modelId",
             modelBuilder = builder,
             factorSettings = factorSettings,
             design = design,
-            pathToOutputDirectory = workspace,
-            // Headless server: the result is built from in-memory snapshots, so
-            // suppress the experiment's incidental SQLite database side output.
-            kslDb = null,
+            pathToOutputDirectory = outputDir,
+            // Retain per-design-point results (each committed as "exp-<id>_DP_<n>")
+            // when capturing; otherwise suppress the SQLite side output entirely.
+            kslDb = if (retain) KSLDatabase("experiment.db", outputDir) else null,
+            experimentName = if (retain) "exp-$modelId" else null,
             useDesignPointOutputDirs = false,
         )
         // RunSpec.Experiment's workload is the experiment object; the config is
@@ -283,8 +293,11 @@ class RunService(
         )
         val handle = session.submit(RunSpec.Experiment(config, experiment, numRepsPerDesignPoint))
             .asJobView().guardWithDeadline()
-        // Reclaim the temp workspace once the experiment finishes (any outcome).
-        handle.result.invokeOnCompletion { runCatching { workspace.toFile().deleteRecursively() } }
+        // Reclaim a throwaway workspace once the experiment finishes; a retained
+        // capture directory is owned by the caller (the result artifact store).
+        if (!retain) {
+            handle.result.invokeOnCompletion { runCatching { outputDir.toFile().deleteRecursively() } }
+        }
         return handle
     }
 
@@ -362,7 +375,10 @@ class RunService(
      * same `RunResult.BatchCompleted` (one snapshot per design point) the
      * flattened path produces. Only `ModelReference.ByProviderId` is supported.
      */
-    fun submitExperimentConfig(config: ExperimentConfiguration): JobHandleView<RunEvent, RunResult> {
+    fun submitExperimentConfig(
+        config: ExperimentConfiguration,
+        captureDir: Path? = null,
+    ): JobHandleView<RunEvent, RunResult> {
         val modelId = (config.modelReference as? ModelReference.ByProviderId)?.providerId
             ?: throw IllegalArgumentException("experiment documents must use modelReference type 'byProviderId'")
         // Adapt the provider into the factory the design needs: CONCURRENT builds
@@ -373,8 +389,20 @@ class RunService(
                 experimentRunParameters: ExperimentRunParametersIfc?,
             ): Model = provider.provideModel(modelId, modelConfiguration, experimentRunParameters)
         }
-        val workspace = Files.createTempDirectory("ksl-experiment")
-        val experiment = config.toDesignedExperiment(builder, workspace)
+        // A [captureDir] means the caller wants the per-design-point results retained
+        // for downstream regression / MCB: write into that server-owned directory and
+        // keep it, handing toDesignedExperiment an explicit database so it does not
+        // matter whether the document itself set enableKSLDatabase. Otherwise use a
+        // throwaway workspace (the document's own enableKSLDatabase, if set, still
+        // writes there but is reclaimed with the directory).
+        val retain = captureDir != null
+        val outputDir = if (retain) captureDir!!.also { Files.createDirectories(it) }
+                        else Files.createTempDirectory("ksl-experiment")
+        val experiment = config.toDesignedExperiment(
+            builder,
+            outputDir,
+            kslDatabase = if (retain) KSLDatabase("experiment.db", outputDir) else null,
+        )
         // RunSpec.Experiment's workload is the experiment object; the config is
         // metadata only (the orchestrator empties its scenarios).
         val metadata = RunConfiguration(
@@ -382,11 +410,12 @@ class RunService(
             outputConfig = OutputConfig(reports = emptySet()),
         )
         val handle = session.submit(RunSpec.Experiment(metadata, experiment)).asJobView().guardWithDeadline()
-        // Reclaim the experiment's temp workspace once it finishes (success, failure,
-        // or cancellation). The result is built from in-memory snapshots and the DB
-        // is off, so nothing needs the directory afterward — leaving it would leak a
-        // temp dir per experiment.
-        handle.result.invokeOnCompletion { runCatching { workspace.toFile().deleteRecursively() } }
+        // Reclaim a throwaway workspace once it finishes (success, failure, or
+        // cancellation); a retained capture directory is owned by the caller (the
+        // result artifact store) and left in place for downstream analysis.
+        if (!retain) {
+            handle.result.invokeOnCompletion { runCatching { outputDir.toFile().deleteRecursively() } }
+        }
         return handle
     }
 

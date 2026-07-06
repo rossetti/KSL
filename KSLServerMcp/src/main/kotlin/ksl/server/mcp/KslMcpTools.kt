@@ -1260,6 +1260,29 @@ class KslMcpTools(
         return dbReportResult(outcome, resultId)
     }
 
+    /** `experiment_regression` — fit a factor-effects regression to a designed experiment
+     *  that was run with the database enabled, and render it as an HTML artifact. */
+    fun experimentRegression(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val responseName = arguments.string("responseName") ?: return error("missing required argument 'responseName'")
+        val effects = (arguments?.get("effects") as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?: return error("missing required argument 'effects' (an array of control-key names to regress on)")
+        if (effects.isEmpty()) return error("'effects' must list at least one control key to regress on")
+        // Interactions are '*'-joined products of effect names, e.g. "A*B"; split into term lists.
+        val interactions = (arguments?.get("interactions") as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?.map { it.split("*").map(String::trim).filter(String::isNotEmpty) }
+            ?.filter { it.isNotEmpty() }
+            ?: emptyList()
+        val coded = arguments.string("coded")?.toBooleanStrictOrNull() ?: true
+        val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
+        val outcome = resultDb.renderExperimentRegressionReport(
+            dbDirFor(resultId), artifactStore.dirFor(resultId),
+            responseName, effects, interactions, coded, intercept = true, level,
+        )
+        return dbReportResult(outcome, resultId)
+    }
+
     /** Maps a file-producing [ksl.service.capability.dbanalysis.DbReportResult] to a
      *  tool result: on success the result's artifact list, else a guidance result. */
     private fun dbReportResult(outcome: ksl.service.capability.dbanalysis.DbReportResult, resultId: String): CallToolResult =
@@ -1406,6 +1429,11 @@ class KslMcpTools(
         }
         if (factors.size < 2) return error("a factorial experiment needs at least two factors")
         val numReps = arguments.int("numRepsPerDesignPoint")
+        // Opt-in: retain each design point's results in a KSL database so the
+        // experiment_regression and db_* tools can analyze them afterward. Folded
+        // into the cache key, so enabling it forces a fresh run that writes the DB
+        // rather than returning a prior no-database result.
+        val enableKSLDatabase = arguments?.get("enableKSLDatabase")?.jsonPrimitive?.booleanOrNull ?: false
 
         // No serializable document backs a designed experiment, so key on a
         // canonical request: the model, the rep count, and the factors in a
@@ -1413,18 +1441,21 @@ class KslMcpTools(
         val request = buildJsonObject {
             put("modelId", modelId)
             numReps?.let { put("numRepsPerDesignPoint", it) }
+            if (enableKSLDatabase) put("enableKSLDatabase", true)
             putJsonArray("factors") {
                 factors.sortedBy { it.name }.forEach { add(json.encodeToJsonElement(ExperimentFactorSpec.serializer(), it)) }
             }
         }
+        val key = ResultStore.sha256("${registry.versionSaltFor(listOf(modelId))}|experiment:$request")
+        val captureDir = if (enableKSLDatabase) artifactStore.outputDirFor(key) else null
         return runCached(
-            key = ResultStore.sha256("${registry.versionSaltFor(listOf(modelId))}|experiment:$request"),
+            key = key,
             kind = ResultKind.BATCH,
             request = request,
             useCache = useCache(arguments),
             failMessage = "experiment failed",
         ) {
-            runJobs.result(runJobs.register { runService.submitExperiment(modelId, factors, numReps) }.jobId)
+            runJobs.result(runJobs.register { runService.submitExperiment(modelId, factors, numReps, captureDir) }.jobId)
                 ?: kotlin.error("experiment vanished")
         }
     }
@@ -1512,14 +1543,20 @@ class KslMcpTools(
         val descriptor = experimentDescriptor(config) ?: return error("the document references an unknown model")
         val validation = ExperimentDocuments.validate(config, descriptor)
         if (!validation.isValid) return validationError(validation)
+        val key = ExperimentDocuments.key(config, CacheVersion.forExperiment(registry, config))
+        // A document that opts into a database (outputConfig.enableKSLDatabase)
+        // has its per-design-point results retained under the result id so the
+        // experiment_regression and db_* tools can analyze them afterward. The
+        // key already reflects the flag (it hashes the whole document).
+        val captureDir = if (config.outputConfig.enableKSLDatabase) artifactStore.outputDirFor(key) else null
         return runCached(
-            key = ExperimentDocuments.key(config, CacheVersion.forExperiment(registry, config)),
+            key = key,
             kind = ResultKind.BATCH,
             request = json.parseToJsonElement(ExperimentDocuments.encode(config)),
             useCache = useCache(arguments),
             failMessage = "experiment failed",
         ) {
-            runJobs.result(runJobs.register { runService.submitExperimentConfig(config) }.jobId)
+            runJobs.result(runJobs.register { runService.submitExperimentConfig(config, captureDir) }.jobId)
                 ?: kotlin.error("experiment vanished")
         }
     }
