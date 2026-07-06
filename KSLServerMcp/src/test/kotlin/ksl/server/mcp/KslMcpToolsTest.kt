@@ -29,6 +29,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
@@ -894,7 +895,18 @@ class KslMcpToolsTest {
      *  catch drift between a tool's structuredContent and its declared outputSchema. */
     private object SchemaConformance {
         fun errors(value: JsonElement, schema: JsonObject, path: String): List<String> = buildList {
-            when (schema["type"]?.jsonPrimitive?.contentOrNull) {
+            // `type` is a single string, or — for a nullable field — an array like ["number","null"].
+            val types: Set<String> = when (val t = schema["type"]) {
+                is JsonArray -> t.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.toSet()
+                is JsonPrimitive -> setOfNotNull(t.contentOrNull)
+                else -> emptySet()
+            }
+            // A JSON null conforms iff the schema admits "null" (or declares no type at all).
+            if (value is JsonNull) {
+                if (types.isNotEmpty() && "null" !in types) add("$path: null not permitted (type $types)")
+                return@buildList
+            }
+            when (types.firstOrNull { it != "null" }) {
                 "object" -> {
                     val obj = value as? JsonObject ?: return listOf("$path: expected object")
                     (schema["required"] as? JsonArray)?.forEach {
@@ -914,7 +926,12 @@ class KslMcpToolsTest {
                 "string" -> if (!(value is JsonPrimitive && value.isString)) add("$path: expected string")
                 "boolean" -> if ((value as? JsonPrimitive)?.booleanOrNull == null) add("$path: expected boolean")
                 "integer" -> if ((value as? JsonPrimitive)?.intOrNull == null) add("$path: expected integer")
-                "number" -> if ((value as? JsonPrimitive)?.doubleOrNull == null) add("$path: expected number")
+                // Reject NaN/±Infinity: doubleOrNull parses "NaN" to a value, but it is not a valid JSON
+                // number and would fail the SDK's own validation — the gap that let the n=1 NaN bug (F-2) by.
+                "number" -> {
+                    val d = (value as? JsonPrimitive)?.doubleOrNull
+                    if (d == null || !d.isFinite()) add("$path: expected a finite number")
+                }
                 else -> {} // untyped fragment: accept
             }
         }

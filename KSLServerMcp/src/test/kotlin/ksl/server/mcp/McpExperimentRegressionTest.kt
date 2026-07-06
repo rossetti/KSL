@@ -155,4 +155,21 @@ class McpExperimentRegressionTest {
             "should guide the analyst to enable the database; got ${firstText(reg)}",
         )
     }
+
+    @Test
+    @DisplayName("no-database experiment_regression still satisfies the required-'artifacts' output-schema contract")
+    fun noDatabaseRegressionCarriesRequiredArtifactsArray() = runBlocking {
+        val t = target()
+        val resultId = runExperiment(t, enableDb = false)
+        val reg = structured(tools.experimentRegression(buildJsonObject {
+            put("resultId", resultId); put("responseName", t.response); put("effects", effectsArray(t))
+        }))
+        // experiment_regression declares outputSchema = artifacts (required: ["artifacts"]). The no-database
+        // guidance envelope must still carry it, or the SDK rejects the result at the transport boundary and
+        // the client sees a schema-validation error instead of the guidance. The guidance test above checks
+        // only 'present' + text — so it passed while the bug was live; this asserts the actual schema contract.
+        val artifacts = reg["artifacts"]
+        assertNotNull(artifacts, "the guidance envelope must include the schema-required 'artifacts'; got $reg")
+        assertTrue(artifacts.jsonArray.isEmpty(), "no report files were produced, so 'artifacts' is an empty array; got $artifacts")
+    }
 }
