@@ -19,6 +19,7 @@
 package ksl.server.mcp
 
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -371,6 +372,48 @@ class KslMcpTools(
         } else {
             documentResult("AnimationLayout", layout.toJson())
         }
+    }
+
+    /** `render_animation_layout` — render a (proposed or edited) AnimationLayout to a static PNG preview,
+     *  returned inline as an image (so the model can see it) plus a downloadable artifact — the
+     *  propose → render → look → revise loop. */
+    fun renderAnimationLayout(arguments: JsonObject?): CallToolResult {
+        val layoutText = arguments.string("layout")
+            ?: return error("missing required argument 'layout' (a JSON or TOML AnimationLayout)")
+        val layout = try {
+            if (layoutText.trimStart().startsWith("{")) AnimationLayout.fromJson(layoutText)
+            else AnimationLayout.fromToml(layoutText)
+        } catch (e: Exception) {
+            return error("could not parse the layout (expected a JSON or TOML AnimationLayout): ${e.message}")
+        }
+        // A standalone render (no run) — key the artifact by the layout's content hash.
+        val resultId = "layout-" + ResultStore.sha256(layoutText).take(16)
+        val pngPath = artifactStore.dirFor(resultId).resolve("layout.png")
+        try {
+            ksl.service.capability.render.AnimationLayoutRenderer.renderToPng(layout, pngPath)
+        } catch (e: Exception) {
+            return error("could not render the layout: ${e.message}")
+        }
+        val bytes = java.nio.file.Files.readAllBytes(pngPath)
+        val base64 = java.util.Base64.getEncoder().encodeToString(bytes)
+        val refs = artifactStore.list(resultId)
+        val structured = buildJsonObject {
+            put("resultId", resultId)
+            putJsonArray("artifacts") {
+                refs.forEach { add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) }) }
+            }
+        }
+        // Inline the image so a vision model can see the layout; the artifact lets the user open it.
+        return CallToolResult(
+            content = listOf(
+                ImageContent(data = base64, mimeType = "image/png"),
+                TextContent(
+                    "Rendered the layout to layout.png (${bytes.size} bytes). Fetch it with " +
+                        "get_artifact(resultId=\"$resultId\", name=\"layout.png\").",
+                ),
+            ),
+            structuredContent = structured,
+        )
     }
 
     /** A config-document scaffold result: the raw document as text (to edit and submit) plus
