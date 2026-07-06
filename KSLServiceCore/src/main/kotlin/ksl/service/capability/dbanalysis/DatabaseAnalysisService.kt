@@ -172,8 +172,23 @@ class DatabaseAnalysisService : AutoCloseable {
         delta: Double = 0.0,
         level: Double = 0.95,
         prettyPrint: Boolean = false,
+    ): DbQueryResult = comparisonJson(handle.source, responseName, experimentNames, delta, level, prettyPrint)
+
+    /**
+     * MCB analysis over any [ComparisonDataSourceIfc] — the database-independent core.
+     * The [DbHandle] overload delegates here with `handle.source`; the in-memory path (a
+     * headless batch rehydrated from its retained per-replication observations) calls it
+     * directly, so both routes produce byte-identical JSON.
+     */
+    fun comparisonJson(
+        source: ComparisonDataSourceIfc,
+        responseName: String,
+        experimentNames: List<String>? = null,
+        delta: Double = 0.0,
+        level: Double = 0.95,
+        prettyPrint: Boolean = false,
     ): DbQueryResult {
-        val selection = ComparisonSelectionModel(listOf(handle.source))
+        val selection = ComparisonSelectionModel(listOf(source))
         if (experimentNames == null) selection.selectAll()
         else experimentNames.forEach { selection.toggleExperiment(it, true) }
 

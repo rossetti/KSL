@@ -18,6 +18,7 @@
 
 package ksl.service.capability.dbanalysis
 
+import ksl.app.comparison.ComparisonDataSourceIfc
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -96,9 +97,14 @@ class ResultDatabaseService(
         experimentNames: List<String>? = null,
         delta: Double = 0.0,
         level: Double = 0.95,
+        fallbackSource: ComparisonDataSourceIfc? = null,
     ): DbQueryResult {
-        val db = locate(outputDir) ?: return DbQueryResult.NoDatabase
-        return withDatabase(db) { analysis.comparisonJson(it, responseName, experimentNames, delta, level) }
+        val db = locate(outputDir)
+        if (db != null) return withDatabase(db) { analysis.comparisonJson(it, responseName, experimentNames, delta, level) }
+        // No database: run the same analyzer against the retained per-replication observations
+        // (a headless batch rehydrated into a source), or degrade gracefully when there are none.
+        return fallbackSource?.let { analysis.comparisonJson(it, responseName, experimentNames, delta, level) }
+            ?: DbQueryResult.NoDatabase
     }
 
     /** Renders a comparison (MCB) report into [reportsDir], or a graceful result
