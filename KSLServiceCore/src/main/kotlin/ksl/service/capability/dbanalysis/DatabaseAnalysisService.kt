@@ -45,6 +45,13 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.asMCBIntervalDataFrame
 import ksl.utilities.statistic.asMCBResultDataFrame
 import ksl.utilities.statistic.asMCBScreeningIntervalDataFrame
+import ksl.controls.experiments.LinearModel
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter
+import ksl.utilities.io.addColumnsFor
+import ksl.utilities.io.toDataFrame
+import ksl.utilities.statistic.OLSRegression
+import ksl.utilities.statistic.RegressionData
+import ksl.utilities.statistic.RegressionResultsIfc
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.columnNames
 import org.jetbrains.kotlinx.dataframe.api.filter
@@ -325,6 +332,141 @@ class DatabaseAnalysisService : AutoCloseable {
         ReportFormat.HTML -> "html"
         ReportFormat.MARKDOWN -> "md"
         ReportFormat.TEXT -> "txt"
+    }
+
+    /**
+     * Reconstructs a designed experiment's regression / factor-effects analysis from a
+     * retained KSL database, feeding the identical KSLCore pipeline the desktop uses so
+     * the coefficients/ANOVA match `DesignedExperimentIfc.regressionResults` on the same
+     * design. Each design point was committed as a distinct experiment; this reads each
+     * point's control values (the regressors) and its per-replication response averages,
+     * reassembles the base (regressors + response) data frame the live object would have
+     * produced, then applies the linear model.
+     *
+     * [effects] are control key names (the regressors) — each must be a control that varies
+     * across the design points. [interactions] are product terms, each a list of effect
+     * names (e.g. `["A","B"]` for `A*B`). When [coded] is true each regressor column is
+     * ±1-coded from the executed factor levels (its observed low/high across design points,
+     * which for a two-level design are exactly the factor's low/high — matching
+     * `Factor.toCodedValue`); otherwise the raw control values are used.
+     */
+    fun experimentRegressionResults(
+        handle: DbHandle,
+        responseName: String,
+        effects: List<String>,
+        interactions: List<List<String>> = emptyList(),
+        coded: Boolean = true,
+        intercept: Boolean = true,
+    ): RegressionResultsIfc =
+        OLSRegression(buildExperimentRegressionData(handle.database, responseName, effects, interactions, coded, intercept))
+
+    /**
+     * Renders [experimentRegressionResults] as report files (default HTML) into
+     * [reportsDir], reusing the same regression report the desktop produces. Returns the
+     * written file names relative to [reportsDir].
+     */
+    fun renderExperimentRegressionReport(
+        handle: DbHandle,
+        responseName: String,
+        effects: List<String>,
+        interactions: List<List<String>> = emptyList(),
+        coded: Boolean = true,
+        intercept: Boolean = true,
+        confidenceLevel: Double = 0.95,
+        formats: Set<ReportFormat> = setOf(ReportFormat.HTML),
+        reportsDir: Path,
+    ): List<String> {
+        Files.createDirectories(reportsDir)
+        val results = experimentRegressionResults(handle, responseName, effects, interactions, coded, intercept)
+        val document = results.toReport(
+            title = "Experiment Regression — $responseName" + if (coded) " (coded factors)" else "",
+            confidenceLevel = confidenceLevel,
+        )
+        val ctx = RenderContext(outputDir = reportsDir, plotDir = reportsDir.resolve("plots"))
+        val stem = "regression-" + responseName.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        return formats.map { fmt ->
+            val target = reportsDir.resolve("$stem.${fmt.extension()}")
+            val file = when (fmt) {
+                ReportFormat.HTML -> document.writeHtml(path = target, ctx = ctx)
+                ReportFormat.MARKDOWN -> document.writeMarkdown(path = target, ctx = ctx)
+                ReportFormat.TEXT -> document.writeText(path = target, ctx = ctx)
+            }
+            reportsDir.relativize(file.toPath()).toString().replace('\\', '/')
+        }
+    }
+
+    /**
+     * The join at the heart of the DB-backed regression: enumerate the design-point
+     * experiments, read each one's regressor (control) values and per-replication response
+     * averages, assemble the base data frame, and expand it for the linear model. Design
+     * points that produced no observation of [responseName] are skipped.
+     */
+    private fun buildExperimentRegressionData(
+        db: KSLDatabase,
+        responseName: String,
+        effects: List<String>,
+        interactions: List<List<String>>,
+        coded: Boolean,
+        intercept: Boolean,
+    ): RegressionData {
+        require(effects.isNotEmpty()) { "at least one regressor (effect) is required" }
+        // Pass 1: per design point, gather the regressor values + the per-rep responses.
+        data class DesignPoint(val rawValues: Map<String, Double>, val responses: List<Double>)
+        val points = mutableListOf<DesignPoint>()
+        for (expName in db.experimentNames) {
+            val responses = db.withinRepStatDataFor(expName)
+                .filter { it.stat_name == responseName }
+                .mapNotNull { it.average }
+            if (responses.isEmpty()) continue   // not a design point for this response
+            // A factor may bind to either a control or a random-variable parameter, so
+            // build one input-key -> value map from both tables. RV-parameter keys are
+            // "<rvName><.><paramName>" — the same flat form Model.inputKeys() presents.
+            val inputs = HashMap<String, Double>()
+            db.controlDataFor(expName).forEach { c -> c.control_value?.let { inputs[c.key_name] = it } }
+            db.rvParameterDataFor(expName).forEach { p ->
+                inputs["${p.rv_name}${RVParameterSetter.rvParamConCatChar}${p.param_name}"] = p.param_value
+            }
+            val rawValues = effects.associateWith { effect ->
+                inputs[effect] ?: throw IllegalArgumentException(
+                    "'$effect' is not an input (control or RV parameter) on design point '$expName'; " +
+                        "available inputs: ${inputs.keys.sorted()}")
+            }
+            points.add(DesignPoint(rawValues, responses))
+        }
+        require(points.isNotEmpty()) {
+            "no design points in the database produced observations of response '$responseName'"
+        }
+        // Coding basis: each regressor's executed low/high (its observed extremes).
+        val bounds = effects.associateWith { effect ->
+            val values = points.map { it.rawValues.getValue(effect) }
+            values.min() to values.max()
+        }
+        fun encode(effect: String, raw: Double): Double {
+            if (!coded) return raw
+            val (lo, hi) = bounds.getValue(effect)
+            require(hi != lo) { "regressor '$effect' has a single level; it cannot be coded (or regressed on)" }
+            return (raw - (lo + hi) / 2.0) / ((hi - lo) / 2.0)   // matches Factor.toCodedValue
+        }
+        // Pass 2: expand to one row per (design point × replication).
+        val columns = LinkedHashMap<String, MutableList<Double>>().apply {
+            effects.forEach { put(it, mutableListOf()) }
+            put(responseName, mutableListOf())
+        }
+        for (point in points) {
+            for (y in point.responses) {
+                effects.forEach { columns.getValue(it).add(encode(it, point.rawValues.getValue(it))) }
+                columns.getValue(responseName).add(y)
+            }
+        }
+        val baseDf = columns.mapValues { it.value.toDoubleArray() }.toDataFrame()
+        // Same downstream path as DesignedExperiment.regressionData: expand the model's
+        // interaction columns, then create the regression data over its term names.
+        val linearModel = LinearModel(effects.toSet()).also { lm ->
+            lm.intercept = intercept
+            interactions.forEach { lm.term(it) }
+        }
+        val df = baseDf.addColumnsFor(linearModel)
+        return RegressionData.create(df, responseName, linearModel.termsAsMap.keys.toList(), linearModel.intercept)
     }
 
     /**

@@ -140,6 +140,35 @@ class ResultDatabaseService(
         }
     }
 
+    /** Renders a designed-experiment regression / factor-effects report into
+     *  [reportsDir]. Returns [DbReportResult.NoDatabase] when the result has no database
+     *  (the experiment must have been run with a database enabled), or
+     *  [DbReportResult.Invalid] when the requested regressors/response are not analyzable. */
+    fun renderExperimentRegressionReport(
+        outputDir: Path,
+        reportsDir: Path,
+        responseName: String,
+        effects: List<String>,
+        interactions: List<List<String>> = emptyList(),
+        coded: Boolean = true,
+        intercept: Boolean = true,
+        level: Double = 0.95,
+        formats: Set<ksl.app.config.ReportFormat> = setOf(ksl.app.config.ReportFormat.HTML),
+    ): DbReportResult {
+        val db = locate(outputDir) ?: return DbReportResult.NoDatabase
+        return withDatabase(db) {
+            try {
+                DbReportResult.Ok(
+                    analysis.renderExperimentRegressionReport(
+                        it, responseName, effects, interactions, coded, intercept, level, formats, reportsDir,
+                    )
+                )
+            } catch (e: IllegalArgumentException) {
+                DbReportResult.Invalid(e.message ?: "the experiment could not be regressed as specified")
+            }
+        }
+    }
+
     /** Exports the result's database into [reportsDir], or [DbReportResult.NoDatabase]. */
     fun exportDatabase(outputDir: Path, reportsDir: Path, format: DbExportFormat): DbReportResult {
         val db = locate(outputDir) ?: return DbReportResult.NoDatabase
