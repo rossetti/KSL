@@ -50,10 +50,11 @@ class RunServiceDeadlineTest {
     fun `a runaway run is cancelled at the server deadline`(): Unit = runBlocking {
         val registry = TestBundles.registry()
         try {
-            // Any discrete-event example model runs effectively forever under a
-            // huge horizon; we just need one to drive past the deadline.
-            val modelId = registry.listBundles().firstNotNullOfOrNull { it.modelIds.firstOrNull() }
-            assertTrue(modelId != null, "expected at least one model")
+            // A discrete-event model runs effectively forever under a huge horizon; MM1 is
+            // the canonical one. Select it explicitly rather than blindly taking the first
+            // model in the catalog — not every fixture there is event-driven (e.g. the
+            // controls echo has no events, so a huge horizon completes instantly).
+            val modelId = "MM1"
 
             RunService.fromRegistry(registry, runDeadline = 2.seconds).use { service ->
                 val config = RunConfiguration(
