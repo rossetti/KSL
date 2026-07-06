@@ -391,6 +391,29 @@ internal object McpResultSchemas {
         required = emptyList(),
     )
 
+    /** validate_animation_layout: whether every checked binding matched, plus each unmatched
+     *  binding (kind + name + a "did you mean" message). */
+    val animationLayoutValidation = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("isValid") { put("type", "boolean") }
+            putJsonObject("issues") {
+                put("type", "array")
+                put("description", "Unmatched bindings; empty when the layout is valid. Each is " +
+                    "{kind (UNMATCHED_QUEUE / _RESOURCE / _MOVABLE_RESOURCE / _RESPONSE / _SELECTOR), " +
+                    "name, message (with a nearest-name hint)}.")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("kind") { put("type", "string") }
+                        putJsonObject("name") { put("type", "string") }
+                        putJsonObject("message") { put("type", "string") }
+                    }
+                }
+            }
+        },
+        required = listOf("isValid", "issues"),
+    )
+
     /** get_fit_scoring: the MODA scoring matrix (raw `scores` + scaled value-function `values`). */
     val fitScoring = ToolSchema(
         properties = buildJsonObject {
