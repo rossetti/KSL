@@ -1637,10 +1637,17 @@ class KslMcpTools(
      *  tool result: on success the result's artifact list, else a guidance result. */
     private fun dbReportResult(outcome: ksl.service.capability.dbanalysis.DbReportResult, resultId: String): CallToolResult =
         when (outcome) {
+            // The guidance branches carry an empty 'artifacts' array so they satisfy this tool's
+            // output schema (required: ["artifacts"]); without it the SDK rejects the non-error
+            // guidance result and the client sees a schema-validation error instead of the message.
             ksl.service.capability.dbanalysis.DbReportResult.NoDatabase ->
-                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject {
+                    put("present", false); putJsonArray("artifacts") {}
+                })
             is ksl.service.capability.dbanalysis.DbReportResult.Invalid ->
-                result(outcome.reason, buildJsonObject { put("analyzable", false); put("reason", outcome.reason) })
+                result(outcome.reason, buildJsonObject {
+                    put("analyzable", false); put("reason", outcome.reason); putJsonArray("artifacts") {}
+                })
             is ksl.service.capability.dbanalysis.DbReportResult.Ok -> {
                 val refs = artifactStore.list(resultId)
                 val structured = buildJsonObject {

@@ -137,18 +137,24 @@ private fun perRepObservations(
     }
 }
 
+/** A single replication has no sample dispersion, so KSL reports NaN std dev / std err / half width (and an
+ *  empty statistic yields ±∞ min/max); NaN and ±∞ are not valid JSON numbers and fail MCP output-schema
+ *  validation. Project any non-finite statistic to null — the value is genuinely undefined — so the DTO
+ *  serializes cleanly. Finite values pass through unchanged, so multi-replication output is unaffected. */
+private fun Double?.finiteOrNull(): Double? = if (this != null && isFinite()) this else null
+
 internal fun AcrossRepStatTableData.toDto(): ResponseStatDto = ResponseStatDto(
     name = stat_name,
     count = stat_count,
-    average = average,
-    stdDev = std_dev,
-    stdErr = std_err,
-    halfWidth = half_width,
+    average = average.finiteOrNull(),
+    stdDev = std_dev.finiteOrNull(),
+    stdErr = std_err.finiteOrNull(),
+    halfWidth = half_width.finiteOrNull(),
     confLevel = conf_level,
-    min = minimum,
-    max = maximum,
-    sum = sum_of_obs,
-    deviationSumOfSquares = dev_ssq,
+    min = minimum.finiteOrNull(),
+    max = maximum.finiteOrNull(),
+    sum = sum_of_obs.finiteOrNull(),
+    deviationSumOfSquares = dev_ssq.finiteOrNull(),
 )
 
 internal fun ksl.simopt.evaluator.Solution.toDto(): SolutionDto = SolutionDto(

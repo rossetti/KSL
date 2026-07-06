@@ -683,22 +683,26 @@ internal object McpResultSchemas {
  * and get_response), so the declared shape never drifts from the DTO. Populates the
  * enclosing `properties` object in place.
  */
+/** A number field that may also be null: a single-replication run has no dispersion (std dev / std err /
+ *  half width) and an empty statistic has no mean/extent, so those come back null rather than as a
+ *  non-finite (NaN/±∞) value that is not a valid JSON number. */
+private fun JsonObjectBuilder.nullableNumber(name: String, description: String? = null) {
+    putJsonObject(name) {
+        putJsonArray("type") { add("number"); add("null") }
+        if (description != null) put("description", description)
+    }
+}
+
 private fun JsonObjectBuilder.responseStatProperties() {
     putJsonObject("name") { put("type", "string") }
     putJsonObject("count") { put("type", "number") }
-    putJsonObject("average") { put("type", "number") }
-    putJsonObject("stdDev") { put("type", "number") }
-    putJsonObject("stdErr") { put("type", "number") }
-    putJsonObject("halfWidth") { put("type", "number"); put("description", "95% CI half-width.") }
+    nullableNumber("average")
+    nullableNumber("stdDev")
+    nullableNumber("stdErr")
+    nullableNumber("halfWidth", "95% CI half-width (null for a single replication).")
     putJsonObject("confLevel") { put("type", "number") }
-    putJsonObject("min") { put("type", "number") }
-    putJsonObject("max") { put("type", "number") }
-    putJsonObject("sum") {
-        put("type", "number")
-        put("description", "Sum of the per-replication values (Sx); with count and deviationSumOfSquares, pools disjoint runs exactly.")
-    }
-    putJsonObject("deviationSumOfSquares") {
-        put("type", "number")
-        put("description", "Deviation sum of squares of the per-replication values.")
-    }
+    nullableNumber("min")
+    nullableNumber("max")
+    nullableNumber("sum", "Sum of the per-replication values (Sx); with count and deviationSumOfSquares, pools disjoint runs exactly.")
+    nullableNumber("deviationSumOfSquares", "Deviation sum of squares of the per-replication values.")
 }

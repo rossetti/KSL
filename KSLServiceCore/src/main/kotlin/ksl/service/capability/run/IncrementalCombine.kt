@@ -80,9 +80,11 @@ object IncrementalCombine {
             name = a.name,
             count = n,
             average = mean,
-            stdDev = stdDev,
-            stdErr = stdErr,
-            halfWidth = halfWidth,
+            // A pooled single observation has no dispersion (NaN); null it out — NaN is not a valid JSON
+            // number and would fail MCP output-schema validation downstream.
+            stdDev = stdDev.takeIf { it.isFinite() },
+            stdErr = stdErr.takeIf { it.isFinite() },
+            halfWidth = halfWidth.takeIf { it.isFinite() },
             confLevel = level,
             min = minOrNull(a.min, b.min),
             max = maxOrNull(a.max, b.max),
