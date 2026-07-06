@@ -107,7 +107,9 @@ object KslMcpServer {
                 "array — name, average, standard error, and 95% CI half-width — plus the replication count " +
                 "and status; do not omit responses or replace the statistics with prose. Identical calls " +
                 "reproduce by design; to get a different, independent random realization set replicationSet " +
-                "(0 = the standard run; 1, 2, … give independent runs), or set antithetic for variance reduction.",
+                "(0 = the standard run; 1, 2, … give independent runs), or set antithetic for variance reduction. " +
+                "For full control (scenario batches, output/tracing, stream policy), author a RunConfiguration for " +
+                "run_config; run_template scaffolds one.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("bundleId") { put("type", "string") }
@@ -255,7 +257,9 @@ object KslMcpServer {
             description = "Run a simulation-optimization (stochastic hill climbing) over a bundled " +
                 "model: minimize/maximize a response over numeric decision variables. Returns structuredContent " +
                 "with the best solution and iteration trace. When reporting, give the best decision-variable " +
-                "values and the objective achieved, the number of iterations evaluated, and the direction.",
+                "values and the objective achieved, the number of iterations evaluated, and the direction. " +
+                "For full control (the solver family, cooling schedules, penalties, stopping rules), author an " +
+                "OptimizationRunConfiguration for run_optimization_config; optimization_template scaffolds one.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("bundleId") { put("type", "string") }
@@ -291,7 +295,9 @@ object KslMcpServer {
             description = "Run a two-level factorial designed experiment over a bundled model. " +
                 "Each factor binds a model control key to low/high levels; needs at least two factors. " +
                 "Returns structuredContent with per-design-point results. When reporting, present EVERY " +
-                "design point — its factor settings and the resulting response means — and state the design.",
+                "design point — its factor settings and the resulting response means — and state the design. " +
+                "For full control (fractional or central-composite designs, replication policies), author an " +
+                "ExperimentConfiguration for experiment_config; experiment_template scaffolds one.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("bundleId") { put("type", "string") }
@@ -410,6 +416,17 @@ object KslMcpServer {
             inputSchema = modelArgsSchema,
             outputSchema = McpResultSchemas.document,
         ) { request -> tools.runTemplate(request.arguments) }
+
+        server.addTool(
+            name = "optimization_template",
+            description = "Get a ready-to-edit OptimizationRunConfiguration document scaffold for a model " +
+                "(a placeholder single decision variable over its first numeric control, minimizing its " +
+                "first response with stochastic hill climbing). The bounds are a finite placeholder — edit " +
+                "them, the objective, the solver, and the budget, then submit to run_optimization_config. " +
+                "The text is the document; structuredContent.document is the same parsed.",
+            inputSchema = modelArgsSchema,
+            outputSchema = McpResultSchemas.document,
+        ) { request -> tools.optimizationTemplate(request.arguments) }
 
         server.addTool(
             name = "validate_run_config",

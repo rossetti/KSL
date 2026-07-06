@@ -622,6 +622,25 @@ class KslMcpToolsTest {
     }
 
     @Test
+    fun `optimization_template scaffolds a valid, submittable optimization`() = runBlocking {
+        val template = tools.optimizationTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+        assertEquals(false, template.isError ?: false, firstText(template))
+        val doc = Json.parseToJsonElement(firstText(template)).jsonObject
+        assertTrue("model" in doc && "problem" in doc && "solver" in doc, "expected an OptimizationRunConfiguration scaffold; got ${doc.keys}")
+
+        // The scaffold validates: structure plus the objective / decision variable resolve against the model.
+        // (End-to-end optimization execution is covered by the run_optimization test; the scaffold produces
+        // the identical config type, so validating it here avoids re-running a full 50-iteration solve.)
+        val report = structured(tools.validateOptimization(buildJsonObject { put("config", doc) }))
+        assertEquals(true, report["valid"]!!.jsonPrimitive.content.toBoolean(), "templated optimization should validate: $report")
+
+        // An unknown model yields a clean error, not a crash.
+        val bad = tools.optimizationTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "Nope") })
+        assertEquals(true, bad.isError)
+        assertTrue("Nope" in firstText(bad))
+    }
+
+    @Test
     fun `run_experiment runs a factorial and returns a batch result`() = runBlocking {
         // Find a model with >= 2 numeric controls (a factorial needs >= 2 factors).
         val target = registry.listBundles().firstNotNullOfOrNull { bundle ->
@@ -1019,7 +1038,7 @@ class KslMcpToolsTest {
                     "fit_template", "fit_config", "validate_fit_config",
                     "preview_run_config", "preview_optimization_config",
                     "preview_experiment_config", "preview_fit_config",
-                    "run_template",
+                    "run_template", "optimization_template",
                     "validate_run_config", "validate_optimization_config",
                     "get_result", "list_responses", "get_response", "get_design_point",
                     "get_fit_scoring", "get_fit_report",

@@ -1387,6 +1387,39 @@ class KslMcpTools(
     }
 
     /**
+     * `optimization_template` — a ready-to-edit `OptimizationRunConfiguration` scaffold: a
+     * placeholder single-decision-variable problem over the model's first numeric control,
+     * minimizing its first response with stochastic hill climbing. The bounds are a **finite
+     * placeholder** (`[value, value+1]`) because `OptimizationInputSpec` forbids the ±infinity
+     * a control's default bounds carry — edit them to the real search range. Submit to
+     * `run_optimization_config`.
+     */
+    fun optimizationTemplate(arguments: JsonObject?): CallToolResult {
+        val bundleId = arguments.string("bundleId") ?: return error("missing required argument 'bundleId'")
+        val modelId = arguments.string("modelId") ?: return error("missing required argument 'modelId'")
+        val descriptor = registry.describeModel(bundleId, modelId)
+            ?: return error("no model '$modelId' in bundle '$bundleId'")
+        val control = descriptor.controls.numericControls.firstOrNull()
+            ?: return error("model '$modelId' has no numeric controls to optimize over; optimization needs a decision variable")
+        val objective = descriptor.responseNames.firstOrNull()
+            ?: return error("model '$modelId' has no responses to use as the optimization objective")
+        val base = control.value.takeIf { it.isFinite() } ?: 0.0
+        return try {
+            val input = OptimizationInputSpec(name = control.keyName, lowerBound = base, upperBound = base + 1.0, granularity = 1.0)
+            val config = runService.optimizationRunConfig(
+                modelId = modelId,
+                objectiveResponse = objective,
+                inputs = listOf(input),
+                maxIterations = 50,
+                replicationsPerEvaluation = 20,
+            )
+            documentResult("OptimizationRunConfiguration", OptimizationRunConfigurationJson.encode(config))
+        } catch (e: Exception) {
+            error(e.message ?: "cannot scaffold an optimization for '$modelId'")
+        }
+    }
+
+    /**
      * `validate_experiment_config` — validates an ExperimentConfiguration document
      * (structure + that each factor binds to a real model input) without running.
      */
