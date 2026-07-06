@@ -51,11 +51,12 @@ class McpDatabaseAnalysisTest {
 
     private lateinit var registry: BundleRegistry
     private lateinit var tools: KslMcpTools
+    private lateinit var root: java.nio.file.Path
 
     @BeforeTest
     fun setUp() {
         registry = TestBundles.registry()
-        val root = Files.createTempDirectory("mcp-dbanalysis")
+        root = Files.createTempDirectory("mcp-dbanalysis")
         tools = KslMcpTools(registry, ResultStore(root), ArtifactStore(root))
     }
 
@@ -195,5 +196,36 @@ class McpDatabaseAnalysisTest {
             put("resultId", resultId); put("responseName", "NoSuchResponse")
         }).structuredContent!!.jsonObject
         assertTrue("analyzable" in compare && compare["analyzable"]!!.jsonPrimitive.content == "false", "expected analyzable:false; got $compare")
+    }
+
+    // ---- F1: open a foreign KSL database the server did not produce ----
+
+    @Test
+    @DisplayName("db_open_external opens a foreign KSL database and analyzes it via the db_* tools")
+    fun opensExternalDatabase() = runBlocking {
+        // Produce a real KSL database on disk, then find the .db the run wrote under the tools' root.
+        runResultId(enableDb = true)
+        val db = Files.walk(root).use { s ->
+            s.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".db") }.findFirst().orElse(null)
+        }
+        assertTrue(db != null, "the enabled run should have written a .db under $root")
+
+        val opened = tools.dbOpenExternal(buildJsonObject { put("path", db.toString()) }).structuredContent!!.jsonObject
+        val externalId = opened["resultId"]!!.jsonPrimitive.content
+        assertTrue(opened["experiments"]!!.jsonArray.isNotEmpty(), "expected experiments; got $opened")
+
+        // The db_* tools analyze the external database by its resultId.
+        val status = tools.dbStatus(buildJsonObject { put("resultId", externalId) }).structuredContent!!.jsonObject
+        assertTrue(status["present"]!!.jsonPrimitive.content.toBoolean(), "external db should be present; got $status")
+        val compare = tools.dbCompare(buildJsonObject { put("resultId", externalId); put("responseName", "System Time") })
+            .structuredContent!!.jsonObject
+        assertTrue(compare["comparison"]!!.jsonObject["intervals"]!!.jsonArray.isNotEmpty(), "MCB via the external db; got $compare")
+
+        // A non-KSL file (in its own directory, so the locator picks it) is refused with a clear error.
+        val bogusDir = Files.createTempDirectory("not-ksl")
+        val bogus = bogusDir.resolve("data.db")
+        Files.writeString(bogus, "hello")
+        val bad = tools.dbOpenExternal(buildJsonObject { put("path", bogus.toString()) })
+        assertEquals(true, bad.isError, "a non-KSL file should be refused")
     }
 }
