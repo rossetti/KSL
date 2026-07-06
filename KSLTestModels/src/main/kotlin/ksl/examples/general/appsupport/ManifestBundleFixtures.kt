@@ -68,6 +68,14 @@ object ManifestBundleFixtures {
         return output
     }
 
+    /** Writes a plain *builders JAR* holding the class files of [builders] (their dependencies resolve
+     *  through the parent classloader, as in production) — the un-assembled input to the authoring flow
+     *  (`BundleAuthoringSession.open` / the server's bundle-authoring tools). */
+    fun buildersJar(dir: Path, name: String, vararg builders: Class<out ModelBuilderIfc>): Path {
+        require(builders.isNotEmpty()) { "at least one builder class is required" }
+        return writeBuildersJar(dir, name, builders.toList())
+    }
+
     /** Writes a classes-only JAR (no manifest, no services) holding each builder's class file. */
     private fun writeBuildersJar(dir: Path, name: String, classes: List<Class<*>>): Path {
         val target = dir.resolve("$name.jar")

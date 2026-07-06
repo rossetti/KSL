@@ -426,12 +426,14 @@ object KslMcpPrompts {
         |- "Generate 1000 exponential(mean=10) samples and summarize them." → generate
         """.trimMargin()
 
-    /** The scope boundary: this server runs and analyzes *existing* bundled models; it does not
-     *  author them. Stated up front so an out-of-scope "build me a model" ask doesn't flail. */
+    /** The scope boundary: this server runs and analyzes bundled models, and can *package* a builders
+     *  JAR into a bundle (authoring its catalog/classification/identity) — but it does not write the
+     *  model's Kotlin. Stated up front so an out-of-scope "write me a model" ask doesn't flail. */
     fun scopeBoundary(): String =
-        "Scope: I run and analyze existing bundled models and fit distributions — I do not author or " +
-            "edit models. To create or package a model, use the Bundle Workbench desktop app or the " +
-            "kslpkg CLI, then drop the bundle JAR into ~/.ksl/bundles/."
+        "Scope: I run and analyze bundled models, fit distributions, and can package a builders JAR into " +
+            "a bundle — authoring its catalog (friendly names/descriptions/units), per-model app " +
+            "classification, and identity (bundle_authoring_candidates → assemble_bundle). I do not write " +
+            "the model's Kotlin itself; author that in your IDE and compile it to a builders JAR first."
 
     /** A concise one-paragraph orientation surfaced by MCP clients on connect (the server-level
      *  `instructions`): what the server is, the scope boundary, where to start, and examples. */
