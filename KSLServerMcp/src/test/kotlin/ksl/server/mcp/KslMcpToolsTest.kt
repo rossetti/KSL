@@ -319,6 +319,53 @@ class KslMcpToolsTest {
     }
 
     @Test
+    fun `get_workspace surfaces recent workspaces and configurations`() {
+        // The recents keys are always present (arrays), even before any set.
+        val before = structured(tools.getWorkspace())
+        assertTrue("recentWorkspaces" in before, "get_workspace should surface recentWorkspaces")
+        assertTrue("recentConfigurations" in before, "get_workspace should surface recentConfigurations")
+
+        // Setting a workspace records it in the recent-workspaces list.
+        val ws = java.nio.file.Files.createTempDirectory("mcp-ws-recent")
+        tools.setWorkspace(buildJsonObject { put("path", ws.toString()) })
+        val recent = structured(tools.getWorkspace())["recentWorkspaces"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(
+            recent.any { it.contains(ws.fileName.toString()) },
+            "the set workspace should appear in recentWorkspaces: $recent",
+        )
+    }
+
+    @Test
+    fun `list_bundles surfaces bundle-id conflicts`() {
+        val dir = java.nio.file.Files.createTempDirectory("mcp-conflict")
+        // Two jars declaring the same bundleId (distinct display names → real, newest-wins conflict).
+        ksl.examples.general.appsupport.ManifestBundleFixtures.assembleManifestBundle(
+            dir, "a", "ksl.examples.dup", ksl.examples.general.appsupport.MM1ModelBuilder::class.java,
+        ) { it.displayName = "Copy A" }
+        ksl.examples.general.appsupport.ManifestBundleFixtures.assembleManifestBundle(
+            dir, "b", "ksl.examples.dup", ksl.examples.general.appsupport.MM1ModelBuilder::class.java,
+        ) { it.displayName = "Copy B" }
+
+        val isolated = ksl.app.settings.UserSettingsStore(
+            settingsDir = java.nio.file.Files.createTempDirectory("mcp-c-set"),
+            userHome = java.nio.file.Files.createTempDirectory("mcp-c-home"),
+            defaultWorkspaceProvider = { java.nio.file.Files.createTempDirectory("mcp-c-ws") },
+        )
+        BundleRegistry.fromDirectories(listOf(dir)).use { conflicting ->
+            KslMcpTools(
+                conflicting,
+                ksl.service.store.ResultStore(java.nio.file.Files.createTempDirectory("mcp-c-rs")),
+                settingsStore = isolated,
+            ).use { t ->
+                val sc = structured(t.listBundles())
+                assertTrue("conflicts" in sc, "list_bundles should surface conflicts when bundleIds collide: ${sc.keys}")
+                val ids = sc["conflicts"]!!.jsonArray.map { it.jsonObject["bundleId"]!!.jsonPrimitive.content }
+                assertTrue("ksl.examples.dup" in ids, "expected the duplicated bundleId in conflicts: $ids")
+            }
+        }
+    }
+
+    @Test
     fun `run_model reports a clear error for an unknown model`() = runBlocking {
         val args = buildJsonObject {
             put("bundleId", "ksl.examples.mm1")

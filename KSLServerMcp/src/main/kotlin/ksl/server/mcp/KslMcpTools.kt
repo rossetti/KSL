@@ -169,11 +169,25 @@ class KslMcpTools(
     fun listBundles(): CallToolResult {
         val bundles = registry.listBundles()
         val skipped = registry.skipped()
+        // bundleId collisions the registry resolved newest-wins (shadowed copies stay loaded,
+        // inactive) — logged at startup, now surfaced so an agent can flag them to the operator.
+        val conflicts = registry.conflicts()
         val structured = buildJsonObject {
             put("bundles", json.parseToJsonElement(json.encodeToString(bundles)))
             if (skipped.isNotEmpty()) {
                 putJsonArray("skipped") {
                     skipped.forEach { add(buildJsonObject { put("jar", it.jar.toString()); put("reason", it.reason) }) }
+                }
+            }
+            if (conflicts.isNotEmpty()) {
+                putJsonArray("conflicts") {
+                    conflicts.forEach { conflict ->
+                        add(buildJsonObject {
+                            put("bundleId", conflict.bundleId)
+                            conflict.activeSource?.let { put("activeSource", it) }
+                            putJsonArray("shadowedSources") { conflict.shadowedSources.forEach { s -> if (s != null) add(s) } }
+                        })
+                    }
                 }
             }
         }
@@ -192,6 +206,12 @@ class KslMcpTools(
                 appendLine()
                 appendLine("Skipped ${skipped.size} JAR(s) (not loadable bundles — (re)assemble them):")
                 skipped.forEach { appendLine("  - ${it.jar.fileName}: ${it.reason}") }
+            }
+            if (conflicts.isNotEmpty()) {
+                appendLine()
+                appendLine()
+                appendLine("${conflicts.size} bundle-id conflict(s) (newest-wins; shadowed copies stay loaded):")
+                conflicts.forEach { appendLine("  - ${it.bundleId}: active=${it.activeSource}, shadowed=${it.shadowedSources}") }
             }
         }.trimEnd()
         return result(summary, structured)
@@ -1906,17 +1926,31 @@ class KslMcpTools(
     fun getWorkspace(): CallToolResult {
         val workspace = settingsStore.activeWorkspace()
         val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(workspace, ServerConfig.SERVER_APP_FOLDER)
-        val isDefault = settingsStore.settings.value.workspace.currentDirectory == null
+        val settings = settingsStore.settings.value
+        val isDefault = settings.workspace.currentDirectory == null
+        // Shared with the Swing apps via ~/.ksl/settings.toml (most-recent first).
+        val recentWorkspaces = settings.workspace.recent.directories
+        val recentConfigurations = settings.configurations.files
         val structured = buildJsonObject {
             put("workspace", workspace.toString())
             put("appDir", appDir.toString())
             put("isDefault", isDefault)
+            putJsonArray("recentWorkspaces") { recentWorkspaces.forEach { add(it) } }
+            putJsonArray("recentConfigurations") { recentConfigurations.forEach { add(it) } }
         }
         val summary = buildString {
             append("Active KSL workspace: $workspace")
             if (isDefault) append(" (default — no override set)")
             appendLine()
             append("The MCP server writes reports and generated data under: $appDir")
+            if (recentWorkspaces.isNotEmpty()) {
+                appendLine()
+                append("Recent workspaces: ${recentWorkspaces.joinToString(", ")}")
+            }
+            if (recentConfigurations.isNotEmpty()) {
+                appendLine()
+                append("Recent configurations: ${recentConfigurations.joinToString(", ")}")
+            }
         }
         return result(summary, structured)
     }

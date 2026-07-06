@@ -320,6 +320,14 @@ internal object McpResultSchemas {
                         "to (re)assemble them with 'kslpkg assemble' or the Bundle Workbench.",
                 )
             }
+            putJsonObject("conflicts") {
+                put("type", "array")
+                put(
+                    "description",
+                    "bundleId collisions resolved newest-wins: {bundleId, activeSource, shadowedSources}. " +
+                        "The shadowed copies stay loaded but inactive; report them so the operator can prune duplicates.",
+                )
+            }
         },
         required = listOf("bundles"),
     )
@@ -505,6 +513,16 @@ internal object McpResultSchemas {
             putJsonObject("previous") {
                 put("type", "string")
                 put("description", "The prior workspace path. Present on set_workspace.")
+            }
+            putJsonObject("recentWorkspaces") {
+                put("type", "array")
+                put("description", "Recently used workspace directories (most-recent first), shared with the KSL desktop apps.")
+                putJsonObject("items") { put("type", "string") }
+            }
+            putJsonObject("recentConfigurations") {
+                put("type", "array")
+                put("description", "Recently saved/loaded TOML configuration files (most-recent first), shared with the KSL desktop apps.")
+                putJsonObject("items") { put("type", "string") }
             }
         },
         required = listOf("workspace", "appDir"),
