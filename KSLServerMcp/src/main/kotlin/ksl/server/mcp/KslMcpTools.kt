@@ -225,6 +225,18 @@ class KslMcpTools(
     internal fun availableBundles(): List<ksl.service.capability.run.BundleInfo> =
         registry.listBundles()
 
+    /** `get_started` — the turn-one orientation tool: what the server can do, how to ask, and the
+     *  live catalog. The text is single-sourced from [KslMcpPrompts.getStartedGuidance] (which the
+     *  get_started prompt also uses) so guidance stays consistent; structuredContent carries the
+     *  catalog so a client can machine-read it too. */
+    fun getStarted(): CallToolResult {
+        val bundles = availableBundles()
+        val structured = buildJsonObject {
+            put("bundles", json.parseToJsonElement(json.encodeToString(bundles)))
+        }
+        return result(KslMcpPrompts.getStartedGuidance(bundles), structured)
+    }
+
     /** `list_models` — the models a bundle provides. */
     fun listModels(arguments: JsonObject?): CallToolResult {
         val bundleId = arguments.string("bundleId")
@@ -974,7 +986,24 @@ class KslMcpTools(
                 "failed" -> appendLine("Error: ${p.str("message")}")
                 "cancelled" -> appendLine("Cancelled: ${p.str("reason")}")
             }
+            nextSteps(type).takeIf { it.isNotBlank() }?.let { appendLine(); append(it) }
         }.trimEnd()
+    }
+
+    /** A short "what to do next" line appended to heavy result summaries (B0 signposting) so the
+     *  model keeps moving without re-deriving the workflow. The batch line also carries the
+     *  database-gate note (4a): headless comparison works, but reports + experiment_regression
+     *  need the run's database (enableKSLDatabase). */
+    private fun nextSteps(type: String?): String = when (type) {
+        "completed" -> "Next steps: compare settings with a scenario batch (run_config) · optimize " +
+            "inputs (run_optimization) · drill into one response (get_response)."
+        "batch" -> "Next steps: rank the configurations with db_compare (works headless) · if this was " +
+            "a designed experiment, find which factors matter with experiment_regression · render a " +
+            "report with db_compare_report / db_summary_report. Reports and experiment_regression need " +
+            "the run's database — set enableKSLDatabase on the run."
+        "optimization" -> "Next steps: refine by tightening the decision-variable bounds or raising " +
+            "replicationsPerEvaluation · inspect the search with get_design_point / get_run_events."
+        else -> ""
     }
 
     private fun JsonObject.str(key: String): String = this[key]?.jsonPrimitive?.contentOrNull ?: ""
@@ -1700,6 +1729,9 @@ class KslMcpTools(
                         "$params | ${gof?.str("chiSquaredStatistic") ?: ""} | ${gof?.str("chiSquaredPValue") ?: ""} |",
                 )
             }
+            appendLine()
+            append("Next steps: render the full report (get_fit_report) · see the MODA scoring matrix " +
+                "(get_fit_scoring) · use the recommended distribution (its family + parameters) as a model input.")
         }.trimEnd()
     }
 
