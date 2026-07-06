@@ -28,6 +28,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import ksl.app.config.RunConfiguration
+import ksl.app.config.experiment.ExperimentConfiguration
+import ksl.app.config.optimization.OptimizationRunConfiguration
+import ksl.app.dist.config.FitConfiguration
+import ksl.service.capability.run.schema.ConfigSchemaGenerator
 import ksl.service.config.BuildInfo
 
 /**
@@ -311,17 +316,33 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.run,
         ) { request -> tools.runExperiment(request.arguments) }
 
+        // The real per-field schema for each document family, generated from its @Serializable
+        // descriptor (B1): sealed choices — design kinds, solver families, cooling schedules —
+        // surface as a `oneOf` keyed by a `type` discriminator, so an agent can discover the
+        // document's shape instead of guessing against an opaque blob. Kept alongside
+        // `type: [object, string]` so a JSON/TOML string is still accepted.
         val configDocSchema = { documentType: String ->
+            val descriptor = when (documentType) {
+                "RunConfiguration" -> RunConfiguration.serializer().descriptor
+                "OptimizationRunConfiguration" -> OptimizationRunConfiguration.serializer().descriptor
+                "ExperimentConfiguration" -> ExperimentConfiguration.serializer().descriptor
+                "FitConfiguration" -> FitConfiguration.serializer().descriptor
+                else -> null
+            }
+            val generated = descriptor?.let { ConfigSchemaGenerator.schemaFor(it) }
             ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("config") {
                         putJsonArray("type") { add("object"); add("string") }
                         put(
                             "description",
-                            "A complete $documentType document. Either a JSON object, or a string containing the " +
-                                "document as JSON or TOML — e.g. paste the contents of a .toml file saved by a KSL " +
-                                "desktop app (the server accepts TOML directly; no conversion needed).",
+                            "A complete $documentType document — an object with the fields below, or the same " +
+                                "document as a JSON or TOML string (e.g. paste the contents of a .toml file saved " +
+                                "by a KSL desktop app; the server accepts TOML directly). Sealed choices appear as " +
+                                "a oneOf keyed by a type discriminator; shape guidance only — validate_* remains the gate.",
                         )
+                        generated?.get("properties")?.let { put("properties", it) }
+                        generated?.get("required")?.let { put("required", it) }
                     }
                 },
                 required = listOf("config"),

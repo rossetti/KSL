@@ -1,0 +1,128 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.service.capability.run.schema
+
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import ksl.app.config.RunConfiguration
+import ksl.app.config.experiment.ExperimentConfiguration
+import ksl.app.config.optimization.OptimizationRunConfiguration
+import ksl.app.dist.config.FitConfiguration
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * Proves [ConfigSchemaGenerator] turns the config documents' `@Serializable` descriptors
+ * into real per-field JSON Schemas — in particular that sealed hierarchies surface as
+ * `oneOf` with a `type` discriminator enum of the `@SerialName`s (the thing an agent
+ * cannot otherwise discover), including the 2-level nesting (design → fraction, solver →
+ * cooling schedule), that required-ness follows `isElementOptional`, and that a
+ * `@TomlComment` becomes a field `description`.
+ */
+class ConfigSchemaGeneratorTest {
+
+    private fun JsonObject.prop(name: String): JsonObject =
+        this["properties"]!!.jsonObject[name]!!.jsonObject
+
+    private fun JsonObject.requiredNames(): Set<String> =
+        (this["required"] as? JsonArray)?.map { it.jsonPrimitive.content }?.toSet() ?: emptySet()
+
+    /** The set of discriminator values across a `oneOf`'s variants. */
+    private fun JsonObject.variantTypes(): Set<String> =
+        (this["oneOf"] as JsonArray).flatMap { v ->
+            v.jsonObject.prop("type")["enum"]!!.jsonArray.map { it.jsonPrimitive.content }
+        }.toSet()
+
+    /** The variant object within a `oneOf` whose discriminator equals [type]. */
+    private fun JsonObject.variant(type: String): JsonObject =
+        (this["oneOf"] as JsonArray).map { it.jsonObject }
+            .first { it.prop("type")["enum"]!!.jsonArray.first().jsonPrimitive.content == type }
+
+    @Test
+    fun `experiment designSpec surfaces its sealed variants and nested fractions`() {
+        val schema = ConfigSchemaGenerator.schemaFor(ExperimentConfiguration.serializer().descriptor)
+
+        // required = exactly the fields with no default value.
+        assertTrue(
+            schema.requiredNames().containsAll(setOf("modelReference", "factors", "designSpec")),
+            "top-level required should include the defaultless fields; got ${schema.requiredNames()}",
+        )
+
+        val design = schema.prop("designSpec")
+        assertTrue("oneOf" in design, "designSpec should be a oneOf of its sealed variants")
+        assertEquals(
+            setOf("fullFactorial", "twoLevelFactorial", "centralComposite", "manual"),
+            design.variantTypes(),
+            "designSpec discriminator enum should be the four @SerialNames",
+        )
+
+        // 2-level nesting: twoLevelFactorial.fraction is itself a sealed oneOf.
+        val fraction = design.variant("twoLevelFactorial").prop("fraction")
+        assertTrue(
+            fraction.variantTypes().containsAll(setOf("full", "half", "custom")),
+            "nested Fraction variants should surface; got ${fraction.variantTypes()}",
+        )
+    }
+
+    @Test
+    fun `optimization solver surfaces the four solvers and nested cooling schedules`() {
+        val schema = ConfigSchemaGenerator.schemaFor(OptimizationRunConfiguration.serializer().descriptor)
+
+        val solver = schema.prop("solver")
+        assertTrue(
+            solver.variantTypes().containsAll(setOf("stochasticHillClimbing", "simulatedAnnealing", "crossEntropy", "rSpline")),
+            "solver discriminator enum should include the four solver @SerialNames; got ${solver.variantTypes()}",
+        )
+
+        // 2-level nesting: simulatedAnnealing.coolingSchedule is a sealed oneOf.
+        val cooling = solver.variant("simulatedAnnealing").prop("coolingSchedule")
+        assertTrue(
+            cooling.variantTypes().containsAll(setOf("linear", "exponential", "logarithmic")),
+            "nested CoolingScheduleSpec variants should surface; got ${cooling.variantTypes()}",
+        )
+    }
+
+    @Test
+    fun `a TomlComment becomes a field description`() {
+        val schema = ConfigSchemaGenerator.schemaFor(ExperimentConfiguration.serializer().descriptor)
+        assertTrue(
+            "description" in schema.prop("designSpec"),
+            "designSpec carries a @TomlComment, so it should surface as a description",
+        )
+    }
+
+    @Test
+    fun `all four document families generate as non-empty object schemas`() {
+        val families = mapOf(
+            "RunConfiguration" to RunConfiguration.serializer().descriptor,
+            "ExperimentConfiguration" to ExperimentConfiguration.serializer().descriptor,
+            "OptimizationRunConfiguration" to OptimizationRunConfiguration.serializer().descriptor,
+            "FitConfiguration" to FitConfiguration.serializer().descriptor,
+        )
+        for ((name, descriptor) in families) {
+            val schema = ConfigSchemaGenerator.schemaFor(descriptor)
+            assertEquals("object", schema["type"]!!.jsonPrimitive.content, "$name should generate an object schema")
+            assertTrue((schema["properties"] as JsonObject).isNotEmpty(), "$name should have properties")
+        }
+    }
+}
