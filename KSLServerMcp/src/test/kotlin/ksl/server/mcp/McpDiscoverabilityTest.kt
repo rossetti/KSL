@@ -68,7 +68,7 @@ class McpDiscoverabilityTest {
     @Test
     fun `serverInstructions state the scope boundary, seed example questions, and list the catalog`() {
         val text = KslMcpPrompts.serverInstructions(tools.availableBundles())
-        assertTrue("do not author" in text, "should state the scope boundary; got:\n$text")
+        assertTrue("do not write" in text, "should state the scope boundary; got:\n$text")
         assertTrue("get_started" in text, "should point at get_started")
         assertTrue("Example questions" in text, "should seed example questions")
         // The live catalog is present (a real bundle id from the dogfood registry).
@@ -82,13 +82,13 @@ class McpDiscoverabilityTest {
     fun `serverInstructions degrade gracefully with an empty catalog`() {
         val text = KslMcpPrompts.serverInstructions(emptyList())
         assertTrue("no bundles are currently loaded" in text, "empty catalog should be stated; got:\n$text")
-        assertTrue("do not author" in text && "Example questions" in text, "scope + examples still present")
+        assertTrue("do not write" in text && "Example questions" in text, "scope + examples still present")
     }
 
     @Test
     fun `getStartedGuidance carries the scope boundary and example questions`() {
         val text = KslMcpPrompts.getStartedGuidance(tools.availableBundles())
-        assertTrue("do not author" in text, "get_started should state the scope boundary")
+        assertTrue("do not write" in text, "get_started should state the scope boundary")
         assertTrue("Example questions" in text, "get_started should seed example questions")
     }
 
@@ -99,7 +99,7 @@ class McpDiscoverabilityTest {
         val result = tools.getStarted()
         assertFalse(result.isError ?: false, "get_started should not be an error")
         val text = firstText(result)
-        assertTrue("do not author" in text && "Example questions" in text, "orientation content expected")
+        assertTrue("do not write" in text && "Example questions" in text, "orientation content expected")
         assertTrue(
             tools.availableBundles().any { it.bundleId in text },
             "should surface the live catalog; got:\n$text",

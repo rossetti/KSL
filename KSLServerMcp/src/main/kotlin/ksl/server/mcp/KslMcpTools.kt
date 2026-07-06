@@ -160,6 +160,7 @@ class KslMcpTools(
     private val runJobs = JobManager<RunEvent, RunResult>(scope, maxConcurrentJobs)
     private val reportArtifacts = ksl.service.capability.report.ReportArtifactService()
     private val resultDb = ksl.service.capability.dbanalysis.ResultDatabaseService()
+    private val bundleAuthoring = ksl.service.capability.authoring.BundleAuthoringService()
 
     // Session-scoped raw fit observations (resultId -> data), bounded LRU. The fit
     // result keeps only summary stats, so get_fit_report needs the data to render
@@ -291,6 +292,105 @@ class KslMcpTools(
             append("  inputs: $inputCount (catalog-led: ${descriptor.catalog != null})")
         }
         return result(summary, payload)
+    }
+
+    /** `bundle_authoring_candidates` — the annotatable inputs/outputs of every model in a builders JAR,
+     *  with the context (comments, values, bounds, element paths, RV class) an LLM needs to author a
+     *  good catalog. The LLM then composes a payload for preview_bundle_authoring / assemble_bundle. */
+    fun bundleAuthoringCandidates(arguments: JsonObject?): CallToolResult {
+        val path = bundleJarArg(arguments) ?: return error("missing required argument 'buildersJarPath'")
+        val candidates = try {
+            bundleAuthoring.candidates(path)
+        } catch (e: Exception) {
+            return error("could not read the builders JAR '$path': ${e.message}")
+        }
+        val structured = json.encodeToJsonElement(
+            ksl.service.capability.authoring.BundleCandidates.serializer(), candidates,
+        ).jsonObject
+        val summary = buildString {
+            appendLine("${candidates.models.size} model(s) available to author from $path:")
+            candidates.models.forEach { appendLine("  - ${it.defaultModelId} (${it.builderClass}): ${it.inputs.size} input(s), ${it.outputs.size} output(s)") }
+            if (candidates.discoveryErrors.isNotEmpty()) appendLine("  ${candidates.discoveryErrors.size} builder(s) failed to load: ${candidates.discoveryErrors.joinToString("; ")}")
+            append("Compose a bundle-authoring payload (identity + per-model displayName/description/supportedApps and a catalog of nominatedInputs/nominatedOutputs with displayName/description/unit), dry-run it with preview_bundle_authoring, then assemble_bundle.")
+        }.trimEnd()
+        return result(summary, structured)
+    }
+
+    /** `preview_bundle_authoring` — validate an authoring payload against a builders JAR WITHOUT writing:
+     *  the findings (unresolved catalog keys, bad bundleId, unsupportable app claims) to fix before assembling. */
+    fun previewBundleAuthoring(arguments: JsonObject?): CallToolResult {
+        val path = bundleJarArg(arguments) ?: return error("missing required argument 'buildersJarPath'")
+        val request = parseAuthoring(arguments) ?: return error("missing/invalid required argument 'authoring' (a bundle-authoring payload with at least identity.bundleId)")
+        val report = try {
+            bundleAuthoring.preview(path, request)
+        } catch (e: Exception) {
+            return error("preview failed: ${e.message}")
+        }
+        return bundleFindingsResult("Preview of ${request.identity.bundleId}", report, written = null)
+    }
+
+    /** `assemble_bundle` — apply an authoring payload, validate, and (only if there are no errors) assemble
+     *  a runnable bundle JAR whose catalog/classification/identity carry the LLM's authoring. */
+    fun assembleBundle(arguments: JsonObject?): CallToolResult {
+        val path = bundleJarArg(arguments) ?: return error("missing required argument 'buildersJarPath'")
+        val request = parseAuthoring(arguments) ?: return error("missing/invalid required argument 'authoring' (a bundle-authoring payload with at least identity.bundleId)")
+        val output = arguments.string("outputPath")?.let { java.nio.file.Path.of(it) }
+        val force = arguments.string("force")?.toBooleanStrictOrNull() ?: false
+        val outcome = try {
+            bundleAuthoring.assemble(path, request, output, force)
+        } catch (e: Exception) {
+            return error("assemble failed: ${e.message}")
+        }
+        val headline = outcome.written?.let { "Assembled bundle at $it" }
+            ?: "NOT assembled — fix the ${outcome.report.errorCount} error(s) below and retry"
+        return bundleFindingsResult(headline, outcome.report, outcome.written)
+    }
+
+    /** Resolves the builders-JAR path argument to an existing regular file, or null. */
+    private fun bundleJarArg(arguments: JsonObject?): java.nio.file.Path? {
+        val p = arguments.string("buildersJarPath")?.let { java.nio.file.Path.of(it) } ?: return null
+        return if (java.nio.file.Files.isRegularFile(p)) p else null
+    }
+
+    /** Decodes the `authoring` argument (a JSON object, or a JSON/TOML string) into a request. */
+    private fun parseAuthoring(arguments: JsonObject?): ksl.service.capability.authoring.BundleAuthoringRequest? {
+        val element = when (val e = arguments?.get("authoring")) {
+            is JsonObject -> e
+            is JsonPrimitive -> if (e.isString) runCatching { json.parseToJsonElement(e.content) }.getOrNull() else null
+            else -> null
+        } ?: return null
+        return runCatching {
+            json.decodeFromJsonElement(ksl.service.capability.authoring.BundleAuthoringRequest.serializer(), element)
+        }.getOrNull()
+    }
+
+    /** A validation/assemble result: a findings summary + structured {ok, errorCount, warningCount, findings, output?}. */
+    private fun bundleFindingsResult(
+        headline: String,
+        report: ksl.app.bundle.BundleValidation.ValidationReport,
+        written: java.nio.file.Path?,
+    ): CallToolResult {
+        val structured = buildJsonObject {
+            put("ok", report.errorCount == 0)
+            put("errorCount", report.errorCount)
+            put("warningCount", report.warningCount)
+            written?.let { put("output", it.toString()) }
+            putJsonArray("findings") {
+                report.findings.forEach { f ->
+                    add(buildJsonObject {
+                        put("severity", f.severity.name); put("locus", f.locus); put("message", f.message)
+                        f.suggestion?.let { put("suggestion", it) }
+                    })
+                }
+            }
+        }
+        val summary = buildString {
+            appendLine("$headline — ${report.errorCount} error(s), ${report.warningCount} warning(s).")
+            report.findings.forEach { f ->
+                appendLine("  - [${f.severity}] ${f.locus}: ${f.message}${f.suggestion?.let { " ($it)" } ?: ""}")
+            }
+        }.trimEnd()
+        return result(summary, structured)
     }
 
     /** `animation_layout_template` — a valid starter `AnimationLayout` for a bundled model (a rough

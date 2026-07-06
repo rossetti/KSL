@@ -491,6 +491,73 @@ object KslMcpServer {
         ) { request -> tools.renderAnimationLayout(request.arguments) }
 
         server.addTool(
+            name = "bundle_authoring_candidates",
+            description = "Start authoring a model bundle from a builders JAR (a JAR of ModelBuilderIfc classes): " +
+                "returns each discoverable model's annotatable inputs (controls + RV parameters) and outputs, " +
+                "with the context you need to name them well — the @KSLControl comment, current value, bounds, " +
+                "owning element, and (for an RV) its distribution class. Use this, then compose a bundle-authoring " +
+                "payload (good display names, descriptions, units, ranking; a supportedApps classification; the " +
+                "bundle identity) and call preview_bundle_authoring then assemble_bundle. 'buildersJarPath' is a " +
+                "path on the server's filesystem.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("buildersJarPath") { put("type", "string") } },
+                required = listOf("buildersJarPath"),
+            ),
+            outputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("models") { put("type", "array"); put("description", "Discoverable models: {builderClass, defaultModelId, inputs:[{key,kind,currentValue,lowerBound,upperBound,comment,element,elementPath,rvClass,…}], outputs:[name]}.") }
+                    putJsonObject("discoveryErrors") { put("type", "array") }
+                },
+                required = listOf("models"),
+            ),
+        ) { request -> tools.bundleAuthoringCandidates(request.arguments) }
+
+        val bundleAuthoringInput = ToolSchema(
+            properties = buildJsonObject {
+                putJsonObject("buildersJarPath") { put("type", "string") }
+                putJsonObject("authoring") {
+                    put("type", "object")
+                    put("description", "The authoring payload: {identity:{bundleId (required), displayName, description, " +
+                        "version, author, license, tags:[…]}, models:[{builderClass (matches a candidate), modelId, " +
+                        "displayName, description, include, supportedApps:[SINGLE|SCENARIO|EXPERIMENT|SIMOPT], " +
+                        "catalog:{inputs:[{key,displayName,description,unit}], outputs:[{name,displayName,description,unit}]}}]}. " +
+                        "Catalog list order conveys priority.")
+                }
+                putJsonObject("outputPath") { put("type", "string"); put("description", "Bundle JAR output path (default <stem>-bundle.jar).") }
+            },
+            required = listOf("buildersJarPath", "authoring"),
+        )
+        val bundleValidationOutput = ToolSchema(
+            properties = buildJsonObject {
+                putJsonObject("ok") { put("type", "boolean") }
+                putJsonObject("errorCount") { put("type", "integer") }
+                putJsonObject("warningCount") { put("type", "integer") }
+                putJsonObject("output") { put("type", "string"); put("description", "The assembled bundle path (assemble_bundle only, when ok).") }
+                putJsonObject("findings") { put("type", "array"); put("description", "{severity (ERROR|WARNING|INFO), locus, message, suggestion?}.") }
+            },
+            required = listOf("ok", "findings"),
+        )
+
+        server.addTool(
+            name = "preview_bundle_authoring",
+            description = "Dry-run an authoring payload against a builders JAR: apply it and validate WITHOUT writing, " +
+                "returning the findings (unresolved catalog keys, an invalid bundleId, a supportedApps claim the model " +
+                "can't back). Fix errors, then assemble_bundle.",
+            inputSchema = bundleAuthoringInput,
+            outputSchema = bundleValidationOutput,
+        ) { request -> tools.previewBundleAuthoring(request.arguments) }
+
+        server.addTool(
+            name = "assemble_bundle",
+            description = "Assemble a runnable model bundle JAR from a builders JAR + an authoring payload — its " +
+                "catalog (display names/descriptions/units), per-model supportedApps classification, and identity " +
+                "become the bundle's bundle.toml + per-model catalog.toml/descriptor.json. Refuses to write if " +
+                "validation finds any error (returns the findings). The result's 'output' is the bundle path.",
+            inputSchema = bundleAuthoringInput,
+            outputSchema = bundleValidationOutput,
+        ) { request -> tools.assembleBundle(request.arguments) }
+
+        server.addTool(
             name = "experiment_config",
             description = "Run a complete ExperimentConfiguration document (factors + design) as authored, " +
                 "validated first. Returns structuredContent with per-design-point results; when reporting, " +
