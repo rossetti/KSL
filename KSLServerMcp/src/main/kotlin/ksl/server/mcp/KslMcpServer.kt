@@ -137,6 +137,15 @@ object KslMcpServer {
                         put("type", "boolean")
                         put("description", "Optional. Run with antithetic variates (a variance-reduction technique).")
                     }
+                    putJsonObject("enableKSLDatabase") {
+                        put("type", "boolean")
+                        put(
+                            "description",
+                            "Optional (default false). Capture a KSL SQLite database for this run so the db_* tools " +
+                                "(db_status, db_summary, db_export, …) can analyze it. Writes a database file under the " +
+                                "result's output directory; leave off unless you intend to run database analysis.",
+                        )
+                    }
                 },
                 required = listOf("bundleId", "modelId"),
             ),

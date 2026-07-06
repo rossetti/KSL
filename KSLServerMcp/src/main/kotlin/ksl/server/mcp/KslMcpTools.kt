@@ -712,6 +712,8 @@ class KslMcpTools(
             return null to error("'replicationSet' must be >= 0")
         }
         val antithetic = arguments?.get("antithetic")?.jsonPrimitive?.booleanOrNull
+        // Opt-in KSL database capture (default off): produces the SQLite DB the db_* tools inspect.
+        val enableKSLDatabase = arguments?.get("enableKSLDatabase")?.jsonPrimitive?.booleanOrNull ?: false
         val numReps = arguments.int("numberOfReplications")
         val effectiveReps = numReps ?: descriptor.experimentRunDefaults.numberOfReplications
         val streamAdvances = replicationSet?.let { RunService.streamAdvancesFor(it, effectiveReps) }
@@ -723,6 +725,7 @@ class KslMcpTools(
             bound.rvOverrides,
             streamAdvances = streamAdvances,
             antithetic = antithetic,
+            enableKSLDatabase = enableKSLDatabase,
         )
         return BuiltRun(
             config = config,

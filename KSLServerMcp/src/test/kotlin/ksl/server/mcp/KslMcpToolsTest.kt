@@ -294,6 +294,31 @@ class KslMcpToolsTest {
     }
 
     @Test
+    fun `run_model enableKSLDatabase opt-in controls whether a database is produced`() = runBlocking {
+        // Default (no opt-in): no database for the db_* tools to inspect.
+        val off = tools.runModel(
+            buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1"); put("numberOfReplications", 3) },
+        )
+        assertEquals(false, off.isError ?: false, firstText(off))
+        val offId = structured(off)["resultId"]!!.jsonPrimitive.content
+        val offStatus = structured(tools.dbStatus(buildJsonObject { put("resultId", offId) }))
+        assertEquals(false, offStatus["present"]!!.jsonPrimitive.content.toBoolean(), "no DB without the opt-in")
+
+        // Opt in: a database is produced and db_status finds it.
+        val on = tools.runModel(
+            buildJsonObject {
+                put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1"); put("numberOfReplications", 3)
+                put("enableKSLDatabase", true)
+            },
+        )
+        assertEquals(false, on.isError ?: false, firstText(on))
+        val onId = structured(on)["resultId"]!!.jsonPrimitive.content
+        assertNotEquals(offId, onId, "the opt-in changes the config, so it keys a distinct result")
+        val onStatus = structured(tools.dbStatus(buildJsonObject { put("resultId", onId) }))
+        assertEquals(true, onStatus["present"]!!.jsonPrimitive.content.toBoolean(), "the opt-in produces a DB: $onStatus")
+    }
+
+    @Test
     fun `run_model reports a clear error for an unknown model`() = runBlocking {
         val args = buildJsonObject {
             put("bundleId", "ksl.examples.mm1")
