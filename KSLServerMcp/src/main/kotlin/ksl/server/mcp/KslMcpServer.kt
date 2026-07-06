@@ -137,6 +137,15 @@ object KslMcpServer {
                         put("type", "boolean")
                         put("description", "Optional. Run with antithetic variates (a variance-reduction technique).")
                     }
+                    putJsonObject("enableKSLDatabase") {
+                        put("type", "boolean")
+                        put(
+                            "description",
+                            "Optional (default false). Capture a KSL SQLite database for this run so the db_* tools " +
+                                "(db_status, db_summary, db_export, …) can analyze it. Writes a database file under the " +
+                                "result's output directory; leave off unless you intend to run database analysis.",
+                        )
+                    }
                 },
                 required = listOf("bundleId", "modelId"),
             ),
@@ -219,6 +228,22 @@ object KslMcpServer {
             ),
             outputSchema = McpResultSchemas.projection,
         ) { request -> tools.getRunResult(request.arguments) }
+
+        server.addTool(
+            name = "cancel_run",
+            description = "Request cancellation of a still-running job started by submit_run. Returns " +
+                "structuredContent {jobId, cancelled, message}: cancelled=true when a cancel was issued to a " +
+                "running job, false when it was already finished, unknown, or evicted — so it is safe to call " +
+                "idempotently.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("jobId") { put("type", "string") }
+                    putJsonObject("reason") { put("type", "string"); put("description", "Optional human-readable cancellation reason.") }
+                },
+                required = listOf("jobId"),
+            ),
+            outputSchema = McpResultSchemas.cancel,
+        ) { request -> tools.cancelRun(request.arguments) }
 
         server.addTool(
             name = "run_optimization",

@@ -19,6 +19,7 @@
 package ksl.server.mcp
 
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -55,30 +56,61 @@ internal object McpResultSchemas {
                 put("description", "Across-replication statistics for every response (present when type=completed).")
                 putJsonObject("items") {
                     put("type", "object")
-                    putJsonObject("properties") {
-                        putJsonObject("name") { put("type", "string") }
-                        putJsonObject("average") { put("type", "number") }
-                        putJsonObject("stdDev") { put("type", "number") }
-                        putJsonObject("stdErr") { put("type", "number") }
-                        putJsonObject("halfWidth") { put("type", "number"); put("description", "95% CI half-width.") }
-                        putJsonObject("confLevel") { put("type", "number") }
-                        putJsonObject("count") { put("type", "number") }
-                        putJsonObject("min") { put("type", "number") }
-                        putJsonObject("max") { put("type", "number") }
-                    }
+                    putJsonObject("properties") { responseStatProperties() }
                 }
             }
             putJsonObject("items") {
                 put("type", "array")
                 put("description", "Per design-point / scenario results (present when type=batch).")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("itemName") { put("type", "string") }
+                        putJsonObject("responses") {
+                            put("type", "array")
+                            put("description", "Across-replication statistics for the scenario / design point.")
+                            putJsonObject("items") {
+                                put("type", "object")
+                                putJsonObject("properties") { responseStatProperties() }
+                            }
+                        }
+                    }
+                }
             }
             putJsonObject("best") {
                 put("type", "object")
                 put("description", "Best solution found (present when type=optimization).")
+                putJsonObject("properties") {
+                    putJsonObject("inputs") { put("type", "object"); put("description", "Decision-variable name → value.") }
+                    putJsonObject("estimatedObjFncValue") { put("type", "number") }
+                    putJsonObject("penalizedObjFncValue") { put("type", "number") }
+                    putJsonObject("isValid") { put("type", "boolean") }
+                }
             }
             putJsonObject("iterations") {
                 put("type", "array")
                 put("description", "Optimization iteration trace (present when type=optimization).")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("iterationNumber") { put("type", "integer") }
+                        putJsonObject("numOracleCalls") { put("type", "integer") }
+                        putJsonObject("estimatedObjFncValue") { put("type", "number") }
+                        putJsonObject("penalizedObjFncValue") { put("type", "number") }
+                    }
+                }
+            }
+            putJsonObject("artifacts") {
+                put("type", "array")
+                put("description", "Server-local artifacts produced by the run (reports, bulk data, database captures): {name, mediaType, path}.")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("name") { put("type", "string") }
+                        putJsonObject("mediaType") { put("type", "string") }
+                        putJsonObject("path") { put("type", "string") }
+                    }
+                }
             }
         },
         required = listOf("resultId", "type"),
@@ -152,6 +184,19 @@ internal object McpResultSchemas {
             }
         },
         required = listOf("jobId", "nextOffset", "status", "events"),
+    )
+
+    /** cancel_run: whether a cancellation was issued to a running job. */
+    val cancel = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("jobId") { put("type", "string") }
+            putJsonObject("cancelled") {
+                put("type", "boolean")
+                put("description", "True when a cancel was issued to a running job; false when it was already finished, unknown, or evicted.")
+            }
+            putJsonObject("message") { put("type", "string") }
+        },
+        required = listOf("jobId", "cancelled", "message"),
     )
 
     /** list_responses: the response names in a retained result. */
@@ -244,16 +289,7 @@ internal object McpResultSchemas {
 
     /** get_response: one response's across-replication statistics. */
     val response = ToolSchema(
-        properties = buildJsonObject {
-            putJsonObject("name") { put("type", "string") }
-            putJsonObject("average") { put("type", "number") }
-            putJsonObject("stdDev") { put("type", "number") }
-            putJsonObject("stdErr") { put("type", "number") }
-            putJsonObject("halfWidth") { put("type", "number"); put("description", "95% CI half-width.") }
-            putJsonObject("count") { put("type", "number") }
-            putJsonObject("min") { put("type", "number") }
-            putJsonObject("max") { put("type", "number") }
-        },
+        properties = buildJsonObject { responseStatProperties() },
         required = listOf("name"),
     )
 
@@ -282,6 +318,14 @@ internal object McpResultSchemas {
                     "JARs in the bundle directories that were refused — not a KSL bundle, or an " +
                         "incomplete bundle (missing embedded descriptors): {jar, reason}. Tell the user " +
                         "to (re)assemble them with 'kslpkg assemble' or the Bundle Workbench.",
+                )
+            }
+            putJsonObject("conflicts") {
+                put("type", "array")
+                put(
+                    "description",
+                    "bundleId collisions resolved newest-wins: {bundleId, activeSource, shadowedSources}. " +
+                        "The shadowed copies stay loaded but inactive; report them so the operator can prune duplicates.",
                 )
             }
         },
@@ -470,6 +514,16 @@ internal object McpResultSchemas {
                 put("type", "string")
                 put("description", "The prior workspace path. Present on set_workspace.")
             }
+            putJsonObject("recentWorkspaces") {
+                put("type", "array")
+                put("description", "Recently used workspace directories (most-recent first), shared with the KSL desktop apps.")
+                putJsonObject("items") { put("type", "string") }
+            }
+            putJsonObject("recentConfigurations") {
+                put("type", "array")
+                put("description", "Recently saved/loaded TOML configuration files (most-recent first), shared with the KSL desktop apps.")
+                putJsonObject("items") { put("type", "string") }
+            }
         },
         required = listOf("workspace", "appDir"),
     )
@@ -491,12 +545,58 @@ internal object McpResultSchemas {
                         putJsonObject("rank") { put("type", "integer") }
                         putJsonObject("familyId") { put("type", "string") }
                         putJsonObject("displayName") { put("type", "string") }
+                        putJsonObject("weightedValue") {
+                            put("type", "number")
+                            put("description", "Scaled MODA value in [0,1] — the ranking basis (continuous fits).")
+                        }
+                        putJsonObject("averageRanking") {
+                            put("type", "number")
+                            put("description", "Average rank across the MODA metrics.")
+                        }
                         putJsonObject("parameters") { put("type", "object") }
                         putJsonObject("goodnessOfFit") { put("type", "object"); put("description", "Statistic(s) + p-value(s).") }
                     }
                 }
             }
+            putJsonObject("scoring") {
+                put("type", "object")
+                put(
+                    "description",
+                    "The MODA scoring matrix (metrics + weights, scaled value-function outputs per candidate); " +
+                        "present for continuous fits. Full detail via get_fit_scoring.",
+                )
+            }
+            putJsonObject("dataSummary") {
+                put("type", "object")
+                put("description", "The engine's statistical summary of the fitted data series (count, moments, min/max, …).")
+            }
         },
         required = listOf("resultId", "datasetName", "fits"),
     )
+}
+
+/**
+ * The full set of `ResponseStatDto` fields, shared by every schema where a response's
+ * across-replication statistics appear (a run's `responses`, a batch item's `responses`,
+ * and get_response), so the declared shape never drifts from the DTO. Populates the
+ * enclosing `properties` object in place.
+ */
+private fun JsonObjectBuilder.responseStatProperties() {
+    putJsonObject("name") { put("type", "string") }
+    putJsonObject("count") { put("type", "number") }
+    putJsonObject("average") { put("type", "number") }
+    putJsonObject("stdDev") { put("type", "number") }
+    putJsonObject("stdErr") { put("type", "number") }
+    putJsonObject("halfWidth") { put("type", "number"); put("description", "95% CI half-width.") }
+    putJsonObject("confLevel") { put("type", "number") }
+    putJsonObject("min") { put("type", "number") }
+    putJsonObject("max") { put("type", "number") }
+    putJsonObject("sum") {
+        put("type", "number")
+        put("description", "Sum of the per-replication values (Sx); with count and deviationSumOfSquares, pools disjoint runs exactly.")
+    }
+    putJsonObject("deviationSumOfSquares") {
+        put("type", "number")
+        put("description", "Deviation sum of squares of the per-replication values.")
+    }
 }

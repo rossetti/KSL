@@ -224,6 +224,148 @@ class KslMcpToolsTest {
     }
 
     @Test
+    fun `run_model applies string and JSON control overrides end to end`() = runBlocking {
+        val bundleId = "ksl.examples.controls-fixture"
+        val modelId = "ControlsEcho"
+
+        // Baseline (defaults): weights=[1.0], mode=ADD, offset=0.0 -> result = 1.0.
+        val baseline = tools.runModel(buildJsonObject { put("bundleId", bundleId); put("modelId", modelId) })
+        assertEquals(false, baseline.isError ?: false, firstText(baseline))
+        assertEquals(1.0, echoResult(structured(baseline)), 1e-9)
+
+        // Override each family at once: weights=[2,3] (JSON control, encoded string),
+        // mode=SUB (string control), offset=2 (numeric control) -> sum([2,3]) - 2 = 3.0.
+        // 3.0 is reachable only if all three bound: drop weights -> -1.0; drop mode -> 7.0;
+        // drop offset -> 5.0. So the value is a joint proof that every family took effect.
+        val overridden = tools.runModel(
+            buildJsonObject {
+                put("bundleId", bundleId)
+                put("modelId", modelId)
+                putJsonObject("inputs") {
+                    put("echo.weights", "[2.0, 3.0]") // JSON control passed as an encoded string
+                    put("echo.mode", "SUB")           // string control
+                    put("echo.offset", 2.0)           // numeric control
+                }
+            },
+        )
+        assertEquals(false, overridden.isError ?: false, "string/JSON overrides must not error: ${firstText(overridden)}")
+        val sc = structured(overridden)
+        assertEquals("completed", sc["type"]!!.jsonPrimitive.content)
+        assertEquals(3.0, echoResult(sc), 1e-9)
+    }
+
+    /** The controls-fixture's single "result" response average from a run's structured payload. */
+    private fun echoResult(sc: JsonObject): Double =
+        sc["responses"]!!.jsonArray
+            .map { it.jsonObject }
+            .first { it["name"]!!.jsonPrimitive.content == "result" }["average"]!!
+            .jsonPrimitive.doubleOrNull ?: error("no average for the 'result' response")
+
+    @Test
+    fun `cancel_run cancels a running job and is a clean no-op for an unknown job`() = runBlocking {
+        // Unknown job: a clean cancelled:false, not an error (cancel is idempotent).
+        val unknown = tools.cancelRun(buildJsonObject { put("jobId", "no-such-job") })
+        assertEquals(false, unknown.isError ?: false, firstText(unknown))
+        val u = structured(unknown)
+        assertEquals("no-such-job", u["jobId"]!!.jsonPrimitive.content)
+        assertEquals(false, u["cancelled"]!!.jsonPrimitive.content.toBoolean())
+
+        // A freshly-submitted, uncached run is registered and RUNNING (submit_run does not wait);
+        // an immediate cancel lands on the still-live job. The large rep count guarantees it
+        // cannot finish in the microseconds before the cancel checks its status.
+        val submit = structured(
+            tools.submitRun(
+                buildJsonObject {
+                    put("bundleId", "ksl.examples.mm1")
+                    put("modelId", "MM1")
+                    put("numberOfReplications", 1000)
+                    put("useCache", false)
+                },
+            ),
+        )
+        assertEquals("RUNNING", submit["status"]!!.jsonPrimitive.content, "an uncached submit_run returns a live job")
+        val jobId = submit["jobId"]!!.jsonPrimitive.content
+
+        val cancelled = tools.cancelRun(buildJsonObject { put("jobId", jobId); put("reason", "test") })
+        assertEquals(false, cancelled.isError ?: false, firstText(cancelled))
+        val c = structured(cancelled)
+        assertEquals(jobId, c["jobId"]!!.jsonPrimitive.content)
+        assertEquals(true, c["cancelled"]!!.jsonPrimitive.content.toBoolean(), "the just-submitted running job should cancel")
+    }
+
+    @Test
+    fun `run_model enableKSLDatabase opt-in controls whether a database is produced`() = runBlocking {
+        // Default (no opt-in): no database for the db_* tools to inspect.
+        val off = tools.runModel(
+            buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1"); put("numberOfReplications", 3) },
+        )
+        assertEquals(false, off.isError ?: false, firstText(off))
+        val offId = structured(off)["resultId"]!!.jsonPrimitive.content
+        val offStatus = structured(tools.dbStatus(buildJsonObject { put("resultId", offId) }))
+        assertEquals(false, offStatus["present"]!!.jsonPrimitive.content.toBoolean(), "no DB without the opt-in")
+
+        // Opt in: a database is produced and db_status finds it.
+        val on = tools.runModel(
+            buildJsonObject {
+                put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1"); put("numberOfReplications", 3)
+                put("enableKSLDatabase", true)
+            },
+        )
+        assertEquals(false, on.isError ?: false, firstText(on))
+        val onId = structured(on)["resultId"]!!.jsonPrimitive.content
+        assertNotEquals(offId, onId, "the opt-in changes the config, so it keys a distinct result")
+        val onStatus = structured(tools.dbStatus(buildJsonObject { put("resultId", onId) }))
+        assertEquals(true, onStatus["present"]!!.jsonPrimitive.content.toBoolean(), "the opt-in produces a DB: $onStatus")
+    }
+
+    @Test
+    fun `get_workspace surfaces recent workspaces and configurations`() {
+        // The recents keys are always present (arrays), even before any set.
+        val before = structured(tools.getWorkspace())
+        assertTrue("recentWorkspaces" in before, "get_workspace should surface recentWorkspaces")
+        assertTrue("recentConfigurations" in before, "get_workspace should surface recentConfigurations")
+
+        // Setting a workspace records it in the recent-workspaces list.
+        val ws = java.nio.file.Files.createTempDirectory("mcp-ws-recent")
+        tools.setWorkspace(buildJsonObject { put("path", ws.toString()) })
+        val recent = structured(tools.getWorkspace())["recentWorkspaces"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(
+            recent.any { it.contains(ws.fileName.toString()) },
+            "the set workspace should appear in recentWorkspaces: $recent",
+        )
+    }
+
+    @Test
+    fun `list_bundles surfaces bundle-id conflicts`() {
+        val dir = java.nio.file.Files.createTempDirectory("mcp-conflict")
+        // Two jars declaring the same bundleId (distinct display names → real, newest-wins conflict).
+        ksl.examples.general.appsupport.ManifestBundleFixtures.assembleManifestBundle(
+            dir, "a", "ksl.examples.dup", ksl.examples.general.appsupport.MM1ModelBuilder::class.java,
+        ) { it.displayName = "Copy A" }
+        ksl.examples.general.appsupport.ManifestBundleFixtures.assembleManifestBundle(
+            dir, "b", "ksl.examples.dup", ksl.examples.general.appsupport.MM1ModelBuilder::class.java,
+        ) { it.displayName = "Copy B" }
+
+        val isolated = ksl.app.settings.UserSettingsStore(
+            settingsDir = java.nio.file.Files.createTempDirectory("mcp-c-set"),
+            userHome = java.nio.file.Files.createTempDirectory("mcp-c-home"),
+            defaultWorkspaceProvider = { java.nio.file.Files.createTempDirectory("mcp-c-ws") },
+        )
+        BundleRegistry.fromDirectories(listOf(dir)).use { conflicting ->
+            KslMcpTools(
+                conflicting,
+                ksl.service.store.ResultStore(java.nio.file.Files.createTempDirectory("mcp-c-rs")),
+                settingsStore = isolated,
+            ).use { t ->
+                val sc = structured(t.listBundles())
+                assertTrue("conflicts" in sc, "list_bundles should surface conflicts when bundleIds collide: ${sc.keys}")
+                val ids = sc["conflicts"]!!.jsonArray.map { it.jsonObject["bundleId"]!!.jsonPrimitive.content }
+                assertTrue("ksl.examples.dup" in ids, "expected the duplicated bundleId in conflicts: $ids")
+            }
+        }
+    }
+
+    @Test
     fun `run_model reports a clear error for an unknown model`() = runBlocking {
         val args = buildJsonObject {
             put("bundleId", "ksl.examples.mm1")
@@ -870,7 +1012,7 @@ class KslMcpToolsTest {
             toolNames.containsAll(
                 setOf(
                     "list_bundles", "list_models", "describe_model",
-                    "run_model", "submit_run", "get_run_events", "get_run_result",
+                    "run_model", "submit_run", "get_run_events", "get_run_result", "cancel_run",
                     "run_config", "run_optimization", "run_optimization_config",
                     "run_experiment", "fit_dataset",
                     "experiment_template", "experiment_config", "validate_experiment_config",

@@ -169,11 +169,25 @@ class KslMcpTools(
     fun listBundles(): CallToolResult {
         val bundles = registry.listBundles()
         val skipped = registry.skipped()
+        // bundleId collisions the registry resolved newest-wins (shadowed copies stay loaded,
+        // inactive) — logged at startup, now surfaced so an agent can flag them to the operator.
+        val conflicts = registry.conflicts()
         val structured = buildJsonObject {
             put("bundles", json.parseToJsonElement(json.encodeToString(bundles)))
             if (skipped.isNotEmpty()) {
                 putJsonArray("skipped") {
                     skipped.forEach { add(buildJsonObject { put("jar", it.jar.toString()); put("reason", it.reason) }) }
+                }
+            }
+            if (conflicts.isNotEmpty()) {
+                putJsonArray("conflicts") {
+                    conflicts.forEach { conflict ->
+                        add(buildJsonObject {
+                            put("bundleId", conflict.bundleId)
+                            conflict.activeSource?.let { put("activeSource", it) }
+                            putJsonArray("shadowedSources") { conflict.shadowedSources.forEach { s -> if (s != null) add(s) } }
+                        })
+                    }
                 }
             }
         }
@@ -192,6 +206,12 @@ class KslMcpTools(
                 appendLine()
                 appendLine("Skipped ${skipped.size} JAR(s) (not loadable bundles — (re)assemble them):")
                 skipped.forEach { appendLine("  - ${it.jar.fileName}: ${it.reason}") }
+            }
+            if (conflicts.isNotEmpty()) {
+                appendLine()
+                appendLine()
+                appendLine("${conflicts.size} bundle-id conflict(s) (newest-wins; shadowed copies stay loaded):")
+                conflicts.forEach { appendLine("  - ${it.bundleId}: active=${it.activeSource}, shadowed=${it.shadowedSources}") }
             }
         }.trimEnd()
         return result(summary, structured)
@@ -639,6 +659,30 @@ class KslMcpTools(
         return runResult(stored, fromCache = true)
     }
 
+    /**
+     * `cancel_run` — requests cancellation of a still-running job started by
+     * `submit_run`. Reports `cancelled:true` only when the job was running and a
+     * cancel was issued; an unknown, already-terminal, or evicted job is a clean
+     * `cancelled:false` (not an error), so an agent can cancel idempotently.
+     */
+    fun cancelRun(arguments: JsonObject?): CallToolResult {
+        val jobId = arguments.string("jobId") ?: return error("missing required argument 'jobId'")
+        val reason = arguments.string("reason") ?: "Cancelled by user"
+        val status = runJobs.status(jobId)
+        if (status != JobStatus.RUNNING) {
+            val why = if (status == JobStatus.TERMINAL) "already finished" else "unknown or evicted"
+            return result(
+                "No running job '$jobId' to cancel ($why).",
+                buildJsonObject { put("jobId", jobId); put("cancelled", false); put("message", why) },
+            )
+        }
+        runJobs.cancel(jobId, reason)
+        return result(
+            "Cancellation requested for job '$jobId'.",
+            buildJsonObject { put("jobId", jobId); put("cancelled", true); put("message", "cancellation requested: $reason") },
+        )
+    }
+
     // jobId -> the content key / kind / request an async run will be stored under
     // when it terminates (store-on-completion; mirrors the REST path). Bounded by
     // the JobManager's own retention; cleared when the result is stored.
@@ -688,6 +732,8 @@ class KslMcpTools(
             return null to error("'replicationSet' must be >= 0")
         }
         val antithetic = arguments?.get("antithetic")?.jsonPrimitive?.booleanOrNull
+        // Opt-in KSL database capture (default off): produces the SQLite DB the db_* tools inspect.
+        val enableKSLDatabase = arguments?.get("enableKSLDatabase")?.jsonPrimitive?.booleanOrNull ?: false
         val numReps = arguments.int("numberOfReplications")
         val effectiveReps = numReps ?: descriptor.experimentRunDefaults.numberOfReplications
         val streamAdvances = replicationSet?.let { RunService.streamAdvancesFor(it, effectiveReps) }
@@ -699,6 +745,7 @@ class KslMcpTools(
             bound.rvOverrides,
             streamAdvances = streamAdvances,
             antithetic = antithetic,
+            enableKSLDatabase = enableKSLDatabase,
         )
         return BuiltRun(
             config = config,
@@ -754,14 +801,14 @@ class KslMcpTools(
         return stored
     }
 
-    /** Parses an `inputs` argument (a JSON object of key → number). */
-    private fun parseInputs(element: JsonElement?): Map<String, Double> {
-        val obj = element as? JsonObject ?: return emptyMap()
-        return obj.mapValues { (key, value) ->
-            (value as? JsonPrimitive)?.doubleOrNull
-                ?: throw IllegalArgumentException("input '$key' must be a number")
-        }
-    }
+    /**
+     * Parses an `inputs` argument (a JSON object of input key → value) into a map that
+     * preserves each value's JSON kind, so `RunInputs.bind` can route it to the matching
+     * control family (numeric / string / JSON) and type-check it there. A `JsonObject`
+     * already is a `Map<String, JsonElement>`, so it passes straight through.
+     */
+    private fun parseInputs(element: JsonElement?): Map<String, JsonElement> =
+        element as? JsonObject ?: emptyMap()
 
     /**
      * `run_config` — the document-centric path: runs a complete, author-shaped
@@ -1879,17 +1926,31 @@ class KslMcpTools(
     fun getWorkspace(): CallToolResult {
         val workspace = settingsStore.activeWorkspace()
         val appDir = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(workspace, ServerConfig.SERVER_APP_FOLDER)
-        val isDefault = settingsStore.settings.value.workspace.currentDirectory == null
+        val settings = settingsStore.settings.value
+        val isDefault = settings.workspace.currentDirectory == null
+        // Shared with the Swing apps via ~/.ksl/settings.toml (most-recent first).
+        val recentWorkspaces = settings.workspace.recent.directories
+        val recentConfigurations = settings.configurations.files
         val structured = buildJsonObject {
             put("workspace", workspace.toString())
             put("appDir", appDir.toString())
             put("isDefault", isDefault)
+            putJsonArray("recentWorkspaces") { recentWorkspaces.forEach { add(it) } }
+            putJsonArray("recentConfigurations") { recentConfigurations.forEach { add(it) } }
         }
         val summary = buildString {
             append("Active KSL workspace: $workspace")
             if (isDefault) append(" (default — no override set)")
             appendLine()
             append("The MCP server writes reports and generated data under: $appDir")
+            if (recentWorkspaces.isNotEmpty()) {
+                appendLine()
+                append("Recent workspaces: ${recentWorkspaces.joinToString(", ")}")
+            }
+            if (recentConfigurations.isNotEmpty()) {
+                appendLine()
+                append("Recent configurations: ${recentConfigurations.joinToString(", ")}")
+            }
         }
         return result(summary, structured)
     }

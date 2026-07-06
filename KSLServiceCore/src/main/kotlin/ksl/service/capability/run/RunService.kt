@@ -117,6 +117,7 @@ class RunService(
         rvOverrides: List<RVParameterOverride> = emptyList(),
         streamAdvances: Int? = null,
         antithetic: Boolean? = null,
+        enableKSLDatabase: Boolean = false,
     ): RunConfiguration {
         // A 0 advance is folded to null so a "replicationSet = 0" request stays
         // byte-identical to a plain run (same encoded document → same cache key →
@@ -143,8 +144,8 @@ class RunService(
         return RunConfiguration(
             scenarios = listOf(scenario),
             // Headless: no report files; the structured result is returned inline
-            // (strategic plan §9.1). Artifacts are a later, opt-in concern.
-            outputConfig = OutputConfig(reports = emptySet()),
+            // (strategic plan §9.1). The KSL database is an opt-in artifact for the db_* tools.
+            outputConfig = OutputConfig(reports = emptySet(), enableKSLDatabase = enableKSLDatabase),
         )
     }
 

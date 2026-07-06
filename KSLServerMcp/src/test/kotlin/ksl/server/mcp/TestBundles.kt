@@ -1,6 +1,7 @@
 package ksl.server.mcp
 
 import ksl.app.bundle.KSLAppKind
+import ksl.examples.general.appsupport.ControlsEchoModelBuilder
 import ksl.examples.general.appsupport.LKInventoryModelBuilder
 import ksl.examples.general.appsupport.LKInventoryOptModelBuilder
 import ksl.examples.general.appsupport.MM1ModelBuilder
@@ -34,6 +35,11 @@ internal object TestBundles {
             dir, "simopt", "ksl.examples.simopt-test-models",
             LKInventoryOptModelBuilder::class.java, RQInventoryOptModelBuilder::class.java,
         ) { session -> session.models.forEach { it.supportedApps.add(KSLAppKind.SIMOPT) } }
+        // A minimal fixture exposing all three control families (numeric/string/JSON),
+        // for the flattened-run string/JSON override tests.
+        ManifestBundleFixtures.assembleManifestBundle(
+            dir, "controls", "ksl.examples.controls-fixture", ControlsEchoModelBuilder::class.java,
+        )
         dir
     }
 

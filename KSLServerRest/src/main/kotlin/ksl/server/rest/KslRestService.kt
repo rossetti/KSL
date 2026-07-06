@@ -27,6 +27,7 @@ import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -226,7 +227,10 @@ class KslRestService(
         if (replicationSet != null) {
             require(replicationSet >= 0) { "replicationSet must be >= 0; got $replicationSet" }
         }
-        val bound = RunInputs.bind(descriptor, inputs)
+        // REST's flattened run path is numeric-only (its public `inputs` map is
+        // Map<String,Double>); adapt to RunInputs.bind's JSON-valued signature, which
+        // also routes string/JSON controls for callers that supply them (the MCP path).
+        val bound = RunInputs.bind(descriptor, inputs.mapValues { JsonPrimitive(it.value) })
         // replicationSet selects an independent, reproducible realization; the stride is
         // k × the effective rep count so the substream blocks don't overlap.
         val effectiveReps = replications ?: descriptor.experimentRunDefaults.numberOfReplications
