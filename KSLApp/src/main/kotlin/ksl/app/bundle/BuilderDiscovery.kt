@@ -57,7 +57,11 @@ object BuilderDiscovery {
         jarPath: Path,
         parent: ClassLoader = BundleLoader.defaultParent(),
     ): List<DiscoveredBuilder> {
-        val fqns = DynamicJarClassLoader.findSubclasses(jarPath, ModelBuilderIfc::class.java).sorted()
+        // Pass [parent] (the loader that holds KSLCore) so the scan resolves ModelBuilderIfc and other KSL
+        // supertypes regardless of the calling thread's context classloader. Without it findSubclasses falls
+        // back to the ambient thread contextClassLoader, which on a server request thread does not see the KSL
+        // classes — linking a builder then throws NoClassDefFoundError and (as an Error) crashes the caller.
+        val fqns = DynamicJarClassLoader.findSubclasses(jarPath, ModelBuilderIfc::class.java, parent).sorted()
         if (fqns.isEmpty()) {
             logger.info { "No ModelBuilderIfc implementations found in $jarPath" }
             return emptyList()
@@ -69,6 +73,12 @@ object BuilderDiscovery {
                     DiscoveredBuilder(fqn, descriptor, null)
                 } catch (e: Exception) {
                     logger.warn(e) { "Failed to build model from $fqn in $jarPath" }
+                    DiscoveredBuilder(fqn, null, e.message ?: e.toString())
+                } catch (e: LinkageError) {
+                    // A builder compiled against a different KSL, or with an unresolved dependency, throws a
+                    // LinkageError (an Error, not an Exception). Record it as a discovery failure instead of
+                    // letting it escape and abort the whole request. VirtualMachineError still propagates.
+                    logger.warn(e) { "Failed to link/build model from $fqn in $jarPath" }
                     DiscoveredBuilder(fqn, null, e.message ?: e.toString())
                 }
             }

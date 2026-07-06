@@ -112,4 +112,26 @@ class BundleAuthoringServiceTest {
         assertEquals(setOf(jar.fileName.toString()), jars.map { it.fileName.toString() }.toSet(),
             "preview must not write a bundle; found $jars")
     }
+
+    @Test
+    fun candidatesSucceedWhenThreadContextClassLoaderCannotResolveKsl() {
+        // Regression guard for the packaged-server crash: on an MCP request thread the context classloader
+        // does not see the KSL classes. Discovery had parented its scan URLClassLoader on that context loader,
+        // so linking ModelBuilderIfc threw NoClassDefFoundError — an Error that escaped the Exception-only
+        // catch and took the server process down. Discovery must instead resolve KSL types via an explicit
+        // parent and succeed regardless of the thread's context loader. A flat test classpath never exercised
+        // this, so the existing tests passed while the packaged server failed.
+        val (_, jar) = buildersJar()
+        val original = Thread.currentThread().contextClassLoader
+        try {
+            // The platform loader resolves only JDK modules — not KSLCore / ModelBuilderIfc.
+            Thread.currentThread().contextClassLoader = ClassLoader.getPlatformClassLoader()
+            val candidates = service.candidates(jar)
+            assertEquals(1, candidates.models.size, "the builder must be discovered despite the stripped context loader")
+            assertTrue(candidates.discoveryErrors.isEmpty(), "discovery must not error; got ${candidates.discoveryErrors}")
+            assertTrue(candidates.models.first().inputs.isNotEmpty(), "the discovered model built and exposed its inputs")
+        } finally {
+            Thread.currentThread().contextClassLoader = original
+        }
+    }
 }

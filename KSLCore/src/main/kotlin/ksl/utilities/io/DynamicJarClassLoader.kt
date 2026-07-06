@@ -526,19 +526,28 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
          *
          * @param jarFilePath Path to the JAR file
          * @param parentClass The parent KClass to search for subclasses
+         * @param parent parent classloader for delegation; must resolve parentClass and its transitive
+         *   dependencies. Defaults to the calling thread's context classloader — pass an explicit loader
+         *   (e.g. the one that holds parentClass) when the caller may run on a thread whose context loader
+         *   does not see those types, otherwise linking a candidate throws NoClassDefFoundError.
          * @return Set of class names that extend or implement the parent class
          */
-        fun findSubclasses(jarFilePath: Path, parentClass: Class<*>): List<String> {
+        fun findSubclasses(
+            jarFilePath: Path,
+            parentClass: Class<*>,
+            parent: ClassLoader = Thread.currentThread().contextClassLoader,
+        ): List<String> {
             val jarFile = jarFilePath.toFile()
             if (!jarFile.exists()) {
                 return emptyList()
             }
             val subclasses = mutableListOf<String>()
-            // Create a URLClassLoader to load classes from the JAR
+            // Create a URLClassLoader to load classes from the JAR. The parent loader must resolve the
+            // supertype the scan tests against (parentClass) and its transitive dependencies.
             val jarUrl = jarFile.toURI().toURL()
             URLClassLoader(
                 arrayOf(jarUrl),
-                Thread.currentThread().contextClassLoader
+                parent
             ).use { classLoader ->
 
                 JarFile(jarFile).use { jar ->
@@ -558,6 +567,10 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
                                 }
                             } catch (e: Exception) {
                                 // Skip classes that can't be loaded or reflected
+                            } catch (e: LinkageError) {
+                                // A class whose supertypes/dependencies can't be linked is not a usable
+                                // match — skip it rather than let the Error escape and abort the scan
+                                // (which, uncaught, would crash the calling thread). VM errors still propagate.
                             }
                         }
                 }
@@ -568,7 +581,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         /**
          * Alternative method that returns KClass objects instead of class names
          */
-        fun findSubclassObjects(jarFilePath: Path, parentClass: Class<*>): List<Class<*>> {
+        fun findSubclassObjects(
+            jarFilePath: Path,
+            parentClass: Class<*>,
+            parent: ClassLoader = Thread.currentThread().contextClassLoader,
+        ): List<Class<*>> {
             val jarFile = jarFilePath.toFile()
             if (!jarFile.exists()) {
                 return emptyList()
@@ -577,7 +594,7 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
             val jarUrl = jarFile.toURI().toURL()
             URLClassLoader(
                 arrayOf(jarUrl),
-                Thread.currentThread().contextClassLoader
+                parent
             ).use { classLoader ->
 
                 JarFile(jarFile).use { jar ->
@@ -595,6 +612,9 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
                                 }
                             } catch (e: Exception) {
                                 // Skip classes that can't be loaded or reflected
+                            } catch (e: LinkageError) {
+                                // A class whose supertypes/dependencies can't be linked is not a usable
+                                // match — skip it rather than let the Error escape and abort the scan.
                             }
                         }
                 }
