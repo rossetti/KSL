@@ -262,6 +262,38 @@ class KslMcpToolsTest {
             .jsonPrimitive.doubleOrNull ?: error("no average for the 'result' response")
 
     @Test
+    fun `cancel_run cancels a running job and is a clean no-op for an unknown job`() = runBlocking {
+        // Unknown job: a clean cancelled:false, not an error (cancel is idempotent).
+        val unknown = tools.cancelRun(buildJsonObject { put("jobId", "no-such-job") })
+        assertEquals(false, unknown.isError ?: false, firstText(unknown))
+        val u = structured(unknown)
+        assertEquals("no-such-job", u["jobId"]!!.jsonPrimitive.content)
+        assertEquals(false, u["cancelled"]!!.jsonPrimitive.content.toBoolean())
+
+        // A freshly-submitted, uncached run is registered and RUNNING (submit_run does not wait);
+        // an immediate cancel lands on the still-live job. The large rep count guarantees it
+        // cannot finish in the microseconds before the cancel checks its status.
+        val submit = structured(
+            tools.submitRun(
+                buildJsonObject {
+                    put("bundleId", "ksl.examples.mm1")
+                    put("modelId", "MM1")
+                    put("numberOfReplications", 1000)
+                    put("useCache", false)
+                },
+            ),
+        )
+        assertEquals("RUNNING", submit["status"]!!.jsonPrimitive.content, "an uncached submit_run returns a live job")
+        val jobId = submit["jobId"]!!.jsonPrimitive.content
+
+        val cancelled = tools.cancelRun(buildJsonObject { put("jobId", jobId); put("reason", "test") })
+        assertEquals(false, cancelled.isError ?: false, firstText(cancelled))
+        val c = structured(cancelled)
+        assertEquals(jobId, c["jobId"]!!.jsonPrimitive.content)
+        assertEquals(true, c["cancelled"]!!.jsonPrimitive.content.toBoolean(), "the just-submitted running job should cancel")
+    }
+
+    @Test
     fun `run_model reports a clear error for an unknown model`() = runBlocking {
         val args = buildJsonObject {
             put("bundleId", "ksl.examples.mm1")
@@ -908,7 +940,7 @@ class KslMcpToolsTest {
             toolNames.containsAll(
                 setOf(
                     "list_bundles", "list_models", "describe_model",
-                    "run_model", "submit_run", "get_run_events", "get_run_result",
+                    "run_model", "submit_run", "get_run_events", "get_run_result", "cancel_run",
                     "run_config", "run_optimization", "run_optimization_config",
                     "run_experiment", "fit_dataset",
                     "experiment_template", "experiment_config", "validate_experiment_config",

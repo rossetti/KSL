@@ -639,6 +639,30 @@ class KslMcpTools(
         return runResult(stored, fromCache = true)
     }
 
+    /**
+     * `cancel_run` — requests cancellation of a still-running job started by
+     * `submit_run`. Reports `cancelled:true` only when the job was running and a
+     * cancel was issued; an unknown, already-terminal, or evicted job is a clean
+     * `cancelled:false` (not an error), so an agent can cancel idempotently.
+     */
+    fun cancelRun(arguments: JsonObject?): CallToolResult {
+        val jobId = arguments.string("jobId") ?: return error("missing required argument 'jobId'")
+        val reason = arguments.string("reason") ?: "Cancelled by user"
+        val status = runJobs.status(jobId)
+        if (status != JobStatus.RUNNING) {
+            val why = if (status == JobStatus.TERMINAL) "already finished" else "unknown or evicted"
+            return result(
+                "No running job '$jobId' to cancel ($why).",
+                buildJsonObject { put("jobId", jobId); put("cancelled", false); put("message", why) },
+            )
+        }
+        runJobs.cancel(jobId, reason)
+        return result(
+            "Cancellation requested for job '$jobId'.",
+            buildJsonObject { put("jobId", jobId); put("cancelled", true); put("message", "cancellation requested: $reason") },
+        )
+    }
+
     // jobId -> the content key / kind / request an async run will be stored under
     // when it terminates (store-on-completion; mirrors the REST path). Bounded by
     // the JobManager's own retention; cleared when the result is stored.

@@ -221,6 +221,22 @@ object KslMcpServer {
         ) { request -> tools.getRunResult(request.arguments) }
 
         server.addTool(
+            name = "cancel_run",
+            description = "Request cancellation of a still-running job started by submit_run. Returns " +
+                "structuredContent {jobId, cancelled, message}: cancelled=true when a cancel was issued to a " +
+                "running job, false when it was already finished, unknown, or evicted — so it is safe to call " +
+                "idempotently.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("jobId") { put("type", "string") }
+                    putJsonObject("reason") { put("type", "string"); put("description", "Optional human-readable cancellation reason.") }
+                },
+                required = listOf("jobId"),
+            ),
+            outputSchema = McpResultSchemas.cancel,
+        ) { request -> tools.cancelRun(request.arguments) }
+
+        server.addTool(
             name = "run_optimization",
             description = "Run a simulation-optimization (stochastic hill climbing) over a bundled " +
                 "model: minimize/maximize a response over numeric decision variables. Returns structuredContent " +

@@ -186,6 +186,19 @@ internal object McpResultSchemas {
         required = listOf("jobId", "nextOffset", "status", "events"),
     )
 
+    /** cancel_run: whether a cancellation was issued to a running job. */
+    val cancel = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("jobId") { put("type", "string") }
+            putJsonObject("cancelled") {
+                put("type", "boolean")
+                put("description", "True when a cancel was issued to a running job; false when it was already finished, unknown, or evicted.")
+            }
+            putJsonObject("message") { put("type", "string") }
+        },
+        required = listOf("jobId", "cancelled", "message"),
+    )
+
     /** list_responses: the response names in a retained result. */
     val responseNames = ToolSchema(
         properties = buildJsonObject {
