@@ -1051,10 +1051,70 @@ class KslMcpTools(
         return result(summary, structured)
     }
 
+    // External KSL databases opened via db_open_external: resultId -> the directory holding the
+    // database, so a foreign database (one the server did not produce) is analyzed by the same db_* tools.
+    private val externalDbDirs = ConcurrentHashMap<String, java.nio.file.Path>()
+
+    /** The database directory for [resultId]: a registered external database, else the result's own output dir. */
+    private fun dbDirFor(resultId: String): java.nio.file.Path =
+        externalDbDirs[resultId] ?: artifactStore.outputDirFor(resultId)
+
+    /**
+     * `db_open_external` — open a pre-existing KSL database the server did not produce (a SQLite
+     * `.db` file, or an embedded Derby directory) so the db_* tools can analyze it. Opening runs
+     * KSLDatabase's schema check, so a non-KSL file fails fast with a clear error. Returns a
+     * `resultId` (keyed by the path) plus the database's experiments; pass that resultId to
+     * db_status / db_experiments / db_summary / db_compare / db_view like any other result.
+     */
+    fun dbOpenExternal(arguments: JsonObject?): CallToolResult {
+        val pathStr = arguments.string("path") ?: return error("missing required argument 'path'")
+        val path = try {
+            java.nio.file.Path.of(pathStr).toAbsolutePath().normalize()
+        } catch (e: Exception) {
+            return error("invalid path '$pathStr': ${e.message}")
+        }
+        if (!java.nio.file.Files.exists(path)) return error("no database found at '$pathStr'")
+        // A Derby database is a directory; a SQLite database is a file located within its directory.
+        val dir = if (java.nio.file.Files.isDirectory(path)) path else path.parent
+            ?: return error("cannot resolve a directory for '$pathStr'")
+        if (!java.nio.file.Files.isDirectory(path)) {
+            val located = resultDb.locate(dir)
+            if (located != null && located.toAbsolutePath().normalize() != path) {
+                return error(
+                    "the directory of '$pathStr' holds a different database ('${located.fileName}'); " +
+                        "pass that database's directory, or isolate the file",
+                )
+            }
+        }
+        // Opening validates the schema (KSLDatabase.init throws for a non-ksl_db file).
+        val experiments = try {
+            resultDb.experiments(dir)
+        } catch (e: Exception) {
+            return error("'$pathStr' is not a readable KSL database: ${e.message}")
+        } ?: return error("no KSL database found at '$pathStr'")
+        val resultId = "external-" + ksl.service.store.ResultStore.sha256(path.toString()).take(16)
+        externalDbDirs[resultId] = dir
+        val element = json.encodeToJsonElement(
+            kotlinx.serialization.builtins.ListSerializer(ksl.service.capability.dbanalysis.ExperimentInfoDto.serializer()),
+            experiments,
+        )
+        val structured = buildJsonObject {
+            put("resultId", resultId)
+            put("path", path.toString())
+            put("experiments", element)
+        }
+        val summary = buildString {
+            appendLine("Opened external KSL database as resultId '$resultId' (${experiments.size} experiment(s)):")
+            experiments.forEach { appendLine("  - ${it.name}") }
+            append("Analyze it with db_status / db_experiments / db_summary / db_compare using this resultId.")
+        }
+        return result(summary, structured)
+    }
+
     /** `db_status` — whether a result has an analyzable KSL database, with guidance when not. */
     fun dbStatus(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
-        val status = resultDb.status(artifactStore.outputDirFor(resultId))
+        val status = resultDb.status(dbDirFor(resultId))
         val structured = buildJsonObject {
             put("present", status.present)
             put("experimentCount", status.experimentCount)
@@ -1066,7 +1126,7 @@ class KslMcpTools(
     /** `db_experiments` — the experiments recorded in a result's database. */
     fun dbExperiments(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
-        val experiments = resultDb.experiments(artifactStore.outputDirFor(resultId))
+        val experiments = resultDb.experiments(dbDirFor(resultId))
             ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
         val element = json.encodeToJsonElement(
             kotlinx.serialization.builtins.ListSerializer(ksl.service.capability.dbanalysis.ExperimentInfoDto.serializer()),
@@ -1081,7 +1141,7 @@ class KslMcpTools(
     fun dbSummary(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val experiment = arguments.string("experimentName") ?: return error("missing required argument 'experimentName'")
-        val dbOutcome = resultDb.summary(artifactStore.outputDirFor(resultId), experiment)
+        val dbOutcome = resultDb.summary(dbDirFor(resultId), experiment)
         // With no database, project the retained batch item's across-replication statistics.
         val outcome = if (dbOutcome is ksl.service.capability.dbanalysis.DbQueryResult.NoDatabase) {
             inMemorySummary(resultId, experiment) ?: dbOutcome
@@ -1102,7 +1162,7 @@ class KslMcpTools(
         val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
         return dbJsonResult(
             resultDb.compare(
-                artifactStore.outputDirFor(resultId), response, experiments, delta, level,
+                dbDirFor(resultId), response, experiments, delta, level,
                 // With no database (a headless batch), analyze the retained per-replication
                 // observations instead — same analyzer, same JSON, transparent to the caller.
                 fallbackSource = inMemoryComparisonSource(resultId),
@@ -1137,7 +1197,7 @@ class KslMcpTools(
     /** `db_views` — the statistical DataFrame views available for a result's database. */
     fun dbViews(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
-        val names = resultDb.viewNames(artifactStore.outputDirFor(resultId))
+        val names = resultDb.viewNames(dbDirFor(resultId))
             ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
         val structured = buildJsonObject { putJsonArray("views") { names.forEach { add(it) } } }
         return result("${names.size} view(s): ${names.joinToString(", ")}", structured)
@@ -1149,7 +1209,7 @@ class KslMcpTools(
         val view = arguments.string("view") ?: return error("missing required argument 'view'")
         val experiment = arguments.string("experiment")
         val limit = arguments.string("limit")?.toIntOrNull() ?: ksl.service.capability.dbanalysis.DEFAULT_VIEW_ROW_LIMIT
-        return dbJsonResult(resultDb.viewJson(artifactStore.outputDirFor(resultId), view, experiment, limit), "view")
+        return dbJsonResult(resultDb.viewJson(dbDirFor(resultId), view, experiment, limit), "view")
     }
 
     /** `db_compare_report` — render a comparison (MCB) report (with plots) as an artifact. */
@@ -1166,7 +1226,7 @@ class KslMcpTools(
             ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
             ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
         val outcome = resultDb.renderComparisonReport(
-            artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId),
+            dbDirFor(resultId), artifactStore.dirFor(resultId),
             response, experiments, delta, level, formats,
         )
         return dbReportResult(outcome, resultId)
@@ -1179,7 +1239,7 @@ class KslMcpTools(
         val format = ksl.service.capability.dbanalysis.DbExportFormat.entries
             .firstOrNull { it.name.equals(formatName, ignoreCase = true) }
             ?: return error("format must be CSV or EXCEL")
-        val outcome = resultDb.exportDatabase(artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId), format)
+        val outcome = resultDb.exportDatabase(dbDirFor(resultId), artifactStore.dirFor(resultId), format)
         return dbReportResult(outcome, resultId)
     }
 
@@ -1194,7 +1254,7 @@ class KslMcpTools(
             ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
             ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
         val outcome = resultDb.renderExperimentSummaryReport(
-            artifactStore.outputDirFor(resultId), artifactStore.dirFor(resultId),
+            dbDirFor(resultId), artifactStore.dirFor(resultId),
             experiment, level, showPlots, formats,
         )
         return dbReportResult(outcome, resultId)

@@ -544,6 +544,24 @@ object KslMcpServer {
         ) { request -> tools.getArtifact(request.arguments) }
 
         server.addTool(
+            name = "db_open_external",
+            description = "Open a pre-existing KSL database the server did not produce — a SQLite .db file or an " +
+                "embedded Derby directory — so the db_* tools can analyze it. Opening validates the KSL schema (a " +
+                "non-KSL file is refused). Returns structuredContent {resultId, path, experiments}; pass the " +
+                "resultId to db_status / db_experiments / db_summary / db_compare / db_view like any other result.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("path") {
+                        put("type", "string")
+                        put("description", "Filesystem path to the KSL database (a .db file, or an embedded Derby directory).")
+                    }
+                },
+                required = listOf("path"),
+            ),
+            outputSchema = McpResultSchemas.externalDb,
+        ) { request -> tools.dbOpenExternal(request.arguments) }
+
+        server.addTool(
             name = "db_status",
             description = "Report whether a result has an analyzable KSL database (structuredContent " +
                 "{present, experimentCount, message}). A run produces one only when it enabled the database " +

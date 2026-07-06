@@ -239,6 +239,23 @@ internal object McpResultSchemas {
         required = listOf("name", "mediaType", "path"),
     )
 
+    /** db_open_external: the opened foreign database — a resultId (usable with the db_* tools) + its experiments. */
+    val externalDb = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("resultId") {
+                put("type", "string")
+                put("description", "Pass this to db_status / db_experiments / db_summary / db_compare / db_view.")
+            }
+            putJsonObject("path") { put("type", "string") }
+            putJsonObject("experiments") {
+                put("type", "array")
+                put("description", "The experiments recorded in the opened database.")
+                putJsonObject("items") { put("type", "object") }
+            }
+        },
+        required = listOf("resultId", "experiments"),
+    )
+
     /** db_status: whether a result has an analyzable database. */
     val dbStatus = ToolSchema(
         properties = buildJsonObject {
