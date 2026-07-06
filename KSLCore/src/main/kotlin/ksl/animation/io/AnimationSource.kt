@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.animation.io
+package ksl.animation.io
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout

@@ -1,4 +1,4 @@
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
@@ -7,7 +7,7 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
 import ksl.animation.PathDefinition
-import ksl.app.swing.animation.io.AnimationSource
+import ksl.animation.io.AnimationSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

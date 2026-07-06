@@ -7,8 +7,8 @@ import ksl.animation.LayoutPoint
 import ksl.animation.ObjectClassDefinition
 import ksl.animation.StorageLayoutElement
 import ksl.animation.StorageStyle
-import ksl.app.swing.animation.io.AnimationSource
-import ksl.app.swing.animation.replay.ReplayModel
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertTrue

@@ -1,10 +1,10 @@
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
 import ksl.animation.NetworkStationLayoutElement
-import ksl.app.swing.animation.io.AnimationSource
+import ksl.animation.io.AnimationSource
 import ksl.animation.AnimationEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals

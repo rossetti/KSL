@@ -1,4 +1,4 @@
-package ksl.app.swing.animation.replay
+package ksl.animation.replay
 
 import ksl.animation.AnimationLayout
 import ksl.animation.SpatialSpaceDescriptor

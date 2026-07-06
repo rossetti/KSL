@@ -457,6 +457,23 @@ object KslMcpServer {
         ) { request -> tools.validateAnimationLayout(request.arguments) }
 
         server.addTool(
+            name = "animation_layout_from_trace",
+            description = "Infer a richer animation layout from a run's captured trace — empirically observed " +
+                "flow order, real element centroids, conveyor anchors, and storages — rather than the static " +
+                "structural guess of animation_layout_template. Requires a run made with tracing on " +
+                "(run_model tracing=true, or a run_config whose tracingConfig names a trace file). 'format' is " +
+                "json (default) or toml; the text is the layout document, checkable with validate_animation_layout.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string") }
+                    putJsonObject("format") { put("type", "string"); put("description", "json (default) or toml") }
+                },
+                required = listOf("resultId"),
+            ),
+            outputSchema = McpResultSchemas.document,
+        ) { request -> tools.animationLayoutFromTrace(request.arguments) }
+
+        server.addTool(
             name = "experiment_config",
             description = "Run a complete ExperimentConfiguration document (factors + design) as authored, " +
                 "validated first. Returns structuredContent with per-design-point results; when reporting, " +

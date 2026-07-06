@@ -46,6 +46,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import ksl.animation.AnimationLayout
+import ksl.animation.io.AnimationSource
+import ksl.animation.replay.ReplayModel
+import ksl.animation.replay.autoLayout
 import ksl.animation.scaffoldLayout
 import ksl.animation.validateAgainst
 import ksl.app.config.ModelReference
@@ -346,6 +349,28 @@ class KslMcpTools(
                 report.issues.joinToString("\n") { "  - [${it.kind}] ${it.message}" }
         }
         return result(summary, structured)
+    }
+
+    /** `animation_layout_from_trace` — a richer layout inferred from a run's captured animation trace:
+     *  empirically observed flow order, real centroids, conveyor anchors, storages. Needs a run made
+     *  with tracing on (run_model tracing=true); complements the structural scaffold of
+     *  animation_layout_template. */
+    fun animationLayoutFromTrace(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
+        val atf = artifactStore.list(resultId).firstOrNull { it.name.endsWith(".atf") }
+            ?: return error("no animation trace (.atf) for result '$resultId' — re-run with tracing enabled " +
+                "(run_model tracing=true, or a run_config whose tracingConfig names a trace file).")
+        val layout = try {
+            val source = AnimationSource.load(null, java.nio.file.Path.of(atf.path))
+            ReplayModel.build(source).autoLayout(source.events, source.header.description)
+        } catch (e: Exception) {
+            return error("could not infer a layout from the trace: ${e.message}")
+        }
+        return if (arguments.string("format")?.equals("toml", ignoreCase = true) == true) {
+            result(layout.toToml(), buildJsonObject { put("documentType", "AnimationLayout"); put("format", "toml") })
+        } else {
+            documentResult("AnimationLayout", layout.toJson())
+        }
     }
 
     /** A config-document scaffold result: the raw document as text (to edit and submit) plus
