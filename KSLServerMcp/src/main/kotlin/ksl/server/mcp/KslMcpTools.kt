@@ -754,14 +754,14 @@ class KslMcpTools(
         return stored
     }
 
-    /** Parses an `inputs` argument (a JSON object of key → number). */
-    private fun parseInputs(element: JsonElement?): Map<String, Double> {
-        val obj = element as? JsonObject ?: return emptyMap()
-        return obj.mapValues { (key, value) ->
-            (value as? JsonPrimitive)?.doubleOrNull
-                ?: throw IllegalArgumentException("input '$key' must be a number")
-        }
-    }
+    /**
+     * Parses an `inputs` argument (a JSON object of input key → value) into a map that
+     * preserves each value's JSON kind, so `RunInputs.bind` can route it to the matching
+     * control family (numeric / string / JSON) and type-check it there. A `JsonObject`
+     * already is a `Map<String, JsonElement>`, so it passes straight through.
+     */
+    private fun parseInputs(element: JsonElement?): Map<String, JsonElement> =
+        element as? JsonObject ?: emptyMap()
 
     /**
      * `run_config` — the document-centric path: runs a complete, author-shaped

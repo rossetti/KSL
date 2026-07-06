@@ -18,6 +18,7 @@
 
 package ksl.service.capability.run
 
+import kotlinx.serialization.json.JsonPrimitive
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,8 +27,9 @@ import kotlin.test.assertTrue
 
 /**
  * Proves [RunInputs.bind] routes an agent's input map (the keys `describe_model`
- * advertises) to the correct override form — numeric control vs RV parameter —
- * and rejects unknown keys, all against the real MM1 descriptor.
+ * advertises) to the correct override form — numeric / string / JSON control vs RV
+ * parameter — and rejects unknown keys, against the real MM1 and controls-fixture
+ * descriptors.
  */
 class RunInputsTest {
 
@@ -39,7 +41,7 @@ class RunInputsTest {
             val rv = descriptor.rvParameterData.first()
             val rvKey = "${rv.rvName}${RVParameterSetter.rvParamConCatChar}${rv.paramName}"
 
-            val bound = RunInputs.bind(descriptor, mapOf(controlKey to 4.0, rvKey to 2.5))
+            val bound = RunInputs.bind(descriptor, mapOf(controlKey to JsonPrimitive(4.0), rvKey to JsonPrimitive(2.5)))
 
             // The control routed to controlOverrides with the new value.
             assertEquals(1, bound.controlOverrides.numericControls.size)
@@ -60,7 +62,7 @@ class RunInputsTest {
         TestBundles.registry().use { registry ->
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val error = assertFailsWith<IllegalArgumentException> {
-                RunInputs.bind(descriptor, mapOf("not.a.real.input" to 1.0))
+                RunInputs.bind(descriptor, mapOf("not.a.real.input" to JsonPrimitive(1.0)))
             }
             assertTrue("not.a.real.input" in (error.message ?: ""))
         }
@@ -72,6 +74,39 @@ class RunInputsTest {
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val bound = RunInputs.bind(descriptor, emptyMap())
             assertTrue(bound.controlOverrides.numericControls.isEmpty())
+            assertTrue(bound.rvOverrides.isEmpty())
+        }
+    }
+
+    @Test
+    fun `routes numeric, string, and JSON control keys to their respective families`() {
+        TestBundles.registry().use { registry ->
+            val descriptor = registry.describeModel("ksl.examples.controls-fixture", "ControlsEcho")!!
+
+            val bound = RunInputs.bind(
+                descriptor,
+                mapOf(
+                    "echo.offset" to JsonPrimitive(2.0),            // numeric control
+                    "echo.mode" to JsonPrimitive("SUB"),           // string control
+                    "echo.weights" to JsonPrimitive("[2.0, 3.0]"), // JSON control (encoded string)
+                ),
+            )
+
+            // Numeric routed as a numeric control (coerced to Double), not a JSON control.
+            val numeric = bound.controlOverrides.numericControls.single()
+            assertEquals("echo.offset", numeric.keyName)
+            assertEquals(2.0, numeric.value)
+
+            // String routed to the string family with its text value.
+            val string = bound.controlOverrides.stringControls.single()
+            assertEquals("echo.mode", string.keyName)
+            assertEquals("SUB", string.value)
+
+            // JSON routed to the JSON family with its encoded text carried verbatim.
+            val jsonControl = bound.controlOverrides.jsonControls.single()
+            assertEquals("echo.weights", jsonControl.keyName)
+            assertEquals("[2.0, 3.0]", jsonControl.jsonValue)
+
             assertTrue(bound.rvOverrides.isEmpty())
         }
     }

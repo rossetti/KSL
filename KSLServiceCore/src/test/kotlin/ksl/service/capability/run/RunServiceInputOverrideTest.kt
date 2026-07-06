@@ -20,6 +20,7 @@ package ksl.service.capability.run
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonPrimitive
 import ksl.app.session.RunResult
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import kotlin.test.Test
@@ -57,7 +58,7 @@ class RunServiceInputOverrideTest {
                 assertIs<RunResult.Completed>(baseline)
                 val baselineSystemTime = baseline.systemTimeAverage()
 
-                val inflated = RunInputs.bind(descriptor, mapOf(serviceKey to 100.0))
+                val inflated = RunInputs.bind(descriptor, mapOf(serviceKey to JsonPrimitive(100.0)))
                 val slow = withTimeout(60.seconds) {
                     service.submitSingle(
                         "MM1",
@@ -87,7 +88,7 @@ class RunServiceInputOverrideTest {
         try {
             val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
             val controlKey = descriptor.controls.numericControls.first().keyName // numServers
-            val bound = RunInputs.bind(descriptor, mapOf(controlKey to 3.0))
+            val bound = RunInputs.bind(descriptor, mapOf(controlKey to JsonPrimitive(3.0)))
 
             RunService.fromRegistry(registry).use { service ->
                 val result = withTimeout(60.seconds) {

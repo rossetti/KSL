@@ -224,6 +224,44 @@ class KslMcpToolsTest {
     }
 
     @Test
+    fun `run_model applies string and JSON control overrides end to end`() = runBlocking {
+        val bundleId = "ksl.examples.controls-fixture"
+        val modelId = "ControlsEcho"
+
+        // Baseline (defaults): weights=[1.0], mode=ADD, offset=0.0 -> result = 1.0.
+        val baseline = tools.runModel(buildJsonObject { put("bundleId", bundleId); put("modelId", modelId) })
+        assertEquals(false, baseline.isError ?: false, firstText(baseline))
+        assertEquals(1.0, echoResult(structured(baseline)), 1e-9)
+
+        // Override each family at once: weights=[2,3] (JSON control, encoded string),
+        // mode=SUB (string control), offset=2 (numeric control) -> sum([2,3]) - 2 = 3.0.
+        // 3.0 is reachable only if all three bound: drop weights -> -1.0; drop mode -> 7.0;
+        // drop offset -> 5.0. So the value is a joint proof that every family took effect.
+        val overridden = tools.runModel(
+            buildJsonObject {
+                put("bundleId", bundleId)
+                put("modelId", modelId)
+                putJsonObject("inputs") {
+                    put("echo.weights", "[2.0, 3.0]") // JSON control passed as an encoded string
+                    put("echo.mode", "SUB")           // string control
+                    put("echo.offset", 2.0)           // numeric control
+                }
+            },
+        )
+        assertEquals(false, overridden.isError ?: false, "string/JSON overrides must not error: ${firstText(overridden)}")
+        val sc = structured(overridden)
+        assertEquals("completed", sc["type"]!!.jsonPrimitive.content)
+        assertEquals(3.0, echoResult(sc), 1e-9)
+    }
+
+    /** The controls-fixture's single "result" response average from a run's structured payload. */
+    private fun echoResult(sc: JsonObject): Double =
+        sc["responses"]!!.jsonArray
+            .map { it.jsonObject }
+            .first { it["name"]!!.jsonPrimitive.content == "result" }["average"]!!
+            .jsonPrimitive.doubleOrNull ?: error("no average for the 'result' response")
+
+    @Test
     fun `run_model reports a clear error for an unknown model`() = runBlocking {
         val args = buildJsonObject {
             put("bundleId", "ksl.examples.mm1")
