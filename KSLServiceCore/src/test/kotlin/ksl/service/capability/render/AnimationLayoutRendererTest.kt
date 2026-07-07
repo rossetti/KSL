@@ -20,6 +20,8 @@ package ksl.service.capability.render
 
 import ksl.animation.AnchorRef
 import ksl.animation.AnimationLayout
+import ksl.animation.BackgroundElement
+import ksl.animation.BackgroundKind
 import ksl.animation.BarDisplayElement
 import ksl.animation.ClockDisplayElement
 import ksl.animation.ConveyorLayoutElement
@@ -30,6 +32,8 @@ import ksl.animation.LayoutPoint
 import ksl.animation.LayoutShape
 import ksl.animation.LocationLayoutElement
 import ksl.animation.MovableResourceLayoutElement
+import ksl.animation.NetworkEdge
+import ksl.animation.NetworkNode
 import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.ObjectClassDefinition
 import ksl.animation.PathDefinition
@@ -37,9 +41,12 @@ import ksl.animation.PlotDisplayElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.SegmentRoute
+import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.StorageLayoutElement
 import ksl.animation.SummaryDisplayElement
 import ksl.animation.ValueDisplayElement
+import ksl.modeling.agent.Cell
+import ksl.modeling.agent.GridGeometrySpec
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
@@ -194,5 +201,78 @@ class AnimationLayoutRendererTest {
         queues = listOf(QueueLayoutElement("Pharmacy:Q", LayoutPoint(320.0, 180.0), growthDegrees = 180.0, spacing = 14.0)),
         resources = listOf(ResourceLayoutElement("Pharmacist", LayoutPoint(380.0, 180.0), size = 26.0)),
         values = listOf(ValueDisplayElement("NumBusy", LayoutPoint(320.0, 90.0), label = "In Service")),
+    )
+
+    // ── Phase 2: spatial context ──────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun spatialFixturesForVisualReview() {
+        preview("warehouse", warehouse())
+        preview("grid_space", gridSpace())
+        preview("network_space", networkSpace())
+    }
+
+    @Test
+    fun obstacleAndSpaceRenderWithoutThrowing() {
+        // A continuous space + obstacle grid must render (derives cell size from the space bounds).
+        val img = AnimationLayoutRenderer.renderToImage(warehouse())
+        assertEquals(620, img.width)
+    }
+
+    /** A continuous warehouse floor with grid obstacle bands (racks) + a background text label + chargers. */
+    private fun warehouse(): AnimationLayout {
+        val blocked = buildList {
+            for (row in listOf(8, 9, 18, 19)) for (col in 3..26) if (col !in 14..15) add(Cell(col, row))
+        }
+        return AnimationLayout(
+            title = "Warehouse (AGV)",
+            width = 620.0, height = 620.0,
+            objectClasses = listOf(ObjectClassDefinition("AGV", LayoutShape.SQUARE, "#8c564b", 1.2)),
+            agentStateColors = mapOf("Idle" to "#2ca02c", "Working" to "#ff7f0e", "Charging" to "#d62728"),
+            spaces = listOf(SpatialSpaceDescriptor.Continuous("floor", 0.0, 30.0, 0.0, 30.0)),
+            spaceGeometry = listOf(GridGeometrySpec("floor", cols = 30, rows = 30, blockedCells = blocked)),
+            background = listOf(
+                BackgroundElement(
+                    BackgroundKind.TEXT, points = listOf(LayoutPoint(1.0, 1.6)),
+                    text = "Loading Dock", color = "#333333", fontSize = 1.4,
+                ),
+            ),
+            locations = listOf(
+                LocationLayoutElement("Charger1", LayoutPoint(0.5, 4.5), "Charger1"),
+                LocationLayoutElement("Charger2", LayoutPoint(0.5, 24.5), "Charger2"),
+            ),
+        )
+    }
+
+    /** A grid space (agent / epidemic style) — grid lines + a class legend. */
+    private fun gridSpace(): AnimationLayout = AnimationLayout(
+        title = "Grid Space",
+        width = 500.0, height = 400.0,
+        objectClasses = listOf(
+            ObjectClassDefinition("Susceptible", LayoutShape.CIRCLE, "#2ca02c", 0.7),
+            ObjectClassDefinition("Infected", LayoutShape.CIRCLE, "#d62728", 0.7),
+        ),
+        spaces = listOf(SpatialSpaceDescriptor.Grid("grid", cols = 24, rows = 18, cellSize = 1.0)),
+    )
+
+    /** A network space — nodes + weighted edges. */
+    private fun networkSpace(): AnimationLayout = AnimationLayout(
+        title = "Network Space",
+        width = 500.0, height = 400.0,
+        spaces = listOf(
+            SpatialSpaceDescriptor.Network(
+                "net",
+                nodes = listOf(
+                    NetworkNode("A", LayoutPoint(60.0, 70.0)),
+                    NetworkNode("B", LayoutPoint(320.0, 90.0)),
+                    NetworkNode("C", LayoutPoint(170.0, 300.0)),
+                    NetworkNode("D", LayoutPoint(430.0, 300.0)),
+                ),
+                edges = listOf(
+                    NetworkEdge("A", "B"), NetworkEdge("B", "C"), NetworkEdge("C", "A"),
+                    NetworkEdge("B", "D"), NetworkEdge("C", "D"),
+                ),
+            ),
+        ),
     )
 }

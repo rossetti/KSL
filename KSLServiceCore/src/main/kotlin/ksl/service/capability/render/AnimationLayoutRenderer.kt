@@ -20,11 +20,15 @@ package ksl.service.capability.render
 
 import ksl.animation.AnchorRef
 import ksl.animation.AnimationLayout
+import ksl.animation.BackgroundElement
+import ksl.animation.BackgroundKind
 import ksl.animation.ConveyorLayoutElement
 import ksl.animation.ElementKind
 import ksl.animation.LayoutPoint
 import ksl.animation.LayoutShape
 import ksl.animation.MovableResourceLayoutElement
+import ksl.animation.SpatialSpaceDescriptor
+import ksl.modeling.agent.GridGeometrySpec
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Font
@@ -39,6 +43,7 @@ import java.awt.image.BufferedImage
 import java.nio.file.Path
 import javax.imageio.ImageIO
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -66,7 +71,11 @@ object AnimationLayoutRenderer {
     private val PATH = Color(0xb0, 0xb0, 0xb0)
     private val STORAGE_FILL = Color(0x42, 0x85, 0xf4, 0x12)
     private val STORAGE_BORDER = Color(0xbb, 0xbb, 0xbb)
-    private val CONVEYOR_FALLBACK = Color(0x88, 0x88, 0x88)
+    private val SPACE_GRID = Color(0xee, 0xee, 0xee)
+    private val SPACE_CONTINUOUS_FILL = Color(0x42, 0x85, 0xf4, 0x14)
+    private val SPACE_CONTINUOUS_BORDER = Color(0xaa, 0xaa, 0xaa)
+    private val NETWORK_LINE = Color(0xcc, 0xcc, 0xcc)
+    private val OBSTACLE = Color(0x44, 0x44, 0x44, 0x99) // semi-opaque dark, behind the elements
 
     /** Renders [layout] to a [BufferedImage] sized to the layout's own canvas (clamped to a sane range). */
     fun renderToImage(layout: AnimationLayout): BufferedImage {
@@ -83,6 +92,9 @@ object AnimationLayoutRenderer {
         val tx = Transform.fit(worldBounds(layout), w, h)
 
         // Back-to-front, matching SimulationCanvas's static skeleton order.
+        drawSpaces(g, tx, layout)      // spatial-space backgrounds (continuous / grid / network)
+        drawObstacles(g, tx, layout)   // model-extracted grid obstacle cells
+        drawBackgrounds(g, tx, layout) // authored background geometry (line / rect / text; image ⇒ P3)
         drawPaths(g, tx, layout)
         drawConveyors(g, tx, layout)
         drawStations(g, tx, layout)
@@ -129,29 +141,56 @@ object AnimationLayoutRenderer {
      * the app unioning the layout rect with the replay's coordinate bounds.
      */
     private fun worldBounds(layout: AnimationLayout): Rectangle2D.Double {
-        val box = Rectangle2D.Double(0.0, 0.0, layout.width.coerceAtLeast(1.0), layout.height.coerceAtLeast(1.0))
-        fun add(p: LayoutPoint?) { if (p != null) box.add(p.x, p.y) }
-        fun addXY(x: Double, y: Double) = box.add(x, y)
-        layout.resources.forEach { add(it.position) }
+        val xs = ArrayList<Double>(); val ys = ArrayList<Double>()
+        fun add(x: Double, y: Double) { xs.add(x); ys.add(y) }
+        fun add(p: LayoutPoint?) { if (p != null) add(p.x, p.y) }
+        fun addBox(x: Double, y: Double, w: Double, h: Double) { add(x, y); add(x + w, y + h) }
+        fun addGlyph(p: LayoutPoint, size: Double) { add(p.x - size / 2, p.y - size / 2); add(p.x + size / 2, p.y + size / 2) }
+        layout.resources.forEach { addGlyph(it.position, it.size) }
         layout.queues.forEach { q ->
             add(q.position)
             val rad = Math.toRadians(q.growthDegrees)
             val len = q.spacing * q.maxShown.coerceAtLeast(1)
-            addXY(q.position.x + len * cos(rad), q.position.y + len * sin(rad))
+            add(q.position.x + len * cos(rad), q.position.y + len * sin(rad))
         }
-        layout.storages.forEach { addXY(it.position.x, it.position.y); addXY(it.position.x + it.width, it.position.y + it.height) }
+        layout.storages.forEach { addBox(it.position.x, it.position.y, it.width, it.height) }
         layout.stations.forEach { add(it.position) }
         layout.locations.forEach { add(it.position) }
-        layout.movableResources.forEach { add(moverAtRest(layout, it)) }
+        layout.movableResources.forEach { mr -> moverAtRest(layout, mr)?.let { addGlyph(it, mr.size) } }
         layout.paths.forEach { p -> layout.pathPolyline(p).forEach { add(it) } }
         layout.conveyors.forEach { c -> conveyorRoutes(layout, c).forEach { seg -> seg.forEach { add(it) } } }
-        layout.bars.forEach { addXY(it.position.x, it.position.y); addXY(it.position.x + it.width, it.position.y + it.height) }
-        layout.plots.forEach { addXY(it.position.x, it.position.y); addXY(it.position.x + it.width, it.position.y + it.height) }
-        layout.histograms.forEach { addXY(it.position.x, it.position.y); addXY(it.position.x + it.width, it.position.y + it.height) }
+        layout.bars.forEach { addBox(it.position.x, it.position.y, it.width, it.height) }
+        layout.plots.forEach { addBox(it.position.x, it.position.y, it.width, it.height) }
+        layout.histograms.forEach { addBox(it.position.x, it.position.y, it.width, it.height) }
         layout.values.forEach { add(it.position) }
         layout.summaries.forEach { add(it.position) }
         layout.clocks.forEach { add(it.position) }
-        return box
+        layout.spaces.forEach { s -> spaceBounds(s).forEach { add(it) } }
+        layout.background.forEach { b -> b.points.forEach { add(it) } }
+        val rw = layout.width.coerceAtLeast(1.0); val rh = layout.height.coerceAtLeast(1.0)
+        if (xs.isEmpty()) return Rectangle2D.Double(0.0, 0.0, rw, rh)
+        val cx = xs.min(); val cy = ys.min()
+        val content = Rectangle2D.Double(cx, cy, (xs.max() - cx).coerceAtLeast(1.0), (ys.max() - cy).coerceAtLeast(1.0))
+        // If the content reasonably fills the declared canvas, fit the canvas rect (unioned with any out-of-range
+        // content) — this preserves the author's intended whitespace and matches the app. If the content is tiny
+        // relative to the canvas — a spatial layout authored in world units inside a large default canvas (e.g. a
+        // 30-unit space in a 1000×700 layout) — fit the content instead, since a static PNG has no interactive
+        // zoom to recover a corner-sized drawing.
+        return if (content.width >= 0.2 * rw && content.height >= 0.2 * rh) {
+            Rectangle2D.Double(0.0, 0.0, rw, rh).apply { add(content) }
+        } else {
+            content
+        }
+    }
+
+    /** The extreme corners (continuous / grid) or node positions (network) of a space, for the world box. */
+    private fun spaceBounds(space: SpatialSpaceDescriptor): List<LayoutPoint> = when (space) {
+        is SpatialSpaceDescriptor.Continuous -> listOf(LayoutPoint(space.xMin, space.yMin), LayoutPoint(space.xMax, space.yMax))
+        is SpatialSpaceDescriptor.Grid -> listOf(
+            LayoutPoint(space.originX, space.originY),
+            LayoutPoint(space.originX + space.cols * space.cellSize, space.originY + space.rows * space.cellSize),
+        )
+        is SpatialSpaceDescriptor.Network -> space.nodes.map { it.position }
     }
 
     // ── elements ────────────────────────────────────────────────────────────────────────────────────────
@@ -341,6 +380,109 @@ object AnimationLayoutRenderer {
         g.font = Font(Font.SANS_SERIF, Font.BOLD, 13)
         g.drawString(title, 10, 18)
         g.font = Font(Font.SANS_SERIF, Font.PLAIN, 11)
+    }
+
+    // ── spatial context (spaces, obstacle geometry, backgrounds) ────────────────────────────────────────
+
+    private fun drawSpaces(g: Graphics2D, tx: Transform, layout: AnimationLayout) {
+        for (space in layout.spaces) drawSpace(g, tx, space)
+    }
+
+    private fun drawSpace(g: Graphics2D, tx: Transform, space: SpatialSpaceDescriptor) {
+        when (space) {
+            is SpatialSpaceDescriptor.Continuous -> {
+                val a = tx.p(LayoutPoint(space.xMin, space.yMin))
+                val b = tx.p(LayoutPoint(space.xMax, space.yMax))
+                val rect = Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), abs(b.x - a.x), abs(b.y - a.y))
+                g.color = SPACE_CONTINUOUS_FILL // faint region fill + a slightly stronger border
+                g.fill(rect)
+                g.color = SPACE_CONTINUOUS_BORDER
+                g.stroke = BasicStroke(1.5f)
+                g.draw(rect)
+            }
+            is SpatialSpaceDescriptor.Grid -> {
+                g.color = SPACE_GRID
+                g.stroke = BasicStroke(1f)
+                for (c in 0..space.cols) {
+                    val a = tx.p(LayoutPoint(space.originX + c * space.cellSize, space.originY))
+                    val b = tx.p(LayoutPoint(space.originX + c * space.cellSize, space.originY + space.rows * space.cellSize))
+                    g.draw(Line2D.Double(a.x, a.y, b.x, b.y))
+                }
+                for (r in 0..space.rows) {
+                    val a = tx.p(LayoutPoint(space.originX, space.originY + r * space.cellSize))
+                    val b = tx.p(LayoutPoint(space.originX + space.cols * space.cellSize, space.originY + r * space.cellSize))
+                    g.draw(Line2D.Double(a.x, a.y, b.x, b.y))
+                }
+            }
+            is SpatialSpaceDescriptor.Network -> {
+                val byId = space.nodes.associateBy { it.id }
+                for (e in space.edges) {
+                    val from = byId[e.from]?.position
+                    val to = byId[e.to]?.position
+                    if (from != null && to != null) drawPolyline(g, listOf(from, to), tx, NETWORK_LINE, 1.0f)
+                }
+                for (node in space.nodes) {
+                    val s = tx.p(node.position)
+                    g.color = NETWORK_LINE
+                    g.fill(Ellipse2D.Double(s.x - 4, s.y - 4, 8.0, 8.0))
+                }
+            }
+        }
+    }
+
+    private fun drawObstacles(g: Graphics2D, tx: Transform, layout: AnimationLayout) {
+        for (spec in layout.spaceGeometry) drawObstacleGrid(g, tx, layout, spec)
+    }
+
+    /**
+     * Draws a grid obstacle overlay (filled blocked cells). The cell→world transform is resolved as in the app:
+     * a matching Grid space's cell size/origin, else an explicit physical cellSize on the spec, else a Continuous
+     * space's derived cell size (span / cols).
+     */
+    private fun drawObstacleGrid(g: Graphics2D, tx: Transform, layout: AnimationLayout, spec: GridGeometrySpec) {
+        if (spec.blockedCells.isEmpty()) return
+        val space = layout.spaces.firstOrNull { it.name == spec.spaceName }
+            ?: layout.spaces.singleOrNull()
+            ?: layout.spaces.firstOrNull { it is SpatialSpaceDescriptor.Grid }
+        val ox: Double; val oy: Double; val cell: Double
+        when {
+            space is SpatialSpaceDescriptor.Grid -> { ox = space.originX; oy = space.originY; cell = space.cellSize }
+            spec.cellSize != null -> { ox = spec.originX ?: 0.0; oy = spec.originY ?: 0.0; cell = spec.cellSize!! }
+            space is SpatialSpaceDescriptor.Continuous -> { ox = space.xMin; oy = space.yMin; cell = (space.xMax - space.xMin) / spec.cols.coerceAtLeast(1) }
+            else -> { ox = spec.originX ?: 0.0; oy = spec.originY ?: 0.0; cell = spec.cellSize ?: 1.0 }
+        }
+        g.color = OBSTACLE
+        for (bc in spec.blockedCells) {
+            val a = tx.p(LayoutPoint(ox + bc.col * cell, oy + bc.row * cell))
+            val b = tx.p(LayoutPoint(ox + (bc.col + 1) * cell, oy + (bc.row + 1) * cell))
+            g.fill(Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), abs(b.x - a.x), abs(b.y - a.y)))
+        }
+    }
+
+    private fun drawBackgrounds(g: Graphics2D, tx: Transform, layout: AnimationLayout) {
+        for (b in layout.background) drawBackgroundElement(g, tx, b)
+    }
+
+    private fun drawBackgroundElement(g: Graphics2D, tx: Transform, b: BackgroundElement) {
+        val color = parseColor(b.color)
+        when (b.kind) {
+            BackgroundKind.LINE, BackgroundKind.POLYLINE -> drawPolyline(g, b.points, tx, color, b.strokeWidth.toFloat())
+            BackgroundKind.RECT -> if (b.points.size >= 2) {
+                val a = tx.p(b.points[0]); val c = tx.p(b.points[1])
+                g.color = color
+                g.stroke = BasicStroke(b.strokeWidth.toFloat())
+                g.draw(Rectangle2D.Double(minOf(a.x, c.x), minOf(a.y, c.y), abs(c.x - a.x), abs(c.y - a.y)))
+            }
+            BackgroundKind.TEXT -> if (b.points.isNotEmpty() && b.text != null) {
+                val s = tx.p(b.points[0])
+                g.color = color
+                val old = g.font
+                g.font = Font(b.fontFamily ?: old.family, Font.PLAIN, 12).deriveFont(tx.len(b.fontSize).toFloat().coerceAtLeast(4f))
+                g.drawString(b.text!!, s.x.toFloat(), s.y.toFloat())
+                g.font = old
+            }
+            BackgroundKind.IMAGE -> Unit // deferred to Phase 3 (filesystem image loading)
+        }
     }
 
     // ── drawing helpers ───────────────────────────────────────────────────────────────────────────────
