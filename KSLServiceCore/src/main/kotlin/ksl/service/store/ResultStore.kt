@@ -65,9 +65,9 @@ data class CachedResult(
  * fine-grained projection ([get] by id, used by Phase 8.5).
  *
  * Two tiers: Caffeine in memory (size-bounded LRU, the part worth not
- * reinventing) over a thin JSON-on-disk store under `~/.ksl/result-cache/`
- * (inspectable, survives restart, best-effort — an I/O error is swallowed,
- * never breaking a request).
+ * reinventing) over a thin JSON-on-disk store under the configured result-cache directory
+ * (`KSLWork/KSL_MCP_APPS/result-cache/` in the server) (inspectable, survives restart, best-effort —
+ * an I/O error is swallowed, never breaking a request).
  */
 class ResultStore(
     private val dir: Path = defaultDir(),
@@ -278,6 +278,9 @@ class ResultStore(
         /** Default on-disk budget for the result cache: 128 MB. */
         const val DEFAULT_MAX_DISK_BYTES: Long = 128L * 1024 * 1024
 
+        /** Standalone fallback for a bare `ResultStore()` (`~/.ksl/result-cache`). The server overrides this via
+         *  `ServerConfig.resultCacheDir()`, which places the cache in the KSLWork workspace so `~/.ksl` stays
+         *  settings-only. */
         fun defaultDir(): Path =
             Path.of(System.getProperty("user.home")).resolve(".ksl").resolve("result-cache")
 

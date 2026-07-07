@@ -44,7 +44,23 @@ class ServerConfigTest {
         )
         assertTrue(
             !root.toString().contains(Path.of(".ksl").toString()),
-            "run work must NOT live under ~/.ksl (settings + result-cache only); was $root",
+            "run work must NOT live under ~/.ksl (settings-only); was $root",
+        )
+    }
+
+    @Test
+    @DisplayName("resultCacheDir routes the result cache to the KSLWork app folder, not under ~/.ksl")
+    fun resultCacheDirUsesWorkspaceNotKslHome() {
+        if (System.getenv("KSL_RESULT_CACHE_DIR") != null) return // an env override is in effect
+        // Default (no env / config override): <activeWorkspace>/KSL_MCP_APPS/result-cache.
+        val dir = ServerConfig().resultCacheDir()
+        assertTrue(
+            dir.endsWith(Path.of(ServerConfig.SERVER_APP_FOLDER, ServerConfig.RESULT_CACHE_FOLDER)),
+            "the result cache should live under <workspace>/${ServerConfig.SERVER_APP_FOLDER}/${ServerConfig.RESULT_CACHE_FOLDER}; was $dir",
+        )
+        assertTrue(
+            !dir.toString().contains(Path.of(".ksl").toString()),
+            "the result cache must NOT live under ~/.ksl (settings-only); was $dir",
         )
     }
 

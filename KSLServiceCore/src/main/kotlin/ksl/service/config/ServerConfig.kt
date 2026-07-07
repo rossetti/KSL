@@ -75,15 +75,23 @@ data class ServerConfig(
         return p
     }
 
-    /** The result-cache directory: `KSL_RESULT_CACHE_DIR` > `cache.dir` > `~/.ksl/result-cache`. Created if absent. */
-    fun resultCacheDir(): Path = resolveDir("KSL_RESULT_CACHE_DIR", cache.dir, ResultStore.defaultDir())
+    /**
+     * The result-cache directory: `KSL_RESULT_CACHE_DIR` > `cache.dir` > `KSLWork/KSL_MCP_APPS/result-cache/`.
+     * Kept beside the run artifacts in the KSLWork workspace (like the desktop apps) so `~/.ksl` stays
+     * settings-only rather than growing a cache. Created if absent.
+     */
+    fun resultCacheDir(): Path =
+        resolveDir(
+            "KSL_RESULT_CACHE_DIR", cache.dir,
+            UserSettingsStore().activeWorkspace().resolve(SERVER_APP_FOLDER).resolve(RESULT_CACHE_FOLDER),
+        )
 
     /**
      * The root for run **work output** — each result's `output/` (captured Welch/
      * trace files and the KSL database) and rendered `artifacts/` — under the
      * server's KSLWork app folder (`KSLWork/KSL_MCP_APPS/runs/`), resolved through
      * the user's active workspace. This is the same KSLWork layout the desktop
-     * apps write into; the `~/.ksl` tree stays settings + result-cache only.
+     * apps write into; the `~/.ksl` tree stays settings-only (config), not caches or work output.
      * `KSL_OUTPUT_DIR` overrides it (the operator escape hatch). Created if absent.
      */
     fun outputRoot(): Path {
@@ -129,6 +137,10 @@ data class ServerConfig(
          *  (`KSLWork/KSL_MCP_APPS/runs/<resultId>/`). */
         const val RUNS_FOLDER: String = "runs"
 
+        /** Subfolder of the server app folder holding the memoization result-cache
+         *  (`KSLWork/KSL_MCP_APPS/result-cache/`) — kept in the workspace so `~/.ksl` stays settings-only. */
+        const val RESULT_CACHE_FOLDER: String = "result-cache"
+
         /** Loads the config from `KSL_CONFIG_FILE` (else `~/.ksl/config.toml`); defaults when absent or unreadable. */
         fun load(): ServerConfig {
             val path = System.getenv("KSL_CONFIG_FILE")?.let { expandHome(it) } ?: defaultConfigFile()
@@ -166,7 +178,7 @@ data class BundlesConfig(
 /** The ResultStore's location and retention caps (Phase 8.4). */
 @Serializable
 data class CacheConfig(
-    @TomlComment("Result-cache directory. Absent => ~/.ksl/result-cache. KSL_RESULT_CACHE_DIR overrides.")
+    @TomlComment("Result-cache directory. Absent => KSLWork/KSL_MCP_APPS/result-cache. KSL_RESULT_CACHE_DIR overrides.")
     val dir: String? = null,
     @TomlComment("In-memory budget in bytes for retained result payloads (weight-based; default 64 MiB).")
     val maxMemoryBytes: Long = ResultStore.DEFAULT_MAX_MEMORY_BYTES,

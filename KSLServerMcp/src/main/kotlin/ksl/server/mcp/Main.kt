@@ -72,9 +72,9 @@ private fun serveStdio() = runBlocking {
     val watcherScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     watcher.start(watcherScope)
 
+    // The result cache, run work (output, the KSL database, rendered reports/exports), and documents all land in
+    // the KSLWork workspace like the desktop apps — NOT under ~/.ksl, which stays settings-only.
     val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries, config.cache.maxDiskBytes)
-    // Run work (capture output, the KSL database, rendered reports/exports) lands in
-    // the KSLWork workspace like the desktop apps — NOT under ~/.ksl (settings/cache only).
     val artifactStore = ArtifactStore(config.outputRoot())
     // Saved config/layout documents live beside the run artifacts in the workspace (KSL_MCP_APPS/documents/),
     // NOT under ~/.ksl — they are the user's authored files, not cache.
