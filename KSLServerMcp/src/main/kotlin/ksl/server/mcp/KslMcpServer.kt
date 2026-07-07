@@ -422,21 +422,27 @@ object KslMcpServer {
         ) { request -> tools.experimentTemplate(request.arguments) }
 
         server.addTool(
-            name = "animation_layout_template",
-            description = "Get a valid starter animation layout for a bundled model — a rough auto-placement " +
-                "of its queues, resources, movers, and response displays that an author then refines in the " +
-                "desktop editor. Reads only static structure (no run, no trace). 'format' is json (default) or " +
-                "toml. The text is the layout document; check edits with validate_animation_layout.",
+            name = "auto_layout",
+            description = "Generate the richest available animation layout for a bundled model — the same 'Auto " +
+                "Layout' the desktop animation app produces. With a run's captured trace (pass its resultId; the " +
+                "run must have tracing on) it mines real positions, observed extent, flow-order placement, mover " +
+                "homes, conveyor anchors and storages, and stamps the model's faithful obstacle/grid geometry and " +
+                "located anchors; without a trace it returns the static model scaffold. 'source' is AUTO (default: " +
+                "trace when available, else scaffold) or MODEL (force the scaffold). 'format' is json (default) or " +
+                "toml. The text is the editable layout document; check edits with validate_animation_layout and " +
+                "preview with render_animation_layout.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("bundleId") { put("type", "string") }
                     putJsonObject("modelId") { put("type", "string") }
+                    putJsonObject("resultId") { put("type", "string"); put("description", "A traced run to mine (AUTO). Omit for the scaffold.") }
+                    putJsonObject("source") { put("type", "string"); put("description", "AUTO (default) or MODEL (force the scaffold).") }
                     putJsonObject("format") { put("type", "string"); put("description", "json (default) or toml") }
                 },
                 required = listOf("bundleId", "modelId"),
             ),
             outputSchema = McpResultSchemas.document,
-        ) { request -> tools.animationLayoutTemplate(request.arguments) }
+        ) { request -> tools.autoLayout(request.arguments) }
 
         server.addTool(
             name = "validate_animation_layout",
@@ -457,26 +463,9 @@ object KslMcpServer {
         ) { request -> tools.validateAnimationLayout(request.arguments) }
 
         server.addTool(
-            name = "animation_layout_from_trace",
-            description = "Infer a richer animation layout from a run's captured trace — empirically observed " +
-                "flow order, real element centroids, conveyor anchors, and storages — rather than the static " +
-                "structural guess of animation_layout_template. Requires a run made with tracing on " +
-                "(run_model tracing=true, or a run_config whose tracingConfig names a trace file). 'format' is " +
-                "json (default) or toml; the text is the layout document, checkable with validate_animation_layout.",
-            inputSchema = ToolSchema(
-                properties = buildJsonObject {
-                    putJsonObject("resultId") { put("type", "string") }
-                    putJsonObject("format") { put("type", "string"); put("description", "json (default) or toml") }
-                },
-                required = listOf("resultId"),
-            ),
-            outputSchema = McpResultSchemas.document,
-        ) { request -> tools.animationLayoutFromTrace(request.arguments) }
-
-        server.addTool(
             name = "render_animation_layout",
             description = "Render a proposed or edited animation layout to a static PNG preview so you can see " +
-                "the placement — the propose (animation_layout_template / _from_trace) → render → look → revise " +
+                "the placement — the propose (auto_layout) → render → look → revise " +
                 "loop. Returns the image inline plus a downloadable artifact (get_artifact). Draws labeled, " +
                 "color-coded glyphs for the placed resources/queues/stations/movers/storages/displays and the " +
                 "paths; it is a static placement preview, not the live animation. 'layout' is a JSON or TOML " +

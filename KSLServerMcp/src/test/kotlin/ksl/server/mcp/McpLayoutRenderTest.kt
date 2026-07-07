@@ -70,7 +70,7 @@ class McpLayoutRenderTest {
     fun `render_animation_layout produces a valid PNG from a scaffold, inline and as an artifact`() {
         // A scaffold layout for the MM1 dogfood model (E2), then render it (E4).
         val layoutJson = firstText(
-            tools.animationLayoutTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") }),
+            tools.autoLayout(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") }),
         )
         val result = tools.renderAnimationLayout(buildJsonObject { put("layout", layoutJson) })
         assertFalse(result.isError ?: false, "render should not error: ${firstText(result)}")
