@@ -1,9 +1,9 @@
-package ksl.examples.book.chapter5
+package ksl.examples.book.chapter10
 
 import ksl.controls.experiments.Scenario
 import ksl.controls.experiments.ScenarioRunner
-import ksl.examples.book.chapter4.DriveThroughPharmacy
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
+import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.simulation.Model
 
 /**

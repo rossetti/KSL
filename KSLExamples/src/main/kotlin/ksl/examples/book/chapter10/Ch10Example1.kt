@@ -1,5 +1,6 @@
-package ksl.examples.book.chapter5
+package ksl.examples.book.chapter10
 
+import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.simulation.Model
 
 /**
@@ -9,7 +10,7 @@ import ksl.simulation.Model
 fun main() {
     val model = Model("Pallet Model MCB")
     // add the model element to the main model
-    val palletWorkCenter = PalletWorkCenter(model, name ="PWC")
+    val palletWorkCenter = PalletWorkCenter(model, name = "PWC")
     println("Original value of property:")
     println("num workers = ${palletWorkCenter.numWorkers}")
     println()

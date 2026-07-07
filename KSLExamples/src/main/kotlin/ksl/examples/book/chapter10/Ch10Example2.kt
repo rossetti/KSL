@@ -1,7 +1,9 @@
-package ksl.examples.book.chapter5
+package ksl.examples.book.chapter10
 
+import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.simulation.Model
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
+import kotlin.collections.iterator
 
 /**
  *  Example 5.9
@@ -10,7 +12,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 fun main() {
     val model = Model("Pallet Model MCB")
     // add the model element to the main model
-    val palletWorkCenter = PalletWorkCenter(model, name ="PWC")
+    val palletWorkCenter = PalletWorkCenter(model, name = "PWC")
     println(palletWorkCenter.processingTimeRV)
     val tmpSetter = RVParameterSetter(model)
     val map = tmpSetter.rvParameters

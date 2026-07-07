@@ -1,11 +1,10 @@
-package ksl.examples.book.chapter10
+package ksl.examples.book.chapter11
 
 import ksl.examples.book.chapter7.RQInventorySystem
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.algorithms.RandomRestartSolver
 import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
@@ -15,7 +14,6 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.schema
-
 
 fun main(){
     runCESolver()
@@ -28,7 +26,7 @@ fun runCESolver(
     val problemDefinition = makeRQInventoryModelProblemDefinition()
     val modelBuilder = BuildRQModel
 
-    val solver = Solver.createCrossEntropySolver(
+    val solver = Solver.Companion.createCrossEntropySolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,

@@ -1,8 +1,7 @@
-package ksl.examples.book.chapter10
+package ksl.examples.book.chapter11
 
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 import ksl.simopt.solvers.trackers.NestedConsoleSolverStateTracker
 import ksl.simopt.solvers.trackers.NestedCsvSolverStateTracker
 import ksl.simulation.ExperimentRunParametersIfc
@@ -19,7 +18,7 @@ fun runSimulatedAnnealingWithRestarts(
 ) {
     val problemDefinition = makeRQInventoryModelProblemDefinition()
     val modelBuilder = BuildRQModel
-    val solver = Solver.createRandomRestartSimulatedAnnealingSolver(
+    val solver = Solver.Companion.createRandomRestartSimulatedAnnealingSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         maxIterations = 100,
