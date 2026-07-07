@@ -22,6 +22,13 @@
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
 
     <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- Keep the IDE/Gradle console quiet: only warnings and errors reach
+             it. The detailed per-logger diagnostics below still go to their
+             files. Lower this threshold (or remove the filter) if you want to
+             watch INFO/DEBUG live in the console while developing. -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
         <encoder>
             <charset>UTF-8</charset>
             <Pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</Pattern>

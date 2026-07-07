@@ -1,39 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Logging configuration for the KSL distribution-fitting Swing app.
+    Logging config for the KSLAppSwingDistribution app.
 
-    This module-level config overrides KSLCore's logback.xml (whose root logs
-    at DEBUG to the console) so that running a fit does not flood the terminal
-    with engine chatter. Engine output is still captured to a rolling file under
-    ~/.ksl/logs/ for diagnostics; only WARN and above reach the console.
+    Intentionally tiny: it sets this app's log-file basename and includes the
+    shared definitions from KSLApp (ksl-logging-base.xml) so every KSL desktop
+    app logs identically — quiet console (WARN+), rolling file at
+    ~/.ksl/logs/ksl-dist.log. Edit the shared base, not this stub, to change
+    logging behavior across all apps.
 -->
 <configuration>
-    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
-
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>WARN</level>
-        </filter>
-        <encoder>
-            <pattern>%d{HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${user.home}/.ksl/logs/ksl-dist.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${user.home}/.ksl/logs/ksl-dist.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>2MB</maxFileSize>
-            <maxHistory>5</maxHistory>
-            <totalSizeCap>10MB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </root>
+    <property name="ksl.logfile" value="ksl-dist"/>
+    <include resource="ksl-logging-base.xml"/>
 </configuration>

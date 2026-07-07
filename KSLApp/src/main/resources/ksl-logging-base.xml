@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Shared logging definitions for the KSL desktop apps.
+
+    This file is a NON-auto-loaded include: its name is deliberately not
+    "logback.xml", so shipping it inside the (published) KSLApp artifact never
+    hijacks a downstream consumer's logging configuration. That is the same
+    reason KSLCore excludes its own logback.xml from its jar — a library must
+    not force a root logging config on the applications that depend on it.
+
+    Each runnable KSL desktop app owns a tiny logback.xml that sets the log-file
+    basename and includes this file:
+
+        <configuration>
+            <property name="ksl.logfile" value="ksl-single"/>
+            <include resource="ksl-logging-base.xml"/>
+        </configuration>
+
+    Posture: the IntelliJ / Gradle console stays quiet (WARN and above only),
+    while a rolling per-app file under ~/.ksl/logs captures INFO from ksl.app
+    and WARN+ from everything else. The chatty per-stream / per-replication /
+    per-element KSL simulation logging is left at WARN so a run with many
+    models x many replications does not bloat the log, and a hard rolling cap
+    (2 MB/file, 10 MB total) means the folder can never surprise the user.
+-->
+<included>
+    <!-- Suppress logback's own boot-time status chatter. -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{30} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${user.home}/.ksl/logs/${ksl.logfile:-ksl-app}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/.ksl/logs/${ksl.logfile:-ksl-app}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>2MB</maxFileSize>
+            <maxHistory>5</maxHistory>
+            <totalSizeCap>10MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- The app orchestration layer's own lifecycle events are worth INFO in
+         the file; everything else stays at the WARN root below. -->
+    <logger name="ksl.app" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</included>

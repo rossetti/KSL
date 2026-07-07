@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Logging config for the KSLExamples app.
+    Logging config for the KSLAppSwingAnimation app.
 
     Intentionally tiny: it sets this app's log-file basename and includes the
     shared definitions from KSLApp (ksl-logging-base.xml) so every KSL desktop
     app logs identically — quiet console (WARN+), rolling file at
-    ~/.ksl/logs/ksl-examples.log. Edit the shared base, not this stub, to change
-    logging behavior across all apps.
+    ~/.ksl/logs/ksl-animation.log. Edit the shared base, not this stub, to
+    change logging behavior across all apps.
 -->
 <configuration>
-    <property name="ksl.logfile" value="ksl-examples"/>
+    <property name="ksl.logfile" value="ksl-animation"/>
     <include resource="ksl-logging-base.xml"/>
 </configuration>

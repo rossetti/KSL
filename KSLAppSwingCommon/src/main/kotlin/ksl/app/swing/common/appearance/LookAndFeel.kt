@@ -21,6 +21,7 @@ package ksl.app.swing.common.appearance
 import com.formdev.flatlaf.FlatDarkLaf
 import com.formdev.flatlaf.FlatLaf
 import com.formdev.flatlaf.FlatLightLaf
+import ksl.app.swing.common.app.LoggingStartupCheck
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,6 +82,11 @@ object LookAndFeel {
         theme: AppTheme = AppTheme.SYSTEM,
         appName: String? = null
     ) {
+        // Every app launch path funnels through install(), so this is the one
+        // universal place to catch an app module that shipped without a
+        // logback.xml (and would otherwise silently run on logback's noisy
+        // DEBUG-to-console default).
+        LoggingStartupCheck.verifyConfigured()
         // macOS bootstrap — these must be set before the first AWT
         // class loads to have any effect.  Calling install() from a
         // main() before SwingUtilities.invokeLater satisfies that.

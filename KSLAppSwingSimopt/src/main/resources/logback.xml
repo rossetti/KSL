@@ -1,49 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    App-owned logging config for the KSL Simopt Swing app.
+    Logging config for the KSLAppSwingSimopt app.
 
-    Logs to ~/.ksl/logs/ksl-simopt.log; the IntelliJ/Gradle console stays quiet
-    (warnings + errors only).  Without this file the app falls back to
-    logback's default (root -> console at DEBUG), which spams the console and
-    writes no files.
-
-    Volume is deliberately bounded so big runs never produce huge logs:
-      * Only ksl.app.* events (bundle discovery, newest-wins dedup, lifecycle)
-        are kept at INFO.  Everything else - the chatty per-stream /
-        per-replication / per-element KSL simulation logging - is left at WARN,
-        so a run with many models x many replications does not bloat the log.
-      * A hard rolling cap (2 MB per file, 10 MB total) means the log folder
-        can never surprise the user with a huge file.
+    Intentionally tiny: it sets this app's log-file basename and includes the
+    shared definitions from KSLApp (ksl-logging-base.xml) so every KSL desktop
+    app logs identically — quiet console (WARN+), rolling file at
+    ~/.ksl/logs/ksl-simopt.log. Edit the shared base, not this stub, to change
+    logging behavior across all apps.
 -->
 <configuration>
-    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
-
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>WARN</level>
-        </filter>
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{30} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${user.home}/.ksl/logs/ksl-simopt.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${user.home}/.ksl/logs/ksl-simopt.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>2MB</maxFileSize>
-            <maxHistory>5</maxHistory>
-            <totalSizeCap>10MB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d %-5level [%thread] %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <logger name="ksl.app" level="INFO"/>
-
-    <root level="WARN">
-        <appender-ref ref="FILE"/>
-        <appender-ref ref="CONSOLE"/>
-    </root>
+    <property name="ksl.logfile" value="ksl-simopt"/>
+    <include resource="ksl-logging-base.xml"/>
 </configuration>
