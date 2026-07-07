@@ -725,6 +725,28 @@ object KslMcpServer {
         ) { request -> tools.saveDocument(request.arguments) }
 
         server.addTool(
+            name = "export_layout",
+            description = "Write an animation layout as a .lay.toml (or .lay.json) file the desktop animation app " +
+                "can open directly. Unlike save_document (server document store, bare name), this writes a proper " +
+                "extension-typed layout file into 'dir' — point it at the app's " +
+                "<workspace>/KSLAnimation/<ModelName>/layouts/ folder to have it auto-listed. 'format' is toml " +
+                "(default, the app's convention) or json.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("layout") { put("type", "string"); put("description", "A JSON or TOML AnimationLayout.") }
+                    putJsonObject("name") { put("type", "string"); put("description", "Base file name; the .lay.toml/.lay.json suffix is added.") }
+                    putJsonObject("dir") { put("type", "string"); put("description", "Target directory (e.g. the app's .../KSLAnimation/<ModelName>/layouts).") }
+                    putJsonObject("format") { put("type", "string"); put("description", "toml (default) or json") }
+                },
+                required = listOf("layout", "name", "dir"),
+            ),
+            outputSchema = ToolSchema(
+                properties = buildJsonObject { putJsonObject("path") { put("type", "string") }; putJsonObject("format") { put("type", "string") } },
+                required = listOf("path"),
+            ),
+        ) { request -> tools.exportLayout(request.arguments) }
+
+        server.addTool(
             name = "load_document",
             description = "Load a previously saved document (by kind + name) back as text — ready to submit to " +
                 "run_config / experiment_config / run_optimization_config, or to render/validate for a layout.",

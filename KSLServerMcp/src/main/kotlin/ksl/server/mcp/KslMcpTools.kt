@@ -1328,6 +1328,49 @@ class KslMcpTools(
         )
     }
 
+    /**
+     * `export_layout` — write an animation layout as a `.lay.toml` (or `.lay.json`) file the desktop animation app
+     * can open directly. Unlike save_document (which persists into the server's document store under a bare name),
+     * this writes a proper extension-typed layout file into `dir` — point it at the app's
+     * `<workspace>/KSLAnimation/<ModelName>/layouts/` folder to have it auto-listed.
+     */
+    fun exportLayout(arguments: JsonObject?): CallToolResult {
+        val layoutText = arguments.string("layout")
+            ?: return error("missing required argument 'layout' (a JSON or TOML AnimationLayout)")
+        val name = arguments.string("name") ?: return error("missing required argument 'name'")
+        val dirArg = arguments.string("dir")
+            ?: return error(
+                "missing required argument 'dir' (the target folder, e.g. the animation app's " +
+                    "<workspace>/KSLAnimation/<ModelName>/layouts)",
+            )
+        val format = when (arguments.string("format")?.lowercase()) {
+            null, "toml" -> "toml"
+            "json" -> "json"
+            else -> return error("'format' must be toml or json")
+        }
+        val layout = try {
+            if (layoutText.trimStart().startsWith("{")) AnimationLayout.fromJson(layoutText)
+            else AnimationLayout.fromToml(layoutText)
+        } catch (e: Exception) {
+            return error("could not parse the layout (expected a JSON or TOML AnimationLayout): ${e.message}")
+        }
+        val base = name.removeSuffix(".lay.toml").removeSuffix(".lay.json").removeSuffix(".toml").removeSuffix(".json")
+        val target = try {
+            val dir = java.nio.file.Path.of(dirArg)
+            java.nio.file.Files.createDirectories(dir)
+            val p = dir.resolve("$base.lay.$format")
+            if (format == "toml") layout.writeTomlToFile(p) else layout.writeToFile(p)
+            p
+        } catch (e: Exception) {
+            return error("could not write the layout file to '$dirArg': ${e.message}")
+        }
+        return result(
+            "Exported the layout to $target. Open it in the desktop animation app (Open layout → *.lay.$format); " +
+                "placed in a model's <workspace>/KSLAnimation/<ModelName>/layouts/ folder it is auto-listed.",
+            buildJsonObject { put("path", target.toString()); put("format", format) },
+        )
+    }
+
     /** `load_document` — the saved content for (kind, name), ready to submit / re-render. */
     fun loadDocument(arguments: JsonObject?): CallToolResult {
         val kind = arguments.string("kind") ?: return error("missing required argument 'kind'")
