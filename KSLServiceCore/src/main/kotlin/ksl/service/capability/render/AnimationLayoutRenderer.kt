@@ -79,8 +79,7 @@ object AnimationLayoutRenderer {
 
     /** Renders [layout] to a [BufferedImage] sized to the layout's own canvas (clamped to a sane range). */
     fun renderToImage(layout: AnimationLayout): BufferedImage {
-        val w = layout.width.toInt().coerceIn(200, 4000)
-        val h = layout.height.toInt().coerceIn(200, 4000)
+        val (w, h) = canvasSize(layout)
         val img = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
         val g = img.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -115,6 +114,20 @@ object AnimationLayoutRenderer {
     /** Renders [layout] to a PNG at [path]. */
     fun renderToPng(layout: AnimationLayout, path: Path) {
         ImageIO.write(renderToImage(layout), "png", path.toFile())
+    }
+
+    /** The pixel dimensions of the preview canvas for [layout] (its width×height, clamped to a sane range). */
+    private fun canvasSize(layout: AnimationLayout): Pair<Int, Int> =
+        layout.width.toInt().coerceIn(200, 4000) to layout.height.toInt().coerceIn(200, 4000)
+
+    /**
+     * Diagnostic hook: the exact world→screen mapping [renderToImage] uses for [layout] (same canvas size + fit).
+     * Lets a test verify that an element's authored color/mark is painted at its placed position.
+     */
+    internal fun screenMapping(layout: AnimationLayout): (LayoutPoint) -> Point2D {
+        val (w, h) = canvasSize(layout)
+        val tx = Transform.fit(worldBounds(layout), w, h)
+        return tx::p
     }
 
     // ── world → screen transform (fit-to-view of the world box + a 20px margin; no Y-flip) ──────────────

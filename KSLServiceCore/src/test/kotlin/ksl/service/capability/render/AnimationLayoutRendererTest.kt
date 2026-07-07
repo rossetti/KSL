@@ -47,12 +47,14 @@ import ksl.animation.SummaryDisplayElement
 import ksl.animation.ValueDisplayElement
 import ksl.modeling.agent.Cell
 import ksl.modeling.agent.GridGeometrySpec
+import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /**
  * Structural checks for the static-preview renderer (Phase 1: skeleton fidelity) — that it draws a non-blank
@@ -90,6 +92,50 @@ class AnimationLayoutRendererTest {
         // The object-class legend swatch is drawn (proves the legend + parseColor).
         assertTrue(containsRgb(img, 0xABCDEF), "the Customer object-class legend swatch (#abcdef) should be painted")
         preview("golden", layout)
+    }
+
+    @Test
+    fun everyElementTypeIsDrawnAtItsPlacedPosition() {
+        val layout = golden()
+        val img = AnimationLayoutRenderer.renderToImage(layout)
+        val at = AnimationLayoutRenderer.screenMapping(layout)
+        // Solid resource fills: the exact authored idle color at the placed center.
+        assertColorNear(img, at(LayoutPoint(220.0, 160.0)), 0x123456, "resource 'server' idle fill")
+        assertColorNear(img, at(LayoutPoint(360.0, 160.0)), 0x2CA02C, "resource 'worker' idle fill")
+        // Every other element type drew something at its placed position.
+        assertDrawnNear(img, at(LayoutPoint(160.0, 160.0)), "queue head/extent")
+        assertDrawnNear(img, at(LayoutPoint(200.0, 300.0)), "storage footprint")
+        assertDrawnNear(img, at(LayoutPoint(90.0, 470.0)), "station dot")
+        assertDrawnNear(img, at(LayoutPoint(300.0, 470.0)), "location marker + movers")
+        assertDrawnNear(img, at(LayoutPoint(385.0, 470.0)), "conveyor belt")
+        assertDrawnNear(img, at(LayoutPoint(150.0, 470.0)), "path polyline")
+        assertDrawnNear(img, at(LayoutPoint(610.0, 130.0)), "bar frame")
+        assertDrawnNear(img, at(LayoutPoint(120.0, 120.0)), "value text")
+        assertDrawnNear(img, at(LayoutPoint(400.0, 40.0)), "clock text")
+        assertDrawnNear(img, at(LayoutPoint(60.0, 540.0)), "grid obstacle cell")
+        assertDrawnNear(img, at(LayoutPoint(600.0, 540.0)), "background line")
+        assertDrawnNear(img, at(LayoutPoint(500.0, 560.0)), "background text")
+    }
+
+    /** Fails unless some pixel within [radius] px of [p] exactly matches [rgb] (0xRRGGBB). */
+    private fun assertColorNear(img: BufferedImage, p: Point2D, rgb: Int, what: String, radius: Int = 8) {
+        val target = rgb and 0xFFFFFF
+        val cx = p.x.toInt(); val cy = p.y.toInt()
+        for (dy in -radius..radius) for (dx in -radius..radius) {
+            val x = cx + dx; val y = cy + dy
+            if (x in 0 until img.width && y in 0 until img.height && (img.getRGB(x, y) and 0xFFFFFF) == target) return
+        }
+        fail("$what: expected #%06x within %d px of (%d, %d)".format(target, radius, cx, cy))
+    }
+
+    /** Fails unless some non-white pixel exists within [radius] px of [p] (the element drew something there). */
+    private fun assertDrawnNear(img: BufferedImage, p: Point2D, what: String, radius: Int = 10) {
+        val cx = p.x.toInt(); val cy = p.y.toInt()
+        for (dy in -radius..radius) for (dx in -radius..radius) {
+            val x = cx + dx; val y = cy + dy
+            if (x in 0 until img.width && y in 0 until img.height && (img.getRGB(x, y) and 0xFFFFFF) != 0xFFFFFF) return
+        }
+        fail("$what: expected something drawn within %d px of (%d, %d)".format(radius, cx, cy))
     }
 
     @Test
@@ -160,6 +206,14 @@ class AnimationLayoutRendererTest {
         summaries = listOf(SummaryDisplayElement("tis", LayoutPoint(120.0, 80.0), label = "TimeInSys")),
         clocks = listOf(ClockDisplayElement(LayoutPoint(400.0, 40.0), label = "Time")),
         labels = listOf(ElementLabel(ElementKind.RESOURCE, "server", text = "Server A")), // a name-override
+        spaces = listOf(SpatialSpaceDescriptor.Continuous("floor", 0.0, 800.0, 0.0, 600.0)),
+        spaceGeometry = listOf(
+            GridGeometrySpec("floor", cols = 40, rows = 30, blockedCells = listOf(Cell(2, 26), Cell(3, 26), Cell(2, 27), Cell(3, 27))),
+        ),
+        background = listOf(
+            BackgroundElement(BackgroundKind.TEXT, points = listOf(LayoutPoint(500.0, 560.0)), text = "Zone A", color = "#654321", fontSize = 16.0),
+            BackgroundElement(BackgroundKind.LINE, points = listOf(LayoutPoint(440.0, 540.0), LayoutPoint(760.0, 540.0)), color = "#333333", strokeWidth = 2.0),
+        ),
     )
 
     /** A movable-resource tandem: locations + workers + a pool of movers homed at one place (fan-out). */
