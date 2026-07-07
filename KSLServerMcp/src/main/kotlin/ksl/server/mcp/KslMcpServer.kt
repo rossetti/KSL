@@ -1255,7 +1255,7 @@ object KslMcpServer {
                     }
                     putJsonObject("output") {
                         put("type", "boolean")
-                        put("description", "Opt in to always write the full sample to a CSV under <workspace>/KSL_MCP_APPS/data/. Samples with n > 1000 are written automatically regardless.")
+                        put("description", "Opt in to always write the full sample to a CSV under <workspace>/KSLServer/data/. Samples with n > 1000 are written automatically regardless.")
                     }
                 },
                 required = listOf("familyId", "n"),
@@ -1267,7 +1267,7 @@ object KslMcpServer {
             name = "get_workspace",
             description = "Report the active KSL workspace and the directory where this server writes its " +
                 "reports and generated data. The workspace is shared with the other KSL apps (via " +
-                "~/.ksl/settings.toml); the server's artifacts go under <workspace>/KSL_MCP_APPS/. Returns " +
+                "~/.ksl/settings.toml); the server's artifacts go under <workspace>/KSLServer/. Returns " +
                 "structuredContent {workspace, appDir, isDefault}.",
             inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
             outputSchema = McpResultSchemas.workspace,

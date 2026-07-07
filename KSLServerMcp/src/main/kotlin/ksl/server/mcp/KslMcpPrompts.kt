@@ -488,7 +488,7 @@ object KslMcpPrompts {
 
     private fun catalogMenu(bundles: List<BundleInfo>): String =
         if (bundles.isEmpty()) {
-            "  (no bundles are currently loaded — drop a bundle JAR into KSLWork/KSL_MCP_APPS/bundles/, or check the classpath)"
+            "  (no bundles are currently loaded — drop a bundle JAR into KSLWork/KSLServer/bundles/, or check the classpath)"
         } else {
             bundles.joinToString("\n") { b -> "  - `${b.bundleId}`: ${b.modelIds.joinToString(", ")}" }
         }

@@ -103,7 +103,7 @@ class BundleDirectoryWatcher(
         fun defaultDir(): Path = ServerConfig().bundlesDir()
 
         /**
-         * The bundle directories a server watches — the `KSLWork/KSL_MCP_APPS/bundles/`
+         * The bundle directories a server watches — the `KSLWork/KSLServer/bundles/`
          * and shared `KSLWork/bundles/` layers (or a `KSL_BUNDLES_DIR`/config
          * override), created if absent. A convenience for callers with no loaded config.
          */

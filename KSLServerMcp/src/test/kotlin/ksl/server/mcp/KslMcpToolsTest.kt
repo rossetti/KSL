@@ -1141,7 +1141,7 @@ class KslMcpToolsTest {
         }))
         val path = optIn["filePath"]!!.jsonPrimitive.content
         assertTrue(path.startsWith(tmpWorkspace.toString()), "file should be under the workspace: $path")
-        assertTrue("KSL_MCP_APPS" in path && "data" in path, "file should be in the app data dir: $path")
+        assertTrue("KSLServer" in path && "data" in path, "file should be in the app data dir: $path")
         // The user-supplied name is sanitized for the filename (unsafe chars -> '_').
         assertTrue(path.endsWith("svc_times_.csv"), "filename should be the sanitized name: $path")
         val file = java.nio.file.Path.of(path)
@@ -1384,9 +1384,9 @@ class KslMcpToolsTest {
         val sc = structured(tools.getWorkspace())
         // The isolated default workspace is the temp dir injected in setUp.
         assertEquals(tmpWorkspace.toString(), sc["workspace"]!!.jsonPrimitive.content)
-        // The app dir is <workspace>/KSL_MCP_APPS (the shared MCP+REST server app folder).
+        // The app dir is <workspace>/KSLServer (the shared MCP+REST server app folder).
         val appDir = sc["appDir"]!!.jsonPrimitive.content
-        assertTrue(appDir.endsWith("KSL_MCP_APPS"), "appDir should be the sanitized app subdir, got $appDir")
+        assertTrue(appDir.endsWith("KSLServer"), "appDir should be the sanitized app subdir, got $appDir")
         assertTrue(appDir.startsWith(tmpWorkspace.toString()), "appDir should be under the workspace")
         // No override set yet, so this is the default.
         assertEquals(true, sc["isDefault"]!!.jsonPrimitive.content.toBoolean())
@@ -1398,7 +1398,7 @@ class KslMcpToolsTest {
 
         val sc = structured(tools.setWorkspace(buildJsonObject { put("path", newWs.toString()) }))
         assertEquals(newWs.toAbsolutePath().normalize().toString(), sc["workspace"]!!.jsonPrimitive.content)
-        assertTrue(sc["appDir"]!!.jsonPrimitive.content.endsWith("KSL_MCP_APPS"))
+        assertTrue(sc["appDir"]!!.jsonPrimitive.content.endsWith("KSLServer"))
         assertEquals(tmpWorkspace.toString(), sc["previous"]!!.jsonPrimitive.content, "previous should be the prior default")
 
         // get_workspace now reflects the override (no longer the default).
@@ -1431,9 +1431,9 @@ class KslMcpToolsTest {
         val report = tools.getFitReport(buildJsonObject { put("resultId", fitId) })
         assertEquals(false, report.isError ?: false, firstText(report))
         val reportPath = structured(report)["reportPath"]!!.jsonPrimitive.content
-        // The report lands under <workspace>/KSL_MCP_APPS/reports/, not ~/.ksl.
+        // The report lands under <workspace>/KSLServer/reports/, not ~/.ksl.
         assertTrue(reportPath.startsWith(tmpWorkspace.toString()), "report should be under the workspace, got $reportPath")
-        assertTrue("KSL_MCP_APPS" in reportPath && "reports" in reportPath, "report should be in the app reports dir, got $reportPath")
+        assertTrue("KSLServer" in reportPath && "reports" in reportPath, "report should be in the app reports dir, got $reportPath")
         assertTrue("${java.io.File.separator}.ksl${java.io.File.separator}" !in reportPath, "report must NOT be under ~/.ksl")
         assertTrue(java.nio.file.Files.exists(java.nio.file.Path.of(reportPath)), "the report file should exist")
         java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(reportPath))

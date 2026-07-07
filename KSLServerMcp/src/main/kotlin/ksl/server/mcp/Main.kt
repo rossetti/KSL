@@ -40,7 +40,7 @@ import ksl.service.store.ResultStore
  *
  * Settings come from [ServerConfig] (`~/.ksl/config.toml`, env-overridable).
  * Bundles are discovered from the server's watched bundle directories
- * (`KSLWork/KSL_MCP_APPS/bundles/` first, then the shared `KSLWork/bundles/`),
+ * (`KSLWork/KSLServer/bundles/` first, then the shared `KSLWork/bundles/`),
  * which a [BundleDirectoryWatcher] keeps in sync so a JAR dropped there becomes
  * available with no restart. The server runs until the transport closes.
  *
@@ -76,7 +76,7 @@ private fun serveStdio() = runBlocking {
     // the KSLWork workspace like the desktop apps — NOT under ~/.ksl, which stays settings-only.
     val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries, config.cache.maxDiskBytes)
     val artifactStore = ArtifactStore(config.outputRoot())
-    // Saved config/layout documents live beside the run artifacts in the workspace (KSL_MCP_APPS/documents/),
+    // Saved config/layout documents live beside the run artifacts in the workspace (KSLServer/documents/),
     // NOT under ~/.ksl — they are the user's authored files, not cache.
     val documentStore = ksl.service.store.DocumentStore(config.outputRoot().resolveSibling("documents"))
     val tools = KslMcpTools(registry, resultStore, artifactStore, documentStore, maxConcurrentJobs = config.server.maxConcurrentJobs, runDeadline = config.runDeadline())

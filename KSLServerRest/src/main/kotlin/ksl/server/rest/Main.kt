@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * (`~/.ksl/config.toml`); it listens on `server.restPort` (env `KSL_REST_PORT`
  * overrides) and serves the run + fit surfaces over the headless service core.
  * Bundles are discovered from the server's watched bundle directories
- * (`KSLWork/KSL_MCP_APPS/bundles/` then the shared `KSLWork/bundles/`), which a
+ * (`KSLWork/KSLServer/bundles/` then the shared `KSLWork/bundles/`), which a
  * [BundleDirectoryWatcher] keeps in sync.
  */
 fun main() {

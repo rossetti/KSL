@@ -32,7 +32,7 @@ data class DocumentRef(val kind: String, val name: String, val bytes: Long, val 
  * It is *not* a session: every call is independent (save writes a file, load reads it, list scans a
  * directory), so it does not introduce server-side session lifecycle — the same durable-store pattern
  * as [ArtifactStore]/[ResultStore]. Documents live at `<root>/<kind>/<name>`; in the server [root] is
- * `<workspace>/KSL_MCP_APPS/documents/` (beside the run artifacts).
+ * `<workspace>/KSLServer/documents/` (beside the run artifacts).
  */
 class DocumentStore(private val root: Path = ResultStore.defaultDir().resolveSibling("documents")) {
 

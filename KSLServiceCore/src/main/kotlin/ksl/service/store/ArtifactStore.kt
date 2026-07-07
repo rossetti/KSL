@@ -29,7 +29,7 @@ import java.nio.file.Path
  * under [dirFor], both at `<root>/<resultId>/`.
  *
  * In the servers [root] is the KSLWork workspace work folder
- * (`ServerConfig.outputRoot()` → `KSLWork/KSL_MCP_APPS/runs/`), the same layout
+ * (`ServerConfig.outputRoot()` → `KSLWork/KSLServer/runs/`), the same layout
  * the desktop apps write into — **not** `~/.ksl`, which stays settings + the
  * `ResultStore` JSON cache only. Because this is now a separate root from
  * `ResultStore`, evicting a cached result JSON does not delete its workspace
@@ -46,6 +46,15 @@ class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
     /** The artifacts directory for [resultId], created on demand. */
     fun dirFor(resultId: String): Path =
         Files.createDirectories(artifactsDir(resultId))
+
+    /** Writes [meta] (JSON) to `<root>/<resultId>/meta.json` — a human-readable description of the run so the
+     *  content-hash folder is self-explaining to someone browsing the filesystem. Best-effort; I/O errors swallowed. */
+    fun writeMeta(resultId: String, meta: String) {
+        runCatching {
+            val dir = Files.createDirectories(root.resolve(resultId))
+            Files.writeString(dir.resolve(META), meta)
+        }
+    }
 
     /**
      * The server-owned capture/output directory for [resultId]
@@ -113,5 +122,6 @@ class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
     private companion object {
         const val ARTIFACTS = "artifacts"
         const val OUTPUT = "output"
+        const val META = "meta.json"
     }
 }

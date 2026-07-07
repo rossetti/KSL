@@ -66,7 +66,7 @@ data class CachedResult(
  *
  * Two tiers: Caffeine in memory (size-bounded LRU, the part worth not
  * reinventing) over a thin JSON-on-disk store under the configured result-cache directory
- * (`KSLWork/KSL_MCP_APPS/result-cache/` in the server) (inspectable, survives restart, best-effort —
+ * (`KSLWork/KSLServer/result-cache/` in the server) (inspectable, survives restart, best-effort —
  * an I/O error is swallowed, never breaking a request).
  */
 class ResultStore(

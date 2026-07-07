@@ -51,7 +51,7 @@ data class ServerConfig(
 ) {
     /**
      * The bundle directories the server discovers, in priority order: the
-     * server's own app folder (`KSLWork/KSL_MCP_APPS/bundles/`) first, then the
+     * server's own app folder (`KSLWork/KSLServer/bundles/`) first, then the
      * shared workspace folder (`KSLWork/bundles/`) — the same KSLWork layout the
      * desktop apps use, resolved through the user's active workspace. An explicit
      * `KSL_BUNDLES_DIR` env var or `bundles.dir` config value overrides both with a
@@ -62,9 +62,21 @@ data class ServerConfig(
         bundles.dir?.let { return listOf(ensureDir(expandHome(it))) }
         val workspace = UserSettingsStore().activeWorkspace()
         return listOf(
-            WorkspaceLayout.bundlesDir(workspace.resolve(SERVER_APP_FOLDER), createIfMissing = true),
+            WorkspaceLayout.bundlesDir(appFolder(), createIfMissing = true),
             WorkspaceLayout.bundlesDir(workspace, createIfMissing = true),
         )
+    }
+
+    /**
+     * The server's app folder under the active workspace (`<workspace>/KSLServer/`), created on demand with a
+     * `README.txt` explaining the layout — so a user browsing the filesystem knows what `runs/`, `documents/`,
+     * `bundles/`, and `result-cache/` are, and that they are server-managed (use the tools; safe to delete).
+     */
+    fun appFolder(): Path {
+        val dir = ensureDir(UserSettingsStore().activeWorkspace().resolve(SERVER_APP_FOLDER))
+        val readme = dir.resolve("README.txt")
+        if (!Files.exists(readme)) runCatching { Files.writeString(readme, APP_FOLDER_README) }
+        return dir
     }
 
     /** The primary bundle directory — the server's own app folder; first of [bundleDirs]. */
@@ -76,28 +88,24 @@ data class ServerConfig(
     }
 
     /**
-     * The result-cache directory: `KSL_RESULT_CACHE_DIR` > `cache.dir` > `KSLWork/KSL_MCP_APPS/result-cache/`.
+     * The result-cache directory: `KSL_RESULT_CACHE_DIR` > `cache.dir` > `KSLWork/KSLServer/result-cache/`.
      * Kept beside the run artifacts in the KSLWork workspace (like the desktop apps) so `~/.ksl` stays
      * settings-only rather than growing a cache. Created if absent.
      */
     fun resultCacheDir(): Path =
-        resolveDir(
-            "KSL_RESULT_CACHE_DIR", cache.dir,
-            UserSettingsStore().activeWorkspace().resolve(SERVER_APP_FOLDER).resolve(RESULT_CACHE_FOLDER),
-        )
+        resolveDir("KSL_RESULT_CACHE_DIR", cache.dir, appFolder().resolve(RESULT_CACHE_FOLDER))
 
     /**
      * The root for run **work output** — each result's `output/` (captured Welch/
      * trace files and the KSL database) and rendered `artifacts/` — under the
-     * server's KSLWork app folder (`KSLWork/KSL_MCP_APPS/runs/`), resolved through
+     * server's KSLWork app folder (`KSLWork/KSLServer/runs/`), resolved through
      * the user's active workspace. This is the same KSLWork layout the desktop
      * apps write into; the `~/.ksl` tree stays settings-only (config), not caches or work output.
      * `KSL_OUTPUT_DIR` overrides it (the operator escape hatch). Created if absent.
      */
     fun outputRoot(): Path {
         System.getenv("KSL_OUTPUT_DIR")?.let { return ensureDir(expandHome(it)) }
-        val workspace = UserSettingsStore().activeWorkspace()
-        return ensureDir(workspace.resolve(SERVER_APP_FOLDER).resolve(RUNS_FOLDER))
+        return ensureDir(appFolder().resolve(RUNS_FOLDER))
     }
 
     /** The MCP listen port: `KSL_MCP_PORT` > `server.mcpPort`. */
@@ -129,17 +137,41 @@ data class ServerConfig(
 
     companion object {
         /** The server's own application folder under the KSLWork workspace
-         *  (`KSLWork/KSL_MCP_APPS/`); its `bundles/` subfolder is searched before the
+         *  (`KSLWork/KSLServer/`); its `bundles/` subfolder is searched before the
          *  shared `KSLWork/bundles/`. Shared by the MCP and REST transports. */
-        const val SERVER_APP_FOLDER: String = "KSL_MCP_APPS"
+        const val SERVER_APP_FOLDER: String = "KSLServer"
 
         /** Subfolder of the server app folder holding per-result run output + artifacts
-         *  (`KSLWork/KSL_MCP_APPS/runs/<resultId>/`). */
+         *  (`KSLWork/KSLServer/runs/<resultId>/`). */
         const val RUNS_FOLDER: String = "runs"
 
         /** Subfolder of the server app folder holding the memoization result-cache
-         *  (`KSLWork/KSL_MCP_APPS/result-cache/`) — kept in the workspace so `~/.ksl` stays settings-only. */
+         *  (`KSLWork/KSLServer/result-cache/`) — kept in the workspace so `~/.ksl` stays settings-only. */
         const val RESULT_CACHE_FOLDER: String = "result-cache"
+
+        /** README written at the app-folder root so a user browsing the filesystem understands the layout. */
+        private val APP_FOLDER_README: String = """
+            KSL server working folder
+            =========================
+            Created and managed by the KSL server (the MCP and REST servers). You normally work with
+            these through the server's tools, not by hand.
+
+              bundles/       Model bundle JARs the server loads (also searched in KSLWork/bundles/).
+              documents/     Configs and animation layouts you saved (save_document / export_layout).
+              runs/          One folder per completed run, named by its result id (a content hash used
+                             for caching). Each run folder contains:
+                               meta.json   what the run was (model, experiment, kind, time)
+                               artifacts/  downloadable outputs (traces .atf, rendered PNGs, exports)
+                               output/     KSL runtime output (kslOutput.txt, the SQLite database, reports)
+              result-cache/  The server's memoization cache (regenerable).
+
+            Finding things: use the server's list_results / get_result / get_artifact tools — they map
+            the cryptic result ids to what each run was. Every run folder also carries a meta.json.
+
+            Housekeeping: everything here is regenerable and safe to delete to reclaim space (deleting a
+            run just means it re-runs or re-caches next time). Server settings live separately in
+            ~/.ksl/settings.toml.
+        """.trimIndent()
 
         /** Loads the config from `KSL_CONFIG_FILE` (else `~/.ksl/config.toml`); defaults when absent or unreadable. */
         fun load(): ServerConfig {
@@ -178,7 +210,7 @@ data class BundlesConfig(
 /** The ResultStore's location and retention caps (Phase 8.4). */
 @Serializable
 data class CacheConfig(
-    @TomlComment("Result-cache directory. Absent => KSLWork/KSL_MCP_APPS/result-cache. KSL_RESULT_CACHE_DIR overrides.")
+    @TomlComment("Result-cache directory. Absent => KSLWork/KSLServer/result-cache. KSL_RESULT_CACHE_DIR overrides.")
     val dir: String? = null,
     @TomlComment("In-memory budget in bytes for retained result payloads (weight-based; default 64 MiB).")
     val maxMemoryBytes: Long = ResultStore.DEFAULT_MAX_MEMORY_BYTES,

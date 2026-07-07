@@ -19,6 +19,7 @@
 package ksl.service.config
 
 import org.junit.jupiter.api.DisplayName
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +37,7 @@ class ServerConfigTest {
     @Test
     @DisplayName("outputRoot routes run work to the KSLWork app folder, not under ~/.ksl")
     fun outputRootUsesWorkspaceNotKslHome() {
-        // Default (no KSL_OUTPUT_DIR): <activeWorkspace>/KSL_MCP_APPS/runs.
+        // Default (no KSL_OUTPUT_DIR): <activeWorkspace>/KSLServer/runs.
         val root = ServerConfig().outputRoot()
         assertTrue(
             root.endsWith(Path.of(ServerConfig.SERVER_APP_FOLDER, ServerConfig.RUNS_FOLDER)),
@@ -52,7 +53,7 @@ class ServerConfigTest {
     @DisplayName("resultCacheDir routes the result cache to the KSLWork app folder, not under ~/.ksl")
     fun resultCacheDirUsesWorkspaceNotKslHome() {
         if (System.getenv("KSL_RESULT_CACHE_DIR") != null) return // an env override is in effect
-        // Default (no env / config override): <activeWorkspace>/KSL_MCP_APPS/result-cache.
+        // Default (no env / config override): <activeWorkspace>/KSLServer/result-cache.
         val dir = ServerConfig().resultCacheDir()
         assertTrue(
             dir.endsWith(Path.of(ServerConfig.SERVER_APP_FOLDER, ServerConfig.RESULT_CACHE_FOLDER)),
@@ -62,6 +63,15 @@ class ServerConfigTest {
             !dir.toString().contains(Path.of(".ksl").toString()),
             "the result cache must NOT live under ~/.ksl (settings-only); was $dir",
         )
+    }
+
+    @Test
+    fun appFolderWritesAReadmeExplainingTheLayout() {
+        val dir = ServerConfig().appFolder()
+        val readme = dir.resolve("README.txt")
+        assertTrue(Files.exists(readme), "the app folder should carry a README.txt")
+        val text = Files.readString(readme)
+        assertTrue("runs/" in text && "meta.json" in text, "the README should explain runs/ and meta.json")
     }
 
     @Test

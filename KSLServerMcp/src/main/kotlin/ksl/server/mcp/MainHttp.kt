@@ -35,7 +35,7 @@ import ksl.service.store.ResultStore
  * listen port is `server.mcpPort` (env `KSL_MCP_PORT` overrides).
  *
  * Bundles are discovered from the server's watched bundle directories
- * (`KSLWork/KSL_MCP_APPS/bundles/` then the shared `KSLWork/bundles/`), which a
+ * (`KSLWork/KSLServer/bundles/` then the shared `KSLWork/bundles/`), which a
  * [BundleDirectoryWatcher] keeps in sync.
  */
 fun main() {

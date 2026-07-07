@@ -141,7 +141,7 @@ class KslMcpTools(
     private val INLINE_THRESHOLD = 1_000
 
     /**
-     * Resolves `<activeWorkspace>/KSL_MCP_APPS/<sub>/`, creating it on demand. Every file-writing tool routes
+     * Resolves `<activeWorkspace>/KSLServer/<sub>/`, creating it on demand. Every file-writing tool routes
      * through this so the server's artifacts (reports, data) land in the SAME app folder as its bundles and run
      * outputs (`ServerConfig.SERVER_APP_FOLDER`) — not a separate one. `~/.ksl/` stays settings-only.
      */
@@ -776,7 +776,26 @@ class KslMcpTools(
         } catch (e: Exception) {
             return error("run failed: ${e.message}")
         }
+        if (capturesOutput) writeRunMeta(cached) // annotate the content-hash run folder (discoverability)
         return runResult(cached)
+    }
+
+    /** Writes a human-readable `meta.json` into a run's result folder so the content-hash directory is
+     *  self-describing (kind / model / experiment / completion), for a user browsing the filesystem. Best-effort. */
+    private fun writeRunMeta(cached: ksl.service.store.CachedResult) {
+        runCatching {
+            val stored = cached.stored
+            val summary = stored.payload.jsonObject["summary"] as? JsonObject
+            val meta = buildJsonObject {
+                put("resultId", stored.resultId)
+                put("kind", stored.kind.name.lowercase())
+                summary?.get("modelIdentifier")?.let { put("model", it) }
+                summary?.get("experimentName")?.let { put("experiment", it) }
+                summary?.get("endTime")?.let { put("completedAt", it) }
+                summary?.get("endingStatus")?.let { put("status", it) }
+            }
+            artifactStore.writeMeta(stored.resultId, kotlinx.serialization.json.Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), meta))
+        }
     }
 
     /**
@@ -2160,7 +2179,7 @@ class KslMcpTools(
         }
         return try {
             // Write under the shared KSL workspace (not ~/.ksl, which is settings-only),
-            // beside the other apps' artifacts: <workspace>/KSL_MCP_APPS/reports/.
+            // beside the other apps' artifacts: <workspace>/KSLServer/reports/.
             val file = workspaceAppDir("reports").resolve("$id.html").toAbsolutePath()
             java.nio.file.Files.writeString(file, html)
             val note = if (withPlots) {
@@ -2342,7 +2361,7 @@ class KslMcpTools(
 
     /**
      * Writes [values] as a single-column CSV (a `<name>` header then one value per line) to
-     * `<workspace>/KSL_MCP_APPS/data/<sanitizedName>.csv`, overwriting a same-named file.
+     * `<workspace>/KSLServer/data/<sanitizedName>.csv`, overwriting a same-named file.
      * The name is sanitized to a filesystem-safe form; the file lands beside the other KSL
      * apps' artifacts under the shared workspace.
      */
