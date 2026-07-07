@@ -38,13 +38,13 @@ import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
 import ksl.animation.TraceFileReader
 import ksl.animation.io.AnimationSource
+import ksl.animation.replay.AutoLayoutSource
 import ksl.animation.replay.ObjectTypeNames
 import ksl.animation.replay.ObservedExtent
 import ksl.animation.replay.ReplayModel
 import ksl.animation.replay.autoLayout
-import ksl.animation.replay.objectGlyphSize
-import ksl.animation.replay.withSeededObjectClasses
-import ksl.animation.replay.withSpaceGeometry
+import ksl.animation.replay.buildAutoLayout
+import ksl.animation.replay.withModelLocations
 import ksl.animation.CaptureMode
 import ksl.animation.CaptureSpec
 import ksl.animation.CaptureWindow
@@ -416,33 +416,14 @@ class AnimationAppController(
     }
 
     /**
-     * Builds a starter layout from a fresh probe model *without* changing the current layout document.
-     * Used as the Replay fallback so a produced trace still renders its elements when the author hasn't
-     * scaffolded or opened a layout yet. Returns null on build failure.
+     * Builds a starter layout from a fresh probe model *without* changing the current layout document — the
+     * model scaffold finished with the model-derived overlays (spaces + geometry, seeded object classes, located
+     * anchors, mover homes). Used as the Replay fallback so a produced trace still renders its elements when the
+     * author hasn't scaffolded or opened a layout yet. Returns null on build failure. Delegates to the shared
+     * KSLCore builder (`Model.buildAutoLayout`) so the app and the headless server produce identical layouts.
      */
     fun buildScaffoldLayout(): AnimationLayout? =
-        runCatching { modelBuilder.build(null, null).scaffoldLayout() }.getOrNull()
-            ?.let { withScaffoldedSpaces(it) }
-            ?.let { withModelObjectClasses(it) }
-            ?.let { withModelLocations(it) }        // finalize location positions (MDS) first...
-            ?.let { withMoverPositionsAtHome(it) }  // ...so movers anchor to the final home-location position
-
-    /**
-     * Anchors each scaffolded movable resource at its home-base station's placed position (filling `homeBase`
-     * from the inventory when absent), so it renders on the static Layout tab — the scaffold otherwise declares
-     * movers with no position, leaving them visible only during replay.
-     */
-    private fun withMoverPositionsAtHome(layout: AnimationLayout): AnimationLayout {
-        if (layout.movableResources.isEmpty()) return layout
-        // A mover's home base is a location (fall back to a station for legacy layouts); park homeless movers somewhere.
-        val fallback = layout.locations.firstOrNull { it.position != null }?.position ?: layout.stations.firstOrNull()?.position
-        return layout.copy(movableResources = layout.movableResources.map { mr ->
-            if (mr.position != null) return@map mr // already positioned
-            val hb = mr.homeBase ?: inventory.movableHomeBases[mr.name]
-            val pos = hb?.let { layout.positionOf(ElementKind.LOCATION, it) ?: layout.positionOf(ElementKind.STATION, it) } ?: fallback
-            mr.copy(homeBase = hb ?: mr.homeBase, position = pos)
-        })
-    }
+        runCatching { modelBuilder.build(null, null).buildAutoLayout(source = AutoLayoutSource.MODEL) }.getOrNull()
 
     /** Generate and apply an auto-layout from the richest available source (see [buildAutoLayout]). */
     fun autoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO) {
@@ -451,109 +432,31 @@ class AnimationAppController(
     }
 
     /**
-     * Builds (without applying) the auto-layout for [source]: the most-recent trace — real positions (mined
-     * from the trace) plus the model's faithful geometry — when one exists, carries real coordinates, and
-     * [source] allows it; otherwise the static model scaffold. Always falls through to the scaffold.
+     * Builds (without applying) the auto-layout for [source] via the shared KSLCore builder
+     * (`Model.buildAutoLayout`): the most-recent trace — real positions plus the model's faithful geometry —
+     * when one exists, carries real coordinates, and [source] allows it; otherwise the static model scaffold.
+     * Always falls through to the scaffold.
      */
-    fun buildAutoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO): AnimationLayout? {
-        val tryTrace = source == AutoLayoutSource.AUTO && hasTrace()
-        return (if (tryTrace) buildTraceLayout() else null) ?: buildScaffoldLayout()
-    }
+    fun buildAutoLayout(source: AutoLayoutSource = AutoLayoutSource.AUTO): AnimationLayout? =
+        runCatching { modelBuilder.build(null, null).buildAutoLayout(latestTraceSource(source), source) }.getOrNull()
 
-    /**
-     * Builds a layout from the latest trace, or null to defer to the scaffold. The scaffold wins only for a
-     * coordinate-free spatial-mover model (a true DistancesModel): it emits NaN positions, so the trace yields
-     * only a crude ring while the scaffold's MDS placement is faithful. Every other model class — process /
-     * station / conveyor (no movers) and agent models (their declared space frames them) — renders from the
-     * richer trace, even without planar coordinates.
-     */
-    private fun buildTraceLayout(): AnimationLayout? {
+    /** The latest captured trace as an [AnimationSource] to mine, or null (no trace, or [source] forces the
+     *  scaffold). Reads the whole trace (the shared builder makes a single pass over the loaded events). */
+    private fun latestTraceSource(source: AutoLayoutSource): AnimationSource? {
+        if (source != AutoLayoutSource.AUTO) return null
         val trace = myLastTraceFile.value ?: listTraces().firstOrNull() ?: return null
         return runCatching {
             val (header, events) = TraceFileReader.readAll(trace)
-            // One pass: planar extent (finite mover coords) + whether the model has any movers / agents.
-            val extentAcc = ObservedExtent()
-            var hasMovers = false
-            var hasAgents = false
-            for (event in events) {
-                extentAcc.accept(event)
-                when (event) {
-                    is AnimationEvent.SpatialElementMoved -> hasMovers = true
-                    is AnimationEvent.AgentPositionChanged -> hasAgents = true
-                    else -> {}
-                }
-            }
-            // Defer to the scaffold ONLY for a coordinate-free spatial-mover model (true DistancesModel): MDS
-            // beats the trace's crude ring. Process/station/conveyor (no movers) and agent models render from
-            // the trace, framed by their declared space even without planar coordinates.
-            if (extentAcc.result() == null && hasMovers && !hasAgents) return@runCatching null
-            val replay = ReplayModel.build(AnimationSource(layout = null, header = header, events = events))
-            withModelLocations(withModelGeometry(replay.autoLayout(events)))
+            AnimationSource(layout = null, header = header, events = events)
         }.getOrNull()
     }
 
     /**
-     * Stamps the model's faithful space geometry (obstacle maps / grid-graph costs) onto [layout] from the
-     * inventory — the static source a trace can't carry (P5a/G2). Shared by the scaffold and trace paths.
+     * Stamps a `LocationLayoutElement` for each model-declared named location with known coordinates (an agent
+     * `Context.location(...)`, finite `LocationIfc` coords, or MDS placement), overriding a same-named layout
+     * location's position and adding any absent. Delegates to the shared KSLCore overlay.
      */
-    fun withModelGeometry(layout: AnimationLayout): AnimationLayout =
-        layout.withSpaceGeometry(inventory.spaces.mapNotNull { it.geometry })
-
-    /**
-     * Seeds an editable object-class per discovered entity type, sized to [layout]'s spaces (C1). Agent types
-     * aren't structural (they appear only in a trace), so the scaffold seeds entity types from the inventory;
-     * the trace path additionally seeds agent types it observes.
-     */
-    fun withModelObjectClasses(layout: AnimationLayout): AnimationLayout =
-        layout.withSeededObjectClasses(
-            // Process entities only: agents are seeded from the trace (movers), since agent visual-ness is runtime (G3).
-            inventory.entityTypes.filter { it.include && !it.isAgent }.map { it.typeName },
-            objectGlyphSize(layout.spaces)
-        )
-
-    /**
-     * Stamps a `LocationLayoutElement` for each model-declared named location that has known coordinates
-     * (an agent `Context.location(...)` — e.g. a depot / drop-off), unless the layout already has it (G1).
-     * These are structural (from the inventory), like the space geometry, so a trace that never *moves*
-     * between them still surfaces them. Coordinate-free names (null position) are left for MDS placement.
-     */
-    fun withModelLocations(layout: AnimationLayout): AnimationLayout {
-        // Inventory positions are authoritative (Phase 5 / D1): override a same-named layout location's position with
-        // the model position and add any that are absent. Positions come from an agent Context.location, finite
-        // LocationIfc coords, or a DistancesModel's MDS placement — so MDS wins over auto-layout's arbitrary ring.
-        val known = inventory.locationInfos.mapNotNull { li ->
-            val x = li.x; val y = li.y // local vals: a cross-module nullable prop won't smart-cast
-            if (x != null && y != null) li.name to LayoutPoint(x, y) else null
-        }.toMap()
-        if (known.isEmpty()) return layout
-        val have = layout.locations.map { it.locationName }.toSet()
-        val overridden = layout.locations.map { loc -> known[loc.locationName]?.let { loc.copy(position = it) } ?: loc }
-        val added = known.filterKeys { it !in have }.map { (name, p) -> LocationLayoutElement(name, p) }
-        return layout.copy(locations = overridden + added)
-    }
-
-    /**
-     * Ensures an agent model's space(s) are placed in the scaffolded [layout] (10.8, §7.2). Grid agents emit
-     * (col,row) cells; without the space the fit collapses them into a blob, so map each inventory [SpaceInfo]
-     * to a descriptor (a display cell size for grids, framing ~70% of the canvas) when the layout has none,
-     * then bring the model-linked obstacles/costs along via the shared geometry overlay.
-     */
-    private fun withScaffoldedSpaces(layout: AnimationLayout): AnimationLayout {
-        if (layout.spaces.isNotEmpty() || inventory.spaces.isEmpty()) return layout
-        return withModelGeometry(layout.copy(spaces = inventory.spaces.map { it.toDescriptor(layout.width, layout.height) }))
-    }
-
-    private fun ksl.animation.SpaceInfo.toDescriptor(w: Double, h: Double): ksl.animation.SpatialSpaceDescriptor =
-        when (kind) {
-            ksl.animation.SpaceInfo.SpaceKind.GRID -> {
-                val c = (cols ?: 1).coerceAtLeast(1); val r = (rows ?: 1).coerceAtLeast(1)
-                val cell = minOf(w * 0.7 / c, h * 0.7 / r).coerceAtLeast(6.0)
-                ksl.animation.SpatialSpaceDescriptor.Grid(name, c, r, cell, torus = torus)
-            }
-            ksl.animation.SpaceInfo.SpaceKind.CONTINUOUS -> ksl.animation.SpatialSpaceDescriptor.Continuous(
-                name, xMin ?: 0.0, xMax ?: w, yMin ?: 0.0, yMax ?: h, torus
-            )
-        }
+    fun withModelLocations(layout: AnimationLayout): AnimationLayout = layout.withModelLocations(inventory)
 
     /** Load a layout from [path]; the loaded state is, by definition, the saved state. */
     fun loadLayout(path: Path) {

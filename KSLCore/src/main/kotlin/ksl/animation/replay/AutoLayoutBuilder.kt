@@ -117,7 +117,7 @@ internal fun AnimationLayout.withModelObjectClasses(inventory: AnimationInventor
  *  `Context.location(...)`, finite `LocationIfc` coords, or a `DistancesModel`'s MDS placement). Inventory
  *  positions are authoritative: override a same-named layout location's position and add any that are absent.
  *  Coordinate-free names (null position) are left for MDS placement. */
-internal fun AnimationLayout.withModelLocations(inventory: AnimationInventory): AnimationLayout {
+fun AnimationLayout.withModelLocations(inventory: AnimationInventory): AnimationLayout {
     val known = inventory.locationInfos.mapNotNull { li ->
         val x = li.x
         val y = li.y // local vals: a cross-module nullable prop won't smart-cast
