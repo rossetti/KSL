@@ -81,10 +81,10 @@ class McpAnimationLayoutTest {
     }
 
     @Test
-    @DisplayName("animation_layout_template scaffolds a layout that validates clean")
+    @DisplayName("auto_layout (no trace) scaffolds a layout that validates clean")
     fun scaffoldValidatesClean() {
         val t = target()
-        val template = tools.animationLayoutTemplate(buildJsonObject { put("bundleId", t.bundleId); put("modelId", t.modelId) })
+        val template = tools.autoLayout(buildJsonObject { put("bundleId", t.bundleId); put("modelId", t.modelId) })
         assertFalse(template.isError ?: false, "template should not error: ${firstText(template)}")
         val layoutJson = firstText(template)
 

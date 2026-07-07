@@ -38,9 +38,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers Theme E3: `animation_layout_from_trace` infers a richer layout from a run's captured
- * animation trace (the replay closure now relocated into KSLCore); without a trace it guides
- * the analyst to enable tracing.
+ * The unified `auto_layout` tool: given a traced run's resultId it mines a richer layout from the
+ * captured animation trace (the replay closure relocated into KSLCore) and stamps the model's
+ * geometry; without a resultId it returns the model scaffold; with an untraced run it guides the
+ * analyst to enable tracing.
  */
 class McpTraceLayoutTest {
 
@@ -73,13 +74,16 @@ class McpTraceLayoutTest {
     }
 
     @Test
-    @DisplayName("animation_layout_from_trace infers a usable layout from a traced run")
-    fun infersLayoutFromTrace() {
+    @DisplayName("auto_layout mines a usable layout from a traced run")
+    fun minesLayoutFromTrace() {
         val resultId = runMM1(tracing = true)
-        val result = tools.animationLayoutFromTrace(buildJsonObject { put("resultId", resultId) })
+        val result = tools.autoLayout(buildJsonObject {
+            put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1"); put("resultId", resultId)
+        })
         assertFalse(result.isError ?: false, "should not error: ${firstText(result)}")
+        assertTrue(structured(result)["source"]?.jsonPrimitive?.content == "trace", "should have mined the trace")
 
-        // The inferred layout parses back to a real AnimationLayout that places observed elements.
+        // The mined layout parses back to a real AnimationLayout that places observed elements.
         val layout = AnimationLayout.fromJson(firstText(result))
         assertTrue(
             layout.queues.isNotEmpty() || layout.resources.isNotEmpty() || layout.movableResources.isNotEmpty(),
@@ -88,11 +92,26 @@ class McpTraceLayoutTest {
     }
 
     @Test
-    @DisplayName("animation_layout_from_trace without a trace guides to enable tracing")
-    fun withoutTraceGuides() {
+    @DisplayName("auto_layout without a resultId returns the model scaffold")
+    fun withoutResultIdReturnsScaffold() {
+        val result = tools.autoLayout(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+        assertFalse(result.isError ?: false, "scaffold should not error: ${firstText(result)}")
+        assertTrue(structured(result)["source"]?.jsonPrimitive?.content == "scaffold", "no resultId ⇒ the model scaffold")
+        val layout = AnimationLayout.fromJson(firstText(result))
+        assertTrue(
+            layout.queues.isNotEmpty() || layout.resources.isNotEmpty() || layout.movableResources.isNotEmpty(),
+            "the scaffold places the model's elements; got ${firstText(result)}",
+        )
+    }
+
+    @Test
+    @DisplayName("auto_layout with an untraced run's resultId guides to enable tracing")
+    fun untracedResultIdGuides() {
         val resultId = runMM1(tracing = false)
-        val result = tools.animationLayoutFromTrace(buildJsonObject { put("resultId", resultId) })
-        assertTrue(result.isError ?: false, "should error when the result has no trace")
+        val result = tools.autoLayout(buildJsonObject {
+            put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1"); put("resultId", resultId)
+        })
+        assertTrue(result.isError ?: false, "should error when the named result has no trace")
         assertTrue("tracing" in firstText(result), "should guide to enable tracing; got ${firstText(result)}")
     }
 }

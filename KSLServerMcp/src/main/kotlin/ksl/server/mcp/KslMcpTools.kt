@@ -48,9 +48,8 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import ksl.animation.AnimationLayout
 import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
-import ksl.animation.replay.autoLayout
-import ksl.animation.scaffoldLayout
+import ksl.animation.replay.AutoLayoutSource
+import ksl.animation.replay.buildAutoLayout
 import ksl.animation.validateAgainst
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
@@ -394,23 +393,55 @@ class KslMcpTools(
         return result(summary, structured)
     }
 
-    /** `animation_layout_template` — a valid starter `AnimationLayout` for a bundled model (a rough
-     *  auto-placement the author then refines in the desktop editor). No run, no trace — reads only
-     *  the model's static structure. */
-    fun animationLayoutTemplate(arguments: JsonObject?): CallToolResult {
+    /** `auto_layout` — the richest available `AnimationLayout` for a bundled model, mirroring the desktop
+     *  app's "Auto Layout": with a run's captured trace (resultId, tracing on) it mines real positions,
+     *  observed extent, flow-order placement, mover homes, conveyor anchors and storages and stamps the model's
+     *  faithful geometry + located anchors; otherwise the static model scaffold. 'source' is AUTO (default) or
+     *  MODEL (force the scaffold). The text is the editable layout document. */
+    fun autoLayout(arguments: JsonObject?): CallToolResult {
         val bundleId = arguments.string("bundleId") ?: return error("missing required argument 'bundleId'")
         val modelId = arguments.string("modelId") ?: return error("missing required argument 'modelId'")
+        val source = when (arguments.string("source")?.uppercase()) {
+            null, "AUTO" -> AutoLayoutSource.AUTO
+            "MODEL" -> AutoLayoutSource.MODEL
+            else -> return error("'source' must be AUTO or MODEL")
+        }
         val model = try {
             registry.modelProvider().provideModel(bundleId, modelId)
         } catch (e: Exception) {
             return error("failed to build model '$modelId' in bundle '$bundleId': ${e.message}")
         }
-        val layout = model.scaffoldLayout()
-        return if (arguments.string("format")?.equals("toml", ignoreCase = true) == true) {
-            result(layout.toToml(), buildJsonObject { put("documentType", "AnimationLayout"); put("format", "toml") })
+        // AUTO + a resultId ⇒ mine that run's captured trace; MODEL ignores it.
+        val resultId = arguments.string("resultId")
+        val trace = if (source == AutoLayoutSource.AUTO && resultId != null) {
+            val atf = artifactStore.list(resultId).firstOrNull { it.name.endsWith(".atf") }
+                ?: return error("no animation trace (.atf) for result '$resultId' — re-run with tracing on " +
+                    "(run_model tracing=true), or omit resultId to get the model scaffold.")
+            try {
+                AnimationSource.load(null, java.nio.file.Path.of(atf.path))
+            } catch (e: Exception) {
+                return error("could not read the animation trace: ${e.message}")
+            }
         } else {
-            documentResult("AnimationLayout", layout.toJson())
+            null
         }
+        val layout = try {
+            model.buildAutoLayout(trace, source)
+        } catch (e: Exception) {
+            return error("could not build the auto-layout for '$modelId': ${e.message}")
+        }
+        val toml = arguments.string("format")?.equals("toml", ignoreCase = true) == true
+        val encoded = if (toml) layout.toToml() else layout.toJson()
+        val structured = buildJsonObject {
+            put("documentType", "AnimationLayout")
+            put("source", if (trace != null) "trace" else "scaffold")
+            if (toml) {
+                put("format", "toml")
+            } else {
+                (runCatching { json.parseToJsonElement(encoded) }.getOrNull() as? JsonObject)?.let { put("document", it) }
+            }
+        }
+        return result(encoded, structured)
     }
 
     /** `validate_animation_layout` — validate a (possibly LLM-edited) `AnimationLayout` against a
@@ -451,28 +482,6 @@ class KslMcpTools(
                 report.issues.joinToString("\n") { "  - [${it.kind}] ${it.message}" }
         }
         return result(summary, structured)
-    }
-
-    /** `animation_layout_from_trace` — a richer layout inferred from a run's captured animation trace:
-     *  empirically observed flow order, real centroids, conveyor anchors, storages. Needs a run made
-     *  with tracing on (run_model tracing=true); complements the structural scaffold of
-     *  animation_layout_template. */
-    fun animationLayoutFromTrace(arguments: JsonObject?): CallToolResult {
-        val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
-        val atf = artifactStore.list(resultId).firstOrNull { it.name.endsWith(".atf") }
-            ?: return error("no animation trace (.atf) for result '$resultId' — re-run with tracing enabled " +
-                "(run_model tracing=true, or a run_config whose tracingConfig names a trace file).")
-        val layout = try {
-            val source = AnimationSource.load(null, java.nio.file.Path.of(atf.path))
-            ReplayModel.build(source).autoLayout(source.events, source.header.description)
-        } catch (e: Exception) {
-            return error("could not infer a layout from the trace: ${e.message}")
-        }
-        return if (arguments.string("format")?.equals("toml", ignoreCase = true) == true) {
-            result(layout.toToml(), buildJsonObject { put("documentType", "AnimationLayout"); put("format", "toml") })
-        } else {
-            documentResult("AnimationLayout", layout.toJson())
-        }
     }
 
     /** `render_animation_layout` — render a (proposed or edited) AnimationLayout to a static PNG preview,
