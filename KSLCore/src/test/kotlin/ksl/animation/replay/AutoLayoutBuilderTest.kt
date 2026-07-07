@@ -19,6 +19,11 @@
 package ksl.animation.replay
 
 import ksl.animation.AnimationInventory
+import ksl.animation.AnimationLayout
+import ksl.animation.ConveyorInfo
+import ksl.animation.ConveyorLayoutElement
+import ksl.animation.SegmentInfo
+import ksl.animation.SegmentRoute
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.simulation.Model
@@ -59,5 +64,30 @@ class AutoLayoutBuilderTest {
             layout.withModelGeometry(empty).withModelLocations(empty).withMoverPositionsAtHome(empty),
             "the model overlays must be no-ops given an empty inventory",
         )
+    }
+
+    @Test
+    fun conveyorRoutesFilledAndAddedFromModelInventory() {
+        val inventory = AnimationInventory(
+            conveyorInfos = listOf(
+                ConveyorInfo(
+                    "Conveyor", cellSize = 1, accumulating = false,
+                    segments = listOf(SegmentInfo("Enter", "Station1", 5), SegmentInfo("Station1", "Exit", 5)),
+                ),
+            ),
+        )
+        // (a) a route-less conveyor element (what the trace path creates) gets its belt route filled.
+        val routeless = AnimationLayout(conveyors = listOf(ConveyorLayoutElement("Conveyor")))
+        val filled = routeless.withModelConveyorRoutes(inventory).conveyors.single()
+        assertEquals(2, filled.segments.size, "empty segments should be filled from the inventory")
+        assertEquals("Enter", filled.segments.first().entryLocation)
+        assertEquals("Station1", filled.segments.first().exitLocation)
+        // (b) a layout with no conveyor element (what the scaffold path leaves) gets a routed one added.
+        val added = AnimationLayout().withModelConveyorRoutes(inventory).conveyors
+        assertEquals(1, added.size, "a conveyor element should be added when the layout has none")
+        assertEquals(2, added.single().segments.size)
+        // (c) already-authored segments are preserved.
+        val authored = AnimationLayout(conveyors = listOf(ConveyorLayoutElement("Conveyor", segments = listOf(SegmentRoute("A", "B")))))
+        assertEquals(1, authored.withModelConveyorRoutes(inventory).conveyors.single().segments.size, "authored segments must be kept")
     }
 }

@@ -22,8 +22,10 @@ import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationInventory
 import ksl.animation.AnimationLayout
+import ksl.animation.ConveyorLayoutElement
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
+import ksl.animation.SegmentRoute
 import ksl.animation.SpaceInfo
 import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.animationInventory
@@ -72,6 +74,7 @@ private fun Model.scaffoldAutoLayout(inventory: AnimationInventory): AnimationLa
         .withScaffoldedSpaces(inventory)
         .withModelObjectClasses(inventory)
         .withModelLocations(inventory) // finalize location positions (MDS) first...
+        .withModelConveyorRoutes(inventory) // ...route each conveyor's belt over its placed anchor locations...
         .withMoverPositionsAtHome(inventory) // ...so movers anchor to the final home-location position
 
 /** The trace path: mine the trace, then stamp the model's faithful geometry + located anchors. Returns null to
@@ -95,6 +98,7 @@ private fun traceAutoLayout(trace: AnimationSource, inventory: AnimationInventor
     return ReplayModel.build(trace).autoLayout(trace.events, trace.header.description)
         .withModelGeometry(inventory)
         .withModelLocations(inventory)
+        .withModelConveyorRoutes(inventory)
 }
 
 // ── Model-derived overlays (moved verbatim from AnimationAppController; keyed off the inventory) ─────────────
@@ -128,6 +132,27 @@ fun AnimationLayout.withModelLocations(inventory: AnimationInventory): Animation
     val overridden = locations.map { loc -> known[loc.locationName]?.let { loc.copy(position = it) } ?: loc }
     val added = known.filterKeys { it !in have }.map { (name, p) -> LocationLayoutElement(name, p) }
     return copy(locations = overridden + added)
+}
+
+/** Routes each conveyor's belt from the model's `AnimationInventory.conveyorInfos`: fills an existing conveyor
+ *  element's empty `segments` (the trace path creates the element but no route) and adds a routed element for any
+ *  conveyor the layout lacks (the scaffold path creates none), so the static preview can draw the belt over its
+ *  placed entry→exit anchor locations. Authored segments are kept; unnamed anchors are skipped. */
+internal fun AnimationLayout.withModelConveyorRoutes(inventory: AnimationInventory): AnimationLayout {
+    if (inventory.conveyorInfos.isEmpty()) return this
+    val infoByName = inventory.conveyorInfos.associateBy { it.name }
+    fun route(name: String): List<SegmentRoute> =
+        infoByName[name]?.segments.orEmpty()
+            .filter { it.entryLocation.isNotEmpty() && it.exitLocation.isNotEmpty() }
+            .map { SegmentRoute(it.entryLocation, it.exitLocation) }
+    val present = conveyors.map { it.conveyorName }.toSet()
+    val filled = conveyors.map { c ->
+        if (c.segments.isNotEmpty()) c
+        else route(c.conveyorName).takeIf { it.isNotEmpty() }?.let { c.copy(segments = it) } ?: c
+    }
+    val added = infoByName.keys.filterNot { it in present }
+        .mapNotNull { name -> route(name).takeIf { it.isNotEmpty() }?.let { ConveyorLayoutElement(conveyorName = name, segments = it, showDirection = true) } }
+    return if (added.isEmpty() && filled == conveyors) this else copy(conveyors = filled + added)
 }
 
 /** Anchors each scaffolded movable resource at its home-base location's placed position (filling `homeBase`
