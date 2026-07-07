@@ -513,7 +513,7 @@ class KslMcpTools(
                         "get_artifact(resultId=\"$resultId\", name=\"layout.png\").",
                 ),
             ),
-            structuredContent = structured,
+            structuredContent = sanitizeNonFinite(structured).jsonObject,
         )
     }
 
@@ -2379,7 +2379,7 @@ class KslMcpTools(
         }
         val verdict = if (independent) "no significant lag-1 dependence" else "significant lag-1 dependence"
         // Constant (zero-variance) data yields NaN autocorrelations; keep the payload wire-safe.
-        return result("ACF over $maxLag lag(s); lag-1 = $lag1 (band ±$band): $verdict.", sanitizeNonFinite(structured).jsonObject)
+        return result("ACF over $maxLag lag(s); lag-1 = $lag1 (band ±$band): $verdict.", structured)
     }
 
     /**
@@ -2401,7 +2401,7 @@ class KslMcpTools(
         } else {
             "No left shift recommended (shift is 0)."
         }
-        return result(summary, sanitizeNonFinite(structured).jsonObject)
+        return result(summary, structured)
     }
 
     /**
@@ -2606,7 +2606,11 @@ class KslMcpTools(
 
     /** The structured-output envelope: complete human summary in text + full data as structuredContent. */
     private fun result(summary: String, structured: JsonObject): CallToolResult =
-        CallToolResult(content = listOf(TextContent(summary)), structuredContent = structured)
+        // Central wire-safety chokepoint: sanitize here so EVERY tool's structuredContent is valid JSON.
+        // A non-finite double (a control's ±∞ bound, a NaN statistic on degenerate data, an unbounded
+        // histogram edge) serializes to a bare Infinity/NaN token — invalid JSON — and the SDK's serializer
+        // then fails writing the reply, so no response is sent and the call hangs (see sanitizeNonFinite).
+        CallToolResult(content = listOf(TextContent(summary)), structuredContent = sanitizeNonFinite(structured).jsonObject)
 
     private fun text(body: String): CallToolResult =
         CallToolResult(content = listOf(TextContent(body)))

@@ -520,8 +520,9 @@ internal object McpResultSchemas {
                             put("type", "object")
                             putJsonObject("properties") {
                                 putJsonObject("binNum") { put("type", "integer") }
-                                putJsonObject("lowerLimit") { put("type", "number") }
-                                putJsonObject("upperLimit") { put("type", "number") }
+                                // The first/last bins of an open-ended histogram have ±∞ limits, sanitized to null.
+                                nullableNumber("lowerLimit")
+                                nullableNumber("upperLimit")
                                 putJsonObject("count") { put("type", "number") }
                                 putJsonObject("proportion") { put("type", "number") }
                             }
