@@ -270,7 +270,7 @@ class SyntheticProblemsTest {
                 SolverCase("shc", BenchmarkSolverFactoryIfc { pd, evaluator, _, name ->
                     StochasticHillClimber(
                         pd, evaluator,
-                        maxIterations = 1,
+                        maximumIterations = 1,
                         replicationsPerEvaluation = 10,
                         name = name
                     )

@@ -203,6 +203,8 @@ class DesignedExperiment @JvmOverloads constructor(
     }
 
     /**
+     *  Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     *  [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      *  @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPoints(coded: Boolean = false): List<DoubleArray> {
@@ -241,6 +243,8 @@ class DesignedExperiment @JvmOverloads constructor(
      *  number of replications.
      *  The data frame has columns (exp_name, rep_id, factor1, factor2, ..., factorN)
      *  where factorK is the name of the kth factor.
+     *  Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     *  [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      *  @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPointsAsDataFrame(coded: Boolean = false): AnyFrame {
@@ -321,6 +325,8 @@ class DesignedExperiment @JvmOverloads constructor(
      *  the values in the [responseName] column have the value of the response for the named experiments
      *  and the replication id (number) for the value.  The dataframe provides the data
      *  for performing a response surfacing model for the named response.
+     *  Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     *  [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      *  @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPointsWithResponse(responseName: String, coded: Boolean = false): AnyFrame {
@@ -335,6 +341,8 @@ class DesignedExperiment @JvmOverloads constructor(
      *  where the values in the response name columns have the value of the response for the named experiments
      *  and the replication id (number) for the value.  The dataframe provides the data
      *  for performing a response surfacing model for the named responses.
+     *  Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     *  [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      *  @param coded indicates if the points should be coded, the default is false.
      */
     fun replicatedDesignPointsWithResponses(
@@ -362,6 +370,10 @@ class DesignedExperiment @JvmOverloads constructor(
     /**
      *  The regression data to perform the regression of the linear model
      *
+     *  Defaults to coded (±1) levels, the standard convention for regression on a
+     *  designed experiment; the raw-data methods ([replicatedDesignPointsAsDataFrame],
+     *  [replicatedDesignPointsWithResponse]) default to `coded = false` instead.
+     *
      *  @param responseName the name of the response variable in the regression
      *  @param linearModel the linear model specification for the regression
      *  @param coded if true perform the regression with the coded variables. The default is true.
@@ -381,6 +393,10 @@ class DesignedExperiment @JvmOverloads constructor(
     /**
      *  The regression data to perform the regression of the linear model
      *
+     *  Defaults to coded (±1) levels, the standard convention for regression on a
+     *  designed experiment; the raw-data methods ([replicatedDesignPointsAsDataFrame],
+     *  [replicatedDesignPointsWithResponse]) default to `coded = false` instead.
+     *
      *  @param responseName the name of the response variable in the regression
      *  @param linearModel the linear model specification for the regression
      *  @param coded if true perform the regression with the coded variables. The default is true.
@@ -398,6 +414,8 @@ class DesignedExperiment @JvmOverloads constructor(
 
     /**
      *  Perform the regression of the linear model for predicting the response.
+     *  Always uses coded (±1) levels; call the [regressionResults] overload that
+     *  takes a `coded` parameter for raw-level regression.
      *  @param responseName the name of the response variable in the regression
      *  @param linearModel the linear model specification for the regression
      *  @return the regression results
@@ -409,6 +427,9 @@ class DesignedExperiment @JvmOverloads constructor(
 
     /**
      *  Perform the regression of the linear model for predicting the response.
+     *  Defaults to coded (±1) levels, the standard convention for regression on a
+     *  designed experiment; the raw-data methods ([replicatedDesignPointsAsDataFrame],
+     *  [replicatedDesignPointsWithResponse]) default to `coded = false` instead.
      *  @param responseName the name of the response variable in the regression
      *  @param linearModel the linear model specification for the regression
      *  @param coded if true perform the regression with the coded variables. The default is true.
@@ -595,6 +616,8 @@ class DesignedExperiment @JvmOverloads constructor(
      *
      *  where the values in the response name columns have the value of the response for the named experiments
      *  and the replication id (number) for the value.
+     *  Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     *  [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      *  @param coded indicates if the points should be coded, the default is false
      */
     @JvmOverloads

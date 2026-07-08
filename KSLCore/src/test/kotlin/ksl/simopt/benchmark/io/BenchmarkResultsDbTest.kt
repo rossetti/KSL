@@ -74,7 +74,7 @@ class BenchmarkResultsDbTest {
             solverFactory = BenchmarkSolverFactoryIfc { pd, evaluator, _, name ->
                 StochasticHillClimber(
                     pd, evaluator,
-                    maxIterations = 1,
+                    maximumIterations = 1,
                     replicationsPerEvaluation = repsPerEvaluation,
                     name = name
                 )

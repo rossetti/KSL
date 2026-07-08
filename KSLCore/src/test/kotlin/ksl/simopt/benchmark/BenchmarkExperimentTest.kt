@@ -75,7 +75,7 @@ class BenchmarkExperimentTest {
                 // maxIterations = 1 on purpose: the harness must override it with the budget ceiling
                 StochasticHillClimber(
                     pd, evaluator,
-                    maxIterations = 1,
+                    maximumIterations = 1,
                     replicationsPerEvaluation = repsPerEvaluation,
                     name = name
                 )
@@ -238,7 +238,7 @@ class BenchmarkExperimentTest {
                 check(pd.modelIdentifier != "sphereB") { "injected provisioning failure" }
                 StochasticHillClimber(
                     pd, evaluator,
-                    maxIterations = 1,
+                    maximumIterations = 1,
                     replicationsPerEvaluation = REPS_PER_EVAL,
                     name = name
                 )

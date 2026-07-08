@@ -1164,7 +1164,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = StochasticHillClimber.shcDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1182,7 +1182,7 @@ abstract class Solver(
             val solver = StochasticHillClimber(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 streamNum = streamNum,
                 streamProvider = streamProvider,
@@ -1279,7 +1279,7 @@ abstract class Solver(
          * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
+         * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -1296,12 +1296,12 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun createRandomRestartStochasticHillClimbingSolver(
+        fun createRandomRestartStochasticHillClimberSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = StochasticHillClimber.shcDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1324,7 +1324,7 @@ abstract class Solver(
                 StochasticHillClimber(
                     problemDefinition = problemDefinition,
                     evaluator = innerEvaluator,
-                    maxIterations = maxIterations,
+                    maximumIterations = maxIterations,
                     replicationsPerEvaluation = replicationsPerEvaluation,
                     name = innerName
                 )
@@ -1386,7 +1386,7 @@ abstract class Solver(
             temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.AutoCalibrate(),
             coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
             stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = SimulatedAnnealing.saDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1464,7 +1464,7 @@ abstract class Solver(
             temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.AutoCalibrate(),
             coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
             stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = SimulatedAnnealing.saDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1546,7 +1546,7 @@ abstract class Solver(
          * @param ceSampler The cross-entropy sampler (reference distribution). When null (the default), a [CENormalSampler] is created. The solver attaches the sampler onto its own stream provider.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
+         * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -1563,7 +1563,7 @@ abstract class Solver(
             modelBuilder: ModelBuilderIfc,
             ceSampler: CESampler? = null,
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = CrossEntropySolver.ceDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1587,7 +1587,7 @@ abstract class Solver(
                 streamNum = streamNum,
                 streamProvider = streamProvider,
                 ceSampler = sampler,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -1609,7 +1609,7 @@ abstract class Solver(
          * @param ceSampler The cross-entropy sampler (reference distribution). When null (the default), a [CENormalSampler] is created. The solver attaches the sampler onto its own stream provider.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
+         * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -1627,7 +1627,7 @@ abstract class Solver(
             maxNumRestarts: Int = defaultMaxRestarts,
             startingPoint: MutableMap<String, Double>? = null,
             ceSampler: CESampler? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = CrossEntropySolver.ceDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1655,7 +1655,7 @@ abstract class Solver(
                 streamNum = 0,
                 streamProvider = streamProvider,
                 ceSampler = sampler,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -1704,7 +1704,7 @@ abstract class Solver(
             crossoverOperator: CrossoverOperatorIfc = BlendCrossover(),
             mutationOperator: MutationOperatorIfc? = null,
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = GeneticAlgorithmSolver.gaDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1728,7 +1728,7 @@ abstract class Solver(
                 selectionOperator = selectionOperator,
                 crossoverOperator = crossoverOperator,
                 mutationOperator = mutationOperator ?: GaussianMutation(problemDefinition),
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -1774,7 +1774,7 @@ abstract class Solver(
             selectionOperator: SelectionOperatorIfc = TournamentSelection(),
             crossoverOperator: CrossoverOperatorIfc = BlendCrossover(),
             mutationOperator: MutationOperatorIfc? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = GeneticAlgorithmSolver.gaDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1803,7 +1803,7 @@ abstract class Solver(
                 selectionOperator = selectionOperator,
                 crossoverOperator = crossoverOperator,
                 mutationOperator = mutationOperator ?: GaussianMutation(problemDefinition),
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -1862,7 +1862,7 @@ abstract class Solver(
             socialCoefficient: Double = ParticleSwarmSolver.defaultSocialCoefficient,
             boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = ParticleSwarmSolver.psoDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1887,7 +1887,7 @@ abstract class Solver(
                 cognitiveCoefficient = cognitiveCoefficient,
                 socialCoefficient = socialCoefficient,
                 boundaryHandler = boundaryHandler,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -1938,7 +1938,7 @@ abstract class Solver(
             cognitiveCoefficient: Double = ParticleSwarmSolver.defaultCognitiveCoefficient,
             socialCoefficient: Double = ParticleSwarmSolver.defaultSocialCoefficient,
             boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = ParticleSwarmSolver.psoDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -1968,7 +1968,7 @@ abstract class Solver(
                 cognitiveCoefficient = cognitiveCoefficient,
                 socialCoefficient = socialCoefficient,
                 boundaryHandler = boundaryHandler,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -2018,7 +2018,7 @@ abstract class Solver(
             initialDesignSize: Int = BayesianOptimizationSolver.defaultInitialDesignSize,
             acquisition: AcquisitionFunctionIfc = ExpectedImprovement(),
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = BayesianOptimizationSolver.boDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -2040,7 +2040,7 @@ abstract class Solver(
                 streamProvider = streamProvider,
                 acquisition = acquisition,
                 initialDesignSize = initialDesignSize,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -2082,7 +2082,7 @@ abstract class Solver(
             startingPoint: MutableMap<String, Double>? = null,
             initialDesignSize: Int = BayesianOptimizationSolver.defaultInitialDesignSize,
             acquisition: AcquisitionFunctionIfc = ExpectedImprovement(),
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = BayesianOptimizationSolver.boDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -2109,7 +2109,7 @@ abstract class Solver(
                 streamProvider = streamProvider,
                 acquisition = acquisition,
                 initialDesignSize = initialDesignSize,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = name
             )
@@ -2190,7 +2190,7 @@ abstract class Solver(
                 deltaL = deltaL,
                 skipGlobalPhase = skipGlobalPhase,
                 globalBudget = globalBudget,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 name = name
             )
         }
@@ -2253,7 +2253,7 @@ abstract class Solver(
                 deltaL = deltaL,
                 skipGlobalPhase = skipGlobalPhase,
                 globalBudget = globalBudget,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 name = name
             )
             return RandomRestartSolver(
@@ -2284,14 +2284,14 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun createRsplineSolver(
+        fun createRSplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             initialNumReps: Int = defaultInitialSampleSize,
             sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
             maxNumReplications: Int = defaultMaxNumReplications,
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = RSplineSolver.rSplineDefaultMaxIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
@@ -2308,7 +2308,7 @@ abstract class Solver(
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 initialNumReps = initialNumReps,
                 sampleSizeGrowthRate = sampleSizeGrowthRate,
                 maxNumReplications = maxNumReplications,
@@ -2336,7 +2336,7 @@ abstract class Solver(
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
+         * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -2356,7 +2356,7 @@ abstract class Solver(
             initialNumReps: Int = defaultInitialSampleSize,
             sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
             maxNumReplications: Int = defaultMaxNumReplications,
-            maxIterations: Int = defaultMaxNumberIterations,
+            maxIterations: Int = RSplineSolver.rSplineDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
@@ -2374,7 +2374,7 @@ abstract class Solver(
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                maxIterations = maxIterations,
+                maximumIterations = maxIterations,
                 initialNumReps = initialNumReps,
                 sampleSizeGrowthRate = sampleSizeGrowthRate,
                 maxNumReplications = maxNumReplications,

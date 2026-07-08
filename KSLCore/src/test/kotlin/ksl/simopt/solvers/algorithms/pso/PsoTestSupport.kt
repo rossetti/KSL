@@ -91,7 +91,7 @@ internal object PsoTestSupport {
             inertiaSchedule = inertiaSchedule,
             boundaryHandler = boundaryHandler,
             velocityInitializer = velocityInitializer,
-            maxIterations = maxIterations,
+            maximumIterations = maxIterations,
             replicationsPerEvaluation = replicationsPerEvaluation
         )
     }

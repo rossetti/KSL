@@ -17,12 +17,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 class RandomWalkSolver(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    maxIterations: Int,
+    maximumIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String = "RandomWalk"
-) : StochasticSolver(problemDefinition, evaluator, maxIterations,
+) : StochasticSolver(problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation,
     streamNum, streamProvider, name
 ) {

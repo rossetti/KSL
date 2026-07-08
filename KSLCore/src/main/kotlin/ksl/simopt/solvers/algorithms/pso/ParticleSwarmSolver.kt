@@ -9,7 +9,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.simopt.solvers.Solver.Companion.defaultReplicationsPerEvaluation
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -59,7 +58,7 @@ fun interface CoefficientScheduleIfc {
  *  @param socialCoefficient the social acceleration coefficient c2 (pull toward global best)
  *  @param boundaryHandler how out-of-range positions are handled; defaults to [ClampToBounds]
  *  @param velocityInitializer how initial velocities are set; defaults to [ZeroVelocity]
- *  @param maxIterations the maximum number of iterations
+ *  @param maximumIterations the maximum number of iterations
  *  @param replicationsPerEvaluation strategy to determine the number of replications per evaluation
  *  @param solutionEqualityChecker used to detect no-improvement convergence. The default is
  *  [InputsAndConfidenceIntervalEquality].
@@ -76,12 +75,12 @@ class ParticleSwarmSolver @JvmOverloads constructor(
     socialCoefficient: Double = defaultSocialCoefficient,
     boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
     velocityInitializer: VelocityInitializerIfc = ZeroVelocity(),
-    maxIterations: Int = psoDefaultMaxIterations,
+    maximumIterations: Int = psoDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     name: String? = null
 ) : StochasticSolver(
-    problemDefinition, evaluator, maxIterations,
+    problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 
@@ -103,13 +102,13 @@ class ParticleSwarmSolver @JvmOverloads constructor(
         socialCoefficient: Double = defaultSocialCoefficient,
         boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
         velocityInitializer: VelocityInitializerIfc = ZeroVelocity(),
-        maxIterations: Int = psoDefaultMaxIterations,
+        maximumIterations: Int = psoDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         name: String? = null
     ) : this(
         problemDefinition, evaluator, streamNum, streamProvider, swarmSize, inertiaSchedule,
-        cognitiveCoefficient, socialCoefficient, boundaryHandler, velocityInitializer, maxIterations,
+        cognitiveCoefficient, socialCoefficient, boundaryHandler, velocityInitializer, maximumIterations,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation), solutionEqualityChecker, name
     )
 

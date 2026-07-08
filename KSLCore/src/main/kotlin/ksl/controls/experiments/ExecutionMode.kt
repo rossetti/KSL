@@ -24,7 +24,7 @@ import kotlinx.serialization.Serializable
  * Whether the scenarios in a `ksl.app.config.RunConfiguration` run
  * one at a time or in parallel.  Per scenario workflow §10:
  *
- *  - [SEQUENTIAL] (default for new documents) — scenarios run one
+ *  - [SEQUENTIAL]  — scenarios run one
  *    at a time in the user-authored order.  Predictable progress
  *    reporting; no inter-scenario contention.  Less surprising for
  *    new users.
@@ -35,11 +35,6 @@ import kotlinx.serialization.Serializable
  * The mode is a property of the document so opening a saved
  * `RunConfiguration` runs it the same way it last ran.
  *
- * **Substrate-prep only.**  The field is recorded on
- * `RunConfiguration.executionMode` and round-trips through both
- * codecs; `ScenarioOrchestrator` does not yet consume it.  Honoring
- * the mode at submit time lands in a separate commit alongside the
- * runner-level sequential mode.
  */
 @Serializable
 enum class ExecutionMode { SEQUENTIAL, CONCURRENT }

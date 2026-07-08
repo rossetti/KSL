@@ -32,7 +32,7 @@ import kotlin.math.exp
  * @param coolingSchedule the cooling schedule for the annealing process
  * @param stoppingTemperature the temperature used to stop the annealing process. If the current temperature goes
  * below this temperature, the search process stops.
- * @param maxIterations the maximum number of iterations permitted for the search process
+ * @param maximumIterations the maximum number of iterations permitted for the search process
  * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
  * defining the strategy for determining the number of replications per evaluation.
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
@@ -47,12 +47,12 @@ class SimulatedAnnealing @JvmOverloads constructor(
     val temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.Fixed(defaultInitialTemperature),
     var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
     stoppingTemperature: Double = defaultStoppingTemperature,
-    maxIterations: Int = defaultMaxNumberIterations,
+    maximumIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
-) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
+) : StochasticSolver(problemDefinition, evaluator, maximumIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
         require(stoppingTemperature.isFinite()) {"The stopping temperature must be finite."}
@@ -164,7 +164,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         temperatureConfiguration = temperatureConfiguration,
         coolingSchedule = coolingSchedule,
         stoppingTemperature = stoppingTemperature,
-        maxIterations = maxIterations,
+        maximumIterations = maxIterations,
         replicationsPerEvaluation = FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         streamNum, streamProvider, name = name
     )
@@ -348,6 +348,18 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
     companion object {
 
+
+        /**
+         *  The maximum number of iterations permitted for the main loop for the simulated annealing.
+         *  This must be greater than 0.
+         */
+        @JvmStatic
+        var saDefaultMaxIterations: Int = 100
+            set(value) {
+                require(value >= 1) { "The default simulated annealing maximum number of iterations must be >= 1" }
+                field = value
+            }
+
         /**
          *  The default initial temperature for the annealing process. The default value is 1000.0
          */
@@ -429,7 +441,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
             val randomWalk = RandomWalkSolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                maxIterations = sampleSize,
+                maximumIterations = sampleSize,
                 replicationsPerEvaluation = replicationsPerEvaluation,
                 name = "TempEstimationRandomWalk"
             )

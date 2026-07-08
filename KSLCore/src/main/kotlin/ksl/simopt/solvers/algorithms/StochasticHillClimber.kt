@@ -23,7 +23,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *
  * @param evaluator An evaluator object that provides the problem definition and
  * performs solution evaluation.
- * @param maxIterations The maximum number of iterations the algorithm is allowed
+ * @param maximumIterations The maximum number of iterations the algorithm is allowed
  * to execute.
  * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
  * defining the strategy for determining the number of replications per evaluation.
@@ -34,18 +34,18 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 open class StochasticHillClimber @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    maxIterations: Int = defaultMaxNumberIterations,
+    maximumIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
-) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
+) : StochasticSolver(problemDefinition, evaluator, maximumIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     /**
      * Constructs an instance of StochasticHillClimber with specified parameters.
      *
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
-     * @param maxIterations The maximum number of iterations allowed for the hill climbing process.
+     * @param maximumIterations The maximum number of iterations allowed for the hill climbing process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
      * @param streamNum the random number stream number, defaults to 0, which means the next stream
      * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
@@ -55,12 +55,12 @@ open class StochasticHillClimber @JvmOverloads constructor(
     constructor(
         problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
-        maxIterations: Int = defaultMaxNumberIterations,
+        maximumIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         name: String? = null
-    ) : this(problemDefinition, evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
+    ) : this(problemDefinition, evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         streamNum, streamProvider, name)
 
     val solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality()
@@ -103,6 +103,17 @@ open class StochasticHillClimber @JvmOverloads constructor(
     }
 
     companion object {
+
+        /**
+         *  The maximum number of iterations permitted for the main loop for the Stochastic-Hill Climber.
+         *  This must be greater than 0.
+         */
+        @JvmStatic
+        var shcDefaultMaxIterations: Int = 100
+            set(value) {
+                require(value >= 1) { "The default SHC maximum number of iterations must be >= 1" }
+                field = value
+            }
 
         /**
          * This value is used as the default termination threshold for the largest number of iterations, during which no

@@ -9,7 +9,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.simopt.solvers.Solver.Companion.defaultReplicationsPerEvaluation
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -56,7 +55,7 @@ fun interface MutationRateFnIfc {
  *  @param selectionOperator the parent-selection strategy; defaults to [TournamentSelection]
  *  @param crossoverOperator the recombination strategy; defaults to [BlendCrossover]
  *  @param mutationOperator the mutation strategy; defaults to [GaussianMutation]
- *  @param maxIterations the maximum number of generations
+ *  @param maximumIterations the maximum number of generations
  *  @param replicationsPerEvaluation strategy to determine the number of replications per evaluation
  *  @param solutionEqualityChecker used to detect convergence (no-improvement). The default is
  *  [InputsAndConfidenceIntervalEquality].
@@ -71,12 +70,12 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
     selectionOperator: SelectionOperatorIfc = TournamentSelection(),
     crossoverOperator: CrossoverOperatorIfc = BlendCrossover(),
     mutationOperator: MutationOperatorIfc = GaussianMutation(problemDefinition),
-    maxIterations: Int = gaDefaultMaxIterations,
+    maximumIterations: Int = gaDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     name: String? = null
 ) : StochasticSolver(
-    problemDefinition, evaluator, maxIterations,
+    problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 
@@ -96,13 +95,13 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
         selectionOperator: SelectionOperatorIfc = TournamentSelection(),
         crossoverOperator: CrossoverOperatorIfc = BlendCrossover(),
         mutationOperator: MutationOperatorIfc = GaussianMutation(problemDefinition),
-        maxIterations: Int = gaDefaultMaxIterations,
+        maximumIterations: Int = gaDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         name: String? = null
     ) : this(
         problemDefinition, evaluator, streamNum, streamProvider, populationSize,
-        selectionOperator, crossoverOperator, mutationOperator, maxIterations,
+        selectionOperator, crossoverOperator, mutationOperator, maximumIterations,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation), solutionEqualityChecker, name
     )
 

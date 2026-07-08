@@ -60,7 +60,7 @@ class EvaluationClockTest {
         // First run consumes the clock...
         val first = ksl.simopt.solvers.algorithms.StochasticHillClimber(
             problemDefinition = pd, evaluator = evaluator,
-            maxIterations = 3, replicationsPerEvaluation = 1, streamNum = 1
+            maximumIterations = 3, replicationsPerEvaluation = 1, streamNum = 1
         )
         first.runAllIterations()
         assertEquals(1, first.initialSolution!!.evaluationNumber,
@@ -69,7 +69,7 @@ class EvaluationClockTest {
         // ...and a second, independent run on the SAME evaluator starts fresh too.
         val second = ksl.simopt.solvers.algorithms.StochasticHillClimber(
             problemDefinition = pd, evaluator = evaluator,
-            maxIterations = 3, replicationsPerEvaluation = 1, streamNum = 1
+            maximumIterations = 3, replicationsPerEvaluation = 1, streamNum = 1
         )
         second.runAllIterations()
         assertEquals(1, second.initialSolution!!.evaluationNumber,
@@ -88,7 +88,7 @@ class EvaluationClockTest {
         // are immutable records of their original evaluation.)
         val solver = ksl.simopt.solvers.algorithms.StochasticHillClimber(
             problemDefinition = pd, evaluator = evaluator,
-            maxIterations = 3, replicationsPerEvaluation = 2, streamNum = 1
+            maximumIterations = 3, replicationsPerEvaluation = 2, streamNum = 1
         )
         // The inner best-of-random-starts search runs on the same evaluator before the
         // main search begins.

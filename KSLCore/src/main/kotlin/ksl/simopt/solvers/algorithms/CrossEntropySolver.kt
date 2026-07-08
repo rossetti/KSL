@@ -45,7 +45,7 @@ fun interface SampleSizeFnIfc {
  * @param ceSampler the cross-entropy sampler (reference distribution). By default this is a [CENormalSampler]. The
  * supplied sampler is attached to this solver (adopted onto the solver's provider), so a sampler can be built and
  * exercised standalone and then handed to the solver. The sampler cannot be changed while the solver is running.
- * @param maxIterations The maximum number of iterations allowed for the search process.
+ * @param maximumIterations The maximum number of iterations allowed for the search process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
  * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and their
@@ -58,12 +58,12 @@ class CrossEntropySolver @JvmOverloads constructor(
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     ceSampler: CESampler = CENormalSampler(problemDefinition),
-    maxIterations: Int = ceDefaultMaxIterations,
+    maximumIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     name: String? = null
 ) : StochasticSolver(problemDefinition,
-    evaluator, maxIterations,
+    evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum,
     streamProvider, name
 ) {
@@ -77,7 +77,7 @@ class CrossEntropySolver @JvmOverloads constructor(
      * has its own streams.
      * @param ceSampler the cross-entropy sampler (reference distribution). By default this is a [CENormalSampler]; it is
      * attached to this solver (adopted onto the solver's provider).
-     * @param maxIterations The maximum number of iterations allowed for the search process.
+     * @param maximumIterations The maximum number of iterations allowed for the search process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
      * @param name Optional name identifier for this instance of the solver.
      */
@@ -89,12 +89,12 @@ class CrossEntropySolver @JvmOverloads constructor(
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         ceSampler: CESampler = CENormalSampler(problemDefinition),
-        maxIterations: Int = ceDefaultMaxIterations,
+        maximumIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         name: String? = null
     ) : this(problemDefinition,
-        evaluator, streamNum, streamProvider, ceSampler, maxIterations,
+        evaluator, streamNum, streamProvider, ceSampler, maximumIterations,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         solutionEqualityChecker, name
     )

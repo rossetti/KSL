@@ -7,7 +7,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.simopt.solvers.Solver.Companion.defaultReplicationsPerEvaluation
 import ksl.simopt.solvers.VonNeumannNeighborhoodFinder
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.utilities.random.rng.RNStreamProvider
@@ -48,7 +47,7 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  terminates only when `x*` is confirmed locally optimal, otherwise it moves to the better neighbor
  *  and continues. If `deltaL == 0` (the **degraded** mode documented for ISC), the local-optimality
  *  guarantee is intentionally dropped: the search stops on the MPA-singleton condition alone, bounded
- *  by [maxIterations] and the allocation schedule. A positive `δ_L` is required to obtain the
+ *  by [maximumIterations] and the allocation schedule. A positive `δ_L` is required to obtain the
  *  local-optimality guarantee.
  *
  *  All randomness is drawn through the solver's single random number stream ([rnStream]), so a run is
@@ -65,7 +64,7 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  @param pruneEvery prune the MPA's halfway hyperplanes every this many iterations (the paper's `c_p`)
  *  @param deltaL the local-optimality indifference zone `δ_L`; `0.0` (default) selects degraded mode
  *  @param localOptimalityTest the Kim (2005) test used when [deltaL] > 0; built from [deltaL] if null
- *  @param maxIterations the maximum number of COMPASS iterations
+ *  @param maximumIterations the maximum number of COMPASS iterations
  *  @param maxReplications the cap on the total replications a single COMPASS run may request; defaults
  *  to [defaultMaxReplications]. A best-effort safety valve bounding a run on a noisy, flat landscape.
  *  @param replicationsPerEvaluation strategy for the number of replications per (new-point) evaluation
@@ -82,12 +81,12 @@ class CompassSolver @JvmOverloads constructor(
     pruneEvery: Int = defaultPruneEvery,
     deltaL: Double = 0.0,
     localOptimalityTest: ComparisonWithStandardProcedure? = null,
-    maxIterations: Int = compassDefaultMaxIterations,
+    maximumIterations: Int = compassDefaultMaxIterations,
     maxReplications: Int = defaultMaxReplications,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
 ) : StochasticSolver(
-    problemDefinition, evaluator, maxIterations,
+    problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 

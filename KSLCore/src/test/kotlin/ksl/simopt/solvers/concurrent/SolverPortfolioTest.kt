@@ -36,7 +36,7 @@ class SolverPortfolioTest {
     private fun shcFactory(pd: ProblemDefinition) = SolverFactoryIfc { evaluator, _, name ->
         StochasticHillClimber(
             problemDefinition = pd, evaluator = evaluator,
-            maxIterations = ITERS, replicationsPerEvaluation = REPS, name = name
+            maximumIterations = ITERS, replicationsPerEvaluation = REPS, name = name
         )
     }
 
@@ -51,7 +51,7 @@ class SolverPortfolioTest {
 
     private fun walkFactory(pd: ProblemDefinition) = SolverFactoryIfc { evaluator, _, name ->
         RandomWalkSolver(
-            problemDefinition = pd, evaluator = evaluator, maxIterations = ITERS,
+            problemDefinition = pd, evaluator = evaluator, maximumIterations = ITERS,
             replicationsPerEvaluation = FixedReplicationsPerEvaluation(REPS), name = name
         )
     }
@@ -118,7 +118,7 @@ class SolverPortfolioTest {
         val direct = StochasticHillClimber(
             problemDefinition = pdDirect,
             evaluator = Evaluator.createProblemEvaluator(pdDirect, BuildLKModel),
-            maxIterations = ITERS,
+            maximumIterations = ITERS,
             replicationsPerEvaluation = REPS,
             streamNum = 1
         )
@@ -132,7 +132,7 @@ class SolverPortfolioTest {
             members = listOf(SolverMemberTask(SolverFactoryIfc { evaluator, _, name ->
                 StochasticHillClimber(
                     problemDefinition = pdPortfolio, evaluator = evaluator,
-                    maxIterations = ITERS, replicationsPerEvaluation = REPS,
+                    maximumIterations = ITERS, replicationsPerEvaluation = REPS,
                     streamNum = 1, name = name
                 )
             }, "only"))

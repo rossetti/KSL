@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Disabled
 import kotlin.test.assertTrue
 
 /**
@@ -79,7 +78,7 @@ class SolverAlgorithmsTest {
         )
         ceFast.runAllIterations()
 
-        rsFast = Solver.createRsplineSolver(
+        rsFast = Solver.createRSplineSolver(
             problemDefinition = pd,
             modelBuilder      = BuildLKModel,
             maxIterations     = FAST_MAX_ITERS,
@@ -244,7 +243,7 @@ class SolverAlgorithmsTest {
     @Tag("slow")
     fun rsplineSlowBestSolutionIsFeasibleAfterManyIterations() {
         val pd = makeLKInventoryModelProblemDefinition()
-        val solver = Solver.createRsplineSolver(
+        val solver = Solver.createRSplineSolver(
             problemDefinition = pd,
             modelBuilder      = BuildLKModel,
             maxIterations     = SLOW_MAX_ITERS,

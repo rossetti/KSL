@@ -50,7 +50,7 @@ class RandomRestartConcurrentTest {
             StochasticHillClimber(
                 problemDefinition = pd,
                 evaluator = evaluator,
-                maxIterations = iterations,
+                maximumIterations = iterations,
                 replicationsPerEvaluation = REPS,
                 name = name
             )
@@ -67,7 +67,7 @@ class RandomRestartConcurrentTest {
         val legacyInner = StochasticHillClimber(
             problemDefinition = pdLegacy,
             evaluator = legacyEvaluator,
-            maxIterations = INNER_ITERATIONS,
+            maximumIterations = INNER_ITERATIONS,
             replicationsPerEvaluation = REPS,
             name = "legacy_prototype"
         )
@@ -88,7 +88,7 @@ class RandomRestartConcurrentTest {
                 StochasticHillClimber(
                     problemDefinition = pdFactory,
                     evaluator = e,
-                    maxIterations = INNER_ITERATIONS,
+                    maximumIterations = INNER_ITERATIONS,
                     replicationsPerEvaluation = REPS,
                     name = "legacy_prototype"
                 )
@@ -179,7 +179,7 @@ class RandomRestartConcurrentTest {
         val inner = StochasticHillClimber(
             problemDefinition = pd,
             evaluator = makeEvaluator(pd),
-            maxIterations = INNER_ITERATIONS,
+            maximumIterations = INNER_ITERATIONS,
             replicationsPerEvaluation = REPS
         )
         // With a single restart, the inner solver's last-assigned starting point is
@@ -198,7 +198,7 @@ class RandomRestartConcurrentTest {
         val inner2 = StochasticHillClimber(
             problemDefinition = pd2,
             evaluator = makeEvaluator(pd2),
-            maxIterations = INNER_ITERATIONS,
+            maximumIterations = INNER_ITERATIONS,
             replicationsPerEvaluation = REPS
         )
         val solver2 = RandomRestartSolver(restartingSolver = inner2, maxNumRestarts = 2, streamNum = 1)
@@ -309,7 +309,7 @@ class RandomRestartConcurrentTest {
     @DisplayName("createRandomRestartStochasticHillClimbingSolver supports concurrent restarts")
     fun shcFactorySupportsConcurrentRestarts() {
         val pd = makeLKInventoryModelProblemDefinition()
-        val solver = Solver.createRandomRestartStochasticHillClimbingSolver(
+        val solver = Solver.createRandomRestartStochasticHillClimberSolver(
             problemDefinition = pd,
             modelBuilder = BuildLKModel,
             maxNumRestarts = 3,
@@ -332,7 +332,7 @@ class RandomRestartConcurrentTest {
     fun parallelEvaluationRejectedWithConcurrentRestarts() {
         val pd = makeLKInventoryModelProblemDefinition()
         assertThrows<IllegalArgumentException> {
-            Solver.createRandomRestartStochasticHillClimbingSolver(
+            Solver.createRandomRestartStochasticHillClimberSolver(
                 problemDefinition = pd,
                 modelBuilder = BuildLKModel,
                 maxNumRestarts = 2,

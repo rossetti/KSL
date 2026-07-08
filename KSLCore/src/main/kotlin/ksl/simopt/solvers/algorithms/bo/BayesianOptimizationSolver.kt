@@ -8,7 +8,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.simopt.solvers.Solver.Companion.defaultReplicationsPerEvaluation
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -43,7 +42,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param initialDesign the initial design strategy; defaults to [LatinHyperCubeDesign]
  *  @param incumbentRule the incumbent rule; defaults to [BestPosteriorMeanIncumbent]
  *  @param initialDesignSize the number of initial design points
- *  @param maxIterations the maximum number of BO iterations (after the initial design)
+ *  @param maximumIterations the maximum number of BO iterations (after the initial design)
  *  @param replicationsPerEvaluation strategy to determine the number of replications per evaluation
  *  @param name an optional name for the solver
  */
@@ -59,11 +58,11 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
     initialDesign: InitialDesignIfc = LatinHyperCubeDesign(),
     incumbentRule: IncumbentRuleIfc = BestPosteriorMeanIncumbent(),
     initialDesignSize: Int = defaultInitialDesignSize,
-    maxIterations: Int = boDefaultMaxIterations,
+    maximumIterations: Int = boDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
 ) : StochasticSolver(
-    problemDefinition, evaluator, maxIterations,
+    problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 
@@ -86,13 +85,13 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
         initialDesign: InitialDesignIfc = LatinHyperCubeDesign(),
         incumbentRule: IncumbentRuleIfc = BestPosteriorMeanIncumbent(),
         initialDesignSize: Int = defaultInitialDesignSize,
-        maxIterations: Int = boDefaultMaxIterations,
+        maximumIterations: Int = boDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         name: String? = null
     ) : this(
         problemDefinition, evaluator, streamNum, streamProvider, surrogate, acquisition,
         acquisitionOptimizer, hyperparameterFitter, initialDesign, incumbentRule, initialDesignSize,
-        maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name
+        maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name
     )
 
     /** The surrogate model. Cannot be changed while the solver is running. */
@@ -330,9 +329,9 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
                 field = value
             }
 
-        /** The default maximum number of BO iterations after the initial design. By default, this is 50. */
+        /** The default maximum number of BO iterations after the initial design. By default, this is 100. */
         @JvmStatic
-        var boDefaultMaxIterations: Int = 50
+        var boDefaultMaxIterations: Int = 100
             set(value) {
                 require(value >= 1) { "The default maximum number of iterations must be >= 1" }
                 field = value

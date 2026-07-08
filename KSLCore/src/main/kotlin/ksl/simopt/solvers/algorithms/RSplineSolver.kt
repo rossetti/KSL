@@ -33,7 +33,7 @@ import kotlin.math.floor
  *  The original algorithm used the total number of oracle calls as an approach to stopping the
  *  iterations. Matlab/R implementations did not use this approach, but had a limit on the total
  *  number of R-SPLINE iterations.  The basic implementation of all solvers has such a limit via the
- *  [maxIterations] property. The theory of the approach indicates that each sample-path problem, P_k,
+ *  [maximumIterations] property. The theory of the approach indicates that each sample-path problem, P_k,
  *  is used to seed the next sample path problem. This causes the solutions to the P_k problems to
  *  eventually converge to some solution. The original paper does not provide much insight into
  *  how to compare solutions for stopping. The approach implemented here follows the suggestions
@@ -48,7 +48,7 @@ import kotlin.math.floor
  * @constructor Creates an R-SPLINE solver with the specified parameters.
  * @param problemDefinition the problem being solved.
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
- * @param maxIterations The maximum number of iterations allowed for the solving process.
+ * @param maximumIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
  * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and there
@@ -60,13 +60,13 @@ import kotlin.math.floor
 class RSplineSolver @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    maxIterations: Int = defaultMaxNumberIterations,
+    maximumIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
-) : StochasticSolver(problemDefinition, evaluator, maxIterations,
+) : StochasticSolver(problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
@@ -86,7 +86,7 @@ class RSplineSolver @JvmOverloads constructor(
      * @param problemDefinition the problem being solved.
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param initialNumReps the initial starting number of replications
-     * @param maxIterations The maximum number of iterations allowed for the solving process.
+     * @param maximumIterations The maximum number of iterations allowed for the solving process.
      * @param sampleSizeGrowthRate the growth rate for the replications. The default is set by [defaultReplicationGrowthRate].
      * @param maxNumReplications the maximum number of replications permitted. If
      * the growth exceeds this value, then this value is used for all future replications.
@@ -103,7 +103,7 @@ class RSplineSolver @JvmOverloads constructor(
     constructor(
         problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
-        maxIterations: Int = defaultMaxNumberIterations,
+        maximumIterations: Int = defaultMaxNumberIterations,
         initialNumReps: Int = defaultInitialSampleSize,
         sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
         maxNumReplications: Int = defaultMaxNumReplications,
@@ -112,7 +112,7 @@ class RSplineSolver @JvmOverloads constructor(
         streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         name: String? = null
     ) : this(problemDefinition,
-        evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
+        evaluator, maximumIterations, FixedGrowthRateReplicationSchedule(
             initialNumReps, sampleSizeGrowthRate, maxNumReplications
         ), solutionEqualityChecker, streamNum, streamProvider, name
     )
@@ -724,6 +724,17 @@ class RSplineSolver @JvmOverloads constructor(
         )
 
     companion object {
+
+        /**
+         *  The maximum number of iterations permitted for the main loop for the RSPLINE sovler.
+         *  This must be greater than 0.
+         */
+        @JvmStatic
+        var rSplineDefaultMaxIterations: Int = 100
+            set(value) {
+                require(value >= 1) { "The default RSPLINE maximum number of iterations must be >= 1" }
+                field = value
+            }
 
         /**
          *  The default maximum number of iterations for the line search. It is set to 10.

@@ -314,6 +314,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     }
 
     /**
+     * Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     * [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      * @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPoints(coded: Boolean = false): List<DoubleArray> {
@@ -342,6 +344,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Returns a data frame with columns (point, exp_name, rep_id, factor1, factor2, ..., factorN).
+     * Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     * [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      */
     fun replicatedDesignPointsAsDataFrame(coded: Boolean = false): AnyFrame {
         if (mySimulationRuns.isEmpty()) {
@@ -396,6 +400,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Returns a data frame with one response joined to replicated design points.
+     * Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     * [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      */
     fun replicatedDesignPointsWithResponse(responseName: String, coded: Boolean = false): AnyFrame {
         return replicatedDesignPointsWithResponses(setOf(responseName), coded)
@@ -403,6 +409,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Returns a data frame with selected responses joined to replicated design points.
+     * Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     * [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      */
     fun replicatedDesignPointsWithResponses(
         names: Set<String> = responseNames.toSet(),
@@ -428,6 +436,9 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Returns regression data as a dataframe for the supplied response and linear model.
+     * Defaults to coded (±1) levels, the standard convention for regression on a
+     * designed experiment; the raw-data methods ([replicatedDesignPointsAsDataFrame],
+     * [replicatedDesignPointsWithResponse]) default to `coded = false` instead.
      */
     fun regressionDataAsDataFrame(
         responseName: String,
@@ -441,6 +452,9 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Returns regression data for the supplied response and linear model.
+     * Defaults to coded (±1) levels, the standard convention for regression on a
+     * designed experiment; the raw-data methods ([replicatedDesignPointsAsDataFrame],
+     * [replicatedDesignPointsWithResponse]) default to `coded = false` instead.
      */
     fun regressionData(
         responseName: String,
@@ -454,6 +468,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Performs OLS regression for the supplied response and linear model.
+     * Always uses coded (±1) levels; call the [regressionResults] overload that
+     * takes a `coded` parameter for raw-level regression.
      */
     fun regressionResults(
         responseName: String,
@@ -462,6 +478,9 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Performs OLS regression for the supplied response and linear model.
+     * Defaults to coded (±1) levels, the standard convention for regression on a
+     * designed experiment; the raw-data methods ([replicatedDesignPointsAsDataFrame],
+     * [replicatedDesignPointsWithResponse]) default to `coded = false` instead.
      */
     override fun regressionResults(
         responseName: String,
@@ -864,6 +883,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Writes the joined design-point and response results to a CSV file.
+     * Defaults to raw (uncoded) levels; the regression methods ([regressionData],
+     * [regressionDataAsDataFrame], [regressionResults]) default to `coded = true` instead.
      */
     @JvmOverloads
     fun resultsToCSV(

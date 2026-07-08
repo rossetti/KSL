@@ -170,11 +170,11 @@ open class FactorialDesign @JvmOverloads constructor(
         /**
          *  Creates a two the k factorial design with levels -1 and 1
          *  based on the supplied [names] for each factor. There must
-         *  be at least 2 names supplied.
+         *  be two or more names supplied.
          */
         @JvmStatic
         fun twoToKDesign(names: Set<String>): TwoLevelFactorialDesign {
-            require(names.size > 2) { "There must be at least 2 factors in the design" }
+            require(names.size >= 2) { "There must be 2 or more factors in the design" }
             val set = mutableSetOf<TwoLevelFactor>()
             for (name in names) {
                 set.add(TwoLevelFactor(name))

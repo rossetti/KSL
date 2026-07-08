@@ -70,7 +70,7 @@ class RSplineZeroGradientTest {
         val pd = flatProblem(listOf("x"))
         val solver = RSplineSolver(
             pd, flatEvaluator(pd),
-            maxIterations = 3,
+            maximumIterations = 3,
             replicationsPerEvaluation = FixedGrowthRateReplicationSchedule(initialNumReps = 8),
             name = "rspline1d"
         )
@@ -87,7 +87,7 @@ class RSplineZeroGradientTest {
         val pd = flatProblem(listOf("x1", "x2"))
         val solver = RSplineSolver(
             pd, flatEvaluator(pd),
-            maxIterations = 3,
+            maximumIterations = 3,
             replicationsPerEvaluation = FixedGrowthRateReplicationSchedule(initialNumReps = 8),
             name = "rspline2d"
         )

@@ -88,7 +88,7 @@ internal object BoTestSupport {
             acquisition = acquisition,
             hyperparameterFitter = hyperparameterFitter,
             initialDesignSize = initialDesignSize,
-            maxIterations = maxIterations,
+            maximumIterations = maxIterations,
             replicationsPerEvaluation = replicationsPerEvaluation
         )
     }

@@ -75,14 +75,13 @@ class MemorySolutionCache(
     }
 
     override fun solutions(): Solutions {
-        return Solutions(map.values.toList())
+        return Solutions(map.values.toList(), allowInfeasibleSolutions = allowInfeasibleSolutions)
     }
 
     override fun put(modelInputs: ModelInputs, solution: Solution): Solution? {
         if (!allowCachePuts) return null
         require(modelInputs.inputs == solution.inputMap) { "The supplied input map is not associated with the supplied solution." }
-        //TODO this may be too quiet
-        if (!solution.isInputFeasible()) {
+        if (!allowInfeasibleSolutions && !solution.isInputFeasible()) {
             return null
         }
         if (size == capacity) {
@@ -126,17 +125,18 @@ class MemorySolutionCache(
             }
         }
         // If here, then solutions were deterministically feasible with non-problematic objective function values.
-        // Find the oldest, largest solution to evict.
-        var largestSolValue = Double.MAX_VALUE
+        // Because the problem is converted to minimization, find the worst (maximal value) solution to evict.
+        var max = Double.NEGATIVE_INFINITY
         var candidate: ModelInputs? = null
         for ((inputMap, solution) in map) {
             val possibleMax = solution.penalizedObjFncValue
-            if (possibleMax < largestSolValue) {
+            if (possibleMax > max) {
                 candidate = inputMap
-                largestSolValue = possibleMax
+                max = possibleMax
             }
         }
-        // this should be safe because there must be more than 2 items, and they must be less than MAX_VALUE.
+        // candidate should be the solution with the maximum penalized objective function value
+        // this should be safe because there must be more than 2 items, and they must be greater than negative infinity
         return candidate!!
     }
 

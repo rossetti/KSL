@@ -116,7 +116,7 @@ class ConcurrentSolverRunnerTest {
             StochasticHillClimber(
                 problemDefinition = pd,
                 evaluator = evaluator,
-                maxIterations = iterations,
+                maximumIterations = iterations,
                 replicationsPerEvaluation = 2,
                 streamNum = 1,
                 name = name

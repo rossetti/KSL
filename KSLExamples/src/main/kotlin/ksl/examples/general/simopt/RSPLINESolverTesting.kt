@@ -9,7 +9,7 @@ fun main() {
  //   val modelIdentifier = "LKInventoryModel"
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val solver = Solver.createRsplineSolver(
+    val solver = Solver.createRSplineSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,

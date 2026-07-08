@@ -91,7 +91,7 @@ class InitialTemperatureEstimationTest {
         val randomWalk = RandomWalkSolver(
             problemDefinition = problemDefinition,
             evaluator = evaluator,
-            maxIterations = sampleSize,
+            maximumIterations = sampleSize,
             replicationsPerEvaluation = replicationsPerEvaluation,
             name = "TempEstimationRandomWalk"
         )

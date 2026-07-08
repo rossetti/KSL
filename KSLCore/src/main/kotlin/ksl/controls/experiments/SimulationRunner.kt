@@ -149,6 +149,10 @@ class SimulationRunner(
          * shared by the synchronous runner and the coroutine-aware
          * [ConcurrentSimulationRunner] so controls, random-variable parameters,
          * string controls, and JSON controls cannot drift between execution paths.
+         *
+         * Every key in [SimulationRun.inputs], [SimulationRun.stringInputs], and
+         * [SimulationRun.jsonInputs] is validated against [model]; an unrecognized key
+         * throws `IllegalArgumentException` rather than being silently dropped.
          */
         internal fun setupSimulation(model: Model, simulationRun: SimulationRun) {
             require(model.modelIdentifier == simulationRun.modelIdentifier) {
@@ -157,11 +161,11 @@ class SimulationRunner(
             Model.logger.debug { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
             // apply the run parameters to the model
             model.changeRunParameters(simulationRun.experimentRunParameters)
+            // built lazily: the reflective element-graph walk in Controls(model) is only paid
+            // when at least one of the three input maps below is non-empty
+            val controls: Controls by lazy { model.controls() }
             // stage numeric controls and RV parameters (deferred — applied in setUpExperiment())
             if (simulationRun.inputs.isNotEmpty()) {
-                // need to apply them to the model, could be controls and random variable parameters
-                // get the controls to build what will need to be changed
-                val controls: Controls = model.controls()
                 // get the random variable parameters
                 val tmpSetter = RVParameterSetter(model)
                 val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatChar)
@@ -169,15 +173,18 @@ class SimulationRunner(
                 // and save them for application to the model
                 val controlsMap = mutableMapOf<String, Double>()
                 val rvParamMap = mutableMapOf<String, Double>()
+                val invalidKeys = mutableListOf<String>()
                 for ((keyName, value) in simulationRun.inputs) {
                     if (controls.hasControl(keyName)) {
                         controlsMap[keyName] = value
                     } else if (rvParameters.containsKey(keyName)) {
                         rvParamMap[keyName] = value
                     } else {
-                        // WARN because the user supplied an input that will be silently skipped otherwise
-                        Model.logger.warn { "SimulationRunner: input $keyName was not a control or a random variable parameter" }
+                        invalidKeys.add(keyName)
                     }
+                }
+                require(invalidKeys.isEmpty()) {
+                    "The inputs, ${invalidKeys.joinToString(prefix = "[", postfix = "]")}, contained invalid input names for model ${model.simulationName} (not a control or a random variable parameter)."
                 }
                 if (controlsMap.isNotEmpty()) {
                     // stage numeric controls — applied in setUpExperiment() via controls().setControlsFromMap()
@@ -194,11 +201,19 @@ class SimulationRunner(
             }
             // stage string controls (deferred — applied in setUpExperiment())
             if (simulationRun.stringInputs.isNotEmpty()) {
+                val invalidKeys = simulationRun.stringInputs.keys.filterNot { controls.hasStringControl(it) }
+                require(invalidKeys.isEmpty()) {
+                    "The string inputs, ${invalidKeys.joinToString(prefix = "[", postfix = "]")}, contained invalid input names for model ${model.simulationName} (not a string control)."
+                }
                 model.experimentalStringControls = simulationRun.stringInputs
                 Model.logger.debug { "SimulationRunner: ${simulationRun.stringInputs.size} string controls staged for experiment setup." }
             }
             // stage JSON controls (deferred — applied in setUpExperiment())
             if (simulationRun.jsonInputs.isNotEmpty()) {
+                val invalidKeys = simulationRun.jsonInputs.keys.filterNot { controls.hasJsonControl(it) }
+                require(invalidKeys.isEmpty()) {
+                    "The JSON inputs, ${invalidKeys.joinToString(prefix = "[", postfix = "]")}, contained invalid input names for model ${model.simulationName} (not a JSON control)."
+                }
                 model.experimentalJsonControls = simulationRun.jsonInputs
                 Model.logger.debug { "SimulationRunner: ${simulationRun.jsonInputs.size} JSON controls staged for experiment setup." }
             }

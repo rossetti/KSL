@@ -20,7 +20,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @constructor Creates a stochastic solver with the specified parameters.
  * @param problemDefinition the problem being solved
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
- * @param maxIterations The maximum number of iterations allowed for the solving process.
+ * @param maximumIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider, so each solver has its own streams
@@ -29,12 +29,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 abstract class StochasticSolver(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    maxIterations: Int,
+    maximumIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     val streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     name: String? = null
-) : Solver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, name), RNStreamControlIfc {
+) : Solver(problemDefinition, evaluator, maximumIterations, replicationsPerEvaluation, name), RNStreamControlIfc {
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
@@ -171,7 +171,7 @@ abstract class StochasticSolver(
         val shc = StochasticHillClimber(
             problemDefinition = problemDefinition,
             evaluator = evaluator,
-            maxIterations = maxRandomStartingPoints,
+            maximumIterations = maxRandomStartingPoints,
             replicationsPerEvaluation = replicationsPerRandomStartingPoint,
             // Take a distinct stream from the parent's provider (not the parent's own stream)
             // so the inner search does not collide with the parent solver's stream.

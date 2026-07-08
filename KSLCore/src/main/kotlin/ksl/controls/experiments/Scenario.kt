@@ -354,12 +354,3 @@ class Scenario constructor(
     }
 }
 
-/**
- *  Can be used to supply logic to configure a model prior to simulating a scenario.
- *
- *  Retained for backward compatibility.  New code should use [ScenarioRunner] or
- *  [ConcurrentScenarioRunner] rather than implementing this interface.
- */
-fun interface ScenarioSetupIfc {
-    fun setup(model: Model)
-}

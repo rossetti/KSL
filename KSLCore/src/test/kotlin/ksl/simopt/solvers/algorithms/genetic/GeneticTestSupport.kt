@@ -92,7 +92,7 @@ internal object GeneticTestSupport {
             selectionOperator = selectionOperator,
             crossoverOperator = crossoverOperator,
             mutationOperator = mutationOperator,
-            maxIterations = maxIterations,
+            maximumIterations = maxIterations,
             replicationsPerEvaluation = replicationsPerEvaluation
         )
     }

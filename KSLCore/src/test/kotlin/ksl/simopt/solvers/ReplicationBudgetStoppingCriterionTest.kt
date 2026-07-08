@@ -73,7 +73,7 @@ class ReplicationBudgetStoppingCriterionTest {
         val pd = makeProblem()
         val solver = StochasticHillClimber(
             pd, makeEvaluator(pd),
-            maxIterations = LARGE_ITERATION_CEILING,
+            maximumIterations = LARGE_ITERATION_CEILING,
             replicationsPerEvaluation = repsPerEvaluation
         )
         solver.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(budget)
@@ -97,7 +97,7 @@ class ReplicationBudgetStoppingCriterionTest {
         val measurePd = makeProblem()
         val oneGeneration = CrossEntropySolver(
             measurePd, makeEvaluator(measurePd),
-            maxIterations = 1,
+            maximumIterations = 1,
             replicationsPerEvaluation = 5
         )
         oneGeneration.runAllIterations()
@@ -108,7 +108,7 @@ class ReplicationBudgetStoppingCriterionTest {
         val pd = makeProblem()
         val solver = CrossEntropySolver(
             pd, makeEvaluator(pd),
-            maxIterations = LARGE_ITERATION_CEILING,
+            maximumIterations = LARGE_ITERATION_CEILING,
             replicationsPerEvaluation = 5
         )
         solver.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(budget)
@@ -129,7 +129,7 @@ class ReplicationBudgetStoppingCriterionTest {
         val pd = makeProblem()
         val solver = StochasticHillClimber(
             pd, makeEvaluator(pd),
-            maxIterations = 3,
+            maximumIterations = 3,
             replicationsPerEvaluation = 10
         )
         solver.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(1_000_000)
@@ -144,7 +144,7 @@ class ReplicationBudgetStoppingCriterionTest {
         val pd = makeProblem()
         val solver = StochasticHillClimber(
             pd, makeEvaluator(pd),
-            maxIterations = LARGE_ITERATION_CEILING,
+            maximumIterations = LARGE_ITERATION_CEILING,
             replicationsPerEvaluation = 10
         )
         solver.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(1)
@@ -160,7 +160,7 @@ class ReplicationBudgetStoppingCriterionTest {
             val pd = makeProblem()
             val solver = StochasticHillClimber(
                 pd, makeEvaluator(pd),
-                maxIterations = LARGE_ITERATION_CEILING,
+                maximumIterations = LARGE_ITERATION_CEILING,
                 replicationsPerEvaluation = 10
             )
             solver.solutionQualityEvaluator = criterion

@@ -6,7 +6,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.simopt.solvers.Solver.Companion.defaultReplicationsPerEvaluation
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamProvider
@@ -51,7 +50,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param localPhaseFactory builds a [CompassSolver] for a given seed point; when null a default is used
  *  @param cleanUp the clean-up procedure; when null a default is built from [deltaC]
  *  @param globalBudget an optional replication budget that adds a [BudgetRule] to a default global phase
- *  @param maxIterations the maximum number of orchestration macro-steps
+ *  @param maximumIterations the maximum number of orchestration macro-steps
  *  @param maxLocalPhaseReplications the per-run replication cap for a **default** COMPASS local phase
  *  (see [CompassSolver.maxReplications]); ignored when a [localPhaseFactory] is supplied, since the
  *  factory then owns its solvers. Defaults to [CompassSolver.defaultMaxReplications].
@@ -73,12 +72,12 @@ class ISCSolver @JvmOverloads constructor(
     localPhaseFactory: ((InputMap) -> CompassSolver)? = null,
     cleanUp: CleanUpProcedure? = null,
     globalBudget: Int? = null,
-    maxIterations: Int = iscDefaultMaxIterations,
+    maximumIterations: Int = iscDefaultMaxIterations,
     maxLocalPhaseReplications: Int = CompassSolver.defaultMaxReplications,
     maxCleanUpReplicationsPerSystem: Int = CleanUpProcedure.DEFAULT_MAX_REPLICATIONS_PER_SYSTEM,
     name: String? = null
 ) : StochasticSolver(
-    problemDefinition, evaluator, maxIterations,
+    problemDefinition, evaluator, maximumIterations,
     replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 
@@ -100,14 +99,14 @@ class ISCSolver @JvmOverloads constructor(
         localPhaseFactory: ((InputMap) -> CompassSolver)? = null,
         cleanUp: CleanUpProcedure? = null,
         globalBudget: Int? = null,
-        maxIterations: Int = iscDefaultMaxIterations,
+        maximumIterations: Int = iscDefaultMaxIterations,
         maxLocalPhaseReplications: Int = CompassSolver.defaultMaxReplications,
         maxCleanUpReplicationsPerSystem: Int = CleanUpProcedure.DEFAULT_MAX_REPLICATIONS_PER_SYSTEM,
         name: String? = null
     ) : this(
         problemDefinition, evaluator, streamNum, streamProvider,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation), deltaC, deltaL,
-        skipGlobalPhase, globalPhase, localPhaseFactory, cleanUp, globalBudget, maxIterations,
+        skipGlobalPhase, globalPhase, localPhaseFactory, cleanUp, globalBudget, maximumIterations,
         maxLocalPhaseReplications, maxCleanUpReplicationsPerSystem, name
     )
 
