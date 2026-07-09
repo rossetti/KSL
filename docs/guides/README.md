@@ -65,6 +65,7 @@ scripts and web apps over REST.
 | Guide | What it covers |
 |---|---|
 | [`ksl-server`](ksl-server.md) | Running KSL's capabilities as MCP / REST servers — transports, distributions, the bundle drop-in, securing cross-machine access, and day-2 operation. Operational (shell / HTTP / config), not compile-verified Kotlin. |
+| [`apps/mcp-server`](apps/mcp-server.md) | **Getting started** with the MCP server for an AI assistant (Claude Desktop, Cursor, Codex) — build, connect a client, and a first tool-driven session with real transcripts. The user-facing companion to `ksl-server`. |
 
 ## Random numbers, distributions, statistics
 

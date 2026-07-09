@@ -1,8 +1,10 @@
-# KSL Desktop Application Guides
+# KSL Application Guides
 
-Step-by-step, student-facing user guides for the KSL desktop applications. Each
-guide walks through the app click-by-click with real screenshots and a concrete
-worked example, and shows what the results look like.
+Step-by-step, user-facing guides for the KSL applications. Most are **desktop
+apps** — each guide walks through the app click-by-click with real screenshots, a
+concrete worked example, and what the results look like. The **command-line and
+server** tools (Bundle Tools, MCP Server) use real transcripts instead of
+screenshots.
 
 New to these apps? Read **[Common UI & concepts](common-ui.md)** first — it covers
 the parts every app shares (models & bundles, the workspace, themes, the run
@@ -19,6 +21,19 @@ console, reports), so the individual guides don't repeat them.
 | **[Results](results.md)** | Browse and compare results saved in a simulation database. | ✅ Available |
 | **[Distribution](distribution.md)** | Fit probability distributions to data. | ✅ Available |
 | **[Bundle Tools](bundle-tools.md)** | Package models as loadable bundle JARs (`kslpkg`, command line). | ✅ Available |
+
+## Servers
+
+Prefer to drive KSL from outside a GUI? The server modules expose the same
+capabilities to programs and AI assistants.
+
+| Guide | What it's for | Status |
+|---|---|---|
+| **[MCP Server](mcp-server.md)** | Run and analyze models from an AI assistant (Claude Desktop, Cursor, Codex) over the Model Context Protocol. | ✅ Available |
+| **REST Server** | Drive models over plain HTTP from scripts and web apps. | Planned |
+
+Both share [`../ksl-server.md`](../ksl-server.md) as their operational reference —
+transports, security, configuration, and day-2 operation.
 
 ## How the apps relate
 
