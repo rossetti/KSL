@@ -1160,7 +1160,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun createStochasticHillClimbingSolver(
+        fun createStochasticHillClimberSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
@@ -2348,7 +2348,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun createRandomRestartRsplineSolver(
+        fun createRandomRestartRSplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
