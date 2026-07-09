@@ -268,10 +268,11 @@ class ISCSolver @JvmOverloads constructor(
 
     private fun runCleanUp() {
         if (myLocalOptima.isNotEmpty()) {
-            val survivors = cleanUp.screen(myLocalOptima)
-            val best = cleanUp.select(survivors) { input, n -> requestEvaluation(input, n) }
-            confidenceInterval = cleanUp.estimate(best)
-            currentSolution = best
+            // Hard-filter to the response-feasible local optima, run ranking & selection on that
+            // subset, and fall back to the least-infeasible solution if none are feasible (B1).
+            val result = cleanUp.cleanUp(myLocalOptima) { input, n -> requestEvaluation(input, n) }
+            confidenceInterval = result.confidenceInterval
+            currentSolution = result.best
         }
         phase = Phase.DONE
     }

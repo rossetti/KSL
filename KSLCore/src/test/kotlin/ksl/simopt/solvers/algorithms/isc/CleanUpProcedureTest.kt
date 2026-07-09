@@ -1,6 +1,8 @@
 package ksl.simopt.solvers.algorithms.isc
 
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.statistic.Rinott
@@ -163,5 +165,65 @@ class CleanUpProcedureTest {
         val expectedN = maxOf(n0, ceil((h * sqrt(v) / deltaC).pow(2.0)))
         assertEquals((expectedN - n0).toInt(), requested[survivors[0].inputMap],
             "the Rinott second-stage size must use h at the split confidence 1 - alpha_C/2")
+    }
+
+    // ── B1: clean-up on response-feasible solutions ───────────────────────────
+
+    /** A problem with one response constraint E[g] <= 5. */
+    private fun constrainedProblem(): ProblemDefinition {
+        val p = ProblemDefinition(
+            problemName = "B1",
+            modelIdentifier = "M",
+            objFnResponseName = "y",
+            inputNames = listOf("x"),
+            responseNames = listOf("g")
+        )
+        p.inputVariable("x", lowerBound = 0.0, upperBound = 100.0, granularity = 1.0)
+        p.responseConstraint("g", rhsValue = 5.0, inequalityType = InequalityType.LESS_THAN)
+        return p
+    }
+
+    /** A solution with objective [obj] and a response estimate [g] (low variance so feasibility is clear). */
+    private fun csol(p: ProblemDefinition, x: Double, obj: Double, g: Double): Solution =
+        Solution(
+            p.toInputMap(doubleArrayOf(x)),
+            EstimatedResponse("y", obj, 1.0, 10.0),
+            listOf(EstimatedResponse("g", g, 0.01, 10.0)),
+            1
+        )
+
+    private fun neverCalledSampler(p: ProblemDefinition): (InputMap, Int) -> Solution =
+        { input, n -> Solution(input, EstimatedResponse("y", 0.0, 1.0, n.toDouble().coerceAtLeast(2.0)), emptyList(), 1) }
+
+    @Test
+    fun cleanUpSelectsFromTheResponseFeasibleSubset() {
+        // An infeasible optimum with a LOWER objective must not be returned; ranking happens only
+        // within the response-feasible subset.
+        val p = constrainedProblem()
+        val cleanUp = CleanUpProcedure(p, deltaC = 0.0)
+        val feasibleHigher = csol(p, x = 1.0, obj = 10.0, g = 2.0)   // feasible (g=2 <= 5)
+        val infeasibleLower = csol(p, x = 2.0, obj = 1.0, g = 9.0)   // infeasible (g=9 > 5), lower objective
+        val result = cleanUp.cleanUp(listOf(feasibleHigher, infeasibleLower), neverCalledSampler(p))
+        assertTrue(result.usedFeasibleSubset, "a feasible subset exists and must be used")
+        assertEquals(feasibleHigher.inputMap, result.best.inputMap,
+            "clean-up must select the response-feasible optimum, not the lower-objective infeasible one")
+    }
+
+    @Test
+    fun cleanUpFallsBackToLeastInfeasibleWhenNoneAreFeasible() {
+        // With no response-feasible optimum, return the least-infeasible (minimum total violation)
+        // with a plain CI (not the IZ +/- deltaC), even though another candidate has a lower objective.
+        val p = constrainedProblem()
+        val cleanUp = CleanUpProcedure(p, deltaC = 1.0)
+        val lessInfeasible = csol(p, x = 1.0, obj = 10.0, g = 6.0)   // violation 1, higher objective
+        val moreInfeasible = csol(p, x = 2.0, obj = 1.0, g = 9.0)    // violation 4, lower objective
+        val result = cleanUp.cleanUp(listOf(lessInfeasible, moreInfeasible), neverCalledSampler(p))
+        assertFalse(result.usedFeasibleSubset, "no candidate is response-feasible")
+        assertEquals(lessInfeasible.inputMap, result.best.inputMap,
+            "the fallback returns the least-infeasible (minimum total violation) solution")
+        // Plain t-interval on the objective mean (10 +/- t*s/sqrt(n) with t at 0.975), not 10 +/- deltaC(=1).
+        assertTrue(result.confidenceInterval.width > 0.0, "the fallback CI has positive width")
+        assertTrue(result.confidenceInterval.lowerLimit > 10.0 - 1.0,
+            "the fallback CI must be a plain interval, narrower than the IZ +/- deltaC")
     }
 }
