@@ -95,4 +95,42 @@ class CompassSolverTest {
         assertEquals(target.toList(), best.inputMap.inputValues.toList(),
             "COMPASS with the Kim (2005) local-optimality test should also reach the integer optimum")
     }
+
+    @Test
+    fun rejectsAContinuousProblem() {
+        // COMPASS assumes an integer lattice (unit von Neumann neighborhood); a continuous
+        // (granularity 0) problem must be rejected at construction, mirroring R-SPLINE.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 0.0)
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            CompassSolver(
+                problemDefinition = pd,
+                evaluator = evaluator,
+                streamNum = 1,
+                sampleSize = 4,
+                replicationsPerEvaluation = 3
+            )
+        }
+    }
+
+    @Test
+    fun honorsInheritedStartingPoint() {
+        // The inherited Solver.startingPoint var must be honored (no longer a silent no-op):
+        // with no ISC niche seed set, COMPASS must begin its search at the supplied point.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        val solver = CompassSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            sampleSize = 4,
+            maxIterations = 5,
+            replicationsPerEvaluation = 3
+        )
+        val start = pd.toInputMap(doubleArrayOf(7.0, 2.0))
+        solver.startingPoint = start
+        solver.runAllIterations()
+        assertEquals(start, solver.initialSolution?.inputMap,
+            "COMPASS must begin at the supplied inherited startingPoint")
+    }
 }

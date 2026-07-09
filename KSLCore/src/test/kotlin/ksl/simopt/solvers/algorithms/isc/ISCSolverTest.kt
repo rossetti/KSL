@@ -153,4 +153,43 @@ class ISCSolverTest {
         }
         assertEquals(run().inputMap, run().inputMap, "the same stream number must reproduce the same best inputs")
     }
+
+    @Test
+    fun rejectsAContinuousProblem() {
+        // ISC's COMPASS local phase assumes an integer lattice; a continuous (granularity 0)
+        // problem must be rejected at construction, mirroring R-SPLINE.
+        val pd = IscTestSupport.boxProblem(dim = 1, lb = 0.0, ub = 30.0, granularity = 0.0)
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ISCSolver(
+                problemDefinition = pd,
+                evaluator = evaluator,
+                streamNum = 1,
+                replicationsPerEvaluation = 3,
+                deltaC = 0.0,
+                skipGlobalPhase = true
+            )
+        }
+    }
+
+    @Test
+    fun honorsInheritedStartingPointInUnimodalShortcut() {
+        // The inherited Solver.startingPoint var must be honored (no longer a silent no-op):
+        // the COMPASS-only shortcut must establish its initial incumbent at the supplied point.
+        val pd = problem()
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)
+        val isc = ISCSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            replicationsPerEvaluation = 3,
+            deltaC = 0.0,
+            skipGlobalPhase = true
+        )
+        val start = pd.toInputMap(doubleArrayOf(3.0))
+        isc.startingPoint = start
+        isc.runAllIterations()
+        assertEquals(start, isc.initialSolution?.inputMap,
+            "ISC must establish its initial incumbent at the supplied inherited startingPoint")
+    }
 }

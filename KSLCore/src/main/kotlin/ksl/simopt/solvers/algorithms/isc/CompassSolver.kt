@@ -54,6 +54,10 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  reproducible for a fixed stream number. The best solution found is tracked automatically by the
  *  base class through the [currentSolution] setter.
  *
+ *  **Requires an integer-ordered problem definition.** COMPASS searches an integer lattice — its von
+ *  Neumann neighborhood moves in unit steps — so every input must have granularity 1.0. The
+ *  constructor throws an IllegalArgumentException when the problem is not integer-ordered.
+ *
  *  @param problemDefinition the problem being solved
  *  @param evaluator the evaluator responsible for assessing the quality of solutions
  *  @param streamNum the random number stream number; 0 (the default) means the next available stream
@@ -166,8 +170,10 @@ class CompassSolver @JvmOverloads constructor(
         }
 
     /**
-     *  An explicit starting point (e.g., a niche seed from the ISC global phase). When null, the
-     *  inherited [startingPoint] is used (a random feasible point or the configured generator).
+     *  An explicit starting point (e.g., a niche seed from the ISC global phase). When set, it takes
+     *  precedence over the inherited `startingPoint`. When `seed` is null, the inherited `startingPoint`
+     *  is used if it was supplied; otherwise the `startingPoint()` function provides a random feasible
+     *  point or the configured generator's point.
      */
     var seed: InputMap? = null
 
@@ -198,6 +204,9 @@ class CompassSolver @JvmOverloads constructor(
         get() = sampleBest
 
     init {
+        require(problemDefinition.isIntegerOrdered) {
+            "COMPASS requires that the problem definition be integer ordered!"
+        }
         require(sampleSize >= 1) { "The MPA sample size must be >= 1" }
         require(pruneEvery >= 1) { "pruneEvery must be >= 1" }
         require(deltaL >= 0.0) { "deltaL must be >= 0" }
@@ -223,7 +232,9 @@ class CompassSolver @JvmOverloads constructor(
     override fun initializeIterations() {
         visited.clear()
         compassIteration = 0
-        val start = seed ?: startingPoint()
+        // Precedence: an explicit seed (ISC niche seed), then a user-supplied startingPoint
+        // (the inherited Solver contract), then the generated/random startingPoint() function.
+        val start = seed ?: startingPoint ?: startingPoint()
         val startSolution = requestEvaluation(start)
         recordEvaluation(startSolution)
         sampleBest = visited.getValue(startSolution.inputMap)

@@ -19,6 +19,10 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  [CleanUpProcedure] as a phase state machine: each [mainIteration] advances one macro-step (run the
  *  global phase, run one local search, or finish with clean-up).
  *
+ *  **Requires an integer-ordered problem definition.** ISC's COMPASS local phase searches an integer
+ *  lattice (unit-step neighborhood), so every input must have granularity 1.0. The constructor throws
+ *  an IllegalArgumentException when the problem is not integer-ordered.
+ *
  *  **Indifference zones and graceful degradation.** A single user parameter [deltaC] drives the
  *  statistical guarantees, with [deltaL] (COMPASS local-optimality) defaulting to it:
  *
@@ -111,6 +115,9 @@ class ISCSolver @JvmOverloads constructor(
     )
 
     init {
+        require(problemDefinition.isIntegerOrdered) {
+            "ISC requires that the problem definition be integer ordered (its COMPASS local phase assumes an integer lattice)!"
+        }
         require(deltaC >= 0.0) { "deltaC must be >= 0" }
         require(deltaL >= 0.0) { "deltaL must be >= 0" }
     }
@@ -202,7 +209,9 @@ class ISCSolver @JvmOverloads constructor(
         activeGlobalPhase = if (skipGlobalPhase) null else (providedGlobalPhase ?: buildDefaultGlobalPhase())
 
         // Establish an initial incumbent so the base class has a current solution.
-        val start = startingPoint()
+        // Honor a user-supplied startingPoint (the inherited Solver contract) before
+        // falling back to the generated/random startingPoint() function.
+        val start = startingPoint ?: startingPoint()
         val startSolution = requestEvaluation(start)
         myInitialSolution = startSolution
         currentSolution = startSolution
@@ -233,7 +242,7 @@ class ISCSolver @JvmOverloads constructor(
         currentSolution = nga.bestSolution
         val seeds = nga.niches.map { it.center.inputMap }
         if (seeds.isEmpty()) {
-            seedQueue.add(startingPoint())
+            seedQueue.add(startingPoint ?: startingPoint())
         } else {
             seedQueue.addAll(seeds)
         }
