@@ -232,6 +232,10 @@ class CompassSolver @JvmOverloads constructor(
         neighborhood.neighborhood(center, this).filter { it != center && it.isInputFeasible() }
 
     override fun initializeIterations() {
+        // D1: begin each run with a fresh evaluation/penalty clock (the base Solver contract) so a
+        // re-run of the same instance is reproducible; this override otherwise never reset it. Each
+        // COMPASS local search (standalone or per ISC niche seed) thus starts its penalty ramp fresh.
+        evaluator.resetEvaluationClock()
         visited.clear()
         compassIteration = 0
         // Precedence: an explicit seed (ISC niche seed), then a user-supplied startingPoint

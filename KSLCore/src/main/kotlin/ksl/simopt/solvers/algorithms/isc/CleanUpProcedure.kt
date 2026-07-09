@@ -195,6 +195,11 @@ class CleanUpProcedure(
      *  this is the indifference-zone interval `ḡ(x_B) ± δ_C` (the correct-selection precision target).
      *  With `deltaC == 0` it is an ordinary two-sided Student-t confidence interval on the mean at
      *  level [oneMinusAlphaC].
+     *
+     *  **Best-effort when the Rinott cap binds (D4).** The `± δ_C` interval is the *target* precision;
+     *  when [select] has to clamp a survivor's second-stage size at [maxReplicationsPerSystem] (logged
+     *  as a warning), the precision actually achieved is coarser than `δ_C`, so a reported `± δ_C` is
+     *  optimistic. Raise [maxReplicationsPerSystem] or `δ_C` to restore the exact interval.
      */
     fun estimate(best: Solution): Interval {
         if (hasIndifferenceZone) {

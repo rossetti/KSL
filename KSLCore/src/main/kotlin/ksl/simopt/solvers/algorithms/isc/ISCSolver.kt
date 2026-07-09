@@ -42,6 +42,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  The best solution found is tracked automatically by the base class through [currentSolution]; the
  *  selected best and its [confidenceInterval] are finalized by the clean-up phase.
  *
+ *  **Reading the result (D2).** For ISC, read the answer from [currentSolution] together with
+ *  [confidenceInterval] — that pair is the clean-up-selected best and its interval. The generic
+ *  `Solver.bestSolution` returns the minimum *penalized point estimate* across every solution the run
+ *  produced (including unconfirmed niching-GA population members), which can differ from — and is less
+ *  trustworthy than — the ranking-and-selection winner that [confidenceInterval] describes.
+ *
  *  @param problemDefinition the problem being solved
  *  @param evaluator the evaluator responsible for assessing the quality of solutions
  *  @param streamNum the random number stream number; 0 (the default) means the next available stream
@@ -202,6 +208,9 @@ class ISCSolver @JvmOverloads constructor(
     }
 
     override fun initializeIterations() {
+        // D1: begin each ISC run with a fresh evaluation/penalty clock so re-running the same
+        // instance is reproducible (the base Solver contract, bypassed by this override).
+        evaluator.resetEvaluationClock()
         phase = if (skipGlobalPhase) Phase.LOCAL else Phase.GLOBAL
         seedQueue.clear()
         myLocalOptima.clear()
@@ -288,6 +297,14 @@ class ISCSolver @JvmOverloads constructor(
         // Finalize with clean-up if the iteration cap interrupted the orchestration mid-stream.
         if (phase != Phase.DONE && myLocalOptima.isNotEmpty()) {
             runCleanUp()
+        }
+        // D3: guarantee a finite confidence interval even when no clean-up ran (e.g. maxIterations
+        // too small to reach the local phase). The default Interval() is (-inf, +inf), which would
+        // otherwise leak into extractSolverSpecificState; report a point interval at the incumbent's
+        // objective instead.
+        if (!confidenceInterval.lowerLimit.isFinite() || !confidenceInterval.upperLimit.isFinite()) {
+            val obj = currentSolution.estimatedObjFncValue
+            confidenceInterval = if (obj.isFinite()) Interval(obj, obj) else Interval(0.0, 0.0)
         }
     }
 

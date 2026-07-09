@@ -188,4 +188,22 @@ class CompassSolverTest {
         val explicit = CompassSolver(problemDefinition = pd, evaluator = evaluator, streamNum = 1, deltaL = 0.0)
         assertEquals(0.0, explicit.deltaL, 0.0, "an explicit deltaL = 0.0 still selects degraded mode")
     }
+
+    @Test
+    fun initializeResetsTheEvaluationClock() {
+        // D1: initializeIterations must reset the evaluator's clock (the base Solver contract this
+        // override otherwise bypassed) so a re-run of the same instance is reproducible.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        val base = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        var resets = 0
+        val evaluator = object : EvaluatorIfc by base {
+            override fun resetEvaluationClock() { resets++; base.resetEvaluationClock() }
+        }
+        val solver = CompassSolver(
+            problemDefinition = pd, evaluator = evaluator, streamNum = 1,
+            maxIterations = 5, replicationsPerEvaluation = 3
+        )
+        solver.runAllIterations()
+        assertTrue(resets >= 1, "CompassSolver.initializeIterations must reset the evaluation clock (D1)")
+    }
 }
