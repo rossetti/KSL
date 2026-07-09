@@ -3,10 +3,14 @@ package ksl.simopt.solvers.algorithms.isc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.utilities.statistic.Rinott
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.math.ceil
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  *  Unit tests for [CleanUpProcedure]: subset-selection screening, indifference-zone vs. degraded
@@ -120,5 +124,44 @@ class CleanUpProcedureTest {
         val ci = CleanUpProcedure(pd, deltaC = 0.0).estimate(best)
         assertTrue(ci.lowerLimit < 7.0 && ci.upperLimit > 7.0, "the t-interval must straddle the mean")
         assertTrue(ci.width > 0.0, "the degraded interval must have positive width")
+    }
+
+    @Test
+    fun screeningUsesTheSplitConfidence() {
+        // A1: the subset-selection screen must run at confidence 1 - alpha_C/2 (half of alpha_C; the
+        // other half funds Rinott selection). With alpha_C = 0.05 the per-comparison t is at 0.975
+        // (t_9 ~ 2.262, band ~ 1.012), not 0.95 (t_9 ~ 1.833, band ~ 0.820). SE = sqrt(1/10+1/10).
+        // A candidate 0.9 above the best is inside the split band but outside the old (full-alpha) one.
+        val cleanUp = CleanUpProcedure(pd, deltaC = 1.0, oneMinusAlphaC = 0.95)
+        val best = sol(0.0, fx = 0.0, variance = 1.0, count = 10.0)
+        val marginal = sol(1.0, fx = 0.9, variance = 1.0, count = 10.0)
+        val retained = cleanUp.screen(listOf(best, marginal))
+        assertTrue(retained.any { it.inputMap == marginal.inputMap },
+            "the split-confidence (1 - alpha_C/2) screen must retain a candidate inside its wider band")
+        assertEquals(2, retained.size, "both candidates survive the split-confidence screen")
+    }
+
+    @Test
+    fun rinottSecondStageUsesTheSplitConfidence() {
+        // A1: the Rinott second stage must use h at confidence 1 - alpha_C/2. Pin the requested
+        // second-stage size N_i = max(n0, ceil((h*S/deltaC)^2)) against a hand-computed h at 0.975.
+        val deltaC = 1.0
+        val oneMinusAlpha = 0.95
+        val n0 = 10.0
+        val v = 4.0
+        val cleanUp = CleanUpProcedure(pd, deltaC = deltaC, oneMinusAlphaC = oneMinusAlpha)
+        val survivors = listOf(
+            sol(0.0, fx = 5.0, variance = v, count = n0),
+            sol(1.0, fx = 5.2, variance = v, count = n0)
+        )
+        val requested = HashMap<InputMap, Int>()
+        cleanUp.select(survivors) { input, nAdd ->
+            requested[input] = nAdd
+            IscTestSupport.solutionWith(pd, input.inputValues, 5.0, nAdd.toDouble().coerceAtLeast(2.0))
+        }
+        val h = Rinott().rinottConstant(2, (1.0 + oneMinusAlpha) / 2.0, n0.toInt() - 1)
+        val expectedN = maxOf(n0, ceil((h * sqrt(v) / deltaC).pow(2.0)))
+        assertEquals((expectedN - n0).toInt(), requested[survivors[0].inputMap],
+            "the Rinott second-stage size must use h at the split confidence 1 - alpha_C/2")
     }
 }

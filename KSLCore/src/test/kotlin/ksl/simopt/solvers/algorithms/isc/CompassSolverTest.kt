@@ -173,4 +173,19 @@ class CompassSolverTest {
                     "(${served[inputMap]}) for $inputMap — a double-count corrupts clean-up's inputs")
         }
     }
+
+    @Test
+    fun standaloneDeltaLDefaultsToTheProblemIndifferenceZone() {
+        // A4: a directly-constructed CompassSolver must default deltaL to the problem's
+        // indifference-zone parameter (ISC appendix Table III: delta_L default = delta_C), not the
+        // old hardcoded 0.0 which silently ran degraded mode on a positive-IZ problem.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        pd.indifferenceZoneParameter = 2.0
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        val defaulted = CompassSolver(problemDefinition = pd, evaluator = evaluator, streamNum = 1)
+        assertEquals(2.0, defaulted.deltaL, 0.0,
+            "deltaL must default to the problem's indifference-zone parameter")
+        val explicit = CompassSolver(problemDefinition = pd, evaluator = evaluator, streamNum = 1, deltaL = 0.0)
+        assertEquals(0.0, explicit.deltaL, 0.0, "an explicit deltaL = 0.0 still selects degraded mode")
+    }
 }

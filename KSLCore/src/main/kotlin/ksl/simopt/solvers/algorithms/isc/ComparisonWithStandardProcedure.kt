@@ -13,12 +13,16 @@ import kotlin.math.pow
  *  locally optimal
  *  @param winner the selected system: the standard when [standardIsBest] is true, otherwise the
  *  alternative judged better than the standard
+ *  @param finalStandard the standard system with all of the replications it accumulated during the
+ *  test (equal to [winner] when [standardIsBest] is true). Callers should write this back so the
+ *  standard's extra observations are not discarded when an alternative wins.
  *  @param observations the total number of replications each system carried at termination, keyed by
  *  input point (the standard included)
  */
 data class StandardComparisonResult(
     val standardIsBest: Boolean,
     val winner: Solution,
+    val finalStandard: Solution,
     val observations: Map<InputMap, Int>
 )
 
@@ -100,7 +104,7 @@ class ComparisonWithStandardProcedure(
         merge: (Solution, Solution) -> Solution
     ): StandardComparisonResult {
         if (alternatives.isEmpty()) {
-            return StandardComparisonResult(true, standard, mapOf(standard.inputMap to standard.count.toInt()))
+            return StandardComparisonResult(true, standard, standard, mapOf(standard.inputMap to standard.count.toInt()))
         }
         val k = alternatives.size
         val beta = alpha / k
@@ -109,10 +113,10 @@ class ComparisonWithStandardProcedure(
 
         var std = standard
         val alts = alternatives.toMutableList()
-        // First-stage difference variance per alternative, estimated from paired first-stage means is
-        // not available without per-replication pairing; use the pooled variance of standard and the
-        // alternative as a conservative S^2_i (independent-sampling form).
-        val sVar = DoubleArray(k) { i -> max(varianceOf(std), varianceOf(alts[i])) }
+        // First-stage variance of the difference S^2_i (Kim 2005; ISC appendix eq. 9). COMPASS
+        // evaluates neighbors independently (no CRN), so the difference variance is the SUM of the
+        // two per-system variances, not their max.
+        val sVar = DoubleArray(k) { i -> differenceVariance(std, alts[i]) }
         val active = (0 until k).toMutableSet()
         var winnerAlt: Solution? = null
 
@@ -156,11 +160,18 @@ class ComparisonWithStandardProcedure(
         for (i in 0 until k) observations[alts[i].inputMap] = alts[i].count.toInt()
 
         return if (winnerAlt == null) {
-            StandardComparisonResult(true, std, observations)
+            StandardComparisonResult(true, std, std, observations)
         } else {
-            StandardComparisonResult(false, winnerAlt, observations)
+            StandardComparisonResult(false, winnerAlt, std, observations)
         }
     }
+
+    /**
+     *  The first-stage sample variance of the difference between two systems, `S^2_i` in Kim (2005)
+     *  and the ISC appendix (eq. 9). Under independent sampling (COMPASS does not use CRN for
+     *  neighbors) `Var(a - b) = Var(a) + Var(b)`.
+     */
+    internal fun differenceVariance(a: Solution, b: Solution): Double = varianceOf(a) + varianceOf(b)
 
     private fun varianceOf(s: Solution): Double {
         val v = s.estimatedObjFnc.variance

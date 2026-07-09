@@ -10,6 +10,7 @@ import ksl.utilities.distributions.StudentT
 import ksl.utilities.statistic.Rinott
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
@@ -91,8 +92,11 @@ class CleanUpProcedure(
     fun screen(candidates: List<Solution>): List<Solution> {
         if (candidates.size <= 1) return candidates
         val k = candidates.size
-        val alpha = 1.0 - oneMinusAlphaC
-        val p = 1.0 - alpha / (k - 1.0)
+        // Split α_C: α_C/2 to this subset-selection screen and α_C/2 to the Rinott selection so the
+        // joint correct-selection is 1 − α_C (Xu/Nelson/Hong ISC appendix, Algorithm 9). The
+        // per-comparison confidence is the Šidák-adjusted (1 − α_C/2)^{1/(|L|−1)}.
+        val confC = (1.0 + oneMinusAlphaC) / 2.0   // 1 − α_C/2
+        val p = confC.pow(1.0 / (k - 1.0))
         val retained = ArrayList<Solution>(k)
         for (i in candidates.indices) {
             val si = candidates[i]
@@ -149,7 +153,10 @@ class CleanUpProcedure(
             // Not enough first-stage replications for the Rinott constant: degrade to the sample-best.
             return survivors.minByOrNull { mean(it) }!!
         }
-        val h = Rinott().rinottConstant(k, oneMinusAlphaC, dof)
+        // Rinott stage at confidence 1 − α_C/2 (the other half of the split; see screen()) so the
+        // combined screen + select correct-selection is 1 − α_C (ISC appendix, Algorithm 9).
+        val confC = (1.0 + oneMinusAlphaC) / 2.0
+        val h = Rinott().rinottConstant(k, confC, dof)
         if (h.isNaN()) {
             return survivors.minByOrNull { mean(it) }!!
         }
