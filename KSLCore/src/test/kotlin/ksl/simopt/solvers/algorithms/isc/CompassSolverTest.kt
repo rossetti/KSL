@@ -1,5 +1,10 @@
 package ksl.simopt.solvers.algorithms.isc
 
+import ksl.simopt.evaluator.EvaluationRequest
+import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -132,5 +137,40 @@ class CompassSolverTest {
         solver.runAllIterations()
         assertEquals(start, solver.initialSolution?.inputMap,
             "COMPASS must begin at the supplied inherited startingPoint")
+    }
+
+    @Test
+    fun localOptimalityTestDoesNotDoubleCountReplications() {
+        // Regression (A3): after the Kim local-optimality test, the winner was merged back into
+        // `visited` even though it already carried its accumulated replications, doubling its
+        // pre-test count (2*prior + additional). Invariant: no visited solution may carry more
+        // replications than the evaluator actually served for that point. deltaL > 0 forces the
+        // local-optimality test to run (and write a winner back). A wrapping evaluator records the
+        // per-point served counts.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        val base = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        val served = HashMap<InputMap, Double>()
+        val evaluator = object : EvaluatorIfc by base {
+            override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
+                val result = base.evaluate(evaluationRequest)
+                for ((_, sol) in result) served.merge(sol.inputMap, sol.count) { a, b -> a + b }
+                return result
+            }
+        }
+        val solver = CompassSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            sampleSize = 4,
+            deltaL = 1.0,
+            maxIterations = 100,
+            replicationsPerEvaluation = 3
+        )
+        solver.runAllIterations()
+        for ((inputMap, sol) in solver.visitedSolutions) {
+            assertTrue(sol.count <= served.getOrDefault(inputMap, 0.0) + 1e-6,
+                "visited replications (${sol.count}) must not exceed the served count " +
+                    "(${served[inputMap]}) for $inputMap — a double-count corrupts clean-up's inputs")
+        }
     }
 }

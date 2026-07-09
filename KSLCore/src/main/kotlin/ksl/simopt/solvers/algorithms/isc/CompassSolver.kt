@@ -324,8 +324,12 @@ class CompassSolver @JvmOverloads constructor(
             sampleOneMore = { input -> requestEvaluation(input, 1) },
             merge = ::mergeSolutions
         )
-        // Reflect any additional sampling done by the test back into the visited set.
-        recordEvaluation(result.winner)
+        // The test returns result.winner already carrying its accumulated (prior + test-additional)
+        // replications, so REPLACE the visited entry rather than merge it. recordEvaluation() would
+        // merge the winner with its still-present prior visited entry, pooling the prior samples a
+        // second time (count -> 2*prior + additional) and corrupting the mean/variance that the
+        // clean-up ranking & selection depends on.
+        visited[result.winner.inputMap] = result.winner
         return if (result.standardIsBest) {
             true
         } else {
