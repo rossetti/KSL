@@ -35,7 +35,7 @@ java -version   # must report 21.x
 
 > **New in this release.** The server stack (`KSLServiceCore`, `KSLServerMcp`,
 > `KSLServerRest`) is a recent addition. Its model-delivery mechanism — bundle
-> jars in your `KSLWork` workspace — is the same one the desktop apps use.
+> jars in `~/.ksl/bundles` — is the same one the desktop apps use.
 
 ---
 
@@ -50,8 +50,7 @@ and bundle directory, and report the same build version.
 **Bundles are how your models reach a server.** A *bundle* is a small jar
 containing a class that implements `KSLModelBundle` and lists the models it
 provides. A running server **auto-loads** any bundle jar dropped into
-`KSL_BUNDLES_DIR` (by default `<KSLWork>/KSLServer/bundles`, where `KSLWork` is
-`~/Documents/KSLWork` or `~/KSLWork`), rescanning every ~5 s — no
+`KSL_BUNDLES_DIR` (`~/.ksl/bundles` by default), rescanning every ~5 s — no
 restart. If two jars declare the same `bundleId`, the catalog keeps **one** entry
 and the **newest build wins**.
 
@@ -77,8 +76,8 @@ command-line experience? Use the fully step-by-step recipe in
 #   -> KSLExamples/build/libs/mm1-sample.jar
 
 # 2. Drop the model where the server looks:
-mkdir -p ~/Documents/KSLWork/KSLServer/bundles
-cp KSLExamples/build/libs/mm1-sample.jar ~/Documents/KSLWork/KSLServer/bundles/
+mkdir -p ~/.ksl/bundles
+cp KSLExamples/build/libs/mm1-sample.jar ~/.ksl/bundles/
 
 # 3. Start the server (Ctrl-C to stop):
 ./KSLServerRest/build/install/KSLServerRest/bin/KSLServerRest
@@ -135,7 +134,7 @@ the `KSLServerMcp` launcher:
     "ksl": {
       "command": "/absolute/path/to/KSLServerMcp-1.0.0/bin/KSLServerMcp",
       "args": [],
-      "env": { "KSL_BUNDLES_DIR": "/home/you/Documents/KSLWork/KSLServer/bundles" }
+      "env": { "KSL_BUNDLES_DIR": "/home/you/.ksl/bundles" }
     }
   }
 }
@@ -234,7 +233,7 @@ META-INF/services/ksl.app.bundle.KSLModelBundle
 running server picks it up within its poll interval, no restart:
 
 ```bash
-cp my-model.jar ~/Documents/KSLWork/KSLServer/bundles/   # appears within ~5 s
+cp my-model.jar ~/.ksl/bundles/        # appears within ~5 s
 curl -s http://127.0.0.1:8080/bundles  # confirm it loaded
 ```
 
@@ -278,12 +277,12 @@ then "Extract All"), or on Linux `cd ~/Downloads && unzip KSLServerRest-1.0.0.zi
 
 ```bash
 # macOS / Linux:
-mkdir -p ~/Documents/KSLWork/KSLServer/bundles && cp ~/Downloads/mm1-sample.jar ~/Documents/KSLWork/KSLServer/bundles/
+mkdir -p ~/.ksl/bundles && cp ~/Downloads/mm1-sample.jar ~/.ksl/bundles/
 ```
 ```powershell
 # Windows (PowerShell):
-New-Item -ItemType Directory -Force "$HOME\Documents\KSLWork\KSLServer\bundles"
-Copy-Item "$HOME\Downloads\mm1-sample.jar" "$HOME\Documents\KSLWork\KSLServer\bundles\"
+New-Item -ItemType Directory -Force "$HOME\.ksl\bundles"
+Copy-Item "$HOME\Downloads\mm1-sample.jar" "$HOME\.ksl\bundles\"
 ```
 
 ✅ no error.
@@ -445,7 +444,7 @@ each overridable by an environment variable; config and env are read at
 | Env var | Overrides | Default |
 |---|---|---|
 | `KSL_CONFIG_FILE` | path to the config file | `~/.ksl/config.toml` |
-| `KSL_BUNDLES_DIR` | where bundles are discovered/watched | `<KSLWork>/KSLServer/bundles` (+ `<KSLWork>/bundles`) |
+| `KSL_BUNDLES_DIR` | where bundles are discovered/watched | `~/.ksl/bundles` |
 | `KSL_RESULT_CACHE_DIR` | where run results are cached | `~/.ksl/result-cache` |
 | `KSL_BIND_HOST` | HTTP bind interface | `127.0.0.1` (localhost only) |
 | `KSL_REST_PORT` | REST listen port | `8080` |

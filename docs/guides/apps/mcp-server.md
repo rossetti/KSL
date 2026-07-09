@@ -11,10 +11,9 @@ variates. You talk to the assistant in plain language; it drives KSL for you.
 > bundle below. Unlike the desktop-app guides, this one is a *server* an AI client
 > drives, so the examples are **real command and tool transcripts**, not screenshots.
 >
-> For the deep end — securing cross-machine access, day-2 operation, the full config
-> reference, and the **REST** transport — see the operational companion
-> [`../ksl-server.md`](../ksl-server.md). New to model bundles? See
-> [Bundle Tools](bundle-tools.md).
+> New to model bundles? See [Bundle Tools](bundle-tools.md). This guide covers a
+> local, single-user setup; [§3](#3-connect-your-ai-client) has a short note on
+> exposing the server over a network.
 
 ## What you'll be able to do
 
@@ -40,8 +39,8 @@ what you ask it.
 | **stdio** | one AI client on your machine (Claude Desktop, Cursor, Codex) | the **client launches** the server as a subprocess | none — stdin/stdout |
 | **HTTP / SSE** | a standing server, or remote / multiple clients | **you run it**; it stays up | `http://127.0.0.1:3001` |
 
-Most people want **stdio** — skip to [§3](#3-connect-your-ai-client). HTTP is covered
-briefly there and in depth in [`../ksl-server.md`](../ksl-server.md).
+Most people want **stdio** — skip to [§3](#3-connect-your-ai-client). HTTP is
+summarized there too.
 
 **What the assistant can do** — the tools group into capability areas:
 
@@ -68,7 +67,7 @@ The full tool list is in [§5](#5-reference). When in doubt, ask the assistant t
 | Use **the MCP server** when… | Use a sibling when… |
 |---|---|
 | You want an **AI assistant** to run and explain models conversationally. | You want a hands-on GUI → the [desktop apps](README.md) (Single, Scenario, …) |
-| You're exploring, and want the assistant to pick the right KSL workflow. | You want to script runs from a shell or web app → **REST** ([`../ksl-server.md`](../ksl-server.md)) |
+| You're exploring, and want the assistant to pick the right KSL workflow. | You want to script runs from a shell or web app → the **REST** server (a sibling transport) |
 
 ---
 
@@ -210,9 +209,13 @@ curl -s http://127.0.0.1:3001/health
 # {"status":"UP","service":"ksl-mcp","version":"1.0.0"}
 ```
 
-Binding to a LAN address, bearer-token auth, and firewalling are covered in
-[`../ksl-server.md`](../ksl-server.md) — do **not** expose the server on an untrusted
-network without reading it.
+> **Exposing it on a network — read this first.** By default the HTTP server binds
+> `127.0.0.1` (local only) with **no authentication**. To reach it from another
+> machine, set `KSL_BIND_HOST=0.0.0.0` and require a bearer token with
+> `KSL_AUTH_TOKEN=<secret>` — clients then send `Authorization: Bearer <secret>`
+> (the `/health`, `/ready`, `/version` probes stay open). There is **no TLS**, so on
+> an untrusted network put the server behind an SSH tunnel or a reverse proxy. Never
+> expose it unauthenticated.
 
 ---
 
@@ -370,8 +373,9 @@ defaults. The most-used knobs:
 | `KSL_AUTH_TOKEN` | *(none)* | when set, HTTP requires `Authorization: Bearer <token>` |
 | `KSL_RUN_TIMEOUT_SECONDS` | `0` (no limit) | cap on a single run |
 
-The complete config table, HTTP endpoint reference, and security options are in
-[`../ksl-server.md`](../ksl-server.md).
+Every knob has a `KSL_*` environment override (shown) and a `~/.ksl/config.toml`
+equivalent; other settings there include the result cache and `maxConcurrentJobs`
+(default: one per CPU core).
 
 ---
 
@@ -387,8 +391,8 @@ The complete config table, HTTP endpoint reference, and security options are in
 | Save a config to reuse | ask it to `save_document` (and `load_document` next session) |
 | Check the server is healthy | `ksl-mcp.jar --doctor` (stdio) or `curl .../health` (HTTP) |
 
-Securing cross-machine access and day-2 operation (backgrounding, logs, clearing the
-result cache, upgrades) live in [`../ksl-server.md`](../ksl-server.md).
+To reach the server from another machine, see the security note in
+[§3](#3-connect-your-ai-client).
 
 ---
 
@@ -401,7 +405,7 @@ result cache, upgrades) live in [`../ksl-server.md`](../ksl-server.md).
 | Bundle jar present but not found | It's in the wrong directory (the default is under **`KSLWork`**, not `~/.ksl`), or it bundled KSLCore. | Put it in `<KSLWork>/KSLServer/bundles/` (check `--doctor`'s reported path); a bundle must **not** package KSLCore. |
 | The client shows garbled output / protocol errors (stdio) | A bundled model printed to **stdout**, which is the MCP channel. | Never `println` in a bundled model; use logging (stderr) instead. |
 | `UnsupportedClassVersion` on launch | Wrong Java. | Use JDK 21 (`java -version`). |
-| HTTP: port in use, `401`, or `/ready` returns `503` | Port conflict, missing/invalid bearer token, or the first bundle scan hasn't finished. | See the troubleshooting table in [`../ksl-server.md`](../ksl-server.md). |
+| HTTP: port in use, `401`, or `/ready` returns `503` | Port conflict, missing/invalid bearer token, or the first bundle scan hasn't finished. | Change `KSL_MCP_PORT`; check the `Authorization: Bearer` token; or just retry — `/ready` is `503` only until the first bundle scan completes. |
 | *"server is at capacity"* | Too many concurrent jobs. | Raise `server.maxConcurrentJobs`, or retry. |
 | A run never finishes | An unbounded model. | Set `KSL_RUN_TIMEOUT_SECONDS`. |
 
@@ -409,9 +413,8 @@ result cache, upgrades) live in [`../ksl-server.md`](../ksl-server.md).
 
 ## 8. See also
 
-- [`../ksl-server.md`](../ksl-server.md) — the operational companion: securing
-  cross-machine access, day-2 operation, the full config/endpoint reference, and the
-  **REST** transport. Treat it as this guide's deep end.
+- The **REST server** — a sibling transport that drives the same models over plain
+  HTTP for scripts and web apps (user guide planned).
 - [Bundle Tools](bundle-tools.md) — package your own models into loadable bundles (`kslpkg`).
 - The desktop app guides — [Single](single.md), [Scenario](scenario.md),
   [Experiment](experiment.md), [Simopt](simopt.md), [Results](results.md),

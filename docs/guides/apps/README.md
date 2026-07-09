@@ -32,9 +32,6 @@ capabilities to programs and AI assistants.
 | **[MCP Server](mcp-server.md)** | Run and analyze models from an AI assistant (Claude Desktop, Cursor, Codex) over the Model Context Protocol. | ✅ Available |
 | **REST Server** | Drive models over plain HTTP from scripts and web apps. | Planned |
 
-Both share [`../ksl-server.md`](../ksl-server.md) as their operational reference —
-transports, security, configuration, and day-2 operation.
-
 ## How the apps relate
 
 ```mermaid
