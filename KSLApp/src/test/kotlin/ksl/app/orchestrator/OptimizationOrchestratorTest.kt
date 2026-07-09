@@ -39,7 +39,7 @@ class OptimizationOrchestratorTest {
 
     private fun buildSolver(): Solver {
         val problemDef = makeLKInventoryModelProblemDefinition()
-        return Solver.createStochasticHillClimbingSolver(
+        return Solver.createStochasticHillClimberSolver(
             problemDefinition = problemDef,
             modelBuilder = fastBuilder,
             maxIterations = 3,

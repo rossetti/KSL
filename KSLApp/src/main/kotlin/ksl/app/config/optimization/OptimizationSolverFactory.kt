@@ -184,7 +184,7 @@ class OptimizationSolverFactory(
         return when (spec) {
             is SolverSpec.StochasticHillClimbing ->
                 if (spec.randomRestart == null)
-                    Solver.createStochasticHillClimbingSolver(
+                    Solver.createStochasticHillClimberSolver(
                         problemDefinition         = problem,
                         modelBuilder              = builder,
                         startingPoint             = starting,
@@ -314,7 +314,7 @@ class OptimizationSolverFactory(
                         parallelOptions           = parallelOptions
                     )
                 else
-                    Solver.createRandomRestartRsplineSolver(
+                    Solver.createRandomRestartRSplineSolver(
                         problemDefinition         = problem,
                         modelBuilder              = builder,
                         maxNumRestarts            = spec.randomRestart.maxNumRestarts,

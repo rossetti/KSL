@@ -19,7 +19,6 @@ import ksl.examples.general.models.LKInventoryModel
 import ksl.examples.general.simopt.makeLKInventoryModelProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simulation.*
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -119,7 +118,7 @@ class OrchestratorCancelTest {
     }
 
     private fun buildSolver(): Solver {
-        return Solver.createStochasticHillClimbingSolver(
+        return Solver.createStochasticHillClimberSolver(
             problemDefinition = makeLKInventoryModelProblemDefinition(),
             modelBuilder = lkBuilder,
             maxIterations = 10,

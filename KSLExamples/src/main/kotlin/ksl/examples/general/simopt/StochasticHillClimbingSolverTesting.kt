@@ -1,7 +1,6 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.algorithms.RandomRestartSolver
 import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 
 fun main() {
@@ -9,7 +8,7 @@ fun main() {
  //   val modelIdentifier = "LKInventoryModel"
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val solver = Solver.createStochasticHillClimbingSolver(
+    val solver = Solver.createStochasticHillClimberSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
