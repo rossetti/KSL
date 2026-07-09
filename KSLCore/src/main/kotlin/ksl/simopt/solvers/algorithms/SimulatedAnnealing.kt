@@ -14,6 +14,8 @@ import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.exp
 
+//TODO default initial temperature
+
 /**
  * A class that implements the simulated annealing optimization algorithm for solving stochastic or deterministic problems.
  * Simulated annealing is an iterative optimization method inspired by the physical process of annealing in metallurgy.
@@ -26,7 +28,7 @@ import kotlin.math.exp
  * @param problemDefinition the problem being solved
  * @param evaluator The evaluator responsible for calculating the objective function value of a solution.
  *                  It must implement the [EvaluatorIfc] interface.
- * @param temperatureConfiguration The approach for configuring the temperature at the start of the run
+ * @param initialTemperature The starting temperature for the simulated annealing algorithm. Must be greater than 0.0.
  * @param coolingSchedule the cooling schedule for the annealing process
  * @param stoppingTemperature the temperature used to stop the annealing process. If the current temperature goes
  * below this temperature, the search process stops.
@@ -45,7 +47,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
     val temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.Fixed(defaultInitialTemperature),
     var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
     stoppingTemperature: Double = defaultStoppingTemperature,
-    maximumIterations: Int = saDefaultMaxIterations,
+    maximumIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
@@ -133,7 +135,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
      *
      * @param problemDefinition the problem being solved
      * @param evaluator An implementation of the EvaluatorIfc interface, used to evaluate candidate solutions.
-    *  @param temperatureConfiguration The approach for configuring the temperature at the start of the run
+     * @param initialTemperature The starting temperature for the simulated annealing process. Must be a positive value.
      * @param coolingSchedule Defines the cooling mechanism to reduce the temperature during the iteration process.
      * Defaults to an ExponentialCoolingSchedule with the specified initialTemperature.
      * @param stoppingTemperature The temperature at which the simulated annealing process stops. Defaults to 0.001.
