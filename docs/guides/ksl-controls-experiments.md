@@ -22,9 +22,6 @@ This guide complements, rather than replaces:
 > **evolving** *(experimental)*: signatures, callbacks, and defaults may change
 > between releases.
 
-> **Naming note.** The package on disk is `ksl.controls.experiments` (plural).
-> This guide's filename uses the singular for consistency with the app guides.
-
 The code shown below is adapted from real, runnable examples under
 `KSLExamples` — primarily `DemoExperiments.kt` (design construction,
 sequential experiments, regression) and the `ksl.examples.general.controls.experiments`
