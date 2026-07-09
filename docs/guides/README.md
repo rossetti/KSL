@@ -86,9 +86,12 @@ scripts and web apps over REST.
 - All guides follow the same 7-section template.
 - Status banners (e.g. *experimental*) appear near the top when an
   API may change between releases.
-- Code snippets are hosted verbatim in compile-only test sources
-  under `KSLTesting/src/test/kotlin/.../doc/`; a build break there is
-  a guide-doc break.
+- Code snippets are adapted from real, runnable examples under
+  `KSLExamples` — the prevailing convention, since the cited file
+  compiles on every normal build. A few older guides instead host
+  snippets verbatim in a compile-only `doc/` package under a module's
+  own `src/test` (e.g. `ksl.modeling.agent.doc`). Either way, a build
+  break in the cited source is a guide-doc break.
 - Cross-references between guides use plain `ksl-XXX.md` filenames so
   they keep working regardless of where the docs directory lives in
   the rendered output.
