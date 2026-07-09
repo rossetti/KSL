@@ -92,7 +92,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun objFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return objFncFactor * solution.average
     }
@@ -109,7 +115,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun penalizedObjFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return objFncValue(solution) + penaltyFncValue(solution)
     }
@@ -126,7 +138,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun granularObjFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return KSLMath.gRound(objFncValue(solution), objFnGranularity)
     }
@@ -143,7 +161,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun granularPenalizedObjFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return KSLMath.gRound(penalizedObjFncValue(solution), objFnGranularity)
     }
@@ -688,11 +712,16 @@ class ProblemDefinition @JvmOverloads constructor(
 
     /**
      * Computes the total additive penalty for the provided solution by evaluating
-     * individual constraint violations.
-     * Ensures that the returned value is oriented according to the optimization type.
+     * individual constraint violations. The returned value is a non-negative magnitude.
+     *
+     * The internal objective is minimization-oriented (objFncValue = objFncFactor * average),
+     * and penalizedObjFncValue = objFncValue + penaltyFncValue. A constraint violation must
+     * therefore always INCREASE the penalized value (push it toward least-preferred) for both
+     * MINIMIZE and MAXIMIZE problems, so the penalty is returned unsigned and is not multiplied
+     * by objFncFactor.
      *
      * @param solution The solution for which the penalty is being computed.
-     * @return the total penalty value, adjusted by objFncFactor.
+     * @return the total non-negative penalty value.
      */
     @Suppress("unused")
     fun penaltyFncValue(solution: Solution): Double {
@@ -735,9 +764,12 @@ class ProblemDefinition @JvmOverloads constructor(
             }
         }
 
-        // 4. Apply the objFncFactor to correctly orient the penalty
-        // (Add for Minimization, Subtract for Maximization)
-        return totalPenalty * objFncFactor
+        // 4. Return the non-negative penalty magnitude. penalizedObjFncValue adds this to
+        // the already-oriented objFncValue, so a violation always increases (worsens) the
+        // minimization-oriented value for both orientations. Multiplying by objFncFactor
+        // here would flip the sign for a MAXIMIZE problem and make a constraint violator
+        // sort as better than a feasible solution of equal objective.
+        return totalPenalty
     }
 
     /**
@@ -752,7 +784,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun granularPenaltyFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return KSLMath.gRound(penaltyFncValue(solution), objFnGranularity)
     }

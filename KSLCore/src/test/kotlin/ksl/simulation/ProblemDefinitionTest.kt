@@ -2,6 +2,8 @@ package ksl.simulation
 
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
+import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.DynamicPolynomialPenalty
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.InputDefinition
@@ -459,4 +461,74 @@ class ProblemDefinitionTest {
         // oriented (internal minimization) value is the least-preferred value, NOT -MAX
         assertEquals(Double.MAX_VALUE, pd.objFncValue(bad))
     }
+
+    // ── penalty orientation ───────────────────────────────────────────────────
+    // A constraint violation must WORSEN the penalized value (push it toward
+    // least-preferred) for both orientations, since the internal objective is
+    // minimization-oriented and penalizedObjFncValue = objFncValue + penalty.
+
+    /**
+     * Single-input problem with a deterministic linear-constraint penalty
+     * (iterationExponent = 0.0 so the penalty does not depend on the evaluation
+     * number). Constraint: q <= 50.
+     */
+    private fun makePenaltyProblem(optType: OptimizationType): ProblemDefinition {
+        val pd = ProblemDefinition(
+            problemName = "PenaltyRankProblem",
+            modelIdentifier = "PenaltyRankModel",
+            objFnResponseName = "Profit",
+            inputNames = listOf("q"),
+            optimizationType = optType
+        )
+        pd.inputVariable("q", 0.0, 100.0, 1.0)
+        pd.linearConstraint(
+            equation = mapOf("q" to 1.0),
+            rhsValue = 50.0,
+            inequalityType = InequalityType.LESS_THAN,
+            penaltyFunction = DynamicPolynomialPenalty(
+                basePenalty = 100.0, iterationExponent = 0.0, violationExponent = 2.0
+            )
+        )
+        return pd
+    }
+
+    private fun solutionAt(pd: ProblemDefinition, q: Double, objAvg: Double): Solution {
+        val inputMap = pd.toInputMap(doubleArrayOf(q))
+        val objFnc = EstimatedResponse("Profit", objAvg, Double.NaN, 1.0)
+        return Solution(inputMap, objFnc, emptyList(), evaluationNumber = 1)
+    }
+
+    @Test
+    fun penaltyIsNonNegativeForMaximize() {
+        val pd = makePenaltyProblem(OptimizationType.MAXIMIZE)
+        val violator = solutionAt(pd, q = 60.0, objAvg = 100.0) // q=60 violates q<=50
+        assertTrue(pd.penaltyFncValue(violator) > 0.0,
+            "A constraint violation must produce a positive (unsigned) penalty for MAXIMIZE")
+    }
+
+    @Test
+    fun feasibleSortsBetterThanViolatorForMaximize() {
+        // Regression for the objFncFactor-mis-signed penalty: for a MAXIMIZE problem a
+        // constraint violator of equal objective must NOT sort as better than a feasible
+        // solution. Smaller penalizedObjFncValue = better (internal minimization sense).
+        val pd = makePenaltyProblem(OptimizationType.MAXIMIZE)
+        val feasible = solutionAt(pd, q = 40.0, objAvg = 100.0) // satisfies q<=50
+        val violator = solutionAt(pd, q = 60.0, objAvg = 100.0) // violates q<=50
+        assertTrue(feasible.penalizedObjFncValue < violator.penalizedObjFncValue,
+            "Feasible solution must sort strictly better than an equal-objective violator")
+        // feasible carries no penalty, so its penalized value equals its oriented objective
+        assertEquals(pd.objFncValue(feasible), feasible.penalizedObjFncValue, 0.0)
+    }
+
+    @Test
+    fun feasibleSortsBetterThanViolatorForMinimize() {
+        // Mirror: the fix is a no-op for MINIMIZE (penalty was already added correctly).
+        val pd = makePenaltyProblem(OptimizationType.MINIMIZE)
+        val feasible = solutionAt(pd, q = 40.0, objAvg = 100.0)
+        val violator = solutionAt(pd, q = 60.0, objAvg = 100.0)
+        assertTrue(pd.penaltyFncValue(violator) > 0.0)
+        assertTrue(feasible.penalizedObjFncValue < violator.penalizedObjFncValue,
+            "Feasible solution must sort strictly better than an equal-objective violator")
+    }
+
 }
