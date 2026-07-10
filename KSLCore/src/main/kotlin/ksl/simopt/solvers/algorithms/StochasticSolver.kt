@@ -185,13 +185,13 @@ abstract class StochasticSolver(
      *  @param sizeParameterName the name of the solver parameter carrying that size, for the message
      */
     protected fun warnIfSizeExceedsInputLattice(requestedSize: Int, sizeParameterName: String) {
-        val lattice = problemDefinition.inputLatticeSize() ?: return
-        if (requestedSize > lattice) {
+        val capacity = problemDefinition.feasiblePointCapacity(requestedSize)
+        if (!capacity.sufficient) {
             Solver.logger.warn {
-                "$name: $sizeParameterName ($requestedSize) exceeds the $lattice distinct feasible input " +
-                    "point(s) in the problem's input lattice — each run can use at most $lattice distinct " +
-                    "feasible point(s). Reduce $sizeParameterName, refine an input's granularity, or widen " +
-                    "an input's range."
+                "$name: $sizeParameterName ($requestedSize) exceeds the ${capacity.latticeSize} distinct " +
+                    "feasible input point(s) in the problem's input lattice — each run can use at most " +
+                    "${capacity.latticeSize} distinct feasible point(s). Reduce $sizeParameterName, refine " +
+                    "an input's granularity, or widen an input's range."
             }
         }
     }

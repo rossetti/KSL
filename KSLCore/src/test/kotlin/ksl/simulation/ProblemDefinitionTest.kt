@@ -626,4 +626,36 @@ class ProblemDefinitionTest {
         assertNotNull(pts)
         assertTrue(pts.isEmpty(), "no non-negative grid point satisfies x+y<=-1")
     }
+
+    // ── feasiblePointCapacity (structured lattice-vs-request assessment) ────────
+
+    @Test
+    fun feasiblePointCapacityIsSufficientWhenTheRequestFitsTheLattice() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 30.0), 1.0)) // 31 points
+        val cap = pd.feasiblePointCapacity(16)
+        assertTrue(cap.sufficient)
+        assertFalse(cap.unbounded)
+        assertEquals(31L, cap.latticeSize)
+        assertEquals(0L, cap.shortfall)
+    }
+
+    @Test
+    fun feasiblePointCapacityReportsTheShortfallWhenTheRequestExceedsTheLattice() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0)) // 5 points
+        val cap = pd.feasiblePointCapacity(16)
+        assertFalse(cap.sufficient)
+        assertFalse(cap.unbounded)
+        assertEquals(5L, cap.latticeSize)
+        assertEquals(11L, cap.shortfall) // 16 - 5
+    }
+
+    @Test
+    fun feasiblePointCapacityIsUnboundedAndSufficientForAContinuousInput() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 0.0)) // continuous
+        val cap = pd.feasiblePointCapacity(1000)
+        assertTrue(cap.unbounded)
+        assertTrue(cap.sufficient)
+        assertNull(cap.latticeSize)
+        assertEquals(0L, cap.shortfall)
+    }
 }

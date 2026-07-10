@@ -420,6 +420,22 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  Reports whether this problem's input lattice can supply `requestedCount` distinct feasible input
+     *  points — a structured form of the `inputLatticeSize` check for callers (solvers, benchmark
+     *  harnesses, tooling) that need to decide programmatically rather than read a log message. For
+     *  example, a population-based solver can compare its population or design size against the result
+     *  and cap or flag it before a run. See `FeasiblePointCapacity` for the meaning of `sufficient` and
+     *  the constraint caveat.
+     *
+     *  @param requestedCount the number of distinct feasible points requested; must be positive
+     *  @return the capacity assessment for `requestedCount` against this problem's input lattice
+     */
+    fun feasiblePointCapacity(requestedCount: Int): FeasiblePointCapacity {
+        require(requestedCount > 0) { "The requested count must be positive." }
+        return FeasiblePointCapacity(requestedCount, inputLatticeSize())
+    }
+
+    /**
      *  The mid-point of each input variable's range
      */
     @Suppress("unused")
