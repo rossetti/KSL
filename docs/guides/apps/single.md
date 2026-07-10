@@ -18,6 +18,7 @@ desktop apps and the best place to start: set a few parameters, click
 - Read across-replication statistics and a results chart, and understand what a
   confidence-interval half-width tells you.
 - Override a model's built-in inputs and save your setup to reuse later.
+- Capture a **Welch warm-up analysis** and **response traces**, and save their reports.
 
 ---
 
@@ -124,6 +125,11 @@ Lower on the same tab, **Output Options** controls what gets written when you ru
 
 Leave **HTML** ticked.
 
+> Below Output Options the Run Control tab also has two **opt-in analyses** —
+> **Warm-Up Analysis (Welch)** and **Response Trace** — that must be switched on
+> *before* you Simulate; their reports then appear on the **Post-Run Reporting** tab.
+> See [§5](#5-reference--every-tab-explained). Skip them for this first run.
+
 ### Step 4 — Name the run (optional)
 
 In the toolbar, **Output Name** defaults to the model name, `MM1`. This becomes the
@@ -181,8 +187,22 @@ table's Min/Max:
 ### Run Control
 
 The editable run parameters (replications, length, warm-up) plus **Output Options**
-(CSV, database, and which report formats to auto-render). This is the only tab you
-need for a basic run.
+(CSV, database, and which report formats to auto-render) — all you need for a basic
+run. Two **opt-in analyses** sit lower on the tab; both are **captured during the run**,
+so you must configure them *before* Simulate:
+
+- **Warm-Up Analysis (Welch)** — **Configure Warm-Up Analysis…** opens a dialog where you
+  tick *Capture Welch warm-up data during the run* and choose which responses to analyze
+  (each with a discretizing interval — a batch size for tally responses, a Δt for
+  time-weighted ones). It feeds the **Welch Report…** button on the Post-Run Reporting tab:
+  a Welch and cumulative-average plot for finding the warm-up (truncation) point that
+  removes initialization bias.
+- **Response Trace** — **Configure Response Trace…** picks the responses whose **sample
+  paths** to record (each with a replication cap). It feeds the **Trace Report…** button on
+  Post-Run Reporting.
+
+A one-line summary beside each button shows the current selection; both are disabled when
+the model exposes no responses.
 
 ### Control Overrides
 
@@ -213,6 +233,14 @@ After a successful run it lets you save **additional** reports with custom names
 section choices, and lists everything saved this session. (Routine reports are
 already produced by *Auto-render after Simulate* on the Run Control tab.)
 
+Two extra buttons here serve the opt-in analyses, and are **enabled only when the run
+captured their data**: **Welch Report…** (the Welch + cumulative-average plot, plus
+optional partial-sums and bias-test sections) and **Trace Report…** (response sample
+paths, with a choice of *first replication* or specific replication numbers and an
+optional start/end time window). Both offer HTML, Markdown, and Text formats. Enable the
+matching analysis on the **Run Control** tab *before* Simulate — neither report can be
+produced from a run that didn't capture it.
+
 ---
 
 ## 6. Common tasks
@@ -220,6 +248,8 @@ already produced by *Auto-render after Simulate* on the Run Control tab.)
 | Task | How |
 |---|---|
 | Reset everything to model defaults | **File → Reset to Model Defaults** (or the toolbar **Reset to Defaults**) |
+| Find the warm-up (truncation) point | **Configure Warm-Up Analysis…** on Run Control → **Simulate** → **Welch Report…** on Post-Run Reporting |
+| Save response **sample paths** | **Configure Response Trace…** on Run Control → **Simulate** → **Trace Report…** on Post-Run Reporting |
 | Save your setup to reuse later | **File → Save Configuration** (`Ctrl/Cmd+S`) — writes a `.toml` you can reopen |
 | Reopen a saved setup | **File → Open Configuration…** |
 | Change the working directory | **File → Set Working Directory…** |
@@ -241,6 +271,7 @@ already produced by *Auto-render after Simulate* on the Run Control tab.)
 | Report didn't open in the browser | No auto-open available, or no format ticked. | Tick a format under *Auto-render after Simulate*, or open it from the workspace `reports/` folder. |
 | A red **health banner** appears at the top | A run parameter is invalid (e.g. negative length). | Click **Jump to source** and fix the highlighted field. |
 | **Control Overrides** / **RV Overrides** tab is missing | The model exposes no controls / random variables. | Nothing to fix — the tabs appear only when applicable. |
+| **Welch Report…** / **Trace Report…** is greyed out | The run didn't capture that data. | Enable **Warm-Up Analysis** / **Response Trace** on the **Run Control** tab before **Simulate** — neither can be produced retroactively. |
 
 ---
 
