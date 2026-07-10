@@ -224,6 +224,7 @@ class CENormalSampler(
             set(value) {
                 require(value > 0) { "Standard deviation smoother must be greater than zero." }
                 require(value <= 1) { "Standard deviation smoother must be less than or equal to one." }
+                field = value
             }
 
         /**

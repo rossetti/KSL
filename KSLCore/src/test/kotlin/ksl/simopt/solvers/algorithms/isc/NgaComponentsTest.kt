@@ -62,4 +62,29 @@ class NgaComponentsTest {
         assertTrue(manyGroups.size > 1, "widely separated fitness (low noise) must split into multiple groups")
         assertTrue(manyGroups.size <= 3, "the number of groups must not exceed gm")
     }
+
+    @Test
+    fun nonUniformMutationStaysFinitePastTheHorizon() {
+        // Regression: past the annealing horizon bigK, (1 - k/bigK) goes negative and a fractional
+        // exponent produced NaN, which silently propagated to every mutated coordinate. Run the NGA a
+        // few generations past bigK (BudgetRule never fires, so it runs to maxIterations), then
+        // exercise the operator directly and require finite, in-bounds output.
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(doubleArrayOf(50.0)))
+        val nga = NichingGeneticAlgorithmSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            mutation = NonUniformMutation(bigK = 1, p3 = 1.0),
+            transitionRules = listOf(BudgetRule(Int.MAX_VALUE)),
+            maxIterations = 3,
+            replicationsPerEvaluation = 2
+        )
+        nga.runAllIterations()
+        assertTrue(nga.currentGeneration > 1, "the run must advance past bigK=1 to exercise the annealing path")
+        val mutated = nga.mutation.mutate(doubleArrayOf(50.0), nga)
+        mutated.forEach { v ->
+            assertTrue(v.isFinite(), "annealed mutation past the horizon must be finite (regression: was NaN)")
+            assertTrue(v in 0.0..100.0, "annealed mutation must stay within the input bounds")
+        }
+    }
 }

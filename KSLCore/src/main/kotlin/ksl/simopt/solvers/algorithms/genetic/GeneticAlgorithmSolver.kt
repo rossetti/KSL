@@ -172,7 +172,9 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
 
     /**
      *  The number of best individuals carried forward unchanged into the next generation. Must be
-     *  >= 0. Values larger than the population size are clamped to the population size at use.
+     *  >= 0. At use, the effective elite count is clamped to populationSize - 1 so that at least one
+     *  offspring is produced each generation; a value >= populationSize would otherwise freeze the
+     *  search by carrying the entire population forward unchanged.
      */
     var eliteCount: Int = defaultEliteCount
         set(value) {
@@ -240,11 +242,14 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
         if (myPopulation.isEmpty()) return
         val popSize = populationSizeValue()
         val sorted = bestFirst(myPopulation)
-        val eCount = minOf(eliteCount, sorted.size)
+        // Clamp the effective elite count to popSize - 1 so at least one offspring is produced each
+        // generation; eliteCount >= populationSize would otherwise freeze the search by carrying the
+        // whole population forward unchanged.
+        val eCount = minOf(eliteCount, sorted.size, maxOf(popSize - 1, 0))
         val elites = sorted.take(eCount)
         val target = maxOf(popSize - eCount, 0)
         if (target == 0) {
-            // Degenerate case (e.g., eliteCount >= populationSize): keep the best and capture.
+            // Defensive fallback: only reachable if the effective population size is < 1.
             myPopulation = sorted.take(popSize).toMutableList()
             currentSolution = myPopulation.first()
             solutionChecker.captureSolution(currentSolution)
