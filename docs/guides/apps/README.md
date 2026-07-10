@@ -21,6 +21,7 @@ console, reports), so the individual guides don't repeat them.
 | **[Animation](animation.md)** | Watch a model run as a visual, replayable animation — capture, run, lay out, replay. | ✅ Available |
 | **[Results](results.md)** | Browse and compare results saved in a simulation database. | ✅ Available |
 | **[Distribution](distribution.md)** | Fit probability distributions to data. | ✅ Available |
+| **[Bundle Workbench](bundle-workbench.md)** | Package models as bundle JARs in a guided desktop app — open, identify, catalog, validate, assemble. | ✅ Available |
 | **[Bundle Tools](bundle-tools.md)** | Package models as loadable bundle JARs (`kslpkg`, command line). | ✅ Available |
 
 ## Servers
@@ -37,7 +38,7 @@ capabilities to programs and AI assistants.
 
 ```mermaid
 flowchart TD
-    bundle["Model bundle JAR<br/>(kslpkg)"]
+    bundle["Model bundle JAR<br/>(Bundle Workbench / kslpkg)"]
     bundle --> single["Single-Model<br/>run one model"]
     bundle --> scenario["Scenario<br/>compare configurations"]
     bundle --> experiment["Experiment<br/>designed experiment"]

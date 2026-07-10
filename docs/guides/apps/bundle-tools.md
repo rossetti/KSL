@@ -208,6 +208,8 @@ Distinguishing `1` from `2` lets scripts treat "bad input" and "tool broke" diff
 
 ## 8. See also
 
+- [Bundle Workbench](bundle-workbench.md) — the desktop-app companion: the same
+  packaging job (open → identity → catalog → validate → assemble) in a guided GUI.
 - `KSLBundleTools/README.md` — the full tool reference, Gradle/IntelliJ wiring, and the
   `ksl.app.bundle` SPI it serves.
 - [Common UI & concepts](common-ui.md) — how the desktop apps consume bundles.

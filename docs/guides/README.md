@@ -9,9 +9,10 @@ every build.
 
 > **Looking for the desktop apps?** Step-by-step, student-facing user
 > guides for the KSL desktop applications (Single, Scenario, Experiment,
-> Simopt, Results, Distribution) and the `kslpkg` CLI live under
-> [`apps/`](apps/README.md). Those are GUI walkthroughs with real
-> screenshots; the guides below are developer/library references.
+> Simopt, Animation, Results, Distribution, Bundle Workbench), the `kslpkg`
+> CLI, and the MCP server live under [`apps/`](apps/README.md). Those are GUI
+> walkthroughs with real screenshots; the guides below are developer/library
+> references.
 
 ## Reading order
 
