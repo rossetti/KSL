@@ -343,6 +343,32 @@ class ProblemDefinition @JvmOverloads constructor(
         get() = myInputDefinitions.values.map { it.interval }.toList()
 
     /**
+     *  The number of distinct points in the input box lattice — the product over the input variables
+     *  of the number of grid values each can take on (see `InputDefinition.numGranularPoints`). This is
+     *  an **upper bound** on the number of distinct input-feasible points: the linear and functional
+     *  constraints can only reduce it.
+     *
+     *  Returns `null` when the count is effectively unbounded: at least one input is continuous
+     *  (`granularity == 0.0`), or the product would exceed `Long.MAX_VALUE`. Returns `0` when some input
+     *  has no grid value within its bounds (a granularity too coarse for its range).
+     *
+     *  Useful as a diagnostic without running the model: a request for more distinct feasible points
+     *  than this value — e.g. a solver population or space-filling design larger than the lattice —
+     *  cannot be satisfied (`sampleInputFeasiblePoints` will return fewer). It is computed in closed
+     *  form and does not enumerate the lattice, so it is safe to call on a large problem.
+     */
+    fun inputLatticeSize(): Long? {
+        var product = 1L
+        for (iDef in myInputDefinitions.values) {
+            val n = iDef.numGranularPoints() ?: return null   // continuous input -> unbounded
+            if (n <= 0L) return 0L                            // an input with no grid value -> empty
+            if (product > Long.MAX_VALUE / n) return null     // product overflows -> effectively unbounded
+            product *= n
+        }
+        return product
+    }
+
+    /**
      *  The mid-point of each input variable's range
      */
     @Suppress("unused")
@@ -1165,7 +1191,17 @@ class ProblemDefinition @JvmOverloads constructor(
         var count = 0
         do {
             count++
-            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) {
+                val hint = if (inputLatticeSize() == 0L)
+                    "an input's granularity is too coarse for its range — no grid value (multiple of the " +
+                        "granularity) falls within its bounds"
+                else
+                    "the linear/functional constraints may be unsatisfiable or define an extremely small " +
+                        "feasible region relative to the input box"
+                "Could not sample a point satisfying the input ranges and constraints within " +
+                    "$maxFeasibleSamplingIterations attempts; $hint. Check the input ranges, " +
+                    "granularities, and constraints, or increase maxFeasibleSamplingIterations."
+            }
             // generate the point
             val iDefinition = myInputDefinitions[name]!!
             map[name] = iDefinition.randomValue(rnStream)
@@ -1190,7 +1226,17 @@ class ProblemDefinition @JvmOverloads constructor(
         var inputMap: InputMap
         do {
             count++
-            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) {
+                val hint = if (inputLatticeSize() == 0L)
+                    "an input's granularity is too coarse for its range — no grid value (multiple of the " +
+                        "granularity) falls within its bounds"
+                else
+                    "the linear/functional constraints may be unsatisfiable or define an extremely small " +
+                        "feasible region relative to the input box"
+                "Could not sample a point satisfying the input ranges and constraints within " +
+                    "$maxFeasibleSamplingIterations attempts; $hint. Check the input ranges, " +
+                    "granularities, and constraints, or increase maxFeasibleSamplingIterations."
+            }
             // generate the point
             inputMap = generateRandomInputValues(rnStream)
         } while (!isInputFeasible(inputMap))

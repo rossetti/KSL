@@ -122,10 +122,22 @@ abstract class StochasticSolver(
             }
         }
         if (result.size < numPoints) {
+            val lattice = problemDefinition.inputLatticeSize()
+            val cause = when {
+                lattice == null ->
+                    "the input ranges include a continuous variable, so the linear/functional " +
+                        "constraints likely restrict the feasible region below $numPoints points"
+                lattice < numPoints ->
+                    "the input lattice has only $lattice distinct point(s) from the ranges and " +
+                        "granularities — fewer than the $numPoints requested"
+                else ->
+                    "the input lattice has $lattice point(s), but the linear/functional constraints " +
+                        "restrict the feasible region below $numPoints points"
+            }
             Solver.logger.warn {
-                "sampleInputFeasiblePoints: requested $numPoints distinct feasible points but only " +
-                    "${result.size} could be sampled (the feasible region likely has fewer than " +
-                    "$numPoints distinct points). Returning ${result.size}."
+                "sampleInputFeasiblePoints: sampled only ${result.size} of $numPoints requested distinct " +
+                    "feasible points — $cause. Returning ${result.size}. Reduce the requested count " +
+                    "(e.g. the solver population/design size), refine an input's granularity, or widen its range."
             }
         }
         return result

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -531,4 +532,44 @@ class ProblemDefinitionTest {
             "Feasible solution must sort strictly better than an equal-objective violator")
     }
 
+    // ── input lattice size (diagnostic for feasible-point sampling) ────────────
+
+    private fun latticeProblem(vararg inputs: Triple<String, Interval, Double>): ProblemDefinition {
+        val pd = ProblemDefinition(
+            problemName = "L", modelIdentifier = "M", objFnResponseName = "y",
+            inputNames = inputs.map { it.first }
+        )
+        for ((name, interval, g) in inputs) pd.inputVariable(name, interval, g)
+        return pd
+    }
+
+    @Test
+    fun inputLatticeSizeCountsIntegerOrderedGridPoints() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 30.0), 1.0))
+        assertEquals(31L, pd.inputLatticeSize(), "0..30 integer = 31 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeHandlesFractionalGranularity() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 10.0), 0.5))
+        assertEquals(21L, pd.inputLatticeSize(), "0, 0.5, ..., 10 = 21 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeMultipliesAcrossDimensions() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("z", Interval(0.0, 4.0), 1.0))
+        assertEquals(25L, pd.inputLatticeSize(), "5 x 5 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeIsNullWhenAnyInputIsContinuous() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("z", Interval(0.0, 4.0), 0.0))
+        assertNull(pd.inputLatticeSize(), "a continuous input makes the lattice effectively unbounded")
+    }
+
+    @Test
+    fun inputLatticeSizeIsZeroWhenGranularityTooCoarseForRange() {
+        val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0))
+        assertEquals(0L, pd.inputLatticeSize(), "no multiple of 1.0 falls within [0.4, 0.6]")
+    }
 }
