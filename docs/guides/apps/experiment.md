@@ -90,8 +90,8 @@ shows each design point advancing to *Completed*.
 ### Reading the results — the regression
 
 The headline output is on the **Regression** tab: a model of a response as a function of
-the factors. Below is the genuine fit of **Total Cost** for this experiment (coded
-factors, −1/+1), the same report the app produces.
+the factors. Below is the fit of **Total Cost** for this experiment (coded
+factors, −1/+1).
 
 The four design points and their average total cost:
 
@@ -117,10 +117,6 @@ model explains 82% of the variation (R² = 0.82). The **residual diagnostic plot
 that the fit's assumptions hold:
 
 ![Residuals vs fitted values](images/experiment/Residuals_vs_Fitted_Values.PNG)
-
-> The full rendered report — factor summary, all design points, every response's
-> statistics, the ANOVA table, and all diagnostic plots — is at
-> [`_generated/experiment-report.md`](_generated/experiment-report.md).
 
 ---
 

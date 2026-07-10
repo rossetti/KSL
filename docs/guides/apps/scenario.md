@@ -36,7 +36,7 @@ the **Scenario Reports** and **Comparison Analyzer** tabs.
 ## 2. Before you begin
 
 Like the other apps, the Scenario Analyzer loads models from **bundles** (use the
-**Bundles** menu to load a JAR, or drop one in `~/.ksl/bundles/`). See
+**Bundles** menu to load a JAR, or drop one in your `<KSLWork>/bundles/` folder). See
 [Common UI → Models and bundles](common-ui.md#models-and-bundles). Results are written
 under your **working directory**. The **Enable database** toggle **persists** each run to
 a SQLite database so you can revisit it later (for example, in the [Results app](results.md));
@@ -123,9 +123,6 @@ out the others:
 So with 95% confidence the three-server configuration has the lowest mean System Time.
 The 2-vs-3 pairwise difference is small (≈0.034) but its interval excludes zero, so the
 improvement is statistically real here.
-
-> The full rendered comparison (pairwise differences, both MCB directions, screening, and
-> all charts) is at [`_generated/scenario-report.md`](_generated/scenario-report.md).
 
 ---
 

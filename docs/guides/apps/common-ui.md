@@ -12,14 +12,17 @@ links back to this page instead of repeating them.
 ### Models and bundles
 
 A **model** is a KSL simulation (for example, an M/M/1 queue). The apps do not have
-models compiled into them. Instead they load **bundles** — JAR files that advertise one
-or more models through a service interface. At launch each app discovers bundles from:
+models compiled into them. Instead they load **bundles** — JAR files that package one
+or more compiled models together with a `bundle.toml` manifest describing them. At
+launch each app discovers bundles from two folders under your working directory:
 
-- the application classpath (none in a released app), and
-- your personal bundle folder, `~/.ksl/bundles/`.
+- the shared `<KSLWork>/bundles/` folder, and
+- the app's own `<KSLWork>/<App>/bundles/` folder (e.g. `<KSLWork>/KSLSingle/bundles/`),
 
-You can also add a bundle mid-session with **Bundles → Load JAR…**. Bundles are produced
-with the `kslpkg` command-line tool — see the [Bundle Tools guide](bundle-tools.md).
+where `<KSLWork>` is your working directory — `~/Documents/KSLWork`, or `~/KSLWork` if
+you have no `Documents` folder. You can also add a bundle mid-session with **Bundles →
+Load JAR…**. Bundles are produced by the [Bundle Workbench](bundle-workbench.md) desktop
+app or the `kslpkg` command-line tool — see the [Bundle Tools guide](bundle-tools.md).
 
 ### The workspace (working directory)
 

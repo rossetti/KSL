@@ -100,10 +100,6 @@ useful reminder that "best fit" is a statistical judgment, not a certainty.) The
 produces **Q-Q**, **P-P**, and **ECDF** plots and formal goodness-of-fit tests to confirm
 the choice.
 
-> The full rendered report — data summary, MODA scoring, all rankings, bootstrap parameter
-> estimates, every fit plot, and the goodness-of-fit tests — is at
-> [`_generated/distribution-report.md`](_generated/distribution-report.md).
-
 ---
 
 ## 5. Reference — every tab explained

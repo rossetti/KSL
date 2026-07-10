@@ -40,8 +40,7 @@ in the toolbar, and a report is written to your workspace.
 
 The app doesn't have models built in — it loads them from **bundles** (JAR files
 that advertise one or more models). When you launch the app, it shows a **Pick a
-Model** dialog listing the bundles it found (on the classpath and in
-`~/.ksl/bundles/`):
+Model** dialog listing the bundles it found in your `<KSLWork>/bundles/` folder:
 
 ![Pick a Model dialog](images/single/single-bundle-picker.png)
 
@@ -52,7 +51,7 @@ provides this and the other textbook models.)
 
 - If the model you want is already listed, select its bundle and model.
 - If the list is empty or missing your model, click **Load JAR…** to load a bundle
-  JAR, or drop the JAR into `~/.ksl/bundles/` before launching. See
+  JAR, or drop the JAR into your `<KSLWork>/bundles/` folder before launching. See
   [Common UI → Models and bundles](common-ui.md#models-and-bundles).
 
 You'll click **Pick** in [Step 1](#step-1--pick-the-mm1-model) of the tutorial.
@@ -142,8 +141,7 @@ progress, and within a second or two it reads **Completed** with a summary like
 
 ### Reading the results
 
-The report the app produced is below — the **same content**, rendered here from the
-KSL reporting engine. First, what was run:
+Here is what the run produced. First, what was run:
 
 | Property | Value |
 |:---|:---|
@@ -175,10 +173,6 @@ Reports can also include **charts**. Here is the distribution of the per-replica
 table's Min/Max:
 
 ![Histogram of per-replication System Time](images/single/System_Time___replication_averages.PNG)
-
-> The full rendered report (every response, all statistics, and this chart) is kept
-> at [`_generated/single-report.md`](_generated/single-report.md). It is produced by
-> a script, not typed by hand, so it always matches what the app outputs.
 
 ---
 

@@ -117,9 +117,6 @@ is itself a *simulation estimate*, it comes with a confidence half-width — sol
 intervals overlap are not clearly different, which is what the **indifference zone**
 setting is for.
 
-> The full rendered solver report (run summary, evaluator metrics, initial/current/best
-> solutions) is at [`_generated/simopt-report.md`](_generated/simopt-report.md).
-
 ---
 
 ## 5. Reference — every step explained
