@@ -550,9 +550,3 @@ To reach the server from another machine, see the security note in
   [Distribution](distribution.md) — the GUI way to reach the same KSL capabilities.
 - [KSL Book](https://rossetti.github.io/KSLBook/) — the simulation concepts behind the
   pharmacy model and the statistics you read above.
-
----
-
-<sub>The command and tool transcripts on this page are real output captured from
-`ksl-mcp.jar` (version 1.0.0) driving the KSL Book Examples bundle, lightly abridged for
-length (long decimals rounded; environment banners removed).</sub>

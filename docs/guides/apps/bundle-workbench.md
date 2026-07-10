@@ -286,11 +286,3 @@ problem read-out. Featured order is picker priority; labels and units show in ev
 - The run apps that consume your bundle — [Single](single.md) ·
   [Scenario](scenario.md) · [Experiment](experiment.md) · [Simopt](simopt.md).
 - [MCP Server](mcp-server.md) — run the bundled models from an AI assistant.
-
----
-
-<sub>The window screenshots on this page are captured from the running Swing app by
-`./gradlew :KSLAppSwingBundle:screenshotsBundle -Pbuilders=<book-builders.jar>` under
-`xvfb-run`, so they regenerate as the app changes. The tutorial opens the real
-`book-builders.jar` (17 book model builders) built by
-`./gradlew :KSLExamples:bookBuildersJar`.</sub>

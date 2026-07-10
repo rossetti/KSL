@@ -214,8 +214,3 @@ Distinguishing `1` from `2` lets scripts treat "bad input" and "tool broke" diff
   `ksl.app.bundle` SPI it serves.
 - [Common UI & concepts](common-ui.md) — how the desktop apps consume bundles.
 - The app guides — [Single](single.md), [Scenario](scenario.md), [Experiment](experiment.md), [Simopt](simopt.md).
-
----
-
-<sub>The transcripts above are real output from `kslpkg` run against the KSLExamples bundle
-JAR (lightly abridged for length).</sub>

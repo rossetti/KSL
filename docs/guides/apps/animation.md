@@ -275,15 +275,3 @@ station contents, and fit/zoom.
   [Experiment](experiment.md) · [Simopt](simopt.md) · [Results](results.md).
 - [MCP Server](mcp-server.md) — an AI assistant can auto-derive, render, and export
   an animation layout for the desktop app to open.
-
----
-
-<sub>Every image on this page is real. The **full-window screenshots** (`main-window`,
-`run-tab`, `layout-tab`, `replay-loaded`) are captured from the running Swing app by
-`./gradlew :KSLAppSwingAnimation:screenshotsAnimation -Pbundle=<book-examples.jar>
--Ptrace=<run.atf>` under `xvfb-run`. The **canvas frames** (`auto-layout`,
-`replay-queue`) are rendered headlessly from a captured `.atf` trace of
-`TandemQueueWithUnconstrainedMovement` (book-models bundle) through the app's own
-`SimulationCanvas` — the same picture the Replay tab draws — via
-`./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf>`. Both pipelines
-regenerate as the app changes, so the pictures track its real rendering.</sub>
