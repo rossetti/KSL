@@ -4,6 +4,8 @@ import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import java.util.concurrent.TimeUnit
 
 /**
  *  End-to-end tests for [NichingGeneticAlgorithmSolver] on deterministic integer objectives: niche
@@ -91,5 +93,21 @@ class NichingGeneticAlgorithmSolverTest {
         solver.runAllIterations()
         assertTrue(solver.numReplicationsRequested >= budget,
             "the budget rule must stop only after the replication budget is reached")
+    }
+
+    @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun sampleInputFeasiblePointsTerminatesWhenRequestExceedsFeasibleSpace() {
+        // Regression: requesting more DISTINCT feasible points than the domain contains previously
+        // looped forever (a Set could never reach numPoints). The bounded sampler must terminate and
+        // return the distinct feasible points that exist. [0,30] integer = 31 feasible points; this is
+        // exactly the configuration that hung when ISC's default global phase (population 50) ran on
+        // such a domain. SEPARATE_THREAD is required for @Timeout to actually preempt a hang (the
+        // default SAME_THREAD mode only checks duration AFTER the test returns, so it never fires on an
+        // infinite loop) — a regression then fails at 15s instead of spinning the whole suite.
+        val solver = makeSolver(::bimodal)
+        val points = solver.sampleInputFeasiblePoints(100)
+        assertEquals(31, points.size,
+            "must return all 31 distinct feasible points, not hang trying to reach 100")
     }
 }

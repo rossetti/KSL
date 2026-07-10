@@ -92,15 +92,37 @@ abstract class StochasticSolver(
     /**
      *  Generates a set of randomly generated points (inputs) for the problem. The points
      *  are uniformly sampled from the feasible region and will be unique.
+     *
+     *  The rejection sampling is **bounded**: if the feasible region has fewer than `numPoints`
+     *  distinct points (e.g. a small integer domain and a large requested count), the set can never
+     *  reach `numPoints`, so sampling gives up after enough consecutive draws yield no new point
+     *  rather than looping forever. The threshold is large relative to the coupon-collector
+     *  expectation, so a legitimately large region is never truncated early. A warning is logged when
+     *  the request cannot be fully satisfied.
+     *
      *  @param numPoints the size of the sample
-     *  @return the generated inputs. The points will be feasible with respect to the problem
+     *  @return the generated feasible input points; **may contain fewer than `numPoints`** points when
+     *  the feasible region has fewer than `numPoints` distinct points
      */
     @Suppress("unused")
     fun sampleInputFeasiblePoints(numPoints: Int = 1): Set<InputMap> {
         require(numPoints > 0) {"The sample size must be greater than zero!"}
         val result = mutableSetOf<InputMap>()
-        while (result.size < numPoints) {
-            result.add(problemDefinition.generateInputFeasibleValues(rnStream))
+        val maxConsecutiveMisses = maxOf(1000, 50 * numPoints)
+        var consecutiveMisses = 0
+        while (result.size < numPoints && consecutiveMisses < maxConsecutiveMisses) {
+            if (result.add(problemDefinition.generateInputFeasibleValues(rnStream))) {
+                consecutiveMisses = 0
+            } else {
+                consecutiveMisses++
+            }
+        }
+        if (result.size < numPoints) {
+            Solver.logger.warn {
+                "sampleInputFeasiblePoints: requested $numPoints distinct feasible points but only " +
+                    "${result.size} could be sampled (the feasible region likely has fewer than " +
+                    "$numPoints distinct points). Returning ${result.size}."
+            }
         }
         return result
     }
