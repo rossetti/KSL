@@ -3,19 +3,26 @@ package ksl.simopt.problem
 import kotlin.math.pow
 
 /**
- * A dynamic polynomial penalty function that scales based on both the magnitude
- * of the constraint violation and the current iteration of the solver.
+ * A dynamic polynomial penalty that scales with both the magnitude of the constraint
+ * violation and the current iteration of the solver:
  *
- * @param basePenalty The scaling coefficient (C). Default is 100.0.
- * @param violationExponent The power applied to the violation magnitude (\alpha).
- * Default is 2.0 (Quadratic penalty).
- * @param iterationExponent The power applied to the iteration counter (\beta).
- * Default is 1.0 (Linear growth over time).
+ *     P(v, k) = basePenalty * k^iterationExponent * v^violationExponent
+ *
+ * With the default violationExponent = 1.0 this is the "naive penalty" of Park and Kim
+ * (2015): an increasing sequence M_k = basePenalty * k^iterationExponent multiplying the
+ * (raw) violation. It applies uniformly to deterministic (linear, functional) and
+ * stochastic (response) constraints; the violation is supplied already computed.
+ *
+ * @param basePenalty The scaling coefficient (M_0). Default is 100.0. Must be > 0.
+ * @param iterationExponent The power applied to the iteration counter. Default is 1.0.
+ * @param violationExponent The power applied to the violation magnitude. Default is 1.0
+ * (linear). Linear is preferred: squaring a sub-unit violation (such as a fill-rate gap)
+ * collapses the penalty toward zero.
  */
 class DynamicPolynomialPenalty(
     val basePenalty: Double = 100.0,
     val iterationExponent: Double = 1.0,
-    val violationExponent: Double = 2.0,
+    val violationExponent: Double = 1.0,
 ) : PenaltyFunctionIfc {
 
     init {

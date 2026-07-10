@@ -418,7 +418,7 @@ class ProblemDefinitionTest {
             responseNames     = listOf("FillRate")
         )
         pd.inputVariable("x", 0.0, 10.0)
-        val penalty = PenaltyFunctionWithMemory(basePenalty = 50.0, iterationExponent = 0.5, violationExponent = 2.0)
+        val penalty = DynamicPolynomialPenalty(basePenalty = 50.0, iterationExponent = 0.5, violationExponent = 2.0)
         val constraint = pd.responseConstraint(
             name            = "FillRate",
             rhsValue        = 0.95,
@@ -427,6 +427,18 @@ class ProblemDefinitionTest {
         )
         assertSame(penalty, constraint.penaltyFunction)
         assertSame(penalty, pd.responseConstraints.first().penaltyFunction)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun deprecatedPenaltyFunctionWithMemoryBehavesAsPolynomial() {
+        // The retired PenaltyFunctionWithMemory no longer applies a 1/sqrt(sampleCount) factor;
+        // it is identical to DynamicPolynomialPenalty regardless of the sample count.
+        val legacy = PenaltyFunctionWithMemory(basePenalty = 100.0, iterationExponent = 1.0, violationExponent = 1.0)
+        val poly = DynamicPolynomialPenalty(basePenalty = 100.0, iterationExponent = 1.0, violationExponent = 1.0)
+        for (n in intArrayOf(1, 10, 50)) {
+            assertEquals(poly.penalty(0.0884, 3, n), legacy.penalty(0.0884, 3, n))
+        }
     }
 
     // ── badSolution() orientation ─────────────────────────────────────────────

@@ -25,7 +25,6 @@ import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.DynamicPolynomialPenalty
 import ksl.simopt.problem.PenaltyFunctionIfc
-import ksl.simopt.problem.PenaltyFunctionWithMemory
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.evaluator.ParallelEvaluationOptions
 import ksl.simopt.solvers.Solver
@@ -400,7 +399,7 @@ class OptimizationSolverFactory(
 
     private fun PenaltyFunctionSpec.toEngine(): PenaltyFunctionIfc = when (this) {
         is PenaltyFunctionSpec.WithMemory ->
-            PenaltyFunctionWithMemory(basePenalty, iterationExponent, violationExponent)
+            DynamicPolynomialPenalty(basePenalty, iterationExponent, violationExponent)
         is PenaltyFunctionSpec.DynamicPolynomial ->
             DynamicPolynomialPenalty(basePenalty, iterationExponent, violationExponent)
     }
