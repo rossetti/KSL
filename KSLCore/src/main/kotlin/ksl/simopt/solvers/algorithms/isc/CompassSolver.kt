@@ -66,7 +66,9 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  @param sar the simulation-allocation rule; defaults to [FixedScheduleSAR]
  *  @param redundancyChecker the constraint-pruning strategy; defaults to [BruteForceRedundancyChecker]
  *  @param pruneEvery prune the MPA's halfway hyperplanes every this many iterations (the paper's `c_p`)
- *  @param deltaL the local-optimality indifference zone `δ_L`; `0.0` (default) selects degraded mode
+ *  @param deltaL the local-optimality indifference zone `δ_L`; defaults to the problem's
+ *  indifference-zone parameter (ISC appendix Table III: `δ_L` default `δ_C`); `0.0` selects degraded
+ *  mode (stop on the MPA-singleton condition with no local-optimality test)
  *  @param localOptimalityTest the Kim (2005) test used when [deltaL] > 0; built from [deltaL] if null
  *  @param maximumIterations the maximum number of COMPASS iterations
  *  @param maxReplications the cap on the total replications a single COMPASS run may request; defaults
@@ -83,7 +85,7 @@ class CompassSolver @JvmOverloads constructor(
     sar: SimulationAllocationRuleIfc = FixedScheduleSAR(),
     redundancyChecker: RedundantConstraintChecker = BruteForceRedundancyChecker(),
     pruneEvery: Int = defaultPruneEvery,
-    deltaL: Double = 0.0,
+    deltaL: Double = problemDefinition.indifferenceZoneParameter,
     localOptimalityTest: ComparisonWithStandardProcedure? = null,
     maximumIterations: Int = compassDefaultMaxIterations,
     maxReplications: Int = defaultMaxReplications,
@@ -108,7 +110,7 @@ class CompassSolver @JvmOverloads constructor(
         sar: SimulationAllocationRuleIfc = FixedScheduleSAR(),
         redundancyChecker: RedundantConstraintChecker = BruteForceRedundancyChecker(),
         pruneEvery: Int = defaultPruneEvery,
-        deltaL: Double = 0.0,
+        deltaL: Double = problemDefinition.indifferenceZoneParameter,
         localOptimalityTest: ComparisonWithStandardProcedure? = null,
         maxIterations: Int = compassDefaultMaxIterations,
         maxReplications: Int = defaultMaxReplications,
@@ -230,6 +232,10 @@ class CompassSolver @JvmOverloads constructor(
         neighborhood.neighborhood(center, this).filter { it != center && it.isInputFeasible() }
 
     override fun initializeIterations() {
+        // D1: begin each run with a fresh evaluation/penalty clock (the base Solver contract) so a
+        // re-run of the same instance is reproducible; this override otherwise never reset it. Each
+        // COMPASS local search (standalone or per ISC niche seed) thus starts its penalty ramp fresh.
+        evaluator.resetEvaluationClock()
         visited.clear()
         compassIteration = 0
         // Precedence: an explicit seed (ISC niche seed), then a user-supplied startingPoint
@@ -324,8 +330,15 @@ class CompassSolver @JvmOverloads constructor(
             sampleOneMore = { input -> requestEvaluation(input, 1) },
             merge = ::mergeSolutions
         )
-        // Reflect any additional sampling done by the test back into the visited set.
-        recordEvaluation(result.winner)
+        // The test returns result.winner and result.finalStandard already carrying their accumulated
+        // (prior + test-additional) replications, so REPLACE the visited entries rather than merge
+        // them. recordEvaluation() would merge with the still-present prior entry, pooling the prior
+        // samples a second time (count -> 2*prior + additional) and corrupting the mean/variance that
+        // clean-up's ranking & selection depends on. Writing the standard back too preserves the
+        // replications it accumulated during the test (otherwise discarded when a neighbor wins);
+        // when the standard is best the two are the same point and the second write is idempotent.
+        visited[result.winner.inputMap] = result.winner
+        visited[result.finalStandard.inputMap] = result.finalStandard
         return if (result.standardIsBest) {
             true
         } else {

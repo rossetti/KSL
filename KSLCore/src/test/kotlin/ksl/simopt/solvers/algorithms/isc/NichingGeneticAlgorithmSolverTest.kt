@@ -1,9 +1,16 @@
 package ksl.simopt.solvers.algorithms.isc
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import org.slf4j.LoggerFactory
+import java.util.concurrent.TimeUnit
 
 /**
  *  End-to-end tests for [NichingGeneticAlgorithmSolver] on deterministic integer objectives: niche
@@ -91,5 +98,107 @@ class NichingGeneticAlgorithmSolverTest {
         solver.runAllIterations()
         assertTrue(solver.numReplicationsRequested >= budget,
             "the budget rule must stop only after the replication budget is reached")
+    }
+
+    @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun sampleInputFeasiblePointsTerminatesWhenRequestExceedsFeasibleSpace() {
+        // When the request exceeds the number of distinct feasible points, sampling must not loop
+        // forever. With the grid (31 points) no larger than the request (100), the sampler enumerates
+        // the feasible set exactly (deterministic, no wasted draws) and returns all 31 points — exactly
+        // the configuration (ISC's default global phase, population 50, on a small integer domain) that
+        // previously hung. SEPARATE_THREAD is required for @Timeout to actually preempt a hang (the
+        // default SAME_THREAD mode only checks duration AFTER the test returns), so a regression that
+        // reintroduced unbounded looping would fail at 15s rather than spin the whole suite.
+        val solver = makeSolver(::bimodal)
+        val points = solver.sampleInputFeasiblePoints(100)
+        assertEquals(31, points.size,
+            "must return all 31 distinct feasible points, not hang trying to reach 100")
+    }
+
+    @Test
+    fun sampleInputFeasiblePointsEnumeratesDeterministicallyWhenTheGridFitsTheRequest() {
+        // The grid (31 points) fits the request (100), so enumeration is used: independent of the
+        // stream, it returns the identical full feasible set.
+        val a = makeSolver(::bimodal, streamNum = 1).sampleInputFeasiblePoints(100)
+        val b = makeSolver(::bimodal, streamNum = 999).sampleInputFeasiblePoints(100)
+        assertEquals(31, a.size)
+        assertEquals(a, b, "enumeration is deterministic and independent of the stream")
+    }
+
+    @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun sampleInputFeasiblePointsBoundsRejectionWhenConstraintsShrinkALargeGrid() {
+        // When the grid is larger than the request (so enumeration does not apply) but linear
+        // constraints leave fewer feasible points than requested, rejection sampling must still be
+        // bounded: collect the feasible points that exist and stop, not loop forever.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0) // 121-point grid
+        pd.linearConstraint(mapOf("x1" to 1.0, "x2" to 1.0), 2.0, IscTestSupport.LE) // x1+x2 <= 2
+        pd.maxFeasibleSamplingIterations = 2000
+        val solver = NichingGeneticAlgorithmSolver(
+            problemDefinition = pd,
+            evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(doubleArrayOf(0.0, 0.0))),
+            streamNum = 1,
+            populationSize = 16,
+            maxIterations = 1,
+            transitionRules = listOf(SingleNicheRule()),
+            replicationsPerEvaluation = 1
+        )
+        // grid 121 > request 10 -> rejection path; feasible points < 10 -> the bound must stop it
+        val expected = pd.enumerateFeasibleInputPoints(1000)!!.size // exact feasible count
+        val points = solver.sampleInputFeasiblePoints(10)
+        assertEquals(expected, points.size, "rejection collects exactly the feasible grid points, then stops")
+        assertTrue(points.all { pd.isInputFeasible(it.inputValues) }, "returned points are input feasible")
+    }
+
+    // ── Layer 2: construction-time warning when the population exceeds the input lattice ─────────
+
+    @Test
+    fun warnsAtConstructionWhenPopulationSizeExceedsTheInputLattice() {
+        val warnings = captureWarnings {
+            val pd = IscTestSupport.boxProblem(dim = 1, lb = 0.0, ub = 4.0, granularity = 1.0) // 5 feasible points
+            NichingGeneticAlgorithmSolver(
+                problemDefinition = pd,
+                evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(doubleArrayOf(0.0))),
+                streamNum = 1, populationSize = 16, maxIterations = 1,
+                transitionRules = listOf(SingleNicheRule()), replicationsPerEvaluation = 1
+            )
+        }
+        assertTrue(
+            warnings.any { it.contains("populationSize (16) exceeds the 5 distinct feasible input point") },
+            "construction must warn that populationSize 16 exceeds the 5 feasible points; got $warnings"
+        )
+    }
+
+    @Test
+    fun doesNotWarnAtConstructionWhenPopulationSizeFitsTheInputLattice() {
+        val warnings = captureWarnings {
+            val pd = IscTestSupport.boxProblem(dim = 1, lb = 0.0, ub = 100.0, granularity = 1.0) // 101 feasible points
+            NichingGeneticAlgorithmSolver(
+                problemDefinition = pd,
+                evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(doubleArrayOf(0.0))),
+                streamNum = 1, populationSize = 16, maxIterations = 1,
+                transitionRules = listOf(SingleNicheRule()), replicationsPerEvaluation = 1
+            )
+        }
+        assertTrue(
+            warnings.none { it.contains("distinct feasible input point") },
+            "populationSize 16 <= 101 feasible points must not warn about the input lattice; got $warnings"
+        )
+    }
+
+    /** Captures WARN-level messages logged (via SLF4J/logback) while [block] executes. */
+    private fun captureWarnings(block: () -> Unit): List<String> {
+        val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
+        val appender = ListAppender<ILoggingEvent>()
+        appender.start()
+        root.addAppender(appender)
+        try {
+            block()
+        } finally {
+            root.detachAppender(appender)
+            appender.stop()
+        }
+        return appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage }
     }
 }

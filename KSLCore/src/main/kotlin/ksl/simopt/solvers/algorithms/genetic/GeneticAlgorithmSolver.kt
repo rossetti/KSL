@@ -182,6 +182,7 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
 
     init {
         require(populationSize >= defaultMinPopulationSize) { "The population size must be >= $defaultMinPopulationSize" }
+        warnIfSizeExceedsInputLattice(populationSize, "populationSize")
     }
 
     /**

@@ -343,6 +343,99 @@ class ProblemDefinition @JvmOverloads constructor(
         get() = myInputDefinitions.values.map { it.interval }.toList()
 
     /**
+     *  The number of distinct points in the input box lattice — the product over the input variables
+     *  of the number of grid values each can take on (see `InputDefinition.numGranularPoints`). This is
+     *  an **upper bound** on the number of distinct input-feasible points: the linear and functional
+     *  constraints can only reduce it.
+     *
+     *  Returns `null` when the count is effectively unbounded: at least one input is continuous
+     *  (`granularity == 0.0`), or the product would exceed `Long.MAX_VALUE`. Returns `0` when some input
+     *  has no grid value within its bounds (a granularity too coarse for its range).
+     *
+     *  Useful as a diagnostic without running the model: a request for more distinct feasible points
+     *  than this value — e.g. a solver population or space-filling design larger than the lattice —
+     *  cannot be satisfied (`sampleInputFeasiblePoints` will return fewer). It is computed in closed
+     *  form and does not enumerate the lattice, so it is safe to call on a large problem.
+     */
+    fun inputLatticeSize(): Long? {
+        var product = 1L
+        for (iDef in myInputDefinitions.values) {
+            val n = iDef.numGranularPoints() ?: return null   // continuous input -> unbounded
+            if (n <= 0L) return 0L                            // an input with no grid value -> empty
+            if (product > Long.MAX_VALUE / n) return null     // product overflows -> effectively unbounded
+            product *= n
+        }
+        return product
+    }
+
+    /**
+     *  Enumerates the exact set of input-feasible points on the input grid when that grid is small
+     *  enough to materialize; otherwise returns `null` so the caller can fall back to sampling.
+     *
+     *  Returns `null` when any input is continuous (`granularity == 0.0`) or when the input grid — the
+     *  cartesian product of each variable's granularity-multiples within its bounds, i.e. the value
+     *  `inputLatticeSize` reports — exceeds `maxToEnumerate`. Otherwise returns every grid point that
+     *  satisfies the input ranges and the linear and functional constraints: the *same* `isInputFeasible`
+     *  predicate that rejection sampling applies, so the two agree on which points are feasible. The
+     *  result may be smaller than the grid (constraints remove points) or empty (no feasible point).
+     *  Response constraints are **not** applied here — they require simulation. Iteration order is
+     *  deterministic, so the result is reproducible.
+     *
+     *  @param maxToEnumerate the largest input-grid size to materialize; a larger grid returns `null`
+     *  @return the input-feasible grid points, or `null` if the grid is continuous or too large
+     */
+    fun enumerateFeasibleInputPoints(maxToEnumerate: Long): List<InputMap>? {
+        val names = myInputDefinitions.keys.toList()
+        val grids = ArrayList<List<Double>>(myInputDefinitions.size)
+        var gridSize = 1L
+        for (iDef in myInputDefinitions.values) {
+            if (iDef.granularity <= 0.0) return null // a continuous input cannot be enumerated
+            val values = iDef.granularPoints().filter { it in iDef.lowerBound..iDef.upperBound }
+            if (values.isEmpty()) return emptyList() // a dimension with no in-range grid value -> no point
+            if (gridSize > maxToEnumerate / values.size) return null // grid would exceed the cap
+            gridSize *= values.size
+            grids.add(values)
+        }
+        val result = ArrayList<InputMap>()
+        val idx = IntArray(grids.size)
+        while (true) {
+            val map = HashMap<String, Double>(grids.size)
+            for (d in grids.indices) {
+                map[names[d]] = grids[d][idx[d]]
+            }
+            if (isInputFeasible(map)) {
+                result.add(InputMap(this, map))
+            }
+            // advance the mixed-radix counter over the cartesian product
+            var d = grids.size - 1
+            while (d >= 0) {
+                idx[d]++
+                if (idx[d] < grids[d].size) break
+                idx[d] = 0
+                d--
+            }
+            if (d < 0) break // counter wrapped around -> every combination visited
+        }
+        return result
+    }
+
+    /**
+     *  Reports whether this problem's input lattice can supply `requestedCount` distinct feasible input
+     *  points — a structured form of the `inputLatticeSize` check for callers (solvers, benchmark
+     *  harnesses, tooling) that need to decide programmatically rather than read a log message. For
+     *  example, a population-based solver can compare its population or design size against the result
+     *  and cap or flag it before a run. See `FeasiblePointCapacity` for the meaning of `sufficient` and
+     *  the constraint caveat.
+     *
+     *  @param requestedCount the number of distinct feasible points requested; must be positive
+     *  @return the capacity assessment for `requestedCount` against this problem's input lattice
+     */
+    fun feasiblePointCapacity(requestedCount: Int): FeasiblePointCapacity {
+        require(requestedCount > 0) { "The requested count must be positive." }
+        return FeasiblePointCapacity(requestedCount, inputLatticeSize())
+    }
+
+    /**
      *  The mid-point of each input variable's range
      */
     @Suppress("unused")
@@ -1165,7 +1258,17 @@ class ProblemDefinition @JvmOverloads constructor(
         var count = 0
         do {
             count++
-            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) {
+                val hint = if (inputLatticeSize() == 0L)
+                    "an input's granularity is too coarse for its range — no grid value (multiple of the " +
+                        "granularity) falls within its bounds"
+                else
+                    "the linear/functional constraints may be unsatisfiable or define an extremely small " +
+                        "feasible region relative to the input box"
+                "Could not sample a point satisfying the input ranges and constraints within " +
+                    "$maxFeasibleSamplingIterations attempts; $hint. Check the input ranges, " +
+                    "granularities, and constraints, or increase maxFeasibleSamplingIterations."
+            }
             // generate the point
             val iDefinition = myInputDefinitions[name]!!
             map[name] = iDefinition.randomValue(rnStream)
@@ -1190,7 +1293,17 @@ class ProblemDefinition @JvmOverloads constructor(
         var inputMap: InputMap
         do {
             count++
-            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) {
+                val hint = if (inputLatticeSize() == 0L)
+                    "an input's granularity is too coarse for its range — no grid value (multiple of the " +
+                        "granularity) falls within its bounds"
+                else
+                    "the linear/functional constraints may be unsatisfiable or define an extremely small " +
+                        "feasible region relative to the input box"
+                "Could not sample a point satisfying the input ranges and constraints within " +
+                    "$maxFeasibleSamplingIterations attempts; $hint. Check the input ranges, " +
+                    "granularities, and constraints, or increase maxFeasibleSamplingIterations."
+            }
             // generate the point
             inputMap = generateRandomInputValues(rnStream)
         } while (!isInputFeasible(inputMap))

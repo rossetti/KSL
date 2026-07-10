@@ -10,6 +10,7 @@ import ksl.utilities.distributions.StudentT
 import ksl.utilities.statistic.Rinott
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
@@ -54,18 +55,23 @@ import kotlin.math.sqrt
  *  @param maxReplicationsPerSystem the cap on the Rinott second-stage sample size per survivor; must be
  *  >= 1. Defaults to [DEFAULT_MAX_REPLICATIONS_PER_SYSTEM]. Bounds clean-up cost when the variance-to-
  *  indifference-zone ratio is large; the guarantee is best-effort once the cap binds.
+ *  @param feasibilityCILevel the overall confidence level for the statistical response-feasibility
+ *  test used by [cleanUp] to hard-filter candidates before ranking & selection; must be in (0,1).
+ *  Defaults to [DEFAULT_FEASIBILITY_CI_LEVEL].
  */
 class CleanUpProcedure(
     val problemDefinition: ProblemDefinition,
     var deltaC: Double,
     var oneMinusAlphaC: Double = DEFAULT_CONFIDENCE,
-    var maxReplicationsPerSystem: Int = DEFAULT_MAX_REPLICATIONS_PER_SYSTEM
+    var maxReplicationsPerSystem: Int = DEFAULT_MAX_REPLICATIONS_PER_SYSTEM,
+    var feasibilityCILevel: Double = DEFAULT_FEASIBILITY_CI_LEVEL
 ) {
 
     init {
         require(deltaC >= 0.0) { "deltaC must be >= 0" }
         require(oneMinusAlphaC > 0.0 && oneMinusAlphaC < 1.0) { "oneMinusAlphaC must be in (0,1)" }
         require(maxReplicationsPerSystem >= 1) { "maxReplicationsPerSystem must be >= 1" }
+        require(feasibilityCILevel > 0.0 && feasibilityCILevel < 1.0) { "feasibilityCILevel must be in (0,1)" }
     }
 
     /** True when the procedure runs with full indifference-zone guarantees (`deltaC > 0`). */
@@ -91,8 +97,11 @@ class CleanUpProcedure(
     fun screen(candidates: List<Solution>): List<Solution> {
         if (candidates.size <= 1) return candidates
         val k = candidates.size
-        val alpha = 1.0 - oneMinusAlphaC
-        val p = 1.0 - alpha / (k - 1.0)
+        // Split α_C: α_C/2 to this subset-selection screen and α_C/2 to the Rinott selection so the
+        // joint correct-selection is 1 − α_C (Xu/Nelson/Hong ISC appendix, Algorithm 9). The
+        // per-comparison confidence is the Šidák-adjusted (1 − α_C/2)^{1/(|L|−1)}.
+        val confC = (1.0 + oneMinusAlphaC) / 2.0   // 1 − α_C/2
+        val p = confC.pow(1.0 / (k - 1.0))
         val retained = ArrayList<Solution>(k)
         for (i in candidates.indices) {
             val si = candidates[i]
@@ -149,7 +158,10 @@ class CleanUpProcedure(
             // Not enough first-stage replications for the Rinott constant: degrade to the sample-best.
             return survivors.minByOrNull { mean(it) }!!
         }
-        val h = Rinott().rinottConstant(k, oneMinusAlphaC, dof)
+        // Rinott stage at confidence 1 − α_C/2 (the other half of the split; see screen()) so the
+        // combined screen + select correct-selection is 1 − α_C (ISC appendix, Algorithm 9).
+        val confC = (1.0 + oneMinusAlphaC) / 2.0
+        val h = Rinott().rinottConstant(k, confC, dof)
         if (h.isNaN()) {
             return survivors.minByOrNull { mean(it) }!!
         }
@@ -183,12 +195,28 @@ class CleanUpProcedure(
      *  this is the indifference-zone interval `ḡ(x_B) ± δ_C` (the correct-selection precision target).
      *  With `deltaC == 0` it is an ordinary two-sided Student-t confidence interval on the mean at
      *  level [oneMinusAlphaC].
+     *
+     *  **Best-effort when the Rinott cap binds (D4).** The `± δ_C` interval is the *target* precision;
+     *  when [select] has to clamp a survivor's second-stage size at [maxReplicationsPerSystem] (logged
+     *  as a warning), the precision actually achieved is coarser than `δ_C`, so a reported `± δ_C` is
+     *  optimistic. Raise [maxReplicationsPerSystem] or `δ_C` to restore the exact interval.
      */
     fun estimate(best: Solution): Interval {
-        val avg = mean(best)
         if (hasIndifferenceZone) {
+            val avg = mean(best)
             return Interval(avg - deltaC, avg + deltaC)
         }
+        return plainConfidenceInterval(best)
+    }
+
+    /**
+     *  An ordinary two-sided Student-t confidence interval on the [best] system's objective mean at
+     *  level [oneMinusAlphaC]. Used for the degraded (`deltaC == 0`) [estimate] and for the
+     *  no-feasible-candidate fallback of [cleanUp], where the indifference-zone `± δ_C` interval does
+     *  not apply.
+     */
+    private fun plainConfidenceInterval(best: Solution): Interval {
+        val avg = mean(best)
         val n = count(best)
         val sd = sqrt(variance(best))
         if (n < 2.0 || sd <= 0.0) return Interval(avg, avg)
@@ -197,6 +225,40 @@ class CleanUpProcedure(
         val t = StudentT.invCDF(dof, p)
         val hw = t * sd / sqrt(n)
         return Interval(avg - hw, avg + hw)
+    }
+
+    /**
+     *  Runs the full clean-up on the supplied candidate local optima and reports the selected best
+     *  and its confidence interval.
+     *
+     *  The candidates are first **hard-filtered to the response-feasible subset** via
+     *  [ksl.simopt.evaluator.Solution.isResponseConstraintFeasible] at [feasibilityCILevel]. Ranking
+     *  and selection (screen → select) then run only on that subset, using the objective. When there
+     *  are no response constraints every candidate is trivially feasible and this reduces to the
+     *  unconstrained clean-up.
+     *
+     *  If **no** candidate is response-feasible, clean-up cannot honor the correct-selection guarantee
+     *  on a feasible system, so it falls back to the **least-infeasible** candidate (minimum total
+     *  response-constraint violation) and reports a plain confidence interval (no `± δ_C`).
+     *
+     *  @param candidates the local optima to clean up; must be non-empty
+     *  @param sampleMore obtains a [Solution] carrying the requested additional replications for a point
+     *  @return the selected best, its confidence interval, and whether a feasible subset was used
+     */
+    fun cleanUp(candidates: List<Solution>, sampleMore: (InputMap, Int) -> Solution): CleanUpResult {
+        require(candidates.isNotEmpty()) { "There must be at least one candidate for clean-up" }
+        val feasible = candidates.filter { it.isResponseConstraintFeasible(feasibilityCILevel) }
+        if (feasible.isEmpty()) {
+            val leastInfeasible = candidates.minByOrNull { it.responseConstraintViolationPenalty }!!
+            logger.info {
+                "CleanUpProcedure: no response-feasible local optimum among ${candidates.size} candidates; " +
+                        "returning the least-infeasible solution with a plain confidence interval."
+            }
+            return CleanUpResult(leastInfeasible, plainConfidenceInterval(leastInfeasible), usedFeasibleSubset = false)
+        }
+        val survivors = screen(feasible)
+        val best = select(survivors, sampleMore)
+        return CleanUpResult(best, estimate(best), usedFeasibleSubset = true)
     }
 
     companion object {
@@ -215,6 +277,20 @@ class CleanUpProcedure(
          */
         const val DEFAULT_MAX_REPLICATIONS_PER_SYSTEM: Int = 20_000
 
+        /** Default overall confidence for the response-feasibility filter in [cleanUp]. */
+        const val DEFAULT_FEASIBILITY_CI_LEVEL: Double = 0.99
+
         val logger: KLogger = KotlinLogging.logger {}
     }
 }
+
+/**
+ *  The outcome of [CleanUpProcedure.cleanUp]: the selected best solution, its reported confidence
+ *  interval, and whether a response-feasible subset was used (`false` means every candidate was
+ *  response-infeasible and the least-infeasible one was returned).
+ */
+data class CleanUpResult(
+    val best: Solution,
+    val confidenceInterval: Interval,
+    val usedFeasibleSubset: Boolean
+)

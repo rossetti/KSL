@@ -1,5 +1,10 @@
 package ksl.simopt.solvers.algorithms.isc
 
+import ksl.simopt.evaluator.EvaluationRequest
+import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -132,5 +137,73 @@ class CompassSolverTest {
         solver.runAllIterations()
         assertEquals(start, solver.initialSolution?.inputMap,
             "COMPASS must begin at the supplied inherited startingPoint")
+    }
+
+    @Test
+    fun localOptimalityTestDoesNotDoubleCountReplications() {
+        // Regression (A3): after the Kim local-optimality test, the winner was merged back into
+        // `visited` even though it already carried its accumulated replications, doubling its
+        // pre-test count (2*prior + additional). Invariant: no visited solution may carry more
+        // replications than the evaluator actually served for that point. deltaL > 0 forces the
+        // local-optimality test to run (and write a winner back). A wrapping evaluator records the
+        // per-point served counts.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        val base = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        val served = HashMap<InputMap, Double>()
+        val evaluator = object : EvaluatorIfc by base {
+            override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
+                val result = base.evaluate(evaluationRequest)
+                for ((_, sol) in result) served.merge(sol.inputMap, sol.count) { a, b -> a + b }
+                return result
+            }
+        }
+        val solver = CompassSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            sampleSize = 4,
+            deltaL = 1.0,
+            maxIterations = 100,
+            replicationsPerEvaluation = 3
+        )
+        solver.runAllIterations()
+        for ((inputMap, sol) in solver.visitedSolutions) {
+            assertTrue(sol.count <= served.getOrDefault(inputMap, 0.0) + 1e-6,
+                "visited replications (${sol.count}) must not exceed the served count " +
+                    "(${served[inputMap]}) for $inputMap — a double-count corrupts clean-up's inputs")
+        }
+    }
+
+    @Test
+    fun standaloneDeltaLDefaultsToTheProblemIndifferenceZone() {
+        // A4: a directly-constructed CompassSolver must default deltaL to the problem's
+        // indifference-zone parameter (ISC appendix Table III: delta_L default = delta_C), not the
+        // old hardcoded 0.0 which silently ran degraded mode on a positive-IZ problem.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        pd.indifferenceZoneParameter = 2.0
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        val defaulted = CompassSolver(problemDefinition = pd, evaluator = evaluator, streamNum = 1)
+        assertEquals(2.0, defaulted.deltaL, 0.0,
+            "deltaL must default to the problem's indifference-zone parameter")
+        val explicit = CompassSolver(problemDefinition = pd, evaluator = evaluator, streamNum = 1, deltaL = 0.0)
+        assertEquals(0.0, explicit.deltaL, 0.0, "an explicit deltaL = 0.0 still selects degraded mode")
+    }
+
+    @Test
+    fun initializeResetsTheEvaluationClock() {
+        // D1: initializeIterations must reset the evaluator's clock (the base Solver contract this
+        // override otherwise bypassed) so a re-run of the same instance is reproducible.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0)
+        val base = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(target))
+        var resets = 0
+        val evaluator = object : EvaluatorIfc by base {
+            override fun resetEvaluationClock() { resets++; base.resetEvaluationClock() }
+        }
+        val solver = CompassSolver(
+            problemDefinition = pd, evaluator = evaluator, streamNum = 1,
+            maxIterations = 5, replicationsPerEvaluation = 3
+        )
+        solver.runAllIterations()
+        assertTrue(resets >= 1, "CompassSolver.initializeIterations must reset the evaluation clock (D1)")
     }
 }

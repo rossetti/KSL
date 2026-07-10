@@ -163,6 +163,7 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
 
     init {
         require(initialDesignSize >= 2) { "The initial design size must be >= 2" }
+        warnIfSizeExceedsInputLattice(initialDesignSize, "initialDesignSize")
     }
 
     /** Used to detect no-improvement convergence. */

@@ -128,6 +128,7 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
     init {
         require(populationSize >= defaultMinPopulationSize) { "The population size must be >= $defaultMinPopulationSize" }
         require(transitionRules.isNotEmpty()) { "There must be at least one transition rule." }
+        warnIfSizeExceedsInputLattice(populationSize, "populationSize")
     }
 
     private var myPopulation: MutableList<Solution> = mutableListOf()

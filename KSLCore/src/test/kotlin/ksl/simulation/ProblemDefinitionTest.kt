@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -531,4 +532,130 @@ class ProblemDefinitionTest {
             "Feasible solution must sort strictly better than an equal-objective violator")
     }
 
+    // ── input lattice size (diagnostic for feasible-point sampling) ────────────
+
+    private fun latticeProblem(vararg inputs: Triple<String, Interval, Double>): ProblemDefinition {
+        val pd = ProblemDefinition(
+            problemName = "L", modelIdentifier = "M", objFnResponseName = "y",
+            inputNames = inputs.map { it.first }
+        )
+        for ((name, interval, g) in inputs) pd.inputVariable(name, interval, g)
+        return pd
+    }
+
+    @Test
+    fun inputLatticeSizeCountsIntegerOrderedGridPoints() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 30.0), 1.0))
+        assertEquals(31L, pd.inputLatticeSize(), "0..30 integer = 31 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeHandlesFractionalGranularity() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 10.0), 0.5))
+        assertEquals(21L, pd.inputLatticeSize(), "0, 0.5, ..., 10 = 21 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeMultipliesAcrossDimensions() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("z", Interval(0.0, 4.0), 1.0))
+        assertEquals(25L, pd.inputLatticeSize(), "5 x 5 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeIsNullWhenAnyInputIsContinuous() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("z", Interval(0.0, 4.0), 0.0))
+        assertNull(pd.inputLatticeSize(), "a continuous input makes the lattice effectively unbounded")
+    }
+
+    @Test
+    fun inputLatticeSizeIsZeroWhenGranularityTooCoarseForRange() {
+        val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0))
+        assertEquals(0L, pd.inputLatticeSize(), "no multiple of 1.0 falls within [0.4, 0.6]")
+    }
+
+    // ── enumerateFeasibleInputPoints (exact feasible set for a small grid) ──────
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsTheWholeUnconstrainedGrid() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0))
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertEquals(setOf(0.0, 1.0, 2.0, 3.0, 4.0), pts.map { it.inputValues[0] }.toSet())
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsAppliesInputConstraints() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("y", Interval(0.0, 4.0), 1.0))
+        pd.linearConstraint(mapOf("x" to 1.0, "y" to 1.0), 2.0, InequalityType.LESS_THAN)
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.all { pd.isInputFeasible(it.inputValues) }, "all enumerated points are input feasible")
+        assertTrue(pts.size < 25, "the x+y<=2 constraint must remove grid points")
+        // cross-check against the same predicate applied independently over the 25-point grid
+        val expected = (0..4).flatMap { xi -> (0..4).map { yi -> doubleArrayOf(xi.toDouble(), yi.toDouble()) } }
+            .count { pd.isInputFeasible(it) }
+        assertEquals(expected, pts.size, "enumeration equals the feasible grid points")
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsNullWhenGridExceedsTheCap() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 100.0), 1.0)) // 101 grid points
+        assertNull(pd.enumerateFeasibleInputPoints(50), "a 101-point grid exceeds a cap of 50")
+        assertNotNull(pd.enumerateFeasibleInputPoints(101), "a 101-point grid fits a cap of 101")
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsNullForAContinuousInput() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 0.0)) // continuous
+        assertNull(pd.enumerateFeasibleInputPoints(100))
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsIsEmptyWhenNoGridValueIsInRange() {
+        val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0)) // no multiple of 1 in [0.4, 0.6]
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.isEmpty())
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsIsEmptyWhenConstraintsExcludeEveryGridPoint() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("y", Interval(0.0, 4.0), 1.0))
+        pd.linearConstraint(mapOf("x" to 1.0, "y" to 1.0), -1.0, InequalityType.LESS_THAN) // impossible
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.isEmpty(), "no non-negative grid point satisfies x+y<=-1")
+    }
+
+    // ── feasiblePointCapacity (structured lattice-vs-request assessment) ────────
+
+    @Test
+    fun feasiblePointCapacityIsSufficientWhenTheRequestFitsTheLattice() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 30.0), 1.0)) // 31 points
+        val cap = pd.feasiblePointCapacity(16)
+        assertTrue(cap.sufficient)
+        assertFalse(cap.unbounded)
+        assertEquals(31L, cap.latticeSize)
+        assertEquals(0L, cap.shortfall)
+    }
+
+    @Test
+    fun feasiblePointCapacityReportsTheShortfallWhenTheRequestExceedsTheLattice() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0)) // 5 points
+        val cap = pd.feasiblePointCapacity(16)
+        assertFalse(cap.sufficient)
+        assertFalse(cap.unbounded)
+        assertEquals(5L, cap.latticeSize)
+        assertEquals(11L, cap.shortfall) // 16 - 5
+    }
+
+    @Test
+    fun feasiblePointCapacityIsUnboundedAndSufficientForAContinuousInput() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 0.0)) // continuous
+        val cap = pd.feasiblePointCapacity(1000)
+        assertTrue(cap.unbounded)
+        assertTrue(cap.sufficient)
+        assertNull(cap.latticeSize)
+        assertEquals(0L, cap.shortfall)
+    }
 }

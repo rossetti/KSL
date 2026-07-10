@@ -1,5 +1,6 @@
 package ksl.simopt.solvers.algorithms.isc
 
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
@@ -74,5 +75,35 @@ class ComparisonWithStandardProcedureTest {
         val standard = sol(5.0, fx = 1.0)
         val result = proc.run(standard, emptyList(), { standard }, ::mergeSolutions)
         assertTrue(result.standardIsBest, "with no alternatives the standard is best by default")
+    }
+
+    @Test
+    fun differenceVarianceIsTheSumOfVariancesNotTheMax() {
+        // A2: Kim (2005) drives the walk with S^2_i, the variance of the DIFFERENCE. Under
+        // independent sampling (COMPASS neighbors, no CRN) that is Var(a) + Var(b), not max(·,·).
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val a = Solution(pd.toInputMap(doubleArrayOf(1.0)), EstimatedResponse(pd.objFnResponseName, 0.0, 3.0, 5.0), emptyList(), 1)
+        val b = Solution(pd.toInputMap(doubleArrayOf(2.0)), EstimatedResponse(pd.objFnResponseName, 0.0, 5.0, 5.0), emptyList(), 1)
+        assertEquals(8.0, proc.differenceVariance(a, b), 1e-12,
+            "the difference variance must be Var(a)+Var(b)=8, not max(3,5)=5")
+    }
+
+    @Test
+    fun finalStandardCarriesTheAccumulatedStandardWhenAnAlternativeWins() {
+        // Standard-writeback: when a neighbor wins, the result must still carry the standard (with
+        // the replications it accumulated during the test) so COMPASS can write it back rather than
+        // discard those observations.
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = sol(5.0, fx = 10.0)
+        val better = sol(4.0, fx = 1.0)
+        val worse = sol(6.0, fx = 12.0)
+        val values = mapOf(standard.inputMap to 10.0, better.inputMap to 1.0, worse.inputMap to 12.0)
+        val result = proc.run(standard, listOf(better, worse), deterministicSampler(values), ::mergeSolutions)
+        assertFalse(result.standardIsBest)
+        assertEquals(better.inputMap, result.winner.inputMap)
+        assertEquals(standard.inputMap, result.finalStandard.inputMap,
+            "finalStandard must carry the standard, distinct from the winning alternative")
+        assertTrue(result.finalStandard.count >= standard.count,
+            "the standard's accumulated replications must be preserved, not discarded")
     }
 }
