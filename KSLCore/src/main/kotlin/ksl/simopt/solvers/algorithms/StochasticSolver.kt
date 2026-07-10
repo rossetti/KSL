@@ -95,10 +95,14 @@ abstract class StochasticSolver(
      *
      *  The rejection sampling is **bounded**: if the feasible region has fewer than `numPoints`
      *  distinct points (e.g. a small integer domain and a large requested count), the set can never
-     *  reach `numPoints`, so sampling gives up after enough consecutive draws yield no new point
-     *  rather than looping forever. The threshold is large relative to the coupon-collector
-     *  expectation, so a legitimately large region is never truncated early. A warning is logged when
-     *  the request cannot be fully satisfied.
+     *  reach `numPoints`, so sampling gives up after
+     *  `maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)` consecutive draws yield
+     *  no new point rather than looping forever. The `50 * numPoints` term keeps the threshold large
+     *  relative to the coupon-collector expectation, so a legitimately large region is never truncated
+     *  early. This shares the `maxFeasibleSamplingIterations` rejection-sampling patience knob with
+     *  `generateInputFeasibleValues`, but with the opposite outcome: where that method *throws* when no
+     *  feasible point can be found, this method *returns* the (possibly fewer) distinct points it
+     *  collected and logs a warning.
      *
      *  @param numPoints the size of the sample
      *  @return the generated feasible input points; **may contain fewer than `numPoints`** points when
@@ -108,7 +112,7 @@ abstract class StochasticSolver(
     fun sampleInputFeasiblePoints(numPoints: Int = 1): Set<InputMap> {
         require(numPoints > 0) {"The sample size must be greater than zero!"}
         val result = mutableSetOf<InputMap>()
-        val maxConsecutiveMisses = maxOf(1000, 50 * numPoints)
+        val maxConsecutiveMisses = maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)
         var consecutiveMisses = 0
         while (result.size < numPoints && consecutiveMisses < maxConsecutiveMisses) {
             if (result.add(problemDefinition.generateInputFeasibleValues(rnStream))) {
