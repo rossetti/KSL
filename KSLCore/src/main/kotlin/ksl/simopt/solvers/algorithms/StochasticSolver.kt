@@ -170,6 +170,33 @@ abstract class StochasticSolver(
     }
 
     /**
+     *  Logs a warning at construction when a requested population or design size exceeds the number of
+     *  distinct feasible input points (the problem's input lattice). No run can use more distinct
+     *  feasible points than exist, so `sampleInputFeasiblePoints` supplies at most that many. Intended
+     *  to be called from a population-based subclass's `init` block so the mismatch is surfaced before
+     *  a run rather than only mid-run.
+     *
+     *  This is a best-effort early check: the size and the problem's granularities/bounds can change
+     *  after construction, and any actual shortfall is reported again by `sampleInputFeasiblePoints`
+     *  when it occurs. Does nothing when the lattice is effectively unbounded (a continuous input or a
+     *  grid too large to count) — such a problem has ample distinct feasible points.
+     *
+     *  @param requestedSize the requested population/design size
+     *  @param sizeParameterName the name of the solver parameter carrying that size, for the message
+     */
+    protected fun warnIfSizeExceedsInputLattice(requestedSize: Int, sizeParameterName: String) {
+        val lattice = problemDefinition.inputLatticeSize() ?: return
+        if (requestedSize > lattice) {
+            Solver.logger.warn {
+                "$name: $sizeParameterName ($requestedSize) exceeds the $lattice distinct feasible input " +
+                    "point(s) in the problem's input lattice — each run can use at most $lattice distinct " +
+                    "feasible point(s). Reduce $sizeParameterName, refine an input's granularity, or widen " +
+                    "an input's range."
+            }
+        }
+    }
+
+    /**
      *  Generates a set of randomly generated points (inputs) for the problem. The points
      *  are sampled using Latin hyper-cube sampling over the ranges of the inputs.
      *  The points might not be feasible with respect to linear or functional constraints

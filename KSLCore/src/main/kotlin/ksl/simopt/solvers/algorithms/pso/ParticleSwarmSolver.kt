@@ -196,6 +196,7 @@ class ParticleSwarmSolver @JvmOverloads constructor(
         require(swarmSize >= defaultMinSwarmSize) { "The swarm size must be >= $defaultMinSwarmSize" }
         require(cognitiveCoefficient >= 0.0) { "The cognitive coefficient must be >= 0" }
         require(socialCoefficient >= 0.0) { "The social coefficient must be >= 0" }
+        warnIfSizeExceedsInputLattice(swarmSize, "swarmSize")
     }
 
     /** Used to check whether the most recent best solutions have converged (no improvement). */
