@@ -61,7 +61,7 @@ summarized there too.
 | **Documents** | save/reuse configs across sessions | `save_document`, `load_document` |
 | **Workspace** | where the server reads and writes | `get_workspace`, `set_workspace` |
 
-The full tool list is in [§5](#5-reference). When in doubt, ask the assistant to call
+The full tool list is in [§8](#8-reference). When in doubt, ask the assistant to call
 `get_started` — it returns the live model catalog and routes you to the right workflow.
 
 | Use **the MCP server** when… | Use a sibling when… |
@@ -126,7 +126,7 @@ KSL MCP server - doctor
 ```
 
 If it says **`no model bundles were found`**, the jar is in the wrong place or isn't a
-real bundle — see [§7](#7-troubleshooting--gotchas).
+real bundle — see [§10](#10-troubleshooting--gotchas).
 
 ---
 
@@ -300,17 +300,146 @@ A good assistant won't just dump the table — it will read it with you. The key
   — and `list_results` finds work from earlier sessions. Ask `get_workspace` to see where
   the server wrote the run's files.
 
-### Try another workflow
+---
 
-From here you can ask the assistant to go further with the same model catalog, and it
-will route to the matching tools — for example *"which is better, 2 or 3 pharmacists?"*
-(a designed experiment), *"find the cheapest staffing that keeps System Time under a
-minute"* (optimization), or *"here's a column of service times — what distribution fits?"*
-(distribution fitting).
+## 5. Going further: worked interactions
+
+The first session covered a single run. The same conversational pattern reaches every
+other KSL workflow — below are the headline ones, each a real exchange, lightly
+abridged. For the concepts behind them, follow the linked deep guides.
+
+### 5.1 Compare a few named configurations (scenarios)
+
+> *"Run the pharmacy model with 2 pharmacists and with 3, and compare."*
+
+The assistant runs a two-**scenario** batch with `run_config` — each scenario overriding
+just the control it changes — and reports them side by side:
+
+```text
+Batch of 2 scenario result(s):
+- 2 Pharmacists   System Time = 0.5328   PharmacyQ:TimeInQ = 0.0330
+- 3 Pharmacists   System Time = 0.5028   PharmacyQ:TimeInQ = 0.0030
+```
+
+The third pharmacist barely moves **System Time** (0.53 → 0.50 min) but cuts the **queue
+wait** roughly ten-fold (0.033 → 0.003 min) — the bottleneck was the wait, not the
+service. → concepts: [`ksl-controls-experiments`](../ksl-controls-experiments.md); GUI: [Scenario app](scenario.md).
+
+### 5.2 Vary factors to see which matter (designed experiment)
+
+> *"Try a 2×2 experiment over pharmacists (2, 3) and mean service time (0.5, 0.7), keeping a database."*
+
+`run_experiment` runs the four factor combinations (design points); because a database
+was kept, the results also feed [§6](#6-analyzing-results-in-a-database):
+
+```text
+Result 7be97d07… — batch of 4 design-point result(s)
+  DP_1  System Time = 0.5328      DP_2  System Time = 0.7958
+  DP_3  System Time = 0.5032      DP_4  System Time = 0.7110
+```
+
+Each design point is one combination of the factor levels. To learn which factor
+actually drives the response, ask for `experiment_regression`; to rank the four honestly,
+use `db_compare` ([§6](#6-analyzing-results-in-a-database)). →
+[`ksl-controls-experiments`](../ksl-controls-experiments.md); [Experiment app](experiment.md).
+
+### 5.3 Search for the best inputs (optimization)
+
+> *"For the RQInventorySystem model, find the reorder point and quantity that minimize total cost."*
+
+`run_optimization` searches the decision variables — here reorder point R and quantity Q,
+each 1–10 — to minimize the model's `TotalCost` response:
+
+```text
+Result 6c7dc99f… — status: optimization
+Best solution: reorder point R = 1, reorder quantity Q = 2, estimated TotalCost ≈ 2.149
+Iterations evaluated: 13
+```
+
+The solver improved the objective from ≈ 4.14 to **2.15** over 13 iterations and returned
+the best (R, Q). Tighten the bounds or raise `replicationsPerEvaluation` to refine. →
+[`ksl-simopt`](../ksl-simopt.md); [Simopt app](simopt.md).
+
+### 5.4 Fit a distribution to data
+
+> *"Here are 300 observed service times — what distribution fits?"* (generated here with `generate_variates`)
+
+`fit_dataset` fits candidate families and ranks them by **MODA** — a multi-objective
+score over several goodness-of-fit metrics:
+
+```text
+Distribution fit 31c4b5ec… — recommended: exponential (top MODA score)
+
+| Rank | Family      | MODA score | Parameters               | p-value |
+|------|-------------|-----------:|--------------------------|--------:|
+|  1   | exponential |     0.9728 | mean = 1.015             |   0.522 |
+|  2   | gamma       |     0.9724 | shape 1.06, scale 0.96   |   0.733 |
+|  3   | weibull     |     0.9724 | shape 1.04, scale 1.03   |   0.914 |
+|  4   | normal      |     0.9110 | mean 1.02, variance 1.01 |   0.000 |
+```
+
+Exponential wins (the sample was exponential) with a healthy p-value; `get_fit_report`
+returns density / Q-Q / P-P plots, and `get_fit_scoring` the full metric matrix. →
+[`ksl-utilities-distributions-fitting`](../ksl-utilities-distributions-fitting.md); [Distribution app](distribution.md).
 
 ---
 
-## 5. Reference
+## 6. Analyzing results in a database
+
+Any run can write a **KSL database** — a SQLite file the server keeps alongside the
+result — by setting `enableKSLDatabase` (the [§5.2](#52-vary-factors-to-see-which-matter-designed-experiment)
+experiment did). It unlocks cross-experiment comparison, statistical views, and export,
+all headless. Point the database tools at that experiment's `resultId`:
+
+```text
+db_experiments  → 4 experiment(s): DP_1, DP_2, DP_3, DP_4
+
+db_summary(DP_2) → across-replication statistics for one experiment
+   System Time   average 0.7958   (with std error, 95% CI half-width, min/max, count…)
+
+db_compare("System Time") → multiple-comparison (MCB) ranking
+   best  (lowest System Time):  DP_3  at 0.5032
+   worst (highest):             DP_2  at 0.7958
+   screening keeps the configurations that could be best at 95% confidence
+```
+
+`db_compare` is the honest way to pick a winner: it accounts for the noise in each
+estimate, so you keep the set that is *statistically* best rather than just the
+lucky-lowest. `db_export` writes the tables as CSV / Excel, and `db_summary_report` /
+`db_compare_report` render full reports as downloadable artifacts. →
+[`ksl-utilities-io`](../ksl-utilities-io.md); [Results app](results.md).
+
+---
+
+## 7. Animation & layouts
+
+The server can also produce a model's **visual layout** — where its queues, resources,
+stations, and paths sit on a canvas — for the desktop animation app. The assistant works
+a *propose → render → look → revise* loop: `auto_layout` proposes a layout,
+`render_animation_layout` draws a PNG preview, `validate_animation_layout` checks its
+names against the model, and `export_layout` writes the file the app opens.
+
+> *"Auto-lay-out the TandemQueue model from a traced run and show me the picture."*
+
+`auto_layout` mines a **traced** run (a `run_model` with `tracing: true`) to place the
+model's elements — here two queues, two resources, and two stations — and
+`render_animation_layout` returns a preview:
+
+![Rendered auto-layout of the TandemQueue model — two stations, each a resource with its queue](images/mcp/tandem-layout.png)
+
+```text
+Rendered the layout to layout.png — fetch it with get_artifact(name="layout.png").
+Exported the layout to TandemQueue.lay.toml — open it in the desktop animation app
+(Open layout → *.lay.toml).
+```
+
+From here the assistant can nudge positions and re-render, or hand the exported
+`.lay.toml` to the desktop app to animate against a live or replayed run. → the
+`ksl.animation` package and the desktop animation app.
+
+---
+
+## 8. Reference
 
 ### The full tool catalog
 
@@ -379,7 +508,7 @@ equivalent; other settings there include the result cache and `maxConcurrentJobs
 
 ---
 
-## 6. Common tasks
+## 9. Common tasks
 
 | Task | How |
 |---|---|
@@ -396,12 +525,12 @@ To reach the server from another machine, see the security note in
 
 ---
 
-## 7. Troubleshooting & gotchas
+## 10. Troubleshooting & gotchas
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | KSL tools don't appear after `--setup` | The client wasn't fully restarted, or the config path is wrong. | Quit and reopen the client; confirm the `ksl` entry is in the right `mcpServers` config file. |
-| `list_bundles` is empty / *"not a KSL bundle (no META-INF/ksl/bundle.toml manifest)"* | The jar is a plain/ServiceLoader jar, not an **assembled** bundle. | Run `kslpkg assemble` on it first (see [§6](#6-common-tasks) / [Bundle Tools](bundle-tools.md)). |
+| `list_bundles` is empty / *"not a KSL bundle (no META-INF/ksl/bundle.toml manifest)"* | The jar is a plain/ServiceLoader jar, not an **assembled** bundle. | Run `kslpkg assemble` on it first (see [§9](#9-common-tasks) / [Bundle Tools](bundle-tools.md)). |
 | Bundle jar present but not found | It's in the wrong directory (the default is under **`KSLWork`**, not `~/.ksl`), or it bundled KSLCore. | Put it in `<KSLWork>/KSLServer/bundles/` (check `--doctor`'s reported path); a bundle must **not** package KSLCore. |
 | The client shows garbled output / protocol errors (stdio) | A bundled model printed to **stdout**, which is the MCP channel. | Never `println` in a bundled model; use logging (stderr) instead. |
 | `UnsupportedClassVersion` on launch | Wrong Java. | Use JDK 21 (`java -version`). |
@@ -411,7 +540,7 @@ To reach the server from another machine, see the security note in
 
 ---
 
-## 8. See also
+## 11. See also
 
 - The **REST server** — a sibling transport that drives the same models over plain
   HTTP for scripts and web apps (user guide planned).
