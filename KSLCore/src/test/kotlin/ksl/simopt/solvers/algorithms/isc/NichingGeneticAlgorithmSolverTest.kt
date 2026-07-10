@@ -98,16 +98,51 @@ class NichingGeneticAlgorithmSolverTest {
     @Test
     @Timeout(value = 15, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
     fun sampleInputFeasiblePointsTerminatesWhenRequestExceedsFeasibleSpace() {
-        // Regression: requesting more DISTINCT feasible points than the domain contains previously
-        // looped forever (a Set could never reach numPoints). The bounded sampler must terminate and
-        // return the distinct feasible points that exist. [0,30] integer = 31 feasible points; this is
-        // exactly the configuration that hung when ISC's default global phase (population 50) ran on
-        // such a domain. SEPARATE_THREAD is required for @Timeout to actually preempt a hang (the
-        // default SAME_THREAD mode only checks duration AFTER the test returns, so it never fires on an
-        // infinite loop) — a regression then fails at 15s instead of spinning the whole suite.
+        // When the request exceeds the number of distinct feasible points, sampling must not loop
+        // forever. With the grid (31 points) no larger than the request (100), the sampler enumerates
+        // the feasible set exactly (deterministic, no wasted draws) and returns all 31 points — exactly
+        // the configuration (ISC's default global phase, population 50, on a small integer domain) that
+        // previously hung. SEPARATE_THREAD is required for @Timeout to actually preempt a hang (the
+        // default SAME_THREAD mode only checks duration AFTER the test returns), so a regression that
+        // reintroduced unbounded looping would fail at 15s rather than spin the whole suite.
         val solver = makeSolver(::bimodal)
         val points = solver.sampleInputFeasiblePoints(100)
         assertEquals(31, points.size,
             "must return all 31 distinct feasible points, not hang trying to reach 100")
+    }
+
+    @Test
+    fun sampleInputFeasiblePointsEnumeratesDeterministicallyWhenTheGridFitsTheRequest() {
+        // The grid (31 points) fits the request (100), so enumeration is used: independent of the
+        // stream, it returns the identical full feasible set.
+        val a = makeSolver(::bimodal, streamNum = 1).sampleInputFeasiblePoints(100)
+        val b = makeSolver(::bimodal, streamNum = 999).sampleInputFeasiblePoints(100)
+        assertEquals(31, a.size)
+        assertEquals(a, b, "enumeration is deterministic and independent of the stream")
+    }
+
+    @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun sampleInputFeasiblePointsBoundsRejectionWhenConstraintsShrinkALargeGrid() {
+        // When the grid is larger than the request (so enumeration does not apply) but linear
+        // constraints leave fewer feasible points than requested, rejection sampling must still be
+        // bounded: collect the feasible points that exist and stop, not loop forever.
+        val pd = IscTestSupport.boxProblem(dim = 2, lb = 0.0, ub = 10.0, granularity = 1.0) // 121-point grid
+        pd.linearConstraint(mapOf("x1" to 1.0, "x2" to 1.0), 2.0, IscTestSupport.LE) // x1+x2 <= 2
+        pd.maxFeasibleSamplingIterations = 2000
+        val solver = NichingGeneticAlgorithmSolver(
+            problemDefinition = pd,
+            evaluator = IscTestSupport.FunctionEvaluator(pd, IscTestSupport.sphere(doubleArrayOf(0.0, 0.0))),
+            streamNum = 1,
+            populationSize = 16,
+            maxIterations = 1,
+            transitionRules = listOf(SingleNicheRule()),
+            replicationsPerEvaluation = 1
+        )
+        // grid 121 > request 10 -> rejection path; feasible points < 10 -> the bound must stop it
+        val expected = pd.enumerateFeasibleInputPoints(1000)!!.size // exact feasible count
+        val points = solver.sampleInputFeasiblePoints(10)
+        assertEquals(expected, points.size, "rejection collects exactly the feasible grid points, then stops")
+        assertTrue(points.all { pd.isInputFeasible(it.inputValues) }, "returned points are input feasible")
     }
 }

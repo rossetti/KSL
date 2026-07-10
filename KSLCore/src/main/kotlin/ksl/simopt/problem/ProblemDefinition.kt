@@ -369,6 +369,57 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  Enumerates the exact set of input-feasible points on the input grid when that grid is small
+     *  enough to materialize; otherwise returns `null` so the caller can fall back to sampling.
+     *
+     *  Returns `null` when any input is continuous (`granularity == 0.0`) or when the input grid — the
+     *  cartesian product of each variable's granularity-multiples within its bounds, i.e. the value
+     *  `inputLatticeSize` reports — exceeds `maxToEnumerate`. Otherwise returns every grid point that
+     *  satisfies the input ranges and the linear and functional constraints: the *same* `isInputFeasible`
+     *  predicate that rejection sampling applies, so the two agree on which points are feasible. The
+     *  result may be smaller than the grid (constraints remove points) or empty (no feasible point).
+     *  Response constraints are **not** applied here — they require simulation. Iteration order is
+     *  deterministic, so the result is reproducible.
+     *
+     *  @param maxToEnumerate the largest input-grid size to materialize; a larger grid returns `null`
+     *  @return the input-feasible grid points, or `null` if the grid is continuous or too large
+     */
+    fun enumerateFeasibleInputPoints(maxToEnumerate: Long): List<InputMap>? {
+        val names = myInputDefinitions.keys.toList()
+        val grids = ArrayList<List<Double>>(myInputDefinitions.size)
+        var gridSize = 1L
+        for (iDef in myInputDefinitions.values) {
+            if (iDef.granularity <= 0.0) return null // a continuous input cannot be enumerated
+            val values = iDef.granularPoints().filter { it in iDef.lowerBound..iDef.upperBound }
+            if (values.isEmpty()) return emptyList() // a dimension with no in-range grid value -> no point
+            if (gridSize > maxToEnumerate / values.size) return null // grid would exceed the cap
+            gridSize *= values.size
+            grids.add(values)
+        }
+        val result = ArrayList<InputMap>()
+        val idx = IntArray(grids.size)
+        while (true) {
+            val map = HashMap<String, Double>(grids.size)
+            for (d in grids.indices) {
+                map[names[d]] = grids[d][idx[d]]
+            }
+            if (isInputFeasible(map)) {
+                result.add(InputMap(this, map))
+            }
+            // advance the mixed-radix counter over the cartesian product
+            var d = grids.size - 1
+            while (d >= 0) {
+                idx[d]++
+                if (idx[d] < grids[d].size) break
+                idx[d] = 0
+                d--
+            }
+            if (d < 0) break // counter wrapped around -> every combination visited
+        }
+        return result
+    }
+
+    /**
      *  The mid-point of each input variable's range
      */
     @Suppress("unused")

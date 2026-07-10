@@ -572,4 +572,58 @@ class ProblemDefinitionTest {
         val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0))
         assertEquals(0L, pd.inputLatticeSize(), "no multiple of 1.0 falls within [0.4, 0.6]")
     }
+
+    // ── enumerateFeasibleInputPoints (exact feasible set for a small grid) ──────
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsTheWholeUnconstrainedGrid() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0))
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertEquals(setOf(0.0, 1.0, 2.0, 3.0, 4.0), pts.map { it.inputValues[0] }.toSet())
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsAppliesInputConstraints() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("y", Interval(0.0, 4.0), 1.0))
+        pd.linearConstraint(mapOf("x" to 1.0, "y" to 1.0), 2.0, InequalityType.LESS_THAN)
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.all { pd.isInputFeasible(it.inputValues) }, "all enumerated points are input feasible")
+        assertTrue(pts.size < 25, "the x+y<=2 constraint must remove grid points")
+        // cross-check against the same predicate applied independently over the 25-point grid
+        val expected = (0..4).flatMap { xi -> (0..4).map { yi -> doubleArrayOf(xi.toDouble(), yi.toDouble()) } }
+            .count { pd.isInputFeasible(it) }
+        assertEquals(expected, pts.size, "enumeration equals the feasible grid points")
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsNullWhenGridExceedsTheCap() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 100.0), 1.0)) // 101 grid points
+        assertNull(pd.enumerateFeasibleInputPoints(50), "a 101-point grid exceeds a cap of 50")
+        assertNotNull(pd.enumerateFeasibleInputPoints(101), "a 101-point grid fits a cap of 101")
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsNullForAContinuousInput() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 0.0)) // continuous
+        assertNull(pd.enumerateFeasibleInputPoints(100))
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsIsEmptyWhenNoGridValueIsInRange() {
+        val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0)) // no multiple of 1 in [0.4, 0.6]
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.isEmpty())
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsIsEmptyWhenConstraintsExcludeEveryGridPoint() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("y", Interval(0.0, 4.0), 1.0))
+        pd.linearConstraint(mapOf("x" to 1.0, "y" to 1.0), -1.0, InequalityType.LESS_THAN) // impossible
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.isEmpty(), "no non-negative grid point satisfies x+y<=-1")
+    }
 }

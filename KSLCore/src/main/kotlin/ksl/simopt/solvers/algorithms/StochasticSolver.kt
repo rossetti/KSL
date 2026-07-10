@@ -90,19 +90,23 @@ abstract class StochasticSolver(
     }
 
     /**
-     *  Generates a set of randomly generated points (inputs) for the problem. The points
-     *  are uniformly sampled from the feasible region and will be unique.
+     *  Generates a set of distinct input-feasible points for the problem, using one of two strategies
+     *  depending on the size of the feasible grid relative to the request:
      *
-     *  The rejection sampling is **bounded**: if the feasible region has fewer than `numPoints`
-     *  distinct points (e.g. a small integer domain and a large requested count), the set can never
-     *  reach `numPoints`, so sampling gives up after
-     *  `maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)` consecutive draws yield
-     *  no new point rather than looping forever. The `50 * numPoints` term keeps the threshold large
-     *  relative to the coupon-collector expectation, so a legitimately large region is never truncated
-     *  early. This shares the `maxFeasibleSamplingIterations` rejection-sampling patience knob with
-     *  `generateInputFeasibleValues`, but with the opposite outcome: where that method *throws* when no
-     *  feasible point can be found, this method *returns* the (possibly fewer) distinct points it
-     *  collected and logs a warning.
+     *  - **Enumeration** — when the input grid has no more distinct points than `numPoints` (and is no
+     *    larger than `maxEnumeratedLatticeSize`), the exact feasible set is enumerated directly via
+     *    `ProblemDefinition.enumerateFeasibleInputPoints`. This is deterministic, consumes no random
+     *    draws, and returns every feasible grid point — avoiding the rejection-sampling stall that would
+     *    otherwise occur when the request exceeds the number of distinct feasible points.
+     *  - **Bounded rejection sampling** — otherwise, points are drawn uniformly from the feasible region
+     *    and de-duplicated. The sampling is **bounded**: it gives up after
+     *    `maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)` consecutive draws yield
+     *    no new point, rather than looping forever if the feasible region has fewer than `numPoints`
+     *    distinct points. The `50 * numPoints` term keeps the threshold large relative to the
+     *    coupon-collector expectation, so a legitimately large region is never truncated early.
+     *
+     *  In either case, if fewer than `numPoints` distinct feasible points exist, the smaller set is
+     *  returned and a diagnostic is logged (reporting the input-lattice size and the limiting factor).
      *
      *  @param numPoints the size of the sample
      *  @return the generated feasible input points; **may contain fewer than `numPoints`** points when
@@ -111,6 +115,19 @@ abstract class StochasticSolver(
     @Suppress("unused")
     fun sampleInputFeasiblePoints(numPoints: Int = 1): Set<InputMap> {
         require(numPoints > 0) {"The sample size must be greater than zero!"}
+        // When the feasible grid is no larger than the request (and small enough to materialize),
+        // enumerate it exactly instead of rejection sampling — that is precisely the regime where
+        // rejection sampling would stall on near-duplicate draws. Enumeration is deterministic and
+        // consumes no random draws, so the common (large-grid) path below is left unchanged.
+        val enumerated = problemDefinition.enumerateFeasibleInputPoints(minOf(numPoints.toLong(), maxEnumeratedLatticeSize))
+        if (enumerated != null) {
+            if (enumerated.size < numPoints) {
+                warnFewerFeasiblePoints(numPoints, enumerated.size)
+            }
+            return enumerated.toSet()
+        }
+        // Otherwise rejection-sample from the (large or continuous) feasible region, bounded so it
+        // cannot loop forever if the feasible region has fewer than numPoints distinct points.
         val result = mutableSetOf<InputMap>()
         val maxConsecutiveMisses = maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)
         var consecutiveMisses = 0
@@ -122,25 +139,34 @@ abstract class StochasticSolver(
             }
         }
         if (result.size < numPoints) {
-            val lattice = problemDefinition.inputLatticeSize()
-            val cause = when {
-                lattice == null ->
-                    "the input ranges include a continuous variable, so the linear/functional " +
-                        "constraints likely restrict the feasible region below $numPoints points"
-                lattice < numPoints ->
-                    "the input lattice has only $lattice distinct point(s) from the ranges and " +
-                        "granularities — fewer than the $numPoints requested"
-                else ->
-                    "the input lattice has $lattice point(s), but the linear/functional constraints " +
-                        "restrict the feasible region below $numPoints points"
-            }
-            Solver.logger.warn {
-                "sampleInputFeasiblePoints: sampled only ${result.size} of $numPoints requested distinct " +
-                    "feasible points — $cause. Returning ${result.size}. Reduce the requested count " +
-                    "(e.g. the solver population/design size), refine an input's granularity, or widen its range."
-            }
+            warnFewerFeasiblePoints(numPoints, result.size)
         }
         return result
+    }
+
+    /**
+     *  Logs a diagnostic when `sampleInputFeasiblePoints` returns fewer than the requested number of
+     *  distinct feasible points, reporting the actual input-lattice size and whether the lattice itself
+     *  or the linear/functional constraints are the limiting factor.
+     */
+    private fun warnFewerFeasiblePoints(numPoints: Int, sampled: Int) {
+        val lattice = problemDefinition.inputLatticeSize()
+        val cause = when {
+            lattice == null ->
+                "the input ranges include a continuous variable, so the linear/functional " +
+                    "constraints likely restrict the feasible region below $numPoints points"
+            lattice < numPoints ->
+                "the input lattice has only $lattice distinct point(s) from the ranges and " +
+                    "granularities — fewer than the $numPoints requested"
+            else ->
+                "the input lattice has $lattice point(s), but the linear/functional constraints " +
+                    "restrict the feasible region below $numPoints points"
+        }
+        Solver.logger.warn {
+            "sampleInputFeasiblePoints: sampled only $sampled of $numPoints requested distinct " +
+                "feasible points — $cause. Returning $sampled. Reduce the requested count " +
+                "(e.g. the solver population/design size), refine an input's granularity, or widen its range."
+        }
     }
 
     /**
@@ -247,6 +273,21 @@ abstract class StochasticSolver(
         )
 
     companion object {
+        /**
+         * The largest input-grid (lattice) size that `sampleInputFeasiblePoints` will enumerate exactly
+         * rather than rejection-sample. When the number of distinct feasible grid points is no larger
+         * than the request and no larger than this cap, the feasible set is enumerated directly (exact,
+         * deterministic, no wasted draws); otherwise rejection sampling is used. The cap guards against
+         * materializing an enormous grid if a caller requests an absurd number of points; realistic
+         * population and design sizes stay far below it.
+         */
+        @JvmStatic
+        var maxEnumeratedLatticeSize: Long = 100_000L
+            set(value) {
+                require(value > 0) { "The maximum enumerated lattice size must be positive." }
+                field = value
+            }
+
         /**
          * Represents the default maximum number of iterations to be executed
          * in a given process or algorithm. This value acts as a safeguard
