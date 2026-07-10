@@ -186,6 +186,48 @@ class EvaluatorSolutionTest {
         assertEquals(7, sol.evaluationNumber)
     }
 
+    @Test
+    fun atEvaluationReStampsClockPreservingEstimatesAndId() {
+        val original = makeSolution(5.0, 5.0, objAvg = 42.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 3)
+        val reStamped = original.atEvaluation(9)
+        assertEquals(9, reStamped.evaluationNumber, "re-stamp advances the penalty clock")
+        assertEquals(original.id, reStamped.id, "re-stamp preserves id (design-point provenance)")
+        assertEquals(original.estimatedObjFncValue, reStamped.estimatedObjFncValue, 0.0,
+            "re-stamp preserves the objective estimate")
+        assertEquals(original.responseConstraintViolationPenalty,
+            reStamped.responseConstraintViolationPenalty, 0.0,
+            "re-stamp preserves the (raw, clock-independent) violation")
+    }
+
+    @Test
+    fun atEvaluationReturnsSameInstanceWhenClockUnchanged() {
+        val sol = makeSolution(5.0, 5.0, objAvg = 42.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 4)
+        assertTrue(sol === sol.atEvaluation(4), "a no-op re-stamp returns the same instance")
+    }
+
+    @Test
+    fun atEvaluationAdvancesThePenaltyClock() {
+        // Infeasible (FillRate 0.90 < 0.95): the growing multiplier makes the penalty larger at a
+        // later iteration, so the re-stamped solution has a larger penalized objective.
+        val early = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 2)
+        val late = early.atEvaluation(20)
+        assertTrue(late.penalizedObjFncValue > early.penalizedObjFncValue,
+            "a later clock yields a larger penalty for an infeasible solution")
+    }
+
+    @Test
+    fun solutionEqualityExcludesId() {
+        val a = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.97, fillVar = 0.001, fillCount = 5.0, evalNum = 1)
+        val b = a.copy(id = a.id + 1) // same data, different id
+        assertTrue(a.id != b.id, "the copy carries a different id")
+        assertEquals(a, b, "value-equality excludes id")
+        assertEquals(a.hashCode(), b.hashCode(), "hashCode excludes id")
+    }
+
     // ── Group 3: Response constraint feasibility ──────────────────────────────
 
     @Test
