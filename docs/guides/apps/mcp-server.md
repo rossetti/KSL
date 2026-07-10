@@ -512,7 +512,7 @@ equivalent; other settings there include the result cache and `maxConcurrentJobs
 
 | Task | How |
 |---|---|
-| Serve **your own** model | Compile it to a *builders JAR* (public no-arg `ModelBuilderIfc` classes), then `java -jar kslpkg.jar assemble your-builders.jar --id your.bundle.id` and drop the resulting `*-bundle.jar` into `<KSLWork>/KSLServer/bundles/`. See [Bundle Tools](bundle-tools.md). |
+| Serve **your own** model | Compile it to a *builders JAR* (public no-arg `ModelBuilderIfc` classes), then `kslpkg assemble your-builders.jar --id your.bundle.id` and drop the resulting `*-bundle.jar` into `<KSLWork>/KSLServer/bundles/`. See [Bundle Tools](bundle-tools.md). |
 | Pin the bundle directory | `export KSL_BUNDLES_DIR=/path/to/bundles` before launching |
 | Run a standing HTTP server | `./gradlew :KSLServerMcp:runHttp` (Ctrl-C to stop) |
 | Re-wire / remove a client | `ksl-mcp.jar --setup` / `ksl-mcp.jar --remove` |
@@ -530,7 +530,7 @@ To reach the server from another machine, see the security note in
 | Symptom | Cause | Fix |
 |---|---|---|
 | KSL tools don't appear after `--setup` | The client wasn't fully restarted, or the config path is wrong. | Quit and reopen the client; confirm the `ksl` entry is in the right `mcpServers` config file. |
-| `list_bundles` is empty / *"not a KSL bundle (no META-INF/ksl/bundle.toml manifest)"* | The jar is a plain/ServiceLoader jar, not an **assembled** bundle. | Run `kslpkg assemble` on it first (see [§9](#9-common-tasks) / [Bundle Tools](bundle-tools.md)). |
+| `list_bundles` is empty / *"not a KSL bundle (no META-INF/ksl/bundle.toml manifest)"* | The jar is a plain builders jar, not an **assembled** bundle. | Run `kslpkg assemble` on it first (see [§9](#9-common-tasks) / [Bundle Tools](bundle-tools.md)). |
 | Bundle jar present but not found | It's in the wrong directory (the default is under **`KSLWork`**, not `~/.ksl`), or it bundled KSLCore. | Put it in `<KSLWork>/KSLServer/bundles/` (check `--doctor`'s reported path); a bundle must **not** package KSLCore. |
 | The client shows garbled output / protocol errors (stdio) | A bundled model printed to **stdout**, which is the MCP channel. | Never `println` in a bundled model; use logging (stderr) instead. |
 | `UnsupportedClassVersion` on launch | Wrong Java. | Use JDK 21 (`java -version`). |
