@@ -74,7 +74,7 @@ tasks.test {
 }
 
 // Doc tooling: render real animation frames from a captured `.atf` trace through the app's own
-// SimulationCanvas, headless — used to produce the images in docs/guides/apps/animation.md.
+// SimulationCanvas, headless — used to produce the canvas images in docs/guides/apps/animation.md.
 // Usage: ./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf> [-Pframes=N -Pout=<dir> -Pw=1200 -Ph=820]
 tasks.register<JavaExec>("renderFrames") {
     group = "documentation"
@@ -84,6 +84,24 @@ tasks.register<JavaExec>("renderFrames") {
     mainClass.set("ksl.app.swing.animation.examples.RenderFramesKt")
     jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
     listOf("trace", "frames", "out", "w", "h").forEach { p ->
+        if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
+    }
+}
+
+// Doc tooling: capture real screenshots of the app window and its four tabs (Capture · Run · Layout ·
+// Replay) to PNG — the full-window images in docs/guides/apps/animation.md. Needs a real display, so
+// run it under `xvfb-run` (NOT headless). Pass an optional -Ptrace=<run.atf> to also grab the Replay
+// tab with a trace loaded and advanced to a mid-playback frame (entities in motion).
+// Usage: xvfb-run -a ./gradlew :KSLAppSwingAnimation:screenshotsAnimation \
+//          -Pbundle=<book-examples.jar> [-PmodelId=… -Ptrace=<run.atf> -Pout=<dir> -Pw=1280 -Ph=860]
+tasks.register<JavaExec>("screenshotsAnimation") {
+    group = "documentation"
+    description = "Capture real app-window screenshots of the four tabs (run under xvfb-run)."
+    dependsOn("testClasses")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("ksl.app.swing.animation.examples.CaptureWindowsKt")
+    jvmArgs("-Xmx4g")
+    listOf("bundle", "bundleId", "modelId", "trace", "out", "w", "h").forEach { p ->
         if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
     }
 }

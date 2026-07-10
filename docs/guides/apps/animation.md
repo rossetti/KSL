@@ -36,11 +36,12 @@ the tabs are never locked — you can revisit any stage.
 | **Layout** | Get a visual **layout** — **Auto Layout** from the run, or place elements by hand. |
 | **Replay** | Pair a trace with a layout and **watch it play**. |
 
-The payoff is the Replay canvas. Here is a real frame from this guide's tutorial —
-customers (blue dots) walking between two workers, **worker2** busy (red) with a
-six-deep queue while **worker1** (green) sits idle:
+The payoff is the **Replay** tab. Here is the real app window mid-playback on this
+guide's tutorial — a captured trace loaded through an auto-derived layout, a customer
+(blue) walking toward **Exit**, and both workers busy (red) with queues of six and
+three building behind them, at simulated time **t = 60 of 150**:
 
-![The Animation app replaying a run — customers moving between two stations, one worker busy with a queue, one idle](images/animation/replay-in-action.png)
+![The Animation app's Replay tab mid-playback — a customer in motion near Exit and queues building behind both busy workers, with the transport bar at t = 60 of 150](images/animation/replay-loaded.png)
 
 | Use **this app** when… | Use a sibling app when… |
 |---|---|
@@ -92,6 +93,8 @@ from **File ▸ Set Working Directory…**.
   Layout, Layout from Model, Open/Save/Save As…), **View** (light/dark theme).
 - **Workspace status bar** (bottom) — your current working directory.
 
+![The Animation app window on the Capture tab — the Bundle ▸ Model bar and Next hint up top, the Capture · Run · Layout · Replay tabs, the element tables, and the workspace path in the status bar](images/animation/main-window.png)
+
 Two things are worth knowing up front. First, a run produces **only a trace**; the
 **layout is a separate document** you author on the Layout tab — so the app tracks
 *two* files with *two* unsaved-changes markers. Second, a layout binds to a trace
@@ -128,6 +131,8 @@ replications, run length, and warm-up first (the animation records **replication
 `…_yyyyMMdd-HHmmss.atf` — into `<Model>/traces/`. When it finishes you'll be asked
 *"Simulation complete… Open it in the Replay tab now?"* — you can say yes, but
 first let's make a layout.
+
+![The Run tab — the Simulate/Cancel toolbar with the capture-overlay checkboxes, over the parameter editor's Parameters / Controls / Random Variables sub-tabs (replications, run length, warm-up)](images/animation/run-tab.png)
 
 > The five **Capture flow field / paths / velocity / force / pulses** checkboxes on
 > the Run toolbar are teaching overlays for **agent-based / spatial** models; they
@@ -211,6 +216,8 @@ for real positions, falling back to the model scaffold), or **Layout from Model*
   obstacles (in the **⊞ Elements…** dialog).
 - **Save/Open** — `.lay.toml` (default) or `.lay.json`, under `<Model>/layouts/`.
 
+![The Layout tab — the layout toolbar (New, Auto Layout, from Model, Open/Save), the Add▸ element palette, and the grid canvas holding the auto-derived tandem-queue layout (two workers with queues, the Enter/Station/Exit markers, and a Customer style chip)](images/animation/layout-tab.png)
+
 ### Replay
 
 Pairs a **trace** with a **layout** (bind by name, so mix and match) and plays it.
@@ -271,8 +278,12 @@ station contents, and fit/zoom.
 
 ---
 
-<sub>The animation images on this page are **real frames** rendered headlessly from
-a captured `.atf` trace of `TandemQueueWithUnconstrainedMovement` (book-models
-bundle) through the app's own `SimulationCanvas` — the same picture the Replay tab
-draws — via `./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf>`. Point
-it at any trace from a traced run to regenerate, so they track the app's rendering.</sub>
+<sub>Every image on this page is real. The **full-window screenshots** (`main-window`,
+`run-tab`, `layout-tab`, `replay-loaded`) are captured from the running Swing app by
+`./gradlew :KSLAppSwingAnimation:screenshotsAnimation -Pbundle=<book-examples.jar>
+-Ptrace=<run.atf>` under `xvfb-run`. The **canvas frames** (`auto-layout`,
+`replay-queue`) are rendered headlessly from a captured `.atf` trace of
+`TandemQueueWithUnconstrainedMovement` (book-models bundle) through the app's own
+`SimulationCanvas` — the same picture the Replay tab draws — via
+`./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf>`. Both pipelines
+regenerate as the app changes, so the pictures track its real rendering.</sub>
