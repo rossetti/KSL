@@ -88,8 +88,10 @@ evaluation, cooling schedule, …).
 
 ### Step 5 — Run Setup
 
-Set evaluation limits and tracking options (log every N evaluations, snapshot the best
-solution) and the output directory.
+Set the **Evaluation settings** (result caches, snapshot frequency, feasibility,
+precision, parallel workers) and the **Tracking & trace** options. The iteration budget
+itself lives on the **Algorithm** step, and the output folder is named by the **Analysis
+name** field in the toolbar.
 
 ### Step 6 — Execute
 
@@ -126,8 +128,8 @@ setting is for.
 | **Model** | Choose the model; view controls and responses. |
 | **Problem** | Objective response + direction; decision variables with bounds and granularity. |
 | **Constraints** | Optional variable/response bounds and linear constraints. |
-| **Algorithm** | Pick the search algorithm and its parameters. |
-| **Run Setup** | Evaluation budget, tracking, output location. |
+| **Algorithm** | Pick the search algorithm, its parameters, and the iteration budget. |
+| **Run Setup** | Evaluation settings (caches, precision, parallel workers) and tracking/trace. |
 | **Execute** | Run the optimization; watch live progress and the current best. |
 | **Results** | The best solution found, with downloadable artifacts. |
 
@@ -152,7 +154,7 @@ setting is for.
 | A later step is locked | An earlier step is incomplete. | Complete the objective + at least one decision variable. |
 | Optimization is very slow | Many evaluations × many replications. | Lower the iteration count or replications per evaluation. |
 | Best solution looks no better than the start | Too few iterations, or a flat/noisy objective. | Run longer, or raise replications to reduce noise. |
-| "objective required" on Run Setup | No objective response chosen. | Set it on the Problem step. |
+| Validation errors block **Optimize** | The problem is incomplete (e.g. no objective response chosen). | Open the details on the **Execute** step; set the objective on the **Problem** step. |
 
 ---
 

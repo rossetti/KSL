@@ -60,9 +60,11 @@ folder for the `.db` file. This guide uses a database with two M/M/1 experiments
 
 ### Step 1 — Open the database
 
-Click **Open Database…** and choose the `.db` file (or **File → Open Database**). The
-header updates to show the database name, type, and how many experiments and responses it
-holds.
+Click **Open Database…** (or **File → Open Database**). Choose the kind — **File or
+Directory (SQLite / Derby)…** or **Postgres Server…** — then browse to the database: a
+`.db` file for SQLite, the database *folder* for Derby, or connection details for
+Postgres. The header updates to show the database name, type, and how many experiments and
+responses it holds.
 
 ### Step 2 — Browse the metadata (Database tab)
 
@@ -127,7 +129,7 @@ identify **TwoServers** as the lower-cost-in-time configuration.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| "not a valid database" on open | The file isn't a KSL SQLite database, or is still being written. | Pick the finished `.db` file; ensure the run completed. |
+| "not a valid database" on open | The file isn't a KSL SQLite/Derby database, or is still being written. | Pick the finished `.db` file (or Derby folder); ensure the run completed. |
 | MCB option won't generate | Fewer than two experiments, or unequal replication counts. | Include ≥ 2 experiments with the same number of replications. |
 | Responses table is empty | No experiment is selected. | Click an experiment row on the left. |
 | A response has no time series | It wasn't collected as a time-series response. | Only responses flagged *Time Series* support those plots. |

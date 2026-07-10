@@ -34,10 +34,10 @@ resampling). Load data, click **Fit**, and read the ranked results.
 
 ## 2. Before you begin
 
-You need data. The **Data** tab can import from a delimited file (CSV / whitespace), a
-database table, or pasted/inline values. This guide uses **200 generated samples** named
-*Service Times*. Each dataset is marked **Continuous** or **Discrete**, which determines
-the candidate distributions.
+You need data. The **Data** tab adds datasets from four sources: a delimited file (CSV /
+whitespace), a **SQLite database** table, pasted/inline values, or **generated samples**.
+This guide uses **200 generated samples** named *Service Times*. Each dataset is marked
+**Continuous** or **Discrete**, which determines the candidate distributions.
 
 ---
 
@@ -57,8 +57,9 @@ the candidate distributions.
 
 ### Step 1 — Load the data (Data tab)
 
-On the **Data** tab, add a dataset — *Add from file*, *Load from database*, or paste
-values. Confirm its name and that it's marked **Continuous**.
+On the **Data** tab, pick a source from the **Add datasets from:** dropdown. For this
+guide choose **Generated (sample)** to create the 200 *Service Times* points, then click
+**Generate dataset**. Confirm its name and that it's marked **Continuous**.
 
 ### Step 2 — Explore it (Analysis tab)
 
@@ -107,8 +108,8 @@ the choice.
 | Tab | What it's for |
 |---|---|
 | **Data** | Import datasets (file / database / inline); set each as Continuous or Discrete. |
-| **Analysis** | Exploratory analysis of one dataset: statistics, histogram, observation/ACF plots, shift analysis. |
-| **Fitting** | Configure estimators and scoring per dataset; run the fit; see per-dataset status. |
+| **Analysis** | Exploratory analysis of one dataset: statistics, histogram, observation/ACF plots, shift analysis, and a one-click full analysis report. |
+| **Fitting** | Configure estimators, scoring, and per-parameter bootstrap per dataset; run the fit; see per-dataset status. |
 | **Reports** | Open the **recommended distribution** or **all fitted distributions** report (HTML). |
 | **Bootstrap** | Resample to assess how stable the recommended-family choice is. |
 
