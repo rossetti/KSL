@@ -18,6 +18,7 @@ console, reports), so the individual guides don't repeat them.
 | **[Scenario](scenario.md)** | Compare several configurations of a model side by side. | ✅ Available |
 | **[Experiment](experiment.md)** | Vary inputs over a designed (factorial) experiment. | ✅ Available |
 | **[Simopt](simopt.md)** | Search for the input settings that optimize a response. | ✅ Available |
+| **[Animation](animation.md)** | Watch a model run as a visual, replayable animation — capture, run, lay out, replay. | ✅ Available |
 | **[Results](results.md)** | Browse and compare results saved in a simulation database. | ✅ Available |
 | **[Distribution](distribution.md)** | Fit probability distributions to data. | ✅ Available |
 | **[Bundle Tools](bundle-tools.md)** | Package models as loadable bundle JARs (`kslpkg`, command line). | ✅ Available |

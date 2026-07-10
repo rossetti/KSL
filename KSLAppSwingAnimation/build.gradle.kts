@@ -72,3 +72,18 @@ runtime {
 tasks.test {
     useJUnitPlatform()
 }
+
+// Doc tooling: render real animation frames from a captured `.atf` trace through the app's own
+// SimulationCanvas, headless — used to produce the images in docs/guides/apps/animation.md.
+// Usage: ./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf> [-Pframes=N -Pout=<dir> -Pw=1200 -Ph=820]
+tasks.register<JavaExec>("renderFrames") {
+    group = "documentation"
+    description = "Render animation frames from a captured .atf trace (docs/guides/apps/animation.md visuals)."
+    dependsOn("testClasses")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("ksl.app.swing.animation.examples.RenderFramesKt")
+    jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
+    listOf("trace", "frames", "out", "w", "h").forEach { p ->
+        if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
+    }
+}
