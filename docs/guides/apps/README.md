@@ -1,10 +1,9 @@
 # KSL Application Guides
 
 Step-by-step, user-facing guides for the KSL applications. Most are **desktop
-apps** — each guide walks through the app click-by-click with real screenshots, a
-concrete worked example, and what the results look like. The **command-line and
-server** tools (Bundle Tools, MCP Server) use real transcripts instead of
-screenshots.
+apps** — each guide walks through the app click-by-click with a concrete worked
+example. **Bundle Tools** (`kslpkg`) and the **MCP Server** are command-line and
+server tools, driven from a terminal.
 
 New to these apps? Read **[Common UI & concepts](common-ui.md)** first — it covers
 the parts every app shares (models & bundles, the workspace, themes, the run
@@ -60,10 +59,3 @@ is the front of the pipeline — it fits distributions to data that feed your mo
 ## For guide authors
 
 The standard structure for every guide is in **[`_TEMPLATE.md`](_TEMPLATE.md)**.
-Visuals come from two reproducible pipelines (see
-[`../../app-guides-plan.md`](../../app-guides-plan.md)):
-
-- **App UI** screenshots — a per-module `screenshots<App>` Gradle task renders the
-  real Swing windows to PNG (run under `xvfb-run`).
-- **Results & charts** — a per-module `results<App>` task renders genuine report
-  content (and chart PNGs) via `ksl.utilities.io.report`'s Markdown renderer.
