@@ -1,6 +1,7 @@
 package ksl.simopt.problem
 
 import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.Solution
 import ksl.utilities.Interval
 import ksl.utilities.distributions.StudentT
 
@@ -22,8 +23,8 @@ class ResponseConstraint(
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     val target: Double = 0.0,
     val tolerance: Double = 0.0,
-    val penaltyFunction: PenaltyFunctionIfc? = null
-) {
+    val penaltyFunction: PenaltyFunction? = null
+) : PenalizableConstraint {
     init {
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
         require(!rhsValue.isNaN()) {"The right-hand side value cannot be NaN"}
@@ -151,6 +152,15 @@ class ResponseConstraint(
         }
         // Delegate the math to your existing violation(Double) function
         return violation(estimatedResponse.average)
+    }
+
+    /**
+     *  A response constraint's violation is computed from the solution's estimated response for this
+     *  constraint's response; 0 when the solution has no estimate for it.
+     */
+    override fun violation(solution: Solution): Double {
+        val est = solution.responseEstimatesMap[responseName] ?: return 0.0
+        return violation(est.average)
     }
 
     /**

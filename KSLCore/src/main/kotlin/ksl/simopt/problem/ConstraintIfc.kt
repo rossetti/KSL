@@ -1,6 +1,8 @@
 package ksl.simopt.problem
 
-interface ConstraintIfc {
+import ksl.simopt.evaluator.Solution
+
+interface ConstraintIfc : PenalizableConstraint {
 
     /**
      * Evaluates the constraint against the provided inputs and generates a
@@ -16,7 +18,7 @@ interface ConstraintIfc {
      * If null, the solver will fall back to the type-level default penalty function
      * defined in the ProblemDefinition.
      */
-    val penaltyFunction: PenaltyFunctionIfc?
+    val penaltyFunction: PenaltyFunction?
         get() = null
 
     /**
@@ -89,5 +91,10 @@ interface ConstraintIfc {
         return maxOf(0.0, computeLHS(inputs) - ltRHSValue)
         //return -minOf(slack(inputs), 0.0)
     }
+
+    /**
+     *  A deterministic constraint's violation is computed from the solution's input values.
+     */
+    override fun violation(solution: Solution): Double = violation(solution.inputMap)
 
 }

@@ -38,9 +38,8 @@ import net.peanuuutz.tomlkt.TomlComment
  *   the Park and Kim (2015) penalty. A faithful Penalty Function with
  *   Memory is planned for a future release.
  *
- * The [ksl.simopt.problem.PenaltyFunctionIfc] interface itself is a
- * `fun interface` and so cannot be persisted in general; only the two
- * concrete data-only implementations have a serializable representation.
+ * The [ksl.simopt.problem.PenaltyFunction] base class cannot be persisted in
+ * general; only these data-only spec variants have a serializable representation.
  *
  * Sealed-class polymorphic serialization is used: the JSON/TOML output
  * carries a `"type"` discriminator with values `"withMemory"` or

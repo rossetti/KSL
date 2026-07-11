@@ -8,7 +8,6 @@ import ksl.simopt.problem.DynamicPolynomialPenalty
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.InputDefinition
 import ksl.simopt.problem.OptimizationType
-import ksl.simopt.problem.PenaltyFunctionWithMemory
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -427,18 +426,6 @@ class ProblemDefinitionTest {
         )
         assertSame(penalty, constraint.penaltyFunction)
         assertSame(penalty, pd.responseConstraints.first().penaltyFunction)
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun deprecatedPenaltyFunctionWithMemoryBehavesAsPolynomial() {
-        // The retired PenaltyFunctionWithMemory no longer applies a 1/sqrt(sampleCount) factor;
-        // it is identical to DynamicPolynomialPenalty regardless of the sample count.
-        val legacy = PenaltyFunctionWithMemory(basePenalty = 100.0, iterationExponent = 1.0, violationExponent = 1.0)
-        val poly = DynamicPolynomialPenalty(basePenalty = 100.0, iterationExponent = 1.0, violationExponent = 1.0)
-        for (n in intArrayOf(1, 10, 50)) {
-            assertEquals(poly.penalty(0.0884, 3, n), legacy.penalty(0.0884, 3, n))
-        }
     }
 
     // ── badSolution() orientation ─────────────────────────────────────────────

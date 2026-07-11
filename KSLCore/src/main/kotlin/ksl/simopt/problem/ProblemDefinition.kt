@@ -313,13 +313,31 @@ class ProblemDefinition @JvmOverloads constructor(
 
 
     /** Default penalty applied to linear constraints if no custom penalty is provided. */
-    var defaultLinearPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+    var defaultLinearPenalty: PenaltyFunction = DynamicPolynomialPenalty.defaultPenaltyFunction
+        set(value) { field = value; myBoundPenalties = null }
 
     /** Default penalty applied to functional constraints if no custom penalty is provided. */
-    var defaultFunctionalPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+    var defaultFunctionalPenalty: PenaltyFunction = DynamicPolynomialPenalty.defaultPenaltyFunction
+        set(value) { field = value; myBoundPenalties = null }
 
     /** Default penalty applied to response constraints if no custom penalty is provided. */
-    var defaultResponsePenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+    var defaultResponsePenalty: PenaltyFunction = DynamicPolynomialPenalty.defaultPenaltyFunction
+        set(value) { field = value; myBoundPenalties = null }
+
+    // Per-constraint bound penalties (Option B): each constraint's effective penalty (its override, or
+    // the problem-level default) bound to that constraint. Resolved lazily and cached; invalidated when
+    // a default penalty is reassigned (setters above) or a constraint is added.
+    private var myBoundPenalties: Map<PenalizableConstraint, PenaltyFunction>? = null
+
+    private fun boundPenalties(): Map<PenalizableConstraint, PenaltyFunction> {
+        myBoundPenalties?.let { return it }
+        val map = LinkedHashMap<PenalizableConstraint, PenaltyFunction>()
+        for (lc in myLinearConstraints) map[lc] = (lc.penaltyFunction ?: defaultLinearPenalty).boundTo(lc)
+        for (fc in myFunctionalConstraints) map[fc] = (fc.penaltyFunction ?: defaultFunctionalPenalty).boundTo(fc)
+        for (rc in myResponseConstraints) map[rc] = (rc.penaltyFunction ?: defaultResponsePenalty).boundTo(rc)
+        myBoundPenalties = map
+        return map
+    }
 
     /**
      * The lower bounds for each input variable
@@ -565,7 +583,7 @@ class ProblemDefinition @JvmOverloads constructor(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
         inequalityType: InequalityType = InequalityType.LESS_THAN,
-        penaltyFunction: PenaltyFunctionIfc? = null
+        penaltyFunction: PenaltyFunction? = null
     ): LinearConstraint {
         for ((name, _) in equation) {
             require(name in inputNames) { "The name $name does not exist in the named inputs" }
@@ -576,6 +594,7 @@ class ProblemDefinition @JvmOverloads constructor(
         }
         val ic = LinearConstraint(eqMap, rhsValue, inequalityType, penaltyFunction)
         myLinearConstraints.add(ic)
+        myBoundPenalties = null
         return ic
     }
 
@@ -600,11 +619,12 @@ class ProblemDefinition @JvmOverloads constructor(
         inequalityType: InequalityType = InequalityType.LESS_THAN,
         target: Double = 0.0,
         tolerance: Double = 0.0,
-        penaltyFunction: PenaltyFunctionIfc? = null
+        penaltyFunction: PenaltyFunction? = null
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
         val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance, penaltyFunction)
         myResponseConstraints.add(rc)
+        myBoundPenalties = null
         return rc
     }
 
@@ -624,6 +644,7 @@ class ProblemDefinition @JvmOverloads constructor(
     ): FunctionalConstraint {
         val fc = FunctionalConstraint(inputNames, lhsFunc, rhsValue, inequalityType)
         myFunctionalConstraints.add(fc)
+        myBoundPenalties = null
         return fc
     }
 
@@ -818,50 +839,15 @@ class ProblemDefinition @JvmOverloads constructor(
      */
     @Suppress("unused")
     fun penaltyFncValue(solution: Solution): Double {
+        // Each constraint's bound penalty (Option B) computes its own violation from the solution and
+        // returns a non-negative contribution (0 when satisfied). penalizedObjFncValue adds this total
+        // to the already-oriented objFncValue, so a violation always worsens the minimization-oriented
+        // value for both MINIMIZE and MAXIMIZE; the penalty is returned unsigned.
         var totalPenalty = 0.0
-        val iterationCounter = solution.evaluationNumber
-
-        // 1. Penalize Linear Constraints (Deterministic)
-        for (lc in linearConstraints) {
-            val v = lc.violation(solution.inputMap)
-            if (v > 0.0) {
-                val penaltyFnc = lc.penaltyFunction ?: defaultLinearPenalty
-                // Pass 1 explicitly since there is no sampling noise to dampen
-                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
-            }
-        }
-
-        // 2. Penalize Functional Constraints (Deterministic)
-        for (fc in functionalConstraints) {
-            val v = fc.violation(solution.inputMap)
-            if (v > 0.0) {
-                val penaltyFnc = fc.penaltyFunction ?: defaultFunctionalPenalty
-                // Pass 1 explicitly since there is no sampling noise to dampen
-                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
-            }
-        }
-
-        // 3. Penalize Response Constraints (Stochastic)
-        for (rc in responseConstraints) {
-            val estResponse = solution.responseEstimatesMap[rc.responseName]
-            if (estResponse != null) {
-                val v = rc.violation(estResponse.average)
-                if (v > 0.0) {
-                    val penaltyFnc = rc.penaltyFunction ?: defaultResponsePenalty
-                    // Explicitly extract the sample count N(x) to feed the memory dampener
-                    //TODO this may not be correct, the Park and Kim paper uses the new observation count
-                    // this is all observations
-                    val count = estResponse.count.toInt()
-                    totalPenalty += penaltyFnc.penalty(v, iterationCounter, count)
-                }
-            }
-        }
-
-        // 4. Return the non-negative penalty magnitude. penalizedObjFncValue adds this to
-        // the already-oriented objFncValue, so a violation always increases (worsens) the
-        // minimization-oriented value for both orientations. Multiplying by objFncFactor
-        // here would flip the sign for a MAXIMIZE problem and make a constraint violator
-        // sort as better than a feasible solution of equal objective.
+        val bound = boundPenalties()
+        for (lc in myLinearConstraints) totalPenalty += bound.getValue(lc).penalty(solution)
+        for (fc in myFunctionalConstraints) totalPenalty += bound.getValue(fc).penalty(solution)
+        for (rc in myResponseConstraints) totalPenalty += bound.getValue(rc).penalty(solution)
         return totalPenalty
     }
 
