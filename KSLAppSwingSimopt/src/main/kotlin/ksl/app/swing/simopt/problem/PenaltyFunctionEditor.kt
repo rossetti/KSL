@@ -33,11 +33,13 @@ import javax.swing.event.DocumentListener
 /**
  * Reusable sub-panel that edits a single [PenaltyFunctionSpec].
  *
- * Both supported substrate variants — [PenaltyFunctionSpec.WithMemory]
- * and [PenaltyFunctionSpec.DynamicPolynomial] — carry the same three
- * numeric fields (basePenalty, iterationExponent, violationExponent),
- * so the editor uses one row of fields and a type combo to pick the
- * variant.  No `CardLayout` swap is needed.
+ * The polynomial variants — [PenaltyFunctionSpec.WithMemory] and
+ * [PenaltyFunctionSpec.DynamicPolynomial] — carry the same three numeric
+ * fields (basePenalty, iterationExponent, violationExponent).
+ * [PenaltyFunctionSpec.ParkKim] adds an appreciation/depreciation penalty
+ * sequence (a, d, initial λ) on top of those three (which then serve as its
+ * fallback polynomial); the sequence rows are shown only when the Park-Kim
+ * type is selected.
  *
  * Used in two places:
  *   - The advanced disclosure on the Constraints step, for the
@@ -66,7 +68,8 @@ class PenaltyFunctionEditor(
 
     private enum class Kind(val label: String) {
         DYNAMIC_POLYNOMIAL("Dynamic polynomial"),
-        WITH_MEMORY("With memory");
+        WITH_MEMORY("With memory"),
+        PARK_KIM("Park-Kim (memory)");
         override fun toString(): String = label
     }
 
@@ -77,6 +80,15 @@ class PenaltyFunctionEditor(
     private val iterationExpField = JTextField(10)
     private val violationExpField = JTextField(10)
 
+    // Park-Kim-only fields (the appreciation/depreciation penalty sequence). Shown only when the
+    // Park-Kim type is selected; the base/iteration/violation fields above are then its fallback.
+    private val appreciationLabel = JLabel("Appreciation factor (a):")
+    private val appreciationField = JTextField(10)
+    private val depreciationLabel = JLabel("Depreciation factor (d):")
+    private val depreciationField = JTextField(10)
+    private val initialLambdaLabel = JLabel("Initial λ:")
+    private val initialLambdaField = JTextField(10)
+
     @Volatile private var suppress = false
 
     init {
@@ -84,7 +96,7 @@ class PenaltyFunctionEditor(
         add(JLabel("Type:"), gbc(0, 0))
         add(typeCombo, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        // Rows 1-3: numeric fields
+        // Rows 1-3: numeric fields (for Park-Kim these are the fallback polynomial's parameters)
         add(JLabel("Base penalty (C):"), gbc(0, 1))
         add(basePenaltyField, gbc(1, 1, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
         add(JLabel("Iteration exponent (β):"), gbc(0, 2))
@@ -92,11 +104,28 @@ class PenaltyFunctionEditor(
         add(JLabel("Violation exponent (α):"), gbc(0, 3))
         add(violationExpField, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        // Initial population
+        // Rows 4-6: Park-Kim penalty-sequence fields (visible only for the Park-Kim type)
+        add(appreciationLabel, gbc(0, 4))
+        add(appreciationField, gbc(1, 4, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(depreciationLabel, gbc(0, 5))
+        add(depreciationField, gbc(1, 5, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(initialLambdaLabel, gbc(0, 6))
+        add(initialLambdaField, gbc(1, 6, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+
+        // Defaults for the Park-Kim fields so switching to that type yields a valid spec immediately;
+        // setValue overwrites them when the initial spec is Park-Kim.
+        appreciationField.text = "2.0"
+        depreciationField.text = "0.5"
+        initialLambdaField.text = "1.0"
+
+        // Initial population (also sets the Park-Kim rows' visibility for the initial type)
         setValue(initial)
 
         // Wire change listeners
-        typeCombo.addActionListener { if (!suppress) onChanged(value) }
+        typeCombo.addActionListener {
+            updatePfmRowVisibility()
+            if (!suppress) onChanged(value)
+        }
         val docListener = object : DocumentListener {
             override fun insertUpdate(e: DocumentEvent?) { if (!suppress) onChanged(value) }
             override fun removeUpdate(e: DocumentEvent?) { if (!suppress) onChanged(value) }
@@ -105,6 +134,22 @@ class PenaltyFunctionEditor(
         basePenaltyField.document.addDocumentListener(docListener)
         iterationExpField.document.addDocumentListener(docListener)
         violationExpField.document.addDocumentListener(docListener)
+        appreciationField.document.addDocumentListener(docListener)
+        depreciationField.document.addDocumentListener(docListener)
+        initialLambdaField.document.addDocumentListener(docListener)
+    }
+
+    /** Show the Park-Kim-only penalty-sequence rows only when that type is selected. */
+    private fun updatePfmRowVisibility() {
+        val show = typeCombo.selectedItem == Kind.PARK_KIM
+        appreciationLabel.isVisible = show
+        appreciationField.isVisible = show
+        depreciationLabel.isVisible = show
+        depreciationField.isVisible = show
+        initialLambdaLabel.isVisible = show
+        initialLambdaField.isVisible = show
+        revalidate()
+        repaint()
     }
 
     /** Parse the current fields into a [PenaltyFunctionSpec].  Returns
@@ -122,6 +167,14 @@ class PenaltyFunctionEditor(
                         PenaltyFunctionSpec.DynamicPolynomial(base, iter, viol)
                     Kind.WITH_MEMORY ->
                         PenaltyFunctionSpec.WithMemory(base, iter, viol)
+                    Kind.PARK_KIM -> {
+                        val a = appreciationField.text.trim().toDoubleOrNull() ?: return null
+                        val d = depreciationField.text.trim().toDoubleOrNull() ?: return null
+                        val lambda0 = initialLambdaField.text.trim().toDoubleOrNull() ?: return null
+                        if (!a.isFinite() || !d.isFinite() || !lambda0.isFinite()) return null
+                        // base/iter/viol are the fallback polynomial's parameters for Park-Kim.
+                        PenaltyFunctionSpec.ParkKim(a, d, lambda0, base, iter, viol)
+                    }
                 }
             } catch (_: IllegalArgumentException) {
                 null
@@ -146,7 +199,18 @@ class PenaltyFunctionEditor(
                     iterationExpField.text = spec.iterationExponent.toString()
                     violationExpField.text = spec.violationExponent.toString()
                 }
+                is PenaltyFunctionSpec.ParkKim -> {
+                    typeCombo.selectedItem = Kind.PARK_KIM
+                    // base/iteration/violation fields hold the fallback polynomial's parameters
+                    basePenaltyField.text = spec.fallbackBasePenalty.toString()
+                    iterationExpField.text = spec.fallbackIterationExponent.toString()
+                    violationExpField.text = spec.fallbackViolationExponent.toString()
+                    appreciationField.text = spec.appreciationFactor.toString()
+                    depreciationField.text = spec.depreciationFactor.toString()
+                    initialLambdaField.text = spec.initialLambda.toString()
+                }
             }
+            updatePfmRowVisibility()
         } finally { suppress = false }
     }
 
@@ -163,6 +227,17 @@ class PenaltyFunctionEditor(
         if (!base.isFinite() || base <= 0.0) return "Base penalty must be > 0 and finite"
         if (!iter.isFinite() || iter < 0.0) return "Iteration exponent must be ≥ 0 and finite"
         if (!viol.isFinite() || viol <= 0.0) return "Violation exponent must be > 0 and finite"
+        if (typeCombo.selectedItem == Kind.PARK_KIM) {
+            val a = appreciationField.text.trim().toDoubleOrNull()
+                ?: return "Appreciation factor must be a number"
+            val d = depreciationField.text.trim().toDoubleOrNull()
+                ?: return "Depreciation factor must be a number"
+            val lambda0 = initialLambdaField.text.trim().toDoubleOrNull()
+                ?: return "Initial λ must be a number"
+            if (!a.isFinite() || a <= 1.0) return "Appreciation factor must be > 1 and finite"
+            if (!d.isFinite() || d <= 0.0 || d >= 1.0) return "Depreciation factor must be in (0, 1)"
+            if (!lambda0.isFinite() || lambda0 <= 0.0) return "Initial λ must be > 0 and finite"
+        }
         return null
     }
 
@@ -175,6 +250,9 @@ class PenaltyFunctionEditor(
         basePenaltyField.isEnabled = enabled
         iterationExpField.isEnabled = enabled
         violationExpField.isEnabled = enabled
+        appreciationField.isEnabled = enabled
+        depreciationField.isEnabled = enabled
+        initialLambdaField.isEnabled = enabled
     }
 
     private fun gbc(
