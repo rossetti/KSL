@@ -49,6 +49,11 @@ class Solutions(
     private val mySolutions = PriorityQueue<Solution>()
     private val myEnteredSolutions = ArrayDeque<Solution>()
 
+    // Retention/eviction uses a clock-independent, feasibility-first order (not the iteration-relative
+    // penalized objective) so a confidently-feasible solution is never evicted for an early low-clock
+    // infeasible one.
+    private val recommendationComparator = FeasibilityFirstComparator()
+
     @Suppress("unused")
     override fun increaseCapacity(increase: Int) {
         if (increase <= 0) return
@@ -109,10 +114,10 @@ class Solutions(
             }
         }
         if (myEnteredSolutions.size == capacity) {
-            // reached capacity, need to check if new solution is better than the worst solution
-            // find the worst solution
-            val worst = orderedSolutions.last()
-            if (solution.compareTo(worst) < 0) {
+            // reached capacity: evict the feasibility-first worst, and only if the new solution is
+            // feasibility-first better than it (so feasible solutions are retained over infeasible ones)
+            val worst = myEnteredSolutions.maxWithOrNull(recommendationComparator)!!
+            if (recommendationComparator.compare(solution, worst) < 0) {
                 myEnteredSolutions.remove(worst)
                 mySolutions.remove(worst)
                 myEnteredSolutions.add(solution)

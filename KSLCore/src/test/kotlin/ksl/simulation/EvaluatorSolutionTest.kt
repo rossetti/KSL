@@ -1,7 +1,9 @@
 package ksl.simulation
 
 import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.FeasibilityFirstComparator
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -299,5 +301,79 @@ class EvaluatorSolutionTest {
             fillAvg = 0.80, fillVar = 0.001, fillCount = 5.0)
         assertTrue(solFeasible.compareTo(solInfeasible) < 0,
             "Feasible solution must rank better (less) than infeasible at same raw cost")
+    }
+
+    // ── Group 5: Feasibility-first selection (recommendation) ──────────────────
+
+    @Test
+    fun feasibilityFirstRanksFeasibleAheadOfCheaperInfeasible() {
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0)
+        val infeasibleCheaper = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.86, fillVar = 0.0001, fillCount = 50.0)
+        assertTrue(FeasibilityFirstComparator().compare(feasible, infeasibleCheaper) < 0,
+            "a confidently-feasible solution ranks ahead of a cheaper infeasible one")
+    }
+
+    @Test
+    fun feasibilityFirstRanksFeasiblesByRawObjective() {
+        val cheaper = makeSolution(4.0, 3.0, objAvg = 4.6, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.96, fillVar = 0.0001, fillCount = 50.0)
+        val dearer = makeSolution(6.0, 3.0, objAvg = 5.3, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.98, fillVar = 0.0001, fillCount = 50.0)
+        assertTrue(FeasibilityFirstComparator().compare(cheaper, dearer) < 0,
+            "among feasibles, the smaller raw objective ranks first")
+    }
+
+    @Test
+    fun feasibilityFirstRanksInfeasiblesByViolation() {
+        val lessInfeasible = makeSolution(6.0, 2.0, objAvg = 4.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.93, fillVar = 0.0001, fillCount = 50.0)
+        val moreInfeasible = makeSolution(4.0, 1.0, objAvg = 2.7, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.76, fillVar = 0.0001, fillCount = 50.0)
+        assertTrue(FeasibilityFirstComparator().compare(lessInfeasible, moreInfeasible) < 0,
+            "among infeasibles, the smaller violation ranks first")
+    }
+
+    @Test
+    fun feasibilityFirstPrefersFeasibleWhenPenalizedFavorsInfeasible() {
+        // A cheap, barely-infeasible, early-clock point has a SMALLER penalized objective than a
+        // feasible one, so penalized ranking prefers it. FF prefers the confidently-feasible one.
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0, evalNum = 1)
+        val infeasibleCheap = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.945, fillVar = 0.0001, fillCount = 50.0, evalNum = 1)
+        assertTrue(infeasibleCheap.penalizedObjFncValue < feasible.penalizedObjFncValue,
+            "penalized ranking prefers the cheap barely-infeasible point")
+        assertTrue(FeasibilityFirstComparator().compare(feasible, infeasibleCheap) < 0,
+            "FF prefers the confidently-feasible solution")
+    }
+
+    @Test
+    fun orderedResponseFeasibleSolutionsReturnsTheFeasibleOnes() {
+        val solutions = Solutions()
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0)
+        val infeasible = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.86, fillVar = 0.0001, fillCount = 50.0)
+        solutions.add(feasible)
+        solutions.add(infeasible)
+        val feas = solutions.orderedResponseFeasibleSolutions()
+        assertEquals(1, feas.size, "only the confidently response-feasible solution is returned")
+        assertEquals(feasible.inputMap, feas.first().inputMap)
+    }
+
+    @Test
+    fun evictionRetainsFeasibleOverCheaperInfeasible() {
+        val solutions = Solutions(capacity = 1)
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0)
+        val infeasibleCheap = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.945, fillVar = 0.0001, fillCount = 50.0)
+        solutions.add(feasible)
+        solutions.add(infeasibleCheap) // cheaper on penalized, but infeasible -> must not evict the feasible
+        assertEquals(1, solutions.size)
+        assertEquals(feasible.inputMap, solutions.orderedSolutions.first().inputMap,
+            "the feasible solution is retained over a cheaper infeasible one")
     }
 }
