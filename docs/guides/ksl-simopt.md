@@ -122,11 +122,22 @@ fresh models. You can also assemble it by hand (§4).
 - **The penalized objective steers search.** A `Solution`'s
   `penalizedObjFncValue` = objective + the sum of constraint penalties
   (deterministic linear/functional + stochastic response). Solvers rank by it, so
-  constraints bend the search rather than hard-rejecting points. Penalty
-  functions ramp with the iteration counter (and, for response constraints,
-  dampen with the sample count). **See §9 for a likely sign-orientation bug in
-  this computation for `MAXIMIZE` problems specifically — read it before relying
-  on penalties with a maximized objective.**
+  constraints bend the search rather than hard-rejecting points. The total penalty
+  is always **non-negative** and is *added* to the minimization-oriented objective,
+  so a violation makes a solution worse for both `MINIMIZE` and `MAXIMIZE` (the
+  penalty is deliberately not multiplied by `objFncFactor`). Each penalty is bound
+  to its constraint and ramps with the iteration counter; a *memoryful* penalty
+  (the Park & Kim Penalty-Function-with-Memory, §8) additionally sharpens as a
+  re-sampled point accumulates evidence of infeasibility.
+- **The reported answer is chosen feasibility-first, not by the penalized
+  objective.** Because the penalty multiplier grows with the iteration counter, the
+  penalized value of a point found early isn't comparable to one found late. So
+  `solver.bestSolution` — the recommended answer — is selected by a
+  clock-independent `FeasibilityFirstComparator`: a solution you're statistically
+  confident is response-feasible outranks one you're not; feasible solutions then
+  compare on the raw objective and infeasible ones on total violation. The
+  penalized objective is a *within-iteration* search key only (exposed as the
+  protected `penalizedIncumbent`).
 - **Two kinds of feasibility.** *Input* feasibility (ranges + linear + functional
   constraints) is deterministic and can be checked before simulating; *response*
   feasibility (`E[G(x)] ≤ c`) is statistical and tested with confidence intervals
@@ -183,7 +194,7 @@ val problem = makeLKInventoryModelProblemDefinition()
 
 // A solver: the factory wires an Evaluator (with a solution cache) over a
 // fresh model per evaluation and binds a stochastic hill climber to it.
-val solver = Solver.createStochasticHillClimbingSolver(
+val solver = Solver.createStochasticHillClimberSolver(
     problemDefinition = problem,
     modelBuilder = BuildLKModel,     // a ModelBuilderIfc returning a fresh LK model
     startingPoint = null,            // null -> random feasible start
@@ -248,6 +259,49 @@ The objective response name **must not** also appear in `responseNames` (it is
 added automatically). A functional (deterministic non-linear) constraint takes a
 `ConstraintFunctionIfc` via `problem.functionalConstraint(...)`.
 
+### ...steer the search around a constraint (penalty functions)
+
+Every constraint carries a `PenaltyFunction` — a non-negative contribution added
+to the penalized objective when the constraint is violated. You don't have to
+touch this: each constraint inherits a problem-level default
+(`DynamicPolynomialPenalty`, a memoryless polynomial that ramps with the iteration
+counter). Override it at either scope:
+
+```kotlin
+// (a) Problem-wide default for a whole constraint family:
+problem.defaultResponsePenalty =
+    DynamicPolynomialPenalty(basePenalty = 250.0, iterationExponent = 1.0)
+
+// (b) Per-constraint, via the optional penaltyFunction argument:
+problem.responseConstraint(
+    name = "Inventory:Item:FillRate",
+    rhsValue = 0.95,
+    inequalityType = InequalityType.GREATER_THAN,
+    penaltyFunction = DynamicPolynomialPenalty(basePenalty = 500.0)
+)
+```
+
+For a **stochastic** (response) constraint you can opt into the Park & Kim (2015)
+Penalty-Function-with-Memory (`ParkKimPenalty`), which accumulates a standardized
+violation measure across repeated visits to a design point and appreciates or
+depreciates its multiplier accordingly — sharper convergence than the memoryless
+polynomial when the constraint is noisy:
+
+```kotlin
+problem.defaultResponsePenalty = ParkKimPenalty(
+    sequence = AppreciateDepreciateSequence(
+        appreciationFactor = 2.0,   // grows the multiplier when a point looks infeasible
+        depreciationFactor = 0.5    // shrinks it when the point looks feasible
+    )
+    // fallback defaults to DynamicPolynomialPenalty until memory accumulates
+)
+```
+
+A memoryful penalty only engages when design points are **re-sampled**, which
+requires a solution cache on the evaluator (the `create*Solver` factories supply
+one). Without a cache — or for a point that's never revisited — it degrades
+gracefully to its memoryless fallback and the evaluator logs a warning (§9).
+
 ### ...pick a solver
 
 §5 is the full reference. As an index, the primary entry points are the
@@ -255,10 +309,10 @@ added automatically). A functional (deterministic non-linear) constraint takes a
 
 | Factory | Class | Algorithm | Notes |
 |---|---|---|---|
-| `createStochasticHillClimbingSolver` | `StochasticHillClimber` | greedy accept-if-better neighbor search | simplest; §5.1 |
+| `createStochasticHillClimberSolver` | `StochasticHillClimber` | greedy accept-if-better neighbor search | simplest; §5.1 |
 | `createSimulatedAnnealingSolver` | `SimulatedAnnealing` | Metropolis acceptance + cooling | §5.2 |
 | `createCrossEntropySolver` | `CrossEntropySolver` | cross-entropy (fit distribution to elites) | §5.3 |
-| `createRsplineSolver` | `RSplineSolver` | R-SPLINE retrospective search | **integer-ordered problems only**; §5.4 |
+| `createRSplineSolver` | `RSplineSolver` | R-SPLINE retrospective search | **integer-ordered problems only**; §5.4 |
 | `createGeneticAlgorithmSolver` | `GeneticAlgorithmSolver` | population GA (selection/crossover/mutation) | §5.5 |
 | `createParticleSwarmSolver` | `ParticleSwarmSolver` | global-best particle swarm | parallel evaluation **on by default**; §5.6 |
 | `createBayesianOptimizationSolver` | `BayesianOptimizationSolver` | GP surrogate + acquisition function | §5.7 |
@@ -374,7 +428,7 @@ Add a `MemorySimulationRunCache` to also cache the raw replication output at the
 oracle level:
 
 ```kotlin
-val solver = Solver.createStochasticHillClimbingSolver(
+val solver = Solver.createStochasticHillClimberSolver(
     problemDefinition = problem,
     modelBuilder = BuildLKModel,
     maxIterations = 100,
@@ -394,7 +448,7 @@ convergence (the basis of a fair benchmark comparison — see §7), install a
 `ReplicationBudgetStoppingCriterion`:
 
 ```kotlin
-val solver = Solver.createStochasticHillClimbingSolver(
+val solver = Solver.createStochasticHillClimberSolver(
     problemDefinition = problem,
     modelBuilder = BuildLKModel,
     maxIterations = 10_000               // a generous ceiling
@@ -414,7 +468,7 @@ whenever it's set (§5, §9).
 
 | You want… | Use |
 |---|---|
-| the single best point | `solver.bestSolution` (a `Solution`; `.asString()` / `.inputMap` / `.estimatedObjFncValue` / `.penalizedObjFncValue`) |
+| the single best point | `solver.bestSolution` — the feasibility-first recommended solution (a `Solution`; `.asString()` / `.inputMap` / `.estimatedObjFncValue` / `.penalizedObjFncValue`) |
 | the retained near-best set | `solver.bestSolutions` (`SolutionsIfc`), `possiblyBest()`, `orderedSolutions`, `toDataFrame()` |
 | a formatted run report | `solver.printResults()` or `solver.solverResult` (a `SolverResult.Completed` with `evaluatorMetrics`, iterations, timing) |
 | per-iteration progress | a tracker — see §6 |
@@ -470,7 +524,7 @@ the "always accept improvement, never accept regression" baseline the other
 local-search algorithms generalize away from. Stops early via an internal
 no-improvement `SolutionChecker`, independent of `maxIterations`.
 
-**Factory — `Solver.createStochasticHillClimbingSolver(...)`**
+**Factory — `Solver.createStochasticHillClimberSolver(...)`**
 
 | Parameter | Type | Default | Purpose |
 |---|---|---|---|
@@ -895,16 +949,15 @@ paper's actual guarantees.
 | `name` | `String?` | `null` | — |
 | `parallelOptions` | `ParallelEvaluationOptions` | `ParallelEvaluationOptions()` | — |
 
-> **There is no way to set a starting point for `ISCSolver`.** The factory has
-> no `startingPoint` parameter, and — unlike every other solver — setting the
-> inherited `.startingPoint` var after construction is silently a no-op: all
-> three ISC classes override `initializeIterations()`, and none of the three
-> consults that var (`CompassSolver` reads a *different* property, `.seed`,
-> instead; `ISCSolver` doesn't forward anything to either sub-phase). The only
-> supported ways to influence the start are `startingPointGenerator` (a
-> `StartingPointIfc`, which *is* honored) or `skipGlobalPhase = true` combined
-> with building your own seeded `CompassSolver` and passing it via
-> `localPhaseFactory`.
+> **The `createISCSolver` factory has no `startingPoint` parameter, but the
+> inherited `.startingPoint` var is honored** — set it after construction. All
+> three ISC classes now consult it: `ISCSolver` seeds the phase machine from it
+> (`startingPoint ?: startingPoint()`), `NichingGeneticAlgorithmSolver` injects
+> it into the initial population, and `CompassSolver` uses it when no explicit
+> `.seed` is set (precedence `seed → startingPoint → random`). A
+> `startingPointGenerator` (`StartingPointIfc`) also still works. With
+> `skipGlobalPhase = true`, the single COMPASS search runs directly from that
+> starting point.
 
 **`NichingGeneticAlgorithmSolver` and `CompassSolver` have no factory of their
 own** — `createISCSolver`/`createRandomRestartISCSolver` are the only two
@@ -929,12 +982,13 @@ centers); `transitionRules: List<NgaTransitionRuleIfc> = [SingleNicheRule(), Imp
 allocation); `redundancyChecker = BruteForceRedundancyChecker()` (prunes
 non-binding search-region boundaries; `SimplexRedundancyChecker` is the
 LP-based alternative recommended in higher dimensions); `pruneEvery: Int = 5`;
-`deltaL: Double = 0.0` (**hardcoded, not linked to the problem's indifference
-zone by default** — asymmetric with `ISCSolver`'s own `deltaL`, which does pick
-it up automatically); `maxReplications: Int = 50_000` (hard safety cap on total
-replications for one COMPASS run). The real starting-point lever for a
-standalone `CompassSolver` is the post-construction `seed: InputMap?` property,
-not the inherited `startingPoint`.
+`deltaL: Double = problemDefinition.indifferenceZoneParameter` (defaults to the
+problem's indifference zone — symmetric with `ISCSolver`'s own `deltaL`, and
+`0.0` unless you set that on the problem, which selects COMPASS's degraded
+local-optimality mode); `maxReplications: Int = 50_000` (hard safety cap on total
+replications for one COMPASS run). For a standalone `CompassSolver` the explicit
+`seed: InputMap?` property takes precedence, but the inherited `startingPoint`
+is now used as a fallback when `seed` is null.
 
 > **Clean-up cost is quadratic in noise/indifference-zone ratio, and this is
 > not hypothetical.** Rinott's second-stage sample size for each survivor is
@@ -1149,7 +1203,7 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 | `InputMap` | An immutable, validated `Map<String,Double>` of one input point; the cache key. Built via `problem.toInputMap(...)` / `generateRandomInputValues(...)`. |
 | `OptimizationType` / `InequalityType` | `MINIMIZE`/`MAXIMIZE`; `LESS_THAN`/`GREATER_THAN` (all constraints internally `≤`). |
 | `LinearConstraint` / `FunctionalConstraint` / `ResponseConstraint` | Deterministic linear, deterministic non-linear, and probabilistic (`E[R(x)]`) constraints. |
-| `PenaltyFunctionIfc` (`DynamicPolynomialPenalty`, `PenaltyFunctionWithMemory`) | Maps a violation (+ iteration, sample count) to an additive penalty. |
+| `PenaltyFunction` (abstract) + `PenalizableConstraint` | A non-negative penalty bound to a constraint that reports its own violation. `DynamicPolynomialPenalty` is the memoryless default (`basePenalty · k^iterExp · violation^violExp`); `ParkKimPenalty` (Park & Kim 2015 PFM) adds cross-visit memory via a `PenaltySequence` (`AppreciateDepreciateSequence`) + `PenaltyMemory`. Set problem-wide (`defaultLinearPenalty` / `defaultFunctionalPenalty` / `defaultResponsePenalty`) or per-constraint (the `penaltyFunction` arg on `linearConstraint(...)` / `responseConstraint(...)`). |
 | `StartingPointIfc` / `FixedStartingPoint` | Supplies a feasible starting point; default is random. |
 
 **Evaluator / oracle** (`ksl.simopt.evaluator`)
@@ -1160,7 +1214,8 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 | `SimulationOracleIfc` | The "something that can simulate a request" seam. |
 | `SimulationProvider` / `ParallelSimulationProvider` | Oracles backed by one reused model / many fresh models (a `ModelBuilderIfc`). |
 | `ResponseFunctionOracle` / `MCReplicationOracle` | Analytic / Monte-Carlo oracles (no `Model`) through the same seam. |
-| `Solution` | An evaluated point: `inputMap`, `estimatedObjFnc`, `responseEstimates`, feasibility; `penalizedObjFncValue`, `asString()`, ordered by penalized objective. |
+| `Solution` | An evaluated point: `inputMap`, `estimatedObjFnc`, `responseEstimates`, feasibility; `estimatedObjFncValue`, `penalizedObjFncValue`, `penaltyMemory`, `asString()`. `compareTo` orders by penalized objective (within-iteration search); cross-iteration selection uses `FeasibilityFirstComparator`. |
+| `FeasibilityFirstComparator` | Clock-independent ordering (validity → statistical response-feasibility → objective, then violation) that selects the recommended `Solver.bestSolution` — distinct from the iteration-relative penalized-objective search order. |
 | `Solutions` / `SolutionsIfc` | Bounded (default capacity 10), penalized-objective-ordered set; `possiblyBest(…)`, `orderedSolutions`, `toDataFrame()`. |
 | `EstimatedResponse` | One response's `(name, average, variance, count)`; `merge`/`pooledVariance` combine independent samples. |
 | `ResponseMap` / `EvaluationRequest` / `ModelInputs` | Response estimates for a model / a batch request / one design point + replication count. |
@@ -1170,7 +1225,7 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 
 | Type | Role |
 |---|---|
-| `Solver` | Abstract search base: `runAllIterations()`, `bestSolution`, `bestSolutions`, `maximumNumberIterations`, `replicationsPerEvaluation`, `solutionQualityEvaluator`, `printResults()`, `solverResult`; `iterationEmitter`/`lifeCycleEmitter` for trackers. |
+| `Solver` | Abstract search base: `runAllIterations()`, `bestSolution` (feasibility-first recommended answer, screened at `recommendationCILevel`), `penalizedIncumbent` (protected within-iteration search incumbent), `bestSolutions`, `maximumNumberIterations`, `replicationsPerEvaluation`, `solutionQualityEvaluator`, `printResults()`, `solverResult`; `iterationEmitter`/`lifeCycleEmitter` for trackers. |
 | `StochasticSolver` | Intermediate base adding RNG control + acceptance-sampled starting points. |
 | Concrete algorithms | `StochasticHillClimber`, `RandomWalkSolver`, `SimulatedAnnealing`, `CrossEntropySolver`, `RSplineSolver`, `GeneticAlgorithmSolver`, `ParticleSwarmSolver`, `BayesianOptimizationSolver`, `ISCSolver`, `NichingGeneticAlgorithmSolver`, `CompassSolver` — §5. |
 | `RandomRestartSolver` | Wraps an inner solver, restarting from random feasible points; optional concurrent restarts. |
@@ -1216,21 +1271,38 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   `portfolio.runAllIterations()` and a concurrent `RandomRestartSolver` both
   hide `runBlocking` internally — you never write it yourself.
 
-- **`ProblemDefinition`'s penalty computation is likely mis-signed for
-  `MAXIMIZE` problems.** `penaltyFncValue()` multiplies the (always
-  non-negative) penalty by `objFncFactor` (-1 for `MAXIMIZE`) before adding it
-  to the objective — which *decreases* the penalized value for a constraint
-  violation instead of increasing it. Worked example: two `MAXIMIZE` solutions
-  with true average 100, A feasible and B violating a constraint;
-  `penalizedObjFncValue` comes out -100 for A and -150 for B, and B sorts as
-  *better* under the package's "smaller is better" internal convention. This
-  is corroborated by a recent commit that fixed the identical
-  `objFncFactor`-orientation mistake in `badSolution()` and explicitly noted a
-  related occurrence was left open in this exact area; no current test
-  exercises `MAXIMIZE` together with a penalized (constraint-violating)
-  solution. **Until this is resolved, be cautious combining `MAXIMIZE` with
-  linear, functional, or response constraints** — verify your own results
-  independently rather than trusting the penalized ranking.
+- **The penalty is correctly oriented for both `MINIMIZE` and `MAXIMIZE`.**
+  `penaltyFncValue()` returns the total constraint penalty **unsigned** (always
+  ≥ 0) and `penalizedObjFncValue` *adds* it to the minimization-oriented
+  objective (`objFncFactor · average`), so a violation always makes a solution
+  worse regardless of optimization direction. The penalty is deliberately **not**
+  multiplied by `objFncFactor` — an earlier revision did, which flipped its sign
+  for `MAXIMIZE`; that is resolved.
+
+- **Read `bestSolution` for the answer, not the penalized incumbent.** The
+  reported `solver.bestSolution` is chosen feasibility-first and is
+  clock-independent (§2.2); the penalized objective — whose multiplier grows with
+  the iteration counter — is a *within-iteration* search key only (the protected
+  `penalizedIncumbent`). Don't rank final solutions by `penalizedObjFncValue`
+  across iterations; use `bestSolution` / `bestSolutions.possiblyBest()`. Tune the
+  feasibility confidence with `solver.recommendationCILevel` (default 0.99).
+
+- **A penalty with memory needs a solution cache.** `ParkKimPenalty` only
+  accumulates its cross-visit violation measure when design points are
+  *re-sampled*, which requires a `SolutionCacheIfc` on the evaluator (the
+  `create*Solver` factories supply one; a hand-built `Evaluator` defaults to
+  none). Without a cache — or for a point that is never revisited — it degrades
+  to its memoryless fallback (`DynamicPolynomialPenalty`) and the evaluator logs
+  a warning.
+
+- **A solver's population/design size can't exceed the feasible input lattice.**
+  For an integer-ordered problem with a small grid, a requested population or
+  space-filling-design size may be larger than the number of distinct feasible
+  points. `sampleInputFeasiblePoints` now enumerates the exact feasible set (or
+  bounded-rejection-samples) and returns *fewer* points rather than looping
+  forever, logging what limited it; `ProblemDefinition.feasiblePointCapacity(n)`
+  reports this up front. Reduce the size, refine an input's granularity, or widen
+  a range.
 
 - **`MemorySolutionCache`'s eviction and `allowInfeasibleSolutions` both work
   as documented** — despite what an earlier draft of this guide claimed.
@@ -1238,9 +1310,9 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   capacity, correctly; `allowInfeasibleSolutions` is genuinely consulted by
   `put()`. No known issue here.
 
-- **`ISCSolver` has no way to receive a starting point** — see §5.8. Not a
-  documentation gap; the inherited `startingPoint` var is a genuine no-op for
-  all three ISC classes.
+- **`createISCSolver` has no `startingPoint` parameter, but the inherited
+  `startingPoint` var now works** — set it after construction (§5.8). All three
+  ISC classes consult it; an earlier revision ignored it.
 
 - **`createParticleSwarmSolver` is the only factory that defaults to parallel
   evaluation.** Every other solver defaults to sequential.
@@ -1269,8 +1341,7 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   `Solution.estimatedObjFncValue` is oriented by the optimization type
   (sign-flipped for `MAXIMIZE`), but `Solution.asString()` prints the raw
   estimated average. They differ in sign for maximization — compare like
-  with like. (See also the penalty-sign issue above, which compounds this for
-  penalized solutions specifically.)
+  with like.
 
 - **Model builders must return fresh, independent models.** Same "pure
   constructor" contract as `ModelBuilderIfc` everywhere else in KSL.
@@ -1279,12 +1350,12 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   `bestSolutions.possiblyBest()` (or a `SolverPortfolio` confirmation stage /
   the benchmark harness's confirmation) before declaring a winner.
 
-- **Naming quirks.** Factory names don't match their return classes
-  (`createStochasticHillClimbingSolver` → `StochasticHillClimber`,
-  `createRsplineSolver` → `RSplineSolver`), and the iteration cap goes by
-  three names across the API (`maximumIterations` ctor arg, `maxIterations`
-  factory arg, `maximumNumberIterations` property) — they refer to the same
-  thing.
+- **Naming quirks.** A factory name isn't always its class name plus a suffix
+  (`createStochasticHillClimberSolver` → `StochasticHillClimber`,
+  `createSimulatedAnnealingSolver` → `SimulatedAnnealing`), and the iteration cap
+  goes by three names across the API (`maximumIterations` ctor arg,
+  `maxIterations` factory arg, `maximumNumberIterations` property) — they refer to
+  the same thing.
 
 ---
 
