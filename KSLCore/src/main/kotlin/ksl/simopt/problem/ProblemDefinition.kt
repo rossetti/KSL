@@ -340,6 +340,48 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     * True if any constraint's effective (bound) penalty accumulates memory across visits (for
+     * example, a Park and Kim Penalty Function with Memory). Used to decide whether new observations
+     * must be folded into solution memory and to warn about regimes that cannot accumulate it.
+     */
+    fun hasMemoryfulPenalty(): Boolean = boundPenalties().values.any { it.usesMemory }
+
+    /**
+     * Folds a visit's new observations into the penalty memory carried by a solution, for each
+     * response constraint whose bound penalty uses memory. Returns the penalty-memory map to stamp on
+     * the resulting solution: [priorMemory] carried forward with each memoryful response constraint's
+     * entry updated by its penalty's foldVisit over the new observations. A problem with no memoryful
+     * penalty (the common case) returns [priorMemory] unchanged, so memoryless evaluation is
+     * unaffected.
+     *
+     * Only response (stochastic) constraints are folded: their observations can be standardized,
+     * whereas deterministic constraints have exact violations and carry no memory.
+     *
+     * @param newObservations the freshly simulated batch's responses — the new observations obtained
+     *   at this visit, not the merged cumulative responses
+     * @param priorMemory the memory carried by the solution being revisited; empty on a first visit
+     * @param iteration the current evaluation iteration
+     */
+    fun foldPenaltyMemory(
+        newObservations: ResponseMap,
+        priorMemory: Map<String, PenaltyMemory>,
+        iteration: Int
+    ): Map<String, PenaltyMemory> {
+        if (myResponseConstraints.isEmpty()) return priorMemory
+        val bound = boundPenalties()
+        var updated: MutableMap<String, PenaltyMemory>? = null
+        for (rc in myResponseConstraints) {
+            val penalty = bound.getValue(rc)
+            if (!penalty.usesMemory) continue
+            val newEstimate = newObservations[rc.responseName] ?: continue
+            val folded = penalty.foldVisit(newEstimate, priorMemory[rc.key], iteration) ?: continue
+            if (updated == null) updated = HashMap(priorMemory)
+            updated[rc.key] = folded
+        }
+        return updated ?: priorMemory
+    }
+
+    /**
      * The lower bounds for each input variable
      */
     @Suppress("unused")

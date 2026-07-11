@@ -14,4 +14,11 @@ interface PenalizableConstraint {
      *  The non-negative constraint-violation magnitude for the supplied solution (0 means satisfied).
      */
     fun violation(solution: Solution): Double
+
+    /**
+     *  A stable identity used to key this constraint's penalty memory on a solution. Response
+     *  constraints use their (problem-unique) response name; deterministic constraints carry no
+     *  penalty memory (their violation is exact), so their key is a formal identity only.
+     */
+    val key: String
 }

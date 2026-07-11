@@ -5,6 +5,7 @@ import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.PenaltyMemory
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.ModelBuilderIfc
@@ -41,6 +42,9 @@ class Evaluator @JvmOverloads constructor(
     // random restarts) without disturbing the cumulative statistics counters above.
     private var myEvaluationClock: Int = 0
 
+    // One-time guard for the memoryful-penalty-without-cache warning (see checkMemoryPenaltyRegime).
+    private var myMemoryPenaltyWarningIssued: Boolean = false
+
     override fun resetEvaluationClock() {
         EvaluatorIfc.logger.trace { "Resetting the evaluation clock" }
         myEvaluationClock = 0
@@ -66,6 +70,7 @@ class Evaluator @JvmOverloads constructor(
         // 1. Increment the call counter (used as the batch/generation ID) and the clock
         totalEvaluatorCalls++
         myEvaluationClock++
+        checkMemoryPenaltyRegime()
         // 2. Increment the total unique design points requested
         totalDesignPointsEvaluated = totalDesignPointsEvaluated + evaluationRequest.modelInputs.size
         if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed) {
@@ -82,6 +87,27 @@ class Evaluator @JvmOverloads constructor(
         // there is no cache to worry about, just simulate and return
         EvaluatorIfc.logger.trace { "Evaluator: evaluating via simulation with no caching." }
         return evaluateViaSimulation(evaluationRequest)
+    }
+
+    /**
+     *  Warns once if a memoryful penalty (for example, a Park and Kim PFM) is configured but this
+     *  evaluator has no solution cache. Without a cache, design points are never re-sampled and
+     *  merged, so penalty memory cannot accumulate (each solution stays at a single visit) and the
+     *  penalty degrades to its memoryless fallback. This is a configuration signal, not an error:
+     *  the search still proceeds correctly.
+     */
+    private fun checkMemoryPenaltyRegime() {
+        if (myMemoryPenaltyWarningIssued || cache != null) return
+        if (problemDefinition.hasMemoryfulPenalty()) {
+            myMemoryPenaltyWarningIssued = true
+            EvaluatorIfc.logger.warn {
+                "A penalty function with memory (e.g., Park-Kim PFM) is configured but this evaluator " +
+                    "has no solution cache, so design points are never re-sampled and penalty memory " +
+                    "cannot accumulate. The penalty degrades to its memoryless fallback " +
+                    "(DynamicPolynomialPenalty). Provide a solution cache and re-sample design points " +
+                    "to engage the memory."
+            }
+        }
     }
 
     private fun cacheBasedEvaluation(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
@@ -207,7 +233,13 @@ class Evaluator @JvmOverloads constructor(
             solutions[request] = if (result.isFailure) {
                 problemDefinition.badSolution()
             } else {
-                createSolution(request, result.getOrNull()!!)
+                val responseMap = result.getOrNull()!!
+                // First visit for this batch: fold its new observations into empty prior memory.
+                // If this design point is later re-sampled, mergeSolution re-folds against the cached
+                // solution's memory; this fresh memory is used directly when the point is not cached.
+                // For memoryless penalties foldPenaltyMemory returns the empty map unchanged.
+                val memory = problemDefinition.foldPenaltyMemory(responseMap, emptyMap(), myEvaluationClock)
+                createSolution(request, responseMap, memory)
             }
         }
         EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${solutions.size} solutions" }
@@ -224,6 +256,7 @@ class Evaluator @JvmOverloads constructor(
     private fun createSolution(
         request: ModelInputs,
         responseMap: ResponseMap,
+        penaltyMemory: Map<String, PenaltyMemory> = emptyMap(),
     ): Solution {
         val objFnName = problemDefinition.objFnResponseName
         val estimatedObjFnc = responseMap[objFnName]!!
@@ -241,7 +274,8 @@ class Evaluator @JvmOverloads constructor(
             inputMap,
             estimatedObjFnc,
             responseEstimates,
-            myEvaluationClock
+            myEvaluationClock,
+            penaltyMemory = penaltyMemory
         )
         return solution
     }
@@ -262,9 +296,15 @@ class Evaluator @JvmOverloads constructor(
         // convert and merge as response maps
         val r1 = firstSolution.toResponseMap()
         val r2 = secondSolution.toResponseMap()
+        // Fold the NEW batch (secondSolution) into the cached solution's (firstSolution's) prior
+        // memory BEFORE merging: the standardized measure uses the new batch's average and its
+        // replication count as the number of new observations, not the merged cumulative. firstSolution
+        // is the cached prior; secondSolution is the freshly simulated batch. For memoryless penalties
+        // this returns firstSolution.penaltyMemory (empty) unchanged.
+        val memory = problemDefinition.foldPenaltyMemory(r2, firstSolution.penaltyMemory, myEvaluationClock)
         // merge them
         r1.mergeAll(r2)
-        return createSolution(request, r1)
+        return createSolution(request, r1, memory)
     }
 
     override fun toString(): String {

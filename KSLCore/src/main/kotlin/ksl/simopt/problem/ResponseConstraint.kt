@@ -164,6 +164,13 @@ class ResponseConstraint(
     }
 
     /**
+     *  A response constraint keys its penalty memory by its response name, which is unique within a
+     *  problem definition.
+     */
+    override val key: String
+        get() = responseName
+
+    /**
      *  Returns true if the implied test of feasibility indicates that the constraint is satisfied. If the
      *  user supplied a FeasibilityCheckerIfc instance for the property feasibilityChecker, it is used to
      *  check for feasibility; otherwise, the function uses the function oneSidedUpperResponseInterval()

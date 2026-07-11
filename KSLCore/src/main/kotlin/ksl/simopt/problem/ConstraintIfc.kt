@@ -97,4 +97,12 @@ interface ConstraintIfc : PenalizableConstraint {
      */
     override fun violation(solution: Solution): Double = violation(solution.inputMap)
 
+    /**
+     *  Deterministic constraints carry no penalty memory (their violation is computed exactly from
+     *  the inputs), so this key is a formal identity only and is not used to look up accumulated
+     *  memory. It is derived from the constraint's inequality and right-hand side.
+     */
+    override val key: String
+        get() = "$inequalityString $rhsValue"
+
 }
