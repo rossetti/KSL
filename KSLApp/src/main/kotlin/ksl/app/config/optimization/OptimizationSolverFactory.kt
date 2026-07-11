@@ -23,8 +23,10 @@ import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.cache.SolutionCacheIfc
+import ksl.simopt.problem.AppreciateDepreciateSequence
 import ksl.simopt.problem.DynamicPolynomialPenalty
-import ksl.simopt.problem.PenaltyFunctionIfc
+import ksl.simopt.problem.ParkKimPenalty
+import ksl.simopt.problem.PenaltyFunction
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.evaluator.ParallelEvaluationOptions
 import ksl.simopt.solvers.Solver
@@ -397,11 +399,16 @@ class OptimizationSolverFactory(
         )
     }
 
-    private fun PenaltyFunctionSpec.toEngine(): PenaltyFunctionIfc = when (this) {
+    private fun PenaltyFunctionSpec.toEngine(): PenaltyFunction = when (this) {
         is PenaltyFunctionSpec.WithMemory ->
             DynamicPolynomialPenalty(basePenalty, iterationExponent, violationExponent)
         is PenaltyFunctionSpec.DynamicPolynomial ->
             DynamicPolynomialPenalty(basePenalty, iterationExponent, violationExponent)
+        is PenaltyFunctionSpec.ParkKim ->
+            ParkKimPenalty(
+                AppreciateDepreciateSequence(appreciationFactor, depreciationFactor, initialLambda),
+                DynamicPolynomialPenalty(fallbackBasePenalty, fallbackIterationExponent, fallbackViolationExponent)
+            )
     }
 
     companion object {

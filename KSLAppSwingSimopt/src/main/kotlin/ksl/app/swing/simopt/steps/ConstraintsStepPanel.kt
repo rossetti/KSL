@@ -603,6 +603,8 @@ class ConstraintsStepPanel(
                 "WithMemory(C=${p.basePenalty}, β=${p.iterationExponent}, α=${p.violationExponent})"
             is PenaltyFunctionSpec.DynamicPolynomial ->
                 "Dynamic(C=${p.basePenalty}, β=${p.iterationExponent}, α=${p.violationExponent})"
+            is PenaltyFunctionSpec.ParkKim ->
+                "Park-Kim(a=${p.appreciationFactor}, d=${p.depreciationFactor}, λ₀=${p.initialLambda})"
         }
     }
 }

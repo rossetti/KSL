@@ -401,6 +401,35 @@ class OptimizationRunConfigurationTest {
         assertEquals(config, tomlDecoded)
     }
 
+    // ── 12b. Park-Kim (PFM) penalty defaults round-trip and carry the parkKim discriminator ──
+
+    @Test
+    fun `Park-Kim penalty spec round-trips through JSON and TOML and uses the parkKim discriminator`() {
+        val config = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 2),
+            problem = OptimizationProblemSpec(
+                objectiveResponseName = "TotalCost",
+                inputs = listOf(OptimizationInputSpec("x1", lowerBound = 0.0, upperBound = 10.0)),
+                defaultResponsePenalty = PenaltyFunctionSpec.ParkKim(
+                    appreciationFactor = 3.0, depreciationFactor = 0.25, initialLambda = 2.0,
+                    fallbackBasePenalty = 150.0
+                )
+            )
+        )
+
+        val encodedJson = OptimizationRunConfigurationJson.encode(config)
+        val jsonDecoded = OptimizationRunConfigurationJson.decode(encodedJson)
+        val tomlDecoded = OptimizationRunConfigurationToml.decode(
+            OptimizationRunConfigurationToml.encode(config)
+        )
+
+        assertEquals(config, jsonDecoded)
+        assertEquals(config, tomlDecoded)
+        assertTrue(jsonDecoded.problem!!.defaultResponsePenalty is PenaltyFunctionSpec.ParkKim)
+        assertTrue(encodedJson.contains(""""type": "parkKim""""),
+            "ParkKim JSON should carry type=parkKim")
+    }
+
     // ── 13. PenaltyFunctionSpec sealed-class discriminator coverage ──────────
 
     @Test
