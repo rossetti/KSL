@@ -33,10 +33,9 @@ data class Solution(
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val evaluationNumber: Int,
-    val isValid: Boolean = true
+    val isValid: Boolean = true,
+    val id: Int = solutionCounter++,
 ) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
-
-    val id : Int = solutionCounter++
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
@@ -218,6 +217,37 @@ data class Solution(
 
     override fun compareTo(other: Solution): Int {
         return penalizedObjFncValue.compareTo(other.penalizedObjFncValue)
+    }
+
+    /**
+     *  Returns this solution stamped at the supplied [evaluationNumber] — the iteration at which
+     *  it is being used for selection. The simulation estimates and [id] are unchanged; only the
+     *  penalty clock advances. Returns this instance when it is already at that iteration.
+     */
+    fun atEvaluation(evaluationNumber: Int): Solution =
+        if (this.evaluationNumber == evaluationNumber) this
+        else copy(evaluationNumber = evaluationNumber)
+
+    // equals/hashCode are defined explicitly to EXCLUDE id from value-equality, preserving the
+    // data-class semantics from before id became a constructor property: two solutions with the
+    // same inputs, estimates, evaluation number, and validity are equal regardless of id.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Solution) return false
+        return inputMap == other.inputMap &&
+            estimatedObjFnc == other.estimatedObjFnc &&
+            responseEstimates == other.responseEstimates &&
+            evaluationNumber == other.evaluationNumber &&
+            isValid == other.isValid
+    }
+
+    override fun hashCode(): Int {
+        var result = inputMap.hashCode()
+        result = 31 * result + estimatedObjFnc.hashCode()
+        result = 31 * result + responseEstimates.hashCode()
+        result = 31 * result + evaluationNumber
+        result = 31 * result + isValid.hashCode()
+        return result
     }
 
     fun asString(): String {

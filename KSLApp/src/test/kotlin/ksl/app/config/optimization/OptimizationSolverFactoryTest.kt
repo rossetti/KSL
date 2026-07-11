@@ -342,12 +342,12 @@ class OptimizationSolverFactoryTest {
             problem = problem
         ))
         val pd = solver.problemDefinition
-        assertTrue(pd.defaultLinearPenalty is ksl.simopt.problem.PenaltyFunctionWithMemory,
-            "Expected defaultLinearPenalty translated to PenaltyFunctionWithMemory")
+        assertTrue(pd.defaultLinearPenalty is ksl.simopt.problem.DynamicPolynomialPenalty,
+            "Expected defaultLinearPenalty (WithMemory spec) translated to DynamicPolynomialPenalty")
         assertTrue(pd.defaultResponsePenalty is ksl.simopt.problem.DynamicPolynomialPenalty,
             "Expected defaultResponsePenalty translated to DynamicPolynomialPenalty")
         assertEquals(200.0,
-            (pd.defaultLinearPenalty as ksl.simopt.problem.PenaltyFunctionWithMemory).basePenalty)
+            (pd.defaultLinearPenalty as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
         assertEquals(75.0,
             (pd.defaultResponsePenalty as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
     }
@@ -386,12 +386,12 @@ class OptimizationSolverFactoryTest {
         val response = solver.problemDefinition.responseConstraints.first()
         assertTrue(linear.penaltyFunction is ksl.simopt.problem.DynamicPolynomialPenalty,
             "Expected per-linear-constraint penalty translated to DynamicPolynomialPenalty")
-        assertTrue(response.penaltyFunction is ksl.simopt.problem.PenaltyFunctionWithMemory,
-            "Expected per-response-constraint penalty translated to PenaltyFunctionWithMemory")
+        assertTrue(response.penaltyFunction is ksl.simopt.problem.DynamicPolynomialPenalty,
+            "Expected per-response-constraint penalty (WithMemory spec) translated to DynamicPolynomialPenalty")
         assertEquals(250.0,
             (linear.penaltyFunction as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
         assertEquals(50.0,
-            (response.penaltyFunction as ksl.simopt.problem.PenaltyFunctionWithMemory).basePenalty)
+            (response.penaltyFunction as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
     }
 
     // ── Draft-document rejection ─────────────────────────────────────────────

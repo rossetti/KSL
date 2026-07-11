@@ -99,6 +99,13 @@ class Evaluator @JvmOverloads constructor(
         }
         // The cache retrieved solutions are associated with some requests. The following code will add to
         // the cached solutions by simulating the requests not in the cache and those that require additional replications.
+        // Re-stamp every cache hit to the CURRENT batch clock so a reused design point is penalized
+        // at the current iteration, not the (stale) iteration at which it first entered the cache.
+        // Estimates are preserved; only the penalty clock (evaluationNumber) advances, and
+        // reviseRequestReplications reads .count (untouched here) so hit classification is unaffected.
+        for ((request, cached) in cachedSolutions.toList()) {
+            cachedSolutions[request] = cached.atEvaluation(myEvaluationClock)
+        }
         val requests = evaluationRequest.modelInputs
         // Revise and filter the requests based on the replications in the solution cache.
         val requestsToSimulate = reviseRequestReplications(cachedSolutions, requests)

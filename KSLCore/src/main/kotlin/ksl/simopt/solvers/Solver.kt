@@ -251,14 +251,35 @@ abstract class Solver(
         get() = myBestSolutions
 
     /**
-     *  The best solution found so far in the search. Some algorithms may allow
-     *  the current solution to vary from the best solution due to randomness
-     *  or other search needs (e.g., explore bad areas with the hope of getting better).
-     *  The algorithm should ensure the updating of the best solution found
-     *  across any iteration.
+     *  The recommended solution: among the archived solutions, the best one we are statistically
+     *  confident is response-feasible (using [FeasibilityFirstComparator] at [recommendationCILevel]),
+     *  ranked by the raw, orientation-adjusted objective; if none are confidently feasible, the
+     *  least-violation solution is returned. This ordering is clock-independent, unlike the penalized
+     *  objective used to guide the search within an iteration. See [penalizedIncumbent] for the
+     *  penalized search-incumbent.
      */
     val bestSolution: Solution
+        get() = myBestSolutions.minWithOrNull(FeasibilityFirstComparator(recommendationCILevel))
+            ?: problemDefinition.badSolution()
+
+    /**
+     *  The penalized best-so-far — the archived solution with the smallest penalized objective.
+     *  Iteration-relative (the penalty multiplier grows with the iteration counter), so this is a
+     *  search incumbent for internal use (e.g., seeding or centering), NOT the reported answer.
+     *  Prefer [bestSolution] for recommendations.
+     */
+    protected val penalizedIncumbent: Solution
         get() = myBestSolutions.orderedSolutions.firstOrNull() ?: problemDefinition.badSolution()
+
+    /**
+     *  The overall confidence level used by [bestSolution] (and the default feasibility-first
+     *  screening) when testing response-constraint feasibility. Must be in (0, 1). Default 0.99.
+     */
+    var recommendationCILevel: Double = 0.99
+        set(value) {
+            require(value > 0.0 && value < 1.0) { "The recommendation CI level must be in (0,1)" }
+            field = value
+        }
 
     /**
      *  The user can supply a comparator for comparing whether one

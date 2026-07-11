@@ -319,7 +319,7 @@ class ProblemDefinition @JvmOverloads constructor(
     var defaultFunctionalPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
 
     /** Default penalty applied to response constraints if no custom penalty is provided. */
-    var defaultResponsePenalty: PenaltyFunctionIfc = PenaltyFunctionWithMemory.defaultPenaltyFunction
+    var defaultResponsePenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
 
     /**
      * The lower bounds for each input variable
