@@ -1,5 +1,6 @@
 package ksl.simopt.problem
 
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.Solution
 
 /**
@@ -29,4 +30,24 @@ abstract class PenaltyFunction(
      *  is a stable, Solver-free property of an immutable solution. Called only on bound instances.
      */
     abstract fun penalty(solution: Solution): Double
+
+    /**
+     *  True when this penalty accumulates memory across visits, so the evaluator folds each visit's
+     *  new observations into it. Memoryless penalties leave this false and carry no memory.
+     */
+    open val usesMemory: Boolean get() = false
+
+    /**
+     *  Folds a visit's new observations for this penalty's constraint into the prior memory, returning
+     *  the snapshot to carry on the resulting solution. Memoryless penalties keep the default (null).
+     *
+     *  @param newObservations the estimate over the observations obtained at this visit
+     *  @param prior the memory carried from a prior visit, or null on the first visit
+     *  @param iteration the current evaluation iteration
+     */
+    open fun foldVisit(
+        newObservations: EstimatedResponse,
+        prior: PenaltyMemory?,
+        iteration: Int
+    ): PenaltyMemory? = null
 }

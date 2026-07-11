@@ -2,15 +2,18 @@ package ksl.simulation
 
 import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.FeasibilityFirstComparator
+import ksl.simopt.evaluator.SearchStateSnapshot
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InequalityType
+import ksl.simopt.problem.PenaltyMemory
 import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import kotlin.math.sqrt
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -228,6 +231,44 @@ class EvaluatorSolutionTest {
         assertTrue(a.id != b.id, "the copy carries a different id")
         assertEquals(a, b, "value-equality excludes id")
         assertEquals(a.hashCode(), b.hashCode(), "hashCode excludes id")
+    }
+
+    @Test
+    fun solutionCarriesEmptyPenaltyMemoryByDefault() {
+        val sol = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.97, fillVar = 0.001, fillCount = 5.0, evalNum = 1)
+        assertTrue(sol.penaltyMemory.isEmpty(), "a memoryless solution carries no penalty memory")
+        assertNull(sol.searchState, "search state is null until a self-scaling penalty populates it")
+    }
+
+    @Test
+    fun penaltyMemoryAndSearchStateAreExcludedFromEquality() {
+        // Memory is derived state, not identity: excluding it keeps the solution cache's value-equality
+        // (and the archive's dedup) from splitting one design point into two just because their
+        // accumulated penalty histories differ.
+        val base = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.97, fillVar = 0.001, fillCount = 5.0, evalNum = 1)
+        val withMemory = base.copy(
+            penaltyMemory = mapOf("FillRate" to object : PenaltyMemory {}),
+            searchState = SearchStateSnapshot(bestFeasibleObjective = 1.0)
+        )
+        assertEquals(base, withMemory, "value-equality excludes penalty memory and search state")
+        assertEquals(base.hashCode(), withMemory.hashCode(),
+            "hashCode excludes penalty memory and search state")
+    }
+
+    @Test
+    fun atEvaluationCarriesPenaltyMemoryAndSearchStateForward() {
+        // A cache re-stamp advances only the penalty clock; the accumulated memory must ride along.
+        val memory = mapOf("FillRate" to object : PenaltyMemory {})
+        val snapshot = SearchStateSnapshot(bestFeasibleObjective = 2.0)
+        val original = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 3)
+            .copy(penaltyMemory = memory, searchState = snapshot)
+        val reStamped = original.atEvaluation(9)
+        assertEquals(9, reStamped.evaluationNumber, "re-stamp advances the clock")
+        assertTrue(reStamped.penaltyMemory === memory, "re-stamp carries the penalty memory forward")
+        assertTrue(reStamped.searchState === snapshot, "re-stamp carries the search-state snapshot forward")
     }
 
     // ── Group 3: Response constraint feasibility ──────────────────────────────
