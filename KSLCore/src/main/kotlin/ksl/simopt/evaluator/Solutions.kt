@@ -95,7 +95,7 @@ class Solutions(
      */
     override fun add(solution: Solution): Solution? {
         if (contains(solution)) return null
-        if (!solution.isInputFeasible()) {
+        if (!allowInfeasibleSolutions && !solution.isInputFeasible()) {
             return null
         }
         myEnteredSolutions.firstOrNull { it.inputMap == solution.inputMap }?.let {
