@@ -22,7 +22,7 @@ interface PenaltySequence {
      *  @param priorLambda the penalty value carried from the previous visit (or [initialLambda] on
      *   the first visit)
      *  @param standardizedMeasure the solution's current sample-mean standardized measure of
-     *   violation S (Park and Kim 2015, Eq. 3); positive indicates apparent infeasibility
+     *   violation S (Park and Kim 2015, Section 3.1); positive indicates apparent infeasibility
      *  @param visitCount the number of accumulated visits so far (at least 1)
      *  @param iteration the current evaluation iteration k
      *  @return the updated penalty value
@@ -36,7 +36,9 @@ interface PenaltySequence {
  *  solution looks infeasible (standardized measure S greater than 0) and by the depreciation factor
  *  [depreciationFactor] (d, between 0 and 1) when it looks feasible (S at most 0). This makes the
  *  sequence diverge for infeasible solutions and converge to zero for interior feasible solutions,
- *  satisfying Condition 1 for the strictly feasible and infeasible cases.
+ *  satisfying Park and Kim's Condition 1 for those cases. For boundary (active) solutions it converges
+ *  only in distribution (their Theorem 3), with positive probability of not vanishing — the precise gap
+ *  that the convergence-optimized PS1/PS2 close. This class is that foundational sequence, not PS1 or PS2.
  *
  *  Park and Kim's fuller PS1 (their Figure 3: a visit-count-dependent depreciation factor and an
  *  M0 * k^rho appreciation cap) and PS2 (their Section 3.3: infeasibility-probability-adaptive

@@ -20,8 +20,8 @@ import kotlin.test.assertTrue
 
 /**
  * Unit tests for the Park and Kim (2015) Penalty Function with Memory engine: the appreciation/
- * depreciation penalty sequence (Eq. 4), the standardized measure of violation (Eq. 2) and its
- * visit-mean S (Eq. 3), the penalized-objective term lambda*[S]+ (Eq. 4), the D4 graceful
+ * depreciation penalty sequence (Park and Kim Eq. 4), the standardized measure of violation and its
+ * visit-mean S (their Section 3.1), the penalized-objective term lambda*[S]+ (Section 3.1), the D4 graceful
  * degradation, and the ProblemDefinition fold/query integration.
  *
  * Reference problem: minimise E[TotalCost] over (x, y) in [1, 10]^2 subject to E[FillRate] >= 0.95.
@@ -93,7 +93,7 @@ class ParkKimPenaltyTest {
         assertThrows(IllegalArgumentException::class.java) { AppreciateDepreciateSequence(2.0, 0.5, 0.0) }
     }
 
-    // ── Group B: ParkKimMemory (the standardized visit-mean S, Eq. 3) ─────────
+    // ── Group B: ParkKimMemory (the standardized visit-mean S, Section 3.1) ───
 
     @Test
     fun standardizedMeasureIsCumulativeOverVisits() {
@@ -148,7 +148,7 @@ class ParkKimPenaltyTest {
             "more new observations at the same gap magnify the standardized measure")
     }
 
-    // ── Group D: penalty() (the lambda*[S]+ term and D4 degradation, Eq. 4) ───
+    // ── Group D: penalty() (the lambda*[S]+ term, Section 3.1, and D4 degradation) ─
 
     @Test
     fun penaltyIsLambdaTimesMeasureWhenAccumulated() {

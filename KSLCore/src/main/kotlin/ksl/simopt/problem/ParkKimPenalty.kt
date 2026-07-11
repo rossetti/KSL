@@ -12,7 +12,7 @@ import kotlin.math.sqrt
  *  solution cache.
  *
  *  @param visitCount the number of visits accumulated so far
- *  @param cumulativeZeta the running sum of the per-visit standardized measures (Park and Kim Eq. 2)
+ *  @param cumulativeZeta the running sum of the per-visit standardized measures (Park and Kim 2015, Section 3.1)
  *  @param lambda the current penalty-sequence value for this solution and constraint
  */
 class ParkKimMemory(
@@ -23,7 +23,7 @@ class ParkKimMemory(
 
     /**
      *  The sample-mean standardized measure of violation S = (1 / visitCount) * cumulativeZeta
-     *  (Park and Kim 2015, Eq. 3); 0 when there have been no visits. A positive value indicates
+     *  (Park and Kim 2015, Section 3.1); 0 when there have been no visits. A positive value indicates
      *  apparent infeasibility, magnified as more observations accumulate.
      */
     val standardizedMeasure: Double
@@ -35,11 +35,19 @@ class ParkKimMemory(
  *
  *  Unlike the memoryless [DynamicPolynomialPenalty], PFM accumulates a per-solution memory across
  *  visits ([ParkKimMemory]): a standardized measure of violation S that magnifies infeasibility as
- *  observations accumulate (Eq. 2-3), and a penalty sequence that appreciates for solutions that look
- *  infeasible and depreciates for those that look feasible (the [sequence]). The ranking-time
- *  contribution is lambda * [S]+ (Eq. 4). The memory is folded at evaluation time by the evaluator via
- *  [foldVisit] and carried on the [Solution]; [penalty] only reads it, so the penalized objective
- *  stays a pure function of the solution.
+ *  observations accumulate (Park and Kim 2015, Section 3.1), and a penalty sequence that appreciates
+ *  for solutions that look infeasible and depreciates for those that look feasible (the [sequence]).
+ *  The ranking-time contribution is lambda * [S]+ (their Section 3.1). The memory is folded at
+ *  evaluation time by the evaluator via [foldVisit] and carried on the [Solution]; [penalty] only
+ *  reads it, so the penalized objective stays a pure function of the solution.
+ *
+ *  Scope: this uses Park and Kim's foundational appreciation/depreciation sequence (their Eq. 4; see
+ *  [AppreciateDepreciateSequence]). Their convergence-optimized sequences PS1 (Figure 3) and PS2
+ *  (Section 3.3) are NOT implemented here — they require global search state (chiefly the adaptive
+ *  cap M0 of their Eq. 5) and drop into [sequence] without engine changes. Citation note: the
+ *  standardized measure, its visit-mean S, and the penalized objective are the inline definitions of
+ *  Park and Kim's Section 3.1 (the same quantities are numbered Eq. 2-3 in the Han et al. 2021
+ *  improved-PFM paper, whose numbering earlier drafts of this code used).
  *
  *  Graceful degradation (no growing-replication schedule is required): with fewer than two accumulated
  *  visits the memory is a single noisy measure, so [penalty] uses [fallback] (a memoryless polynomial
@@ -78,14 +86,15 @@ class ParkKimPenalty(
         // standardize, so carry the prior memory forward unchanged.
         val rc = constraint as? ResponseConstraint ?: return prev
         val deltaN = newObservations.count.toInt()
-        // A visit with no new observations is not a visit (Park and Kim Eq. 2 sets the measure to 0).
+        // A visit with no new observations is not a visit: deltaN = 0 gives a 0 measure (the
+        // sampled-but-not-simulated generalization is Han et al. 2021, improved PFM).
         if (deltaN <= 0) return prev
         // zeta = sqrt(deltaN) * (Hbar_new - q), direction-adjusted so a positive value means infeasible
-        // (Park and Kim 2015, Eq. 2). difference() supplies the direction-adjusted gap.
+        // (Park and Kim 2015, Section 3.1). difference() supplies the direction-adjusted gap.
         val zeta = sqrt(deltaN.toDouble()) * rc.difference(newObservations.average)
         val visits = prev.visitCount + 1
         val cumulative = prev.cumulativeZeta + zeta
-        val s = cumulative / visits // S (Eq. 3)
+        val s = cumulative / visits // S (Section 3.1)
         val lambda = sequence.update(prev.lambda, s, visits, iteration)
         return ParkKimMemory(visits, cumulative, lambda)
     }
@@ -97,6 +106,6 @@ class ParkKimPenalty(
         if (memory == null || memory.visitCount <= 1) return fallback.penalty(solution)
         val s = memory.standardizedMeasure
         if (s <= 0.0) return 0.0 // [S]+ = 0 means the solution looks feasible on average: no penalty
-        return minOf(memory.lambda * s, Double.MAX_VALUE) // lambda * [S]+ (Eq. 4)
+        return minOf(memory.lambda * s, Double.MAX_VALUE) // lambda * [S]+ (Section 3.1)
     }
 }
