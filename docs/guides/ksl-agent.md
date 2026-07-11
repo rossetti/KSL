@@ -126,8 +126,8 @@ Inside a process body, send with `sendMessage(msg, recipient.mailbox)`
 Projections plug different topologies into the same place / move /
 neighborhood-query surface:
 
-- `GridProjection<A>` — 2D cell lattice; toroidal optionally;
-  `mooreNeighborhood` and `vonNeumannNeighborhood`.
+- `GridProjection<A>` — 2D cell lattice; toroidal optionally; single- or
+  multi-occupancy cells; `mooreNeighborhood` and `vonNeumannNeighborhood`.
 - `NetworkProjection<A>` — directed or undirected graph; `connect`,
   `neighborsOf`, `reachableFrom`.
 - `ContinuousProjection<A>` — `R²` with a spatial-hash index;
@@ -367,6 +367,10 @@ class GridDemo(parent: ModelElement) : AgentModel(parent) {
     }
 }
 ```
+
+> **Routing.** For pathfinding, a grid can build a `GridGraph` — a shortest-path
+> search over the lattice that honors blocked cells (obstacles) and per-cell costs,
+> returning a `WeightedPath`. `VoxelProjection` has `VoxelGraph` for the 3D case.
 
 **Network:**
 
@@ -685,8 +689,12 @@ on the Dokka pages.
 
 **2D spatial**
 
-- `GridProjection<A>`, `Cell`, `GridMetric`, `GridGraph` — lattice
-  topology with Moore / Von Neumann neighborhoods.
+- `GridProjection<A>`, `Cell`, `GridMetric` — lattice topology with
+  single- or multi-occupancy cells (`GridOccupancy`) and an optional torus.
+  `GridMetric` is the distance metric (`CHEBYSHEV` / `MANHATTAN` / `EUCLIDEAN`);
+  Moore vs Von Neumann adjacency is the `MovementRule`.
+- `GridGraph`, `WeightedPath` — shortest-path search over a grid with blocked
+  cells (obstacles) and per-cell costs; `VoxelGraph` is the 3D counterpart.
 - `NetworkProjection<A>` — directed or undirected graph with
   `connect`, `neighborsOf`, `reachableFrom`.
 - `ContinuousProjection<A>`, `Point2D` — `R²` with spatial-hash
