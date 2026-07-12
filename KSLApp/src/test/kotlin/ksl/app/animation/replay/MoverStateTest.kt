@@ -1,10 +1,9 @@
-package ksl.app.swing.animation.app
+package ksl.app.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.MoverMode
 import ksl.app.animation.io.AnimationSource
-import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
