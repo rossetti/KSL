@@ -156,9 +156,9 @@ class Model @JvmOverloads constructor(
      *  is [NullAnimationSink], whose `isActive` is `false`, so when animation is not
      *  configured the cost is effectively zero: every emission site is guarded by
      *  `if (animationSink.isActive) animationSink.emit(...)`, and with the null sink the
-     *  guarded event is never even constructed. The animation controller (a
-     *  `RunAttachmentIfc`) installs a real sink before a run and restores the null sink
-     *  afterward.
+     *  guarded event is never even constructed. [ksl.animation.AnimationCapture] installs a real
+     *  sink before a run and restores the null sink afterward; capturing a trace needs only KSLCore
+     *  (the app-tier `AnimationTraceAttachment` is a thin adapter over it).
      */
     var animationSink: AnimationSink = NullAnimationSink
 

@@ -81,4 +81,35 @@ class AnimationCaptureTest {
             Files.deleteIfExists(trace)
         }
     }
+
+    @Test
+    @DisplayName("a windowed capture emits an opening keyframe at the window start")
+    fun windowedCaptureEmitsOpeningKeyframe() {
+        val model = Model("AnimCaptureWindowTest")
+        DriveThroughPharmacy(model)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 200.0
+
+        val windowStart = 50.0
+        val trace = Files.createTempFile("anim-capture-window", ".atf")
+        try {
+            val capture = AnimationCapture.toFile(
+                model, trace,
+                captureSpec = CaptureSpec(captureWindow = CaptureWindow(windowStart, 150.0))
+            )
+            model.simulate()
+            capture.close()
+
+            val (_, events) = TraceFileReader.readAll(trace)
+            // The snapshotter — folded into AnimationCapture in A2 — emits the model's state at the
+            // window start, including a ResponseObserved per captured response at exactly windowStart.
+            // Without the opening keyframe a mid-run window would open blank; this asserts the fold ran.
+            assertTrue(
+                events.any { it is AnimationEvent.ResponseObserved && it.simTime == windowStart },
+                "expected an opening-frame keyframe (a ResponseObserved at the window start)"
+            )
+        } finally {
+            Files.deleteIfExists(trace)
+        }
+    }
 }

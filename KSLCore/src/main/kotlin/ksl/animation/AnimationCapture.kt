@@ -133,6 +133,14 @@ class AnimationCapture(
         observer = obs
 
         registerEmitters(model)
+
+        // Opening-frame keyframe (9B): when a capture window is set, an AnimationStateSnapshotter emits
+        // the model's state at the window start, so a mid-run window opens with a correct frame instead of
+        // a blank one. It parents to the model and self-schedules; nothing is installed when no window is
+        // set (the default), so the common case is unaffected.
+        captureSpec.captureWindow?.let { w ->
+            AnimationStateSnapshotter(model, captureSpec, w.startTime)
+        }
     }
 
     /**
