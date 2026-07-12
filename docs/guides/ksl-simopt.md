@@ -144,8 +144,8 @@ fresh models. You can also assemble it by hand (§4).
   (`Solution.isResponseConstraintFeasible`). Input-infeasible points can be
   filtered up front; response constraints are penalized.
 - **Granularity picks the lattice.** An input's `granularity` is the decision
-  precision; `granularity = 1.0` makes it **integer-ordered**, which R-SPLINE
-  requires and ISC/COMPASS assume (§5).
+  precision; `granularity = 1.0` makes it **integer-ordered**, which R-SPLINE,
+  ISC, and COMPASS all require (§5).
 - **Replications are the noise/cost dial.** How many replications a solver
   requests per point is a *strategy* (`ReplicationPerEvaluationIfc` —
   `FixedReplicationsPerEvaluation` or a growth schedule), not a constant. More
@@ -324,7 +324,7 @@ gracefully to its memoryless fallback and the evaluator logs a warning (§9).
 | `createGeneticAlgorithmSolver` | `GeneticAlgorithmSolver` | population GA (selection/crossover/mutation) | §5.5 |
 | `createParticleSwarmSolver` | `ParticleSwarmSolver` | global-best particle swarm | parallel evaluation **on by default**; §5.6 |
 | `createBayesianOptimizationSolver` | `BayesianOptimizationSolver` | GP surrogate + acquisition function | §5.7 |
-| `createISCSolver` | `ISCSolver` | Industrial-Strength COMPASS: niching-GA → COMPASS → R&S clean-up | integer lattice (assumed, not enforced); §5.8 |
+| `createISCSolver` | `ISCSolver` | Industrial-Strength COMPASS: niching-GA → COMPASS → R&S clean-up | **integer-ordered problems only** (enforced at construction); §5.8 |
 
 `RandomWalkSolver` (unbiased walk, for landscape analysis/calibration — no
 factory) and `RandomRestartSolver` (the generic random-restart wrapper) are
@@ -503,11 +503,7 @@ with a factory, stated once here so each subsection below doesn't repeat them:
 > **Each solver has one default `maxIterations`, used by both its factory and its
 > direct constructors.** The default is that algorithm's own companion constant:
 > **100** for SHC, SA, CE, GA, PSO, BO, R-SPLINE, COMPASS, and NGA; **1000** for
-> ISC (which counts orchestration macro-steps, not inner iterations). The factory
-> and the constructor agree — there is no factory-vs-constructor discrepancy.
-> Still, pass `maxIterations` explicitly when the run length matters, so a run
-> doesn't depend on the current companion default (see the mutability caveat
-> below).
+> ISC (which counts orchestration macro-steps, not inner iterations).
 >
 > **`replicationsPerEvaluation` defaults to 30 everywhere**
 > (`Solver.defaultReplicationsPerEvaluation`), shared by every factory and every
