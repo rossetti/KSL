@@ -98,7 +98,10 @@ object IncrementalRunCache {
         produce: suspend (RunConfiguration) -> RunResultDto,
     ): CachedResult {
         val exactKey = ResultKeys.forRunConfig(config, versionSalt)
-        if (useCache) store.get(exactKey)?.let { return CachedResult(it, fromCache = true) }
+        // A stored non-success (Failed/Cancelled) is retained for diagnostics but never served —
+        // treat it as a miss so the identical request re-runs instead of returning a stale failure.
+        if (useCache) store.get(exactKey)?.takeIf { it.holdsServableResult() }
+            ?.let { return CachedResult(it, fromCache = true) }
 
         val target = replications(config)
         val identity = if (useCache && target != null && eligible(config)) runIdentity(config, versionSalt) else null
@@ -140,6 +143,8 @@ object IncrementalRunCache {
             request = json.parseToJsonElement(RunConfigurationJson.encode(config)),
             payload = json.encodeToJsonElement(RunResultDto.serializer(), dto),
         )
+        // Retain every outcome (successes and failures) for diagnostics; the read side
+        // (holdsServableResult) refuses to serve a stored failure, so a retry re-runs.
         store.put(stored)
         return stored
     }

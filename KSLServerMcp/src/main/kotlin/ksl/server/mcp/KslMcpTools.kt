@@ -87,6 +87,7 @@ import ksl.service.capability.fit.FitDocuments
 import ksl.service.capability.fit.FitService
 import ksl.service.capability.run.BundleRegistry
 import ksl.service.capability.run.RunService
+import ksl.service.capability.run.holdsServableResult
 import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.capability.run.dto.mapping.toDto
 import ksl.service.capability.run.dto.mapping.withArtifacts
@@ -825,7 +826,9 @@ class KslMcpTools(
         if (argError != null) return argError
         built!!
         val useCache = useCache(arguments)
-        if (useCache && resultStore.get(built.key) != null) {
+        // Serve only a successful cached result. A retained Failed/Cancelled run (kept for
+        // diagnostics) is treated as a miss so the identical request re-runs.
+        if (useCache && resultStore.get(built.key)?.holdsServableResult() == true) {
             return jobResult(buildJsonObject {
                 put("jobId", built.key)
                 put("status", JobStatus.TERMINAL.name)
@@ -1050,7 +1053,10 @@ class KslMcpTools(
     private fun storeRun(jobId: String, result: RunResult): CachedResult? {
         val meta = pendingRuns.remove(jobId)
         val resultId = meta?.resultId ?: jobId
-        resultStore.get(resultId)?.let { return CachedResult(it, fromCache = false) }
+        // Idempotency guard, but only for an already-stored SUCCESS — a retained failure under this
+        // key must be overwritten by this run's result (self-healing), not returned in its place.
+        resultStore.get(resultId)?.takeIf { it.holdsServableResult() }
+            ?.let { return CachedResult(it, fromCache = false) }
 
         val dto = result.toDto()
         val topUp = meta?.topUp
@@ -1082,6 +1088,8 @@ class KslMcpTools(
             request = request,
             payload = json.encodeToJsonElement(RunResultDto.serializer(), enriched),
         )
+        // Retain every outcome (successes and failures) for diagnostics; the read side
+        // (holdsServableResult) refuses to serve a stored failure, so a retry re-runs.
         resultStore.put(stored)
         return stored
     }
@@ -1422,26 +1430,32 @@ class KslMcpTools(
         )
     }
 
-    /** `list_results` — every retained result the server produced (id, kind, artifacts), so a returning
+    /** `list_results` — every retained result the server produced (id, kind, outcome, artifacts), so a returning
      *  user can find and fetch their runs / reports / databases / traces / images. */
     fun listResults(arguments: JsonObject?): CallToolResult {
+        data class Row(val id: String, val kind: String, val outcome: String, val artifacts: List<String>)
         val rows = resultStore.allIds().mapNotNull { id ->
-            resultStore.get(id)?.let { Triple(id, it.kind.name, artifactStore.list(id).map { a -> a.name }) }
+            resultStore.get(id)?.let { stored ->
+                // A retained failure is reviewable here but was never served as a cache hit.
+                val outcome = if (stored.holdsServableResult()) "ok" else "failed"
+                Row(id, stored.kind.name, outcome, artifactStore.list(id).map { a -> a.name })
+            }
         }
         val structured = buildJsonObject {
             putJsonArray("results") {
-                rows.forEach { (id, kind, artifacts) ->
+                rows.forEach { row ->
                     add(buildJsonObject {
-                        put("resultId", id); put("kind", kind)
-                        putJsonArray("artifacts") { artifacts.forEach { add(it) } }
+                        put("resultId", row.id); put("kind", row.kind); put("outcome", row.outcome)
+                        putJsonArray("artifacts") { row.artifacts.forEach { add(it) } }
                     })
                 }
             }
         }
         val summary = if (rows.isEmpty()) "No retained results yet." else buildString {
             appendLine("${rows.size} retained result(s):")
-            rows.forEach { (id, kind, artifacts) ->
-                appendLine("  - $id [$kind]${if (artifacts.isNotEmpty()) " — ${artifacts.joinToString(", ")}" else ""}")
+            rows.forEach { row ->
+                val failedTag = if (row.outcome == "failed") " (failed)" else ""
+                appendLine("  - ${row.id} [${row.kind}]$failedTag${if (row.artifacts.isNotEmpty()) " — ${row.artifacts.joinToString(", ")}" else ""}")
             }
             append("Fetch one with get_result(resultId) / get_artifact(resultId, name), or analyze a database with the db_* tools.")
         }.trimEnd()

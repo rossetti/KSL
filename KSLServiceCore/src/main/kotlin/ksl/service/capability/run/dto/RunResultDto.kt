@@ -84,6 +84,15 @@ sealed class RunResultDto {
         val reason: String,
         override val version: DtoVersion = DtoVersion(),
     ) : RunResultDto()
+
+    companion object {
+        /**
+         * The `@SerialName` discriminators of the non-servable (failure) variants. A stored result
+         * whose payload carries one of these is retained for diagnostics but must be re-run rather
+         * than served from cache — see `holdsServableResult`.
+         */
+        val NON_SERVABLE_TYPES: Set<String> = setOf("failed", "cancelled")
+    }
 }
 
 /** One scenario / design point within a [RunResultDto.BatchCompleted]. */
