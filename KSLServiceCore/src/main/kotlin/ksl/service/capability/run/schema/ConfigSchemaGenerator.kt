@@ -116,14 +116,20 @@ object ConfigSchemaGenerator {
     private fun asNullable(schema: JsonObject): JsonObject {
         val type = schema["type"]
         return when {
-            type is JsonPrimitive && type.isString ->
-                JsonObject(schema + ("type" to JsonArray(listOf(type, JsonPrimitive("null")))))
-            type is JsonArray ->
-                if (type.any { it.jsonPrimitive.contentOrNull == "null" }) schema
-                else JsonObject(schema + ("type" to JsonArray(type + JsonPrimitive("null"))))
+            // Already carries a null option — leave as-is (defensive).
+            type is JsonArray && type.any { it.jsonPrimitive.contentOrNull == "null" } -> schema
+            // Sealed oneOf: the discriminated union simply gains an explicit null variant.
             "oneOf" in schema -> JsonObject(
                 schema + ("oneOf" to JsonArray((schema["oneOf"] as JsonArray) + buildJsonObject { put("type", "null") })),
             )
+            // A bare scalar (single string `type`, no `properties`/`items`) widens to the compact
+            // `[T, "null"]` union, which strict clients read correctly for scalars.
+            type is JsonPrimitive && type.isString && "properties" !in schema && "items" !in schema ->
+                JsonObject(schema + ("type" to JsonArray(listOf(type, JsonPrimitive("null")))))
+            // A structural node (object with `properties`, or array with `items`) wraps in
+            // `anyOf: [schema, {type:null}]`. A json-schema→Zod converter mishandles an
+            // `["object","null"]` union that still carries `properties`/`required` — it keeps
+            // enforcing the object and drops the null branch — but reads `anyOf` cleanly.
             else -> buildJsonObject { putJsonArray("anyOf") { add(schema); add(buildJsonObject { put("type", "null") }) } }
         }
     }

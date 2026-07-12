@@ -61,9 +61,13 @@ class ConfigSchemaGeneratorTest {
     private fun JsonObject.variant(type: String): JsonObject =
         (this["oneOf"] as JsonArray).map { it.jsonObject }.first { type in it.discriminatorEnum() }
 
-    /** True when the field's `type` is a union that includes `"null"` (how a nullable field is emitted). */
-    private fun JsonObject.typeAllowsNull(): Boolean =
-        (this["type"] as? JsonArray)?.any { it.jsonPrimitive.content == "null" } == true
+    /** True when the field permits JSON null — a scalar `[T,"null"]` type union, or an `anyOf`
+     *  with a `{type:"null"}` member (how a structural nullable, e.g. a nullable object, is emitted). */
+    private fun JsonObject.allowsNull(): Boolean {
+        (this["type"] as? JsonArray)?.let { arr -> if (arr.any { it.jsonPrimitive.content == "null" }) return true }
+        (this["anyOf"] as? JsonArray)?.let { arr -> if (arr.any { it.jsonObject["type"]?.jsonPrimitive?.content == "null" }) return true }
+        return false
+    }
 
     @Test
     fun `experiment designSpec surfaces its sealed variants and nested fractions`() {
@@ -155,11 +159,21 @@ class ConfigSchemaGeneratorTest {
         // that run_template legitimately produces ("expected string/number, received null").
         val runSchema = ConfigSchemaGenerator.schemaFor(RunConfiguration.serializer().descriptor)
 
-        // A genuinely-nullable optional (String?) — emitted as null when left unset.
+        // A genuinely-nullable scalar optional (String?) — emitted as null when left unset.
         val outputDirectory = runSchema.prop("outputConfig").prop("outputDirectory")
         assertTrue(
-            outputDirectory.typeAllowsNull(),
+            outputDirectory.allowsNull(),
             "outputConfig.outputDirectory is String?; it must advertise null: $outputDirectory",
+        )
+
+        // A nullable *object* (CaptureWindow?) must also advertise null — via anyOf, not a
+        // ["object","null"] type union, which a strict json-schema→Zod client mishandles (it keeps
+        // enforcing the object's `required` and drops the null branch). run_template always emits
+        // tracingConfig.capture.captureWindow = null, so this blocks the whole run-config round-trip.
+        val captureWindow = runSchema.prop("tracingConfig").prop("capture").prop("captureWindow")
+        assertTrue(
+            captureWindow.allowsNull() && "anyOf" in captureWindow,
+            "captureWindow is CaptureWindow?; a nullable object must advertise null via anyOf: $captureWindow",
         )
 
         // Phase-1 synergy: ControlData's ±∞ bounds/value carry a nullable serializer descriptor and
@@ -168,7 +182,7 @@ class ConfigSchemaGeneratorTest {
             .prop("controlOverrides").prop("numericControls")["items"]!!.jsonObject
         for (field in listOf("value", "lowerBound", "upperBound")) {
             assertTrue(
-                controlItem.prop(field).typeAllowsNull(),
+                controlItem.prop(field).allowsNull(),
                 "ControlData.$field must advertise null (sanitized ±∞): ${controlItem.prop(field)}",
             )
         }
