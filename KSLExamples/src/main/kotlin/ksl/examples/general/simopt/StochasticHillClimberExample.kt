@@ -40,7 +40,7 @@ import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 fun main() {
     val problem: ProblemDefinition = makeLKInventoryModelProblemDefinition()
 
-    val solver = Solver.createStochasticHillClimbingSolver(
+    val solver = Solver.createStochasticHillClimberSolver(
         problemDefinition = problem,
         modelBuilder = BuildLKModel,
         startingPoint = null,
