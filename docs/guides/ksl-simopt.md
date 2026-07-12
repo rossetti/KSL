@@ -74,7 +74,7 @@ was merely the luckiest estimate.
 
 | Package | Role |
 |---|---|
-| [`ksl.controls`](ksl-controls.md) | A problem's **input names are control keys** (`elementName.propertyName`) and its **response names are model responses** — the naming convention this package sets against. |
+| [`ksl.controls`](ksl-controls.md) | A problem's **input names are model input keys** — a control (`elementName.propertyName`) or a random-variable parameter (`rvName.paramName`) — and its **response names are model responses** — the naming convention this package builds on. |
 | [`ksl.simulation`](ksl-simulation.md) | `Model`, `ModelBuilderIfc` (the oracle builds a fresh model per evaluation), `ExperimentRunParametersIfc`. |
 | [`ksl.utilities.statistic`](ksl-utilities-statistic.md) | The confidence-interval / ranking machinery behind estimates, feasibility tests, and best-selection. |
 | **Simopt desktop app** | The [GUI](apps/simopt.md) whose Model → Problem → Constraints → Algorithm → Run Setup → Execute steps are this package's `ProblemDefinition` / constraints / solver factories / budget. |
@@ -160,10 +160,14 @@ fresh models. You can also assemble it by hand (§4).
 Simulation optimization is CPU-bound, and this package parallelizes in two
 orthogonal ways — don't conflate them:
 
-1. **Parallel evaluation of a multi-point request** — a single solver whose
-   iteration proposes many points (population-based methods) can evaluate them
-   concurrently. Controlled by `ParallelEvaluationOptions` on the solver
-   factory; PSO turns it on by default, the others leave it off.
+1. **Concurrent evaluation of a batched multi-point request** — population-based
+   methods (GA, CE, PSO) submit a whole generation to the evaluator as *one*
+   batched request (`requestEvaluations`). Batching is inherent to those solvers;
+   what `ParallelEvaluationOptions.enabled` controls is whether the points in that
+   batch are *simulated concurrently* on many fresh models, or *serially* on one
+   reused model. The default is serial (`enabled = false`); PSO's factory is the
+   one that defaults it on. So GA and CE also batch their requests — they just
+   evaluate the batch one point at a time unless you enable parallelism.
 2. **Concurrent restarts / a solver portfolio** — run several *whole solver runs*
    at once: many restarts of one algorithm (`concurrentRestarts` on the SHC/SA
    random-restart factories) or a `SolverPortfolio` racing different algorithms.
@@ -221,9 +225,13 @@ Everything else elaborates the problem (§4), a full reference for every solver
 
 Construct a `ProblemDefinition` with the objective response, the input names, and
 (optionally) response names; then declare each decision variable and each
-constraint. **Input names must be model control keys** and **response names must
-be model responses** — see [`ksl-controls`](ksl-controls.md) for the
-`elementName.propertyName` convention.
+constraint. **Input names must be valid model *input keys*** — which are the
+model's controls (`@KSLControl` properties, keyed `elementName.propertyName`) **or
+its random-variable parameters** (keyed `rvName.parameterName`, e.g.
+`"ServiceTimeRV.mean"`). Either kind of key can be a decision variable;
+`model.inputKeys()` lists them all and `model.validateInputKeys(...)` checks a set.
+**Response names must be model response names.** See [`ksl-controls`](ksl-controls.md)
+for the control-key convention.
 
 ```kotlin
 val problem = ProblemDefinition(
@@ -492,17 +500,14 @@ direct-constructor parameters, and every default value — with the reason each
 parameter exists, not just its type. Two patterns hold across *every* solver
 with a factory, stated once here so each subsection below doesn't repeat them:
 
-> **The factory's `maxIterations` default is not the constructor's default —
-> for every solver that has both.** Every `create*Solver` factory defaults
-> `maxIterations` to that specific algorithm's own companion constant (which is
-> **100** for every algorithm checked: SHC, SA, CE, GA, PSO, BO, ISC, R-SPLINE).
-> The class's own *direct* constructor, called without going through the
-> factory, instead falls back to the generic `Solver.defaultMaxNumberIterations`
-> = **1000**. The factory KDoc's `"Defaults to 1000"` text is boilerplate copied
-> across roughly a dozen factory functions and is wrong for essentially all of
-> them — trust the tables below, not that sentence, if you read the source
-> directly. **Always pass `maxIterations` explicitly** if the run length
-> matters to you; don't rely on either default.
+> **Each solver has one default `maxIterations`, used by both its factory and its
+> direct constructors.** The default is that algorithm's own companion constant:
+> **100** for SHC, SA, CE, GA, PSO, BO, R-SPLINE, COMPASS, and NGA; **1000** for
+> ISC (which counts orchestration macro-steps, not inner iterations). The factory
+> and the constructor agree — there is no factory-vs-constructor discrepancy.
+> Still, pass `maxIterations` explicitly when the run length matters, so a run
+> doesn't depend on the current companion default (see the mutability caveat
+> below).
 >
 > **`replicationsPerEvaluation` defaults to 30 everywhere**
 > (`Solver.defaultReplicationsPerEvaluation`), shared by every factory and every
@@ -545,9 +550,8 @@ no-improvement `SolutionChecker`, independent of `maxIterations`.
 `replicationsPerEvaluation: ReplicationPerEvaluationIfc` (no default — required
 even though later params are defaulted), and a secondary `@JvmOverloads`
 Int-based convenience one. Both default `maxIterations` to
-`Solver.defaultMaxNumberIterations` = **1000** — the factory/constructor split
-described at the top of §5. `streamNum=0`, `streamProvider=RNStreamProvider()`,
-`name=null` match the factory.
+`shcDefaultMaxIterations` = **100**, matching the factory. `streamNum=0`,
+`streamProvider=RNStreamProvider()`, `name=null` also match the factory.
 
 **The shared `StochasticSolver` base** (also underlies `RandomWalkSolver` and
 `RandomRestartSolver`) adds a bound `RNStreamIfc`, `RNStreamControlIfc`
@@ -590,15 +594,13 @@ hit.
 | `name` | `String?` | `null` | — |
 | `parallelOptions` | `ParallelEvaluationOptions` | `ParallelEvaluationOptions()` | — |
 
-**Direct constructor** defaults **differently on two parameters**:
-`temperatureConfiguration` defaults to `TemperatureConfiguration.Fixed(1000.0)`
-(not `AutoCalibrate`), and `maxIterations` defaults to the generic **1000**
-(not 100) — both are the general factory/constructor split from the top of §5,
-plus this solver's own extra Fixed-vs-AutoCalibrate split. **If the cooling
-behavior matters to you, pass `temperatureConfiguration` explicitly regardless
-of which entry point you use** — don't rely on either default. Note also that
-`AutoCalibrate` isn't free: it runs an extra ~100-evaluation random walk during
-initialization before the real search starts.
+**The direct constructor defaults `temperatureConfiguration` differently from the
+factory:** the constructor uses `TemperatureConfiguration.Fixed(1000.0)`, while
+the factory uses `AutoCalibrate()`. (`maxIterations` agrees at **100** on both.)
+**If the cooling behavior matters to you, pass `temperatureConfiguration`
+explicitly regardless of which entry point you use** — don't rely on either
+default. Note also that `AutoCalibrate` isn't free: it runs an extra
+~100-evaluation random walk during initialization before the real search starts.
 
 **`TemperatureConfiguration`** is a sealed class with exactly two variants:
 
@@ -638,7 +640,7 @@ several iterations.
 | `modelBuilder` | `ModelBuilderIfc` | required | — |
 | `ceSampler` | `CESampler?` | `null` → built as `CENormalSampler(problemDefinition)` | The reference-distribution sampler. |
 | `startingPoint` | `MutableMap<String, Double>?` | `null` | — |
-| `maxIterations` | `Int` | `ceDefaultMaxIterations` = **100** | Iteration cap — the factory KDoc says "1000," which is wrong; both the factory and both direct constructors actually agree on 100 for this solver specifically (one of the few where factory and constructor don't diverge). |
+| `maxIterations` | `Int` | `ceDefaultMaxIterations` = **100** | Iteration cap (factory and both direct constructors agree at 100). |
 | `replicationsPerEvaluation` | `Int` | **30** | — |
 | `solutionCache` | `SolutionCacheIfc` | `MemorySolutionCache()` | — |
 | `simulationRunCache` | `SimulationRunCacheIfc?` | `null` | — |
@@ -697,7 +699,7 @@ require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the proble
 | `sampleSizeGrowthRate` | `Double` | `defaultReplicationGrowthRate` = **0.1** | Geometric growth rate of the replication count across outer iterations. (The factory KDoc names a constant, `defaultSampleSizeGrowthRate`, that doesn't exist anywhere in the codebase — the real one is `FixedGrowthRateReplicationSchedule.defaultReplicationGrowthRate`.) |
 | `maxNumReplications` | `Int` | `defaultMaxNumReplications` = **1000** | Ceiling the growing replication count is capped at. |
 | `startingPoint` | `MutableMap<String, Double>?` | `null` | — |
-| `maxIterations` | `Int` | `rSplineDefaultMaxIterations` = **100** | Outer (retrospective) iteration cap. Direct constructors default this to the generic **1000** instead — the usual split. |
+| `maxIterations` | `Int` | `rSplineDefaultMaxIterations` = **100** | Outer (retrospective) iteration cap (factory and both direct constructors agree at 100). |
 | `solutionCache` | `SolutionCacheIfc` | `MemorySolutionCache()` | — |
 | `simulationRunCache` | `SimulationRunCacheIfc?` | `null` | — |
 | `experimentRunParameters` | `ExperimentRunParametersIfc?` | `null` | — |
@@ -817,7 +819,7 @@ no-improvement or when the swarm's normalized diameter collapses below
 | `socialCoefficient` | `Double` | **1.49445** | Pull toward the swarm's global best (`c2`). |
 | `boundaryHandler` | `BoundaryHandlerIfc` | `ClampToBounds()` | What happens when a particle moves outside the input ranges. |
 | `startingPoint` | `MutableMap<String, Double>?` | `null` | — |
-| `maxIterations` | `Int` | `psoDefaultMaxIterations` = **100** | Iteration cap — the factory KDoc says "1000," wrong for this solver like the others. |
+| `maxIterations` | `Int` | `psoDefaultMaxIterations` = **100** | Iteration cap (factory and both direct constructors agree at 100). |
 | `replicationsPerEvaluation` | `Int` | **30** | — |
 | `solutionCache` | `SolutionCacheIfc` | `MemorySolutionCache()` | — |
 | `simulationRunCache` | `SimulationRunCacheIfc?` | `null` | — |
@@ -862,7 +864,7 @@ the single most promising next point. That one point is the only real
 | `initialDesignSize` | `Int` | `defaultInitialDesignSize` = **10** | Space-filling points evaluated in one batch before the surrogate-driven loop starts. |
 | `acquisition` | `AcquisitionFunctionIfc` | `ExpectedImprovement()` (xi=0.0) | Which acquisition function scores candidates. |
 | `startingPoint` | `MutableMap<String, Double>?` | `null` | Added on top of the generated initial design (so the real initial batch can be `initialDesignSize + 1`). |
-| `maxIterations` | `Int` | `boDefaultMaxIterations` = **100** | Iterations *after* the initial design. Same as every other algorithm in this package (a sweep across PSO/GA/CE/NGA/BO confirmed all five equal exactly 100) — despite what an earlier draft of this guide claimed, Bayesian optimization is **not** the outlier at 50. |
+| `maxIterations` | `Int` | `boDefaultMaxIterations` = **100** | Iterations *after* the initial design (factory and both direct constructors agree at 100). |
 | `replicationsPerEvaluation` | `Int` | **30** | — |
 | `solutionCache` | `SolutionCacheIfc` | `MemorySolutionCache()` | — |
 | `simulationRunCache` | `SimulationRunCacheIfc?` | `null` | — |
@@ -939,7 +941,7 @@ paper's actual guarantees.
 | `deltaL` | `Double` | `deltaC` | COMPASS local-optimality indifference zone. |
 | `skipGlobalPhase` | `Boolean` | `false` | Skip the niching-GA phase entirely and run one COMPASS search from the starting point — the unimodal special case. |
 | `globalBudget` | `Int?` | `null` | Optional replication budget added as a soft transition rule to a **default-built** global phase only; ignored if you supply your own. |
-| `maxIterations` | `Int` | `iscDefaultMaxIterations` = **1000** (this is the one solver where the mutable companion default genuinely is 1000, not 100 — check your version) | Orchestration macro-step cap (GLOBAL/LOCAL/CLEANUP steps combined). |
+| `maxIterations` | `Int` | `iscDefaultMaxIterations` = **1000** (the only solver defaulting to 1000 rather than 100, because it counts orchestration macro-steps; factory and constructor agree) | Orchestration macro-step cap (GLOBAL/LOCAL/CLEANUP steps combined). |
 | `replicationsPerEvaluation` | `Int` | **30** | — |
 | `solutionCache` | `SolutionCacheIfc` | `MemorySolutionCache()` | — |
 | `simulationRunCache` | `SimulationRunCacheIfc?` | `null` | — |
@@ -951,11 +953,11 @@ paper's actual guarantees.
 
 > **The `createISCSolver` factory has no `startingPoint` parameter, but the
 > inherited `.startingPoint` var is honored** — set it after construction. All
-> three ISC classes now consult it: `ISCSolver` seeds the phase machine from it
+> three ISC classes consult it: `ISCSolver` seeds the phase machine from it
 > (`startingPoint ?: startingPoint()`), `NichingGeneticAlgorithmSolver` injects
 > it into the initial population, and `CompassSolver` uses it when no explicit
 > `.seed` is set (precedence `seed → startingPoint → random`). A
-> `startingPointGenerator` (`StartingPointIfc`) also still works. With
+> `startingPointGenerator` (`StartingPointIfc`) also works. With
 > `skipGlobalPhase = true`, the single COMPASS search runs directly from that
 > starting point.
 
@@ -987,20 +989,16 @@ problem's indifference zone — symmetric with `ISCSolver`'s own `deltaL`, and
 `0.0` unless you set that on the problem, which selects COMPASS's degraded
 local-optimality mode); `maxReplications: Int = 50_000` (hard safety cap on total
 replications for one COMPASS run). For a standalone `CompassSolver` the explicit
-`seed: InputMap?` property takes precedence, but the inherited `startingPoint`
-is now used as a fallback when `seed` is null.
+`seed: InputMap?` property takes precedence, and the inherited `startingPoint`
+is the fallback when `seed` is null.
 
-> **Clean-up cost is quadratic in noise/indifference-zone ratio, and this is
-> not hypothetical.** Rinott's second-stage sample size for each survivor is
-> `ceil((h·σ/δ_C)²)` — noisier problems and tighter indifference zones both
-> drive it up sharply, independent of `maxIterations`, bounded only by
-> `maxCleanUpReplicationsPerSystem` (default 20,000/survivor). This is exactly
-> why: KSL's own flagship benchmark study (`ksl.examples.general.simopt.study1`)
-> **excludes ISC from its main run entirely**, after an earlier smoke test
-> measured **~9.4 million replications per cell** on the noisier problems —
-> enough to overrun the study's 1M-replication random-number sub-stream block.
-> If you use ISC with a non-trivial indifference zone on a noisy problem,
-> budget for this explicitly.
+> **Clean-up cost is quadratic in the noise/indifference-zone ratio.** Rinott's
+> second-stage sample size for each survivor is `ceil((h·σ/δ_C)²)` — noisier
+> problems and tighter indifference zones both drive it up sharply, independent of
+> `maxIterations`, bounded only by `maxCleanUpReplicationsPerSystem` (default
+> 20,000/survivor). On a noisy problem with a non-trivial indifference zone this
+> can dominate the whole run's replication budget, so budget for it explicitly
+> (or set a smaller `deltaC`).
 
 ### 5.9 `RandomWalkSolver` and `RandomRestartSolver`
 
@@ -1256,10 +1254,11 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 
 ## 9. Gotchas and best practices
 
-- **Every factory's `maxIterations` default differs from its direct
-  constructor's default.** See the callout at the top of §5 — this is the
-  single most consequential thing in this guide to internalize. Pass
-  `maxIterations` explicitly.
+- **Pass `maxIterations` explicitly for a run whose length matters.** Each
+  solver's default is small (100 iterations; ISC's 1000 macro-steps) and lives in
+  a mutable `@JvmStatic var` companion property, so the effective default can be
+  changed elsewhere in the JVM session. The factory and the direct constructor use
+  the same default — there is no factory-vs-constructor discrepancy (§5).
 
 - **Concurrent runners need a fresh model per unit.** Build solvers and
   portfolio members from a `ModelBuilderIfc` that returns a *new* `Model` each
@@ -1276,8 +1275,7 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   ≥ 0) and `penalizedObjFncValue` *adds* it to the minimization-oriented
   objective (`objFncFactor · average`), so a violation always makes a solution
   worse regardless of optimization direction. The penalty is deliberately **not**
-  multiplied by `objFncFactor` — an earlier revision did, which flipped its sign
-  for `MAXIMIZE`; that is resolved.
+  multiplied by `objFncFactor` (doing so would flip its sign for `MAXIMIZE`).
 
 - **Read `bestSolution` for the answer, not the penalized incumbent.** The
   reported `solver.bestSolution` is chosen feasibility-first and is
@@ -1298,21 +1296,15 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 - **A solver's population/design size can't exceed the feasible input lattice.**
   For an integer-ordered problem with a small grid, a requested population or
   space-filling-design size may be larger than the number of distinct feasible
-  points. `sampleInputFeasiblePoints` now enumerates the exact feasible set (or
+  points. `sampleInputFeasiblePoints` enumerates the exact feasible set (or
   bounded-rejection-samples) and returns *fewer* points rather than looping
   forever, logging what limited it; `ProblemDefinition.feasiblePointCapacity(n)`
   reports this up front. Reduce the size, refine an input's granularity, or widen
   a range.
 
-- **`MemorySolutionCache`'s eviction and `allowInfeasibleSolutions` both work
-  as documented** — despite what an earlier draft of this guide claimed.
-  Eviction removes the *worst* (highest penalized-objective) solution at
-  capacity, correctly; `allowInfeasibleSolutions` is genuinely consulted by
-  `put()`. No known issue here.
-
 - **`createISCSolver` has no `startingPoint` parameter, but the inherited
-  `startingPoint` var now works** — set it after construction (§5.8). All three
-  ISC classes consult it; an earlier revision ignored it.
+  `startingPoint` var is honored** — set it after construction (§5.8). All three
+  ISC classes consult it.
 
 - **`createParticleSwarmSolver` is the only factory that defaults to parallel
   evaluation.** Every other solver defaults to sequential.
@@ -1323,19 +1315,20 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   `Evaluator(problemDefinition, oracle)` defaults `cache = null`. If you
   assemble the evaluator yourself and want caching, pass a cache explicitly.
 
-- **Input names are control keys; response names are model responses.** A
-  mismatch surfaces when the evaluator builds and validates the model (at
-  solver *creation*, via `createProblemEvaluator`), not mid-run — but only if
-  you go through the factory. Name model elements explicitly and pin the
-  correspondence with a test (`problemDefinition.validateProblemDefinition(model)`),
-  exactly as the benchmark cases do.
+- **Input names are model input keys (a control *or* an RV parameter); response
+  names are model responses.** A mismatch surfaces when the evaluator builds and
+  validates the model (at solver *creation*, via `createProblemEvaluator`), not
+  mid-run — but only if you go through the factory. Name model elements explicitly
+  and pin the correspondence with a test
+  (`problemDefinition.validateProblemDefinition(model)`), exactly as the benchmark
+  cases do.
 
-- **R-SPLINE and (assumed but unenforced) ISC/COMPASS need integer-ordered
-  problems.** `RSplineSolver`'s constructor `require`s
-  `problemDefinition.isIntegerOrdered` and throws with a direct message if
-  not. The ISC family has no equivalent check anywhere in its source — it
-  will silently accept a continuous problem and fall back to a "1 unit"
-  neighborhood step, a code path the algorithm's own design doesn't validate.
+- **R-SPLINE, ISC, and COMPASS need integer-ordered problems.** Each one's
+  constructor `require`s `problemDefinition.isIntegerOrdered` and throws an
+  `IllegalArgumentException` if not, so a continuous problem is rejected at
+  construction rather than silently mis-searched. (`NichingGeneticAlgorithmSolver`
+  run standalone does not enforce it, but the `ISCSolver` orchestrator that builds
+  it does.)
 
 - **When maximizing, mind which "objective" number you read.**
   `Solution.estimatedObjFncValue` is oriented by the optimization type
