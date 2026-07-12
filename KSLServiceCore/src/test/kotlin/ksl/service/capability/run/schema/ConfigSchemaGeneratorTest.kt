@@ -47,16 +47,23 @@ class ConfigSchemaGeneratorTest {
     private fun JsonObject.requiredNames(): Set<String> =
         (this["required"] as? JsonArray)?.map { it.jsonPrimitive.content }?.toSet() ?: emptySet()
 
+    /** A oneOf variant's discriminator enum values; empty for a non-object variant (e.g. a nullable
+     *  sealed field's `{type:"null"}` member, which carries no discriminator). */
+    private fun JsonObject.discriminatorEnum(): List<String> =
+        ((this["properties"] as? JsonObject)?.get("type") as? JsonObject)?.get("enum")
+            ?.let { (it as JsonArray).map { e -> e.jsonPrimitive.content } } ?: emptyList()
+
     /** The set of discriminator values across a `oneOf`'s variants. */
     private fun JsonObject.variantTypes(): Set<String> =
-        (this["oneOf"] as JsonArray).flatMap { v ->
-            v.jsonObject.prop("type")["enum"]!!.jsonArray.map { it.jsonPrimitive.content }
-        }.toSet()
+        (this["oneOf"] as JsonArray).flatMap { it.jsonObject.discriminatorEnum() }.toSet()
 
     /** The variant object within a `oneOf` whose discriminator equals [type]. */
     private fun JsonObject.variant(type: String): JsonObject =
-        (this["oneOf"] as JsonArray).map { it.jsonObject }
-            .first { it.prop("type")["enum"]!!.jsonArray.first().jsonPrimitive.content == type }
+        (this["oneOf"] as JsonArray).map { it.jsonObject }.first { type in it.discriminatorEnum() }
+
+    /** True when the field's `type` is a union that includes `"null"` (how a nullable field is emitted). */
+    private fun JsonObject.typeAllowsNull(): Boolean =
+        (this["type"] as? JsonArray)?.any { it.jsonPrimitive.content == "null" } == true
 
     @Test
     fun `experiment designSpec surfaces its sealed variants and nested fractions`() {
@@ -108,6 +115,68 @@ class ConfigSchemaGeneratorTest {
         assertTrue(
             "description" in schema.prop("designSpec"),
             "designSpec carries a @TomlComment, so it should surface as a description",
+        )
+    }
+
+    @Test
+    fun `a list nested inside another list stays an array`() {
+        // Regression (Defect B): the cycle guard keyed on serialName, but every Kotlin List
+        // shares serialName "kotlin.collections.ArrayList". So a list-within-a-list
+        // (ExperimentConfiguration.factors[].levels, RunConfiguration.scenarios[].
+        // controlOverrides.numericControls) was falsely flagged as a cycle and truncated to an
+        // opaque {type:object} — which a strict MCP client (Zod) then rejects as
+        // "expected object, received array", blocking the very documents the *_template tools emit.
+
+        // factors[].levels : List<Double> nested inside List<FactorSpec>
+        val expSchema = ConfigSchemaGenerator.schemaFor(ExperimentConfiguration.serializer().descriptor)
+        val levels = expSchema.prop("factors")["items"]!!.jsonObject.prop("levels")
+        assertEquals(
+            "array", levels["type"]?.jsonPrimitive?.content,
+            "factors[].levels is a nested list; it must stay an array, not collapse to an object: $levels",
+        )
+
+        // scenarios[].controlOverrides.numericControls : List<ControlData> nested inside List<ScenarioSpec>
+        val runSchema = ConfigSchemaGenerator.schemaFor(RunConfiguration.serializer().descriptor)
+        val numericControls = runSchema.prop("scenarios")["items"]!!.jsonObject
+            .prop("controlOverrides").prop("numericControls")
+        assertEquals(
+            "array", numericControls["type"]?.jsonPrimitive?.content,
+            "scenarios[].controlOverrides.numericControls is a nested list; it must stay an array: $numericControls",
+        )
+        assertTrue(
+            "properties" in numericControls["items"]!!.jsonObject,
+            "the array items should be the ControlData object schema, not opaque",
+        )
+    }
+
+    @Test
+    fun `nullable fields are advertised as nullable`() {
+        // Defect B, second facet: without emitted nullability a strict client rejects the null
+        // that run_template legitimately produces ("expected string/number, received null").
+        val runSchema = ConfigSchemaGenerator.schemaFor(RunConfiguration.serializer().descriptor)
+
+        // A genuinely-nullable optional (String?) — emitted as null when left unset.
+        val outputDirectory = runSchema.prop("outputConfig").prop("outputDirectory")
+        assertTrue(
+            outputDirectory.typeAllowsNull(),
+            "outputConfig.outputDirectory is String?; it must advertise null: $outputDirectory",
+        )
+
+        // Phase-1 synergy: ControlData's ±∞ bounds/value carry a nullable serializer descriptor and
+        // the MCP transport sanitizes ±∞ -> null, so the schema must accept null there too.
+        val controlItem = runSchema.prop("scenarios")["items"]!!.jsonObject
+            .prop("controlOverrides").prop("numericControls")["items"]!!.jsonObject
+        for (field in listOf("value", "lowerBound", "upperBound")) {
+            assertTrue(
+                controlItem.prop(field).typeAllowsNull(),
+                "ControlData.$field must advertise null (sanitized ±∞): ${controlItem.prop(field)}",
+            )
+        }
+
+        // A non-nullable field stays single-typed (nullability is not applied indiscriminately).
+        assertEquals(
+            "string", controlItem.prop("keyName")["type"]?.jsonPrimitive?.content,
+            "a non-nullable field must not gain a null union",
         )
     }
 
