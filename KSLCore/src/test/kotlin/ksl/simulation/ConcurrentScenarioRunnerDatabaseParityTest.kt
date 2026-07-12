@@ -520,20 +520,20 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
 
         for (scenarioName in SCENARIO_NAMES) {
             assertEquals(
-                normalizedExperiment(runners.sequential.kslDb, scenarioName),
-                normalizedExperiment(runners.concurrent.kslDb, scenarioName),
+                normalizedExperiment(runners.sequential.kslDb!!, scenarioName),
+                normalizedExperiment(runners.concurrent.kslDb!!, scenarioName),
                 "experiment table must match for '$scenarioName'"
             )
 
             assertEquals(
-                normalizedSimulationRuns(runners.sequential.kslDb, scenarioName),
-                normalizedSimulationRuns(runners.concurrent.kslDb, scenarioName),
+                normalizedSimulationRuns(runners.sequential.kslDb!!, scenarioName),
+                normalizedSimulationRuns(runners.concurrent.kslDb!!, scenarioName),
                 "simulation_run table must match for '$scenarioName'"
             )
 
             assertEquals(
-                normalizedModelElements(runners.sequential.kslDb, scenarioName),
-                normalizedModelElements(runners.concurrent.kslDb, scenarioName),
+                normalizedModelElements(runners.sequential.kslDb!!, scenarioName),
+                normalizedModelElements(runners.concurrent.kslDb!!, scenarioName),
                 "model_element table must match for '$scenarioName'"
             )
         }
@@ -545,20 +545,20 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
 
         for (scenarioName in SCENARIO_NAMES) {
             assertEquals(
-                normalizedWithinRepStats(runners.sequential.kslDb, scenarioName),
-                normalizedWithinRepStats(runners.concurrent.kslDb, scenarioName),
+                normalizedWithinRepStats(runners.sequential.kslDb!!, scenarioName),
+                normalizedWithinRepStats(runners.concurrent.kslDb!!, scenarioName),
                 "within_rep_stat table must match for '$scenarioName'"
             )
 
             assertEquals(
-                normalizedWithinRepCounterStats(runners.sequential.kslDb, scenarioName),
-                normalizedWithinRepCounterStats(runners.concurrent.kslDb, scenarioName),
+                normalizedWithinRepCounterStats(runners.sequential.kslDb!!, scenarioName),
+                normalizedWithinRepCounterStats(runners.concurrent.kslDb!!, scenarioName),
                 "within_rep_counter_stat table must match for '$scenarioName'"
             )
 
             assertEquals(
-                normalizedAcrossRepStats(runners.sequential.kslDb, scenarioName),
-                normalizedAcrossRepStats(runners.concurrent.kslDb, scenarioName),
+                normalizedAcrossRepStats(runners.sequential.kslDb!!, scenarioName),
+                normalizedAcrossRepStats(runners.concurrent.kslDb!!, scenarioName),
                 "across_rep_stat table must match for '$scenarioName'"
             )
         }
@@ -570,13 +570,13 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
 
         assertEquals(
             BATCHING_SCENARIO_NAMES.toSet(),
-            runners.concurrent.kslDb.experimentNames.toSet(),
+            runners.concurrent.kslDb!!.experimentNames.toSet(),
             "Concurrent DB must contain all statistical-batching scenarios"
         )
 
         for (scenarioName in BATCHING_SCENARIO_NAMES) {
-            val sequentialRows = normalizedBatchStats(runners.sequential.kslDb, scenarioName)
-            val concurrentRows = normalizedBatchStats(runners.concurrent.kslDb, scenarioName)
+            val sequentialRows = normalizedBatchStats(runners.sequential.kslDb!!, scenarioName)
+            val concurrentRows = normalizedBatchStats(runners.concurrent.kslDb!!, scenarioName)
             val rowNames = sequentialRows.map { it.elementName }.toSet()
 
             assertFalse(sequentialRows.isEmpty(), "Expected batch_stat rows for '$scenarioName'")
@@ -604,13 +604,13 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
 
         assertEquals(
             INPUT_SCENARIO_NAMES.toSet(),
-            runners.concurrent.kslDb.experimentNames.toSet(),
+            runners.concurrent.kslDb!!.experimentNames.toSet(),
             "Concurrent DB must contain all input-metadata scenarios"
         )
 
         for (spec in inputMetadataExpectations()) {
-            val sequentialControls = normalizedControls(runners.sequential.kslDb, spec.scenarioName)
-            val concurrentControls = normalizedControls(runners.concurrent.kslDb, spec.scenarioName)
+            val sequentialControls = normalizedControls(runners.sequential.kslDb!!, spec.scenarioName)
+            val concurrentControls = normalizedControls(runners.concurrent.kslDb!!, spec.scenarioName)
 
             val controlValues = sequentialControls.associate { it.keyName to it.controlValue }
             assertEquals(
@@ -630,8 +630,8 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
                 "control table must match for '${spec.scenarioName}'"
             )
 
-            val sequentialRvParameters = normalizedRvParameters(runners.sequential.kslDb, spec.scenarioName)
-            val concurrentRvParameters = normalizedRvParameters(runners.concurrent.kslDb, spec.scenarioName)
+            val sequentialRvParameters = normalizedRvParameters(runners.sequential.kslDb!!, spec.scenarioName)
+            val concurrentRvParameters = normalizedRvParameters(runners.concurrent.kslDb!!, spec.scenarioName)
 
             val rvParameterValues = sequentialRvParameters.associate { (it.rvName to it.paramName) to it.paramValue }
             assertEquals(
@@ -660,15 +660,15 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
 
         assertEquals(
             TIME_SERIES_SCENARIO_NAMES.toSet(),
-            runners.concurrent.kslDb.experimentNames.toSet(),
+            runners.concurrent.kslDb!!.experimentNames.toSet(),
             "Concurrent DB must contain all time-series scenarios"
         )
 
         val expectedRows = TIME_SERIES_REPS * TIME_SERIES_PERIODS * TIME_SERIES_RESPONSES
 
         for (scenarioName in TIME_SERIES_SCENARIO_NAMES) {
-            val sequentialRows = normalizedTimeSeriesResponses(runners.sequential.kslDb, scenarioName)
-            val concurrentRows = normalizedTimeSeriesResponses(runners.concurrent.kslDb, scenarioName)
+            val sequentialRows = normalizedTimeSeriesResponses(runners.sequential.kslDb!!, scenarioName)
+            val concurrentRows = normalizedTimeSeriesResponses(runners.concurrent.kslDb!!, scenarioName)
 
             assertEquals(
                 expectedRows,
@@ -689,13 +689,13 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
 
         assertEquals(
             PHARMACY_SCENARIO_NAMES.toSet(),
-            runners.concurrent.kslDb.experimentNames.toSet(),
+            runners.concurrent.kslDb!!.experimentNames.toSet(),
             "Concurrent DB must contain all pharmacy distribution scenarios"
         )
 
         for (scenarioName in PHARMACY_SCENARIO_NAMES) {
-            val sequentialHistograms = normalizedHistograms(runners.sequential.kslDb, scenarioName)
-            val concurrentHistograms = normalizedHistograms(runners.concurrent.kslDb, scenarioName)
+            val sequentialHistograms = normalizedHistograms(runners.sequential.kslDb!!, scenarioName)
+            val concurrentHistograms = normalizedHistograms(runners.concurrent.kslDb!!, scenarioName)
 
             assertFalse(
                 sequentialHistograms.isEmpty(),
@@ -711,8 +711,8 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
                 "histogram table must match for '$scenarioName'"
             )
 
-            val sequentialFrequencies = normalizedFrequencies(runners.sequential.kslDb, scenarioName)
-            val concurrentFrequencies = normalizedFrequencies(runners.concurrent.kslDb, scenarioName)
+            val sequentialFrequencies = normalizedFrequencies(runners.sequential.kslDb!!, scenarioName)
+            val concurrentFrequencies = normalizedFrequencies(runners.concurrent.kslDb!!, scenarioName)
 
             assertFalse(
                 sequentialFrequencies.isEmpty(),

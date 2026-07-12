@@ -12,22 +12,23 @@ import java.io.PrintWriter
 import java.nio.file.Path
 
 /**
- *  Facilitates the running of many scenarios in a sequence. A KSLDatabase
- *  is used to capture the statistics for each scenario. Each scenario is
- *  treated like a different experiment. The scenarios can be based on
- *  the same or different models.  The scenarios also capture the inputs and
- *  results via a SimulationRun.
+ *  Facilitates the running of many scenarios in a sequence. Each scenario is
+ *  treated like a different experiment and captures its inputs and results in
+ *  a `SimulationRun` (exposed via [observationsAsMap]); an optional KSLDatabase
+ *  persists those statistics. The scenarios can be based on the same or
+ *  different models.
  *
  *  @param name of the scenario runner. By default, this name
  *  is used as the name of the database
  *  @param scenarioList a list of scenarios to execute
- *  @param kslDb the KSLDatabase that will hold the results from the scenarios
+ *  @param kslDb optional KSLDatabase that persists the results from the scenarios;
+ *  when null, no database is opened or written and results remain in-memory only
  */
 class ScenarioRunner @JvmOverloads constructor(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
     val pathToOutputDirectory: Path = KSL.createSubDirectory(sanitizeForFilesystem(name) + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory)
+    val kslDb: KSLDatabase? = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory)
 ) : Identity(name) {
 
     private val myScenarios = mutableListOf<Scenario>()
@@ -203,7 +204,7 @@ class ScenarioRunner @JvmOverloads constructor(
     @JvmOverloads
     fun simulate(scenarios: IntProgression = myScenarios.indices, clearAllData: Boolean = true) {
         if (clearAllData) {
-            kslDb.clearAllData()
+            kslDb?.clearAllData()
         }
         for (scenarioIndex in scenarios) {
             if (scenarioIndex in myScenarios.indices) {
@@ -217,8 +218,10 @@ class ScenarioRunner @JvmOverloads constructor(
                     model.configuration = scenario.modelConfiguration!!
                 }
                 model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
-                val observer = KSLDatabaseObserver(model, kslDb)
-                myDbObserversByName[scenario.name] = observer
+                // Attach the DB observer only when a database is present; results are captured in
+                // scenario.simulationRun regardless (the DB is an optional persistence sink).
+                val observer = kslDb?.let { KSLDatabaseObserver(model, it) }
+                if (observer != null) myDbObserversByName[scenario.name] = observer
                 val runner = SimulationRunner(model)
                 scenario.simulationRun = runner.simulate(
                     modelIdentifier = model.modelIdentifier,
@@ -227,7 +230,7 @@ class ScenarioRunner @JvmOverloads constructor(
                     jsonInputs = scenario.jsonInputs,
                     experimentRunParameters = scenario.scenarioRunParameters
                 )
-                observer.stopObserving()
+                observer?.stopObserving()
             }
         }
     }
