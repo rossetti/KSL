@@ -21,6 +21,9 @@ package ksl.service.capability.run
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
@@ -31,20 +34,22 @@ import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.capability.run.dto.RunSummaryDto
 import ksl.service.capability.run.dto.SolutionDto
 import ksl.service.store.CachedResult
+import ksl.service.store.ResultKind
 import ksl.service.store.ResultStore
+import ksl.service.store.StoredResult
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * A run whose `produce` returns a non-success result (`Failed` / `Cancelled`) must NOT be cached:
- * a transient or since-fixed failure must not be frozen under the document key and re-served on a
- * retry of the identical request. Successful results still cache and serve as before.
+ * Retain-and-mark, never serve: a run whose result is `Failed`/`Cancelled` is RETAINED in the store
+ * for diagnostics (`get_result` / `list_results`), but must never be served as a cache hit — a retry
+ * of the identical request re-runs, and a later success overwrites the failure. Successful results
+ * cache and serve as before.
  *
  * Regression for the live-observed behavior where a `run_config` scenario batch that failed with
  * `SQLITE_CANTOPEN` kept returning that cached failure after the server-side cause was fixed.
@@ -69,11 +74,16 @@ class IncrementalRunCacheFailureTest {
         responses = emptyList(),
     )
 
+    private fun stored(dto: RunResultDto) = StoredResult(
+        resultId = "x", kind = ResultKind.RUN, createdAt = Clock.System.now(),
+        request = JsonNull, payload = json.encodeToJsonElement(RunResultDto.serializer(), dto),
+    )
+
     private fun decode(r: CachedResult): RunResultDto =
         json.decodeFromJsonElement(RunResultDto.serializer(), r.stored.payload)
 
     @Test
-    fun `a failed run is not cached and re-runs on retry`() = runBlocking {
+    fun `a failed run is retained but never served on retry`() = runBlocking {
         val store = store()
         val cfg = config("FailMM1")
         val key = ResultKeys.forRunConfig(cfg, "")
@@ -82,11 +92,12 @@ class IncrementalRunCacheFailureTest {
         val first = IncrementalRunCache.run(store, json, cfg, useCache = true) {
             calls++; RunResultDto.Failed("ExecutiveError", "boom")
         }
-        // The failure is returned to the caller, but never persisted.
         assertIs<RunResultDto.Failed>(decode(first))
-        assertNull(store.get(key), "a Failed result must not be persisted in the cache")
+        // Retained for diagnostics ...
+        assertNotNull(store.get(key), "a Failed result must be retained in the store for review")
+        assertFalse(store.get(key)!!.holdsServableResult(), "... but marked non-servable")
 
-        // Retry the identical request: the stale failure must NOT be served — produce runs again.
+        // ... and never served: the identical request re-runs.
         val second = IncrementalRunCache.run(store, json, cfg, useCache = true) {
             calls++; RunResultDto.Failed("ExecutiveError", "boom")
         }
@@ -95,43 +106,68 @@ class IncrementalRunCacheFailureTest {
     }
 
     @Test
-    fun `a cancelled run is not cached`() = runBlocking {
+    fun `a cancelled run is retained but never served`() = runBlocking {
         val store = store()
         val cfg = config("CancelMM1")
         val key = ResultKeys.forRunConfig(cfg, "")
-        IncrementalRunCache.run(store, json, cfg, useCache = true) { RunResultDto.Cancelled("user") }
-        assertNull(store.get(key), "a Cancelled result must not be persisted in the cache")
+        var calls = 0
+        IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; RunResultDto.Cancelled("user") }
+        assertNotNull(store.get(key), "a Cancelled result is retained")
+        IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; RunResultDto.Cancelled("user") }
+        assertEquals(2, calls, "a cancelled result must not be served on retry")
     }
 
     @Test
     fun `a successful run is cached and served on retry`() = runBlocking {
         val store = store()
         val cfg = config("OkMM1")
-        val key = ResultKeys.forRunConfig(cfg, "")
         var calls = 0
-
         IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; completed() }
-        assertNotNull(store.get(key), "a Completed result must be cached")
-
         val second = IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; completed() }
         assertEquals(1, calls, "the identical successful request must be served from cache, not re-run")
         assertTrue(second.fromCache, "the second identical request must be a cache hit")
     }
 
     @Test
-    fun `isCacheable classifies every result variant`() {
-        // The property both persist gates (sync IncrementalRunCache + async persistRun) rely on:
-        // only the three successful terminal results are cacheable.
+    fun `a success overwrites a prior retained failure and is then served`() = runBlocking {
+        val store = store()
+        val cfg = config("HealMM1")
+        val key = ResultKeys.forRunConfig(cfg, "")
+        var calls = 0
+
+        // First attempt fails (retained, non-servable).
+        IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; RunResultDto.Failed("E", "boom") }
+        assertFalse(store.get(key)!!.holdsServableResult())
+
+        // Retry succeeds: it re-runs (the failure is not served) and overwrites it with the success.
+        val healed = IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; completed() }
+        assertEquals(2, calls, "the retry must re-run since the failure was not served")
+        assertFalse(healed.fromCache)
+        assertTrue(store.get(key)!!.holdsServableResult(), "the success overwrites the retained failure")
+
+        // Now identical requests are served from cache.
+        val third = IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; completed() }
+        assertEquals(2, calls, "the healed result is now a cache hit")
+        assertTrue(third.fromCache)
+    }
+
+    @Test
+    fun `holdsServableResult marks only failures non-servable`() {
         val now = Clock.System.now()
         val runSummary = RunSummaryDto("r", "M", "exp", 1, 1, "COMPLETED_ALL_STEPS", now, now)
         val orchSummary = OrchestratorSummaryDto("r", "orch", 1, 1, 0, now, now)
 
-        assertTrue(RunResultDto.Completed(runSummary, emptyList()).isCacheable)
-        assertTrue(RunResultDto.BatchCompleted(orchSummary, listOf(BatchItemDto("item", emptyList()))).isCacheable)
+        assertTrue(stored(RunResultDto.Completed(runSummary, emptyList())).holdsServableResult())
+        assertTrue(stored(RunResultDto.BatchCompleted(orchSummary, listOf(BatchItemDto("i", emptyList())))).holdsServableResult())
         assertTrue(
-            RunResultDto.OptimizationCompleted(orchSummary, SolutionDto(emptyMap(), 0.0, 0.0, isValid = true), emptyList()).isCacheable,
+            stored(RunResultDto.OptimizationCompleted(orchSummary, SolutionDto(emptyMap(), 0.0, 0.0, isValid = true), emptyList()))
+                .holdsServableResult(),
         )
-        assertFalse(RunResultDto.Failed("ExecutiveError", "boom").isCacheable)
-        assertFalse(RunResultDto.Cancelled("user").isCacheable)
+        assertFalse(stored(RunResultDto.Failed("E", "boom")).holdsServableResult())
+        assertFalse(stored(RunResultDto.Cancelled("user")).holdsServableResult())
+
+        // A non-run payload (no run `type` discriminator, e.g. a fit report) is servable.
+        val fitLike = StoredResult("f", ResultKind.FIT, now, JsonNull, buildJsonObject { put("datasetName", "svc") })
+        assertTrue(fitLike.holdsServableResult(), "a non-run payload has no failure type and is servable")
     }
 }

@@ -37,15 +37,6 @@ import kotlinx.serialization.Serializable
 sealed class RunResultDto {
     abstract val version: DtoVersion
 
-    /**
-     * True only for successful terminal results (`Completed`, `BatchCompleted`,
-     * `OptimizationCompleted`); false for `Failed` and `Cancelled`. Only cacheable results
-     * may be persisted in the result store: a transient or since-fixed failure must not be
-     * frozen under the document key and re-served on a retry of the identical request.
-     */
-    val isCacheable: Boolean
-        get() = this is Completed || this is BatchCompleted || this is OptimizationCompleted
-
     /** Projection of `RunResult.Completed` (a single-model run). */
     @Serializable
     @SerialName("completed")
@@ -93,6 +84,15 @@ sealed class RunResultDto {
         val reason: String,
         override val version: DtoVersion = DtoVersion(),
     ) : RunResultDto()
+
+    companion object {
+        /**
+         * The `@SerialName` discriminators of the non-servable (failure) variants. A stored result
+         * whose payload carries one of these is retained for diagnostics but must be re-run rather
+         * than served from cache — see `holdsServableResult`.
+         */
+        val NON_SERVABLE_TYPES: Set<String> = setOf("failed", "cancelled")
+    }
 }
 
 /** One scenario / design point within a [RunResultDto.BatchCompleted]. */
