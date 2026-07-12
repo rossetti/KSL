@@ -1283,7 +1283,7 @@ abstract class Solver(
          * @param maxNumRestarts The maximum number of restarts to be performed.
          * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
          * All subsequent restarts will begin at purely random, auto-generated coordinates
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -1550,7 +1550,7 @@ abstract class Solver(
          * @param startingPoint Optional initial coordinates to start the optimization.
          * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param ceSampler The cross-entropy sampler (reference distribution). When null (the default), a [CENormalSampler] is created. The solver attaches the sampler onto its own stream provider.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -1613,7 +1613,7 @@ abstract class Solver(
          * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
          * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param ceSampler The cross-entropy sampler (reference distribution). When null (the default), a [CENormalSampler] is created. The solver attaches the sampler onto its own stream provider.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -1688,7 +1688,7 @@ abstract class Solver(
          * @param mutationOperator The mutation strategy. When null (the default), a [GaussianMutation] for the problem is created.
          * @param startingPoint Optional initial coordinates seeded into the initial population.
          * If left null, the solver will automatically generate a random feasible population upon initialization.
-         * @param maxIterations The maximum number of generations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of generations the algorithm will run. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -1757,7 +1757,7 @@ abstract class Solver(
          * @param selectionOperator The parent-selection strategy. Defaults to [TournamentSelection].
          * @param crossoverOperator The recombination strategy. Defaults to [BlendCrossover].
          * @param mutationOperator The mutation strategy. When null (the default), a [GaussianMutation] for the problem is created.
-         * @param maxIterations The maximum number of generations per restart. Defaults to 1000.
+         * @param maxIterations The maximum number of generations per restart. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -2006,7 +2006,7 @@ abstract class Solver(
          * @param acquisition The acquisition function. Defaults to [ExpectedImprovement].
          * @param startingPoint Optional initial coordinates seeded into the initial design.
          * If left null, the initial design is generated entirely by the design strategy.
-         * @param maxIterations The maximum number of BO iterations (after the initial design). Defaults to 1000.
+         * @param maxIterations The maximum number of BO iterations (after the initial design). Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -2069,7 +2069,7 @@ abstract class Solver(
          * into the initial design. All subsequent restarts use purely random initial designs.
          * @param initialDesignSize The number of initial design points per restart. Defaults to [BayesianOptimizationSolver.defaultInitialDesignSize].
          * @param acquisition The acquisition function. Defaults to [ExpectedImprovement].
-         * @param maxIterations The maximum number of BO iterations per restart. Defaults to 1000.
+         * @param maxIterations The maximum number of BO iterations per restart. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -2280,7 +2280,7 @@ abstract class Solver(
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
          * @param startingPoint Optional initial coordinates to start the optimization.
          * If left null, the solver will automatically generate a random feasible starting point upon initialization.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -2342,7 +2342,7 @@ abstract class Solver(
          * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
          * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 30.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
