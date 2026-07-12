@@ -1,11 +1,11 @@
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.ElementKind
 import ksl.app.swing.animation.app.withElementAdded
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse

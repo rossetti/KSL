@@ -1,4 +1,4 @@
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
@@ -6,7 +6,7 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
 import ksl.animation.NetworkStationLayoutElement
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.image.BufferedImage
 import kotlin.test.Test

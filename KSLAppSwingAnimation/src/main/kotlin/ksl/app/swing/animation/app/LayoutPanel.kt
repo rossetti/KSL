@@ -23,9 +23,9 @@ import ksl.animation.AnchorKind
 import ksl.animation.AnchorRef
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.ElementKind
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
-import ksl.animation.replay.conveyorDefinedEvents
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.conveyorDefinedEvents
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.BorderLayout
 import java.awt.Dimension

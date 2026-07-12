@@ -33,11 +33,11 @@ import ksl.animation.StorageLayoutElement
 import ksl.animation.StorageStyle
 import ksl.animation.SummaryDisplayElement
 import ksl.animation.ValueDisplayElement
-import ksl.animation.replay.ReplayModel
-import ksl.animation.replay.ResourceSnapshot
-import ksl.animation.replay.StorageMember
-import ksl.animation.replay.ResponseStats
-import ksl.animation.replay.WorldPoint
+import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.ResourceSnapshot
+import ksl.app.animation.replay.StorageMember
+import ksl.app.animation.replay.ResponseStats
+import ksl.app.animation.replay.WorldPoint
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Graphics
@@ -304,7 +304,7 @@ class SimulationCanvas : JPanel() {
     /** A movable resource resolved to its drawn world position, for the co-location fan-out (10.8 follow-up). */
     private class DrawnMover(
         val mr: ksl.animation.MovableResourceLayoutElement,
-        val ms: ksl.animation.replay.MoverState?,
+        val ms: ksl.app.animation.replay.MoverState?,
         val pos: WorldPoint
     )
 

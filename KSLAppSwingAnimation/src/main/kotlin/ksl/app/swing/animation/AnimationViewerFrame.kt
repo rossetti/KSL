@@ -18,10 +18,10 @@
 
 package ksl.app.swing.animation
 
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 import ksl.app.swing.animation.playback.PlaybackController
 import ksl.app.swing.animation.playback.PlaybackPanel
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.replay.ReplayModel
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.BorderLayout
 import java.awt.Dimension

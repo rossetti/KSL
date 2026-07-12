@@ -1,10 +1,10 @@
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

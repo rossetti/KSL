@@ -5,8 +5,8 @@ import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.LayoutPoint
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertTrue

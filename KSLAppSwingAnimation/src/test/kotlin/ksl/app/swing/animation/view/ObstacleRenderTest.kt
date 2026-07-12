@@ -3,8 +3,8 @@ package ksl.app.swing.animation.view
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import ksl.modeling.agent.Cell
 import ksl.modeling.agent.GridGeometrySpec
 import java.awt.image.BufferedImage

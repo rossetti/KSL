@@ -1,4 +1,4 @@
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnchorKind
 import ksl.animation.AnchorRef

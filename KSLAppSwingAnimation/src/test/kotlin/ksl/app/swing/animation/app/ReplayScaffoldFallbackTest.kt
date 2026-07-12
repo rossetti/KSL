@@ -9,8 +9,8 @@ import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.TraceFileReader
 import ksl.app.session.RunResult
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import ksl.app.swing.animation.view.SimulationCanvas
 import ksl.examples.book.chapter8.TestAndRepairShopWithMovableResources
 import ksl.simulation.ExperimentRunParametersIfc

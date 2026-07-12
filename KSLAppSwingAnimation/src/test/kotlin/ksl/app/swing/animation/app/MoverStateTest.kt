@@ -3,8 +3,8 @@ package ksl.app.swing.animation.app
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.MoverMode
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -47,9 +47,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import ksl.animation.AnimationLayout
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.AutoLayoutSource
-import ksl.animation.replay.buildAutoLayout
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.AutoLayoutSource
+import ksl.app.animation.replay.buildAutoLayout
 import ksl.animation.validateAgainst
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
