@@ -42,8 +42,9 @@ import java.io.StringWriter
 import java.nio.file.Path
 
 /**
- *  Executes a list of [Scenario] instances concurrently and writes all results to a shared
- *  [KSLDatabase].
+ *  Executes a list of [Scenario] instances concurrently, delivering each scenario's results
+ *  through the [simulate] callbacks and — when a [KSLDatabase] is attached — persisting them to
+ *  it. The database is an optional sink: pass `kslDb = null` for a pure in-memory run.
  *
  *  ### Execution model
  *
@@ -81,7 +82,10 @@ import java.nio.file.Path
  *  @param scenarioList       Initial list of scenarios to register.
  *  @param pathToOutputDirectory  Root directory under which per-scenario output sub-directories
  *                            are created.
- *  @param kslDb              Shared database that receives all scenario results.
+ *  @param kslDb              Optional shared database that receives all scenario results. When
+ *                            `null`, no database is opened or written; results still reach the
+ *                            caller through the [simulate] callbacks (the DB is a persistence sink,
+ *                            consistent with `ParallelDesignedExperiment`'s nullable `kslDb`).
  *  @param useScenarioOutputDirs  When `true` (the default, preserving the original behaviour),
  *                            every scenario gets its own subdirectory under
  *                            [pathToOutputDirectory] named `<scenarioName>_OutputDir`; each
@@ -99,7 +103,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
     val pathToOutputDirectory: Path = KSL.createSubDirectory(sanitizeForFilesystem(name) + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory),
+    val kslDb: KSLDatabase? = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory),
     private val useScenarioOutputDirs: Boolean = true
 ) : Identity(name) {
 
@@ -243,7 +247,8 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
     }
 
     /**
-     *  Runs the selected scenarios concurrently and writes results to [kslDb].
+     *  Runs the selected scenarios concurrently, delivering results through the callbacks and
+     *  writing them to [kslDb] when one is attached (`null` = no persistence).
      *
      *  This is a `suspend` function and must be called from a coroutine scope.  For
      *  command-line or test use, wrap with `runBlocking { runner.simulate() }`.
@@ -289,7 +294,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
          */
         onScenarioReplicationsCompleted: ((scenarioName: String, scenarioIndex: Int, totalScenarios: Int) -> Unit)? = null
     ) = coroutineScope {
-        if (clearAllData) kslDb.clearAllData()
+        if (clearAllData) kslDb?.clearAllData()
         jobsByName.clear()
 
         val scenarioList = scenarios.filter { it in myScenarios.indices }.map { myScenarios[it] }
@@ -345,9 +350,11 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             }
         }
 
-        // ── Phase 2: sequential DB commit ─────────────────────────────────────
-        // All simulation data is held in memory until this ordered commit phase.
-        val writer = SnapshotBatchWriter(kslDb)
+        // ── Phase 2: sequential DB commit (only when a database is attached) ──
+        // All simulation data is held in memory and delivered to the caller via the
+        // onScenarioComplete / onScenarioReplications callbacks below regardless of the
+        // database — kslDb is an optional persistence sink, so skip the writes when null.
+        val writer = kslDb?.let { SnapshotBatchWriter(it) }
         for (outcome in outcomes) {
             val scenario = outcome.scenario
             val collector = outcome.collector
@@ -364,7 +371,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                     }
                     onScenarioComplete?.invoke(scenario.name, expCompleted)
                     if (snapshots.isNotEmpty()) {
-                        writer.write(snapshots)
+                        writer?.write(snapshots)
                     }
                 }
             } else {

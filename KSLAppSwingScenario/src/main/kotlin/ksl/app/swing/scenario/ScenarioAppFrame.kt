@@ -98,8 +98,9 @@ class ScenarioAppFrame(
         "Enable database",
         controller.outputConfig.value.enableKSLDatabase
     ).apply {
-        toolTipText = "Capture each scenario's results in the shared KSL SQLite database " +
-            "(<workspace>/output/<analysisName>/).  Required for downstream Comparison-Analyzer queries."
+        toolTipText = "Persist each scenario's results to a KSL SQLite database " +
+            "(<workspace>/output/<analysisName>/) for later re-analysis in the Results app.  " +
+            "The in-app Comparison Analyzer runs from the run's in-memory results and does not require this."
     }
 
     /** Editable text field for [ksl.app.config.OutputConfig.analysisName].

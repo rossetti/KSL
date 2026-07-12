@@ -205,6 +205,38 @@ class ConcurrentScenarioRunnerTest {
         return runner
     }
 
+    @Test
+    fun `runner with null kslDb completes via callbacks and writes no database`() {
+        // The database is an optional persistence sink: with kslDb = null the runner must still
+        // deliver every scenario's across-replication and per-replication snapshots through the
+        // callbacks (the data a scenario comparison consumes), and write no .db file.
+        val runner = ConcurrentScenarioRunner(
+            "NoDbConcurrentRun_${System.nanoTime()}",
+            buildThreeQueueScenarios(),
+            kslDb = null
+        )
+        assertNull(runner.kslDb, "kslDb should be null for a database-less run")
+
+        val completed = mutableListOf<String>()
+        var perRepSnapshots = 0
+        runBlocking {
+            runner.simulate(
+                onScenarioComplete = { name, snapshot -> if (snapshot != null) completed.add(name) },
+                onScenarioReplications = { _, reps -> perRepSnapshots += reps.size }
+            )
+        }
+
+        assertEquals(3, completed.size, "all three scenarios must complete via in-memory snapshots")
+        assertTrue(perRepSnapshots > 0, "per-replication snapshots must be delivered (comparison input)")
+        assertTrue(
+            runner.observationsAsMap("System Time").isNotEmpty(),
+            "per-replication observations must be available in memory without a database"
+        )
+        val dbFiles = runner.pathToOutputDirectory.toFile()
+            .walkTopDown().filter { it.isFile && it.extension == "db" }.toList()
+        assertTrue(dbFiles.isEmpty(), "no database file may be written when kslDb is null: $dbFiles")
+    }
+
     private fun buildCommonRandomNumberQueueScenarios(
         numberReplications: Int = FAST_REPS,
         lengthOfReplication: Double = FAST_LENGTH,
@@ -344,7 +376,7 @@ class ConcurrentScenarioRunnerTest {
 
     private fun assertDbExperimentNamesMatchScenarios(runner: ConcurrentScenarioRunner) {
         val expected = runner.scenarioList.map { it.name }.toSet()
-        val actual = runner.kslDb.experimentNames.toSet()
+        val actual = runner.kslDb!!.experimentNames.toSet()
 
         assertEquals(
             expected,
@@ -379,7 +411,7 @@ class ConcurrentScenarioRunnerTest {
     private fun dbSystemTimeRows(
         runner: ConcurrentScenarioRunner,
         scenarioName: String
-    ) = runner.kslDb.withinRepViewData()
+    ) = runner.kslDb!!.withinRepViewData()
         .filter { it.exp_name == scenarioName && it.stat_name == "System Time" }
         .sortedBy { it.rep_id }
 
@@ -399,7 +431,7 @@ class ConcurrentScenarioRunnerTest {
         val scenario = runner.scenarioByName(scenarioName)
         assertNotNull(scenario, "Expected scenario '$scenarioName'")
 
-        val experiment = runner.kslDb.fetchExperimentData(scenarioName)
+        val experiment = runner.kslDb!!.fetchExperimentData(scenarioName)
         assertNotNull(experiment, "DB must contain experiment metadata for '$scenarioName'")
 
         assertEquals(scenarioName, experiment!!.exp_name)
@@ -886,7 +918,7 @@ class ConcurrentScenarioRunnerTest {
 
         assertEquals(
             setOf("OneServer", "TwoServers"),
-            runner.kslDb.experimentNames.toSet(),
+            runner.kslDb!!.experimentNames.toSet(),
             "Only successful scenarios should be committed to the database"
         )
     }
@@ -1006,7 +1038,7 @@ class ConcurrentScenarioRunnerTest {
 
     @Test
     fun dbContainsOneExperimentPerScenario() {
-        val expNames = runner.kslDb.experimentNames
+        val expNames = runner.kslDb!!.experimentNames
         assertEquals(
             runner.scenarioList.size, expNames.size,
             "DB must contain exactly one experiment per scenario. Found: $expNames"
@@ -1015,7 +1047,7 @@ class ConcurrentScenarioRunnerTest {
 
     @Test
     fun dbExperimentNamesMatchScenarioNames() {
-        val expNames = runner.kslDb.experimentNames.toSet()
+        val expNames = runner.kslDb!!.experimentNames.toSet()
         for (s in runner.scenarioList) {
             assertTrue(s.name in expNames,
                 "DB must contain an experiment named '${s.name}'. Found: $expNames")
@@ -1058,7 +1090,7 @@ class ConcurrentScenarioRunnerTest {
         )
 
         val expectedSuccessfulNames = setOf("OneServer", "TwoServers")
-        val actualNames = runner.kslDb.withinRepViewData()
+        val actualNames = runner.kslDb!!.withinRepViewData()
             .filter { it.stat_name == "System Time" }
             .map { it.exp_name }
             .toSet()
@@ -1230,7 +1262,7 @@ class ConcurrentScenarioRunnerTest {
 
         assertEquals(
             setOf("OneServer", "TwoServers"),
-            runner.kslDb.experimentNames.toSet(),
+            runner.kslDb!!.experimentNames.toSet(),
             "DB must contain only selected valid scenario indices"
         )
     }
@@ -1245,14 +1277,14 @@ class ConcurrentScenarioRunnerTest {
 
         assertEquals(
             setOf("OneServer"),
-            runner.kslDb.experimentNames.toSet()
+            runner.kslDb!!.experimentNames.toSet()
         )
 
         runBlocking { runner.simulate(scenarios = 1..1, clearAllData = false) }
 
         assertEquals(
             setOf("OneServer", "TwoServers"),
-            runner.kslDb.experimentNames.toSet(),
+            runner.kslDb!!.experimentNames.toSet(),
             "clearAllData=false should preserve existing DB rows when names do not collide"
         )
     }
@@ -1268,7 +1300,7 @@ class ConcurrentScenarioRunnerTest {
 
         assertEquals(
             setOf("TwoServers"),
-            runner.kslDb.experimentNames.toSet(),
+            runner.kslDb!!.experimentNames.toSet(),
             "Default clearAllData=true should clear previous DB rows before committing selected results"
         )
         assertTrue(
@@ -1291,7 +1323,7 @@ class ConcurrentScenarioRunnerTest {
         runBlocking { runner.simulate() }
 
         assertTrue(runner.scenarioList.isEmpty())
-        assertTrue(runner.kslDb.experimentNames.isEmpty())
+        assertTrue(runner.kslDb!!.experimentNames.isEmpty())
         assertTrue(runner.observationsAsMap("System Time").isEmpty())
     }
 

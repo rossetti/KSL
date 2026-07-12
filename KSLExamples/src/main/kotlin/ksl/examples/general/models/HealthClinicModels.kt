@@ -63,6 +63,6 @@ fun usingScenarios(){
 
     val expNames = listOf("DesignA", "DesignB")
     val responseName = "Clinic:TimeInSystem"
-    val mc = scenarioRunner.kslDb.multipleComparisonAnalyzerFor(expNames, responseName)
+    val mc = scenarioRunner.kslDb!!.multipleComparisonAnalyzerFor(expNames, responseName)
     println(mc)
 }
