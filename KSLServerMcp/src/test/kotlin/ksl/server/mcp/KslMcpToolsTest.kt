@@ -119,6 +119,57 @@ class KslMcpToolsTest {
     }
 
     @Test
+    @DisplayName("run_template output re-ingests into run_config (sanitized null bounds decode)")
+    fun runTemplateOutputReIngestsIntoRunConfig() {
+        // Regression guard for the run_template -> run_config break: run_template's structuredContent
+        // sanitizes an unbounded control's bounds to null; before the ControlData decode fix, feeding
+        // that back failed with "invalid RunConfiguration document" (null vs non-nullable Double).
+        val template = tools.runTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+        assertEquals(false, template.isError ?: false, firstText(template))
+        val document = template.structuredContent!!.jsonObject["document"]!!
+        val validation = tools.validateRun(buildJsonObject { put("config", document) })
+        assertEquals(false, validation.isError ?: false,
+            "run_template's sanitized output must decode in run_config: ${firstText(validation)}")
+        assertEquals(true, validation.structuredContent!!.jsonObject["valid"]?.jsonPrimitive?.booleanOrNull,
+            "the re-ingested scaffold must validate: ${structured(validation)}")
+    }
+
+    @Test
+    @DisplayName("experiment_template output re-ingests into validate_experiment (MM1 factorial over RV means)")
+    fun experimentTemplateOutputReIngestsIntoExperimentConfig() {
+        // Now that the factorial scaffold also draws on RV parameters (not just @KSLControl controls),
+        // MM1 — 1 control + 2 RV means — produces a 2-factor design, so the experiment path can be
+        // guarded here for real. Same sanitized-null ControlData round-trip as run_template: the
+        // template's structuredContent embeds model.controls whose ±∞ bounds are sanitized to null,
+        // and validate_experiment must decode that back rather than fail as "invalid document".
+        val template = tools.experimentTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+        assertEquals(false, template.isError ?: false, firstText(template))
+        val document = template.structuredContent!!.jsonObject["document"]!!
+        val validation = tools.validateExperiment(buildJsonObject { put("config", document) })
+        assertEquals(false, validation.isError ?: false,
+            "experiment_template's sanitized output must decode in validate_experiment: ${firstText(validation)}")
+        assertEquals(true, validation.structuredContent!!.jsonObject["valid"]?.jsonPrimitive?.booleanOrNull,
+            "the re-ingested experiment scaffold must validate: ${structured(validation)}")
+    }
+
+    @Test
+    @DisplayName("optimization config with an unbounded held control decodes (latent ControlData path)")
+    fun optimizationConfigWithUnboundedHeldControlDecodes() {
+        // The bare optimization template emits empty model.controls, so splice in the real unbounded
+        // (sanitized-to-null) held controls from run_template to exercise optimization's latent path.
+        val runControls = tools.runTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+            .structuredContent!!.jsonObject["document"]!!.jsonObject["scenarios"]!!
+            .jsonArray[0].jsonObject["controlOverrides"]!!
+        val optDoc = tools.optimizationTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+            .structuredContent!!.jsonObject["document"]!!.jsonObject
+        val model = JsonObject(optDoc["model"]!!.jsonObject.toMutableMap().apply { put("controls", runControls) })
+        val spliced = JsonObject(optDoc.toMutableMap().apply { put("model", model) })
+        val validation = tools.validateOptimization(buildJsonObject { put("config", spliced) })
+        assertNotNull(validation.structuredContent,
+            "an optimization config with null-bounded held controls must DECODE (not fail as 'invalid document'): ${firstText(validation)}")
+    }
+
+    @Test
     fun `list_bundles surfaces the MM1 example bundle`() {
         val result = tools.listBundles()
         assertEquals(false, result.isError ?: false)

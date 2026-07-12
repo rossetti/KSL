@@ -69,20 +69,35 @@ object ConfigSchemaGenerator {
     fun schemaFor(descriptor: SerialDescriptor): JsonObject = build(descriptor, emptySet(), 0)
 
     private fun build(descriptor: SerialDescriptor, ancestors: Set<String>, depth: Int): JsonObject {
-        // Cycle / depth guard: a self-referential or pathologically deep type collapses to an
-        // opaque object rather than recursing without bound.
+        val schema = buildKind(descriptor, ancestors, depth)
+        // A nullable field/element permits JSON null on the wire, so advertise it — otherwise a
+        // schema-validating client rejects the null the server legitimately emits: optional fields
+        // left unset, and (because Phase-1's ControlData serializers carry a nullable descriptor)
+        // the ±∞ bounds/value the MCP transport sanitizes to null. Without this, run_template's own
+        // output fails re-ingestion at a strict client before it ever reaches the decode fix.
+        return if (descriptor.isNullable) asNullable(schema) else schema
+    }
+
+    private fun buildKind(descriptor: SerialDescriptor, ancestors: Set<String>, depth: Int): JsonObject {
+        // Cycle / depth guard: a genuinely self-referential named type, or pathological nesting,
+        // collapses to an opaque object rather than recursing without bound. Only *named
+        // structural* types (class / object / sealed) enter `ancestors`; collections deliberately
+        // do NOT. Every Kotlin `List<T>` shares one serialName ("kotlin.collections.ArrayList")
+        // and every `Map` likewise, so tracking a collection container would falsely flag a list
+        // nested inside another list (scenarios[].controlOverrides.numericControls, factors[].levels)
+        // as a cycle and truncate it to an opaque object — which strict MCP clients then reject.
+        // A real cycle can only close through a named type, and those are still tracked below.
         if (depth > MAX_DEPTH || descriptor.serialName in ancestors) return buildJsonObject { put("type", "object") }
-        val path = ancestors + descriptor.serialName
         return when (val kind = descriptor.kind) {
-            StructureKind.CLASS, StructureKind.OBJECT -> objectSchema(descriptor, path, depth)
-            PolymorphicKind.SEALED -> sealedSchema(descriptor, path, depth)
+            StructureKind.CLASS, StructureKind.OBJECT -> objectSchema(descriptor, ancestors + descriptor.serialName, depth)
+            PolymorphicKind.SEALED -> sealedSchema(descriptor, ancestors + descriptor.serialName, depth)
             StructureKind.LIST -> buildJsonObject {
                 put("type", "array")
-                put("items", build(descriptor.getElementDescriptor(0), path, depth + 1))
+                put("items", build(descriptor.getElementDescriptor(0), ancestors, depth + 1))
             }
             StructureKind.MAP -> buildJsonObject {
                 put("type", "object")
-                put("additionalProperties", build(descriptor.getElementDescriptor(1), path, depth + 1))
+                put("additionalProperties", build(descriptor.getElementDescriptor(1), ancestors, depth + 1))
             }
             SerialKind.ENUM -> buildJsonObject {
                 put("type", "string")
@@ -90,6 +105,32 @@ object ConfigSchemaGenerator {
             }
             is PrimitiveKind -> primitiveSchema(kind)
             else -> buildJsonObject { put("type", "object") } // CONTEXTUAL / open polymorphic: opaque
+        }
+    }
+
+    /**
+     * Widen a built schema so it also permits JSON `null`. A typed node grows its `type` into a
+     * `[type, "null"]` union; a sealed `oneOf` gains a `{type:"null"}` variant; anything else falls
+     * back to `anyOf`. Zod and other JSON-Schema validators read all three as "nullable".
+     */
+    private fun asNullable(schema: JsonObject): JsonObject {
+        val type = schema["type"]
+        return when {
+            // Already carries a null option — leave as-is (defensive).
+            type is JsonArray && type.any { it.jsonPrimitive.contentOrNull == "null" } -> schema
+            // Sealed oneOf: the discriminated union simply gains an explicit null variant.
+            "oneOf" in schema -> JsonObject(
+                schema + ("oneOf" to JsonArray((schema["oneOf"] as JsonArray) + buildJsonObject { put("type", "null") })),
+            )
+            // A bare scalar (single string `type`, no `properties`/`items`) widens to the compact
+            // `[T, "null"]` union, which strict clients read correctly for scalars.
+            type is JsonPrimitive && type.isString && "properties" !in schema && "items" !in schema ->
+                JsonObject(schema + ("type" to JsonArray(listOf(type, JsonPrimitive("null")))))
+            // A structural node (object with `properties`, or array with `items`) wraps in
+            // `anyOf: [schema, {type:null}]`. A json-schema→Zod converter mishandles an
+            // `["object","null"]` union that still carries `properties`/`required` — it keeps
+            // enforcing the object and drops the null branch — but reads `anyOf` cleanly.
+            else -> buildJsonObject { putJsonArray("anyOf") { add(schema); add(buildJsonObject { put("type", "null") }) } }
         }
     }
 

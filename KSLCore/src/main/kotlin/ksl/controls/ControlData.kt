@@ -6,10 +6,13 @@ import kotlinx.serialization.Serializable
  *  A data class for transferring the data associated with a control.
  *
  *  @param controlType the type of control (DOUBLE, INTEGER, LONG, FLOAT, SHORT, BYTE, BOOLEAN)
- *  @param value the value of the control
+ *  @param value the value of the control. A wire `null` (a non-finite value the transport sanitized)
+ *      decodes as `+∞` — the only non-finite value a real control carries.
  *  @param keyName the name for the control. This is the string "${elementName}.${propertyName}"
- *  @param lowerBound the lower bound permitted for the control
- *  @param upperBound the upper bound permitted for the control
+ *  @param lowerBound the lower bound permitted for the control. Defaults to `-∞` (unbounded); a wire
+ *      `null` or an omitted value decodes as `-∞`.
+ *  @param upperBound the upper bound permitted for the control. Defaults to `+∞` (unbounded); a wire
+ *      `null` or an omitted value decodes as `+∞`.
  *  @param elementName The name of the model element that has the control.
  *  @param elementType The simple class name associated with the model element that has the control.
  *  @param elementId The id of the model element associated with the control
@@ -29,10 +32,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ControlData(
     val controlType: ControlType,
+    @Serializable(with = ControlValueDoubleSerializer::class)
     val value: Double,
     val keyName: String,
-    val lowerBound: Double,
-    val upperBound: Double,
+    @Serializable(with = LowerBoundDoubleSerializer::class)
+    val lowerBound: Double = Double.NEGATIVE_INFINITY,
+    @Serializable(with = UpperBoundDoubleSerializer::class)
+    val upperBound: Double = Double.POSITIVE_INFINITY,
     val elementName: String,
     val elementId: Int,
     val elementType: String,

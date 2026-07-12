@@ -68,21 +68,43 @@ object ExperimentDocuments {
 
     /**
      * A ready-to-edit two-level factorial scaffold over the model's first two
-     * numeric controls (low = current value, high = +1), 10 reps per point. The
-     * author edits the levels/factors and submits. Requires ≥2 numeric controls
-     * (a factorial needs at least two factors).
+     * numeric factors — its `@KSLControl` numeric controls first, then its random
+     * variable parameters (for a queueing model the natural factors are its RV
+     * means, e.g. mean service / mean time-between-arrivals). Each factor's low
+     * level is the current value and the high level is +1; 10 reps per point.
+     * Candidates whose current value cannot seed a strictly-increasing level pair
+     * are skipped — a ±∞ "run forever" control (an EventGenerator's
+     * initialEndingTime), or a value so large that value + 1 == value. The author
+     * edits the levels/factors and submits. Requires ≥2 usable numeric factors
+     * total — controls plus RV parameters — since a factorial needs at least two.
      */
     fun template(descriptor: ModelDescriptor, modelId: String): ExperimentConfiguration {
-        val controls = descriptor.controls.numericControls.take(2)
-        require(controls.size >= 2) {
-            "a factorial experiment needs at least two numeric controls; '$modelId' has ${descriptor.controls.numericControls.size}"
-        }
-        val factors = controls.map { control ->
-            FactorSpec(
-                name = control.keyName,
-                levels = listOf(control.value, control.value + 1.0),
-                binding = ControlBinding.Control(control.keyName),
-            )
+        // Candidate factors: @KSLControl numeric controls first, then RV distribution
+        // parameters. Both are first-class factors (validate()/inputNames accept either),
+        // so a model whose only tunable factors are RV means (M/M/1, etc.) still scaffolds.
+        // Carry only (name, current value, binding) here and construct the FactorSpec for the
+        // chosen two LAST: FactorSpec validates "levels strictly increasing" at construction,
+        // so eagerly building one for an unusable candidate (e.g. initialEndingTime = +∞, whose
+        // [∞, ∞+1] = [∞, ∞]) would abort the whole scaffold even though it is never selected.
+        val controlCandidates: List<Triple<String, Double, ControlBinding>> =
+            descriptor.controls.numericControls.map {
+                Triple(it.keyName, it.value, ControlBinding.Control(it.keyName))
+            }
+        val rvCandidates: List<Triple<String, Double, ControlBinding>> =
+            descriptor.rvParameterData.map {
+                val key = "${it.rvName}${RVParameterSetter.rvParamConCatChar}${it.paramName}"
+                Triple(key, it.paramValue, ControlBinding.RVParameter(it.rvName, it.paramName))
+            }
+        val factors = (controlCandidates + rvCandidates)
+            .filter { (_, low, _) -> low.isFinite() && low + 1.0 > low }
+            .take(2)
+            .map { (name, low, binding) ->
+                FactorSpec(name = name, levels = listOf(low, low + 1.0), binding = binding)
+            }
+        require(factors.size >= 2) {
+            val total = descriptor.controls.numericControls.size + descriptor.rvParameterData.size
+            "a factorial experiment needs at least two numeric factors (controls or RV parameters) " +
+                "with usable default levels; '$modelId' has $total candidate(s)"
         }
         return ExperimentConfiguration(
             modelReference = ModelReference.ByProviderId(modelId),
