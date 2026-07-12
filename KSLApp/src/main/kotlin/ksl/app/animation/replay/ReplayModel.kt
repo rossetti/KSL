@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnimationEvent
 import ksl.animation.ConveyorInfo
@@ -26,7 +26,7 @@ import ksl.animation.LayoutPoint
 import ksl.animation.NetworkEdge
 import ksl.animation.NetworkNode
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 
 /** A resource's state at a point in time. */
 data class ResourceSnapshot(val state: String, val busyUnits: Int, val capacity: Int)

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
@@ -29,7 +29,7 @@ import ksl.animation.SegmentRoute
 import ksl.animation.SpaceInfo
 import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.animationInventory
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 import ksl.animation.scaffoldLayout
 import ksl.simulation.Model
 
