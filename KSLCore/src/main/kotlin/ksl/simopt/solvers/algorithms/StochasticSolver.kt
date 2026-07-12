@@ -90,19 +90,110 @@ abstract class StochasticSolver(
     }
 
     /**
-     *  Generates a set of randomly generated points (inputs) for the problem. The points
-     *  are uniformly sampled from the feasible region and will be unique.
+     *  Generates a set of distinct input-feasible points for the problem, using one of two strategies
+     *  depending on the size of the feasible grid relative to the request:
+     *
+     *  - **Enumeration** — when the input grid has no more distinct points than `numPoints` (and is no
+     *    larger than `maxEnumeratedLatticeSize`), the exact feasible set is enumerated directly via
+     *    `ProblemDefinition.enumerateFeasibleInputPoints`. This is deterministic, consumes no random
+     *    draws, and returns every feasible grid point — avoiding the rejection-sampling stall that would
+     *    otherwise occur when the request exceeds the number of distinct feasible points.
+     *  - **Bounded rejection sampling** — otherwise, points are drawn uniformly from the feasible region
+     *    and de-duplicated. The sampling is **bounded**: it gives up after
+     *    `maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)` consecutive draws yield
+     *    no new point, rather than looping forever if the feasible region has fewer than `numPoints`
+     *    distinct points. The `50 * numPoints` term keeps the threshold large relative to the
+     *    coupon-collector expectation, so a legitimately large region is never truncated early.
+     *
+     *  In either case, if fewer than `numPoints` distinct feasible points exist, the smaller set is
+     *  returned and a diagnostic is logged (reporting the input-lattice size and the limiting factor).
+     *
      *  @param numPoints the size of the sample
-     *  @return the generated inputs. The points will be feasible with respect to the problem
+     *  @return the generated feasible input points; **may contain fewer than `numPoints`** points when
+     *  the feasible region has fewer than `numPoints` distinct points
      */
     @Suppress("unused")
     fun sampleInputFeasiblePoints(numPoints: Int = 1): Set<InputMap> {
         require(numPoints > 0) {"The sample size must be greater than zero!"}
+        // When the feasible grid is no larger than the request (and small enough to materialize),
+        // enumerate it exactly instead of rejection sampling — that is precisely the regime where
+        // rejection sampling would stall on near-duplicate draws. Enumeration is deterministic and
+        // consumes no random draws, so the common (large-grid) path below is left unchanged.
+        val enumerated = problemDefinition.enumerateFeasibleInputPoints(minOf(numPoints.toLong(), maxEnumeratedLatticeSize))
+        if (enumerated != null) {
+            if (enumerated.size < numPoints) {
+                warnFewerFeasiblePoints(numPoints, enumerated.size)
+            }
+            return enumerated.toSet()
+        }
+        // Otherwise rejection-sample from the (large or continuous) feasible region, bounded so it
+        // cannot loop forever if the feasible region has fewer than numPoints distinct points.
         val result = mutableSetOf<InputMap>()
-        while (result.size < numPoints) {
-            result.add(problemDefinition.generateInputFeasibleValues(rnStream))
+        val maxConsecutiveMisses = maxOf(problemDefinition.maxFeasibleSamplingIterations, 50 * numPoints)
+        var consecutiveMisses = 0
+        while (result.size < numPoints && consecutiveMisses < maxConsecutiveMisses) {
+            if (result.add(problemDefinition.generateInputFeasibleValues(rnStream))) {
+                consecutiveMisses = 0
+            } else {
+                consecutiveMisses++
+            }
+        }
+        if (result.size < numPoints) {
+            warnFewerFeasiblePoints(numPoints, result.size)
         }
         return result
+    }
+
+    /**
+     *  Logs a diagnostic when `sampleInputFeasiblePoints` returns fewer than the requested number of
+     *  distinct feasible points, reporting the actual input-lattice size and whether the lattice itself
+     *  or the linear/functional constraints are the limiting factor.
+     */
+    private fun warnFewerFeasiblePoints(numPoints: Int, sampled: Int) {
+        val lattice = problemDefinition.inputLatticeSize()
+        val cause = when {
+            lattice == null ->
+                "the input ranges include a continuous variable, so the linear/functional " +
+                    "constraints likely restrict the feasible region below $numPoints points"
+            lattice < numPoints ->
+                "the input lattice has only $lattice distinct point(s) from the ranges and " +
+                    "granularities — fewer than the $numPoints requested"
+            else ->
+                "the input lattice has $lattice point(s), but the linear/functional constraints " +
+                    "restrict the feasible region below $numPoints points"
+        }
+        Solver.logger.warn {
+            "sampleInputFeasiblePoints: sampled only $sampled of $numPoints requested distinct " +
+                "feasible points — $cause. Returning $sampled. Reduce the requested count " +
+                "(e.g. the solver population/design size), refine an input's granularity, or widen its range."
+        }
+    }
+
+    /**
+     *  Logs a warning at construction when a requested population or design size exceeds the number of
+     *  distinct feasible input points (the problem's input lattice). No run can use more distinct
+     *  feasible points than exist, so `sampleInputFeasiblePoints` supplies at most that many. Intended
+     *  to be called from a population-based subclass's `init` block so the mismatch is surfaced before
+     *  a run rather than only mid-run.
+     *
+     *  This is a best-effort early check: the size and the problem's granularities/bounds can change
+     *  after construction, and any actual shortfall is reported again by `sampleInputFeasiblePoints`
+     *  when it occurs. Does nothing when the lattice is effectively unbounded (a continuous input or a
+     *  grid too large to count) — such a problem has ample distinct feasible points.
+     *
+     *  @param requestedSize the requested population/design size
+     *  @param sizeParameterName the name of the solver parameter carrying that size, for the message
+     */
+    protected fun warnIfSizeExceedsInputLattice(requestedSize: Int, sizeParameterName: String) {
+        val capacity = problemDefinition.feasiblePointCapacity(requestedSize)
+        if (!capacity.sufficient) {
+            Solver.logger.warn {
+                "$name: $sizeParameterName ($requestedSize) exceeds the ${capacity.latticeSize} distinct " +
+                    "feasible input point(s) in the problem's input lattice — each run can use at most " +
+                    "${capacity.latticeSize} distinct feasible point(s). Reduce $sizeParameterName, refine " +
+                    "an input's granularity, or widen an input's range."
+            }
+        }
     }
 
     /**
@@ -209,6 +300,21 @@ abstract class StochasticSolver(
         )
 
     companion object {
+        /**
+         * The largest input-grid (lattice) size that `sampleInputFeasiblePoints` will enumerate exactly
+         * rather than rejection-sample. When the number of distinct feasible grid points is no larger
+         * than the request and no larger than this cap, the feasible set is enumerated directly (exact,
+         * deterministic, no wasted draws); otherwise rejection sampling is used. The cap guards against
+         * materializing an enormous grid if a caller requests an absurd number of points; realistic
+         * population and design sizes stay far below it.
+         */
+        @JvmStatic
+        var maxEnumeratedLatticeSize: Long = 100_000L
+            set(value) {
+                require(value > 0) { "The maximum enumerated lattice size must be positive." }
+                field = value
+            }
+
         /**
          * Represents the default maximum number of iterations to be executed
          * in a given process or algorithm. This value acts as a safeguard

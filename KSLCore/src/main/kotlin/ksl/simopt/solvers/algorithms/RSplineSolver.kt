@@ -60,7 +60,7 @@ import kotlin.math.floor
 class RSplineSolver @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    maximumIterations: Int = defaultMaxNumberIterations,
+    maximumIterations: Int = rSplineDefaultMaxIterations,
     replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     streamNum: Int = 0,
@@ -103,7 +103,7 @@ class RSplineSolver @JvmOverloads constructor(
     constructor(
         problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
-        maximumIterations: Int = defaultMaxNumberIterations,
+        maximumIterations: Int = rSplineDefaultMaxIterations,
         initialNumReps: Int = defaultInitialSampleSize,
         sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
         maxNumReplications: Int = defaultMaxNumReplications,

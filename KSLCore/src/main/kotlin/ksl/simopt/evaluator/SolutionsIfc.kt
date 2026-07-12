@@ -41,7 +41,7 @@ interface SolutionsIfc : List<Solution> {
      *  @param overallCILevel the overall confidence across all response constraints used in the testing.
      */
     fun orderedResponseFeasibleSolutions(overallCILevel: Double = 0.99): List<Solution> {
-        return orderedInputFeasibleSolutions.filter { !it.isResponseConstraintFeasible(overallCILevel) }
+        return orderedInputFeasibleSolutions.filter { it.isResponseConstraintFeasible(overallCILevel) }
     }
 
     /**
@@ -61,10 +61,11 @@ interface SolutionsIfc : List<Solution> {
         val ordered = orderedSolutions
         val solutions = Solutions()
         if (ordered.isEmpty()) return solutions
-        // Since ordered solutions is not empty, there is at least one best solution.
-        val best = ordered.first()
-        for(solution in ordered){
-            if(comparator.compare(solution, best) <= 0){
+        // Select the best by the supplied comparator (not the penalized order), then keep every
+        // solution the comparator cannot distinguish from it.
+        val best = ordered.minWithOrNull(comparator) ?: return solutions
+        for (solution in ordered) {
+            if (comparator.compare(solution, best) <= 0) {
                 solutions.add(solution)
             }
         }
@@ -92,12 +93,19 @@ interface SolutionsIfc : List<Solution> {
         level: Double = DEFAULT_CONFIDENCE_LEVEL,
         indifferenceZone: Double = 0.0
     ): Solutions {
-        return possiblyBest(
-            PenalizedObjectiveFunctionConfidenceIntervalComparator(
-                level = level,
-                indifferenceZone = indifferenceZone
-            )
+        val cmp = PenalizedObjectiveFunctionConfidenceIntervalComparator(
+            level = level,
+            indifferenceZone = indifferenceZone
         )
+        // Prefer confidently response-feasible solutions; only fall back to the full set when none
+        // are feasible. Within the pool, keep those statistically indistinguishable from the best.
+        val pool = orderedResponseFeasibleSolutions().ifEmpty { orderedSolutions }
+        val solutions = Solutions()
+        val best = pool.minWithOrNull(cmp) ?: return solutions
+        for (solution in pool) {
+            if (cmp.compare(solution, best) <= 0) solutions.add(solution)
+        }
+        return solutions
     }
 
     /**

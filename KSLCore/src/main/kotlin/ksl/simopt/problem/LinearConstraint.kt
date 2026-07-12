@@ -18,7 +18,7 @@ data class LinearConstraint(
     val equation: Map<String, Double>,
     override var rhsValue: Double = 0.0,
     override val inequalityType: InequalityType = InequalityType.LESS_THAN,
-    override val penaltyFunction: PenaltyFunctionIfc? = null
+    override val penaltyFunction: PenaltyFunction? = null
 ) : ConstraintIfc {
 
     init {

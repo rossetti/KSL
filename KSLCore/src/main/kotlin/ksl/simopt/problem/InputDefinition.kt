@@ -4,6 +4,8 @@ import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  *  Represents the definition of an input variable for a ProblemDefinition.
@@ -186,6 +188,25 @@ class InputDefinition @JvmOverloads constructor(
             x = y + granularity
         } while (x <= upperBound)
         return list
+    }
+
+    /**
+     *  The number of distinct grid values this variable can take on: the multiples of `granularity`
+     *  that fall within the closed range from `lowerBound` to `upperBound`. This is the count that
+     *  `granularPoints` would produce (computed in closed form, without materializing the list).
+     *
+     *  Returns `null` when the variable is continuous (`granularity == 0.0`), i.e. the number of
+     *  distinct values is effectively unbounded. Returns `0` when the granularity is so coarse that no
+     *  multiple of it lies within the bounds (e.g. range `0.4..0.6` with granularity `1.0`), in which
+     *  case there is no feasible grid value at all.
+     */
+    fun numGranularPoints(): Long? {
+        if (granularity <= 0.0) return null
+        val eps = 1e-9
+        val loMultiple = ceil(lowerBound / granularity - eps)
+        val hiMultiple = floor(upperBound / granularity + eps)
+        val count = hiMultiple - loMultiple + 1.0
+        return if (count < 1.0) 0L else count.toLong()
     }
 
     override fun toString(): String {

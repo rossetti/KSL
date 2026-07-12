@@ -2,6 +2,7 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.PenaltyMemory
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.observers.Emitter
@@ -27,16 +28,21 @@ class SolutionEmitter : SolutionEmitterIfc {
  *  @param responseEstimates the estimates of the responses associated with the response constraints
  *  @param evaluationNumber the iteration number of the solver request. That is, the number of times that
  *  the simulation oracle has been asked to evaluate (any) input.
+ *  @param penaltyMemory per-constraint memory accumulated by memoryful penalty functions, keyed by the
+ *  constraint's response name. Empty for memoryless penalties. Excluded from value-equality (derived state).
+ *  @param searchState an optional snapshot of solver-level search state for self-scaling penalties. Null
+ *  unless such a penalty populates it. Excluded from value-equality (derived state).
  */
 data class Solution(
     val inputMap: InputMap,
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val evaluationNumber: Int,
-    val isValid: Boolean = true
+    val isValid: Boolean = true,
+    val id: Int = solutionCounter++,
+    val penaltyMemory: Map<String, PenaltyMemory> = emptyMap(),
+    val searchState: SearchStateSnapshot? = null,
 ) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
-
-    val id : Int = solutionCounter++
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
@@ -218,6 +224,38 @@ data class Solution(
 
     override fun compareTo(other: Solution): Int {
         return penalizedObjFncValue.compareTo(other.penalizedObjFncValue)
+    }
+
+    /**
+     *  Returns this solution stamped at the supplied [evaluationNumber] — the iteration at which
+     *  it is being used for selection. The simulation estimates and [id] are unchanged; only the
+     *  penalty clock advances. Returns this instance when it is already at that iteration.
+     */
+    fun atEvaluation(evaluationNumber: Int): Solution =
+        if (this.evaluationNumber == evaluationNumber) this
+        else copy(evaluationNumber = evaluationNumber)
+
+    // equals/hashCode are defined explicitly to EXCLUDE id, penaltyMemory, and searchState from
+    // value-equality, preserving the data-class semantics from before id became a constructor
+    // property: two solutions with the same inputs, estimates, evaluation number, and validity are
+    // equal regardless of id or the derived penalty memory / search state carried alongside them.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Solution) return false
+        return inputMap == other.inputMap &&
+            estimatedObjFnc == other.estimatedObjFnc &&
+            responseEstimates == other.responseEstimates &&
+            evaluationNumber == other.evaluationNumber &&
+            isValid == other.isValid
+    }
+
+    override fun hashCode(): Int {
+        var result = inputMap.hashCode()
+        result = 31 * result + estimatedObjFnc.hashCode()
+        result = 31 * result + responseEstimates.hashCode()
+        result = 31 * result + evaluationNumber
+        result = 31 * result + isValid.hashCode()
+        return result
     }
 
     fun asString(): String {

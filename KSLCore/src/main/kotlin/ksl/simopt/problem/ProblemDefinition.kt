@@ -92,7 +92,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun objFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return objFncFactor * solution.average
     }
@@ -109,7 +115,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun penalizedObjFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return objFncValue(solution) + penaltyFncValue(solution)
     }
@@ -126,7 +138,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun granularObjFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return KSLMath.gRound(objFncValue(solution), objFnGranularity)
     }
@@ -143,7 +161,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun granularPenalizedObjFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return KSLMath.gRound(penalizedObjFncValue(solution), objFnGranularity)
     }
@@ -289,13 +313,73 @@ class ProblemDefinition @JvmOverloads constructor(
 
 
     /** Default penalty applied to linear constraints if no custom penalty is provided. */
-    var defaultLinearPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+    var defaultLinearPenalty: PenaltyFunction = DynamicPolynomialPenalty.defaultPenaltyFunction
+        set(value) { field = value; myBoundPenalties = null }
 
     /** Default penalty applied to functional constraints if no custom penalty is provided. */
-    var defaultFunctionalPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+    var defaultFunctionalPenalty: PenaltyFunction = DynamicPolynomialPenalty.defaultPenaltyFunction
+        set(value) { field = value; myBoundPenalties = null }
 
     /** Default penalty applied to response constraints if no custom penalty is provided. */
-    var defaultResponsePenalty: PenaltyFunctionIfc = PenaltyFunctionWithMemory.defaultPenaltyFunction
+    var defaultResponsePenalty: PenaltyFunction = DynamicPolynomialPenalty.defaultPenaltyFunction
+        set(value) { field = value; myBoundPenalties = null }
+
+    // Per-constraint bound penalties (Option B): each constraint's effective penalty (its override, or
+    // the problem-level default) bound to that constraint. Resolved lazily and cached; invalidated when
+    // a default penalty is reassigned (setters above) or a constraint is added.
+    private var myBoundPenalties: Map<PenalizableConstraint, PenaltyFunction>? = null
+
+    private fun boundPenalties(): Map<PenalizableConstraint, PenaltyFunction> {
+        myBoundPenalties?.let { return it }
+        val map = LinkedHashMap<PenalizableConstraint, PenaltyFunction>()
+        for (lc in myLinearConstraints) map[lc] = (lc.penaltyFunction ?: defaultLinearPenalty).boundTo(lc)
+        for (fc in myFunctionalConstraints) map[fc] = (fc.penaltyFunction ?: defaultFunctionalPenalty).boundTo(fc)
+        for (rc in myResponseConstraints) map[rc] = (rc.penaltyFunction ?: defaultResponsePenalty).boundTo(rc)
+        myBoundPenalties = map
+        return map
+    }
+
+    /**
+     * True if any constraint's effective (bound) penalty accumulates memory across visits (for
+     * example, a Park and Kim Penalty Function with Memory). Used to decide whether new observations
+     * must be folded into solution memory and to warn about regimes that cannot accumulate it.
+     */
+    fun hasMemoryfulPenalty(): Boolean = boundPenalties().values.any { it.usesMemory }
+
+    /**
+     * Folds a visit's new observations into the penalty memory carried by a solution, for each
+     * response constraint whose bound penalty uses memory. Returns the penalty-memory map to stamp on
+     * the resulting solution: [priorMemory] carried forward with each memoryful response constraint's
+     * entry updated by its penalty's foldVisit over the new observations. A problem with no memoryful
+     * penalty (the common case) returns [priorMemory] unchanged, so memoryless evaluation is
+     * unaffected.
+     *
+     * Only response (stochastic) constraints are folded: their observations can be standardized,
+     * whereas deterministic constraints have exact violations and carry no memory.
+     *
+     * @param newObservations the freshly simulated batch's responses — the new observations obtained
+     *   at this visit, not the merged cumulative responses
+     * @param priorMemory the memory carried by the solution being revisited; empty on a first visit
+     * @param iteration the current evaluation iteration
+     */
+    fun foldPenaltyMemory(
+        newObservations: ResponseMap,
+        priorMemory: Map<String, PenaltyMemory>,
+        iteration: Int
+    ): Map<String, PenaltyMemory> {
+        if (myResponseConstraints.isEmpty()) return priorMemory
+        val bound = boundPenalties()
+        var updated: MutableMap<String, PenaltyMemory>? = null
+        for (rc in myResponseConstraints) {
+            val penalty = bound.getValue(rc)
+            if (!penalty.usesMemory) continue
+            val newEstimate = newObservations[rc.responseName] ?: continue
+            val folded = penalty.foldVisit(newEstimate, priorMemory[rc.key], iteration) ?: continue
+            if (updated == null) updated = HashMap(priorMemory)
+            updated[rc.key] = folded
+        }
+        return updated ?: priorMemory
+    }
 
     /**
      * The lower bounds for each input variable
@@ -317,6 +401,99 @@ class ProblemDefinition @JvmOverloads constructor(
     @Suppress("unused")
     val inputIntervals: List<Interval>
         get() = myInputDefinitions.values.map { it.interval }.toList()
+
+    /**
+     *  The number of distinct points in the input box lattice — the product over the input variables
+     *  of the number of grid values each can take on (see `InputDefinition.numGranularPoints`). This is
+     *  an **upper bound** on the number of distinct input-feasible points: the linear and functional
+     *  constraints can only reduce it.
+     *
+     *  Returns `null` when the count is effectively unbounded: at least one input is continuous
+     *  (`granularity == 0.0`), or the product would exceed `Long.MAX_VALUE`. Returns `0` when some input
+     *  has no grid value within its bounds (a granularity too coarse for its range).
+     *
+     *  Useful as a diagnostic without running the model: a request for more distinct feasible points
+     *  than this value — e.g. a solver population or space-filling design larger than the lattice —
+     *  cannot be satisfied (`sampleInputFeasiblePoints` will return fewer). It is computed in closed
+     *  form and does not enumerate the lattice, so it is safe to call on a large problem.
+     */
+    fun inputLatticeSize(): Long? {
+        var product = 1L
+        for (iDef in myInputDefinitions.values) {
+            val n = iDef.numGranularPoints() ?: return null   // continuous input -> unbounded
+            if (n <= 0L) return 0L                            // an input with no grid value -> empty
+            if (product > Long.MAX_VALUE / n) return null     // product overflows -> effectively unbounded
+            product *= n
+        }
+        return product
+    }
+
+    /**
+     *  Enumerates the exact set of input-feasible points on the input grid when that grid is small
+     *  enough to materialize; otherwise returns `null` so the caller can fall back to sampling.
+     *
+     *  Returns `null` when any input is continuous (`granularity == 0.0`) or when the input grid — the
+     *  cartesian product of each variable's granularity-multiples within its bounds, i.e. the value
+     *  `inputLatticeSize` reports — exceeds `maxToEnumerate`. Otherwise returns every grid point that
+     *  satisfies the input ranges and the linear and functional constraints: the *same* `isInputFeasible`
+     *  predicate that rejection sampling applies, so the two agree on which points are feasible. The
+     *  result may be smaller than the grid (constraints remove points) or empty (no feasible point).
+     *  Response constraints are **not** applied here — they require simulation. Iteration order is
+     *  deterministic, so the result is reproducible.
+     *
+     *  @param maxToEnumerate the largest input-grid size to materialize; a larger grid returns `null`
+     *  @return the input-feasible grid points, or `null` if the grid is continuous or too large
+     */
+    fun enumerateFeasibleInputPoints(maxToEnumerate: Long): List<InputMap>? {
+        val names = myInputDefinitions.keys.toList()
+        val grids = ArrayList<List<Double>>(myInputDefinitions.size)
+        var gridSize = 1L
+        for (iDef in myInputDefinitions.values) {
+            if (iDef.granularity <= 0.0) return null // a continuous input cannot be enumerated
+            val values = iDef.granularPoints().filter { it in iDef.lowerBound..iDef.upperBound }
+            if (values.isEmpty()) return emptyList() // a dimension with no in-range grid value -> no point
+            if (gridSize > maxToEnumerate / values.size) return null // grid would exceed the cap
+            gridSize *= values.size
+            grids.add(values)
+        }
+        val result = ArrayList<InputMap>()
+        val idx = IntArray(grids.size)
+        while (true) {
+            val map = HashMap<String, Double>(grids.size)
+            for (d in grids.indices) {
+                map[names[d]] = grids[d][idx[d]]
+            }
+            if (isInputFeasible(map)) {
+                result.add(InputMap(this, map))
+            }
+            // advance the mixed-radix counter over the cartesian product
+            var d = grids.size - 1
+            while (d >= 0) {
+                idx[d]++
+                if (idx[d] < grids[d].size) break
+                idx[d] = 0
+                d--
+            }
+            if (d < 0) break // counter wrapped around -> every combination visited
+        }
+        return result
+    }
+
+    /**
+     *  Reports whether this problem's input lattice can supply `requestedCount` distinct feasible input
+     *  points — a structured form of the `inputLatticeSize` check for callers (solvers, benchmark
+     *  harnesses, tooling) that need to decide programmatically rather than read a log message. For
+     *  example, a population-based solver can compare its population or design size against the result
+     *  and cap or flag it before a run. See `FeasiblePointCapacity` for the meaning of `sufficient` and
+     *  the constraint caveat.
+     *
+     *  @param requestedCount the number of distinct feasible points requested; must be positive
+     *  @return the capacity assessment for `requestedCount` against this problem's input lattice
+     */
+    fun feasiblePointCapacity(requestedCount: Int): FeasiblePointCapacity {
+        require(requestedCount > 0) { "The requested count must be positive." }
+        return FeasiblePointCapacity(requestedCount, inputLatticeSize())
+    }
 
     /**
      *  The mid-point of each input variable's range
@@ -448,7 +625,7 @@ class ProblemDefinition @JvmOverloads constructor(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
         inequalityType: InequalityType = InequalityType.LESS_THAN,
-        penaltyFunction: PenaltyFunctionIfc? = null
+        penaltyFunction: PenaltyFunction? = null
     ): LinearConstraint {
         for ((name, _) in equation) {
             require(name in inputNames) { "The name $name does not exist in the named inputs" }
@@ -459,6 +636,7 @@ class ProblemDefinition @JvmOverloads constructor(
         }
         val ic = LinearConstraint(eqMap, rhsValue, inequalityType, penaltyFunction)
         myLinearConstraints.add(ic)
+        myBoundPenalties = null
         return ic
     }
 
@@ -483,11 +661,12 @@ class ProblemDefinition @JvmOverloads constructor(
         inequalityType: InequalityType = InequalityType.LESS_THAN,
         target: Double = 0.0,
         tolerance: Double = 0.0,
-        penaltyFunction: PenaltyFunctionIfc? = null
+        penaltyFunction: PenaltyFunction? = null
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
         val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance, penaltyFunction)
         myResponseConstraints.add(rc)
+        myBoundPenalties = null
         return rc
     }
 
@@ -507,6 +686,7 @@ class ProblemDefinition @JvmOverloads constructor(
     ): FunctionalConstraint {
         val fc = FunctionalConstraint(inputNames, lhsFunc, rhsValue, inequalityType)
         myFunctionalConstraints.add(fc)
+        myBoundPenalties = null
         return fc
     }
 
@@ -688,56 +868,29 @@ class ProblemDefinition @JvmOverloads constructor(
 
     /**
      * Computes the total additive penalty for the provided solution by evaluating
-     * individual constraint violations.
-     * Ensures that the returned value is oriented according to the optimization type.
+     * individual constraint violations. The returned value is a non-negative magnitude.
+     *
+     * The internal objective is minimization-oriented (objFncValue = objFncFactor * average),
+     * and penalizedObjFncValue = objFncValue + penaltyFncValue. A constraint violation must
+     * therefore always INCREASE the penalized value (push it toward least-preferred) for both
+     * MINIMIZE and MAXIMIZE problems, so the penalty is returned unsigned and is not multiplied
+     * by objFncFactor.
      *
      * @param solution The solution for which the penalty is being computed.
-     * @return the total penalty value, adjusted by objFncFactor.
+     * @return the total non-negative penalty value.
      */
     @Suppress("unused")
     fun penaltyFncValue(solution: Solution): Double {
+        // Each constraint's bound penalty (Option B) computes its own violation from the solution and
+        // returns a non-negative contribution (0 when satisfied). penalizedObjFncValue adds this total
+        // to the already-oriented objFncValue, so a violation always worsens the minimization-oriented
+        // value for both MINIMIZE and MAXIMIZE; the penalty is returned unsigned.
         var totalPenalty = 0.0
-        val iterationCounter = solution.evaluationNumber
-
-        // 1. Penalize Linear Constraints (Deterministic)
-        for (lc in linearConstraints) {
-            val v = lc.violation(solution.inputMap)
-            if (v > 0.0) {
-                val penaltyFnc = lc.penaltyFunction ?: defaultLinearPenalty
-                // Pass 1 explicitly since there is no sampling noise to dampen
-                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
-            }
-        }
-
-        // 2. Penalize Functional Constraints (Deterministic)
-        for (fc in functionalConstraints) {
-            val v = fc.violation(solution.inputMap)
-            if (v > 0.0) {
-                val penaltyFnc = fc.penaltyFunction ?: defaultFunctionalPenalty
-                // Pass 1 explicitly since there is no sampling noise to dampen
-                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
-            }
-        }
-
-        // 3. Penalize Response Constraints (Stochastic)
-        for (rc in responseConstraints) {
-            val estResponse = solution.responseEstimatesMap[rc.responseName]
-            if (estResponse != null) {
-                val v = rc.violation(estResponse.average)
-                if (v > 0.0) {
-                    val penaltyFnc = rc.penaltyFunction ?: defaultResponsePenalty
-                    // Explicitly extract the sample count N(x) to feed the memory dampener
-                    //TODO this may not be correct, the Park and Kim paper uses the new observation count
-                    // this is all observations
-                    val count = estResponse.count.toInt()
-                    totalPenalty += penaltyFnc.penalty(v, iterationCounter, count)
-                }
-            }
-        }
-
-        // 4. Apply the objFncFactor to correctly orient the penalty
-        // (Add for Minimization, Subtract for Maximization)
-        return totalPenalty * objFncFactor
+        val bound = boundPenalties()
+        for (lc in myLinearConstraints) totalPenalty += bound.getValue(lc).penalty(solution)
+        for (fc in myFunctionalConstraints) totalPenalty += bound.getValue(fc).penalty(solution)
+        for (rc in myResponseConstraints) totalPenalty += bound.getValue(rc).penalty(solution)
+        return totalPenalty
     }
 
     /**
@@ -752,7 +905,13 @@ class ProblemDefinition @JvmOverloads constructor(
     fun granularPenaltyFncValue(solution: Solution): Double {
         require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
         if (solution.average.isNaN() || solution.average.isInfinite()) {
-            return objFncFactor * Double.MAX_VALUE
+            // Defensive and currently unreachable: EstimatedResponse forbids non-finite
+            // averages at construction, so Solution.average is always finite. If this ever
+            // fires, a non-finite objective means least-preferred: the internal objective is
+            // minimization-oriented, so the worst value is +Double.MAX_VALUE for BOTH
+            // orientations. Multiplying by objFncFactor would orient a MAXIMIZE problem to
+            // -MAX (the MOST-preferred value), making an unusable solution sort as best.
+            return Double.MAX_VALUE
         }
         return KSLMath.gRound(penaltyFncValue(solution), objFnGranularity)
     }
@@ -1127,7 +1286,17 @@ class ProblemDefinition @JvmOverloads constructor(
         var count = 0
         do {
             count++
-            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) {
+                val hint = if (inputLatticeSize() == 0L)
+                    "an input's granularity is too coarse for its range — no grid value (multiple of the " +
+                        "granularity) falls within its bounds"
+                else
+                    "the linear/functional constraints may be unsatisfiable or define an extremely small " +
+                        "feasible region relative to the input box"
+                "Could not sample a point satisfying the input ranges and constraints within " +
+                    "$maxFeasibleSamplingIterations attempts; $hint. Check the input ranges, " +
+                    "granularities, and constraints, or increase maxFeasibleSamplingIterations."
+            }
             // generate the point
             val iDefinition = myInputDefinitions[name]!!
             map[name] = iDefinition.randomValue(rnStream)
@@ -1152,7 +1321,17 @@ class ProblemDefinition @JvmOverloads constructor(
         var inputMap: InputMap
         do {
             count++
-            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) {
+                val hint = if (inputLatticeSize() == 0L)
+                    "an input's granularity is too coarse for its range — no grid value (multiple of the " +
+                        "granularity) falls within its bounds"
+                else
+                    "the linear/functional constraints may be unsatisfiable or define an extremely small " +
+                        "feasible region relative to the input box"
+                "Could not sample a point satisfying the input ranges and constraints within " +
+                    "$maxFeasibleSamplingIterations attempts; $hint. Check the input ranges, " +
+                    "granularities, and constraints, or increase maxFeasibleSamplingIterations."
+            }
             // generate the point
             inputMap = generateRandomInputValues(rnStream)
         } while (!isInputFeasible(inputMap))

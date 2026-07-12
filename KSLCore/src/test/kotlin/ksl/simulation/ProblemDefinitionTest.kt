@@ -2,11 +2,12 @@ package ksl.simulation
 
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
+import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.DynamicPolynomialPenalty
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.InputDefinition
 import ksl.simopt.problem.OptimizationType
-import ksl.simopt.problem.PenaltyFunctionWithMemory
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -415,7 +417,7 @@ class ProblemDefinitionTest {
             responseNames     = listOf("FillRate")
         )
         pd.inputVariable("x", 0.0, 10.0)
-        val penalty = PenaltyFunctionWithMemory(basePenalty = 50.0, iterationExponent = 0.5, violationExponent = 2.0)
+        val penalty = DynamicPolynomialPenalty(basePenalty = 50.0, iterationExponent = 0.5, violationExponent = 2.0)
         val constraint = pd.responseConstraint(
             name            = "FillRate",
             rhsValue        = 0.95,
@@ -458,5 +460,201 @@ class ProblemDefinitionTest {
         assertEquals(-Double.MAX_VALUE, bad.average)
         // oriented (internal minimization) value is the least-preferred value, NOT -MAX
         assertEquals(Double.MAX_VALUE, pd.objFncValue(bad))
+    }
+
+    // ── penalty orientation ───────────────────────────────────────────────────
+    // A constraint violation must WORSEN the penalized value (push it toward
+    // least-preferred) for both orientations, since the internal objective is
+    // minimization-oriented and penalizedObjFncValue = objFncValue + penalty.
+
+    /**
+     * Single-input problem with a deterministic linear-constraint penalty
+     * (iterationExponent = 0.0 so the penalty does not depend on the evaluation
+     * number). Constraint: q <= 50.
+     */
+    private fun makePenaltyProblem(optType: OptimizationType): ProblemDefinition {
+        val pd = ProblemDefinition(
+            problemName = "PenaltyRankProblem",
+            modelIdentifier = "PenaltyRankModel",
+            objFnResponseName = "Profit",
+            inputNames = listOf("q"),
+            optimizationType = optType
+        )
+        pd.inputVariable("q", 0.0, 100.0, 1.0)
+        pd.linearConstraint(
+            equation = mapOf("q" to 1.0),
+            rhsValue = 50.0,
+            inequalityType = InequalityType.LESS_THAN,
+            penaltyFunction = DynamicPolynomialPenalty(
+                basePenalty = 100.0, iterationExponent = 0.0, violationExponent = 2.0
+            )
+        )
+        return pd
+    }
+
+    private fun solutionAt(pd: ProblemDefinition, q: Double, objAvg: Double): Solution {
+        val inputMap = pd.toInputMap(doubleArrayOf(q))
+        val objFnc = EstimatedResponse("Profit", objAvg, Double.NaN, 1.0)
+        return Solution(inputMap, objFnc, emptyList(), evaluationNumber = 1)
+    }
+
+    @Test
+    fun penaltyIsNonNegativeForMaximize() {
+        val pd = makePenaltyProblem(OptimizationType.MAXIMIZE)
+        val violator = solutionAt(pd, q = 60.0, objAvg = 100.0) // q=60 violates q<=50
+        assertTrue(pd.penaltyFncValue(violator) > 0.0,
+            "A constraint violation must produce a positive (unsigned) penalty for MAXIMIZE")
+    }
+
+    @Test
+    fun feasibleSortsBetterThanViolatorForMaximize() {
+        // Regression for the objFncFactor-mis-signed penalty: for a MAXIMIZE problem a
+        // constraint violator of equal objective must NOT sort as better than a feasible
+        // solution. Smaller penalizedObjFncValue = better (internal minimization sense).
+        val pd = makePenaltyProblem(OptimizationType.MAXIMIZE)
+        val feasible = solutionAt(pd, q = 40.0, objAvg = 100.0) // satisfies q<=50
+        val violator = solutionAt(pd, q = 60.0, objAvg = 100.0) // violates q<=50
+        assertTrue(feasible.penalizedObjFncValue < violator.penalizedObjFncValue,
+            "Feasible solution must sort strictly better than an equal-objective violator")
+        // feasible carries no penalty, so its penalized value equals its oriented objective
+        assertEquals(pd.objFncValue(feasible), feasible.penalizedObjFncValue, 0.0)
+    }
+
+    @Test
+    fun feasibleSortsBetterThanViolatorForMinimize() {
+        // Mirror: the fix is a no-op for MINIMIZE (penalty was already added correctly).
+        val pd = makePenaltyProblem(OptimizationType.MINIMIZE)
+        val feasible = solutionAt(pd, q = 40.0, objAvg = 100.0)
+        val violator = solutionAt(pd, q = 60.0, objAvg = 100.0)
+        assertTrue(pd.penaltyFncValue(violator) > 0.0)
+        assertTrue(feasible.penalizedObjFncValue < violator.penalizedObjFncValue,
+            "Feasible solution must sort strictly better than an equal-objective violator")
+    }
+
+    // ── input lattice size (diagnostic for feasible-point sampling) ────────────
+
+    private fun latticeProblem(vararg inputs: Triple<String, Interval, Double>): ProblemDefinition {
+        val pd = ProblemDefinition(
+            problemName = "L", modelIdentifier = "M", objFnResponseName = "y",
+            inputNames = inputs.map { it.first }
+        )
+        for ((name, interval, g) in inputs) pd.inputVariable(name, interval, g)
+        return pd
+    }
+
+    @Test
+    fun inputLatticeSizeCountsIntegerOrderedGridPoints() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 30.0), 1.0))
+        assertEquals(31L, pd.inputLatticeSize(), "0..30 integer = 31 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeHandlesFractionalGranularity() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 10.0), 0.5))
+        assertEquals(21L, pd.inputLatticeSize(), "0, 0.5, ..., 10 = 21 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeMultipliesAcrossDimensions() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("z", Interval(0.0, 4.0), 1.0))
+        assertEquals(25L, pd.inputLatticeSize(), "5 x 5 grid points")
+    }
+
+    @Test
+    fun inputLatticeSizeIsNullWhenAnyInputIsContinuous() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("z", Interval(0.0, 4.0), 0.0))
+        assertNull(pd.inputLatticeSize(), "a continuous input makes the lattice effectively unbounded")
+    }
+
+    @Test
+    fun inputLatticeSizeIsZeroWhenGranularityTooCoarseForRange() {
+        val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0))
+        assertEquals(0L, pd.inputLatticeSize(), "no multiple of 1.0 falls within [0.4, 0.6]")
+    }
+
+    // ── enumerateFeasibleInputPoints (exact feasible set for a small grid) ──────
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsTheWholeUnconstrainedGrid() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0))
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertEquals(setOf(0.0, 1.0, 2.0, 3.0, 4.0), pts.map { it.inputValues[0] }.toSet())
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsAppliesInputConstraints() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("y", Interval(0.0, 4.0), 1.0))
+        pd.linearConstraint(mapOf("x" to 1.0, "y" to 1.0), 2.0, InequalityType.LESS_THAN)
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.all { pd.isInputFeasible(it.inputValues) }, "all enumerated points are input feasible")
+        assertTrue(pts.size < 25, "the x+y<=2 constraint must remove grid points")
+        // cross-check against the same predicate applied independently over the 25-point grid
+        val expected = (0..4).flatMap { xi -> (0..4).map { yi -> doubleArrayOf(xi.toDouble(), yi.toDouble()) } }
+            .count { pd.isInputFeasible(it) }
+        assertEquals(expected, pts.size, "enumeration equals the feasible grid points")
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsNullWhenGridExceedsTheCap() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 100.0), 1.0)) // 101 grid points
+        assertNull(pd.enumerateFeasibleInputPoints(50), "a 101-point grid exceeds a cap of 50")
+        assertNotNull(pd.enumerateFeasibleInputPoints(101), "a 101-point grid fits a cap of 101")
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsReturnsNullForAContinuousInput() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 0.0)) // continuous
+        assertNull(pd.enumerateFeasibleInputPoints(100))
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsIsEmptyWhenNoGridValueIsInRange() {
+        val pd = latticeProblem(Triple("x", Interval(0.4, 0.6), 1.0)) // no multiple of 1 in [0.4, 0.6]
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.isEmpty())
+    }
+
+    @Test
+    fun enumerateFeasibleInputPointsIsEmptyWhenConstraintsExcludeEveryGridPoint() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0), Triple("y", Interval(0.0, 4.0), 1.0))
+        pd.linearConstraint(mapOf("x" to 1.0, "y" to 1.0), -1.0, InequalityType.LESS_THAN) // impossible
+        val pts = pd.enumerateFeasibleInputPoints(100)
+        assertNotNull(pts)
+        assertTrue(pts.isEmpty(), "no non-negative grid point satisfies x+y<=-1")
+    }
+
+    // ── feasiblePointCapacity (structured lattice-vs-request assessment) ────────
+
+    @Test
+    fun feasiblePointCapacityIsSufficientWhenTheRequestFitsTheLattice() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 30.0), 1.0)) // 31 points
+        val cap = pd.feasiblePointCapacity(16)
+        assertTrue(cap.sufficient)
+        assertFalse(cap.unbounded)
+        assertEquals(31L, cap.latticeSize)
+        assertEquals(0L, cap.shortfall)
+    }
+
+    @Test
+    fun feasiblePointCapacityReportsTheShortfallWhenTheRequestExceedsTheLattice() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 1.0)) // 5 points
+        val cap = pd.feasiblePointCapacity(16)
+        assertFalse(cap.sufficient)
+        assertFalse(cap.unbounded)
+        assertEquals(5L, cap.latticeSize)
+        assertEquals(11L, cap.shortfall) // 16 - 5
+    }
+
+    @Test
+    fun feasiblePointCapacityIsUnboundedAndSufficientForAContinuousInput() {
+        val pd = latticeProblem(Triple("x", Interval(0.0, 4.0), 0.0)) // continuous
+        val cap = pd.feasiblePointCapacity(1000)
+        assertTrue(cap.unbounded)
+        assertTrue(cap.sufficient)
+        assertNull(cap.latticeSize)
+        assertEquals(0L, cap.shortfall)
     }
 }

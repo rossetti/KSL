@@ -1,14 +1,19 @@
 package ksl.simulation
 
 import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.FeasibilityFirstComparator
+import ksl.simopt.evaluator.SearchStateSnapshot
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InequalityType
+import ksl.simopt.problem.PenaltyMemory
 import ksl.simopt.problem.ProblemDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import kotlin.math.sqrt
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -186,6 +191,86 @@ class EvaluatorSolutionTest {
         assertEquals(7, sol.evaluationNumber)
     }
 
+    @Test
+    fun atEvaluationReStampsClockPreservingEstimatesAndId() {
+        val original = makeSolution(5.0, 5.0, objAvg = 42.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 3)
+        val reStamped = original.atEvaluation(9)
+        assertEquals(9, reStamped.evaluationNumber, "re-stamp advances the penalty clock")
+        assertEquals(original.id, reStamped.id, "re-stamp preserves id (design-point provenance)")
+        assertEquals(original.estimatedObjFncValue, reStamped.estimatedObjFncValue, 0.0,
+            "re-stamp preserves the objective estimate")
+        assertEquals(original.responseConstraintViolationPenalty,
+            reStamped.responseConstraintViolationPenalty, 0.0,
+            "re-stamp preserves the (raw, clock-independent) violation")
+    }
+
+    @Test
+    fun atEvaluationReturnsSameInstanceWhenClockUnchanged() {
+        val sol = makeSolution(5.0, 5.0, objAvg = 42.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 4)
+        assertTrue(sol === sol.atEvaluation(4), "a no-op re-stamp returns the same instance")
+    }
+
+    @Test
+    fun atEvaluationAdvancesThePenaltyClock() {
+        // Infeasible (FillRate 0.90 < 0.95): the growing multiplier makes the penalty larger at a
+        // later iteration, so the re-stamped solution has a larger penalized objective.
+        val early = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 2)
+        val late = early.atEvaluation(20)
+        assertTrue(late.penalizedObjFncValue > early.penalizedObjFncValue,
+            "a later clock yields a larger penalty for an infeasible solution")
+    }
+
+    @Test
+    fun solutionEqualityExcludesId() {
+        val a = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.97, fillVar = 0.001, fillCount = 5.0, evalNum = 1)
+        val b = a.copy(id = a.id + 1) // same data, different id
+        assertTrue(a.id != b.id, "the copy carries a different id")
+        assertEquals(a, b, "value-equality excludes id")
+        assertEquals(a.hashCode(), b.hashCode(), "hashCode excludes id")
+    }
+
+    @Test
+    fun solutionCarriesEmptyPenaltyMemoryByDefault() {
+        val sol = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.97, fillVar = 0.001, fillCount = 5.0, evalNum = 1)
+        assertTrue(sol.penaltyMemory.isEmpty(), "a memoryless solution carries no penalty memory")
+        assertNull(sol.searchState, "search state is null until a self-scaling penalty populates it")
+    }
+
+    @Test
+    fun penaltyMemoryAndSearchStateAreExcludedFromEquality() {
+        // Memory is derived state, not identity: excluding it keeps the solution cache's value-equality
+        // (and the archive's dedup) from splitting one design point into two just because their
+        // accumulated penalty histories differ.
+        val base = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.97, fillVar = 0.001, fillCount = 5.0, evalNum = 1)
+        val withMemory = base.copy(
+            penaltyMemory = mapOf("FillRate" to object : PenaltyMemory {}),
+            searchState = SearchStateSnapshot(bestFeasibleObjective = 1.0)
+        )
+        assertEquals(base, withMemory, "value-equality excludes penalty memory and search state")
+        assertEquals(base.hashCode(), withMemory.hashCode(),
+            "hashCode excludes penalty memory and search state")
+    }
+
+    @Test
+    fun atEvaluationCarriesPenaltyMemoryAndSearchStateForward() {
+        // A cache re-stamp advances only the penalty clock; the accumulated memory must ride along.
+        val memory = mapOf("FillRate" to object : PenaltyMemory {})
+        val snapshot = SearchStateSnapshot(bestFeasibleObjective = 2.0)
+        val original = makeSolution(5.0, 5.0, objAvg = 10.0, objVar = 1.0, objCount = 5.0,
+            fillAvg = 0.90, fillVar = 0.001, fillCount = 5.0, evalNum = 3)
+            .copy(penaltyMemory = memory, searchState = snapshot)
+        val reStamped = original.atEvaluation(9)
+        assertEquals(9, reStamped.evaluationNumber, "re-stamp advances the clock")
+        assertTrue(reStamped.penaltyMemory === memory, "re-stamp carries the penalty memory forward")
+        assertTrue(reStamped.searchState === snapshot, "re-stamp carries the search-state snapshot forward")
+    }
+
     // ── Group 3: Response constraint feasibility ──────────────────────────────
 
     @Test
@@ -257,5 +342,79 @@ class EvaluatorSolutionTest {
             fillAvg = 0.80, fillVar = 0.001, fillCount = 5.0)
         assertTrue(solFeasible.compareTo(solInfeasible) < 0,
             "Feasible solution must rank better (less) than infeasible at same raw cost")
+    }
+
+    // ── Group 5: Feasibility-first selection (recommendation) ──────────────────
+
+    @Test
+    fun feasibilityFirstRanksFeasibleAheadOfCheaperInfeasible() {
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0)
+        val infeasibleCheaper = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.86, fillVar = 0.0001, fillCount = 50.0)
+        assertTrue(FeasibilityFirstComparator().compare(feasible, infeasibleCheaper) < 0,
+            "a confidently-feasible solution ranks ahead of a cheaper infeasible one")
+    }
+
+    @Test
+    fun feasibilityFirstRanksFeasiblesByRawObjective() {
+        val cheaper = makeSolution(4.0, 3.0, objAvg = 4.6, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.96, fillVar = 0.0001, fillCount = 50.0)
+        val dearer = makeSolution(6.0, 3.0, objAvg = 5.3, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.98, fillVar = 0.0001, fillCount = 50.0)
+        assertTrue(FeasibilityFirstComparator().compare(cheaper, dearer) < 0,
+            "among feasibles, the smaller raw objective ranks first")
+    }
+
+    @Test
+    fun feasibilityFirstRanksInfeasiblesByViolation() {
+        val lessInfeasible = makeSolution(6.0, 2.0, objAvg = 4.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.93, fillVar = 0.0001, fillCount = 50.0)
+        val moreInfeasible = makeSolution(4.0, 1.0, objAvg = 2.7, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.76, fillVar = 0.0001, fillCount = 50.0)
+        assertTrue(FeasibilityFirstComparator().compare(lessInfeasible, moreInfeasible) < 0,
+            "among infeasibles, the smaller violation ranks first")
+    }
+
+    @Test
+    fun feasibilityFirstPrefersFeasibleWhenPenalizedFavorsInfeasible() {
+        // A cheap, barely-infeasible, early-clock point has a SMALLER penalized objective than a
+        // feasible one, so penalized ranking prefers it. FF prefers the confidently-feasible one.
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0, evalNum = 1)
+        val infeasibleCheap = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.945, fillVar = 0.0001, fillCount = 50.0, evalNum = 1)
+        assertTrue(infeasibleCheap.penalizedObjFncValue < feasible.penalizedObjFncValue,
+            "penalized ranking prefers the cheap barely-infeasible point")
+        assertTrue(FeasibilityFirstComparator().compare(feasible, infeasibleCheap) < 0,
+            "FF prefers the confidently-feasible solution")
+    }
+
+    @Test
+    fun orderedResponseFeasibleSolutionsReturnsTheFeasibleOnes() {
+        val solutions = Solutions()
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0)
+        val infeasible = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.86, fillVar = 0.0001, fillCount = 50.0)
+        solutions.add(feasible)
+        solutions.add(infeasible)
+        val feas = solutions.orderedResponseFeasibleSolutions()
+        assertEquals(1, feas.size, "only the confidently response-feasible solution is returned")
+        assertEquals(feasible.inputMap, feas.first().inputMap)
+    }
+
+    @Test
+    fun evictionRetainsFeasibleOverCheaperInfeasible() {
+        val solutions = Solutions(capacity = 1)
+        val feasible = makeSolution(4.0, 3.0, objAvg = 5.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.97, fillVar = 0.0001, fillCount = 50.0)
+        val infeasibleCheap = makeSolution(7.0, 1.0, objAvg = 3.0, objVar = 0.0001, objCount = 50.0,
+            fillAvg = 0.945, fillVar = 0.0001, fillCount = 50.0)
+        solutions.add(feasible)
+        solutions.add(infeasibleCheap) // cheaper on penalized, but infeasible -> must not evict the feasible
+        assertEquals(1, solutions.size)
+        assertEquals(feasible.inputMap, solutions.orderedSolutions.first().inputMap,
+            "the feasible solution is retained over a cheaper infeasible one")
     }
 }

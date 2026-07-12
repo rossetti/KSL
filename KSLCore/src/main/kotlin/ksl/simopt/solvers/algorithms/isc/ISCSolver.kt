@@ -19,6 +19,10 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  [CleanUpProcedure] as a phase state machine: each [mainIteration] advances one macro-step (run the
  *  global phase, run one local search, or finish with clean-up).
  *
+ *  **Requires an integer-ordered problem definition.** ISC's COMPASS local phase searches an integer
+ *  lattice (unit-step neighborhood), so every input must have granularity 1.0. The constructor throws
+ *  an IllegalArgumentException when the problem is not integer-ordered.
+ *
  *  **Indifference zones and graceful degradation.** A single user parameter [deltaC] drives the
  *  statistical guarantees, with [deltaL] (COMPASS local-optimality) defaulting to it:
  *
@@ -37,6 +41,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *
  *  The best solution found is tracked automatically by the base class through [currentSolution]; the
  *  selected best and its [confidenceInterval] are finalized by the clean-up phase.
+ *
+ *  **Reading the result (D2).** For ISC, read the answer from [currentSolution] together with
+ *  [confidenceInterval] — that pair is the clean-up-selected best and its interval. The generic
+ *  `Solver.bestSolution` returns the minimum *penalized point estimate* across every solution the run
+ *  produced (including unconfirmed niching-GA population members), which can differ from — and is less
+ *  trustworthy than — the ranking-and-selection winner that [confidenceInterval] describes.
  *
  *  @param problemDefinition the problem being solved
  *  @param evaluator the evaluator responsible for assessing the quality of solutions
@@ -111,6 +121,9 @@ class ISCSolver @JvmOverloads constructor(
     )
 
     init {
+        require(problemDefinition.isIntegerOrdered) {
+            "ISC requires that the problem definition be integer ordered (its COMPASS local phase assumes an integer lattice)!"
+        }
         require(deltaC >= 0.0) { "deltaC must be >= 0" }
         require(deltaL >= 0.0) { "deltaL must be >= 0" }
     }
@@ -195,6 +208,9 @@ class ISCSolver @JvmOverloads constructor(
     }
 
     override fun initializeIterations() {
+        // D1: begin each ISC run with a fresh evaluation/penalty clock so re-running the same
+        // instance is reproducible (the base Solver contract, bypassed by this override).
+        evaluator.resetEvaluationClock()
         phase = if (skipGlobalPhase) Phase.LOCAL else Phase.GLOBAL
         seedQueue.clear()
         myLocalOptima.clear()
@@ -202,7 +218,9 @@ class ISCSolver @JvmOverloads constructor(
         activeGlobalPhase = if (skipGlobalPhase) null else (providedGlobalPhase ?: buildDefaultGlobalPhase())
 
         // Establish an initial incumbent so the base class has a current solution.
-        val start = startingPoint()
+        // Honor a user-supplied startingPoint (the inherited Solver contract) before
+        // falling back to the generated/random startingPoint() function.
+        val start = startingPoint ?: startingPoint()
         val startSolution = requestEvaluation(start)
         myInitialSolution = startSolution
         currentSolution = startSolution
@@ -233,7 +251,7 @@ class ISCSolver @JvmOverloads constructor(
         currentSolution = nga.bestSolution
         val seeds = nga.niches.map { it.center.inputMap }
         if (seeds.isEmpty()) {
-            seedQueue.add(startingPoint())
+            seedQueue.add(startingPoint ?: startingPoint())
         } else {
             seedQueue.addAll(seeds)
         }
@@ -259,10 +277,11 @@ class ISCSolver @JvmOverloads constructor(
 
     private fun runCleanUp() {
         if (myLocalOptima.isNotEmpty()) {
-            val survivors = cleanUp.screen(myLocalOptima)
-            val best = cleanUp.select(survivors) { input, n -> requestEvaluation(input, n) }
-            confidenceInterval = cleanUp.estimate(best)
-            currentSolution = best
+            // Hard-filter to the response-feasible local optima, run ranking & selection on that
+            // subset, and fall back to the least-infeasible solution if none are feasible (B1).
+            val result = cleanUp.cleanUp(myLocalOptima) { input, n -> requestEvaluation(input, n) }
+            confidenceInterval = result.confidenceInterval
+            currentSolution = result.best
         }
         phase = Phase.DONE
     }
@@ -278,6 +297,14 @@ class ISCSolver @JvmOverloads constructor(
         // Finalize with clean-up if the iteration cap interrupted the orchestration mid-stream.
         if (phase != Phase.DONE && myLocalOptima.isNotEmpty()) {
             runCleanUp()
+        }
+        // D3: guarantee a finite confidence interval even when no clean-up ran (e.g. maxIterations
+        // too small to reach the local phase). The default Interval() is (-inf, +inf), which would
+        // otherwise leak into extractSolverSpecificState; report a point interval at the incumbent's
+        // objective instead.
+        if (!confidenceInterval.lowerLimit.isFinite() || !confidenceInterval.upperLimit.isFinite()) {
+            val obj = currentSolution.estimatedObjFncValue
+            confidenceInterval = if (obj.isFinite()) Interval(obj, obj) else Interval(0.0, 0.0)
         }
     }
 

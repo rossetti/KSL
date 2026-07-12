@@ -54,7 +54,7 @@ class SolverAlgorithmsTest {
     fun runFastSolvers() {
         val pd = makeLKInventoryModelProblemDefinition()
 
-        shcFast = Solver.createStochasticHillClimbingSolver(
+        shcFast = Solver.createStochasticHillClimberSolver(
             problemDefinition        = pd,
             modelBuilder             = BuildLKModel,
             maxIterations            = FAST_MAX_ITERS,
@@ -192,7 +192,7 @@ class SolverAlgorithmsTest {
     @Tag("slow")
     fun shcSlowBestSolutionIsFeasibleAfterManyIterations() {
         val pd = makeLKInventoryModelProblemDefinition()
-        val solver = Solver.createStochasticHillClimbingSolver(
+        val solver = Solver.createStochasticHillClimberSolver(
             problemDefinition        = pd,
             modelBuilder             = BuildLKModel,
             maxIterations            = SLOW_MAX_ITERS,

@@ -342,12 +342,12 @@ class OptimizationSolverFactoryTest {
             problem = problem
         ))
         val pd = solver.problemDefinition
-        assertTrue(pd.defaultLinearPenalty is ksl.simopt.problem.PenaltyFunctionWithMemory,
-            "Expected defaultLinearPenalty translated to PenaltyFunctionWithMemory")
+        assertTrue(pd.defaultLinearPenalty is ksl.simopt.problem.DynamicPolynomialPenalty,
+            "Expected defaultLinearPenalty (WithMemory spec) translated to DynamicPolynomialPenalty")
         assertTrue(pd.defaultResponsePenalty is ksl.simopt.problem.DynamicPolynomialPenalty,
             "Expected defaultResponsePenalty translated to DynamicPolynomialPenalty")
         assertEquals(200.0,
-            (pd.defaultLinearPenalty as ksl.simopt.problem.PenaltyFunctionWithMemory).basePenalty)
+            (pd.defaultLinearPenalty as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
         assertEquals(75.0,
             (pd.defaultResponsePenalty as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
     }
@@ -386,12 +386,43 @@ class OptimizationSolverFactoryTest {
         val response = solver.problemDefinition.responseConstraints.first()
         assertTrue(linear.penaltyFunction is ksl.simopt.problem.DynamicPolynomialPenalty,
             "Expected per-linear-constraint penalty translated to DynamicPolynomialPenalty")
-        assertTrue(response.penaltyFunction is ksl.simopt.problem.PenaltyFunctionWithMemory,
-            "Expected per-response-constraint penalty translated to PenaltyFunctionWithMemory")
+        assertTrue(response.penaltyFunction is ksl.simopt.problem.DynamicPolynomialPenalty,
+            "Expected per-response-constraint penalty (WithMemory spec) translated to DynamicPolynomialPenalty")
         assertEquals(250.0,
             (linear.penaltyFunction as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
         assertEquals(50.0,
-            (response.penaltyFunction as ksl.simopt.problem.PenaltyFunctionWithMemory).basePenalty)
+            (response.penaltyFunction as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
+    }
+
+    // ── 13. Park-Kim (PFM) penalty spec translates to a ParkKimPenalty engine ──
+
+    @Test
+    fun `Park-Kim penalty spec is translated to a ParkKimPenalty engine instance`() {
+        val problem = OptimizationProblemSpec(
+            objectiveResponseName = firstResponseName(),
+            inputs = listOf(
+                OptimizationInputSpec(name = firstInputKey(), lowerBound = 0.1, upperBound = 10.0)
+            ),
+            defaultResponsePenalty = PenaltyFunctionSpec.ParkKim(
+                appreciationFactor = 3.0, depreciationFactor = 0.25, initialLambda = 2.0,
+                fallbackBasePenalty = 150.0, fallbackIterationExponent = 2.0, fallbackViolationExponent = 1.0
+            )
+        )
+        val solver = factory().build(config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 2),
+            problem = problem
+        ))
+        val penalty = solver.problemDefinition.defaultResponsePenalty
+        assertTrue(penalty is ksl.simopt.problem.ParkKimPenalty,
+            "Expected the ParkKim spec translated to a ParkKimPenalty")
+        val pfm = penalty as ksl.simopt.problem.ParkKimPenalty
+        val seq = pfm.sequence as ksl.simopt.problem.AppreciateDepreciateSequence
+        assertEquals(3.0, seq.appreciationFactor)
+        assertEquals(0.25, seq.depreciationFactor)
+        assertEquals(2.0, seq.initialLambda)
+        val fallback = pfm.fallback as ksl.simopt.problem.DynamicPolynomialPenalty
+        assertEquals(150.0, fallback.basePenalty)
+        assertEquals(2.0, fallback.iterationExponent)
     }
 
     // ── Draft-document rejection ─────────────────────────────────────────────

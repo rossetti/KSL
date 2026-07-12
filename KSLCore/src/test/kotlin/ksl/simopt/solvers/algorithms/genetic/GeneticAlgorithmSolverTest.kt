@@ -134,4 +134,29 @@ class GeneticAlgorithmSolverTest {
             "the iteration counter must not exceed the configured maximum"
         )
     }
+
+    @Test
+    fun eliteCountAtLeastPopulationSizeStillEvolves() {
+        // Regression: eliteCount >= populationSize previously carried the entire population forward
+        // unchanged (zero offspring), freezing the search. The effective elite count is now clamped
+        // to populationSize - 1, so at least one offspring is evaluated each generation.
+        val pd = GeneticTestSupport.boxProblem(dim = 2)
+        val evaluator = GeneticTestSupport.FunctionEvaluator(pd, GeneticTestSupport.sphere(target))
+        val popSize = 10
+        val solver = GeneticAlgorithmSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            populationSize = popSize,
+            maximumIterations = 5,
+            replicationsPerEvaluation = 1
+        )
+        solver.eliteCount = popSize   // >= populationSize: would freeze the search under the old code
+        solver.runAllIterations()
+        // A frozen search evaluates only the initial population (<= popSize design points) and no
+        // offspring thereafter; the clamp produces >= 1 offspring per generation, so the evaluator
+        // must see strictly more design points than the initial population.
+        assertTrue(evaluator.totalDesignPointsEvaluated > popSize,
+            "with eliteCount >= populationSize the search must still produce offspring (no freeze)")
+    }
 }

@@ -93,7 +93,11 @@ class NonUniformMutation(
         val lower = pd.inputLowerBounds
         val upper = pd.inputUpperBounds
         val k = nga.currentGeneration
-        val anneal = max005((1.0 - k.toDouble() / bigK).pow(b))
+        // Clamp the annealing base to >= 0 before pow: once k > bigK the base (1 - k/bigK) goes
+        // negative, and a fractional exponent b on a negative base yields NaN, which would silently
+        // propagate to every mutated coordinate (killing all offspring past the horizon). At/after
+        // the horizon the step is fully annealed (max005 then supplies the small residual floor).
+        val anneal = max005((1.0 - k.toDouble() / bigK).coerceAtLeast(0.0).pow(b))
         val result = point.copyOf()
         for (j in result.indices) {
             if (nga.rnStream.randU01() < p3) {

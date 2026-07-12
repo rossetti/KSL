@@ -54,6 +54,10 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  reproducible for a fixed stream number. The best solution found is tracked automatically by the
  *  base class through the [currentSolution] setter.
  *
+ *  **Requires an integer-ordered problem definition.** COMPASS searches an integer lattice — its von
+ *  Neumann neighborhood moves in unit steps — so every input must have granularity 1.0. The
+ *  constructor throws an IllegalArgumentException when the problem is not integer-ordered.
+ *
  *  @param problemDefinition the problem being solved
  *  @param evaluator the evaluator responsible for assessing the quality of solutions
  *  @param streamNum the random number stream number; 0 (the default) means the next available stream
@@ -62,7 +66,9 @@ fun mergeSolutions(a: Solution, b: Solution): Solution {
  *  @param sar the simulation-allocation rule; defaults to [FixedScheduleSAR]
  *  @param redundancyChecker the constraint-pruning strategy; defaults to [BruteForceRedundancyChecker]
  *  @param pruneEvery prune the MPA's halfway hyperplanes every this many iterations (the paper's `c_p`)
- *  @param deltaL the local-optimality indifference zone `δ_L`; `0.0` (default) selects degraded mode
+ *  @param deltaL the local-optimality indifference zone `δ_L`; defaults to the problem's
+ *  indifference-zone parameter (ISC appendix Table III: `δ_L` default `δ_C`); `0.0` selects degraded
+ *  mode (stop on the MPA-singleton condition with no local-optimality test)
  *  @param localOptimalityTest the Kim (2005) test used when [deltaL] > 0; built from [deltaL] if null
  *  @param maximumIterations the maximum number of COMPASS iterations
  *  @param maxReplications the cap on the total replications a single COMPASS run may request; defaults
@@ -79,7 +85,7 @@ class CompassSolver @JvmOverloads constructor(
     sar: SimulationAllocationRuleIfc = FixedScheduleSAR(),
     redundancyChecker: RedundantConstraintChecker = BruteForceRedundancyChecker(),
     pruneEvery: Int = defaultPruneEvery,
-    deltaL: Double = 0.0,
+    deltaL: Double = problemDefinition.indifferenceZoneParameter,
     localOptimalityTest: ComparisonWithStandardProcedure? = null,
     maximumIterations: Int = compassDefaultMaxIterations,
     maxReplications: Int = defaultMaxReplications,
@@ -104,7 +110,7 @@ class CompassSolver @JvmOverloads constructor(
         sar: SimulationAllocationRuleIfc = FixedScheduleSAR(),
         redundancyChecker: RedundantConstraintChecker = BruteForceRedundancyChecker(),
         pruneEvery: Int = defaultPruneEvery,
-        deltaL: Double = 0.0,
+        deltaL: Double = problemDefinition.indifferenceZoneParameter,
         localOptimalityTest: ComparisonWithStandardProcedure? = null,
         maxIterations: Int = compassDefaultMaxIterations,
         maxReplications: Int = defaultMaxReplications,
@@ -166,8 +172,10 @@ class CompassSolver @JvmOverloads constructor(
         }
 
     /**
-     *  An explicit starting point (e.g., a niche seed from the ISC global phase). When null, the
-     *  inherited [startingPoint] is used (a random feasible point or the configured generator).
+     *  An explicit starting point (e.g., a niche seed from the ISC global phase). When set, it takes
+     *  precedence over the inherited `startingPoint`. When `seed` is null, the inherited `startingPoint`
+     *  is used if it was supplied; otherwise the `startingPoint()` function provides a random feasible
+     *  point or the configured generator's point.
      */
     var seed: InputMap? = null
 
@@ -198,6 +206,9 @@ class CompassSolver @JvmOverloads constructor(
         get() = sampleBest
 
     init {
+        require(problemDefinition.isIntegerOrdered) {
+            "COMPASS requires that the problem definition be integer ordered!"
+        }
         require(sampleSize >= 1) { "The MPA sample size must be >= 1" }
         require(pruneEvery >= 1) { "pruneEvery must be >= 1" }
         require(deltaL >= 0.0) { "deltaL must be >= 0" }
@@ -221,9 +232,15 @@ class CompassSolver @JvmOverloads constructor(
         neighborhood.neighborhood(center, this).filter { it != center && it.isInputFeasible() }
 
     override fun initializeIterations() {
+        // D1: begin each run with a fresh evaluation/penalty clock (the base Solver contract) so a
+        // re-run of the same instance is reproducible; this override otherwise never reset it. Each
+        // COMPASS local search (standalone or per ISC niche seed) thus starts its penalty ramp fresh.
+        evaluator.resetEvaluationClock()
         visited.clear()
         compassIteration = 0
-        val start = seed ?: startingPoint()
+        // Precedence: an explicit seed (ISC niche seed), then a user-supplied startingPoint
+        // (the inherited Solver contract), then the generated/random startingPoint() function.
+        val start = seed ?: startingPoint ?: startingPoint()
         val startSolution = requestEvaluation(start)
         recordEvaluation(startSolution)
         sampleBest = visited.getValue(startSolution.inputMap)
@@ -313,8 +330,15 @@ class CompassSolver @JvmOverloads constructor(
             sampleOneMore = { input -> requestEvaluation(input, 1) },
             merge = ::mergeSolutions
         )
-        // Reflect any additional sampling done by the test back into the visited set.
-        recordEvaluation(result.winner)
+        // The test returns result.winner and result.finalStandard already carrying their accumulated
+        // (prior + test-additional) replications, so REPLACE the visited entries rather than merge
+        // them. recordEvaluation() would merge with the still-present prior entry, pooling the prior
+        // samples a second time (count -> 2*prior + additional) and corrupting the mean/variance that
+        // clean-up's ranking & selection depends on. Writing the standard back too preserves the
+        // replications it accumulated during the test (otherwise discarded when a neighbor wins);
+        // when the standard is best the two are the same point and the second write is idempotent.
+        visited[result.winner.inputMap] = result.winner
+        visited[result.finalStandard.inputMap] = result.finalStandard
         return if (result.standardIsBest) {
             true
         } else {

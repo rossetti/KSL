@@ -1,6 +1,5 @@
 package ksl.simopt.solvers.algorithms
 
-import ksl.simopt.solvers.Solver.Companion.defaultMaxNumberIterations
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultCoolingRate
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultStoppingTemperature
@@ -49,6 +48,25 @@ abstract class CoolingSchedule(initialTemperature: Double) : CoolingScheduleIfc 
             require(value > 0.0) { "The initial temperature must be positive" }
             field = value
         }
+
+    companion object {
+
+        /**
+         * Represents the default maximum number of cooling iterations to be executed
+         * in a given process or algorithm. This value acts as a safeguard
+         * to prevent indefinite looping or excessive computation.
+         *
+         * The default value is set to 1000, but it can be modified based
+         * on specific requirements or constraints.
+         */
+        @JvmStatic
+        var defaultCoolingIterations = 1000
+            set(value) {
+                require(value > 0) { "The default maximum number of iterations must be a positive value." }
+                field = value
+            }
+
+    }
 }
 
 /**
@@ -68,7 +86,7 @@ abstract class CoolingSchedule(initialTemperature: Double) : CoolingScheduleIfc 
 class LinearCoolingSchedule(
     initialTemperature: Double = defaultInitialTemperature,
     val stoppingTemperature: Double = defaultStoppingTemperature,
-    val maxIterations: Int = defaultMaxNumberIterations,
+    val maxIterations: Int = defaultCoolingIterations,
 ) : CoolingSchedule (initialTemperature) {
     init {
         require(maxIterations > 0) { "The maximum number of iterations must be positive" }
@@ -128,7 +146,7 @@ class ExponentialCoolingSchedule(
     constructor(
         initialTemperature: Double,
         stoppingTemperature: Double = defaultStoppingTemperature,
-        maxIterations: Int = defaultMaxNumberIterations
+        maxIterations: Int = defaultCoolingIterations
     ) : this(
         initialTemperature = initialTemperature,
         coolingRate = calculateOptimalCoolingRate(initialTemperature, stoppingTemperature, maxIterations)
@@ -147,7 +165,7 @@ class ExponentialCoolingSchedule(
         fun calculateOptimalCoolingRate(
             initialTemperature: Double,
             stoppingTemperature: Double = defaultStoppingTemperature,
-            maxIterations: Int = defaultMaxNumberIterations
+            maxIterations: Int = defaultCoolingIterations
         ): Double {
             require(initialTemperature.isFinite()) { "Initial temperature must be finite" }
             require(stoppingTemperature.isFinite()) { "Stopping temperature must be finite" }
@@ -168,7 +186,7 @@ class ExponentialCoolingSchedule(
         fun createTargetedSchedule(
             initialTemperature: Double,
             stoppingTemperature: Double = defaultStoppingTemperature,
-            maxIterations: Int = defaultMaxNumberIterations
+            maxIterations: Int = defaultCoolingIterations
         ): ExponentialCoolingSchedule {
             val optimalRate = calculateOptimalCoolingRate(initialTemperature, stoppingTemperature, maxIterations)
             return ExponentialCoolingSchedule(initialTemperature, optimalRate)

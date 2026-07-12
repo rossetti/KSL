@@ -44,4 +44,19 @@ class CENormalSamplerTest {
             "the same stream number should reproduce the same first sample"
         )
     }
+
+    @Test
+    fun defaultStdDevSmootherSetterActuallyAssigns() {
+        // Regression: the companion setter previously validated its argument but never assigned to
+        // the backing field (missing `field = value`), so the global default silently could not be
+        // changed. Save/restore the global to avoid leaking state into other tests.
+        val original = CENormalSampler.defaultStdDevSmoother
+        try {
+            CENormalSampler.defaultStdDevSmoother = 0.5
+            assertEquals(0.5, CENormalSampler.defaultStdDevSmoother, 0.0,
+                "the defaultStdDevSmoother companion setter must assign the validated value")
+        } finally {
+            CENormalSampler.defaultStdDevSmoother = original
+        }
+    }
 }

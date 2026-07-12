@@ -153,4 +153,68 @@ class ISCSolverTest {
         }
         assertEquals(run().inputMap, run().inputMap, "the same stream number must reproduce the same best inputs")
     }
+
+    @Test
+    fun rejectsAContinuousProblem() {
+        // ISC's COMPASS local phase assumes an integer lattice; a continuous (granularity 0)
+        // problem must be rejected at construction, mirroring R-SPLINE.
+        val pd = IscTestSupport.boxProblem(dim = 1, lb = 0.0, ub = 30.0, granularity = 0.0)
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ISCSolver(
+                problemDefinition = pd,
+                evaluator = evaluator,
+                streamNum = 1,
+                replicationsPerEvaluation = 3,
+                deltaC = 0.0,
+                skipGlobalPhase = true
+            )
+        }
+    }
+
+    @Test
+    fun honorsInheritedStartingPointInUnimodalShortcut() {
+        // The inherited Solver.startingPoint var must be honored (no longer a silent no-op):
+        // the COMPASS-only shortcut must establish its initial incumbent at the supplied point.
+        val pd = problem()
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)
+        val isc = ISCSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            replicationsPerEvaluation = 3,
+            deltaC = 0.0,
+            skipGlobalPhase = true
+        )
+        val start = pd.toInputMap(doubleArrayOf(3.0))
+        isc.startingPoint = start
+        isc.runAllIterations()
+        assertEquals(start, isc.initialSolution?.inputMap,
+            "ISC must establish its initial incumbent at the supplied inherited startingPoint")
+    }
+
+    @Test
+    fun reportsAFiniteConfidenceIntervalWhenCleanUpIsSkipped() {
+        // D3: with maxIterations too small to reach the local phase, no local optima are produced and
+        // clean-up is skipped. The reported confidence interval must be finite (a point interval at
+        // the incumbent), not the default (-inf, +inf) which would leak into emitted solver state.
+        // Use a domain with more feasible points than the default NGA population (50) so the global
+        // phase's feasible-point sampling terminates (sampleInputFeasiblePoints loops until it has
+        // numPoints DISTINCT feasible points).
+        val pd = IscTestSupport.boxProblem(dim = 1, lb = 0.0, ub = 100.0, granularity = 1.0)
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, ::unimodal)
+        val isc = ISCSolver(
+            problemDefinition = pd,
+            evaluator = evaluator,
+            streamNum = 1,
+            replicationsPerEvaluation = 3,
+            deltaC = 0.0,
+            maximumIterations = 1   // only the GLOBAL macro-step runs; no local optima, clean-up skipped
+        )
+        isc.runAllIterations()
+        assertTrue(
+            isc.confidenceInterval.lowerLimit.isFinite() && isc.confidenceInterval.upperLimit.isFinite(),
+            "ISC must report a finite confidence interval even when clean-up is skipped"
+        )
+    }
 }
