@@ -34,7 +34,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 open class StochasticHillClimber @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    maximumIterations: Int = defaultMaxNumberIterations,
+    maximumIterations: Int = shcDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
@@ -55,7 +55,7 @@ open class StochasticHillClimber @JvmOverloads constructor(
     constructor(
         problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
-        maximumIterations: Int = defaultMaxNumberIterations,
+        maximumIterations: Int = shcDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = RNStreamProvider(),
