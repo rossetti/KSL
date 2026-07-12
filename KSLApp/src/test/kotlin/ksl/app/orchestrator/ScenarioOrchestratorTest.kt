@@ -267,6 +267,64 @@ class ScenarioOrchestratorTest {
     }
 
     @Test
+    fun `scenario batch with database disabled completes and writes no db file`() = runBlocking {
+        // Regression for the headless SQLITE_CANTOPEN: with enableKSLDatabase = false (the default)
+        // a scenario batch runs entirely off in-memory snapshots and opens NO database, so it cannot
+        // fail on an unprovisioned / read-only output location. Results still come back complete.
+        val tmp = java.nio.file.Files.createTempDirectory("scenario-orch-nodb-")
+        val model = mm1Provider.provideModel(MM1_ID)
+        val runParams = model.extractRunParameters()
+        val config = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(name = "A", modelReference = ModelReference.ByProviderId(MM1_ID), runOverrides = runParams.toOverrides()),
+                ScenarioSpec(name = "B", modelReference = ModelReference.ByProviderId(MM1_ID), runOverrides = runParams.toOverrides())
+            ),
+            outputConfig = OutputConfig(
+                outputDirectory = tmp.toAbsolutePath().toString(),
+                enableKSLDatabase = false
+            )
+        )
+        val result = ScenarioOrchestrator().submit(config, mm1Provider, scope = this).result.await()
+
+        assertIs<RunResult.BatchCompleted>(result)
+        val batch = result as RunResult.BatchCompleted
+        assertEquals(2, batch.snapshots.size, "both scenarios complete via in-memory snapshots without a database")
+        assertEquals(0, batch.summary.failedItems)
+        assertTrue(batch.replicationsByItem.isNotEmpty(), "per-replication snapshots (comparison input) are delivered")
+
+        val dbFiles = java.nio.file.Files.walk(tmp).use { s ->
+            s.filter { java.nio.file.Files.isRegularFile(it) && it.toString().endsWith(".db") }.toList()
+        }
+        assertTrue(dbFiles.isEmpty(), "no .db file may be written when enableKSLDatabase=false: $dbFiles")
+    }
+
+    @Test
+    fun `scenario batch with database enabled writes a db file`() = runBlocking {
+        // The opt-in still works: enableKSLDatabase = true persists results to a .db under the
+        // output directory (for later re-analysis in the Results app / server DatabaseAnalysisService).
+        val tmp = java.nio.file.Files.createTempDirectory("scenario-orch-db-")
+        val model = mm1Provider.provideModel(MM1_ID)
+        val runParams = model.extractRunParameters()
+        val config = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(name = "A", modelReference = ModelReference.ByProviderId(MM1_ID), runOverrides = runParams.toOverrides()),
+                ScenarioSpec(name = "B", modelReference = ModelReference.ByProviderId(MM1_ID), runOverrides = runParams.toOverrides())
+            ),
+            outputConfig = OutputConfig(
+                outputDirectory = tmp.toAbsolutePath().toString(),
+                enableKSLDatabase = true
+            )
+        )
+        val result = ScenarioOrchestrator().submit(config, mm1Provider, scope = this).result.await()
+
+        assertIs<RunResult.BatchCompleted>(result)
+        val dbFiles = java.nio.file.Files.walk(tmp).use { s ->
+            s.filter { java.nio.file.Files.isRegularFile(it) && it.toString().endsWith(".db") }.toList()
+        }
+        assertTrue(dbFiles.isNotEmpty(), "a .db file must be written when enableKSLDatabase=true: found none under $tmp")
+    }
+
+    @Test
     fun `empty scenarios list throws IllegalArgumentException before submitting`() {
         val config = RunConfiguration() // no scenarios, no bundleRefs
         var threw = false

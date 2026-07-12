@@ -136,25 +136,20 @@ class ScenarioOrchestrator {
                 val outputDir = config.outputConfig.outputDirectory
                     ?.let { java.nio.file.Paths.get(it) }
                     ?: KSL.createSubDirectory("scenario_run_$runId")
-                // The GUI-supplied branch above hands us a Path object
-                // only — there's no guarantee the directory exists on
-                // disk yet.  ConcurrentScenarioRunner immediately
-                // constructs its default KSLDatabase inside this path,
-                // and SQLite fails with SQLITE_CANTOPEN if the parent
-                // dir is missing.  createDirectories is idempotent —
-                // safe for the fallback branch where the dir already
-                // exists.
+                // Ensure the output directory exists: per-scenario models write their kslOutput.txt
+                // (and, when enabled, the KSLDatabase) here. createDirectories is idempotent — safe
+                // whether the GUI-supplied path or the fallback dir already exists.
                 java.nio.file.Files.createDirectories(outputDir)
-                // Resolve the run identity from the analysis name on
-                // OutputConfig.  The sanitised form is the on-disk
-                // identifier (directory / file stem); the un-sanitised
-                // form is what the user typed.  Hosts already nest
-                // outputDir under the sanitised name (see
-                // `ScenarioAppController.submit()`), so the runner
-                // name + the database file land in the right place
-                // without further path arithmetic here.
+                // The KSLDatabase is OPTIONAL and gated on enableKSLDatabase, consistent with the
+                // single and experiment paths (SingleRunOrchestrator / ExperimentConfigurationBuilder).
+                // Scenario comparison runs off the in-memory snapshots the runner delivers via its
+                // callbacks, so with the flag off no database is opened — a headless run with no
+                // writable database location can no longer fail with SQLITE_CANTOPEN. When on, the DB
+                // persists results under outputDir (the sanitised runnerName is the file stem).
                 val runnerName = resolveRunnerName(config.outputConfig, runId)
-                val kslDb = resolveKslDatabase(config.outputConfig, runnerName, outputDir)
+                val kslDb = if (config.outputConfig.enableKSLDatabase) {
+                    resolveKslDatabase(config.outputConfig, runnerName, outputDir)
+                } else null
                 val runner = ConcurrentScenarioRunner(
                     name = runnerName,
                     scenarioList = scenarios,
