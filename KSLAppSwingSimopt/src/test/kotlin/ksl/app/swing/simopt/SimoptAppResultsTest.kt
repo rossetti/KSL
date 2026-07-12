@@ -26,12 +26,12 @@ import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.optimization.results.ArtifactNames
 import ksl.app.optimization.results.BestSolutionCsvWriter
-import ksl.app.optimization.results.ConvergencePlotBuilder
 import ksl.app.optimization.results.IterationHistoryCsvWriter
 import ksl.app.optimization.results.LatestBestSnapshot
 import ksl.app.optimization.results.ResultsStatus
 import ksl.app.optimization.results.RunSummaryWriter
 import ksl.controls.ControlType
+import ksl.utilities.io.plotting.ConvergencePlotBuilder
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

@@ -1,12 +1,6 @@
-package ksl.app.config
+package ksl.simulation
 
 import ksl.examples.book.appendixD.GIGcQueue
-import ksl.simulation.Model
-import ksl.simulation.ModelCatalog
-import ksl.simulation.ModelDescriptor
-import ksl.simulation.NominatedInput
-import ksl.simulation.NominatedInputKind
-import ksl.simulation.NominatedOutput
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

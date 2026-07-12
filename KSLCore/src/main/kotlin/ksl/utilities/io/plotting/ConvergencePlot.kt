@@ -16,11 +16,9 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.optimization.results
+package ksl.utilities.io.plotting
 
 import ksl.simopt.solvers.SolverStateSnapshot
-import ksl.utilities.io.plotting.BasePlot
-import ksl.utilities.io.plotting.PlotIfc
 import org.jetbrains.letsPlot.geom.geomLine
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.ggplot

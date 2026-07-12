@@ -18,7 +18,7 @@
 
 package ksl.app.bundle
 
-import ksl.app.config.CatalogValidation
+import ksl.simulation.CatalogValidation
 import ksl.simulation.ModelDescriptor
 
 /**

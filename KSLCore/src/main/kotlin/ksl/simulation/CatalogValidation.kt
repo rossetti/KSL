@@ -16,11 +16,8 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.config
+package ksl.simulation
 
-import ksl.simulation.ModelCatalog
-import ksl.simulation.ModelDescriptor
-import ksl.simulation.NominatedInputKind
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 
 /**
@@ -33,8 +30,8 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  *
  * Validation is done against the descriptor's DTOs (`controls`, `responseNames`,
  * `rvParameterData`) rather than a live model, so it works on a catalog loaded from
- * a bundle JAR without instantiating the model. By design this lives in `ksl.app`
- * and does not modify or depend on the core catalog assembly in `ksl.simulation`.
+ * a bundle JAR without instantiating the model. It reads the catalog and descriptor
+ * only; it does not modify or participate in core catalog assembly (`ModelCatalogBuilder`).
  *
  * @see sanitize for producing a catalog with unresolved entries dropped and kinds
  *      re-derived — the form the runtime loader overlays onto a descriptor.
@@ -140,8 +137,8 @@ object CatalogValidation {
         }
     }
 
-    // ── "did you mean" suggestions (reimplemented here; not refactored out of
-    //    the core ModelCatalogBuilder, to keep ksl.simulation untouched) ────────
+    // ── "did you mean" suggestions (a local copy; a shared ksl.utilities string-
+    //    distance helper — also used by AnimationValidation — is a possible follow-up) ──
 
     private fun didYouMean(target: String, candidates: Collection<String>): String {
         if (candidates.isEmpty()) return ""

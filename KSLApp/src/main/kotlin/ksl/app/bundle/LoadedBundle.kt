@@ -2,8 +2,8 @@ package ksl.app.bundle
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.json.Json
-import ksl.app.config.CatalogValidation
 import ksl.app.config.ModelCatalogToml
+import ksl.simulation.CatalogValidation
 import ksl.simulation.ModelCatalog
 import ksl.simulation.ModelDescriptor
 import java.nio.file.Path
