@@ -134,11 +134,23 @@ class KslMcpToolsTest {
             "the re-ingested scaffold must validate: ${structured(validation)}")
     }
 
-    // (ExperimentConfiguration shares the identical path — same ModelControlsExport/ControlData, same
-    // documentResult/sanitizeNonFinite, same decode — so it is covered by the ControlData unit tests
-    // and the run_template guard above. A dedicated experiment_template guard is omitted only because
-    // experiment_template requires a factorial design over >= 2 numeric controls, which the MM1 test
-    // model does not have; the sanitized-null decode itself is not experiment-specific.)
+    @Test
+    @DisplayName("experiment_template output re-ingests into validate_experiment (MM1 factorial over RV means)")
+    fun experimentTemplateOutputReIngestsIntoExperimentConfig() {
+        // Now that the factorial scaffold also draws on RV parameters (not just @KSLControl controls),
+        // MM1 — 1 control + 2 RV means — produces a 2-factor design, so the experiment path can be
+        // guarded here for real. Same sanitized-null ControlData round-trip as run_template: the
+        // template's structuredContent embeds model.controls whose ±∞ bounds are sanitized to null,
+        // and validate_experiment must decode that back rather than fail as "invalid document".
+        val template = tools.experimentTemplate(buildJsonObject { put("bundleId", "ksl.examples.mm1"); put("modelId", "MM1") })
+        assertEquals(false, template.isError ?: false, firstText(template))
+        val document = template.structuredContent!!.jsonObject["document"]!!
+        val validation = tools.validateExperiment(buildJsonObject { put("config", document) })
+        assertEquals(false, validation.isError ?: false,
+            "experiment_template's sanitized output must decode in validate_experiment: ${firstText(validation)}")
+        assertEquals(true, validation.structuredContent!!.jsonObject["valid"]?.jsonPrimitive?.booleanOrNull,
+            "the re-ingested experiment scaffold must validate: ${structured(validation)}")
+    }
 
     @Test
     @DisplayName("optimization config with an unbounded held control decodes (latent ControlData path)")

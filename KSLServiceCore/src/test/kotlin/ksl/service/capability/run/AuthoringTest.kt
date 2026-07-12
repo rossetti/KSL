@@ -27,7 +27,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import ksl.app.bundle.KSLAppKind
 import ksl.app.config.RunConfigurationJson
+import ksl.app.config.experiment.ControlBinding
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -79,6 +81,24 @@ class AuthoringTest {
             RunService.fromRegistry(registry).use { service ->
                 assertTrue(service.validateRunConfig(decoded).isValid, "the wire-sanitized scaffold must re-ingest and be runnable")
             }
+        }
+    }
+
+    @Test
+    fun `a generated experiment scaffold uses RV-parameter factors when controls are scarce`() {
+        TestBundles.registry().use { registry ->
+            val descriptor = registry.describeModel("ksl.examples.mm1", "MM1")!!
+            // MM1 exposes a single @KSLControl (numServers) but two RV means (service,
+            // time-between-arrivals). A 2^k factorial needs two factors, so the scaffold
+            // must reach past the controls into the RV parameters instead of refusing.
+            val scaffold = ExperimentDocuments.template(descriptor, "MM1")
+
+            assertEquals(2, scaffold.factors.size,
+                "MM1 has 1 control + 2 RV params; the factorial scaffold must still yield two factors")
+            assertTrue(scaffold.factors.any { it.binding is ControlBinding.RVParameter },
+                "at least one factor must bind an RV parameter (an MM1 mean), not only @KSLControl controls")
+            assertTrue(ExperimentDocuments.validate(scaffold, descriptor).isValid,
+                "the RV-parameter factorial scaffold must validate against the model's inputs")
         }
     }
 
