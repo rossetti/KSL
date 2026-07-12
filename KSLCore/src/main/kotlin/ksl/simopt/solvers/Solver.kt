@@ -2154,6 +2154,8 @@ abstract class Solver(
          * @param skipGlobalPhase When true, skip the global Niching-GA phase and run a single COMPASS
          * search from the starting point (the paper's unimodal shortcut). Defaults to false.
          * @param globalBudget An optional replication budget added as a soft transition rule to the global phase.
+         * @param startingPoint Optional initial coordinates seeded as ISC's first solution (and first COMPASS
+         * seed). If left null, the solver auto-generates a random feasible starting point upon initialization.
          * @param maxIterations The maximum number of orchestration macro-steps. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -2173,6 +2175,7 @@ abstract class Solver(
             deltaL: Double = deltaC,
             skipGlobalPhase: Boolean = false,
             globalBudget: Int? = null,
+            startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = ISCSolver.iscDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
@@ -2188,7 +2191,7 @@ abstract class Solver(
                 simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
                 parallelOptions = parallelOptions
             )
-            return ISCSolver(
+            val solver = ISCSolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 streamNum = streamNum,
@@ -2201,6 +2204,10 @@ abstract class Solver(
                 maximumIterations = maxIterations,
                 name = name
             )
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
         }
 
         /**
@@ -2214,6 +2221,9 @@ abstract class Solver(
          * @param deltaL The COMPASS local-optimality indifference zone `δ_L`. Defaults to [deltaC].
          * @param skipGlobalPhase When true, each restart runs a single COMPASS search (unimodal shortcut). Defaults to false.
          * @param globalBudget An optional replication budget added as a soft transition rule to the global phase.
+         * @param startingPoint Optional initial coordinates fed to the first restart's ISC search (its first
+         * solution and first COMPASS seed); later restarts begin at random feasible points. If left null,
+         * every restart auto-generates a random feasible starting point.
          * @param maxIterations The maximum number of orchestration macro-steps per restart. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -2234,6 +2244,7 @@ abstract class Solver(
             deltaL: Double = deltaC,
             skipGlobalPhase: Boolean = false,
             globalBudget: Int? = null,
+            startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = ISCSolver.iscDefaultMaxIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
@@ -2264,10 +2275,16 @@ abstract class Solver(
                 maximumIterations = maxIterations,
                 name = name
             )
-            return RandomRestartSolver(
+            val restartSolver = RandomRestartSolver(
                 restartingSolver = isc, maxNumRestarts = maxNumRestarts,
                 streamNum = streamNum, streamProvider = streamProvider, name = name
             )
+            // The random-restart driver orchestrates the starting points: the user's specific point is
+            // fed to the inner solver on run #1; subsequent restarts begin at random feasible points.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return restartSolver
         }
 
         /**

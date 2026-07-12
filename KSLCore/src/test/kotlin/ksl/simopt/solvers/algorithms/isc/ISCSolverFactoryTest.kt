@@ -8,7 +8,10 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -94,5 +97,48 @@ class ISCSolverFactoryTest {
         assertTrue(best.isInputFeasible(), "the best solution from the random-restart wrapper must be feasible")
         val servers = best.inputMap.inputValues[0]
         assertTrue(servers in 1.0..10.0, "the best solution must lie within the input bounds (was $servers)")
+    }
+
+    @Test
+    fun factoryForwardsStartingPointToTheSolver() {
+        val name = "ISCSP_${System.nanoTime()}"
+        val solver = Solver.createISCSolver(
+            problemDefinition = problem(name),
+            modelBuilder = modelBuilder(name),
+            skipGlobalPhase = true,
+            startingPoint = mutableMapOf(SERVER_CONTROL to 7.0),
+            maxIterations = 50,
+            replicationsPerEvaluation = 2
+        )
+        val seeded = solver.startingPoint
+        assertNotNull(seeded, "a startingPoint passed to the factory must be forwarded to the solver")
+        assertEquals(7.0, seeded!!.inputValues[0], "the forwarded startingPoint must carry the supplied coordinate")
+
+        // Control: omitting the startingPoint leaves it null so the solver auto-generates one at run time.
+        val auto = Solver.createISCSolver(
+            problemDefinition = problem(name),
+            modelBuilder = modelBuilder(name),
+            skipGlobalPhase = true,
+            maxIterations = 50,
+            replicationsPerEvaluation = 2
+        )
+        assertNull(auto.startingPoint, "omitting the startingPoint must leave it null (auto-generated at run time)")
+    }
+
+    @Test
+    fun randomRestartFactoryForwardsStartingPoint() {
+        val name = "ISCRRSP_${System.nanoTime()}"
+        val solver = Solver.createRandomRestartISCSolver(
+            problemDefinition = problem(name),
+            modelBuilder = modelBuilder(name),
+            maxNumRestarts = 2,
+            skipGlobalPhase = true,
+            startingPoint = mutableMapOf(SERVER_CONTROL to 4.0),
+            maxIterations = 50,
+            replicationsPerEvaluation = 2
+        )
+        val seeded = solver.startingPoint
+        assertNotNull(seeded, "a startingPoint passed to the random-restart factory must reach the wrapper")
+        assertEquals(4.0, seeded!!.inputValues[0], "the forwarded startingPoint must carry the supplied coordinate")
     }
 }
