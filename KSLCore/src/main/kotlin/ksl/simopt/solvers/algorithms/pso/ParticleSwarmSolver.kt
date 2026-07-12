@@ -53,7 +53,9 @@ fun interface CoefficientScheduleIfc {
  *  @param streamNum the random number stream number; 0 (the default) means the next available stream
  *  @param streamProvider the provider of random number streams; defaults to a fresh RNStreamProvider
  *  @param swarmSize the number of particles in the swarm
- *  @param inertiaSchedule the inertia-weight schedule; defaults to [LinearDecreasingInertia]
+ *  @param inertiaSchedule the inertia-weight schedule; when omitted (null) a [LinearDecreasingInertia]
+ *  is created whose `horizon` matches `maximumIterations`, so the weight decays across the whole run
+ *  (raising `maximumIterations` without also passing a schedule no longer leaves the tail at floor inertia)
  *  @param cognitiveCoefficient the cognitive acceleration coefficient c1 (pull toward personal best)
  *  @param socialCoefficient the social acceleration coefficient c2 (pull toward global best)
  *  @param boundaryHandler how out-of-range positions are handled; defaults to [ClampToBounds]
@@ -70,7 +72,7 @@ class ParticleSwarmSolver @JvmOverloads constructor(
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = RNStreamProvider(),
     swarmSize: Int = defaultSwarmSize,
-    inertiaSchedule: InertiaWeightScheduleIfc = LinearDecreasingInertia(),
+    inertiaSchedule: InertiaWeightScheduleIfc? = null,
     cognitiveCoefficient: Double = defaultCognitiveCoefficient,
     socialCoefficient: Double = defaultSocialCoefficient,
     boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
@@ -97,7 +99,7 @@ class ParticleSwarmSolver @JvmOverloads constructor(
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = RNStreamProvider(),
         swarmSize: Int = defaultSwarmSize,
-        inertiaSchedule: InertiaWeightScheduleIfc = LinearDecreasingInertia(),
+        inertiaSchedule: InertiaWeightScheduleIfc? = null,
         cognitiveCoefficient: Double = defaultCognitiveCoefficient,
         socialCoefficient: Double = defaultSocialCoefficient,
         boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
@@ -112,8 +114,14 @@ class ParticleSwarmSolver @JvmOverloads constructor(
         FixedReplicationsPerEvaluation(replicationsPerEvaluation), solutionEqualityChecker, name
     )
 
-    /** The inertia-weight schedule. Cannot be changed while the solver is running. */
-    var inertiaSchedule: InertiaWeightScheduleIfc = inertiaSchedule
+    /**
+     *  The inertia-weight schedule. Cannot be changed while the solver is running.
+     *
+     *  When no schedule is supplied to the constructor, this defaults to a `LinearDecreasingInertia`
+     *  whose `horizon` equals `maximumIterations`, so the weight decays across the whole run rather
+     *  than finishing early and holding flat. A supplied schedule is used exactly as given.
+     */
+    var inertiaSchedule: InertiaWeightScheduleIfc = inertiaSchedule ?: LinearDecreasingInertia(horizon = maximumIterations)
         set(value) {
             require(!iterativeProcess.isRunning) { "The inertia schedule cannot be changed while the solver is running." }
             field = value
