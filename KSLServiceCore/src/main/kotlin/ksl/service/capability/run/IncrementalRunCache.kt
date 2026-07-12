@@ -140,7 +140,9 @@ object IncrementalRunCache {
             request = json.parseToJsonElement(RunConfigurationJson.encode(config)),
             payload = json.encodeToJsonElement(RunResultDto.serializer(), dto),
         )
-        store.put(stored)
+        // Only cache successful results — a Failed/Cancelled run must not be frozen under the
+        // document key and re-served on a later retry of the identical request.
+        if (dto.isCacheable) store.put(stored)
         return stored
     }
 }
