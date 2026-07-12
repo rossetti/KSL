@@ -16,6 +16,7 @@ import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import ksl.utilities.io.plotting.ConvergencePlotBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files

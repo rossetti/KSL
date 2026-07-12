@@ -23,6 +23,8 @@ import ksl.app.optimization.formatObjective
 import ksl.app.session.RunResult
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverResult
+import ksl.utilities.io.plotting.ConvergencePlot
+import ksl.utilities.io.plotting.ConvergencePlotBuilder
 import ksl.utilities.io.report.dsl.report
 import ksl.utilities.io.report.extensions.solverConfiguration
 import ksl.utilities.io.report.extensions.solverResult

@@ -3,8 +3,8 @@ package ksl.app.swing.animation.app
 import ksl.animation.OverlaySpec
 import ksl.app.swing.animation.examples.AnimationDemo
 import ksl.examples.general.animationbundle.Example11Flocking
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

@@ -30,8 +30,8 @@ import ksl.app.bundle.BundleAuthoringSession
 import ksl.app.bundle.BundleLayout
 import ksl.app.bundle.BundleValidation
 import ksl.app.bundle.KSLAppKind
-import ksl.app.config.CatalogValidation
 import ksl.app.config.ModelReference
+import ksl.simulation.CatalogValidation
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.settings.UserSettingsStore
 import ksl.app.validation.FieldError

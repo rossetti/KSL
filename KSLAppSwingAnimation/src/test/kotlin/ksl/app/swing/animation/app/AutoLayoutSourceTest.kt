@@ -3,7 +3,7 @@ package ksl.app.swing.animation.app
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.JsonLinesAnimationOutput
-import ksl.animation.replay.AutoLayoutSource
+import ksl.app.animation.replay.AutoLayoutSource
 import ksl.examples.general.animationbundle.Example13MovableResources
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model

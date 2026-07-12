@@ -8,8 +8,8 @@ import ksl.animation.LayoutPoint
 import ksl.animation.SegmentRoute
 import ksl.animation.NetworkStationLayoutElement
 import ksl.examples.general.animationbundle.Example08ConveyorTandem
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc

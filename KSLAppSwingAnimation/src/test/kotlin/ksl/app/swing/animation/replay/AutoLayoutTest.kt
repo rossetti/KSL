@@ -1,4 +1,4 @@
-package ksl.animation.replay
+package ksl.app.animation.replay
 
 import ksl.animation.AnchorRef
 import ksl.animation.AnimationEvent
@@ -10,7 +10,7 @@ import ksl.animation.LocationLayoutElement
 import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.PathDefinition
 import ksl.animation.SegmentInfo
-import ksl.animation.io.AnimationSource
+import ksl.app.animation.io.AnimationSource
 import ksl.app.swing.animation.view.SimulationCanvas
 import ksl.app.swing.animation.view.VisualStyle
 import java.awt.image.BufferedImage

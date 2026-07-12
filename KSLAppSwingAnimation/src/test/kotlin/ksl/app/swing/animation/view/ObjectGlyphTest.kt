@@ -6,8 +6,8 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File

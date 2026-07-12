@@ -22,6 +22,7 @@ import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverResult
+import ksl.utilities.io.plotting.ConvergencePlotBuilder
 import java.nio.file.Path
 
 /**
