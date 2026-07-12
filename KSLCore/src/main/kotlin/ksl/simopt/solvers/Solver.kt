@@ -1846,7 +1846,7 @@ abstract class Solver(
          * @param boundaryHandler How out-of-range positions are handled. Defaults to [ClampToBounds].
          * @param startingPoint Optional initial coordinates seeded as the first particle.
          * If left null, the whole swarm is scattered over random feasible points upon initialization.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -1922,7 +1922,7 @@ abstract class Solver(
          * @param cognitiveCoefficient The cognitive acceleration coefficient c1. Defaults to [ParticleSwarmSolver.defaultCognitiveCoefficient].
          * @param socialCoefficient The social acceleration coefficient c2. Defaults to [ParticleSwarmSolver.defaultSocialCoefficient].
          * @param boundaryHandler How out-of-range positions are handled. Defaults to [ClampToBounds].
-         * @param maxIterations The maximum number of iterations per restart. Defaults to 1000.
+         * @param maxIterations The maximum number of iterations per restart. Defaults to 100.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
