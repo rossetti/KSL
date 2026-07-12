@@ -1839,7 +1839,8 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation. Must yield independent models per call when parallel.
          * @param swarmSize The number of particles in the swarm. Defaults to [ParticleSwarmSolver.defaultSwarmSize].
-         * @param inertiaSchedule The inertia-weight schedule. Defaults to [LinearDecreasingInertia].
+         * @param inertiaSchedule The inertia-weight schedule. When omitted (null), a [LinearDecreasingInertia]
+         * whose horizon matches maxIterations is used, so the weight decays across the whole run.
          * @param cognitiveCoefficient The cognitive acceleration coefficient c1. Defaults to [ParticleSwarmSolver.defaultCognitiveCoefficient].
          * @param socialCoefficient The social acceleration coefficient c2. Defaults to [ParticleSwarmSolver.defaultSocialCoefficient].
          * @param boundaryHandler How out-of-range positions are handled. Defaults to [ClampToBounds].
@@ -1863,7 +1864,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             swarmSize: Int = ParticleSwarmSolver.defaultSwarmSize,
-            inertiaSchedule: InertiaWeightScheduleIfc = LinearDecreasingInertia(),
+            inertiaSchedule: InertiaWeightScheduleIfc? = null,
             cognitiveCoefficient: Double = ParticleSwarmSolver.defaultCognitiveCoefficient,
             socialCoefficient: Double = ParticleSwarmSolver.defaultSocialCoefficient,
             boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),
@@ -1916,7 +1917,8 @@ abstract class Solver(
          * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
          * All subsequent restarts will begin at purely random, auto-generated coordinates.
          * @param swarmSize The number of particles in the swarm. Defaults to [ParticleSwarmSolver.defaultSwarmSize].
-         * @param inertiaSchedule The inertia-weight schedule. Defaults to [LinearDecreasingInertia].
+         * @param inertiaSchedule The inertia-weight schedule. When omitted (null), a [LinearDecreasingInertia]
+         * whose horizon matches maxIterations is used, so the weight decays across the whole run.
          * @param cognitiveCoefficient The cognitive acceleration coefficient c1. Defaults to [ParticleSwarmSolver.defaultCognitiveCoefficient].
          * @param socialCoefficient The social acceleration coefficient c2. Defaults to [ParticleSwarmSolver.defaultSocialCoefficient].
          * @param boundaryHandler How out-of-range positions are handled. Defaults to [ClampToBounds].
@@ -1940,7 +1942,7 @@ abstract class Solver(
             maxNumRestarts: Int = defaultMaxRestarts,
             startingPoint: MutableMap<String, Double>? = null,
             swarmSize: Int = ParticleSwarmSolver.defaultSwarmSize,
-            inertiaSchedule: InertiaWeightScheduleIfc = LinearDecreasingInertia(),
+            inertiaSchedule: InertiaWeightScheduleIfc? = null,
             cognitiveCoefficient: Double = ParticleSwarmSolver.defaultCognitiveCoefficient,
             socialCoefficient: Double = ParticleSwarmSolver.defaultSocialCoefficient,
             boundaryHandler: BoundaryHandlerIfc = ClampToBounds(),

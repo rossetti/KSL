@@ -2,6 +2,7 @@ package ksl.simopt.solvers.algorithms.pso
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -41,6 +42,48 @@ class PsoComponentsTest {
         assertThrows(IllegalArgumentException::class.java) {
             LinearDecreasingInertia(initialInertia = 0.4, finalInertia = 0.9)
         }
+    }
+
+    // ---- Solver default inertia schedule ----
+
+    @Test
+    fun defaultInertiaScheduleHorizonMatchesMaximumIterations() {
+        // Regression: with no schedule supplied, the default LinearDecreasingInertia's horizon must
+        // track the caller's maximumIterations, not the fixed psoDefaultMaxIterations (100). Otherwise
+        // a raised iteration cap leaves the inertia pinned at the exploitation floor for the run's tail.
+        val solver = ParticleSwarmSolver(
+            problemDefinition = pd,
+            evaluator = PsoTestSupport.FunctionEvaluator(pd, PsoTestSupport.sphere(doubleArrayOf(0.0, 0.0, 0.0))),
+            streamNum = 1,
+            maximumIterations = 250,
+            replicationsPerEvaluation = 1
+        )
+        val schedule = solver.inertiaSchedule
+        assertTrue(schedule is LinearDecreasingInertia, "the default schedule should be a LinearDecreasingInertia")
+        val lin = schedule as LinearDecreasingInertia
+        assertEquals(250, lin.horizon, "the default horizon should track maximumIterations")
+        assertEquals(lin.initialInertia, lin.nextInertia(0), 1e-12, "starts at the initial inertia")
+        assertEquals(lin.finalInertia, lin.nextInertia(250), 1e-12, "reaches the floor exactly at maximumIterations")
+        assertTrue(
+            lin.nextInertia(100) > lin.finalInertia,
+            "must not be pinned at the floor by iteration 100 (the fixed-horizon-100 bug)"
+        )
+    }
+
+    @Test
+    fun suppliedInertiaScheduleIsUsedAsIs() {
+        // A caller-supplied schedule must be used exactly as given — never replaced or re-horizoned.
+        val custom = LinearDecreasingInertia(horizon = 42)
+        val solver = ParticleSwarmSolver(
+            problemDefinition = pd,
+            evaluator = PsoTestSupport.FunctionEvaluator(pd, PsoTestSupport.sphere(doubleArrayOf(0.0, 0.0, 0.0))),
+            streamNum = 1,
+            inertiaSchedule = custom,
+            maximumIterations = 250,
+            replicationsPerEvaluation = 1
+        )
+        assertSame(custom, solver.inertiaSchedule, "a supplied schedule must be used as-is")
+        assertEquals(42, (solver.inertiaSchedule as LinearDecreasingInertia).horizon)
     }
 
     // ---- Boundary handlers ----
