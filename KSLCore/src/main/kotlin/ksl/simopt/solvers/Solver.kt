@@ -1118,21 +1118,6 @@ abstract class Solver(
             }
 
         /**
-         * Represents the default maximum number of iterations to be executed
-         * in a given process or algorithm. This value acts as a safeguard
-         * to prevent indefinite looping or excessive computation.
-         *
-         * The default value is set to 1000, but it can be modified based
-         * on specific requirements or constraints.
-         */
-        @JvmStatic
-        var defaultMaxNumberIterations = 1000
-            set(value) {
-                require(value > 0) { "The default maximum number of iterations must be a positive value." }
-                field = value
-            }
-
-        /**
          * Represents the default number of replications to be performed during an evaluation.
          *
          * This parameter defines the number of times a specific evaluation process should be repeated
