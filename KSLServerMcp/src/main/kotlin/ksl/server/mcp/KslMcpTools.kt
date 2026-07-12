@@ -1082,7 +1082,9 @@ class KslMcpTools(
             request = request,
             payload = json.encodeToJsonElement(RunResultDto.serializer(), enriched),
         )
-        resultStore.put(stored)
+        // Only cache successful results — a Failed/Cancelled run must not be frozen under the
+        // resultId and re-served on a retry of the identical request.
+        if (enriched.isCacheable) resultStore.put(stored)
         return stored
     }
 

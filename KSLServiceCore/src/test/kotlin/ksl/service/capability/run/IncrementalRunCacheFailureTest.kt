@@ -25,8 +25,11 @@ import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.service.capability.run.dto.BatchItemDto
+import ksl.service.capability.run.dto.OrchestratorSummaryDto
 import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.capability.run.dto.RunSummaryDto
+import ksl.service.capability.run.dto.SolutionDto
 import ksl.service.store.CachedResult
 import ksl.service.store.ResultStore
 import java.nio.file.Files
@@ -113,5 +116,22 @@ class IncrementalRunCacheFailureTest {
         val second = IncrementalRunCache.run(store, json, cfg, useCache = true) { calls++; completed() }
         assertEquals(1, calls, "the identical successful request must be served from cache, not re-run")
         assertTrue(second.fromCache, "the second identical request must be a cache hit")
+    }
+
+    @Test
+    fun `isCacheable classifies every result variant`() {
+        // The property both persist gates (sync IncrementalRunCache + async persistRun) rely on:
+        // only the three successful terminal results are cacheable.
+        val now = Clock.System.now()
+        val runSummary = RunSummaryDto("r", "M", "exp", 1, 1, "COMPLETED_ALL_STEPS", now, now)
+        val orchSummary = OrchestratorSummaryDto("r", "orch", 1, 1, 0, now, now)
+
+        assertTrue(RunResultDto.Completed(runSummary, emptyList()).isCacheable)
+        assertTrue(RunResultDto.BatchCompleted(orchSummary, listOf(BatchItemDto("item", emptyList()))).isCacheable)
+        assertTrue(
+            RunResultDto.OptimizationCompleted(orchSummary, SolutionDto(emptyMap(), 0.0, 0.0, isValid = true), emptyList()).isCacheable,
+        )
+        assertFalse(RunResultDto.Failed("ExecutiveError", "boom").isCacheable)
+        assertFalse(RunResultDto.Cancelled("user").isCacheable)
     }
 }
