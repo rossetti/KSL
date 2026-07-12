@@ -1,10 +1,8 @@
-package ksl.app.swing.animation.app
+package ksl.app.animation.replay
 
 import ksl.animation.OverlaySpec
-import ksl.app.swing.animation.examples.AnimationDemo
 import ksl.examples.general.animationbundle.Example15DroneDelivery
 import ksl.app.animation.io.AnimationSource
-import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -17,7 +15,7 @@ class MarkerPulseOverlayTest {
 
     private fun droneReplay(baseName: String, overlays: OverlaySpec): ReplayModel {
         val m = Example15DroneDelivery.buildModel().apply { lengthOfReplication = 150.0 }
-        val files = AnimationDemo.generate(m, Example15DroneDelivery.buildLayout(m), baseName = baseName, overlays = overlays)
+        val files = AnimationTraceDemo.generate(m, Example15DroneDelivery.buildLayout(m), baseName = baseName, overlays = overlays)
         return ReplayModel.build(AnimationSource.load(files.layoutFile, files.traceFile))
     }
 

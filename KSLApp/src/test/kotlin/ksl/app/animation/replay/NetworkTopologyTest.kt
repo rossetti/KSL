@@ -1,10 +1,8 @@
-package ksl.app.swing.animation.app
+package ksl.app.animation.replay
 
 import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.animation
-import ksl.app.swing.animation.examples.AnimationDemo
 import ksl.app.animation.io.AnimationSource
-import ksl.app.animation.replay.ReplayModel
 import ksl.examples.general.agent.NetworkRumorExample
 import ksl.simulation.Model
 import kotlin.test.Test
@@ -26,7 +24,7 @@ class NetworkTopologyTest {
         m.numberOfReplications = 1; m.lengthOfReplication = 40.0
         val layout = m.animation { title = "Rumor"; size(80.0, 80.0); objectClass("Person") { color = "#1f77b4"; size = 1.5 } }
 
-        val files = AnimationDemo.generate(m, layout, baseName = "RumorG7Test")
+        val files = AnimationTraceDemo.generate(m, layout, baseName = "RumorG7Test")
         val replay = ReplayModel.build(AnimationSource.load(files.layoutFile, files.traceFile))
 
         val net = replay.effectiveSpaces.filterIsInstance<SpatialSpaceDescriptor.Network>().singleOrNull()
