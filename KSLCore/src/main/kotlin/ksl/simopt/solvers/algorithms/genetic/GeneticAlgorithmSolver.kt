@@ -162,7 +162,16 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
         }
 
     /**
-     *  The probability that an offspring individual is mutated. Must be in [0,1].
+     *  The probability that an offspring individual is mutated — i.e. that the mutation operator is
+     *  applied to it at all. Must be in [0,1].
+     *
+     *  This per-individual gate **compounds** with any per-gene gating the operator itself does. The
+     *  default `GaussianMutation` mutates each coordinate independently with its own `perGeneRate`,
+     *  so the effective per-gene, per-generation mutation probability is about
+     *  `mutationRate * perGeneRate` — roughly 1% at the defaults (0.1 × 0.1), not the 10% either
+     *  value suggests on its own. To change how much mutation actually happens, adjust the operator's
+     *  per-gene rate; `mutationRate` only controls how often the operator runs, not how far it
+     *  perturbs when it does.
      */
     var mutationRate: Double = defaultMutationRate
         set(value) {
@@ -175,10 +184,15 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
      *  >= 0. At use, the effective elite count is clamped to populationSize - 1 so that at least one
      *  offspring is produced each generation; a value >= populationSize would otherwise freeze the
      *  search by carrying the entire population forward unchanged.
+     *
+     *  Keep this well below populationSize for healthy exploration. A value at or near populationSize
+     *  leaves only a handful of offspring (as few as one) per generation, so the search still runs
+     *  but progresses very slowly — the clamp prevents a hard freeze, not this near-stall.
      */
     var eliteCount: Int = defaultEliteCount
         set(value) {
             require(value >= 0) { "The elite count must be >= 0" }
+            if (value >= populationSize) logger.warn { "Solver: $name : eliteCount ($value) >= populationSize ($populationSize) — it will be clamped to populationSize - 1 at use, leaving very few offspring and near-stalled evolution." }
             field = value
         }
 

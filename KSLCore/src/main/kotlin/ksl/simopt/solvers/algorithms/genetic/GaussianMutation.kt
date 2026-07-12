@@ -14,6 +14,12 @@ import ksl.simopt.problem.ProblemDefinition
  *  needs a [ProblemDefinition] at construction. The per-coordinate scaling is what makes the
  *  operator self-sufficient and independently testable.
  *
+ *  This operator's per-gene gating compounds with the solver's per-individual `mutationRate`: the
+ *  solver applies this operator to an offspring only with probability `mutationRate`, and the
+ *  operator then mutates each coordinate only with probability `perGeneRate`. The effective per-gene,
+ *  per-generation mutation probability is therefore about `mutationRate * perGeneRate` — roughly 1%
+ *  at the defaults (0.1 each), not 10%.
+ *
  *  @param problemDefinition the problem definition providing per-input ranges
  *  @param perGeneRate the probability that an individual coordinate is mutated. Must be in [0,1].
  *  The default is [defaultPerGeneRate].
