@@ -1,8 +1,8 @@
 package ksl.app.swing.animation.examples
 
-import ksl.animation.io.AnimationSource
-import ksl.animation.replay.ReplayModel
-import ksl.animation.replay.autoLayout
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.autoLayout
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.image.BufferedImage
 import java.io.File
