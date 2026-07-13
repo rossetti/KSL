@@ -11,6 +11,11 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * A variant of [TandemQueueWithUnconstrainedMovement] written with the `use()` shorthand for each
+ * worker station (in place of explicit seize/delay/release) while still walking between locations via
+ * `moveTo` over a [DistancesModel]. Same model, more concise process description.
+ */
 class TandemQueueWithUnconstrainedMovementV2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(88.0, 176.0, 264.0))

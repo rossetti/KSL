@@ -13,6 +13,12 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
+/**
+ * A two-stage tandem queue in which work is performed while parts remain on the [Conveyor]. A single
+ * conveyor request carries the part through the whole line — it rides to a station, is served there
+ * without exiting (occupying and thus blocking the conveyor during service), then rides on — exiting
+ * only at the end. Contrast [TandemQueueWithConveyors], where parts exit the conveyor to be worked.
+ */
 class TandemQueueWithWorkOnConveyors(
     parent: ModelElement,
     conveyorType: Conveyor.Type = Conveyor.Type.NON_ACCUMULATING,

@@ -12,6 +12,14 @@ import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
+/**
+ * The test-and-repair job shop with resource-constrained movement between stations. As in the chapter-7
+ * shop, each part is routed through a randomly-chosen test plan of test and repair stations; here,
+ * moving a part between stations requires seizing one of a limited pool of transport workers, so
+ * transport itself is a contended resource that can delay parts. Collects number-in-system,
+ * time-in-system, and the probability of meeting the contract limit. Compare the loop-conveyor and
+ * movable-resource variants [TestAndRepairShopWithConveyor] and [TestAndRepairShopWithMovableResources].
+ */
 class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
@@ -67,6 +75,10 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     )
 
     // define steps to represent a plan
+    /**
+     * One step of a part's route through [TestAndRepairShopResourceConstrained]: the test machine
+     * ([ResourceWithQ]), its processing-time [RandomVariable], and the tester [ResourceWithQ] operating it.
+     */
     inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomVariable, val tester: ResourceWithQ)
 
     // make all the plans

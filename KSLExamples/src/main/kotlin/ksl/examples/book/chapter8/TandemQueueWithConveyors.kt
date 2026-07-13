@@ -13,6 +13,13 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
+/**
+ * A two-stage tandem queue in which parts travel between stations on a [Conveyor]. A part requests the
+ * conveyor at its entry, rides to the next station, exits the conveyor to be served by the worker there,
+ * then re-requests to ride to the following station. Demonstrates conveyor travel where work is done
+ * off the conveyor. Compare [TandemQueueWithWorkOnConveyors] (work done while riding),
+ * [TandemQueueWithConveyorsViaDelay] (travel approximated by a delay), and the movement-based versions.
+ */
 class TandemQueueWithConveyors(
     parent: ModelElement,
     conveyorType: Conveyor.Type = Conveyor.Type.NON_ACCUMULATING,

@@ -24,6 +24,12 @@ fun main(){
     m.print()
 }
 
+/**
+ * A two-stage tandem queue that approximates conveyor travel with a plain `delay` (travel distance
+ * divided by velocity) instead of modeling an actual [Conveyor]. Useful when conveyor capacity and
+ * accumulation do not matter, trading fidelity for simplicity. Compare the full-conveyor
+ * [TandemQueueWithConveyors].
+ */
 class TandemQueueWithConveyorsViaDelay(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")

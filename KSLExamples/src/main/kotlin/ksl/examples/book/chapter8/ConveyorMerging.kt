@@ -6,6 +6,12 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.variable.Response
 import ksl.simulation.ModelElement
 
+/**
+ * A conveyor merging example. Two feeder [Conveyor]s (one from Area A, one from Area B) each carry parts
+ * to a shared Sorting location, where a part transfers (`transferTo`) onto a third conveyor that delivers
+ * it to Area C. Demonstrates merging multiple conveyor lines at a common point and tracking per-origin
+ * system time.
+ */
 class ConveyorMerging(
     parent: ModelElement,
     name: String? = null

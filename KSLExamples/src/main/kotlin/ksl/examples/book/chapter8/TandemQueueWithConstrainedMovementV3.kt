@@ -11,6 +11,12 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
+/**
+ * A variant of [TandemQueueWithConstrainedMovement] that draws its transporters from a
+ * [MovableResourcePoolWithQ] (with a selectable allocation rule) instead of individually-named movers,
+ * and adds loading and unloading delays to each `transportWith`. Demonstrates pooled movable resources
+ * and load/unload times over a [DistancesModel].
+ */
 class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0)

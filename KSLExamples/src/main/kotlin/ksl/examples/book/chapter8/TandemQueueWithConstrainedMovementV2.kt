@@ -12,6 +12,12 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * A variant of [TandemQueueWithConstrainedMovement] that replaces the explicit
+ * seize/move/moveWith/release sequence with the single `transportWith(mover, destination)` convenience,
+ * which seizes a [MovableResourceWithQ], moves it to the entity, carries the entity to the destination,
+ * and releases it. Same constrained-transport model, more concise process description.
+ */
 class TandemQueueWithConstrainedMovementV2(
     parent: ModelElement,
     name: String? = null
