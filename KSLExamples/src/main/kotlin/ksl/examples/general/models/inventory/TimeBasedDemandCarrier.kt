@@ -4,6 +4,13 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * A [DemandCarrierIfc] [ModelElement] that ships filled demand to its destination after a random,
+ * per-destination shipping time. Each [InventoryReceiverIfc] destination is registered with its own
+ * shipping-time random variable; [transport] schedules delivery that far into the future. A
+ * destination with no registered time is delivered immediately when [immediateDeliveryAllowed] is
+ * true. Used as the DC-to-base transport link in [TwoEchelonModel].
+ */
 class TimeBasedDemandCarrier(
     parent: ModelElement,
     shippingTimesMap: Map<InventoryReceiverIfc, RVariableIfc>? = null,

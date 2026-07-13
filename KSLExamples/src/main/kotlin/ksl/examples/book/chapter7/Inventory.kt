@@ -7,6 +7,11 @@ import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.toDouble
 
+/**
+ * Something that can fill (supply) inventory demand — the seam between an [Inventory] and its upstream
+ * replenishment source. In this chapter-7 teaching model demand is a plain unit count; the `Warehouse`
+ * inside [RQInventorySystem] implements this to deliver replenishment after a lead time.
+ */
 interface InventoryFillerIfc {
     /**
      * Represents an arrival of demand to be provided by the filler
@@ -16,6 +21,14 @@ interface InventoryFillerIfc {
     fun fillInventory(demand: Int)
 }
 
+/**
+ * Abstract base for a single-item inventory in the chapter-7 teaching models. Tracks on-hand,
+ * on-order, and backordered levels as time-weighted responses, the inventory position, a backorder
+ * queue of `Demand`, the first-fill rate, and the replenishment-order count; demand not covered by
+ * on-hand stock is backordered and filled when replenishment arrives. Subclasses supply the ordering
+ * policy by implementing `checkInventoryPosition` and `replenishmentArrival` — see [RQInventory] for the
+ * (r,Q) policy. A simplified sibling of the framework in ksl.examples.general.models.inventory.
+ */
 abstract class Inventory(
     parent: ModelElement,
     initialOnHand: Int = 1,
@@ -93,6 +106,10 @@ abstract class Inventory(
 
     var replenishmentFiller: InventoryFillerIfc = replenisher
 
+    /**
+     * A unit of demand waiting in an [Inventory]'s backorder queue: its original amount and the amount
+     * still needed. A `QObject`, so it can be enqueued and have its time in queue tracked.
+     */
     inner class Demand(val originalAmount: Int = 1, var amountNeeded: Int) : QObject()
 
     abstract fun setInitialPolicyParameters(param: DoubleArray)

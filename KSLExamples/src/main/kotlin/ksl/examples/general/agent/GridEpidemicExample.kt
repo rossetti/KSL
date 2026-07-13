@@ -94,8 +94,18 @@ class GridEpidemicExample(parent: ModelElement, name: String? = null) :
 
     // ── Agent ───────────────────────────────────────────────────────────────
 
+    /**
+     * The SIR health states of a person in the [GridEpidemicExample]: SUSCEPTIBLE (can be infected),
+     * INFECTED (can infect neighbors, recovers after a fixed duration), and RECOVERED (immune).
+     */
     enum class HealthState { SUSCEPTIBLE, INFECTED, RECOVERED }
 
+    /**
+     * A person agent in the [GridEpidemicExample] SIR epidemic: an `Agent` on a toroidal grid that each
+     * step recovers if it has been infected long enough, otherwise (if susceptible) may become infected by
+     * an infected Moore/Chebyshev neighbor with the configured probability, then random-walks to a
+     * neighboring cell. Its `HealthState` drives the animation coloring.
+     */
     inner class Person(aName: String) : Agent(aName) {
 
         var state: HealthState = HealthState.SUSCEPTIBLE

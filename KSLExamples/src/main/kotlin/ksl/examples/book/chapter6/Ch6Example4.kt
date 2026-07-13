@@ -39,6 +39,11 @@ fun main(){
     m.print()
 }
 
+/**
+ * Example 6.4 — demonstrates the [Signal] class. Several entities `waitFor` a signal and suspend; when
+ * the signal is sent (to a selected range of waiters) those entities resume and continue. Illustrates
+ * signaling a chosen subset of waiting entities. Console-traced.
+ */
 class SignalExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val signal = Signal(this, "SignalExample")

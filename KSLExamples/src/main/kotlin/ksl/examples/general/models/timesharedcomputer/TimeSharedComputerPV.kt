@@ -12,6 +12,12 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * The process-view version of the [TimeSharedComputerEV] time-shared computer model. Each terminal is an
+ * entity that thinks (delay), then spawns a job entity whose process repeatedly seizes the CPU
+ * [ResourceWithQ] for a quantum-plus-swap slice until its service is complete (round-robin), then thinks
+ * again. Collects response time and jobs in progress.
+ */
 class TimeSharedComputerPV(
     parent: ModelElement,
     numJobs: Int = 1000,

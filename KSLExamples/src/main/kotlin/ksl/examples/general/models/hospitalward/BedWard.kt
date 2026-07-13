@@ -24,6 +24,12 @@ import ksl.simulation.ModelElement
 import ksl.examples.general.models.hospitalward.HospitalWard.OpPatient
 import ksl.examples.general.models.hospitalward.HospitalWard.NoOpPatient
 
+/**
+ * The 20-bed ward of the [HospitalWard] model. New patients queue for an available bed; a non-operation
+ * patient holds a bed for its stay, while an operation patient holds a bed for pre-op, releases it while
+ * in the operating room, and reoccupies one for post-op. Beds are freed and reallocated to waiting
+ * patients as stays end. Tracks available and busy beds.
+ */
 class BedWard(private val myHospitalWard: HospitalWard, name: String? = null) :
     ModelElement(myHospitalWard, name) {
 

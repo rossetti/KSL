@@ -1,0 +1,93 @@
+name: Build KSL Code MCP JAR
+
+# Builds the self-contained KSL Code MCP server jar from the KSL source. The server
+# lives in this repo (code-mcp-server/, a standalone nested Gradle project), so a
+# single in-repo workflow rebuilds it whenever the indexed source or the server
+# changes — no cross-repo dispatch needed.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "KSLCore/src/main/kotlin/**"
+      - "KSLExamples/src/main/kotlin/**"
+      - "../../KSLCodeMCPServer/**"
+      - ".github/workflows/build-code-mcp.yml"
+  pull_request:
+    paths:
+      - "KSLCore/src/main/kotlin/**"
+      - "KSLExamples/src/main/kotlin/**"
+      - "../../KSLCodeMCPServer/**"
+      - ".github/workflows/build-code-mcp.yml"
+  workflow_dispatch:
+    inputs:
+      ksl_version:
+        description: "KSL ref to record in the index (citation URLs / get_server_info). Defaults to the built ref."
+        required: false
+        default: ""
+      release_tag:
+        description: "Optional pinned tag (e.g. code-mcp-f26); empty = update rolling latest"
+        required: false
+        default: ""
+
+permissions:
+  contents: write # create/update releases (release steps run only on pushes / dispatch)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The KSL ref recorded in the index: an explicit dispatch input, else the tag
+      # for a tag build, else the branch/sha that triggered the run.
+      - name: Resolve KSL version
+        id: kslver
+        run: |
+          if [ -n "${{ github.event.inputs.ksl_version }}" ]; then
+            echo "ref=${{ github.event.inputs.ksl_version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build fat JAR (runs the extractor + tests)
+        working-directory: code-mcp-server
+        run: ./gradlew -PkslVersion="${{ steps.kslver.outputs.ref }}" test shadowJar
+
+      - name: Smoke-test the JAR
+        run: |
+          java -jar code-mcp-server/build/libs/ksl-code-mcp.jar --version
+          java -jar code-mcp-server/build/libs/ksl-code-mcp.jar --doctor
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ksl-code-mcp
+          path: code-mcp-server/build/libs/ksl-code-mcp.jar
+          if-no-files-found: error
+
+      - name: Publish to rolling release
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag == '') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: code-mcp-latest
+          name: KSL Code MCP Server (latest)
+          files: code-mcp-server/build/libs/ksl-code-mcp.jar
+          fail_on_unmatched_files: true
+          body: "Auto-built from the current KSL source (ref ${{ steps.kslver.outputs.ref }}). Rolling build for testing; course installs should use the pinned semester release."
+
+      - name: Publish pinned semester release
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: KSL Code MCP Server (${{ github.event.inputs.release_tag }})
+          files: code-mcp-server/build/libs/ksl-code-mcp.jar
+          fail_on_unmatched_files: true
+          body: "Pinned release, KSL ref ${{ steps.kslver.outputs.ref }}. Download: https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.release_tag }}/ksl-code-mcp.jar"

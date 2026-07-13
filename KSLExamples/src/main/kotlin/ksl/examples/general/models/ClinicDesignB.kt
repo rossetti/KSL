@@ -30,6 +30,13 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.WeibullRV
 
+/**
+ * A walk-in diabetes-screening clinic, design B — the specialized-station alternative to [ClinicDesignA].
+ * The same patient flow is split across dedicated single-capacity [ResourceWithQ] stations (paperwork
+ * clerk, then vitals nurse, then glucose-test nurse) with hand-offs (seize-next-before-release) and
+ * slightly faster task times; 5% need a scheduling clerk for follow-up. Collects time-in-system and
+ * throughput, for comparing specialized versus pooled ([ClinicDesignA]) staffing.
+ */
 class ClinicDesignB(
     parent: ModelElement,
     name: String? = null

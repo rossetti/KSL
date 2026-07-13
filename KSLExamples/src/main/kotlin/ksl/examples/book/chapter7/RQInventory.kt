@@ -7,6 +7,15 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import kotlin.math.ceil
 
+/**
+ * Example 7 model — a continuous-review (r,Q) inventory policy, the chapter-7 teaching version.
+ * Extends [Inventory]: whenever the inventory position falls to or below the reorder point r, it orders
+ * in whole multiples of the reorder quantity Q to climb back above r, backordering unmet demand until
+ * replenishment arrives. Exposes the reorder point, reorder quantity, and per-order/holding/backorder
+ * costs as [KSLControl]s and accumulates ordering, holding, backorder, and total cost [Response]s each
+ * replication. Wired into a runnable system by [RQInventorySystem]. (A simpler sibling of the fuller
+ * ksl.examples.general.models.inventory.RQInventory.)
+ */
 class RQInventory(
     parent: ModelElement,
     reorderPt: Int = 1,

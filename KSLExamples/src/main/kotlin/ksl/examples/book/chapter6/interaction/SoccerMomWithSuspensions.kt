@@ -13,6 +13,11 @@ fun main(){
     model.simulate()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with explicit `Suspension` objects
+ * (suspend-for / resume). One of a family of chapter-6 interaction variants modeling the same
+ * mother/daughter rendezvous via different synchronization primitives.
+ */
 class SoccerMomWithSuspensions(
     parent: ModelElement,
     name: String? = null

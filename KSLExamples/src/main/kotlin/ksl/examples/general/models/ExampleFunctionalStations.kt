@@ -25,6 +25,14 @@ fun main() {
     sim.print()
 }
 
+/**
+ * A two-station inspection-and-adjustment system built with the KSL station package (event/station view
+ * rather than the process view). Y-boxes arrive and flow through a [SingleQStation] of 2 inspectors; 82%
+ * exit and 18% route to an adjustment [SingleQStation] that increments the box's adjustment count and
+ * sends it back for re-inspection. Demonstrates station-to-station routing via receivers and senders
+ * ([TwoWayByChanceSender], [QObjectReceiverIfc]) and probabilistic branching. The equivalent process-view
+ * model is [YBoxSystemPV].
+ */
 class InspectionSystem(
     parent: ModelElement,
     timeBtwArrivals: RVariableIfc = ExponentialRV(6.0, 1),

@@ -36,6 +36,16 @@ fun main() {
 
 }
 
+/**
+ * A tiered credit-card call-center model (a student "proposed design"). Regular and cardholder calls
+ * arrive by non-homogeneous Poisson processes ([NHPPPiecewiseRateFunctionEventGenerator] with hourly
+ * rates); cardholders split into silver and gold tiers. Calls contend for a fixed set of trunk lines
+ * (busy signals when full) and are served by overlapping [Resource] pools ([ResourcePoolWithQ]) in which
+ * gold callers may use gold, silver, or regular operators, silver may use silver or regular, and regular
+ * use only regular — with priority by tier. Operator capacity follows hourly [CapacitySchedule]s, and
+ * callers abandon when an estimated wait exceeds their tolerance. Tracks per-tier queue time, abandonment,
+ * and busy-signal percentages.
+ */
 class ProposedModelClass2(
     parent: ModelElement,
     name: String? = null

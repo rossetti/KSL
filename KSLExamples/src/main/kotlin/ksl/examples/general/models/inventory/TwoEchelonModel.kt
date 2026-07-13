@@ -7,6 +7,18 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * A two-echelon (r, Q) supply chain modeled as one [ModelElement]: an external supplier (a
+ * [LeadTimeReplenisher]) replenishes a distribution-center [RQInventory], which in turn replenishes a
+ * downstream base [RQInventory] across a shipping delay (a [TimeBasedDemandCarrier]). Each echelon has
+ * its own demand stream (an [ItemDemandGenerator]), reorder point, and reorder quantity; the base is
+ * served by the DC, so DC stockouts propagate as base backorders. Aggregates the two echelons' costs
+ * into total cost and total ordering-and-holding cost responses — the objective and constraint
+ * responses used by the two-echelon optimization problem built in [BuildTwoEchelonModel].
+ *
+ * @param supplierLeadTimeToDC supplier lead time replenishing the DC
+ * @param shippingTimeDCToBase shipping delay from the DC to the base
+ */
 class TwoEchelonModel(
     parent: ModelElement,
     itemType: ItemType = ItemType(),

@@ -60,6 +60,14 @@ fun buildTest() {
     i2Cells.forEach { println(it) }
 }
 
+/**
+ * A basic demonstration of the KSL [Conveyor] feature (process view). Builds a conveyor of the given
+ * accumulating or non-accumulating type over two segments (A to B to C) and sends parts through the
+ * `requestConveyor` / `rideConveyor` / `exitConveyor` cycle, so parts occupy conveyor cells while riding
+ * between named access points and contend for space by cell count. Console-traced. [TestConveyor2]
+ * through [TestConveyor5] are progressive variants (looping segments, multi-hop rides, holding while
+ * blocked, and congestion).
+ */
 class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
@@ -177,6 +185,11 @@ fun runConveyorTest5(conveyorType: Conveyor.Type) {
     m.print()
 }
 
+/**
+ * A [Conveyor] demo variant of [TestConveyor] with a looping topology — a third segment returns from C
+ * back to A (A to B to C to A) — so a part can ride around the loop (here Part4 rides C to A).
+ * Console-traced.
+ */
 class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
@@ -250,6 +263,11 @@ class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 
 }
 
+/**
+ * A [Conveyor] demo variant of [TestConveyor2] in which parts request two cells and one part makes a
+ * multi-hop ride, continuing on to a further access point after a delay rather than exiting where it
+ * first stopped. Exercises riding across multiple segments with an intervening delay. Console-traced.
+ */
 class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
@@ -328,6 +346,11 @@ class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 
 }
 
+/**
+ * A [Conveyor] demo variant of [TestConveyor3] in which a part delays while holding its conveyor
+ * allocation before riding, highlighting how accumulating versus non-accumulating conveyors differ when
+ * an entity blocks the line. Console-traced.
+ */
 class TestConveyor4(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
@@ -407,6 +430,11 @@ class TestConveyor4(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 
 }
 
+/**
+ * A [Conveyor] demo variant that launches several parts at nearly the same time, each requesting two
+ * cells and riding A to B together, to exercise contention and congestion on the conveyor.
+ * Console-traced.
+ */
 class TestConveyor5(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor

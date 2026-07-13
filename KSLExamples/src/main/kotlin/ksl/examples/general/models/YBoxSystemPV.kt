@@ -32,6 +32,13 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.random.rvariable.toBoolean
 
+/**
+ * A Y-box inspection-and-rework system in the process view. Each arriving Y-box is inspected by one of 2
+ * [ResourceWithQ] inspectors; if it fails (18%), it is adjusted by an adjustor and re-inspected, looping
+ * until it passes or reaches the maximum of 2 adjustments (then it is scrapped and counted). Collects
+ * system time for boxes that pass. The station/event-view counterpart of the same system is
+ * [InspectionSystem].
+ */
 class YBoxSystemPV(parent: ModelElement, name: String?= null) : ProcessModel(parent, name) {
     private val maxAdjustments = 2
     private var myArrivalRV = ExponentialRV(15.0, 1)

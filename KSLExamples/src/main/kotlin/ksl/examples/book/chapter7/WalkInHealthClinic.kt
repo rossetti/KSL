@@ -14,6 +14,14 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
+/**
+ * A walk-in health clinic process model: patients arrive, are triaged, then seen by one of several
+ * doctors, with service prioritized high/medium/low. Demonstrates a [ProcessModel] with a prioritized
+ * (RANKED) [RequestQ], **balking** (low-priority patients leave when the doctor queue is too long) and
+ * **reneging** (low-priority patients abandon the queue after a random wait via a scheduled [KSLEvent]),
+ * a priority-dependent empirical service-time mix ([REmpiricalList]), and per-priority time-in-system,
+ * balking, and reneging statistics.
+ */
 class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(6.0, 1)

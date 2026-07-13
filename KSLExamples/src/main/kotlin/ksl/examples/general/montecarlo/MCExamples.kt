@@ -29,6 +29,13 @@ import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
+/**
+ * Monte Carlo techniques over the KSL random and statistics utilities: common random numbers (two
+ * [RNStreamProvider]s giving synchronized normal streams for a paired difference), Monte Carlo
+ * integration (estimating an area with a [Statistic]), multivariate-normal sampling ([MVNormalRV]),
+ * a Bernoulli-sum frequency ([IntegerFrequency]), and a correlated AR(1) stream. `main` runs the
+ * common-random-numbers demo; the others are individually callable.
+ */
 fun main(){
     example1()
    // example2()

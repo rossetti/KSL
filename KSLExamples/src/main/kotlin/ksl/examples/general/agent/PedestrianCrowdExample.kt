@@ -239,6 +239,10 @@ class PedestrianCrowdExample(parent: ModelElement, name: String? = null) :
 
     private var nextId: Int = 0
 
+    /**
+     * A pedestrian agent in the [PedestrianCrowdExample]: an `Agent` whose script steers it through a crowd
+     * toward its goal, modeling agent-based crowd movement.
+     */
     inner class Pedestrian : Agent("ped-${++nextId}") {
         val spawnedAt: Double = currentTime
 

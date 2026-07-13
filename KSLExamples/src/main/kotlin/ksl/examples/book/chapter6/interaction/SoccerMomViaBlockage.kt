@@ -13,6 +13,12 @@ fun main(){
     model.simulate()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with `Blockage` objects: a process starts and
+ * clears a blockage while others `waitFor` it to clear. One of a family of chapter-6 variants modeling the
+ * same mother/daughter rendezvous via different synchronization primitives.
+ * [SoccerMomViaBlockageNoPrinting] is the same model without console output.
+ */
 class SoccerMomViaBlockage(
     parent: ModelElement,
     name: String? = null
@@ -101,6 +107,10 @@ class SoccerMomViaBlockage(
     }
 }
 
+/**
+ * The [SoccerMomViaBlockage] model with console printing removed — the same `Blockage`-coordinated
+ * mother/daughter rendezvous, suitable for quiet runs and testing.
+ */
 class SoccerMomViaBlockageNoPrinting(
     parent: ModelElement,
     name: String? = null

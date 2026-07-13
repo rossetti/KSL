@@ -29,6 +29,11 @@ import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.toDouble
 
+/**
+ * Something that can fill (supply) inventory demand — the seam between an [Inventory] and its
+ * replenishment source (bundle-packaged copy of the chapter-7 teaching inventory filler; demand is a
+ * plain unit count).
+ */
 interface InventoryFillerIfc {
     /**
      * Represents an arrival of demand to be provided by the filler
@@ -38,6 +43,12 @@ interface InventoryFillerIfc {
     fun fillInventory(demand: Int)
 }
 
+/**
+ * Abstract base for a single-item inventory in the bundle-packaged teaching model (a copy of the
+ * chapter-7 version): tracks on-hand, on-order, and backordered levels, the inventory position, a
+ * backorder queue of `Demand`, fill rate, and replenishment-order count. Subclasses supply the ordering
+ * policy — see [RQInventory] for the (r, Q) policy.
+ */
 abstract class Inventory(
     parent: ModelElement,
     initialOnHand: Int = 1,
@@ -115,6 +126,10 @@ abstract class Inventory(
 
     var replenishmentFiller: InventoryFillerIfc = replenisher
 
+    /**
+     * A unit of demand waiting in an [Inventory]'s backorder queue: its original amount and the amount
+     * still needed.
+     */
     inner class Demand(val originalAmount: Int = 1, var amountNeeded: Int) : QObject()
 
     abstract fun setInitialPolicyParameters(param: DoubleArray)

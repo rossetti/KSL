@@ -15,6 +15,11 @@ fun main(){
     model.print()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with [HoldQueue]s — one hold queue per
+ * coordination point, where an entity `hold`s until another removes and resumes it. One of a family of
+ * chapter-6 variants modeling the same mother/daughter rendezvous via different synchronization primitives.
+ */
 class SoccerMomViaHoldQ(
     parent: ModelElement,
     name: String? = null

@@ -25,6 +25,11 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.examples.general.models.hospitalward.HospitalWard.OpPatient
 
+/**
+ * The operating room of the [HospitalWard] model. Opens and closes on a fixed schedule (open 24, closed 4
+ * time units) and operates on one patient at a time while idle and open, queueing operation patients sent
+ * from the bed ward and returning each to the ward for post-operation recovery. Tracks open and idle status.
+ */
 class OperatingRoom(private val myHospitalWard: HospitalWard, name: String? = null) :
     ModelElement(myHospitalWard, name) {
     companion object {

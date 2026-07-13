@@ -27,6 +27,14 @@ fun main() {
     r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
 }
 
+/**
+ * Example 7.4 model — the test-and-repair shop, a job shop where each part follows one of four
+ * randomly-assigned test plans through a series of test stations and a repair station. Every part
+ * arrives, visits diagnostics ([ResourceWithQ], capacity 2), then a [REmpiricalList] draws the part's
+ * test plan (an ordered list of [TestPlanStep], each naming a resource and its processing-time
+ * distribution); the part visits each step in sequence with move-time delays between non-repair steps.
+ * Collects number-in-system, time-in-system, and the probability of meeting a 480-minute contract limit.
+ */
 class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
@@ -60,6 +68,10 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
 
     // define steps to represent a plan
+    /**
+     * One step of a part's route through [TestAndRepairShop]: the [ResourceWithQ] station to visit and
+     * the [RandomVariable] giving its processing time there. An ordered list of these defines a test plan.
+     */
     inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans

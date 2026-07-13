@@ -29,6 +29,11 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * Example 6.6 — demonstrates one entity waiting for another entity's process to finish, via `waitFor`
+ * applied to a process. An entity activates a sub-process and suspends until that process completes,
+ * illustrating process-to-process synchronization. Console-traced.
+ */
 class WaitForProcessExample(parent: ModelElement) : ProcessModel(parent, null) {
     private val worker: ResourceWithQ = ResourceWithQ(this, "worker", 1)
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")

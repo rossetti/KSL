@@ -24,6 +24,11 @@ import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.KSLRandom
 
 
+/**
+ * Exercises the KSL random-number infrastructure: creating an [RNStreamProvider] / [RNStreamFactory],
+ * drawing from streams, advancing sub-streams, advancing seeds, resetting a stream for reproducibility,
+ * and inspecting the stream number a random variable was assigned (`BernoulliRV.streamNumber`).
+ */
 fun main() {
 
 //    val range = 1.0.rangeTo(10.0)

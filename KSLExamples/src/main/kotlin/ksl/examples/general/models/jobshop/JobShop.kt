@@ -13,6 +13,12 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * A classic job shop (process view). Jobs arrive and are each randomly assigned one of three routing
+ * sequences through five [ResourceWithQ] machines (each with its own capacity); a job seizes, is processed
+ * for a gamma-distributed time at, and releases each machine along its route. Collects overall
+ * time-in-system and time-in-system by job type.
+ */
 class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBA = ExponentialRV(0.25, 1)

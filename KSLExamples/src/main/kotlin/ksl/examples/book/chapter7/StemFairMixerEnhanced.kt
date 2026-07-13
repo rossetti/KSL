@@ -31,6 +31,16 @@ import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
+/**
+ * Example 7 model — the enhanced STEM career-fair mixer, a richer process-view example. Students
+ * arrive by a non-homogeneous Poisson process ([NHPPPiecewiseRateFunctionEventGenerator] with an
+ * hour-by-hour arrival rate), get name tags, may mix in a conversation area, and may visit two
+ * recruiter stations (JHBunt and MalWart, [ResourceWithQ]s) chosen by a least-loaded rule; a scheduled
+ * event closes the doors partway through, after which new arrivals stop and students in progress finish
+ * or leave. Demonstrates NHPP arrivals, aggregate time-weighted responses, and interval- and
+ * schedule-based statistics capturing per-hour and peak-period behavior. Compare the capacity-scheduled
+ * staffing variant [StemFairMixerEnhancedSched].
+ */
 class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     var lengthOfMixer = 360.0

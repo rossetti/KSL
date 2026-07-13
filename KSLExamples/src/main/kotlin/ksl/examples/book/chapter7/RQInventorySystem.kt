@@ -10,6 +10,14 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * Example 7 model — a complete single-item (r,Q) inventory system assembled as one [ModelElement]: an
+ * [RQInventory] running the (r,Q) policy, a demand [EventGenerator] (exponential time between unit
+ * demands), and an inner [Warehouse] replenishment source that delivers ordered stock after a lead
+ * time. Surfaces reorder point, reorder quantity, initial on-hand, and the cost parameters as settable
+ * properties, making it the ready-to-run harness used by the chapter-7 examples and as a bundled
+ * simulation-optimization model.
+ */
 class RQInventorySystem(
     parent: ModelElement,
     reorderPt: Int = 1,
@@ -90,6 +98,11 @@ class RQInventorySystem(
         inventory.fillInventory(demandAmountRV.value.toInt())
     }
 
+    /**
+     * The replenishment source for [RQInventorySystem]'s inventory: an [InventoryFillerIfc] that, on
+     * receiving a replenishment order, schedules the ordered stock to arrive one lead time later. Models
+     * an uncapacitated supplier that always fills, but only after the lead-time delay.
+     */
     inner class Warehouse : InventoryFillerIfc {
         override fun fillInventory(demand: Int) {
             schedule(this::endLeadTimeAction, leadTimeRV, message = demand)

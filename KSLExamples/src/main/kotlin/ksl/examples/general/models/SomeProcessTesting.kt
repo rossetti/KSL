@@ -28,6 +28,13 @@ fun main() {
     model.print()
 }
 
+/**
+ * The classic dump-truck (mining) system in the process view. A fixed fleet of trucks repeatedly seizes
+ * a [ResourceWithQ] loader, loads, seizes a scale, is weighed, then travels and returns to repeat — with
+ * a small pool of loaders (2) and scales (1) as the contended resources. Collects the per-cycle response
+ * time. Parameterized by fleet size and the loading/weighing/travel-time distributions, so it doubles as
+ * a controllable model for capacity experiments (e.g. slow versus fast loader).
+ */
 class DumpTruckSystemProcessView(
     parent: ModelElement,
     numLoaders: Int = 2,

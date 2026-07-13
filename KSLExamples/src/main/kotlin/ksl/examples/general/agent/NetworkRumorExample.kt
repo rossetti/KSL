@@ -93,6 +93,10 @@ class NetworkRumorExample(parent: ModelElement, name: String? = null) :
 
     // ── Agent ──────────────────────────────────────────────────────────────
 
+    /**
+     * A person agent in the [NetworkRumorExample]: an `Agent` on a social network that, once it hears the
+     * rumor, spreads it to its network neighbors — an agent-based information-diffusion model.
+     */
     inner class Person(aName: String) : Agent(aName) {
 
         var informed: Boolean = false

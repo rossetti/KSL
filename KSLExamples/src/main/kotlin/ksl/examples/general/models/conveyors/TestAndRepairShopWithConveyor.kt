@@ -12,6 +12,15 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 
+/**
+ * The test-and-repair job shop with parts moved between stations on a loop [Conveyor] instead of by an
+ * instantaneous transfer. Each part visits diagnostics, then follows one of four randomly-chosen test
+ * plans (an [REmpiricalList] of [TestPlanStep] sequences) through the test and repair [ResourceWithQ]
+ * stations; between stations the part rides an accumulating conveyor (via `convey`) that loops
+ * diagnostics to test1 to test2 to repair to test3 and back to diagnostics. Collects number-in-system,
+ * time-in-system, and the probability of meeting a 480-minute contract limit. A conveyor-based variant
+ * of the chapter-7 test-and-repair shop.
+ */
 class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
@@ -48,6 +57,11 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
 
     // define steps to represent a plan
+    /**
+     * One step of a part's route through [TestAndRepairShopWithConveyor]: the [ResourceWithQ] station to
+     * visit and the [RandomVariable] giving its processing time there. An ordered list of these defines a
+     * test plan.
+     */
     inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans

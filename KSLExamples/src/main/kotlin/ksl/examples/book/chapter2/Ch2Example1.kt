@@ -22,11 +22,9 @@ import ksl.utilities.random.rng.RNStreamProvider
 
 
 /**
- * Example 2.1
- *
- * This example illustrates how to make a stream provider, get streams
- * from the provider, and use the streams to generate pseudo-random
- * numbers.
+ * Example 2.1 — creating an [RNStreamProvider], getting a stream from it, and drawing pseudo-random
+ * numbers. Also shows reproducibility: two identical providers return the same stream 1, so they
+ * generate the identical sequence.
  */
 fun main() {
     // make a provider for creating streams

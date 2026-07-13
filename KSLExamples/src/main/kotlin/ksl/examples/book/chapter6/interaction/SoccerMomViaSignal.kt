@@ -15,6 +15,11 @@ fun main(){
     model.print()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with [Signal]s — one signal per coordination
+ * point, where an entity `waitFor`s a signal until another entity sends it. One of a family of chapter-6
+ * variants modeling the same mother/daughter rendezvous via different synchronization primitives.
+ */
 class SoccerMomViaSignal(
     parent: ModelElement,
     name: String? = null

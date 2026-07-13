@@ -5,6 +5,13 @@ import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
 
+/**
+ * Read-only (controlled) view of an [Inventory]: its item type, current on-hand / on-order /
+ * amount-backordered levels and inventory position, the backorder queue, and the time-weighted
+ * responses and counters the inventory collects (on-hand, ready rate, ordering frequency, fill rate,
+ * number of replenishment orders). Exposed via the CIfc pattern so callers can observe inventory
+ * state without mutating what only the [Inventory] element should control.
+ */
 interface InventoryCIfc {
     val itemType: ItemType
 

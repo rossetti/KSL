@@ -29,6 +29,12 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import kotlin.math.ceil
 
+/**
+ * A continuous-review (r, Q) inventory policy (bundle-packaged copy): orders whole reorder-quantity (Q)
+ * batches whenever the inventory position falls to or below the reorder point r, backordering unmet
+ * demand. Reorder point, reorder quantity, and costs are exposed as KSL controls. Behaviorally the
+ * chapter-7 model; see [Inventory] for the base and [RQInventorySystem] for the full runnable system.
+ */
 class RQInventory(
     parent: ModelElement,
     reorderPt: Int = 1,

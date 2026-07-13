@@ -27,6 +27,11 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 
+/**
+ * The earlier single-class version of the hospital ward model — the bed ward and operating room combined
+ * into one event-view [ModelElement] with explicit state variables (bed counts, OR open/idle status),
+ * before the model was decomposed into [HospitalWard], [BedWard], and [OperatingRoom].
+ */
 class HospitalWardV1(parent: ModelElement, name: String?) : ModelElement(parent, name) {
 
     val IDLE = 0.0

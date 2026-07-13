@@ -72,6 +72,12 @@ object Function : FunctionMVIfc {
     }
 }
 
+/**
+ * An independence-sampler proposal function for Metropolis-Hastings sampling ([MetropolisHastingsMV]):
+ * proposes a new 2D point drawn from fixed GeneralizedBeta marginals, independent of the current state,
+ * with the corresponding proposal ratio g(x)/g(y). Chapter-9 MCMC example. Compare the random-walk
+ * proposal [ExampleRandomWalkPF].
+ */
 object ExampleIndependencePF : ProposalFunctionMVIfc {
 
     private val myY1Dist = GeneralizedBeta(alphaShape = 2.0, betaShape = 5.0, minimum = 0.5, maximum = 1.5)
@@ -96,6 +102,10 @@ object ExampleIndependencePF : ProposalFunctionMVIfc {
     }
 }
 
+/**
+ * An [ObserverIfc] for a Metropolis-Hastings chain ([MetropolisHastingsMV]) that writes each observed
+ * state to a CSV file. Chapter-9 MCMC example helper.
+ */
 class WriteData(fileName: String) : ObserverIfc<MetropolisHastingsMV> {
     var printWriter = KSL.createPrintWriter(fileName)
     override fun onChange(newValue: MetropolisHastingsMV) {
@@ -103,6 +113,10 @@ class WriteData(fileName: String) : ObserverIfc<MetropolisHastingsMV> {
     }
 }
 
+/**
+ * An [ObserverIfc] for a Metropolis-Hastings chain ([MetropolisHastingsMV]) that collects paired (X1, X2)
+ * statistics of the sampled points into a StatisticXY. Chapter-9 MCMC example helper.
+ */
 object StatCollector : ObserverIfc<MetropolisHastingsMV> {
     var xyStats: StatisticXY = StatisticXY("X_1 and X_2 Stats")
     override fun onChange(newValue: MetropolisHastingsMV) {
@@ -111,6 +125,12 @@ object StatCollector : ObserverIfc<MetropolisHastingsMV> {
     }
 }
 
+/**
+ * A random-walk proposal function for Metropolis-Hastings sampling ([MetropolisHastingsMV]): proposes a
+ * new 2D point as the current point plus bounded uniform noise (rejection-sampled to stay in range). Being
+ * symmetric, its proposal ratio is 1. Chapter-9 MCMC example. Compare the independence proposal
+ * [ExampleIndependencePF].
+ */
 object ExampleRandomWalkPF : ProposalFunctionMVIfc {
     private val y1Interval = Interval(0.5, 1.5)
     private val y2Interval = Interval(20.0, 35.0)

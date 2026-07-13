@@ -30,6 +30,13 @@ fun main() {
     r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
+/**
+ * The test-and-repair job shop (WSC 2025 version) built on resource pools. Parts arrive, use a pooled
+ * diagnostic-workers resource, are moved by a shared transport-workers pool, then follow one of four
+ * randomly-chosen test plans through the [ResourceWithQ] test stations (with transport between steps), and
+ * finally use a pooled repair-workers resource. Collects number-in-system, time-in-system, and the
+ * probability of meeting a 480-minute contract limit.
+ */
 class TestAndRepairSystem(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
@@ -81,6 +88,10 @@ class TestAndRepairSystem(parent: ModelElement, name: String? = null) : ProcessM
     )
 
     // define steps to represent a plan
+    /**
+     * One step of a part's route through [TestAndRepairSystem]: the [ResourceWithQ] tester to visit and the
+     * [RandomVariable] giving its processing time.
+     */
     inner class TestPlanStep(val tester: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans

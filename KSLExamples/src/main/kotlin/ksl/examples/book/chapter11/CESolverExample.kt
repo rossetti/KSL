@@ -82,6 +82,11 @@ fun makeRQInventoryModelProblemDefinition(): ProblemDefinition {
     return problemDefinition
 }
 
+/**
+ * A [ModelBuilderIfc] that builds the (r, Q) inventory model (an [RQInventorySystem]) for the chapter-11
+ * cross-entropy solver example, whose reorder point and reorder quantity are the decision variables
+ * optimized by the [Solver].
+ */
 object BuildRQModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,

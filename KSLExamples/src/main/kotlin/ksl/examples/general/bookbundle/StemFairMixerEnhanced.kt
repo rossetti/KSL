@@ -35,6 +35,12 @@ import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
+/**
+ * The enhanced STEM career-fair mixer (bundle-packaged copy): NHPP student arrivals, name tags, a
+ * conversation area, two recruiter stations, and a timed door closing. Behaviorally the chapter-7 model,
+ * packaged for the runnable book-examples bundle. Compare the capacity-scheduled variant
+ * [StemFairMixerEnhancedSched].
+ */
 class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     var lengthOfMixer = 360.0

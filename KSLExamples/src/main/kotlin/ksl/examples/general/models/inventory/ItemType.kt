@@ -2,6 +2,11 @@ package ksl.examples.general.models.inventory
 
 import ksl.utilities.Identity
 
+/**
+ * A stock-keeping item type carried by the inventory models — an [Identity] (unique name/id) with a
+ * unit cost and physical weight and cube (volume) attributes. Every [DemandCreator.Demand] and
+ * [Inventory] is for a specific item type.
+ */
 class ItemType(
     name: String? = null,
 ) : Identity(name) {

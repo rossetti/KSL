@@ -31,6 +31,13 @@ import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
+/**
+ * The enhanced STEM career-fair mixer with explicit spatial movement. Like the chapter-7 enhanced mixer
+ * (NHPP student arrivals via [NHPPPiecewiseRateFunctionEventGenerator], name tags, a conversation area,
+ * two recruiter stations, and a timed door closing), but the venue is laid out as locations in a
+ * [DistancesModel] (Entrance, NameTags, ConversationArea, Recruiting, Exit) and students walk between
+ * them at a sampled walking speed, so travel time depends on the distances rather than fixed delays.
+ */
 class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     var lengthOfMixer = 360.0

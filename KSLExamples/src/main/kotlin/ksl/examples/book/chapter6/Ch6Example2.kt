@@ -44,6 +44,11 @@ fun main() {
     m.print()
 }
 
+/**
+ * Example 6.2 — demonstrates using an entity generator to create and activate entities into a simple
+ * process automatically (in place of hand-scheduling arrivals). Customers are generated at exponential
+ * inter-arrival times and each seizes a [ResourceWithQ] worker, delays, and releases.
+ */
 class EntityGeneratorExample(
     parent: ModelElement,
     name: String? = null

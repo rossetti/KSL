@@ -32,6 +32,13 @@ import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.toBoolean
 
+/**
+ * Example 7.3 model — resource pools with a shared member. Four [Resource]s (John, Paul, George,
+ * Ringo) form two overlapping [ResourcePoolWithQ]s (pool1 = John/Paul/George, pool2 = Ringo/George,
+ * so George belongs to both). Each arrival randomly uses pool1 or pool2 under a least-utilized
+ * allocation rule, showing how a unit is seized from a pool and how a shared member is allocated
+ * across competing pools.
+ */
 class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
 
     private val john = Resource(this, name = "John")

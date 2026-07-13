@@ -30,6 +30,12 @@ import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * A GI/G/c queue — c parallel servers with general (arbitrary) inter-arrival and service-time
+ * distributions — modeled in the event view. Customers arrive, wait in a FIFO queue for a free server, are
+ * served, and depart; the number of servers is a [KSLControl]. The simulation counterpart of the GI/G/c
+ * queueing formulas (Appendix D).
+ */
 class GIGcQueue(
     parent: ModelElement,
     numServers: Int = 1,

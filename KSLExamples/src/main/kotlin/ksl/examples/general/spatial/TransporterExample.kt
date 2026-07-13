@@ -14,6 +14,12 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
+/**
+ * A small manufacturing system with transporter-based movement. Parts arrive and are carried between two
+ * work stations by a pool of movable fork trucks ([MovableResourcePoolWithQ]) over a [DistancesModel],
+ * with loading and unloading delays, being served at each station in between. Demonstrates movable-resource
+ * transport (`transportWith`) with a resource pool over a spatial distances model.
+ */
 class SmallTransporterModel(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val truckSpeed = TriangularRV(88.0, 176.0, 264.0)

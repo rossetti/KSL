@@ -15,6 +15,12 @@ fun main(){
     model.print()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with a syncWith-style rendezvous built on
+ * [HoldQueue]s (including a dedicated sync queue), where two entities meet at a synchronization point
+ * before both proceed. One of a family of chapter-6 variants modeling the same mother/daughter rendezvous
+ * via different synchronization primitives.
+ */
 class SoccerMomViaSyncWith(
     parent: ModelElement,
     name: String? = null

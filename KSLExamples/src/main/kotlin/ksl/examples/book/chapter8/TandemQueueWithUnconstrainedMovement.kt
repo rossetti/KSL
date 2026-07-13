@@ -11,6 +11,14 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * A two-stage tandem queue with unconstrained spatial movement. The locations (Enter, Station1,
+ * Station2, Exit) and the distances between them are defined by a [DistancesModel]; a customer walks
+ * itself from station to station with `moveTo`, so travel consumes time based on distance and walking
+ * speed but is not limited by any transporter. Contrast the constrained-movement version
+ * [TandemQueueWithConstrainedMovement] (which requires seizing a mover) and the conveyor version
+ * [TandemQueueWithConveyors].
+ */
 class TandemQueueWithUnconstrainedMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(88.0, 176.0, 264.0))
