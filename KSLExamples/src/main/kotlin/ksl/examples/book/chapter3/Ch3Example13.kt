@@ -16,6 +16,12 @@ fun main() {
     println(exp)
 }
 
+/**
+ * The classic single-period newsvendor problem as a Monte Carlo model ([MCReplicationIfc]). Each
+ * replication draws a random demand and returns the profit for a fixed order quantity — sales revenue on
+ * the units sold, plus salvage value on the unsold units, minus the cost of the order quantity — for
+ * estimating expected profit (and choosing the order quantity) with an MCExperiment.
+ */
 class NewsVendor(var demand: RVariableIfc) : MCReplicationIfc {
     var orderQty = 30.0 // order qty
         set(value) {

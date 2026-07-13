@@ -19,6 +19,11 @@ fun selectBuilder(modelIdentifier: String): ModelBuilderIfc {
     }
 }
 
+/**
+ * A [ModelBuilderIfc] that builds the (r, Q) inventory model (an [RQInventorySystem]) configured for
+ * simulation optimization — fixed demand and lead-time settings, with the reorder point and quantity as
+ * the decision inputs. Paired with [BuildLKModel] behind `selectBuilder`.
+ */
 object BuildRQModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
@@ -38,6 +43,11 @@ object BuildRQModel : ModelBuilderIfc {
     }
 }
 
+/**
+ * A [ModelBuilderIfc] that builds the Law & Kelton (s, S) inventory model (an [LKInventoryModel])
+ * configured for simulation optimization, with the order quantity and reorder point as the decision
+ * inputs. Paired with [BuildRQModel] behind `selectBuilder`.
+ */
 object BuildLKModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
