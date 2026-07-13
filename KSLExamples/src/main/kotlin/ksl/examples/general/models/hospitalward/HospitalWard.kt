@@ -27,6 +27,13 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 
+/**
+ * A hospital ward model (the classic bed-ward-plus-operating-room example). Two patient streams arrive —
+ * non-operation patients and operation patients — and flow through a shared 20-bed [BedWard]; operation
+ * patients additionally pass through an [OperatingRoom] (which opens and closes on a schedule) for a
+ * pre-op stay, the operation, and a post-op stay. Collects patient system time. This is the event-view,
+ * decomposed version; see [HospitalWardV1] for the earlier single-class version.
+ */
 class HospitalWard(parent: ModelElement, name: String?) : ModelElement(parent, name) {
 
     private val myNonOpPatientStayTime = RandomVariable(this, ExponentialRV(60.0))
@@ -58,11 +65,18 @@ class HospitalWard(parent: ModelElement, name: String?) : ModelElement(parent, n
         myBedWard.receivePostOperationPatient(p)
     }
 
+    /**
+     * A non-operation patient in the [HospitalWard]: occupies a bed for a single hospital stay, then departs.
+     */
     inner class NoOpPatient : QObject() {
         val hospitalStayTime: GetValueIfc
             get() = myNonOpPatientStayTime
     }
 
+    /**
+     * An operation patient in the [HospitalWard]: occupies a bed for a pre-operation stay, goes to the
+     * operating room for the operation, then returns for a post-operation stay before departing.
+     */
     inner class OpPatient : QObject() {
         val preOperationTime: GetValueIfc
             get() = myPreOpStayTime

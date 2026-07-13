@@ -31,6 +31,12 @@ import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * A single- or multi-server queue (M/M/c) modeled with a passive resource — the WSC 2025 baseline. Each
+ * customer seizes a [ResourceWithQ] server, delays for service, and releases. Contrast the active-resource
+ * variants [MM1ViaActiveResourceViaBQ], [MM1ViaActiveResourceViaHQ], and [MM1ViaActiveResourceViaSignal],
+ * which instead model the server as its own entity.
+ */
 class SimpleServiceSystem(
     parent: ModelElement, numServers: Int = 1,
     ad: RVariableIfc = ExponentialRV(1.0, 1),

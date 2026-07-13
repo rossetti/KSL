@@ -22,6 +22,10 @@ fun main() {
     r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
+/**
+ * The active-resource M/M/1 queue ([MM1ViaActiveResourceViaBQ]) with the customer/server hand-off done via
+ * a hold queue instead of a blocking queue. One of three WSC 2025 active-resource variants.
+ */
 class MM1ViaActiveResourceViaHQ(
     parent: ModelElement,
     numServers: Int = 1,

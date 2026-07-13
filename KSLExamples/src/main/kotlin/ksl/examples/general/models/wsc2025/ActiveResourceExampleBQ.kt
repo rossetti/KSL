@@ -26,6 +26,14 @@ fun main() {
     r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
+/**
+ * An M/M/1 queue in which the server is modeled as an active resource — a Server entity running its own
+ * process loop — rather than a passive seized resource. The customer and server hand off work through a
+ * [BlockingQueue] (the customer sends an item to the server's input queue and waits for the served item on
+ * the output queue). One of three WSC 2025 active-resource variants; compare [MM1ViaActiveResourceViaHQ]
+ * (via a hold queue) and [MM1ViaActiveResourceViaSignal] (via a signal), and the passive-resource
+ * [SimpleServiceSystem].
+ */
 class MM1ViaActiveResourceViaBQ(
     parent: ModelElement,
     numServers: Int = 1,
