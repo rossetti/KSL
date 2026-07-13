@@ -25,6 +25,13 @@ fun main() {
 
 }
 
+/**
+ * Example 7.2 model — a two-stage tandem queue with blocking after service, using a single-capacity
+ * `buffer` between the stations. A part finishing at `worker1` must seize the [ResourceWithQ] buffer
+ * before releasing `worker1`, then seize `worker2` before releasing the buffer, so `worker1` stays
+ * blocked whenever the buffer is full — illustrating manufacturing blocking/starving. Compare the
+ * unbuffered [TandemQueue].
+ */
 class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val buffer: ResourceWithQ = ResourceWithQ(this, "buffer", capacity = 1)

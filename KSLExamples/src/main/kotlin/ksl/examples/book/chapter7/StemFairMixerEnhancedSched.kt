@@ -32,6 +32,14 @@ import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
+/**
+ * Example 7 model — a variant of [StemFairMixerEnhanced] in which the two recruiter stations are
+ * staffed by a time-varying [CapacitySchedule] rather than a fixed capacity. The same STEM career-fair
+ * mixer (NHPP student arrivals, name tags, conversation area, two recruiters, timed door closing) now
+ * ramps JHBunt and MalWart recruiter capacity hour-by-hour (e.g. 1 to 2 to 4 to 7 to 7 to 3) via
+ * `useSchedule(..., CapacityChangeRule.WAIT)`, illustrating scheduled resource capacity changes and
+ * their effect on queueing through the peak period.
+ */
 class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     var lengthOfMixer = 360.0
