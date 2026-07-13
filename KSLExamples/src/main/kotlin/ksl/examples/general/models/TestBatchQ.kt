@@ -20,6 +20,12 @@ fun main(){
     model.print()
 }
 
+/**
+ * A small demonstration of process-view batching. Arriving batching entities join a [BatchQueue] and
+ * suspend via `waitedForBatch` until a batch of the default size (3) forms; the entity that completes the
+ * batch proceeds holding the grouped batch while the others end their process. Illustrates how entities
+ * are grouped into batches in the process view (console-traced).
+ */
 class TestBatchQ(
     parent: ModelElement,
     name: String? = null

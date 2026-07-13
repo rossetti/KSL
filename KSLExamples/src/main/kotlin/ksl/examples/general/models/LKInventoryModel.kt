@@ -16,6 +16,15 @@ import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.math.max
 
+/**
+ * The classic Law & Kelton (s, S) periodic-review inventory model. Demand arrives continuously (random
+ * size, exponential inter-demand times) drawing down the inventory level; once per period an inventory
+ * check orders up to S (= reorder point + order quantity) whenever the level has fallen below the reorder
+ * point s, and the replenishment arrives after a random lead time, with backorders allowed. Accumulates
+ * time-averaged holding, setup, shortage, and total cost as [TWResponse]s, and exposes the order
+ * quantity, reorder point, and cost rates as [KSLControl]s for policy experiments and optimization. Built
+ * in the event view (an [EventGenerator]-driven demand stream and periodic inventory check).
+ */
 class LKInventoryModel(
     parent: ModelElement,
     name: String? = null

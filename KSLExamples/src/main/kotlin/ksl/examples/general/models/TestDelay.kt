@@ -28,6 +28,11 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * A minimal process-view demonstration of `delay()` with named suspension points — an entity runs two
+ * successive delays (10 then 20 time units), printing the clock before and after each. Illustrates the
+ * basic suspend/resume of a [KSLProcess]; console-traced.
+ */
 class TestDelay(parent: ModelElement) : ProcessModel(parent, null) {
 
    // val resource: ResourceWithQ = ResourceWithQ(this, "test resource")
