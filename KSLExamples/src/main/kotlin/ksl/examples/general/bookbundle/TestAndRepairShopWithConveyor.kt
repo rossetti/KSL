@@ -31,6 +31,11 @@ import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
+/**
+ * The test-and-repair job shop with parts moved between stations on a loop conveyor (bundle-packaged
+ * copy). Packaged for the runnable book-examples bundle. Compare [TestAndRepairShopResourceConstrained]
+ * and [TestAndRepairShopWithMovableResources].
+ */
 class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
@@ -67,6 +72,10 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
 
     // define steps to represent a plan
+    /**
+     * One step of a part's route through [TestAndRepairShopWithConveyor]: the station resource to visit
+     * and its processing time.
+     */
     inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans

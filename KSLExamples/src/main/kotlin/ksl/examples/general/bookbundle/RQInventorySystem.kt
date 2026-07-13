@@ -32,6 +32,11 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * A complete single-item (r, Q) inventory system (bundle-packaged copy): an [RQInventory] under an (r, Q)
+ * policy, fed by unit demand and replenished by an inner [Warehouse] after a lead time. This is the
+ * runnable book-examples bundle model (RQInventorySystem); behaviorally the chapter-7 version.
+ */
 class RQInventorySystem(
     parent: ModelElement,
     reorderPt: Int = 1,
@@ -112,6 +117,10 @@ class RQInventorySystem(
         inventory.fillInventory(demandAmountRV.value.toInt())
     }
 
+    /**
+     * The replenishment source for [RQInventorySystem]: fills a replenishment order after a lead-time
+     * delay. An uncapacitated supplier that always fills, but not instantly.
+     */
     inner class Warehouse : InventoryFillerIfc {
         override fun fillInventory(demand: Int) {
             schedule(this::endLeadTimeAction, leadTimeRV, message = demand)

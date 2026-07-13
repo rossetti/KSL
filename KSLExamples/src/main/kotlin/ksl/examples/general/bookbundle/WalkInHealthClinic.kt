@@ -38,6 +38,12 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
+/**
+ * A walk-in health clinic process model (bundle-packaged copy): patients arrive and are triaged into a
+ * prioritized queue, with balking and reneging behavior and a priority-dependent service mix.
+ * Behaviorally the chapter-7 model, packaged for the runnable book-examples bundle; key parameters are
+ * exposed as KSL controls.
+ */
 class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(6.0, 1)

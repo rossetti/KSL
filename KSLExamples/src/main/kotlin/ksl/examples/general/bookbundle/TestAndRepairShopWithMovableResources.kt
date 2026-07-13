@@ -35,6 +35,11 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * The test-and-repair job shop with movable-resource transport over spatial distances (bundle-packaged
+ * copy): a pool of movable transport workers carries parts between stations. Packaged for the runnable
+ * book-examples bundle. Compare [TestAndRepairShopResourceConstrained] and [TestAndRepairShopWithConveyor].
+ */
 class TestAndRepairShopWithMovableResources(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
@@ -111,6 +116,10 @@ class TestAndRepairShopWithMovableResources(parent: ModelElement, name: String? 
         this, 3, diagnosticStation, myWalkingSpeedRV, name = "TransportWorkerPool")
 
     // define steps to represent a plan, include location information
+    /**
+     * One step of a part's route through [TestAndRepairShopWithMovableResources]: the test machine, its
+     * processing time, and the location of that station in the spatial model.
+     */
     inner class TestPlanStep(
         val testMachine: ResourceWithQ,
         val processTime: RandomVariable,

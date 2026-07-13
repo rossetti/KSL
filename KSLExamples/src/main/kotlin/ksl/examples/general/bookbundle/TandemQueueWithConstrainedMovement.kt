@@ -34,6 +34,12 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * A two-stage tandem queue with constrained movement (bundle-packaged copy): customers are carried
+ * between stations by a limited set of movable transporters over a distances model, so transport itself
+ * can queue. Contrast the self-walking [TandemQueueWithUnconstrainedMovement]. Packaged for the runnable
+ * book-examples bundle.
+ */
 class TandemQueueWithConstrainedMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0, 4)

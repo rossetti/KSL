@@ -28,6 +28,11 @@ import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
+/**
+ * A two-stage tandem queue (the bundle-packaged copy used by the runnable book-examples bundle):
+ * customers are served by worker1 then worker2 in series, collecting number-in-system and
+ * time-in-system. Behaviorally the chapter-7 tandem-queue model, packaged here for the bundle.
+ */
 class TandemQueue(
     parent: ModelElement,
     name: String? = null

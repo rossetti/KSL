@@ -38,6 +38,11 @@ import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
+/**
+ * The enhanced STEM career-fair mixer with time-varying recruiter capacity (bundle-packaged copy):
+ * recruiter staffing ramps hour-by-hour via a capacity schedule. Behaviorally the chapter-7 model,
+ * packaged for the runnable book-examples bundle. Compare the fixed-capacity [StemFairMixerEnhanced].
+ */
 class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // Made controls in this bundled copy: the recruiter capacities are

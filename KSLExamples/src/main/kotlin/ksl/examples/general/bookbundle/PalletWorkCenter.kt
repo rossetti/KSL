@@ -37,6 +37,14 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * A pallet work center as a terminating simulation (the bundle-packaged version, adapted from the
+ * chapter-5 model for the runnable book-examples bundle). A random number of pallets ([BinomialRV]) are
+ * transported in one at a time and processed by a pool of workers; the replication ends naturally once
+ * all pallets are done. Collects queue length, number-in-system, system time, worker utilization,
+ * throughput, and the probability that total processing time exceeds 480 minutes (overtime). The worker
+ * count is a [KSLControl] for staffing experiments. Modeled in the event view.
+ */
 class PalletWorkCenter(
     parent: ModelElement,
     numWorkers: Int = 2,
