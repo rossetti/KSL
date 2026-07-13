@@ -30,6 +30,14 @@ import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * The classic time-shared computer model (event view). A set of terminals alternate between thinking and
+ * submitting a job to a single CPU that serves jobs round-robin with a fixed time quantum plus a swap
+ * time; a job cycles between the CPU and its queue until its service is complete, then the terminal thinks
+ * again. Collects response time, number of terminals thinking, and jobs in progress. See
+ * [TimeSharedComputerEV2] for a second event-view formulation and [TimeSharedComputerPV] for the
+ * process-view version.
+ */
 class TimeSharedComputerEV(
     parent: ModelElement,
     numJobs: Int = 1000,

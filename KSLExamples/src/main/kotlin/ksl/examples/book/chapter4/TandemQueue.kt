@@ -24,6 +24,11 @@ import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
+/**
+ * A two-stage tandem queue modeled with the KSL station package (chapter 4, event/station view). Arriving
+ * customers flow through a [SingleQStation] (station 1) then a second [SingleQStation] (station 2), wired
+ * by receiver routing, before exiting; collects number-in-system, total system time, and throughput.
+ */
 class TandemQueue(
     parent: ModelElement,
     name: String? = null

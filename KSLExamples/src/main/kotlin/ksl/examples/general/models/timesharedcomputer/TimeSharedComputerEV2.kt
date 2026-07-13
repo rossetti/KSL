@@ -10,6 +10,10 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * A second event-view formulation of the [TimeSharedComputerEV] round-robin time-shared computer model,
+ * modeling the CPU as a time-weighted state variable rather than an explicit in-service queue.
+ */
 class TimeSharedComputerEV2(
     parent: ModelElement,
     numJobs: Int = 1000,

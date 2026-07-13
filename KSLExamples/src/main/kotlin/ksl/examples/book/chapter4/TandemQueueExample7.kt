@@ -24,6 +24,12 @@ import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
+/**
+ * A two-stage station-based tandem queue ([TandemQueue]) in which the first station's activity time is
+ * carried by each customer (QObject) rather than fixed — arriving parts are randomly typed A or B and
+ * assigned that type's service-time random variable. Demonstrates per-entity activity times with
+ * [SingleQStation].
+ */
 class TandemQueueExample7(
     parent: ModelElement,
     name: String? = null
