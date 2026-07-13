@@ -7,6 +7,26 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import kotlin.math.ceil
 
+/**
+ * A continuous-review (r, Q) inventory policy modeled as a [ModelElement]. Inventory position is
+ * checked after every demand and every replenishment receipt; whenever it falls to or below the
+ * reorder point r, an order is placed in whole multiples of the reorder quantity Q to bring the
+ * position back above r. Demand that cannot be met from on-hand stock is backordered and filled
+ * (first-come-first-served) when replenishment arrives. Extends [Inventory] and realizes
+ * [RQInventoryCIfc].
+ *
+ * The reorder point, reorder quantity, and the per-order / unit-holding / unit-backorder costs are
+ * exposed as [KSLControl]s so they can be driven by parameter sweeps and simulation optimization.
+ * At each replication end the ordering, holding, backorder, ordering-and-holding, and total cost
+ * [Response]s are accumulated from the time-weighted on-hand, backorder, and order-frequency
+ * statistics.
+ *
+ * @param itemType the stock-keeping item this inventory carries
+ * @param reorderPt the reorder point r; an order is placed when inventory position <= r
+ * @param reorderQty the reorder quantity Q; must be > 0
+ * @param initialOnHand initial on-hand units (defaults to r + Q)
+ * @param inventoryFiller the upstream filler (e.g. a [LeadTimeReplenisher]) that supplies replenishment orders
+ */
 class RQInventory(
     parent: ModelElement,
     itemType: ItemType,
@@ -109,7 +129,7 @@ class RQInventory(
     }
 
     /**
-     *  @param param the 2 element array, where param[0] = reorder point and param[1] = order quantity
+     *  @param param the 2-element array, where element 0 is the reorder point and element 1 is the order quantity
      */
     override fun setInitialPolicyParameters(param: DoubleArray) {
         require(param.size == 2) { "There must be 2 parameters" }

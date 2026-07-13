@@ -2,6 +2,14 @@ package ksl.examples.general.models.inventory
 
 import ksl.simulation.ModelElement
 
+/**
+ * Base [ModelElement] for anything that originates demand within the inventory models. It owns the
+ * inner `Demand` type — a `QObject` carrying an item type, an original amount, the amount still
+ * needed versus already filled, the fill time, and the end customer (filled-demand receiver) — with
+ * a `fill()` method so a filler can satisfy demand incrementally (supporting partial fills and
+ * backorders). [Inventory], [ItemDemandGenerator], and the echelon models all create demand through
+ * this class.
+ */
 abstract class DemandCreator(
     parent: ModelElement,
     name: String? = null

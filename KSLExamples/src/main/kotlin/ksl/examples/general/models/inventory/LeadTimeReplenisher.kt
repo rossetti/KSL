@@ -6,6 +6,13 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * An [InventoryFillerIfc] that fills replenishment orders after a random lead time. When an inventory
+ * requests replenishment, this element schedules the delivery [leadTime] into the future, then fills
+ * the [DemandCreator.Demand] in full and hands it back to the ordering inventory's receiver. Models an
+ * uncapacitated upstream supplier that always fills, but not instantly — the supplier in
+ * [SingleEchelonRQInventory] and the top-of-chain supplier in [TwoEchelonModel].
+ */
 class LeadTimeReplenisher(
     parent: ModelElement,
     leadTimeRV: RVariableIfc,

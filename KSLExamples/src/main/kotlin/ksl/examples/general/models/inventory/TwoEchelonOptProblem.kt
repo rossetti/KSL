@@ -181,6 +181,14 @@ fun constrainedTwoEchelonProblemDefinition(
     return problemDefinition
 }
 
+/**
+ * A [ModelBuilderIfc] that builds the concrete, parameterized [TwoEchelonModel] used as the
+ * simulation-optimization benchmark: a single item (unit cost ~555.56), triangular supplier and
+ * DC-to-base shipping times, exponential inter-demand times, shifted-geometric demand sizes, and
+ * holding/backorder costs derived from carrying charges and fill-rate targets, run for 40
+ * replications with a warm-up. The evaluator and the problem definitions in this file drive its four
+ * integer decision variables (reorder point and reorder quantity at the DC and at the base).
+ */
 object BuildTwoEchelonModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
