@@ -60,7 +60,20 @@ fun main(args: Array<String>) {
     val chunks = raw
         .sortedWith(compareBy({ it.module }, { it.fqn }, { it.file }, { it.lineStart }, { it.signature }))
         .map { d ->
-            val base = "${d.module.lowercase()}-${d.fqn}"
+            // Example driver mains are all named "main" in a shared package — useless for display,
+            // for search (the name^4 field carries no signal and every main looks alike in results),
+            // and for stable ids (they collide on "<pkg>.main" and get order-dependent ~2/~3 suffixes).
+            // Give each the file's base name as its identity (e.g. "Ch7Example1", "MCExamples") — the
+            // name a student or agent refers to the example by, and a unique, stable fqn.
+            val exampleName = if (d.module == "KSLExamples" && d.kind == "fun" && d.name == "main")
+                d.file.substringAfterLast('/').removeSuffix(".kt") else null
+            val name = exampleName ?: d.name
+            val fqn = when {
+                exampleName == null -> d.fqn
+                d.pkg.isEmpty() -> exampleName
+                else -> "${d.pkg}.$exampleName"
+            }
+            val base = "${d.module.lowercase()}-$fqn"
             val n = seen.merge(base, 1, Int::plus)!!
             val id = if (n == 1) base else "$base~$n"
             val isType = d.kind !in setOf("fun", "extension_fun", "type alias")
@@ -68,8 +81,8 @@ fun main(args: Array<String>) {
                 id = id,
                 module = d.module,
                 kind = d.kind,
-                fqn = d.fqn,
-                name = d.name,
+                fqn = fqn,
+                name = name,
                 pkg = d.pkg,
                 signature = d.signature,
                 kdoc = d.kdoc?.ifBlank { null },
