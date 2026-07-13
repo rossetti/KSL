@@ -33,6 +33,11 @@ fun main(){
     m.simulate()
 }
 
+/**
+ * Example 6.3 — demonstrates a [HoldQueue]. Entities `hold` in the queue (passively suspended) and are
+ * later released together by an event calling `removeAllAndResume`, illustrating externally-controlled
+ * suspension and resumption of process-view entities. Console-traced.
+ */
 class HoldQExample(parent: ModelElement) : ProcessModel(parent, null)  {
 
     private val myHoldQueue: HoldQueue = HoldQueue(this, "hold")

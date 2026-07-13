@@ -12,6 +12,12 @@ fun main(){
     model.simulate()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with raw coroutine `suspend`/`resume` calls
+ * directly, rather than a higher-level primitive (Suspension, Signal, HoldQueue, and the like). One of a
+ * family of chapter-6 variants modeling the same mother/daughter rendezvous via different synchronization
+ * primitives.
+ */
 class SoccerMomViaRawSuspend(
     parent: ModelElement,
     name: String? = null

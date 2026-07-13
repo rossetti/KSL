@@ -13,6 +13,11 @@ fun main(){
     model.simulate()
 }
 
+/**
+ * A variant of the soccer-mom process-interaction scenario ([SoccerMomWithSuspensions]) that coordinates
+ * the mother and daughter using boolean state flags plus on-demand `Suspension` objects rather than
+ * pre-created ones. Same rendezvous around drop-off, play, errands, and pickup. Console-traced.
+ */
 class SoccerMomV3(
     parent: ModelElement,
     name: String? = null

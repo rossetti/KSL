@@ -38,6 +38,11 @@ fun main(){
     m.print()
 }
 
+/**
+ * Example 6.5 — demonstrates a [BlockingQueue] as a communication channel between processes. A sender
+ * process `send`s items into the bounded channel and a receiver process `waitForItems`; each side blocks
+ * when the channel is empty (the receiver) or full (the sender). Console-traced.
+ */
 class BlockingQExample(
     parent: ModelElement,
     name: String? = null

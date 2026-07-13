@@ -51,6 +51,12 @@ fun main(){
     m.print()
 }
 
+/**
+ * Example 6.1 — the drive-through pharmacy modeled in the process view (the process-view counterpart of
+ * the event-view Example 4.4). Each customer runs a coroutine process that seizes a [ResourceWithQ]
+ * pharmacist, delays for service, and releases, collecting number-in-system, time-in-system, throughput,
+ * and the probability that system time exceeds 4 minutes. The first and canonical KSL process-view model.
+ */
 class DriveThroughPharmacy(
     parent: ModelElement,
     numPharmacists: Int = 1,

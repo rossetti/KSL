@@ -12,6 +12,11 @@ fun main(){
     model.simulate()
 }
 
+/**
+ * The soccer-mom process-interaction scenario coordinated with `BlockingActivity` objects — timed
+ * activities that block other entities `waitFor`ing them for the activity's duration. One of a family of
+ * chapter-6 variants modeling the same mother/daughter rendezvous via different synchronization primitives.
+ */
 class SoccerMomViaBlockingActivity(
     parent: ModelElement,
     name: String? = null
