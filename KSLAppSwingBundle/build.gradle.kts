@@ -76,3 +76,21 @@ runtime {
 tasks.test {
     useJUnitPlatform()
 }
+
+// Doc tooling: capture real screenshots of the Bundle Workbench and its four tabs (Overview ·
+// Bundle identity · Models · Catalog) to PNG — the full-window images in
+// docs/guides/apps/bundle-workbench.md. Needs a real display, so run it under `xvfb-run`
+// (NOT headless). Point -Pbuilders at a plain builders JAR (e.g. KSLExamples' book-builders.jar).
+// Usage: xvfb-run -a ./gradlew :KSLAppSwingBundle:screenshotsBundle \
+//          -Pbuilders=<book-builders.jar> [-Pout=<dir> -Pw=1040 -Ph=760]
+tasks.register<JavaExec>("screenshotsBundle") {
+    group = "documentation"
+    description = "Capture real Bundle Workbench window screenshots (run under xvfb-run)."
+    dependsOn("testClasses")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("ksl.app.swing.bundle.CaptureBundleWindowsKt")
+    jvmArgs("-Xmx4g")
+    listOf("builders", "out", "w", "h").forEach { p ->
+        if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
+    }
+}

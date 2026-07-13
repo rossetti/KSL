@@ -361,54 +361,284 @@ The fields of `BenchmarkRunResult` worth knowing: `status`
 Failures are isolated: a cell whose solver throws records `FAILED` with the
 problem's bad solution and the error message; sibling cells are unaffected.
 
-## 8. The results database and analysis feeds
+## 8. The results database
 
-`BenchmarkResultsDb` is SQLite by default and **appends**: experiment and run
-ids are allocated past existing rows, and only missing tables are created — so
-successive experiments (including a later trace-enabled rerun) accumulate in
-one file. Pass `deleteIfExists = true` to start clean.
+This schema is documented nowhere else, so this section is a full reference:
+every table, every field, and — the part that matters for a study — what each
+one lets you *analyze*.
 
-| Table | One row per… | Content highlights |
-|---|---|---|
-| `tblExperiment` | experiment | name, timestamps, budget, macro-reps, confirmation/verification settings, traces flag |
-| `tblProblem` | problem × experiment | dimension, orientation, constraints, tags (JSON), reference, gap basis, winner |
-| `tblSolverCase` | solver case × experiment | label, description |
-| `tblSolverCaseParameter` | parameter | the flattened configuration that actually ran |
-| `tblRun` | cell | everything in `BenchmarkRunResult`, plus starting point and best inputs as JSON |
-| `tblConfirmation` | confirmed finalist | CRN-confirmed estimates, winner flag |
-| `tblIterationTrace` | trace point (opt-in) | run id, iteration, cumulative replications, best penalized objective |
-| `tblVerification` | response (opt-in) | the winner re-simulated at elevated replications |
+### 8.1 Storage, population, and identity
 
-Getting data back out:
+`BenchmarkResultsDb` is an ordinary KSL **SQLite** database (it extends
+`SQLiteDb`), written to `dbDirectory` (default `KSL.dbDir`). You populate it in
+one call after a run:
+
+```kotlin
+val db = BenchmarkResultsDb("pilotStudy.db", KSL.dbDir, deleteIfExists = false)
+val expId = db.saveSummary(summary, kslVersion = "R1.2.7")   // one BenchmarkSummary → one experiment
+```
+
+- **Append by default.** With `deleteIfExists = false`, an existing file is kept
+  and only missing tables are created, so successive `saveSummary` calls
+  accumulate. Pass `deleteIfExists = true` to start clean.
+- **Database-assigned ids.** `expId` (per experiment) and `runId` (per cell) are
+  allocated as `MAX(id) + 1` at save time. That is why a later trace-enabled
+  rerun of one problem lands under a *fresh* `expId`/`runId` beside the earlier
+  results instead of colliding with them. `expId` is the hub key on almost every
+  table; `runId` links a cell to its trace.
+
+### 8.2 How the tables relate
+
+Eight tables, hung off the experiment. Bracketed columns are the primary key;
+indentation is the parent → child (logical foreign-key) direction. There are no
+enforced foreign keys — the relationships are by shared column, so you join on
+them yourself.
 
 ```
-val db = BenchmarkResultsDb("pilotStudy.db", KSL.dbDir, deleteIfExists = false)
-db.experiments(); db.problems(expId); db.runs(expId); db.traces(expId); ...   // typed rows
+tblExperiment            [expId]
+├── tblProblem           [expId, problemName]
+│   ├── tblConfirmation  [expId, problemName, candidateNum]
+│   └── tblVerification  [expId, problemName, responseName]
+├── tblSolverCase        [expId, solverLabel]
+│   └── tblSolverCaseParameter  [expId, solverLabel, paramName]
+└── tblRun               [runId]   — the cell = expId × problemName × solverLabel × repNum
+    └── tblIterationTrace [runId, iteration]
+```
 
-// multiple-comparison feed: solver label -> final objectives across macro-reps
-val analyzer = db.mcbAnalyzer(expId, "LKInventory")     // MultipleComparisonAnalyzer or null
+`tblRun` is the fact table (one row per benchmark *cell*); the other seven give
+it the context — what experiment, what problem, what solver configuration — plus
+the two confirmation/verification stages and the opt-in convergence trace.
 
-// performance profile from traces: fraction of cells solved to within tau of the
-// gap basis, vs fraction of the budget consumed
+### 8.3 Table-by-table field reference
+
+Types: `Int?`/`Double?`/`Long?`/`String?` mark nullable columns; **PK** marks a
+primary-key column; **→ tbl…** marks a column you join on. Every `…Json` column
+is a `kotlinx.serialization` JSON object — an input point is a
+`{"inputName": value, …}` map of `Double`s; `tagsJson` is a `String`→`String`
+map.
+
+**`tblExperiment`** — one row per experiment (one `saveSummary`).
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId` | Int **PK** | The experiment id (DB-assigned). Every analysis starts by choosing one. |
+| `expName` | String | The experiment's name. |
+| `startTime`, `endTime` | String | Wall-clock start/end instants — elapsed study duration and provenance. |
+| `replicationBudgetPerRun` | Int | The equal replication budget each cell received. **The normalization basis** — every cross-solver comparison assumes this was equal, and `performanceProfile` divides by it. |
+| `macroReplications` | Int | Independent macro-replications per (problem, solver) cell — your statistical sample size for variance and confidence intervals. |
+| `numProblems`, `numSolverCases` | Int | The grid's shape (rows expected in `tblProblem` / `tblSolverCase`). |
+| `confirmationTopK` | Int? | Confirmation stage: how many finalists were re-raced (null ⇒ no confirmation stage ran). |
+| `confirmationReplications` | Int? | Replications per finalist in confirmation (null ⇒ none). |
+| `verificationReplications` | Int? | Replications used to re-simulate each winner (null ⇒ no verification). |
+| `tracesCaptured` | Boolean | Whether `tblIterationTrace` holds rows for this experiment — check before asking for convergence curves. |
+| `kslVersion` | String? | The KSL version you passed, for reproducibility. |
+
+*Use it to:* pick the `expId`; confirm budget parity before comparing; and learn
+which optional stages (confirmation, verification, traces) exist before querying
+them.
+
+**`tblProblem`** — one row per problem within an experiment. Without this table a
+run's numbers are uninterpretable (you can't orient them or compute a gap).
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId` | Int **PK** → tblExperiment | |
+| `problemName` | String **PK** | Join key to runs, confirmations, verifications. |
+| `dimension` | Int | Number of decision variables — a difficulty axis to stratify by. |
+| `optimizationType` | String | `"MINIMIZE"` or `"MAXIMIZE"`. **Sets the sign convention** — you must know it before comparing `bestObjective` values. |
+| `numResponseConstraints` | Int | Number of stochastic constraints; `> 0` means feasibility (not just objective) decides the winner. |
+| `tagsJson` | String? | JSON map of problem tags (e.g. `noiseLevel`) — your controlled study factors, for stratifying results. |
+| `referenceType` | String? | `KNOWN_OPTIMUM` or `BEST_KNOWN` when the problem has a real reference; null when the basis is the experiment's best-found. |
+| `referenceObjective` | Double? | The reference's objective value (null for best-found). |
+| `referenceInputsJson` | String? | Reserved by the schema; the current writer leaves it null. |
+| `gapType` | String? | The basis a run's `gap` was measured against: `KNOWN_OPTIMUM`, `BEST_KNOWN`, or `BEST_FOUND` (relative gap, where the best run is 0 by construction). |
+| `gapBasisObjective` | Double? | The numeric basis value gaps are computed from — populated for *all* gap types (it is what `performanceProfile` tests against). |
+| `winnerInputsJson` | String? | The problem's winning input point (JSON map). |
+| `winnerObjective` | Double? | The winner's objective on the natural (model) scale. |
+
+*Use it to:* orient objectives correctly; recompute or sanity-check gaps against
+the right basis; slice results by dimension, constraint count, or tag; and read
+off the per-problem winner.
+
+**`tblSolverCase`** — one row per solver configuration in the experiment.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId` | Int **PK** → tblExperiment | |
+| `solverLabel` | String **PK** | The case's label — the join key wherever a run or parameter names a solver. |
+| `description` | String | Human-readable description of the configuration. |
+
+**`tblSolverCaseParameter`** — one row per configuration property of a solver
+case, flattened from **the first solver instance the case actually built** — the
+configuration that ran, not what was assumed.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId`, `solverLabel` | Int, String **PK** → tblSolverCase | |
+| `paramName` | String **PK** | The property name. |
+| `paramValue` | String | Its value, stringified. |
+
+*Use it to:* attribute a performance difference to a specific setting (e.g.
+`maxIterations`, a mutation rate); audit that budgets/parameters were what you
+intended; and reproduce a case exactly.
+
+**`tblRun`** — **the fact table.** One row per *cell*: one solver case run once
+(one macro-replication) on one problem under the experiment's budget.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `runId` | Int **PK** | Cell id (DB-assigned); links to `tblIterationTrace`. |
+| `expId` | Int → tblExperiment | |
+| `problemName` | String → tblProblem | |
+| `solverLabel` | String → tblSolverCase | The three columns above locate the cell in the grid. |
+| `repNum` | Int | Macro-replication index — the statistical replication key; group by it for means/variances/CIs. |
+| `cellLabel` | String | Stable composite label (solver × problem × rep) — the key that lines traces up with runs. |
+| `status` | String | Cell outcome: `COMPLETED`, `FAILED`, or `STOPPED_BEFORE_START`. **Filter to `COMPLETED` before comparing.** |
+| `startingPointJson` | String | The run's starting point (JSON map) — check whether starts were controlled or randomized. |
+| `bestInputsJson` | String | The run's best input point (JSON map) — recompute a *true* objective here for synthetics. |
+| `bestObjective` | Double | Best objective on the natural scale, from the solver's estimate. The primary quality number when a gap basis is absent. |
+| `bestPenalizedObjective` | Double | Best minimization-oriented penalized objective (objective + constraint penalties) — the internal search key. |
+| `bestValid` | Boolean | Whether the returned best is a valid solution. |
+| `inputFeasible` | Boolean | Whether the best point satisfies the deterministic (input/linear/functional) constraints. |
+| `responseConstraintViolation` | Double | Total response-constraint violation at the best point (0 ⇒ feasible). |
+| `numOracleCalls` | Int | Distinct simulation (oracle) calls consumed — the cache-adjusted work done. |
+| `numReplicationsRequested` | Int | Total replications requested — **the effort currency**; normalize quality by this, not by the nominal budget (batch solvers overshoot by up to a generation). |
+| `totalIterations` | Int? | Solver iterations (null if the solver doesn't report them). |
+| `wallClockMillis` | Long? | Wall-clock time — machine-dependent, so a secondary (not the fair) cost axis. |
+| `gap` | Double? | Optimality gap versus the problem's basis; larger is worse, and for `BEST_FOUND` the best run is 0. Null when the problem has no basis. |
+| `gapType` | String? | Which basis this run's gap used (mirrors the problem's `gapType`). |
+| `errorMessage` | String? | Failure detail when `status` is not `COMPLETED`. |
+
+*Use it to:* almost everything. Group by `solverLabel` within a problem to rank
+quality (`bestObjective`/`gap`); gate on `status`, `bestValid`, `inputFeasible`,
+and `responseConstraintViolation` for admissibility (a great objective on an
+infeasible point is not a win); measure reliability by counting non-`COMPLETED`
+rows per solver; and check effort parity or compute quality-per-replication from
+`numReplicationsRequested`.
+
+**`tblConfirmation`** — one row per confirmed finalist of a problem's
+confirmation stage (present only when confirmation ran).
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId`, `problemName` | Int, String **PK** → tblProblem | |
+| `candidateNum` | Int **PK** | 1-based finalist index. |
+| `inputsJson` | String | The finalist's input point. |
+| `objective` | Double | Its CRN-confirmed objective estimate (re-raced at higher replication under common random numbers). |
+| `penalizedObjective` | Double | Its CRN-confirmed penalized objective. |
+| `numReplications` | Double | Replications behind the confirmed estimate. |
+| `isWinner` | Boolean | Whether this finalist is the confirmed winner. |
+
+*Use it to:* make **statistically defensible** winner statements. A single macro-
+replication's "best" is partly luck; the confirmation stage re-races the top
+finalists together under CRN, so `isWinner` here (and the margin between
+finalists) is the number to report.
+
+**`tblIterationTrace`** — one row per captured iteration of a run's trace
+(opt-in via `captureIterationTraces`). The raw material for convergence curves.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `runId` | Int **PK** → tblRun | |
+| `iteration` | Int **PK** | Iteration index; `0` is the initialized state. |
+| `cumulativeReplications` | Int | Replications consumed through this iteration — the **x-axis** (budget) for a convergence plot. |
+| `bestPenalizedObjective` | Double | Best penalized objective so far — the **y-axis**. |
+
+*Use it to:* plot *how fast* each solver improved (not just where it ended);
+compute time-to-target; and drive `performanceProfile` (§8.4).
+
+**`tblVerification`** — one row per response of a problem's verification stage
+(opt-in). The winner re-simulated at `verificationReplications`.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId`, `problemName` | Int, String **PK** → tblProblem | |
+| `responseName` | String **PK** | The objective response or a constraint response name. |
+| `inputsJson` | String | The winner's input point (identical across the problem's rows). |
+| `average` | Double | High-replication mean of this response at the winner. |
+| `variance` | Double | Its sample variance. |
+| `count` | Double | Replications behind it. |
+
+*Use it to:* independently confirm the winner's *true* objective at high `N`, and
+— crucially for constrained problems — check that each constraint response
+actually satisfies its bound at high replication (feasibility the single-run
+estimate may have missed). `variance`/`count` give you a confidence interval.
+
+### 8.4 Built-in analysis feeds
+
+`BenchmarkResultsDb` returns typed rows (one accessor per table) and three
+higher-level feeds:
+
+```kotlin
+// Typed rows (each optionally scoped to one experiment):
+db.experiments(); db.problems(expId); db.solverCases(expId); db.solverCaseParameters(expId)
+db.runs(expId); db.confirmations(expId); db.verifications(expId); db.traces(expId)
+
+// Multiple-comparison-with-the-best feed for one problem:
+//   solverLabel -> final objectives (or gaps) across the COMPLETED, valid macro-reps.
+val dataMap = db.mcbDataMap(expId, "LKInventory", useGaps = false)
+val analyzer = db.mcbAnalyzer(expId, "LKInventory")  // MultipleComparisonAnalyzer, or null if
+                                                     // < 2 cases or unequal observation counts
+
+// Performance (data) profile from captured traces: for each solver and each budget
+// fraction, the fraction of cells that reached the gap basis + tau by that fraction of
+// the budget. Returns List<PerformanceProfilePoint>(solverLabel, budgetFraction, fractionSolved).
 val profile = db.performanceProfile(expId, tau = 2.0, numPoints = 10)
 ```
 
-The **trace-enabled rerun** pattern (validated in the pilot): run the big grid
-without traces (they grow with the budget), then rerun just the problem you
-want convergence curves for with `captureIterationTraces = true` and save into
-the *same* database — the traces land under the new experiment's run ids and
-the old results are untouched.
+- `mcbDataMap` / `mcbAnalyzer` answer *"which solver is best on this problem, with
+  statistical support?"* — they feed KSL's `MultipleComparisonAnalyzer`. The
+  analyzer needs an equal number of observations per solver, so trim failed cells
+  first (`mcbDataMap` already keeps only `COMPLETED` + `bestValid` rows).
+- `performanceProfile` answers *"which solver reaches good solutions fastest,
+  across the whole problem set?"* It requires captured traces and a gap basis;
+  runs missing either are skipped.
 
-Two honesty rules for analysis:
+### 8.5 Generic SQL, DataFrame, and Excel access
 
-- **Do not crown winners from raw point estimates.** On noisy problems the
-  recorded per-run gap (computed from the solver's *estimated* best) is
-  biased optimistic — the estimate that looks best is partly the luckiest.
-  Use the confirmation outcome and the verification re-simulation for
-  winner statements; for synthetics you can also recompute the *true*
-  objective at the stored best inputs.
-- **Normalize by actual consumption** (`numReplicationsRequested`), not by the
+The typed helpers are conveniences over a normal KSL SQLite database, so the full
+`DatabaseIfc` surface is available for anything they don't cover — arbitrary
+`JOIN`s, cross-experiment queries, or export:
+
+```kotlin
+db.printAllTablesAsText()                              // quick console dump of every table
+val rs = db.selectAll("tblRun")                        // any table as a CachedRowSet
+db.exportToExcel(null, "pilotStudy.xlsx", KSL.excelDir) // every table to a workbook
+// Any query into a Kotlin DataFrame for slicing/plotting:
+val frame = DatabaseIfc.toDataFrame(db.fetchOpenResultSet("SELECT * FROM tblRun WHERE gap IS NOT NULL")!!)
+```
+
+The database file itself is plain SQLite, so external tools (the `sqlite3` CLI,
+DB Browser, pandas, R's `DBI`) open it directly.
+
+### 8.6 Turning fields into answers
+
+| Question | Where to look |
+|---|---|
+| Which solver wins this problem, defensibly? | `tblConfirmation.isWinner`; or `mcbAnalyzer(expId, problem)` over `tblRun` |
+| How close to optimal did each run get? | `tblRun.gap` (with `tblProblem.gapType`/`gapBasisObjective` for the basis) |
+| Is the "winning" point actually feasible? | `tblRun.inputFeasible` + `responseConstraintViolation`, confirmed by `tblVerification` |
+| Which solver improves fastest? | `tblIterationTrace` curves, or `performanceProfile` |
+| Was the comparison fair (equal effort)? | `tblExperiment.replicationBudgetPerRun` vs each `tblRun.numReplicationsRequested` |
+| Why did a solver behave that way? | `tblSolverCaseParameter` (the config that ran) |
+| How reliable is a solver? | count of `tblRun.status != 'COMPLETED'` per `solverLabel`, with `errorMessage` |
+| What is the winner's true performance? | `tblVerification.average`/`variance`/`count` (high-`N`, independent) |
+
+Two honesty rules run through all of the above:
+
+- **Do not crown winners from raw point estimates.** On noisy problems the per-run
+  `gap` (computed from the solver's *estimated* best) is optimistically biased —
+  the estimate that looks best is partly the luckiest. Use `tblConfirmation` and
+  `tblVerification` for winner statements; for synthetics, recompute the *true*
+  objective at `bestInputsJson`.
+- **Normalize by actual consumption** (`numReplicationsRequested`), not the
   nominal budget — batch solvers overshoot by up to one generation.
+
+The **trace-enabled rerun** pattern (validated in the pilot): run the big grid
+without traces (they grow with the budget), then rerun just the problem you want
+convergence curves for with `captureIterationTraces = true` and `saveSummary`
+into the *same* database — the traces land under the new experiment's run ids and
+the old results are untouched.
 
 ## 9. The synthetic problem ladder
 
