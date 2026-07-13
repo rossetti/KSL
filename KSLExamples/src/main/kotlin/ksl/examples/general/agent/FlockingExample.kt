@@ -187,6 +187,11 @@ class FlockingExample(parent: ModelElement, name: String? = null) :
 
     private var nextId: Int = 0
 
+    /**
+     * A boid agent in the [FlockingExample]: an `Agent` whose script advances one Euler time step under the
+     * three Reynolds flocking forces (separation, alignment, cohesion) each `dt`, moving through a toroidal
+     * continuous 2D space. The classic boids flocking model.
+     */
     inner class Boid : Agent("boid-${++nextId}") {
         val script: KSLProcess = process(isDefaultProcess = true) {
             while (true) {

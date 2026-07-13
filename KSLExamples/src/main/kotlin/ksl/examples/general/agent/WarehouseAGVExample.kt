@@ -497,6 +497,11 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
 
     // ── Task generator ─────────────────────────────────────────────────────
 
+    /**
+     * The task-generating agent in the [WarehouseAGVExample]: an `Agent` whose script creates pallet
+     * transport tasks (random passable pickup and drop-off cells) at random inter-arrival times and sends
+     * each to the AGV dispatcher's mailbox as an agent message.
+     */
     inner class TaskGenerator : Agent("taskGen") {
         val script: KSLProcess = process(isDefaultProcess = true) {
             val rng = defaultRNStream

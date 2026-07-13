@@ -148,6 +148,10 @@ class BuildingEvacuationExample(parent: ModelElement, name: String? = null) :
 
     private var nextId: Int = 0
 
+    /**
+     * A pedestrian agent in the [BuildingEvacuationExample]: an `Agent` whose script navigates from its
+     * current location toward a building exit, modeling agent-based crowd egress.
+     */
     inner class Pedestrian : Agent("ped-${++nextId}") {
         private val createdAt: Double = currentTime
 
