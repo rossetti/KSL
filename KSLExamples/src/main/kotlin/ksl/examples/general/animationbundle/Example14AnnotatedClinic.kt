@@ -90,6 +90,11 @@ class AnnotatedClinic(parent: ksl.simulation.ModelElement, name: String? = "Clin
     private fun vipArrival(e: KSLEvent<Nothing>) { activate(VipPatient().vipVisit); schedule(this::vipArrival, tbaVip) }
     private fun cleaning(e: KSLEvent<Nothing>) { activate(Janitor().clean); schedule(this::cleaning, 60.0) }
 
+    /**
+     * A regular patient in the [AnnotatedClinic] animation-discovery example — a declared animatable
+     * entity type (via `entityType<Patient>()`) whose annotated `visit` process (seize the nurse, delay,
+     * release) is captured in the animation trace.
+     */
     inner class Patient : Entity() {
         @KSLAnimatedProcess(name = "visit")
         val visit = process(processName = "visit") {
@@ -97,6 +102,11 @@ class AnnotatedClinic(parent: ksl.simulation.ModelElement, name: String? = "Clin
         }
     }
 
+    /**
+     * A VIP patient in the [AnnotatedClinic] animation-discovery example — a second declared animatable
+     * entity type (via `entityType<VipPatient>()`) with its own annotated `vipVisit` process, arriving
+     * less frequently than a regular [Patient].
+     */
     inner class VipPatient : Entity() {
         @KSLAnimatedProcess(name = "vipVisit")
         val vipVisit = process(processName = "vipVisit") {
