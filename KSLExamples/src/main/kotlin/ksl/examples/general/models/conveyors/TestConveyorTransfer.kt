@@ -13,6 +13,13 @@ import ksl.utilities.Identity
 import ksl.utilities.io.MarkDown
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * A two-stage tandem queue in which parts transfer between two conveyors. A part requests [Conveyor]
+ * conveyor1 at the entry, rides to station 1 and is served by worker1 (a [ResourceWithQ]), then uses
+ * `transferTo` to move onto conveyor2, rides through station 2 (served by worker2) and on to the exit
+ * before releasing the conveyor. Demonstrates handing an entity off from one conveyor to another
+ * mid-process. Related to the chapter-8 [TandemQueueWithConveyors].
+ */
 class TestConveyorTransfer (
     parent: ModelElement,
     conveyorType: Conveyor.Type = Conveyor.Type.ACCUMULATING,
