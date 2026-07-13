@@ -11,6 +11,12 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * Example 7.1 — a two-stage **tandem queue** in the process view: customers arrive, are served by
+ * `worker1` then `worker2` (each a [ResourceWithQ]), and leave. Two equivalent formulations are shown —
+ * [TandemQueue] with explicit `seize`/`delay`/`release`, and [TandemQueueV2] using the `use()` shorthand —
+ * run for 30 replications with a warm-up, reporting number-in-system and time-in-system.
+ */
 fun main(){
 
 //    version1()

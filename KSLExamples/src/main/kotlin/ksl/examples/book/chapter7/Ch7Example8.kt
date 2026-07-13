@@ -4,6 +4,10 @@ import ksl.simulation.Model
 import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 
+/**
+ * Example 7.8 — runs the [WalkInHealthClinic] process model (triage, a prioritized doctor queue with
+ * balking and reneging) for 30 replications and writes the half-width summary report as Markdown.
+ */
 fun main(){
     val m = Model()
     WalkInHealthClinic(m, "Walk-In Clinic")
