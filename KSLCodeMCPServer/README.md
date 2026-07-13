@@ -57,17 +57,17 @@ Manual configuration for any other agent — add to its MCP servers config (Clau
 
 ## Building
 
-Requires JDK 21. Build from **this** directory (it is a standalone Gradle project, not part
-of the KSL root build):
+Requires JDK 21. It is a **module of the KSL root build** (`:KSLCodeMCPServer`); build it from
+the KSL repository root:
 
 ```bash
-./gradlew generateCodeContent   # parse ../KSLCore + ../KSLExamples into build/generated/code/
-./gradlew test                  # unit + index tests
-./gradlew shadowJar             # build/libs/ksl-code-mcp.jar
+./gradlew :KSLCodeMCPServer:generateCodeContent   # parse KSLCore + KSLExamples into build/generated/code/
+./gradlew :KSLCodeMCPServer:test                  # unit + index tests
+./gradlew :KSLCodeMCPServer:shadowJar             # KSLCodeMCPServer/build/libs/ksl-code-mcp.jar
 ```
 
-`generateCodeContent` reads the sibling `../KSLCore/src/main/kotlin` and
-`../KSLExamples/src/main/kotlin` source trees. It prints a summary (declaration counts by
+`generateCodeContent` reads the sibling `KSLCore/src/main/kotlin` and
+`KSLExamples/src/main/kotlin` source trees. It prints a summary (declaration counts by
 module and kind, KDoc coverage, example cross-links) and fails on duplicate ids. Generated
 content is never committed; it is rebuilt from source on every build.
 
@@ -77,7 +77,7 @@ The bundled index corresponds to a specific KSL git ref, used in the citation UR
 reported by `get_server_info`. Pin it for a course build:
 
 ```bash
-./gradlew -PkslVersion=v2.0.1 shadowJar
+./gradlew :KSLCodeMCPServer:shadowJar -PkslVersion=v2.0.1
 ```
 
 Default is `develop`. For a course, check out the KSL tag your `build.gradle` depends on,
