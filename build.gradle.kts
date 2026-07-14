@@ -118,6 +118,15 @@ val kslServers: List<Triple<Project, String, List<Pair<String, String>>>> = list
     Triple(evaluationDependsOn(":KSLServerRest"), "rest", emptyList()),
 )
 
+// Standalone MCP servers: (project, Servers/<dir>). Self-contained fat shadowJars that share
+// NOTHING with the KSL runtime stack (MCP SDK + Lucene, no KSLCore) — no lib/, no server-lib/.
+// ksl-book bakes in the git-ignored _book/ render (empty content if absent); ksl-code bakes a
+// Lucene index of KSL source built at assembly time (pinned via -PkslVersion, default develop).
+val kslStandaloneServers: List<Pair<Project, String>> = listOf(
+    evaluationDependsOn(":KSLCodeMCPServer") to "code",
+    evaluationDependsOn(":KSLBookServer") to "book",
+)
+
 // Launchers generated from templates. "DOLLAR" stands in for a literal shell '$' so the Kotlin
 // string needs no per-character escaping; it is substituted back at the end. The app launcher
 // runs a thin `-cp lib/*:App.jar Main`; the CLI launcher runs a self-contained `-jar tool.jar`.
@@ -207,6 +216,10 @@ tasks.register("assembleKSLWork") {
         dependsOn(server.tasks.named("jar"))
         inputs.files(server.configurations.named("runtimeClasspath"))
     }
+    kslStandaloneServers.forEach { (server, _) ->
+        dependsOn(server.tasks.named("shadowJar"))
+        inputs.files(server.tasks.named("shadowJar"))
+    }
     outputs.dir(kslWorkDir)
     doLast {
         val root = kslWorkDir.get().asFile
@@ -276,7 +289,17 @@ tasks.register("assembleKSLWork") {
             if (overrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   $dir server-lib/ overrides -> ${overrides.joinToString(", ")}")
         }
 
+        // Standalone MCP servers: self-contained fat shadowJar + a pass-through launcher (system
+        // Java, no shared lib/). ksl-book's content depends on _book/ being rendered at build time.
+        kslStandaloneServers.forEach { (server, dir) ->
+            val name = "ksl-$dir-mcp"
+            val sdir = root.resolve("Servers/$dir").apply { mkdirs() }
+            jarOf(server.tasks.named("shadowJar")).copyTo(sdir.resolve("$name.jar"), overwrite = true)
+            sdir.resolve(name).apply { writeText(cliLauncher(name, jvmArgsOf(server))); setExecutable(true) }
+            logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
+        }
+
         logger.lifecycle("assembleKSLWork: shared lib/ = ${libDir.listFiles()?.size ?: 0} jars; " +
-            "${kslAppTargets.size} apps; kslpkg (fat); ${kslServers.size} servers (thin)")
+            "${kslAppTargets.size} apps; kslpkg (fat); ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers")
     }
 }
