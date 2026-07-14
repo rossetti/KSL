@@ -1,56 +1,60 @@
 # Releasing the KSL Book MCP Server
 
-A plain-language guide to how this gets built and published. The moving parts:
+A short, manual process — there is **no book-specific CI**. (Folding the Book server into the
+one-command KSL installer is being designed separately under the KSL distribution plan; until
+then, releases are built and published by hand as described here.)
 
-- **`develop` branch** — where work happens. Pushing here never publishes anything.
-- **`main` branch** — the published book (`docs/`) and the source of student releases.
-- **The workflow** (`.github/workflows/build-mcp.yml`) — GitHub runs it automatically;
-  it builds the jar, runs all tests, and (only from `main`) publishes releases.
-- **Releases** — the repo's Releases page, where students download `ksl-book-mcp.jar`.
+## Prerequisites
 
-## Day to day (nothing publishes)
+- JDK 21.
+- A rendered Quarto book in the repo-root `_book/` (git-ignored). Render the book with
+  `quarto render` and copy its `_book/` output into the KSL repo root. The jar bakes this
+  content in at build time, so a build **without** `_book/` produces an empty (non-functional)
+  jar rather than failing.
 
-Work on `develop` and push. No release happens. To check that CI is happy with your
-changes before merging, open a pull request from `develop` to `main` on GitHub — the
-workflow runs build + tests on the PR and attaches the jar to the run (Actions tab →
-click the run → "Artifacts") so you can download and try it without publishing anything.
+## Build the jar
 
-## Publishing the rolling build (first release and every update)
+From the KSL repo root:
 
-1. On GitHub, open a pull request: base `main`, compare `develop`. Review, then
-   click **Merge**. (Command line alternative:
-   `git checkout main && git merge develop && git push`.)
-2. That push to `main` triggers the workflow automatically. When it finishes
-   (Actions tab, green check), the **`book-mcp-latest`** release exists/updates:
-   `https://github.com/rossetti/KSLBook/releases/download/book-mcp-latest/ksl-book-mcp.jar`
-3. That's it. Every later push to `main` that touches `docs/` or `mcp-server/`
-   refreshes this rolling release — including your normal book-HTML updates.
+```bash
+./gradlew :KSLBookServer:shadowJar
+```
 
-The rolling link is for your own testing. Don't put it in a syllabus; it changes
-whenever the book changes.
+Output: `KSLBookServer/build/libs/ksl-book-mcp.jar`. Verify it:
 
-## Cutting a semester release (the syllabus link)
+```bash
+java -jar KSLBookServer/build/libs/ksl-book-mcp.jar --doctor
+```
 
-When you're happy with the rolling build:
+`--doctor` prints the version and content stats (chunk / exercise / chapter counts) and
+confirms the bundled book loads. If it reports **0 chunks**, `_book/` was missing or empty at
+build time — render it, copy it in, and rebuild.
 
-1. GitHub → **Actions** tab → select **"Build KSL Book MCP JAR"** in the left sidebar.
-2. Click **"Run workflow"** (right side), type a tag like `book-mcp-f26` into the
-   `release_tag` box, click the green **Run workflow** button.
-3. When the run goes green, the pinned release exists:
-   `https://github.com/rossetti/KSLBook/releases/download/book-mcp-f26/ksl-book-mcp.jar`
-4. Put that URL in the syllabus. It never changes underneath students — later pushes
-   to `main` only touch `book-mcp-latest`, not semester tags.
+## Install locally
 
-To update a semester release mid-semester (e.g. a bug fix you want students to get),
-run the workflow again with the same tag — it replaces the jar at the same URL.
-Students re-download and re-run `--setup`.
+The jar self-installs into MCP clients:
 
-## Fixing mistakes
+```bash
+java -jar ksl-book-mcp.jar --setup     # wire detected Claude Desktop / Codex (console)
+java -jar ksl-book-mcp.jar --gui       # setup window (also: double-click the jar)
+java -jar ksl-book-mcp.jar --remove    # un-register cleanly (client configs are backed up)
+```
 
-- **Delete a release:** Releases page → click the release → Delete (trash icon), then
-  delete its tag under Tags. Re-run the workflow to recreate it.
-- **A red X on the workflow run:** click the run → click the failed step to read the
-  log. Nothing was published if the build or tests failed — releases only happen after
-  both pass.
-- **Released too early:** delete the release as above; the jar is gone from the
-  download URL immediately.
+## Distribute to students (optional)
+
+Attach the jar to a GitHub Release by hand, e.g.:
+
+```bash
+gh release create book-mcp-f26 KSLBookServer/build/libs/ksl-book-mcp.jar
+```
+
+…or share the file directly (course LMS, shared drive). Students download it and run `--setup`
+(or double-click the jar).
+
+## The coupling to remember
+
+Rebuild and redistribute the jar **whenever you re-render the book** — chunk content and the
+citation URLs are baked into the jar at build time. The citation URLs point at the book's
+GitHub Pages site (`https://rossetti.github.io/KSLBook/…`), so they resolve in a browser only
+after the **matching** render is published there (the `KSLBook` repo's `docs/`). Publish the
+render and rebuild the jar together, so the bundled anchors and the live site agree.
