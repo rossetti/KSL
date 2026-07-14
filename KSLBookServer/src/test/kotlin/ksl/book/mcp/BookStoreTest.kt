@@ -14,7 +14,7 @@ class BookStoreTest {
 
     companion object {
         // D3 graceful degradation: skip when the book was not rendered into _book/
-        // at build time (empty bundled content); the parser port re-pins assertions.
+        // at build time (empty bundled content).
         @JvmStatic
         @BeforeAll
         fun requireBookContent() =
@@ -30,7 +30,7 @@ class BookStoreTest {
     @Test
     fun `finds sections by number and by id`() {
         val byNumber = store.find("4.4.4")
-        val byId = store.find("introDEDSPharmacy")
+        val byId = store.find("sec-introDEDSPharmacy")
         assertNotNull(byNumber)
         assertEquals(byNumber, byId)
         assertEquals("Modeling a Simple Queueing System", byNumber.title)
@@ -40,7 +40,10 @@ class BookStoreTest {
     @Test
     fun `chapters are in book order with letters after numbers`() {
         val numbers = store.chapters.map { it.number }
-        assertEquals(listOf("1","2","3","4","5","6","7","8","9","10","A","B","C","D","E","F","G"), numbers)
+        assertEquals(
+            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "A", "B", "C", "D", "E", "F"),
+            numbers,
+        )
         assertTrue(store.chapters.all { it.sectionCount > 0 })
     }
 

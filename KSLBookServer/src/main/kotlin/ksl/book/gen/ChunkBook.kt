@@ -8,7 +8,7 @@ import java.io.File
 const val BASE_URL = "https://rossetti.github.io/KSLBook"
 
 /**
- * Build-time content generator: parses the rendered bookdown HTML in docs/
+ * Build-time content generator: parses the rendered Quarto HTML in _book/
  * into chunks.json + exercises.json, which get bundled into the server jar.
  *
  * Usage: ChunkBookKt <docsDir> <outputDir> [topicsFile]
@@ -36,17 +36,28 @@ fun main(args: Array<String>) {
         .associate { it.level!! to it.title }
 
     val chunker = PageChunker(docsDir, BASE_URL, HtmlToMarkdown(BASE_URL))
-    val raw = mutableListOf<RawChunk>()
+    val collected = mutableListOf<RawChunk>()
     val exercises = mutableListOf<ksl.book.mcp.BookExercise>()
-    for (page in toc.map { it.path }.distinct()) {
-        val (c, e) = chunker.process(page)
-        raw += c
+    for (entry in toc) {
+        val (c, e) = chunker.process(entry)
+        collected += c
         exercises += e
     }
 
-    // ids must be unique — they are the retrieval keys and URL anchors
+    // Quarto section ids are page-local: "summary"/"exercises" repeat across
+    // chapters. Keep the raw id as the URL anchor, but disambiguate the retrieval
+    // id where it collides (prefix with the chapter, e.g. "4-exercises").
+    val idCounts = collected.groupingBy { it.id }.eachCount()
+    val raw = collected.map { c ->
+        if (idCounts.getValue(c.id) > 1) {
+            val qualifier = c.number?.substringBefore('.') ?: c.page.substringBeforeLast(".html")
+            c.copy(id = "$qualifier-${c.id}")
+        } else c
+    }
+
+    // ids must be unique — they are the retrieval keys
     val dupes = raw.groupBy { it.id }.filterValues { it.size > 1 }.keys
-    require(dupes.isEmpty()) { "duplicate chunk ids: $dupes" }
+    require(dupes.isEmpty()) { "duplicate chunk ids after disambiguation: $dupes" }
 
     val byNumber = raw.filter { it.number != null }.associateBy { it.number!! }
     val chunks = raw.mapIndexed { i, c ->
@@ -59,7 +70,7 @@ fun main(args: Array<String>) {
             chapter = chapter,
             chapterTitle = chapter?.let { chapterTitles[it] },
             page = c.page,
-            url = "$BASE_URL/${c.page}#${c.id}",
+            url = if (c.anchor.isEmpty()) "$BASE_URL/${c.page}" else "$BASE_URL/${c.page}#${c.anchor}",
             prevId = raw.getOrNull(i - 1)?.id,
             nextId = raw.getOrNull(i + 1)?.id,
             parentId = parentIdOf(c.number, byNumber),

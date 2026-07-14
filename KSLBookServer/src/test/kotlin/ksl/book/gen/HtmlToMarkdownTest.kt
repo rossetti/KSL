@@ -47,9 +47,9 @@ class HtmlToMarkdownTest {
     fun `figures become absolute image links`() {
         val html = """
             <div id="f" class="section level3"><h3>Fig</h3>
-            <div class="figure"><span style="display:block;" id="fig:x"></span>
-            <img src="figures2/ch4/kslModeling.png" alt="Alt text"  />
-            <p class="caption">Figure 4.5: KSL Packages</p></div></div>
+            <figure class="quarto-float quarto-float-fig figure">
+            <div><img src="figures2/ch4/kslModeling.png" class="img-fluid figure-img" alt="Alt text"></div>
+            <figcaption>Figure 4.5: KSL Packages</figcaption></figure></div>
         """.trimIndent()
         val out = convert(html)
         assertTrue(

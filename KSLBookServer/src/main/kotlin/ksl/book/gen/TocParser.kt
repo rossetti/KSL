@@ -4,32 +4,29 @@ import org.jsoup.Jsoup
 import java.io.File
 
 /**
- * A sidebar TOC entry from index.html. [level] is the section number string
- * ("4", "4.4", "A.2") or null for front-matter pages.
+ * A sidebar TOC entry from index.html. [level] is the chapter number/letter
+ * ("4", "A") or null for front-matter pages (Preface, About the Author,
+ * References). Filenames come only from the sidebar, never derived from titles.
  */
 data class TocEntry(val level: String?, val path: String, val title: String)
 
 object TocParser {
 
     /**
-     * Parses the gitbook sidebar TOC (`li.chapter` entries) from index.html.
-     * This is the canonical ordered list of all pages; filenames must never
-     * be derived from titles.
+     * Parses the Quarto sidebar (nav#quarto-sidebar) from index.html into the
+     * canonical ordered list of pages. Chapter/appendix links carry a
+     * chapter-number and chapter-title span; front-matter links carry only a
+     * menu-text span. This is the single source of page order and filenames.
      */
     fun parse(indexHtml: File): List<TocEntry> {
         val doc = Jsoup.parse(indexHtml, "UTF-8")
-        return doc.select("li.chapter").map { li ->
-            val level = li.attr("data-level").ifEmpty { null }
-            val path = li.attr("data-path")
-            require(path.isNotEmpty()) { "li.chapter without data-path: ${li.outerHtml().take(120)}" }
-            val anchor = li.selectFirst("> a")
-            val title = if (anchor != null) {
-                val a = anchor.clone()
-                a.select("b").forEach { it.remove() } // leading section number
-                a.text().trim()
-            } else {
-                li.ownText().trim()
-            }
+        return doc.select("nav#quarto-sidebar a.sidebar-link[href\$=.html]").map { a ->
+            val path = a.attr("href").removePrefix("./")
+            require(path.isNotEmpty()) { "sidebar link without href: ${a.outerHtml().take(120)}" }
+            val level = a.selectFirst("span.chapter-number")?.text()?.trim()?.ifEmpty { null }
+            val title = a.selectFirst("span.chapter-title")?.text()?.trim()
+                ?: a.selectFirst("span.menu-text")?.text()?.trim()
+                ?: a.text().trim()
             TocEntry(level, path, title)
         }
     }

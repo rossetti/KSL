@@ -28,8 +28,12 @@ class HtmlToMarkdown(private val baseUrl: String) {
             return "KSLMDBLOCK${stash.size - 1}X"
         }
 
-        // bookdown's self-link anchors on every heading
-        el.select("a.anchor-section").forEach { it.remove() }
+        // Quarto heading anchor decorations (anchorjs) + the section-identifier
+        // span wrapping heading text; unwrap so the heading text converts cleanly
+        el.select("a.anchorjs-link").forEach { it.remove() }
+        el.select("span.quarto-section-identifier").forEach { it.unwrap() }
+        // defensive: the code copy-button is a sibling of <code>, but strip it in case
+        el.select("button.code-copy-button").forEach { it.remove() }
 
         // "**Exercise 4.1**text" needs a space after the label span
         el.select("span.exercise, span.example").forEach { it.after(TextNode(" ")) }
@@ -49,9 +53,9 @@ class HtmlToMarkdown(private val baseUrl: String) {
         }
 
         // figures: image with absolute URL so answers can link to the figure
-        el.select("div.figure").forEach { fig ->
+        el.select("figure").forEach { fig ->
             val img = fig.selectFirst("img")
-            val caption = fig.selectFirst("p.caption")?.text()?.trim()
+            val caption = fig.selectFirst("figcaption")?.text()?.trim()
                 ?: img?.attr("alt")?.trim().orEmpty()
             val src = img?.attr("src").orEmpty()
             val md = if (src.isEmpty()) caption else "![$caption](${absolutize(src)})"

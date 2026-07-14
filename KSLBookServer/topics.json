@@ -49,12 +49,12 @@
     "what each chapter covers",
     "course roadmap"
   ],
-  "about-the-author": [
+  "00-author": [
     "manuel rossetti",
     "author biography",
     "university of arkansas"
   ],
-  "ch1": [
+  "sec-ch1": [
     "introduction to simulation",
     "what is simulation",
     "computer simulation basics",
@@ -63,7 +63,7 @@
     "system analysis tool",
     "learning objectives chapter 1"
   ],
-  "simulation-modeling": [
+  "sec-simulation-modeling": [
     "what is a model",
     "computer simulation definition",
     "physical vs computer models",
@@ -115,7 +115,7 @@
     "choosing a simulation tool",
     "specialized computer languages"
   ],
-  "ch1secsimMeth": [
+  "sec-ch1secsimMeth": [
     "steps of a simulation study",
     "degree methodology",
     "problem solving process",
@@ -140,14 +140,7 @@
     "winter simulation conference",
     "continuing education"
   ],
-  "exercises": [
-    "chapter 1 problems",
-    "practice questions",
-    "discrete or continuous classification",
-    "gas station example",
-    "homework problems"
-  ],
-  "ch2rng": [
+  "sec-ch2rng": [
     "how to generate random numbers",
     "random number streams",
     "random variate generation basics",
@@ -156,7 +149,7 @@
     "kslrandom",
     "chapter 2 overview"
   ],
-  "ch2generator": [
+  "sec-ch2generator": [
     "pseudo random number generator",
     "lecuyer combined mrg",
     "multiple recursive generator",
@@ -165,7 +158,7 @@
     "mrg32k3a",
     "how random numbers work"
   ],
-  "ch2randompkg": [
+  "sec-ch2randompkg": [
     "rng package interfaces",
     "randu01 method",
     "stream control methods",
@@ -175,7 +168,7 @@
     "random integer generation",
     "advance to next substream"
   ],
-  "ch2creatingStreams": [
+  "sec-ch2creatingStreams": [
     "rnstreamprovider",
     "make a stream",
     "get default stream",
@@ -184,7 +177,7 @@
     "same random sequence",
     "how to create streams"
   ],
-  "ch2crn": [
+  "sec-ch2crn": [
     "crn variance reduction",
     "same random numbers",
     "comparing two systems",
@@ -193,14 +186,14 @@
     "synchronized streams",
     "blocking random variation"
   ],
-  "ch2antitheticStreams": [
+  "sec-ch2antitheticStreams": [
     "antithetic variates",
     "one minus u",
     "antitheticinstance",
     "negatively correlated random numbers",
     "variance reduction technique"
   ],
-  "ch2rnFAQ": [
+  "sec-ch2rnFAQ": [
     "what are pseudo random numbers",
     "seeds vs streams",
     "why control randomness",
@@ -208,7 +201,7 @@
     "how streams work",
     "reproducible experiments"
   ],
-  "rvg": [
+  "sec-rvg": [
     "generate random observations",
     "inverse transform method",
     "convolution method",
@@ -224,7 +217,7 @@
     "time until failure example",
     "rexpo function"
   ],
-  "rvg_dists": [
+  "sec-rvg_dists": [
     "rvariable classes",
     "normalrv exponentialrv",
     "list of distributions",
@@ -234,7 +227,7 @@
     "rvariable package",
     "getvalueifc value property"
   ],
-  "rvguse": [
+  "sec-rvguse": [
     "create random variable instance",
     "generate normal values",
     "sample method",
@@ -251,7 +244,7 @@
     "math functions of variates",
     "derived random variables"
   ],
-  "probModels": [
+  "sec-probModels": [
     "cdf pdf pmf calculations",
     "cumulative probability",
     "distributions package",
@@ -260,7 +253,7 @@
     "distributionifc interfaces",
     "compute probabilities"
   ],
-  "distFitting": [
+  "sec-distFitting": [
     "fit distribution to data",
     "input modeling",
     "goodness of fit",
@@ -294,7 +287,7 @@
     "estimationresult",
     "chi squared break points"
   ],
-  "pdfmexamples": [
+  "sec-pdfmexamples": [
     "fitting poisson example",
     "distribution fitting walkthrough",
     "computer lab demand data",
@@ -302,23 +295,7 @@
     "histogram of data",
     "worked fitting examples"
   ],
-  "summary": [
-    "shiftedrv mixturerv",
-    "acceptance rejection class",
-    "truncated shifted distributions",
-    "multivariate random vectors",
-    "mvrvariable sampling",
-    "chapter 2 recap"
-  ],
-  "exercises-1": [
-    "chapter 2 problems",
-    "generate variates homework",
-    "discrete distribution exercise",
-    "shifted exponential service times",
-    "weibull time to failure",
-    "practice random generation"
-  ],
-  "mcm": [
+  "sec-mcm": [
     "static simulation",
     "repeated random sampling",
     "estimating expected values",
@@ -327,7 +304,7 @@
     "monte carlo basics",
     "random variate foundations"
   ],
-  "kslStatistics": [
+  "sec-kslStatistics": [
     "collectorifc interface",
     "statistic classes",
     "observing data values",
@@ -346,7 +323,7 @@
     "one pass algorithms",
     "statisticifc interface"
   ],
-  "histFreq": [
+  "sec-histFreq": [
     "histogram class",
     "bin counts",
     "break points",
@@ -355,7 +332,7 @@
     "frequency distribution",
     "binning observed data"
   ],
-  "ch3batchStats": [
+  "sec-ch3batchStats": [
     "batch means method",
     "correlated data",
     "autocorrelated output",
@@ -364,7 +341,7 @@
     "variance of sample mean",
     "batching output data"
   ],
-  "ch3StatSummary": [
+  "sec-ch3StatSummary": [
     "weightedstatistic class",
     "doublearraysaver",
     "statexy pairs",
@@ -373,7 +350,7 @@
     "abstractstatistic base class",
     "useful statistic classes"
   ],
-  "ssMC": [
+  "sec-ssMC": [
     "estimating an integral",
     "area under a curve",
     "sample mean estimator",
@@ -382,7 +359,7 @@
     "numerical integration by sampling",
     "estimating area of function"
   ],
-  "ch3StatReview": [
+  "sec-ch3StatReview": [
     "sampling error",
     "point estimate accuracy",
     "controlling estimation error",
@@ -400,7 +377,7 @@
     "random sample assumptions",
     "confidence level"
   ],
-  "ch3SampleSize": [
+  "sec-ch3SampleSize": [
     "how many replications",
     "half width bound",
     "margin of error",
@@ -419,7 +396,7 @@
     "sample size spreadsheet",
     "half width criteria"
   ],
-  "craps": [
+  "sec-craps": [
     "dice game simulation",
     "probability of winning",
     "duniformrv dice rolls",
@@ -437,7 +414,7 @@
     "order quantity decision",
     "newspaper seller example"
   ],
-  "ch3InsProcess": [
+  "sec-ch3InsProcess": [
     "defective items",
     "bernoullirv example",
     "quality inspection simulation",
@@ -446,7 +423,7 @@
     "defect rate modeling",
     "manufacturing inspection example"
   ],
-  "ch3SAN": [
+  "sec-ch3SAN": [
     "project network simulation",
     "critical path estimation",
     "longest path in network",
@@ -455,7 +432,7 @@
     "pert network",
     "project completion time probability"
   ],
-  "mcmExperiments": [
+  "sec-mcmExperiments": [
     "mcexperiment class",
     "micro and macro replications",
     "mcintegration package",
@@ -464,23 +441,7 @@
     "running monte carlo experiments",
     "automated sampling experiments"
   ],
-  "summary-1": [
-    "monte carlo recap",
-    "static simulation review",
-    "indicator variable probability",
-    "reporting sampling error",
-    "chapter three summary",
-    "planning sample size"
-  ],
-  "exercises-2": [
-    "sample size problems",
-    "half width ratio exercises",
-    "replication count practice",
-    "confidence interval homework",
-    "monte carlo practice problems",
-    "additional replications needed"
-  ],
-  "introDEDS": [
+  "sec-introDEDS": [
     "discrete event simulation intro",
     "deds characteristics",
     "event view modeling",
@@ -489,7 +450,7 @@
     "dynamic system modeling",
     "drive through pharmacy chapter"
   ],
-  "introDEDSdeds": [
+  "sec-introDEDSdeds": [
     "event view vs process view",
     "system state definition",
     "entities and objects",
@@ -498,7 +459,7 @@
     "transaction flow approach",
     "perspective of the entity"
   ],
-  "HowDEDSClockWorks": [
+  "sec-HowDEDSClockWorks": [
     "simulation clock",
     "next event time advance",
     "time advance mechanism",
@@ -507,7 +468,7 @@
     "event list processing",
     "how time moves in simulation"
   ],
-  "QHandExample": [
+  "sec-QHandExample": [
     "manual event processing",
     "hand simulation trace",
     "single teller bank example",
@@ -517,7 +478,7 @@
     "state changes over time",
     "queueing example by hand"
   ],
-  "introDEDSdedsKSL": [
+  "sec-introDEDSdedsKSL": [
     "ksl simulation package",
     "ksl calendar package",
     "event scheduling classes",
@@ -534,7 +495,7 @@
     "canceling events",
     "scheduling and executing events"
   ],
-  "introDEDSschedExamples": [
+  "sec-introDEDSschedExamples": [
     "eventactionifc interface",
     "initialize method",
     "scheduling first events",
@@ -544,7 +505,7 @@
     "simple scheduling code",
     "modelelement subclass example"
   ],
-  "introDEDSUpDown": [
+  "sec-introDEDSUpDown": [
     "machine breakdown model",
     "random failures",
     "up down states",
@@ -554,7 +515,7 @@
     "reliability simulation example",
     "state variable tracking"
   ],
-  "introDEDSPharmacy": [
+  "sec-introDEDSPharmacy": [
     "drive through pharmacy",
     "single server queue",
     "poisson arrivals exponential service",
@@ -630,7 +591,7 @@
     "chapter4 example package",
     "resource naming convention"
   ],
-  "DTPExpanded": [
+  "sec-DTPExpanded": [
     "tandem queue system",
     "stations in series",
     "fast food drive through",
@@ -639,7 +600,7 @@
     "sequential service stations",
     "drive through pharmacy extension"
   ],
-  "mrWaitingLine": [
+  "sec-mrWaitingLine": [
     "singleqstation class",
     "station with queue",
     "resource plus queue",
@@ -648,7 +609,7 @@
     "qobject processing",
     "combining sresource and queue"
   ],
-  "modeling-the-tandem-queue-of-example-refexmexch4tandemq": [
+  "modeling-the-tandem-queue-of-exm-exch4tandemq": [
     "qobjectreceiverifc interface",
     "sending and receiving customers",
     "connecting stations",
@@ -666,7 +627,7 @@
     "next receiver selection",
     "many stations in series"
   ],
-  "introDEDSSummary": [
+  "sec-introDEDSSummary": [
     "chapter four recap",
     "model element overview",
     "response and twresponse",
@@ -675,15 +636,7 @@
     "simulationreporter output",
     "discrete event modeling review"
   ],
-  "exercises-3": [
-    "sample path problems",
-    "time average number in system",
-    "state variable exercises",
-    "bank teller practice",
-    "hand simulation homework",
-    "discrete event practice problems"
-  ],
-  "simoa": [
+  "sec-simoa": [
     "output analysis",
     "statistical analysis of results",
     "method of replications",
@@ -692,7 +645,7 @@
     "comparing alternatives",
     "random outputs"
   ],
-  "simoadatatypes": [
+  "sec-simoadatatypes": [
     "within replication statistics",
     "across replication statistics",
     "tally based data",
@@ -702,7 +655,7 @@
     "sample path",
     "output reports"
   ],
-  "simoasimtypes": [
+  "sec-simoasimtypes": [
     "terminating simulation",
     "steady state simulation",
     "finite horizon",
@@ -711,7 +664,7 @@
     "long run performance",
     "ending conditions"
   ],
-  "simoafinhorizon": [
+  "sec-simoafinhorizon": [
     "independent replications",
     "terminating simulation analysis",
     "confidence interval half width",
@@ -720,7 +673,7 @@
     "replication averages",
     "iid assumptions"
   ],
-  "simoafinhorizonex": [
+  "sec-simoafinhorizonex": [
     "pallet processing example",
     "work center model",
     "binomial number of pallets",
@@ -729,7 +682,7 @@
     "fifo queue workers",
     "probability of overtime"
   ],
-  "simoaCapture": [
+  "sec-simoaCapture": [
     "ReplicationDataCollector class",
     "ResponseTrace class",
     "SimulationReporter class",
@@ -756,7 +709,7 @@
     "MultipleComparisonAnalyzer access",
     "across replication view"
   ],
-  "simoaseqsampling": [
+  "sec-simoaseqsampling": [
     "stopping replications automatically",
     "half width criterion",
     "desired precision",
@@ -765,7 +718,7 @@
     "sample size not fixed",
     "run until half width met"
   ],
-  "simoainfhorizon": [
+  "sec-simoainfhorizon": [
     "steady state analysis",
     "autocorrelated data",
     "mm1 queue example",
@@ -774,7 +727,7 @@
     "long run average",
     "violating iid assumptions"
   ],
-  "simoainfhorizoninitialbias": [
+  "sec-simoainfhorizoninitialbias": [
     "warm up period",
     "initialization bias",
     "empty and idle start",
@@ -783,7 +736,7 @@
     "transient period",
     "startup bias"
   ],
-  "simoainfhorizonrepDeletion": [
+  "sec-simoainfhorizonrepDeletion": [
     "warm up period analysis",
     "Welch plot",
     "deletion point",
@@ -793,7 +746,7 @@
     "truncated replications",
     "replication deletion method"
   ],
-  "simoainfhorizonbatchmeans": [
+  "sec-simoainfhorizonbatchmeans": [
     "one long run",
     "batch size",
     "correlated batches",
@@ -802,7 +755,7 @@
     "confidence interval from batches",
     "batching observations"
   ],
-  "simoainfhorizonjslbatching": [
+  "sec-simoainfhorizonjslbatching": [
     "StatisticalBatchingElement class",
     "batch means in ksl",
     "single long replication",
@@ -811,16 +764,14 @@
     "512 initial batches",
     "batch statistics report"
   ],
-  "simoacomparingSystems": [
+  "sec-simoacomparingSystems": [
     "alternative designs",
     "what if analysis",
     "design configurations",
     "choosing the best system",
     "statistical comparison",
     "sampling error",
-    "experiment design points"
-  ],
-  "simoacomparingSystems:two": [
+    "experiment design points",
     "paired t confidence interval",
     "two sample comparison",
     "common random numbers",
@@ -830,7 +781,7 @@
     "crn variance reduction",
     "which system is better"
   ],
-  "simoacomparingSystemsMCB": [
+  "sec-simoacomparingSystemsMCB": [
     "sensitivity analysis",
     "multiple comparisons",
     "selecting the best",
@@ -848,7 +799,7 @@
     "screening to best",
     "max of the rest"
   ],
-  "ch5Screening": [
+  "sec-ch5Screening": [
     "subset selection",
     "probability of correct selection",
     "nelson screening procedure",
@@ -857,7 +808,7 @@
     "large number of alternatives",
     "common random numbers screening"
   ],
-  "ch5Scenarios": [
+  "sec-Scenarios": [
     "running many experiments",
     "experiment automation",
     "model variations",
@@ -865,7 +816,7 @@
     "controls and parameters",
     "scenario runner overview"
   ],
-  "controlAntns": [
+  "sec-controlAntns": [
     "KSLControl annotation",
     "controllable inputs",
     "ControlType enum",
@@ -874,7 +825,7 @@
     "annotated properties",
     "generic input protocol"
   ],
-  "rvParameters": [
+  "sec-rvParameters": [
     "RVParameterSetter class",
     "changing distribution parameters",
     "modify random variable mean",
@@ -883,7 +834,7 @@
     "experiment input changes",
     "distribution parameter names"
   ],
-  "kslScenarios": [
+  "sec-kslScenarios": [
     "Scenario class",
     "ScenarioRunner class",
     "running multiple experiments",
@@ -892,7 +843,7 @@
     "experiment names unique",
     "automating what if runs"
   ],
-  "simoasummary": [
+  "sec-simoasummary": [
     "replicationEnded function",
     "output analysis review",
     "warm up decisions",
@@ -900,16 +851,7 @@
     "common random numbers recap",
     "chapter recap statistics"
   ],
-  "exercises-4": [
-    "homework problems",
-    "tally or time persistent practice",
-    "half width problems",
-    "warm up period questions",
-    "sample size problems",
-    "comparing systems problems",
-    "practice questions output analysis"
-  ],
-  "processview": [
+  "sec-processview": [
     "process oriented modeling",
     "event view comparison",
     "entities and activities",
@@ -917,7 +859,7 @@
     "process description",
     "worldview perspectives"
   ],
-  "ch6Entities": [
+  "sec-ch6Entities": [
     "entity types",
     "entity attributes",
     "attribute set",
@@ -926,7 +868,7 @@
     "unique entity instances",
     "entity state"
   ],
-  "pvIntro": [
+  "sec-pvIntro": [
     "drive through pharmacy process model",
     "single server queue",
     "seize delay release",
@@ -988,7 +930,7 @@
     "process completion wait",
     "coordinating two processes"
   ],
-  "processinteraction": [
+  "sec-processinteraction": [
     "suspend and resumeProcess",
     "direct suspension resumption",
     "soccer mom example",
@@ -1033,7 +975,7 @@
     "batch size attribute",
     "communicating processes example"
   ],
-  "ch4:TieDyeTShirtsSub1": [
+  "sec-TieDyeTShirtsSub1": [
     "EntityGenerator orders",
     "shirt making process",
     "waitFor items received",
@@ -1042,23 +984,7 @@
     "attributes for order type",
     "resources shirt makers packager"
   ],
-  "summary-2": [
-    "process view recap",
-    "ResourceWithQ class",
-    "KSLProcessBuilder functions",
-    "coroutine based processes",
-    "seize delay release summary",
-    "new constructs chapter six"
-  ],
-  "exercises-5": [
-    "balking customers problem",
-    "practice process models",
-    "rework station problem",
-    "homework process view",
-    "machine shop problems",
-    "queueing exercises"
-  ],
-  "ch7AdvModeling": [
+  "sec-ch7AdvModeling": [
     "non stationary arrivals",
     "resource capacity schedules",
     "balking and reneging",
@@ -1086,7 +1012,7 @@
     "blocking between stations",
     "space as resource"
   ],
-  "secResourcePools": [
+  "sec-secResourcePools": [
     "shared resources",
     "ResourceSelectionRuleIfc",
     "resource allocation rule",
@@ -1096,7 +1022,7 @@
     "cross trained workers",
     "flexible resource sharing"
   ],
-  "secTestAndRepair": [
+  "sec-secTestAndRepair": [
     "test and repair shop",
     "job shop routing",
     "test plan sequences",
@@ -1114,7 +1040,7 @@
     "removing entities from queue",
     "statistics by time period"
   ],
-  "ch7secNSPP": [
+  "sec-ch7secNSPP": [
     "non homogeneous poisson process",
     "nhpp arrivals",
     "time varying arrival rate",
@@ -1143,7 +1069,7 @@
     "students in progress at close",
     "non stationary case study"
   ],
-  "ch7RevisedJFEModelingWalking": [
+  "sec-ch7RevisedJFEModelingWalking": [
     "walking speed distribution",
     "travel time from distance",
     "velocity distance time",
@@ -1187,7 +1113,7 @@
     "event based modeling",
     "advanced event scheduling"
   ],
-  "ch6s1sb4sub3": [
+  "sec-ch6s1sb4sub3": [
     "walk in clinic example",
     "patient priority queue",
     "reneging customers",
@@ -1197,7 +1123,7 @@
     "priority based service",
     "customer classes"
   ],
-  "rqModel": [
+  "sec-rqModel": [
     "inventory control policy",
     "r q policy",
     "reorder point",
@@ -1207,7 +1133,7 @@
     "when to order how much",
     "stock on hand simulation"
   ],
-  "ch7VandV": [
+  "sec-ch7VandV": [
     "model verification",
     "model validation",
     "queueing theory checks",
@@ -1273,26 +1199,7 @@
     "error checking models",
     "building model credibility"
   ],
-  "summary-3": [
-    "ResourcePool",
-    "NHPPEventGenerator",
-    "CapacitySchedule",
-    "ResponseSchedule",
-    "NHPPTimeBtwEventRV",
-    "advanced resource constructs",
-    "chapter recap constructs",
-    "scheduled capacity changes"
-  ],
-  "exercises-6": [
-    "test and repair problems",
-    "bottleneck analysis exercise",
-    "contract requirement percentage",
-    "practice problems non stationary",
-    "homework balking reneging",
-    "test plan sequence exercise",
-    "capacity planning exercise"
-  ],
-  "chEntityMovement": [
+  "sec-chEntityMovement": [
     "entity transfer",
     "constrained movement",
     "movable resources",
@@ -1302,7 +1209,7 @@
     "travel time modeling",
     "workers carrying parts"
   ],
-  "secRCT": [
+  "sec-secRCT": [
     "transfer requires worker",
     "transport as resource",
     "seize worker to move",
@@ -1311,7 +1218,7 @@
     "transporter availability",
     "material handling resource"
   ],
-  "secTestRepairRCT": [
+  "sec-secTestRepairRCT": [
     "workers moving parts",
     "shared workers stations",
     "transfer time uniform",
@@ -1321,7 +1228,7 @@
     "staffing and moving tasks",
     "resource pool for movement"
   ],
-  "movableResources": [
+  "sec-movableResources": [
     "transporter modeling",
     "pickup and dropoff",
     "empty move to pickup",
@@ -1341,7 +1248,7 @@
     "distance metric",
     "SpatialModel class"
   ],
-  "secMovableResources": [
+  "sec-secMovableResources": [
     "MovableResource class",
     "transportWith function",
     "moveWith suspending function",
@@ -1351,7 +1258,7 @@
     "spatial element tracking",
     "pickup delivery requests"
   ],
-  "secTQMWM": [
+  "sec-secTQMWM": [
     "tandem queue with distances",
     "loading dock example",
     "addDistance function",
@@ -1361,7 +1268,7 @@
     "moveTo function",
     "distances spatial model"
   ],
-  "secTestAndRepairMovableResources": [
+  "sec-secTestAndRepairMovableResources": [
     "dedicated transport workers",
     "number of transporters",
     "test and repair transporters",
@@ -1371,7 +1278,7 @@
     "transport task allocation",
     "movable resource case study"
   ],
-  "secConveyors": [
+  "sec-secConveyors": [
     "accumulating conveyor",
     "non accumulating conveyor",
     "belt conveyor modeling",
@@ -1400,7 +1307,7 @@
     "comparing conveyor models",
     "loading dock conveyor"
   ],
-  "secTestAndRepairConveyors": [
+  "sec-secTestAndRepairConveyors": [
     "conveyor loop layout",
     "part size on conveyor",
     "cells required by entity",
@@ -1410,7 +1317,7 @@
     "entity space requirements",
     "clockwise station distances"
   ],
-  "secMiscConveyor": [
+  "sec-secMiscConveyor": [
     "merging conveyors",
     "diverging conveyors",
     "recirculating conveyor",
@@ -1429,16 +1336,7 @@
     "spatial model constructs",
     "pickup and delivery resource"
   ],
-  "exercises-7": [
-    "movable resource allocation rules",
-    "FurthestMovableResourceAllocationRule",
-    "LeastUtilizedMovableResourceAllocationRule",
-    "conveyor exercises",
-    "entity movement homework",
-    "moveTo practice problem",
-    "transporter rule comparison"
-  ],
-  "ch9AdvMC": [
+  "sec-ch9AdvMC": [
     "bootstrap sampling",
     "variance reduction techniques",
     "markov chain monte carlo",
@@ -1447,7 +1345,7 @@
     "multivariate random variates",
     "efficiency improvement techniques"
   ],
-  "ch9BootStrapping": [
+  "sec-ch9BootStrapping": [
     "resampling with replacement",
     "bootstrap confidence interval",
     "nonparametric estimation",
@@ -1465,7 +1363,7 @@
     "percentile bootstrap ci",
     "sampling from finite population"
   ],
-  "ch9VRTs": [
+  "sec-ch9VRTs": [
     "reducing estimator variance",
     "vrt sampling strategy",
     "improving simulation efficiency",
@@ -1534,7 +1432,7 @@
     "sampling from important regions",
     "change of sampling distribution"
   ],
-  "ch9GMVRVs": [
+  "sec-ch9GMVRVs": [
     "correlated random variables",
     "multivariate distributions sampling",
     "dependence between inputs",
@@ -1567,7 +1465,7 @@
     "time series input models",
     "lag one correlation"
   ],
-  "ch9MCMC": [
+  "sec-ch9MCMC": [
     "metropolis hastings algorithm",
     "mcmc random variate generation",
     "bayesian sampling methods",
@@ -1576,23 +1474,7 @@
     "MetropolisHastings1D class",
     "proposal distribution acceptance"
   ],
-  "summary-4": [
-    "Bootstrap class ksl",
-    "CaseBootstrapSampler",
-    "mcintegration package",
-    "mcmc package classes",
-    "ReplicationDataCollector",
-    "advanced monte carlo classes"
-  ],
-  "exercises-8": [
-    "bootstrap ci problems",
-    "mcmc practice problems",
-    "acceptance rejection exercise",
-    "inverse transform composition",
-    "variance reduction homework",
-    "generate from density function"
-  ],
-  "ch10eo": [
+  "sec-ch10e": [
     "design of experiments",
     "simulation optimization overview",
     "choosing system configurations",
@@ -1601,7 +1483,7 @@
     "response surface methods",
     "optimizing model parameters"
   ],
-  "ch10doe": [
+  "sec-ch10doe": [
     "design of experiments basics",
     "factors and responses",
     "running many scenarios",
@@ -1610,7 +1492,7 @@
     "input output relationships",
     "efficient experimentation"
   ],
-  "ch10factors": [
+  "sec-ch10factors": [
     "Factor class ksl",
     "coded factor levels",
     "coding regressors minus one to one",
@@ -1619,7 +1501,7 @@
     "scaling design variables",
     "uncoded versus coded design"
   ],
-  "ch10designs": [
+  "sec-ch10designs": [
     "FactorialDesign class",
     "two level factorial design",
     "central composite design",
@@ -1628,7 +1510,7 @@
     "full factorial combinations",
     "design points dataframe"
   ],
-  "ch10exp": [
+  "sec-ch10exp": [
     "DesignedExperiment class",
     "running design points",
     "factor settings controls",
@@ -1637,7 +1519,7 @@
     "replicating design points",
     "experiment results database"
   ],
-  "ch10analysis": [
+  "sec-ch10analysis": [
     "linear regression on results",
     "response surface analysis",
     "reorder point inventory experiment",
@@ -1646,7 +1528,7 @@
     "regression of simulation output",
     "LinearModel fitting"
   ],
-  "ch10simOpt": [
+  "sec-ch11simOpt": [
     "optimizing with simulation",
     "black box optimization",
     "search process alternatives",
@@ -1655,7 +1537,7 @@
     "candidate solution generation",
     "stochastic optimization overview"
   ],
-  "ch10ProbDefn": [
+  "sec-ch11ProbDefn": [
     "ProblemDefinition class",
     "decision variables and constraints",
     "objective function specification",
@@ -1672,7 +1554,7 @@
     "handling infeasible solutions",
     "violation amount computation"
   ],
-  "inputvariables": [
+  "sec-inputvariables": [
     "InputDefinition class",
     "decision variable bounds",
     "granularity integer ordered",
@@ -1697,7 +1579,7 @@
     "target and tolerance",
     "probabilistic constraint handling"
   ],
-  "ch10ProbDefnExample": [
+  "sec-ch11ProbDefnExample": [
     "reorder point reorder quantity",
     "rq inventory optimization",
     "inventory cost minimization",
@@ -1817,7 +1699,7 @@
     "sensitivity to initial point",
     "independent restart runs"
   ],
-  "secApplySolver": [
+  "sec-secApplySolver": [
     "solver factory functions",
     "ModelBuilderIfc interface",
     "MemorySolutionCache",
@@ -1826,7 +1708,7 @@
     "setting up an evaluator",
     "solving a defined problem"
   ],
-  "applyCE": [
+  "sec-applyCE": [
     "crossEntropySolver factory",
     "cross entropy example run",
     "reorder point optimization run",
@@ -1842,23 +1724,7 @@
     "restart solver factory function",
     "inventory problem annealing"
   ],
-  "summary-5": [
-    "experiment design classes recap",
-    "CentralCompositeDesign class",
-    "TwoLevelFactorialDesign class",
-    "solver framework summary",
-    "FactorialDesign class overview",
-    "doe and simopt classes"
-  ],
-  "exercises-9": [
-    "rspline homework problem",
-    "machine repair optimization",
-    "operators breakdown staffing",
-    "initial temperature experiments",
-    "inventory optimization exercises",
-    "solver comparison assignment"
-  ],
-  "appRNRV": [
+  "sec-appRNRV": [
     "random number generation",
     "how simulations create randomness",
     "streams and seeds",
@@ -1867,7 +1733,7 @@
     "sampling from distributions",
     "rng algorithms overview"
   ],
-  "appRNRVPRN": [
+  "sec-appRNRVPRN": [
     "uniform 0 1 numbers",
     "how random numbers work",
     "deterministic random sequence",
@@ -1875,7 +1741,7 @@
     "controlling random numbers",
     "u01 random numbers"
   ],
-  "appRNRVRNGs": [
+  "sec-appRNRVRNGs": [
     "linear congruential generator",
     "lcg algorithm",
     "seed multiplier modulus",
@@ -1884,7 +1750,7 @@
     "recursive random sequence",
     "multiplicative congruential method"
   ],
-  "appRNRVs": [
+  "sec-appRNRVs": [
     "random variate generation methods",
     "sampling from a distribution",
     "inverse cdf method",
@@ -1919,7 +1785,7 @@
     "efficiency of rejection method",
     "sampling hard densities"
   ],
-  "AppRNRVsubsecMTSRV": [
+  "sec-AppRNRVsubsecMTSRV": [
     "mixture distribution generation",
     "truncated distribution sampling",
     "shifted random variable",
@@ -1928,22 +1794,7 @@
     "location shift parameter",
     "bounded random variates"
   ],
-  "summary-6": [
-    "random generation recap",
-    "variate generation review",
-    "pseudo random overview",
-    "key rng concepts",
-    "multivariate generation next steps"
-  ],
-  "exercises-10": [
-    "lcg practice problems",
-    "random number homework",
-    "generator period questions",
-    "variate generation exercises",
-    "seed and stream problems",
-    "derive inverse cdf practice"
-  ],
-  "appidm": [
+  "sec-appidm": [
     "input analysis",
     "input modeling process",
     "fitting distributions to data",
@@ -1952,7 +1803,7 @@
     "modeling randomness from data",
     "empirical data analysis"
   ],
-  "appidmsecrvPD": [
+  "sec-appidmsecrvPD": [
     "discrete vs continuous",
     "pdf cdf pmf basics",
     "expected value and variance",
@@ -1960,7 +1811,7 @@
     "modeling service times",
     "range of a random variable"
   ],
-  "appidmsecMDD": [
+  "sec-appidmsecMDD": [
     "when to use poisson",
     "bernoulli binomial geometric",
     "negative binomial situations",
@@ -1968,14 +1819,14 @@
     "choosing a discrete distribution",
     "discrete modeling situations table"
   ],
-  "appidmsecfitDiscrete": [
+  "sec-appidmsecfitDiscrete": [
     "fit discrete data",
     "countable values modeling",
     "discrete or continuous data",
     "modeling count observations",
     "discrete input modeling steps"
   ],
-  "AppDisFitPoissonFit": [
+  "sec-AppDisFitPoissonFit": [
     "fit poisson to arrivals",
     "arrival count data",
     "modeling arrival process",
@@ -2007,7 +1858,7 @@
     "testing poisson fit",
     "distributional hypothesis testing"
   ],
-  "subsubchisqGOF": [
+  "sec-subsubchisqGOF": [
     "chi square test statistic",
     "expected vs observed counts",
     "class intervals binning",
@@ -2033,7 +1884,7 @@
     "dot plot and table",
     "small sample input model"
   ],
-  "appidmsecMCD": [
+  "sec-appidmsecMCD": [
     "uniform when no data",
     "triangular distribution use",
     "modeling task times",
@@ -2042,7 +1893,7 @@
     "choosing continuous distribution",
     "beta distribution modeling"
   ],
-  "appidmsecfitContinuous": [
+  "sec-appidmsecfitContinuous": [
     "fit gamma distribution",
     "continuous data fitting example",
     "repair time data",
@@ -2050,7 +1901,7 @@
     "service time modeling",
     "input model for times"
   ],
-  "appidmsubsecvisualizedata": [
+  "sec-appidmsubsecvisualizedata": [
     "histogram skewness check",
     "acf independence check",
     "time series pattern check",
@@ -2058,7 +1909,7 @@
     "visual data diagnostics",
     "plotting task times"
   ],
-  "appidmsubsecstatsdata": [
+  "sec-appidmsubsecstatsdata": [
     "summary statistics in r",
     "sample mean variance sd",
     "confidence interval on mean",
@@ -2066,7 +1917,7 @@
     "t test in r",
     "quartiles and median"
   ],
-  "appidmsubsechypothDist": [
+  "sec-appidmsubsechypothDist": [
     "hypothesize candidate distributions",
     "chi squared goodness of fit",
     "breakpoints for intervals",
@@ -2082,7 +1933,7 @@
     "ks vs chi squared",
     "small sample gof test"
   ],
-  "appidmsubsecvisFit": [
+  "sec-appidmsubsecvisFit": [
     "pp plot",
     "qq plot",
     "quantile quantile comparison",
@@ -2090,7 +1941,7 @@
     "visual goodness of fit",
     "empirical vs theoretical quantiles"
   ],
-  "appidms2sb3": [
+  "sec-appidms2sb3": [
     "arena input analyzer",
     "fit distribution with arena",
     "square error criterion",
@@ -2098,7 +1949,7 @@
     "input analyzer histogram",
     "arena fit all option"
   ],
-  "appdistfittestU01": [
+  "sec-appdistfittestU01": [
     "testing random number generators",
     "uniformity tests",
     "iid u01 hypothesis",
@@ -2139,7 +1990,7 @@
     "dependence in rng output",
     "scatter plot of pairs"
   ],
-  "appdistfitidms2sb4": [
+  "sec-appdistfitidms2sb4": [
     "no data what distribution",
     "reusing data versus fitting",
     "bimodal data modeling",
@@ -2147,21 +1998,14 @@
     "empirical versus theoretical distribution",
     "expert opinion distribution choice"
   ],
-  "appidmSummary": [
+  "sec-appidmSummary": [
     "input modeling recap",
     "distribution fitting review",
     "data driven input models",
     "model validity foundations",
     "input analysis takeaways"
   ],
-  "exercises-11": [
-    "distribution fitting practice",
-    "input modeling homework",
-    "fit data file problems",
-    "recommend input distribution",
-    "goodness of fit exercises"
-  ],
-  "appqtAndInvT": [
+  "sec-appqtAndInvT": [
     "waiting line analysis",
     "analytical queueing formulas",
     "servers and customers",
@@ -2169,7 +2013,7 @@
     "waiting time prediction",
     "queueing models overview"
   ],
-  "appqts1": [
+  "sec-appqts1": [
     "mm1 queue basics",
     "single server queue",
     "arrival and service processes",
@@ -2195,7 +2039,7 @@
     "sample path area argument",
     "throughput and wip"
   ],
-  "appqts1sb1": [
+  "sec-appqts1sb1": [
     "birth death process",
     "steady state probabilities derivation",
     "markov queue derivation",
@@ -2204,7 +2048,7 @@
     "phone booth example",
     "chapman kolmogorov equations"
   ],
-  "appqts1sb2": [
+  "sec-appqts1sb2": [
     "queueing analysis steps",
     "qtsplus software",
     "choosing a queueing model",
@@ -2230,7 +2074,7 @@
     "finite calling population",
     "lost customers full system"
   ],
-  "appqts1sb3": [
+  "sec-appqts1sb3": [
     "mg1 queue formula",
     "pollaczek khinchine",
     "gg c approximation",
@@ -2239,7 +2083,7 @@
     "md1 deterministic service",
     "allen cunneen approximation"
   ],
-  "appqtsecformulas": [
+  "sec-appqtsecformulas": [
     "queueing formula reference",
     "steady state probability pn",
     "utilization rho",
@@ -2308,15 +2152,7 @@
     "k machines c servers",
     "finite source multi server"
   ],
-  "exercises-12": [
-    "queueing practice problems",
-    "kendall notation exercises",
-    "compute lq wq problems",
-    "little's law application",
-    "queueing homework",
-    "pick the right queue model"
-  ],
-  "appUtilities": [
+  "sec-appUtilities": [
     "ksl.utilities package",
     "file input output helpers",
     "kslarrays overview",
@@ -2349,7 +2185,7 @@
     "file extension helpers",
     "program launch directory"
   ],
-  "appDCSVEtc": [
+  "sec-appDCSVEtc": [
     "csvutil class",
     "read csv rows",
     "excelutil workbook",
@@ -2358,7 +2194,7 @@
     "import export excel",
     "tabular file reading"
   ],
-  "dfUtil": [
+  "sec-dfUtil": [
     "dataframeutil object",
     "kotlin dataframe support",
     "sample without replacement rows",
@@ -2375,7 +2211,7 @@
     "databaseioifc export",
     "simulation results database"
   ],
-  "appUtilitiesArrays": [
+  "sec-appUtilitiesArrays": [
     "kslarrays object",
     "array extension functions",
     "min max index functions",
@@ -2384,7 +2220,7 @@
     "2d array helpers",
     "statistics on arrays"
   ],
-  "appPlotting": [
+  "sec-appPlotting": [
     "lets plot wrapper",
     "acfplot boxplot classes",
     "histogram plot ksl",
@@ -2394,7 +2230,7 @@
     "make charts in kotlin",
     "scatter density dot plots"
   ],
-  "appUtilitiesMisc": [
+  "sec-appUtilitiesMisc": [
     "kslmath precision",
     "factorial binomial coefficient",
     "interval class",
@@ -2402,13 +2238,7 @@
     "numerical equality tolerance",
     "observer pattern helpers"
   ],
-  "distributions": [
-    "distribution reference appendix",
-    "pdf cdf formulas list",
-    "distribution properties tables",
-    "common distributions summary"
-  ],
-  "appDiscreteDistributions": [
+  "sec-appDiscreteDistributions": [
     "bernoulli binomial poisson table",
     "geometric negative binomial facts",
     "pmf and inverse cdf",
@@ -2417,7 +2247,7 @@
     "discrete distribution cheat sheet",
     "mean variance formulas discrete"
   ],
-  "appContinuousDistributions": [
+  "sec-appContinuousDistributions": [
     "uniform normal exponential table",
     "gamma weibull lognormal facts",
     "triangular beta properties",
@@ -2426,7 +2256,7 @@
     "continuous distribution cheat sheet",
     "mean variance formulas continuous"
   ],
-  "appStatTables": [
+  "sec-appStatTables": [
     "standard normal table",
     "z table lookup",
     "t distribution critical values",
@@ -2434,7 +2264,7 @@
     "normal cdf probabilities",
     "quantile lookup tables"
   ],
-  "references": [
+  "sec-references": [
     "bibliography",
     "cited works list",
     "law simulation textbook",

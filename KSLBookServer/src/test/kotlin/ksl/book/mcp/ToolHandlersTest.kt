@@ -13,7 +13,7 @@ class ToolHandlersTest {
 
     companion object {
         // D3 graceful degradation: skip when the book was not rendered into _book/
-        // at build time (empty bundled content); the parser port re-pins assertions.
+        // at build time (empty bundled content).
         @JvmStatic
         @BeforeAll
         fun requireBookContent() =
@@ -24,7 +24,7 @@ class ToolHandlersTest {
     fun `search returns ranked list with urls and follow-up hint`() {
         val out = handlers.searchTextbook("modeling a simple queueing system", 5)
         assertTrue(out.contains("1. 4.4.4 Modeling a Simple Queueing System"), out.take(300))
-        assertTrue(out.contains("https://rossetti.github.io/KSLBook/introDEDSdedsKSL.html#introDEDSPharmacy"))
+        assertTrue(out.contains("https://rossetti.github.io/KSLBook/04-Chapter4.html#sec-introDEDSPharmacy"))
         assertTrue(out.contains("Use get_section"))
     }
 
@@ -40,7 +40,7 @@ class ToolHandlersTest {
 
     @Test
     fun `get_section by id matches by-number result`() {
-        assertTrue(handlers.getSection("introDEDSPharmacy").startsWith("Section: 4.4.4"))
+        assertTrue(handlers.getSection("sec-introDEDSPharmacy").startsWith("Section: 4.4.4"))
     }
 
     @Test
@@ -59,7 +59,7 @@ class ToolHandlersTest {
     fun `chapter outline shows nested sections with flags`() {
         val out = handlers.getChapterOutline("4")
         assertTrue(out.startsWith("Chapter 4 —"))
-        assertTrue(out.contains("- 4.4.4 Modeling a Simple Queueing System (id: introDEDSPharmacy) [code]"), out)
+        assertTrue(out.contains("- 4.4.4 Modeling a Simple Queueing System (id: sec-introDEDSPharmacy) [code]"), out)
     }
 
     @Test
@@ -84,7 +84,7 @@ class ToolHandlersTest {
         assertTrue(one.contains("**Exercise 4.1**") && !one.contains("**Exercise 4.2**"))
         val short = handlers.getExercises("4", "1")
         assertTrue(short.contains("**Exercise 4.1**"))
-        assertTrue(one.contains("https://rossetti.github.io/KSLBook/exercises-3.html#exr:ch4P1"))
+        assertTrue(one.contains("https://rossetti.github.io/KSLBook/04-Chapter4.html#exr-ch4P1"))
     }
 
     @Test
