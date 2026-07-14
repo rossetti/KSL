@@ -89,7 +89,6 @@ fabric.properties
 *.gz
 *.iso
 # *.jar
-*.rar
 *.tar
 *.zip
 
@@ -235,7 +234,6 @@ KSLExampleProject/gradle/wrapper/gradle-wrapper.properties
 JSLKotlin/gradle/wrapper/gradle-wrapper.jar
 JSLKotlin/gradle/wrapper/gradle-wrapper.properties
 *.iml
-*.iml
 KSLCore/:KSLCore.iml
 KSLExamples/:KSLExamples.iml
 KSLExtensions/:KSLExtensions.iml
@@ -271,3 +269,5 @@ KSLBundleTools/gradle/wrapper/gradle-wrapper.properties
 # Should never be committed; the trailing slash matches the
 # directory anywhere in the tree (every module gets its own).
 .kotlin/
+
+_book/
