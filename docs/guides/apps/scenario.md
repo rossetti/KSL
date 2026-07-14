@@ -5,9 +5,16 @@ compares their results. Each *scenario* is the same or a different model with it
 inputs and run settings; you run them all together, then compare a response across them
 statistically.
 
-> **You will need:** Java 21 and a model **bundle** (this guide uses the **M/M/1 queue**
-> from the KSL Book Examples bundle). New here? Read [Common UI & concepts](common-ui.md) and
+> **You will need:** Java 21 and a model **bundle** (this guide uses the
+> **DriveThroughPharmacyWithQ** model from the KSL Book Examples bundle,
+> `book-examples.jar`). New here? Read [Common UI & concepts](common-ui.md) and
 > the simpler [Single-Model guide](single.md) first.
+
+> **⚠️ Screenshots and comparison figures pending refresh.** This guide now uses the
+> **DriveThroughPharmacyWithQ** model (varying `Pharmacy.numPharmacists`). The window
+> images and the specific comparison numbers / box plot below were captured from an
+> earlier M/M/1 example and will be regenerated for DriveThroughPharmacyWithQ; the
+> written steps are correct.
 
 ## What you'll be able to do
 
@@ -64,21 +71,22 @@ your most recent run, held in memory.
 
 ### Step 1 — Add scenarios
 
-On the **Scenarios** tab, click **Add…**, pick the **M/M/1 Queue** model, and name the
-scenario. Repeat to build a short list. In the screenshot above there are three:
+On the **Scenarios** tab, click **Add…**, pick the **DriveThroughPharmacyWithQ** model,
+and name the scenario. Repeat to build a short list. In the screenshot above there are three:
 
 | Name | Model | Reps | Overrides |
 |---|---|---|---|
-| Baseline | M/M/1 | 30 | (none) |
-| Longer horizon | M/M/1 | 30 | run length → 1000 |
-| More replications | M/M/1 | 100 | (none) |
+| Baseline | DriveThroughPharmacyWithQ | 30 | (none) |
+| Longer horizon | DriveThroughPharmacyWithQ | 30 | run length → 40000 |
+| More replications | DriveThroughPharmacyWithQ | 100 | (none) |
 
 Select a row and click **Edit…** to open a scenario editor where you set **run
 parameters**, **control overrides** (model inputs), and **RV overrides**. Untick **Run?**
 to skip a scenario without deleting it; use **Clone** to fork a near-duplicate.
 
-> **Tip.** The most useful comparisons vary a **model input** — for an M/M/1 queue, the
-> number of servers. You set that under **Control Overrides** in the scenario editor.
+> **Tip.** The most useful comparisons vary a **model input** — for
+> DriveThroughPharmacyWithQ, the number of pharmacists (`Pharmacy.numPharmacists`).
+> You set that under **Control Overrides** in the scenario editor.
 
 ### Step 2 — Set the analysis name and run
 
@@ -95,34 +103,25 @@ The **Scenario Reports** tab collects a report per scenario plus a summary. The
 
 ### Reading the results
 
-To show a comparison with a clear winner, here is a genuine **MCB** report comparing the
-M/M/1 **System Time** under one, two, and three servers — exactly the output the
-Comparison Analyzer produces. First, each alternative's average (with a 95% half-width):
+The **Comparison Analyzer** compares a chosen response across the scenarios. The most
+instructive comparison for this model is **System Time** under **one, two, and three
+pharmacists** (`Pharmacy.numPharmacists` = 1, 2, 3) — exactly the output the analyzer
+produces: each alternative's average with a 95% half-width, a box plot, and an **MCB**
+(multiple comparison with the best) ranking.
 
-| Alternative | Count | Average | Half-Width | CI Lower | CI Upper |
-|:---|---:|---:|---:|---:|---:|
-| 1 server | 30 | 1.0822 | 0.0663 | 1.0159 | 1.1485 |
-| 2 servers | 30 | 0.5520 | 0.0124 | 0.5396 | 0.5643 |
-| 3 servers | 30 | 0.5175 | 0.0094 | 0.5081 | 0.5269 |
-
-A **box plot** makes the differences obvious — going from one to two servers roughly
-halves the time in system; the second-to-third gain is small:
+> **Comparison figures pending regeneration.** The averages, box plot, and MCB intervals
+> here are being refreshed for DriveThroughPharmacyWithQ (together with the screenshots);
+> the earlier version used the retired M/M/1 example, whose numbers don't carry over. The
+> **shape** of the result is stable and worth knowing: with one pharmacist the mean System
+> Time is about **1.0 minute** (utilization ρ ≈ 0.5); adding a second pharmacist sharply
+> cuts it, and a third adds a smaller further gain.
 
 ![Box plot of System Time by scenario](images/scenario/Response_Distributions___System_Time.PNG)
 
-**Which is best?** MCB answers this with confidence. Minimizing System Time, the
-*MCB (min)* intervals identify **3 servers** as the best, and the screening step rules
-out the others:
-
-| Alternative | MCB-min Lower | MCB-min Upper | Possible Best |
-|:---|---:|---:|:---|
-| 1 server | 0.0000 | 0.5647 | false |
-| 2 servers | 0.0000 | 0.0345 | false |
-| 3 servers | −0.0345 | 0.0000 | **true** |
-
-So with 95% confidence the three-server configuration has the lowest mean System Time.
-The 2-vs-3 pairwise difference is small (≈0.034) but its interval excludes zero, so the
-improvement is statistically real here.
+**Which is best?** MCB answers this with statistical confidence: the *MCB (min)* intervals
+identify the **most-staffed** configuration as the one minimizing System Time and screen
+out the rest at 95% confidence. When the best-vs-runner-up interval excludes zero, that
+improvement is statistically real — not just noise.
 
 ---
 

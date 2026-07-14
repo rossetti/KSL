@@ -6,13 +6,19 @@ desktop apps and the best place to start: set a few parameters, click
 **Simulate**, and read a report.
 
 > **You will need:** Java 21 and a model **bundle** to load. This guide uses the
-> **M/M/1 queue** model from the KSL **M/M/1 Queue Example** bundle (`mm1-sample.jar`). New to the KSL desktop
-> apps? Skim [Common UI & concepts](common-ui.md) first.
+> **Drive-Through Pharmacy** model (`DriveThroughPharmacyWithQ`) from the **KSL Book
+> Examples** bundle (`book-examples.jar`) — the book's canonical single-server queue.
+> New to the KSL desktop apps? Skim [Common UI & concepts](common-ui.md) first.
+
+> **⚠️ Screenshots pending refresh.** This guide now uses the
+> **DriveThroughPharmacyWithQ** model; the window images below were captured from an
+> earlier example model and will be re-captured. The written steps, inputs, run
+> defaults, and results on this page are correct for DriveThroughPharmacyWithQ.
 
 ## What you'll be able to do
 
 - Launch the Single-Model app and load a model from a **bundle**.
-- Pick the example M/M/1 queue model and recognize every region of the window.
+- Pick the **DriveThroughPharmacyWithQ** model and recognize every region of the window.
 - Set the number of replications, run length, and warm-up period.
 - Run a simulation and have a report generated automatically.
 - Read across-replication statistics and a results chart, and understand what a
@@ -45,18 +51,22 @@ Model** dialog listing the bundles it found in your `<KSLWork>/bundles/` folder:
 
 ![Pick a Model dialog](images/single/single-bundle-picker.png)
 
-For this guide, the **M/M/1 Queue Example** bundle and its **M/M/1 Queue (MM1)**
+For this guide, the **KSL Book Examples** bundle and its **DriveThroughPharmacyWithQ**
 model are what you want — the *Selected model* panel summarizes the model's inputs
-and run defaults. (This model ships as a released `mm1-sample.jar`; the separate
-**KSL Book Examples** bundle (`book-examples.jar`) provides the broader set of
-textbook models.)
+and run defaults. Build the bundle and drop it where the app looks:
+
+```bash
+./gradlew :KSLExamples:bookExamplesBundleJar
+# → KSLExamples/build/libs/book-examples.jar   (16 textbook models)
+cp KSLExamples/build/libs/book-examples.jar <KSLWork>/bundles/
+```
 
 - If the model you want is already listed, select its bundle and model.
 - If the list is empty or missing your model, click **Load JAR…** to load a bundle
   JAR, or drop the JAR into your `<KSLWork>/bundles/` folder before launching. See
   [Common UI → Models and bundles](common-ui.md#models-and-bundles).
 
-You'll click **Pick** in [Step 1](#step-1--pick-the-mm1-model) of the tutorial.
+You'll click **Pick** in [Step 1](#step-1--pick-the-model) of the tutorial.
 
 Everything the app writes (reports, databases) goes under your **working directory**,
 shown in the status bar at the bottom of the window (here, `/root/KSLWork`). Change
@@ -88,15 +98,22 @@ The red numbers below are added for this guide; they are not part of the app.
 
 ---
 
-## 4. Tutorial — run the M/M/1 queue
+## 4. Tutorial — run the Drive-Through Pharmacy queue
 
-### Step 1 — Pick the M/M/1 model
+`DriveThroughPharmacyWithQ` is a single-server drive-through pharmacy: customers
+arrive (Poisson, mean 1 per minute), one pharmacist serves them (exponential,
+mean 0.5 minute), and any who arrive while the pharmacist is busy wait in the
+`PharmacyQ`. With one server and exponential arrivals and service, it is an M/M/1
+queue — the book's canonical starting example.
+
+### Step 1 — Pick the model
 
 At launch, the **Pick a Model** dialog appears (shown in [§2](#2-before-you-begin)).
-Choose the **M/M/1 Queue Example** bundle and the **M/M/1 Queue (MM1)** model, check
-the *Selected model* summary (11 controls, 6 responses, run defaults
-replications=30, length=500, warm-up=50), and click **Pick**. The main window opens
-on that model.
+Choose the **KSL Book Examples** bundle and the **DriveThroughPharmacyWithQ** model,
+check the *Selected model* summary — its inputs are **Number of Pharmacists**
+(`Pharmacy.numPharmacists`) and **Mean Service Time** (`ServiceTime.mean`), and its
+run defaults are replications=30, length=20000, warm-up=5000 — and click **Pick**.
+The main window opens on that model.
 
 ### Step 2 — Look at the run parameters
 
@@ -108,8 +125,8 @@ show the model's defaults as grey hint text:
 | Field | Meaning | Default |
 |---|---|---|
 | **Number of replications** | How many independent runs to average over. More replications → more precise estimates. | 30 |
-| **Length of replication** | How long each run lasts (in simulated time). | 500.0 |
-| **Length of replication warm-up** | Initial period discarded so startup bias doesn't skew the averages. | 50.0 |
+| **Length of replication** | How long each run lasts (in simulated minutes). | 20000.0 |
+| **Length of replication warm-up** | Initial period discarded so startup bias doesn't skew the averages. | 5000.0 |
 
 Leave them empty to use the defaults, or type a value to override one. For this
 tutorial, leave all three at their defaults.
@@ -133,9 +150,9 @@ Leave **HTML** ticked.
 
 ### Step 4 — Name the run (optional)
 
-In the toolbar, **Output Name** defaults to the model name, `MM1`. This becomes the
-subfolder and file stem for this run's output under your working directory. You can
-leave it as `MM1`.
+In the toolbar, **Output Name** defaults to the model name,
+`DriveThroughPharmacyWithQ`. This becomes the subfolder and file stem for this run's
+output under your working directory. You can leave it as is.
 
 ### Step 5 — Simulate
 
@@ -152,32 +169,35 @@ Here is what the run produced. First, what was run:
 
 | Property | Value |
 |:---|:---|
-| Model Name | MM1 |
+| Model Name | DriveThroughPharmacyWithQ |
 | Replications | 30 |
-| Run Length | 500.0 |
-| Warm-Up Length | 50.0 |
+| Run Length | 20000.0 |
+| Warm-Up Length | 5000.0 |
 
 Then the **across-replication statistics** — each response averaged over the 30
 replications, with a 95% confidence-interval half-width:
 
-| Name | Count | Average | Std Dev | Std Error | Half-Width | CI Lower | CI Upper | Min | Max |
-|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| NumBusy | 30 | 0.5105 | 0.0314 | 0.0057 | 0.0117 | 0.4988 | 0.5223 | 0.4361 | 0.5683 |
-| Num in System | 30 | 1.0771 | 0.2095 | 0.0382 | 0.0782 | 0.9989 | 1.1553 | 0.7974 | 1.7543 |
-| System Time | 30 | 1.0822 | 0.1776 | 0.0324 | 0.0663 | 1.0159 | 1.1485 | 0.8426 | 1.6251 |
-| WaitingQ:NumInQ | 30 | 0.5666 | 0.1870 | 0.0341 | 0.0698 | 0.4968 | 0.6364 | 0.3613 | 1.2027 |
-| WaitingQ:TimeInQ | 30 | 0.5681 | 0.1680 | 0.0307 | 0.0627 | 0.5054 | 0.6308 | 0.3811 | 1.1140 |
-| Num Served | 30 | 447.83 | 19.04 | 3.48 | 7.11 | 440.72 | 454.94 | 409.0 | 486.0 |
+| Name | Average | Std Error | Half-Width | 95% CI |
+|:---|---:|---:|---:|:---:|
+| NumBusy | 0.4988 | 0.00081 | 0.00166 | [0.4971, 0.5005] |
+| Num in System | 0.9932 | 0.00454 | 0.00928 | [0.9839, 1.0025] |
+| System Time | 0.9944 | 0.00417 | 0.00852 | [0.9859, 1.0029] |
+| PharmacyQ:NumInQ | 0.4945 | 0.00403 | 0.00825 | [0.4863, 0.5028] |
+| PharmacyQ:TimeInQ | 0.4950 | 0.00386 | 0.00790 | [0.4871, 0.5029] |
+| SysTime >= 4 minutes | 0.0176 | 0.00069 | 0.00142 | [0.0162, 0.0190] |
+| Num Served | 14981.73 | 20.06 | 41.03 | [14940.70, 15022.76] |
 
-**How to read a row.** Take **System Time** (time a customer spends in the system).
-The average across the 30 runs is **1.0822** with a half-width of **0.0663**, so the
-true long-run mean is plausibly in **[1.0159, 1.1485]** at 95% confidence. The
-server is busy about **51%** of the time (NumBusy ≈ 0.5105). A smaller half-width
-means a more precise estimate — get one by running more replications or a longer run.
+**How to read a row.** Take **System Time** (minutes a customer spends in the
+system). The average across the 30 runs is **0.9944** with a half-width of
+**0.0085**, so the true long-run mean is plausibly in **[0.9859, 1.0029]** minutes
+at 95% confidence. The single pharmacist is busy about **50%** of the time
+(NumBusy ≈ 0.4988), roughly **1.8%** of customers wait more than 4 minutes, and
+about **14,982** customers are served over the run. A smaller half-width means a
+more precise estimate — get one by running more replications or a longer run.
 
 Reports can also include **charts**. Here is the distribution of the per-replication
-**System Time** averages — most runs landed near 1.0–1.2, the spread you see in the
-table's Min/Max:
+**System Time** averages — most runs landed near 0.98–1.01, the spread you see in
+the table's confidence interval:
 
 ![Histogram of per-replication System Time](images/single/System_Time___replication_averages.PNG)
 
@@ -214,15 +234,17 @@ value to change an input for the next run.
 
 ![Control Overrides tab](images/single/single-control-overrides.png)
 
-In the example, alongside the real M/M/1 controls you'll see demo controls such as
-`Dispatcher.fleetSize` (Integer, bounds [1, 50]) and `Dispatcher.utilisationTarget`
-(Double, bounds [0, 1]) — included to show the different field types. See
-[Common UI → Override fields](common-ui.md#override-fields).
+DriveThroughPharmacyWithQ exposes a single numeric control,
+`Pharmacy.numPharmacists` (Integer, lower bound 1, default 1) — tick **Override**
+and set it to, say, `2` to run with a second pharmacist. (Models that expose string
+or JSON controls show those on the **String** / **JSON** sub-tabs; this model has
+none.) See [Common UI → Override fields](common-ui.md#override-fields).
 
 ### RV Overrides
 
-Override the **random-variable** parameters (for example, a mean service time) or
-seeds. The tab appears only when the model exposes random variables.
+Override the **random-variable** parameters or seeds — for this model,
+`ServiceTime`'s mean (default 0.5 minute) or the arrival process. The tab appears
+only when the model exposes random variables.
 
 ### Post-Run Reporting
 
@@ -280,4 +302,4 @@ produced from a run that didn't capture it.
 
 - [Common UI & concepts](common-ui.md)
 - [Scenario app](scenario.md) · [Experiment app](experiment.md) · [Simopt app](simopt.md) · [Results app](results.md)
-- [KSL Book](https://rossetti.github.io/KSLBook/) — the simulation concepts behind the M/M/1 model.
+- [KSL Book](https://rossetti.github.io/KSLBook/) — the simulation concepts behind the drive-through pharmacy model.
