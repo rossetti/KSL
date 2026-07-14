@@ -92,7 +92,7 @@ A `SingleQStation` has its own built-in `capacity` (the number of
 parallel servers). When you need a resource that is *shared* across
 several stations, use `SResource` (or `SResourcePool`) with
 `SeizeStation` / `ReleaseStation`. That's the hold-across-stations
-pattern: the job carries `SRAllocation`s until released.
+pattern: the job carries `Allocation`s until released.
 
 ### Class-aware everything
 
@@ -228,7 +228,7 @@ Twenty archetypes ship; the rough decision table:
 | Finite buffer (block when full) | **`BlockingStation`** |
 | Synchronise matching pairs (assembly) | **`MatchStation`** |
 | Spawn child jobs, wait for them all, then continue | **`ForkStation`** + **`JoinStation`** |
-| Choose a station from a pick rule (e.g. shortest queue) | **`PickStation`** |
+| Choose a station from a pick rule (e.g. shortest queue) | **`PickStationReceiver`** / **`PickStationSender`** |
 | Source of arrivals (homogeneous) | **`SourceStation`** (DSL: `source`) |
 | Source of arrivals (non-homogeneous Poisson) | **`NHPPSource`** (DSL: `nhppSource`) |
 | Disposal | **`SinkStation`** / **`DisposalStation`** |
@@ -338,7 +338,7 @@ model.queueingNetwork("Hold") {
 }
 ```
 
-Each `QObject` carries its outstanding allocations (`SRAllocation`s);
+Each `QObject` carries its outstanding allocations (`Allocation`s);
 the network releases them in FIFO order per resource.
 
 ### ...add a shift / capacity schedule
@@ -564,7 +564,7 @@ Dokka pages.
 - `NWayStation` — multiple queues fed into one server (priority,
   multi-class).
 - `ResourcePoolStation` — service via a `SResourcePool`.
-- `PickStation` — chooses a target based on a pick rule.
+- `PickStationReceiver` / `PickStationSender` — pick the target station via a `Comparator<Station>` (default shortest WIP).
 
 **Flow-control stations**
 
@@ -596,12 +596,12 @@ Dokka pages.
 
 - `SResource` — a homogeneous resource with `capacity`.
 - `SResourcePool` — a named pool of one or more `SResource`s.
-- `SRAllocation` — outstanding seize token (carried by `QObject`).
+- `Allocation` — outstanding seize token (carried by `QObject`).
 - `CapacitySchedule` (from `ksl.modeling.entity`) and
   `CapacityScheduleSpec` (TOML).
 - `FailureSpec`, `FailureEffectSpec` — calendar-time / usage-based;
   `PREEMPT_RESUME` or `FINISH_THEN_FAIL`.
-- `SetupTime`, `SetupSpec`, `SetupEntry`, `InitialSetupEntry` —
+- `SetupTimeIfc` (with `ChangeoverSetupTime` / `SequenceDependentSetupTime`), `SetupSpec`, `SetupEntry`, `InitialSetupEntry` —
   sequence-dependent setups.
 
 **Multi-class**
@@ -612,7 +612,7 @@ Dokka pages.
 
 **Marking hooks**
 
-- `SourceMarkingHook` / `MarkingHookIfc` — set attributes on each
+- `MarkingHookIfc` — set attributes on each
   newly-created `QObject` at its source (the escape hatch for
   class-by-rule).
 

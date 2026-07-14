@@ -788,9 +788,10 @@ parameters:
 | Mutation | **`GaussianMutation`** | `perGeneRate: Double = 0.1`, `sigmaFactor: Double = 0.1` |
 | | `UniformResetMutation` | `perGeneRate: Double = 0.1` |
 
-*Worth knowing:* if `eliteCount >= populationSize`, evolution effectively
-freezes (no selection/crossover/mutation happens) — keep elite count well below
-population size.
+*Worth knowing:* if `eliteCount >= populationSize`, the effective elite count is
+clamped to `populationSize - 1` at use, so at least one offspring is still
+produced each generation (a warning is logged). The clamp prevents a hard freeze,
+but evolution near-stalls — keep elite count well below population size.
 
 ### 5.6 `ParticleSwarmSolver`
 
@@ -810,7 +811,7 @@ no-improvement or when the swarm's normalized diameter collapses below
 | `problemDefinition` | `ProblemDefinition` | required | — |
 | `modelBuilder` | `ModelBuilderIfc` | required | — |
 | `swarmSize` | `Int` | `defaultSwarmSize` = **30** | Number of particles. |
-| `inertiaSchedule` | `InertiaWeightScheduleIfc` | `LinearDecreasingInertia()` (initial=0.9, final=0.4, horizon=100) | Inertia weight `w` schedule — large early (exploration), small late (exploitation). |
+| `inertiaSchedule` | `InertiaWeightScheduleIfc?` | `null` → `LinearDecreasingInertia(initial=0.9, final=0.4, horizon=maxIterations)` | Inertia weight `w` schedule — large early (exploration), small late (exploitation). When omitted, the horizon auto-syncs to `maxIterations` so `w` decays across the whole run. |
 | `cognitiveCoefficient` | `Double` | **1.49445** | Pull toward the particle's own best (`c1`). |
 | `socialCoefficient` | `Double` | **1.49445** | Pull toward the swarm's global best (`c2`). |
 | `boundaryHandler` | `BoundaryHandlerIfc` | `ClampToBounds()` | What happens when a particle moves outside the input ranges. |
@@ -834,13 +835,12 @@ range), `diameterBasedStoppingEnabled` (property, default `true`),
 `diameterThreshold` (property, default **0.001**), `swarmSizeFn`/
 `coefficientSchedule` (both `null`, dynamic-override hooks).
 
-*Worth knowing:* `LinearDecreasingInertia()`'s `horizon` does **not**
-auto-sync with a caller-supplied `maxIterations` — it resolves from
-`psoDefaultMaxIterations` (100) at the moment the default expression runs. If
-you raise `maxIterations` to, say, 500 while leaving `inertiaSchedule` at its
-default, the schedule finishes decaying at iteration 100 and then holds flat
-for the remaining 400 — pass a matching custom schedule if you change the
-iteration cap materially.
+*Worth knowing:* when you leave `inertiaSchedule` at its default (`null`), the
+solver builds a `LinearDecreasingInertia` whose `horizon` equals
+`maximumIterations`, so the weight decays across the whole run regardless of the
+iteration cap. Raising `maxIterations` to, say, 500 automatically stretches the
+decay to 500 — you only need a custom schedule if you want a decay profile other
+than the full-run linear default.
 
 ### 5.7 `BayesianOptimizationSolver`
 
@@ -937,6 +937,7 @@ paper's actual guarantees.
 | `deltaL` | `Double` | `deltaC` | COMPASS local-optimality indifference zone. |
 | `skipGlobalPhase` | `Boolean` | `false` | Skip the niching-GA phase entirely and run one COMPASS search from the starting point — the unimodal special case. |
 | `globalBudget` | `Int?` | `null` | Optional replication budget added as a soft transition rule to a **default-built** global phase only; ignored if you supply your own. |
+| `startingPoint` | `MutableMap<String, Double>?` | `null` | Explicit starting point; if null a random feasible start is generated. All three ISC sub-solvers consult it (see below). |
 | `maxIterations` | `Int` | `iscDefaultMaxIterations` = **1000** (the only solver defaulting to 1000 rather than 100, because it counts orchestration macro-steps; factory and constructor agree) | Orchestration macro-step cap (GLOBAL/LOCAL/CLEANUP steps combined). |
 | `replicationsPerEvaluation` | `Int` | **30** | — |
 | `solutionCache` | `SolutionCacheIfc` | `MemorySolutionCache()` | — |
@@ -947,8 +948,8 @@ paper's actual guarantees.
 | `name` | `String?` | `null` | — |
 | `parallelOptions` | `ParallelEvaluationOptions` | `ParallelEvaluationOptions()` | — |
 
-> **The `createISCSolver` factory has no `startingPoint` parameter, but the
-> inherited `.startingPoint` var is honored** — set it after construction. All
+> **The `createISCSolver` factory accepts a `startingPoint` parameter** (and the
+> inherited `.startingPoint` var can still be set after construction). All
 > three ISC classes consult it: `ISCSolver` seeds the phase machine from it
 > (`startingPoint ?: startingPoint()`), `NichingGeneticAlgorithmSolver` injects
 > it into the initial population, and `CompassSolver` uses it when no explicit
@@ -1298,9 +1299,8 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   reports this up front. Reduce the size, refine an input's granularity, or widen
   a range.
 
-- **`createISCSolver` has no `startingPoint` parameter, but the inherited
-  `startingPoint` var is honored** — set it after construction (§5.8). All three
-  ISC classes consult it.
+- **`createISCSolver` accepts a `startingPoint` parameter** (or set the inherited
+  `startingPoint` var after construction; §5.8). All three ISC classes consult it.
 
 - **`createParticleSwarmSolver` is the only factory that defaults to parallel
   evaluation.** Every other solver defaults to sequential.

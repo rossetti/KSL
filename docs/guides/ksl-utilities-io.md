@@ -37,7 +37,7 @@ set of focused areas rather than one API:
 | **Excel** | `ExcelUtil` | Reading/writing `.xlsx` workbooks. |
 | **Tabular files** | `tabularfiles.*` | A typed, columnar file format with random access. |
 | **Data frames** | `DataFrameUtil` | Bridging to Kotlin DataFrame. |
-| **Databases** | `dbutil.*` | Persisting results to SQLite/DuckDb/Derby/Postgres. |
+| **Databases** | `dbutil.*` | Persisting results to SQLite/Derby/Postgres. |
 | **Plotting** | `plotting.*` | Charts via the lets-plot library. |
 | **Reporting** | `StatisticReporter`, `MarkDown`, `report.*` | Formatted text/Markdown/HTML output. |
 
@@ -236,13 +236,13 @@ import ksl.utilities.io.tabularfiles.TabularInputFile
 val tif = TabularInputFile(KSL.outDir.resolve("demoFile"))
 
 for (row in tif.iterator()) println(row)                 // iterate all rows
-val some: List<RowGetterIfc> = tif.fetchRows(1, 5)       // a subset
+val some: List<RowGetterIfc> = tif.fetchRows(1L, 5L)       // a subset
 val col: DoubleArray = tif.fetchNumericColumn(0, 10, true) // a column as an array
 
 tif.exportToExcelWorkbook("demoData.xlsx", KSL.excelDir) // -> Excel
 val df = tif.asDataFrame()                                // -> Kotlin DataFrame
 val db = tif.asDatabase()                                 // -> SQLite database
-tif.printAsText(1, 5)                                     // pretty-print rows
+tif.printAsText(1L, 5L)                                     // pretty-print rows
 tif.close()
 ```
 
@@ -263,7 +263,7 @@ DataFrameUtil.toTabularFile(df, "DataFrameVersion")
 
 ### ...persist results to a database?
 
-The `dbutil` package supports embedded SQLite, DuckDb, and Derby, plus Postgres.
+The `dbutil` package supports embedded SQLite and Derby, plus Postgres.
 Create an embedded database in `KSL.dbDir`:
 
 ```kotlin
@@ -490,7 +490,7 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 `Row`/`RowSetterIfc`/`RowGetterIfc`, `DataType`.
 
 **Databases (`io.dbutil`)** — `DatabaseIfc` / `Database` (the general contract),
-embedded engines `SQLiteDb` / `DuckDb` / `DerbyDb` and `PostgresDb`,
+embedded engines `SQLiteDb` / `DerbyDb` and `PostgresDb`,
 `KSLDatabase` and `KSLDatabaseObserver` (auto-capture of simulation results),
 `DbTableData` / `TabularData`.
 

@@ -27,12 +27,13 @@ vehicles traversing a road network, planes between airports. Reach for
 something else when no distance is involved (process timing only) or
 when the spatial model is the *whole* point of the model:
 
-- `ksl.modeling.station` queueing networks happily use this package's
-  `MovableResourceWithQ` for movable-server stations.
+- `ksl.modeling.station` is a separate queueing-network view with its
+  own passive `SResource`; it doesn't build on this spatial package.
 - `ksl.modeling.agent` carries a *parallel* spatial system aimed at
   agent-based models (statechart-reactive, force-based dynamics, 3D
-  variants). The two interoperate via `SpatialBridge` when an agent
-  model wants to share coordinates with the process view.
+  variants). The two interoperate via `asSpatialModel()` (a
+  `ProjectionSpatialModel`) when an agent model wants to share
+  coordinates with the process view.
 
 ### How it relates to its neighbors
 
@@ -40,10 +41,10 @@ when the spatial model is the *whole* point of the model:
   resources live here but are used from entity-side `process { … }`
   bodies through the same `seize` / `release` API as any other
   resource.
-- `ksl.modeling.station` — the queueing-network view; uses
-  `MovableResourceWithQ` for stations that move between locations.
+- `ksl.modeling.station` — a separate, distance-free queueing-network
+  view with its own passive `SResource`; not built on this package.
 - `ksl.modeling.agent` — alternative spatial substrate for agent-based
-  models; bridged via `SpatialBridge`.
+  models; bridged via `asSpatialModel()`.
 - `ksl.utilities.random` — velocity is a `GetValueIfc`; everything
   stochastic (`ConstantRV`, `TriangularRV`, …) plugs in directly.
 
@@ -659,11 +660,11 @@ A compact tour. Member-level detail is on the Dokka pages.
   `move` (the suspending verbs that drive everything in this guide).
   Movable resources live here from the user's perspective even though
   their types are declared here.
-- `ksl.modeling.station` — the queueing-network view; transparently
-  uses `MovableResourceWithQ` for movable-server stations.
+- `ksl.modeling.station` — a separate, distance-free queueing-network
+  view with its own passive `SResource`; not built on this package.
 - `ksl.modeling.agent` — a parallel spatial system aimed at
   agent-based models (statechart-reactive, force dynamics, 3D
-  variants). Bridged via `SpatialBridge` when both views need to
+  variants). Bridged via `asSpatialModel()` when both views need to
   share coordinates.
 - `ksl.utilities.random` — velocity is a `GetValueIfc`; constants,
   random variables, and computed values all plug in directly.

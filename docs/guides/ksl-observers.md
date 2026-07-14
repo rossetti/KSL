@@ -135,8 +135,8 @@ fun main() {
 ```kotlin
 val repData = ReplicationDataCollector(model)
 repData.addResponse(pwc.totalProcessingTime)
-repData.addResponse(pwc.probOfOvertime)
-repData.addCounterResponse(pwc.numProcessed)
+repData.addResponse(pwc.probOfOverTime)
+repData.addCounterResponse(pwc.numPalletsProcessed)
 // or grab everything: ReplicationDataCollector(model, addAll = true)
 
 model.simulate()
@@ -243,7 +243,7 @@ import ksl.observers.ControlVariateDataCollector
 
 val cv = ControlVariateDataCollector(model)
 cv.addResponse(pwc.totalProcessingTime)
-cv.addControlVariate(pwc.serviceTimeRV, meanValue = 0.5)
+cv.addControlVariate(pwc.processingTimeRV, meanValue = 0.5)
 model.simulate()
 val data = cv.collectedDataAsMap()
 ```

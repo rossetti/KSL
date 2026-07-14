@@ -24,8 +24,8 @@ Reach for a different package when something else fits better:
 
 - `ksl.modeling.station` is the queueing-network view: passive stations
   decide what to do with arriving jobs. Use it when the topology *is*
-  the control flow. Internally it uses `ResourceWithQ` from this
-  package, so the two views interoperate naturally.
+  the control flow. It has its own passive `SResource` rather than
+  reusing this package's `ResourceWithQ`.
 - `ksl.modeling.agent` is the agent-based view: actors react to
   signals, conditions, and messages via a statechart. Bridged to this
   package via `AgentResource` (which is also a `ResourceWithQ`).
@@ -571,7 +571,7 @@ fun readResults(server: ResourceWithQ, buffer: BlockingQueue<*>) {
 }
 ```
 
-`Resource` exposes `numBusyUnits`, `numInUseUnits`, and capacity
+`Resource` exposes `numBusyUnits`, `numActiveUnits`, and capacity
 information (utilization is busy / capacity in the half-width report).
 `ResourceWithQ` adds `waitingQ` (a `QueueCIfc` with all the standard
 queue statistics — number in queue, time in queue).
@@ -693,7 +693,7 @@ on the Dokka pages.
 - **`BlockingQueue` has *two* statistics surfaces.** Under finite
   capacity, both `senderQ` (producer side) and `requestQ` (consumer
   side) can be non-trivial. Read both when diagnosing backpressure.
-- **`Resource`'s `numBusyUnits` is not the same as `numInUseUnits` or
+- **`Resource`'s `numBusyUnits` is not the same as `numActiveUnits` or
   capacity.** Capacity is the configured max; busy is allocated units
   at this instant; queue length is pending requests. Utilization in
   the half-width report is derived from these — read carefully when
@@ -706,7 +706,7 @@ on the Dokka pages.
 **Related KSL packages**
 
 - `ksl.modeling.station` — queueing-network view (passive stations);
-  reuses `ResourceWithQ` from this package.
+  has its own passive `SResource` rather than this package's `ResourceWithQ`.
 - `ksl.modeling.agent` — agent-based view (statechart-reactive);
   bridged via `AgentResource` which is also a `ResourceWithQ`.
 - `ksl.modeling.supplychain` — multi-echelon inventory domain layer.
@@ -739,8 +739,9 @@ The KSL Book chapters are the canonical worked examples:
 |---|---|---|
 | `book/chapter6/` | `Ch6Example1`–`Ch6Example9` | the process view introduced from scratch; resources, queues, statistics |
 | `book/chapter7/` | `Ch7Example1`–`Ch7Example4` | tandem queues, resource pools, capacity schedules, conveyors |
-| `book/chapter8/` | `Ch8ExampleTandemQExamples`, `Ch8Section8_4_2_2`, `Ch8Section8_4_2_3` | larger case studies and tactical analysis |
-| `general/models/` | `ActiveResourceExample*` (BQ, HQ, Signal) | three coordination patterns side by side |
+| `book/chapter8/` | `Ch8Section8_4_2_2`, `Ch8Section8_4_2_3` | larger case studies and tactical analysis |
+| `general/models/conveyors/` | `Ch8ExampleTandemQExamples` | conveyor-driven tandem queue |
+| `general/models/wsc2025/` | `ActiveResourceExample*` (BQ, HQ, Signal) | three coordination patterns side by side |
 | `general/models/` | `ClinicDesignA`, `ClinicDesignB` | bigger applied models |
 | `general/models/conveyors/` | `ConveyorExample1`–`ConveyorExample4`, `BanksEtAlConveyorExample` | conveyor patterns |
 

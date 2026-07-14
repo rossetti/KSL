@@ -12,8 +12,7 @@ This guide complements two other resources rather than replacing them:
 
 This guide answers *"how do I accomplish X with this package?"* The runnable
 examples are adapted from
-`KSLExamples/.../book/chapter5/Ch5Example8.kt` and
-`KSLExamples/.../general/controls/VanControlsDemo.kt`.
+`KSLTestModels/.../general/controls/VanControlsDemo.kt`.
 
 > **Scope.** This guide covers the control-annotation system in the top-level
 > `ksl.controls` package. The **`ksl.controls.experiments`** subpackage
@@ -344,6 +343,6 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 - **What drives controls:** `ksl.controls.experiments` (factorial designs,
   scenarios, designed experiments) — a separate guide.
 - **Reporting:** `ksl.utilities.io.report` (`toReport`, `controlsReport`).
-- **Runnable examples:** `Ch5Example8.kt` (basic control extraction and setting)
-  and `VanControlsDemo.kt` (numeric, string, JSON controls and export/import).
+- **Runnable examples:** `VanControlsDemo.kt` (numeric, boolean, string, and JSON
+  controls, plus bulk set, export/import, and reporting).
 - **Theory and workflow:** the [KSL Book](https://rossetti.github.io/KSLBook/).
