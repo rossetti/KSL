@@ -5,7 +5,11 @@ apps** — each guide walks through the app click-by-click with a concrete worke
 example. **Bundle Tools** (`kslpkg`) and the **MCP Server** are command-line and
 server tools, driven from a terminal.
 
-New to these apps? Read **[Common UI & concepts](common-ui.md)** first — it covers
+**First time?** **[Install the KSL suite](install.md)** — one command installs all
+these apps, the servers, and `kslpkg` into a single `KSLWork` folder, running on your
+own Java 21 (no build required).
+
+New to these apps? Read **[Common UI & concepts](common-ui.md)** next — it covers
 the parts every app shares (models & bundles, the workspace, themes, the run
 console, reports), so the individual guides don't repeat them.
 

@@ -43,6 +43,33 @@ Developers and companies are encouraged to add functionality to the KSL and rele
 the functionality so that everyone can benefit. Developers who want to extend the KSL for proprietary or commercial 
 purposes can contact the KSL development team for other possible licensing arrangements.
 
+## Installing the KSL Applications
+
+The KSL desktop applications, MCP/REST servers, and the `kslpkg` command-line tool
+ship as a single suite that runs on your own **Java 21** — no build, no Gradle, no
+IntelliJ. Everything installs into one `KSLWork` folder.
+
+**macOS / Linux**
+```
+curl -fsSL https://raw.githubusercontent.com/rossetti/KSL/main/install.sh | bash
+```
+**Windows (PowerShell)**
+```
+irm https://raw.githubusercontent.com/rossetti/KSL/main/install.ps1 -OutFile "$env:TEMP\ksl-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\ksl-install.ps1"
+```
+
+This installs the apps, servers, and `kslpkg` (all sharing one library folder) plus a
+`ksl` helper for adding, removing, and updating individual pieces. Your model bundles
+and working output are preserved across updates. See the
+[Applications install guide](docs/guides/apps/install.md) to run the apps, wire up the
+servers, and manage the suite.
+
+> Suite installs require the first published release. Until then, build the payload
+> locally (`./gradlew assembleKSLWork`) and install it with the installer's `--from`
+> option — see the guide.
+
+The rest of this section is for **developers** building KSL from source.
+
 ## Cloning and Setting Up a Project
 
 If you are using IntelliJ, you can use its clone repository functionality to 
