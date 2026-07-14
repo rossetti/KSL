@@ -1,9 +1,20 @@
 {
   "kslWorkLayout": 1,
-  "_comment": "What install.sh downloads. The suite asset URL + sha256 are filled in when a release is cut; until then, install with --from <local ksl-suite.zip>. Per-item entries (apps/servers for `ksl update <id>`) are added in a later change set.",
-  "suite": {
-    "version": "0.1.0",
-    "asset": "https://github.com/<owner>/KSL/releases/download/suite-v0.1.0/ksl-suite.zip",
-    "sha256": ""
-  }
+  "_comment": "What install.sh / bin/ksl operate on. The suite asset URL + sha256 are filled in when a release is cut; until then use --from <local ksl-suite.zip>. 'items' is the catalog `ksl install/uninstall <id>` acts on (id -> KSLWork subpath); per-item release URLs can be added later for independent per-app updates.",
+  "suite": { "version": "0.1.0", "asset": "https://github.com/<owner>/KSL/releases/download/suite-v0.1.0/ksl-suite.zip", "sha256": "" },
+  "items": [
+    { "id": "single",       "kind": "app",    "path": "Apps/Single" },
+    { "id": "scenario",     "kind": "app",    "path": "Apps/Scenario" },
+    { "id": "experiment",   "kind": "app",    "path": "Apps/Experiment" },
+    { "id": "simopt",       "kind": "app",    "path": "Apps/Simopt" },
+    { "id": "distribution", "kind": "app",    "path": "Apps/Distribution" },
+    { "id": "results",      "kind": "app",    "path": "Apps/Results" },
+    { "id": "bundle",       "kind": "app",    "path": "Apps/Bundle" },
+    { "id": "animation",    "kind": "app",    "path": "Apps/Animation" },
+    { "id": "mcp",          "kind": "server", "path": "Servers/mcp" },
+    { "id": "rest",         "kind": "server", "path": "Servers/rest" },
+    { "id": "code",         "kind": "server", "path": "Servers/code" },
+    { "id": "book",         "kind": "server", "path": "Servers/book" },
+    { "id": "kslpkg",       "kind": "tool",   "path": "Tools/kslpkg" }
+  ]
 }

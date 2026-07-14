@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+#
+# ksl — manage the KSL suite installed in this KSLWork folder.
+#
+#   ksl list                          what's available and what's installed
+#   ksl install <id> [--from <zip>]   add one item (reuses the shared lib/)
+#   ksl uninstall <id>                remove one item
+#   ksl update [id] [--from <zip>]    refresh everything, or just one item
+#
+# <id> comes from the catalog (see `ksl list`): e.g. single, results, mcp, book, kslpkg.
+# Without --from, install/update download ksl-suite.zip from the manifest (once a release
+# exists); --from <zip> installs from a local ksl-suite.zip. bundles/ and per-app working
+# output are never touched.
+#
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"     # bin/ksl -> KSLWork
+MANIFEST="$ROOT/manifest.json"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+say() { printf '%s\n' "$*"; }
+die() { printf 'ksl: %s\n' "$*" >&2; exit 1; }
+
+[ -f "$MANIFEST" ] || die "no manifest.json in $ROOT — run this as an installed KSLWork/bin/ksl"
+
+# catalog: one "id<TAB>kind<TAB>path" line per item object in manifest.json
+catalog() {
+  grep -oE '\{[^{}]*"id"[^{}]*\}' "$MANIFEST" | while read -r o; do
+    printf '%s\t%s\t%s\n' \
+      "$(printf '%s' "$o" | sed -n 's/.*"id"[^"]*"\([^"]*\)".*/\1/p')" \
+      "$(printf '%s' "$o" | sed -n 's/.*"kind"[^"]*"\([^"]*\)".*/\1/p')" \
+      "$(printf '%s' "$o" | sed -n 's/.*"path"[^"]*"\([^"]*\)".*/\1/p')"
+  done
+}
+# NB: read all of catalog (no early `exit`) — exiting awk early SIGPIPEs catalog, which
+# under `set -o pipefail`/`set -e` would silently kill the script.
+path_of() { catalog | awk -F'\t' -v i="$1" '$1==i{r=$3} END{if (r!="") print r}'; }
+
+FROM=""
+# echo a usable ksl-suite.zip path: --from if given, else download from the manifest URL
+suite_zip() {
+  if [ -n "$FROM" ]; then [ -f "$FROM" ] || die "--from: no such file: $FROM"; printf '%s\n' "$FROM"; return; fi
+  local url; url="$(sed -n 's/.*"asset"[^"]*"\([^"]*ksl-suite\.zip\)".*/\1/p' "$MANIFEST" | head -1)"
+  [ -n "$url" ] || die "no suite URL in manifest and no --from given (publish a release first)"
+  printf 'downloading %s ...\n' "$url" >&2
+  curl -fSL "$url" -o "$TMP/ksl-suite.zip" >&2 || die "download failed"
+  printf '%s\n' "$TMP/ksl-suite.zip"
+}
+dequarantine() { [ "$(uname)" = "Darwin" ] && xattr -dr com.apple.quarantine "$@" >/dev/null 2>&1 || true; }
+
+cmd_list() {
+  say "KSLWork: $ROOT"
+  [ -f "$ROOT/VERSIONS.txt" ] && grep -iE '^version:' "$ROOT/VERSIONS.txt" || true
+  printf '  %-13s %-7s %s\n' "id" "kind" "installed"
+  catalog | while IFS="$(printf '\t')" read -r id kind path; do
+    if [ -d "$ROOT/$path" ]; then st="yes"; else st="-"; fi
+    printf '  %-13s %-7s %s\n' "$id" "$kind" "$st"
+  done
+}
+cmd_uninstall() {
+  local path; path="$(path_of "$1")"
+  [ -n "$path" ] || die "unknown id: $1 (see 'ksl list')"
+  [ -d "$ROOT/$path" ] || { say "$1 is not installed."; return; }
+  rm -rf "${ROOT:?}/$path"
+  say "removed $1 ($path)"
+}
+cmd_install() {
+  local path; path="$(path_of "$1")"
+  [ -n "$path" ] || die "unknown id: $1 (see 'ksl list')"
+  local zip; zip="$(suite_zip)"
+  unzip -q -o "$zip" "$path/*" -d "$ROOT"
+  dequarantine "$ROOT/$path"
+  say "installed $1 -> $path"
+}
+cmd_update() {
+  local zip; zip="$(suite_zip)"
+  if [ -z "${1:-}" ]; then
+    unzip -q -o "$zip" 'lib/*' 'Apps/*' 'Servers/*' 'Tools/*' 'bin/*' -d "$ROOT"
+    dequarantine "$ROOT/Apps" "$ROOT/Servers" "$ROOT/Tools"
+    say "updated the whole suite (bundles/ and working output preserved)"
+  else
+    local path; path="$(path_of "$1")"; [ -n "$path" ] || die "unknown id: $1"
+    unzip -q -o "$zip" "$path/*" -d "$ROOT"; dequarantine "$ROOT/$path"
+    say "updated $1"
+  fi
+}
+
+# pull --from out of the args, then dispatch
+A=()
+while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; *) A+=("$1"); shift ;; esac; done
+set -- ${A[@]+"${A[@]}"}
+cmd="${1:-list}"; [ $# -gt 0 ] && shift || true
+case "$cmd" in
+  list)             cmd_list ;;
+  install)          [ $# -ge 1 ] || die "usage: ksl install <id> [--from <zip>]"; cmd_install "$1" ;;
+  uninstall|remove) [ $# -ge 1 ] || die "usage: ksl uninstall <id>"; cmd_uninstall "$1" ;;
+  update)           cmd_update "${1:-}" ;;
+  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> | update [id]} [--from <ksl-suite.zip>]" ;;
+  *) die "unknown command: $cmd (try 'ksl list')" ;;
+esac

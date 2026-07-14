@@ -274,6 +274,7 @@ tasks.register("assembleKSLWork") {
         dependsOn(server.tasks.named("shadowJar"))
         inputs.files(server.tasks.named("shadowJar"))
     }
+    inputs.file("ksl")
     outputs.dir(kslWorkDir)
     doLast {
         val root = kslWorkDir.get().asFile
@@ -361,8 +362,12 @@ tasks.register("assembleKSLWork") {
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
         }
 
+        // the ksl helper (manage what's installed in a KSLWork) — a repo-root script shipped in bin/.
+        val binDir = root.resolve("bin").apply { mkdirs() }
+        file("ksl").copyTo(binDir.resolve("ksl"), overwrite = true).setExecutable(true)
+
         logger.lifecycle("assembleKSLWork: shared lib/ = ${libDir.listFiles()?.size ?: 0} jars; " +
-            "${kslAppTargets.size} apps; kslpkg (fat); ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers")
+            "${kslAppTargets.size} apps; kslpkg; ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers; bin/ksl")
     }
 }
 
