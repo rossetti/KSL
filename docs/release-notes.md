@@ -1,9 +1,10 @@
 # KSL Release Notes
 
 Release history for **KSLCore** (`io.github.rossetti:KSLCore`), newest first.
-These notes cover the published library, including the `ksl.app.*` infrastructure
-that ships inside it; the Swing applications are separate modules (see the README's
-build section) and are not part of the KSLCore artifact.
+These notes cover the published library. The `ksl.app.*` model-packaging / run /
+session infrastructure was **extracted into the separate, internal `KSLApp`
+module** (it is not part of the published KSLCore artifact), and the Swing
+applications are separate modules too (see the README's build section).
 
 ## R1.3
 
@@ -34,7 +35,11 @@ plus optimization, reporting, and numerics additions.
   negotiation, and 2D/3D dynamics with flow fields. The earliest‑stage of the three; some hooks
   are not yet complete.
 
-### Model packaging & run infrastructure (ships in KSLCore)
+### Model packaging & run infrastructure (the `ksl.app.*` layer, now in `KSLApp`)
+
+This `ksl.app.*` layer was **extracted from KSLCore into the separate internal
+`KSLApp` module**, so the published KSLCore library carries only the simulation
+engine; `KSLApp` (not published to Maven) backs the Swing apps and servers.
 
 - **Model‑bundle SPI (new).** `ksl.app.bundle` lets models ship as self‑describing JARs discovered
   via `ServiceLoader`, loaded with per‑JAR classloader isolation from JAR, directory, or classpath.
@@ -43,6 +48,14 @@ plus optimization, reporting, and numerics additions.
   single/scenario/experiment/optimization specs from serializable JSON/TOML run documents, with
   validators and both async and blocking submission. This is the substrate behind the new
   configuration‑style applications.
+
+### Animation (new, experimental)
+
+- **Model animation capture (new).** A `ksl.animation` layer in KSLCore captures a
+  run as a replayable trace — an `AnimationBuilder` DSL plus `AnimationCapture` — so a
+  model's movement, queues, and resources can be visualized. The capture side ships in
+  KSLCore; the replay engine and desktop viewer live on the KSLApp / Swing side (see
+  the [Animation app](guides/apps/animation.md) guide). New and experimental.
 
 ### Controls & experiments
 

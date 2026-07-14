@@ -542,6 +542,9 @@ To reach the server from another machine, see the security note in
 
 ## 11. See also
 
+- **Sibling MCP servers** — [Code MCP Server](mcp-server-code.md) (`ksl-code`, searchable
+  KSL source / API) and [Book MCP Server](mcp-server-book.md) (`ksl-book`, the textbook).
+  This `ksl` server runs models; those two answer code and concept questions.
 - The **REST server** — a sibling transport that drives the same models over plain
   HTTP for scripts and web apps (user guide planned).
 - [Bundle Tools](bundle-tools.md) — package your own models into loadable bundles (`kslpkg`).

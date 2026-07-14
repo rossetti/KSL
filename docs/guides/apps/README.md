@@ -29,13 +29,17 @@ console, reports), so the individual guides don't repeat them.
 
 ## Servers
 
-Prefer to drive KSL from outside a GUI? The server modules expose the same
-capabilities to programs and AI assistants.
+Prefer to drive KSL from outside a GUI? The server modules expose KSL's
+capabilities to programs and AI assistants. Three separate **MCP servers** give an
+AI assistant searchable, tool-driven access — to running models, to the source code,
+and to the textbook — each running as its own process.
 
 | Guide | What it's for | Status |
 |---|---|---|
 | **[MCP Server](mcp-server.md)** | Run and analyze models from an AI assistant (Claude Desktop, Cursor, Codex) over the Model Context Protocol. | ✅ Available |
-| **REST Server** | Drive models over plain HTTP from scripts and web apps. | Planned |
+| **[Code MCP Server](mcp-server-code.md)** | Give an AI assistant searchable access to the KSL **source code** and API. | ✅ Available |
+| **[Book MCP Server](mcp-server-book.md)** | Give an AI assistant searchable access to the KSL **textbook**. | ✅ Available |
+| **REST Server** | Drive models over plain HTTP from scripts and web apps. The server module ships; a user guide is planned. | Guide planned |
 
 ## How the apps relate
 

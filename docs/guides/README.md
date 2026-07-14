@@ -61,11 +61,14 @@ sections — if the right view isn't obvious from the table, start with
 ## Running as a server
 
 Drive your models from outside the JVM — an AI assistant over MCP, or
-scripts and web apps over REST.
+scripts and web apps over REST. Three MCP servers give an AI assistant searchable,
+tool-driven access to different parts of KSL.
 
 | Guide | What it covers |
 |---|---|
-| [`apps/mcp-server`](apps/mcp-server.md) | **Getting started** with the MCP server for an AI assistant (Claude Desktop, Cursor, Codex) — build, launch it, connect a client, and run a first tool-driven session, with real transcripts. |
+| [`apps/mcp-server`](apps/mcp-server.md) | **Getting started** with the model MCP server (`ksl`) — build, launch it, connect a client, and run a first tool-driven session, with real transcripts. |
+| [`apps/mcp-server-code`](apps/mcp-server-code.md) | The `ksl-code` server — searchable access to the KSL **source code** and API for an AI assistant. |
+| [`apps/mcp-server-book`](apps/mcp-server-book.md) | The `ksl-book` server — searchable access to the KSL **textbook** for an AI assistant. |
 
 ## Random numbers, distributions, statistics
 
