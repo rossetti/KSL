@@ -6,7 +6,7 @@ desktop apps and the best place to start: set a few parameters, click
 **Simulate**, and read a report.
 
 > **You will need:** Java 21 and a model **bundle** to load. This guide uses the
-> **M/M/1 queue** model from the KSL book-models bundle. New to the KSL desktop
+> **M/M/1 queue** model from the KSL **M/M/1 Queue Example** bundle (`mm1-sample.jar`). New to the KSL desktop
 > apps? Skim [Common UI & concepts](common-ui.md) first.
 
 ## What you'll be able to do
@@ -47,8 +47,9 @@ Model** dialog listing the bundles it found in your `<KSLWork>/bundles/` folder:
 
 For this guide, the **M/M/1 Queue Example** bundle and its **M/M/1 Queue (MM1)**
 model are what you want — the *Selected model* panel summarizes the model's inputs
-and run defaults. (The KSL **book-models** bundle, shipping as a released artifact,
-provides this and the other textbook models.)
+and run defaults. (This model ships as a released `mm1-sample.jar`; the separate
+**KSL Book Examples** bundle (`book-examples.jar`) provides the broader set of
+textbook models.)
 
 - If the model you want is already listed, select its bundle and model.
 - If the list is empty or missing your model, click **Load JAR…** to load a bundle

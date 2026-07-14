@@ -7,7 +7,7 @@ busy and idle over simulated time. It follows one workflow across four tabs:
 where things sit on a canvas, then press **Play**.
 
 > **You will need:** Java 21 and a model **bundle** in your workspace. This guide
-> uses **TandemQueueWithUnconstrainedMovement** from the KSL book-models bundle —
+> uses **TandemQueueWithUnconstrainedMovement** from the KSL Book Examples bundle —
 > a two-station queue where customers *walk* between stations, so there's real
 > movement to watch. New to KSL desktop apps? Skim
 > [Common UI & concepts](common-ui.md) first.
@@ -53,7 +53,7 @@ three building behind them, at simulated time **t = 60 of 150**:
 ## 2. Before you begin
 
 The app has **no models built in** — it discovers **bundle JARs** from your
-workspace. Build the KSL book-models bundle and drop it where the app looks:
+workspace. Build the KSL Book Examples bundle and drop it where the app looks:
 
 ```bash
 ./gradlew :KSLExamples:bookExamplesBundleJar

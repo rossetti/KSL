@@ -6,7 +6,7 @@ inputs and run settings; you run them all together, then compare a response acro
 statistically.
 
 > **You will need:** Java 21 and a model **bundle** (this guide uses the **M/M/1 queue**
-> from the book-models bundle). New here? Read [Common UI & concepts](common-ui.md) and
+> from the KSL Book Examples bundle). New here? Read [Common UI & concepts](common-ui.md) and
 > the simpler [Single-Model guide](single.md) first.
 
 ## What you'll be able to do

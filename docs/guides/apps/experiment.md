@@ -5,7 +5,7 @@ inputs (called *factors*) over a planned grid of values, runs every combination,
 fits a **regression model** so you can see how each factor affects a response.
 
 > **You will need:** Java 21 and a model **bundle**. This guide uses the **LK (s,S)
-> inventory** model from the book-models bundle. New here? Read
+> inventory** model from the KSL Book Examples bundle. New here? Read
 > [Common UI & concepts](common-ui.md) and the [Single-Model guide](single.md) first.
 
 ## What you'll be able to do

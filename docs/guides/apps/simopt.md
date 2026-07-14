@@ -6,7 +6,7 @@ minimize or maximize, choose a search algorithm, and the app runs the model many
 to find a good solution.
 
 > **You will need:** Java 21 and a model **bundle**. This guide uses an **LK (s,S)
-> inventory** optimization model from the book-models bundle. New here? Read
+> inventory** optimization model from the KSL Book Examples bundle. New here? Read
 > [Common UI & concepts](common-ui.md), then the [Experiment guide](experiment.md).
 
 ## What you'll be able to do
