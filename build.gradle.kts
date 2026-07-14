@@ -203,6 +203,60 @@ fun jvmArgsOf(project: Project): String {
     return if (args.isEmpty()) "" else " $args"
 }
 
+// Windows .cmd launchers (written CRLF). Batch uses %VAR% / %* / ';' and no '$', so these
+// templates need no escaping. GUI apps use javaw + start (no lingering console); the KSL-runtime
+// servers and CLIs use java. The full Java-21 check stays in the installer preflight.
+val winAppTemplate = """
+    @echo off
+    setlocal
+    set "JAVAW=javaw"
+    if defined JAVA_HOME set "JAVAW=%JAVA_HOME%\bin\javaw"
+    "%JAVAW%" -version >nul 2>&1
+    if errorlevel 1 (
+      echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
+      pause
+      exit /b 1
+    )
+    start "" "%JAVAW%"@JVMARGS@ -cp "%~dp0..\..\lib\*;%~dp0@NAME@.jar" @MAIN@ %*
+""".trimIndent()
+
+val winServerTemplate = """
+    @echo off
+    setlocal
+    set "JAVA=java"
+    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java"
+    "%JAVA%" -version >nul 2>&1
+    if errorlevel 1 (
+      echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
+      exit /b 1
+    )
+    "%JAVA%"@JVMARGS@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
+""".trimIndent()
+
+val winCliTemplate = """
+    @echo off
+    setlocal
+    set "JAVA=java"
+    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java"
+    "%JAVA%" -version >nul 2>&1
+    if errorlevel 1 (
+      echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
+      exit /b 1
+    )
+    "%JAVA%"@JVMARGS@ -jar "%~dp0@NAME@.jar" %*
+""".trimIndent()
+
+fun winAppLauncher(name: String, mainClass: String, jvmArgs: String) =
+    (winAppTemplate.replace("@NAME@", name).replace("@MAIN@", mainClass)
+        .replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
+
+fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: String) =
+    (winServerTemplate.replace("@NAME@", name).replace("@JAR@", jar).replace("@MAIN@", mainClass)
+        .replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
+
+fun winCliLauncher(name: String, jvmArgs: String) =
+    (winCliTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
+
 tasks.register("assembleKSLWork") {
     group = "distribution"
     description = "Assemble the KSLWork payload (shared lib/ + thin app JARs + kslpkg + launchers) under build/kslwork"
@@ -251,13 +305,17 @@ tasks.register("assembleKSLWork") {
             val appDir = root.resolve("Apps/$target").apply { mkdirs() }
             jarOf(app.tasks.named("jar")).copyTo(appDir.resolve("$target.jar"), overwrite = true)
             val main = app.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
-            appDir.resolve("$target.command").apply { writeText(macLauncher(target, main, jvmArgsOf(app))); setExecutable(true) }
+            val appJvm = jvmArgsOf(app)
+            appDir.resolve(target).apply { writeText(macLauncher(target, main, appJvm)); setExecutable(true) }
+            appDir.resolve("$target.cmd").writeText(winAppLauncher(target, main, appJvm))
         }
 
         // kslpkg: the trimmed, self-contained shadow fat jar + a CLI launcher (system Java, no JRE).
         val toolsDir = root.resolve("Tools/kslpkg").apply { mkdirs() }
         jarOf(kslBundleTools.tasks.named("shadowJar")).copyTo(toolsDir.resolve("kslpkg.jar"), overwrite = true)
-        toolsDir.resolve("kslpkg").apply { writeText(cliLauncher("kslpkg", jvmArgsOf(kslBundleTools))); setExecutable(true) }
+        val kslpkgJvm = jvmArgsOf(kslBundleTools)
+        toolsDir.resolve("kslpkg").apply { writeText(cliLauncher("kslpkg", kslpkgJvm)); setExecutable(true) }
+        toolsDir.resolve("kslpkg.cmd").writeText(winCliLauncher("kslpkg", kslpkgJvm))
 
         // KSL-runtime servers: thin server jar + a small server-lib/. server-lib/ holds the deps
         // the shared lib/ does NOT already carry at the SAME version — i.e. the server-only extras
@@ -281,8 +339,10 @@ tasks.register("assembleKSLWork") {
                 }
             }
             val primaryMain = server.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
+            val srvJvm = jvmArgsOf(server)
             (listOf(jarBase to primaryMain) + extraLaunchers).forEach { (lname, main) ->
-                srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, jvmArgsOf(server))); setExecutable(true) }
+                srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, srvJvm)); setExecutable(true) }
+                srvDir.resolve("$lname.cmd").writeText(winServerLauncher(lname, jarBase, main, srvJvm))
             }
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $jarBase.jar + " +
                 "${serverLibDir.listFiles()?.size ?: 0} server-lib jars (${overrides.size} shadow lib/) + ${1 + extraLaunchers.size} launcher(s)")
@@ -295,7 +355,9 @@ tasks.register("assembleKSLWork") {
             val name = "ksl-$dir-mcp"
             val sdir = root.resolve("Servers/$dir").apply { mkdirs() }
             jarOf(server.tasks.named("shadowJar")).copyTo(sdir.resolve("$name.jar"), overwrite = true)
-            sdir.resolve(name).apply { writeText(cliLauncher(name, jvmArgsOf(server))); setExecutable(true) }
+            val fatJvm = jvmArgsOf(server)
+            sdir.resolve(name).apply { writeText(cliLauncher(name, fatJvm)); setExecutable(true) }
+            sdir.resolve("$name.cmd").writeText(winCliLauncher(name, fatJvm))
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
         }
 
@@ -303,3 +365,18 @@ tasks.register("assembleKSLWork") {
             "${kslAppTargets.size} apps; kslpkg (fat); ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers")
     }
 }
+
+// The release payload: zip build/kslwork into build/ksl-suite.zip. Launcher scripts (the
+// extension-less files) must survive as executable, so the archive entries are marked 0755
+// (harmless for the jars). Runs after assembleKSLWork and finalizes it, so one command emits both.
+tasks.register<Zip>("packageKSLWork") {
+    group = "distribution"
+    description = "Zip the assembled KSLWork payload into build/ksl-suite.zip"
+    dependsOn("assembleKSLWork")
+    from(kslWorkDir)
+    archiveFileName.set("ksl-suite.zip")
+    destinationDirectory.set(layout.buildDirectory)
+    filePermissions { unix("0755") }
+    dirPermissions { unix("0755") }
+}
+tasks.named("assembleKSLWork") { finalizedBy("packageKSLWork") }
