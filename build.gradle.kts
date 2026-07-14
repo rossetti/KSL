@@ -108,6 +108,16 @@ val kslAppTargets: List<Pair<Project, String>> = linkedMapOf(
 // lets-plot / POI the shared lib/ carries), so it ships standalone under Tools/, NOT over lib/.
 val kslBundleTools = evaluationDependsOn(":KSLBundleTools")
 
+// KSL-runtime servers: (project, Servers/<dir>, extra launchers). They build on KSLServiceCore ->
+// KSLApp/KSLCore (already in the shared lib/), so they ship THIN over lib/ + a small server-lib/
+// of the extras the apps don't carry (KSLServiceCore, Ktor, MCP SDK). The primary launcher's main
+// is read from application{}; mcp adds an HTTP entry point that lives outside application{}, named
+// explicitly here.
+val kslServers: List<Triple<Project, String, List<Pair<String, String>>>> = listOf(
+    Triple(evaluationDependsOn(":KSLServerMcp"), "mcp", listOf("ksl-mcp-http" to "ksl.server.mcp.MainHttpKt")),
+    Triple(evaluationDependsOn(":KSLServerRest"), "rest", emptyList()),
+)
+
 // Launchers generated from templates. "DOLLAR" stands in for a literal shell '$' so the Kotlin
 // string needs no per-character escaping; it is substituted back at the end. The app launcher
 // runs a thin `-cp lib/*:App.jar Main`; the CLI launcher runs a self-contained `-jar tool.jar`.
@@ -125,7 +135,7 @@ val macLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA" -cp "DOLLARKSLWORK/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA"@JVMARGS@ -cp "DOLLARKSLWORK/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 val cliLauncherTemplate = """
@@ -141,17 +151,48 @@ val cliLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA" -jar "DOLLARDIR/@NAME@.jar" "DOLLAR@"
+    exec "DOLLARJAVA"@JVMARGS@ -jar "DOLLARDIR/@NAME@.jar" "DOLLAR@"
 """.trimIndent()
 
-fun macLauncher(name: String, mainClass: String): String =
-    macLauncherTemplate.replace("@NAME@", name).replace("@MAIN@", mainClass).replace("DOLLAR", "\$") + "\n"
+val serverLauncherTemplate = """
+    #!/bin/bash
+    # @NAME@ — KSLWork server launcher (runs on your system Java 21).
+    set -e
+    DIR="DOLLAR(cd "DOLLAR(dirname "DOLLAR0")" && pwd)"
+    KSLWORK="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
+    JAVA=java
+    [ -n "DOLLARJAVA_HOME" ] && JAVA="DOLLARJAVA_HOME/bin/java"
+    VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
+    if [ -z "DOLLARVER" ] || ! [ "DOLLARVER" -ge 21 ] 2>/dev/null; then
+      echo "@NAME@ needs Java 21 — the same JDK you use in IntelliJ."
+      echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
+      exit 1
+    fi
+    exec "DOLLARJAVA"@JVMARGS@ -cp "DOLLARDIR/server-lib/*:DOLLARKSLWORK/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
+""".trimIndent()
 
-fun cliLauncher(name: String): String =
-    cliLauncherTemplate.replace("@NAME@", name).replace("DOLLAR", "\$") + "\n"
+fun macLauncher(name: String, mainClass: String, jvmArgs: String): String =
+    macLauncherTemplate.replace("@NAME@", name).replace("@MAIN@", mainClass)
+        .replace("@JVMARGS@", jvmArgs).replace("DOLLAR", "\$") + "\n"
+
+fun cliLauncher(name: String, jvmArgs: String): String =
+    cliLauncherTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs).replace("DOLLAR", "\$") + "\n"
+
+fun serverLauncher(name: String, jar: String, mainClass: String, jvmArgs: String): String =
+    serverLauncherTemplate.replace("@NAME@", name).replace("@JAR@", jar)
+        .replace("@MAIN@", mainClass).replace("@JVMARGS@", jvmArgs).replace("DOLLAR", "\$") + "\n"
 
 fun jarOf(task: org.gradle.api.tasks.TaskProvider<*>): java.io.File =
     (task.get() as org.gradle.api.tasks.bundling.Jar).archiveFile.get().asFile
+
+// Each app/server's `application {}` may set applicationDefaultJvmArgs (e.g. the servers'
+// -Dlogback.configurationFile that routes logging to stderr — essential for a clean MCP stdio
+// channel). Propagate them into the launcher; leading-space keeps the exec line clean when empty.
+fun jvmArgsOf(project: Project): String {
+    val args = project.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java)
+        .applicationDefaultJvmArgs.joinToString(" ")
+    return if (args.isEmpty()) "" else " $args"
+}
 
 tasks.register("assembleKSLWork") {
     group = "distribution"
@@ -162,6 +203,10 @@ tasks.register("assembleKSLWork") {
     }
     dependsOn(kslBundleTools.tasks.named("shadowJar"))
     inputs.files(kslBundleTools.tasks.named("shadowJar"))
+    kslServers.forEach { (server, _, _) ->
+        dependsOn(server.tasks.named("jar"))
+        inputs.files(server.configurations.named("runtimeClasspath"))
+    }
     outputs.dir(kslWorkDir)
     doLast {
         val root = kslWorkDir.get().asFile
@@ -193,15 +238,45 @@ tasks.register("assembleKSLWork") {
             val appDir = root.resolve("Apps/$target").apply { mkdirs() }
             jarOf(app.tasks.named("jar")).copyTo(appDir.resolve("$target.jar"), overwrite = true)
             val main = app.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
-            appDir.resolve("$target.command").apply { writeText(macLauncher(target, main)); setExecutable(true) }
+            appDir.resolve("$target.command").apply { writeText(macLauncher(target, main, jvmArgsOf(app))); setExecutable(true) }
         }
 
         // kslpkg: the trimmed, self-contained shadow fat jar + a CLI launcher (system Java, no JRE).
         val toolsDir = root.resolve("Tools/kslpkg").apply { mkdirs() }
         jarOf(kslBundleTools.tasks.named("shadowJar")).copyTo(toolsDir.resolve("kslpkg.jar"), overwrite = true)
-        toolsDir.resolve("kslpkg").apply { writeText(cliLauncher("kslpkg")); setExecutable(true) }
+        toolsDir.resolve("kslpkg").apply { writeText(cliLauncher("kslpkg", jvmArgsOf(kslBundleTools))); setExecutable(true) }
+
+        // KSL-runtime servers: thin server jar + a small server-lib/. server-lib/ holds the deps
+        // the shared lib/ does NOT already carry at the SAME version — i.e. the server-only extras
+        // (KSLServiceCore, Ktor, MCP SDK) PLUS the server's own version of any module that skews
+        // from lib/ (e.g. caffeine 3.1.8 vs lib/'s 2.9.3). The launcher puts server-lib/ AHEAD of
+        // lib/ on the classpath, so the server gets its versions while the apps (which never see
+        // server-lib/) keep lib/'s — no build-wide version alignment needed.
+        val libModuleVersion = byModule.mapValues { it.value.first() }  // module -> version (one per)
+        kslServers.forEach { (server, dir, extraLaunchers) ->
+            val srvDir = root.resolve("Servers/$dir").apply { mkdirs() }
+            val jarBase = "ksl-$dir"
+            jarOf(server.tasks.named("jar")).copyTo(srvDir.resolve("$jarBase.jar"), overwrite = true)
+            val serverLibDir = srvDir.resolve("server-lib").apply { mkdirs() }
+            val overrides = mutableListOf<String>()
+            server.configurations.named("runtimeClasspath").get().resolvedConfiguration.resolvedArtifacts.forEach { art ->
+                val id = art.moduleVersion.id
+                val libVer = libModuleVersion["${id.group}:${id.name}"]
+                if (libVer != id.version) {  // not in lib/, or a different version -> goes in server-lib/
+                    art.file.copyTo(serverLibDir.resolve(art.file.name), overwrite = true)
+                    if (libVer != null) overrides += "${id.name} ${id.version} (lib/ has $libVer)"
+                }
+            }
+            val primaryMain = server.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
+            (listOf(jarBase to primaryMain) + extraLaunchers).forEach { (lname, main) ->
+                srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, jvmArgsOf(server))); setExecutable(true) }
+            }
+            logger.lifecycle("assembleKSLWork: Servers/$dir -> $jarBase.jar + " +
+                "${serverLibDir.listFiles()?.size ?: 0} server-lib jars (${overrides.size} shadow lib/) + ${1 + extraLaunchers.size} launcher(s)")
+            if (overrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   $dir server-lib/ overrides -> ${overrides.joinToString(", ")}")
+        }
 
         logger.lifecycle("assembleKSLWork: shared lib/ = ${libDir.listFiles()?.size ?: 0} jars; " +
-            "${kslAppTargets.size} apps -> Apps/; kslpkg -> Tools/kslpkg (trimmed fat)")
+            "${kslAppTargets.size} apps; kslpkg (fat); ${kslServers.size} servers (thin)")
     }
 }
