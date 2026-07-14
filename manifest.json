@@ -1,0 +1,9 @@
+{
+  "kslWorkLayout": 1,
+  "_comment": "What install.sh downloads. The suite asset URL + sha256 are filled in when a release is cut; until then, install with --from <local ksl-suite.zip>. Per-item entries (apps/servers for `ksl update <id>`) are added in a later change set.",
+  "suite": {
+    "version": "0.1.0",
+    "asset": "https://github.com/<owner>/KSL/releases/download/suite-v0.1.0/ksl-suite.zip",
+    "sha256": ""
+  }
+}
