@@ -107,6 +107,16 @@ val kslAppTargets: List<Pair<Project, String>> = linkedMapOf(
     "KSLAppSwingAnimation" to "Animation",
 ).map { (module, target) -> evaluationDependsOn(":$module") to target }
 
+// Native launcher containers plus the raster sizes used by desktop shells and Swing.
+// These are committed derivatives of distribution/icons/source/*.svg so assembling the
+// cross-platform suite never depends on iconutil, Pillow, or an SVG renderer.
+val kslAppIconSizes = listOf(16, 24, 32, 48, 64, 128, 256, 512, 1024)
+fun kslAppIconFiles(target: String): List<File> {
+    val dir = file("distribution/icons/export/$target")
+    return listOf(dir.resolve("$target.icns"), dir.resolve("$target.ico")) +
+        kslAppIconSizes.map { size -> dir.resolve("$target-$size.png") }
+}
+
 // kslpkg is a deliberately-trimmed, self-contained fat jar (it excludes the DB drivers /
 // lets-plot / POI the shared lib/ carries), so it ships standalone under Tools/, NOT over lib/.
 val kslBundleTools = evaluationDependsOn(":KSLBundleTools")
@@ -306,6 +316,7 @@ tasks.register("assembleKSLWork") {
         dependsOn(app.tasks.named("jar"))
         inputs.files(app.configurations.named("runtimeClasspath"))
     }
+    inputs.files(kslAppTargets.flatMap { (_, target) -> kslAppIconFiles(target) })
     dependsOn(kslBundleTools.tasks.named("shadowJar"))
     inputs.files(kslBundleTools.tasks.named("shadowJar"))
     kslServers.forEach { (server, _, _) ->
@@ -353,6 +364,10 @@ tasks.register("assembleKSLWork") {
         kslAppTargets.forEach { (app, target) ->
             val appDir = root.resolve("Apps/$target").apply { mkdirs() }
             jarOf(app.tasks.named("jar")).copyTo(appDir.resolve("$target.jar"), overwrite = true)
+            kslAppIconFiles(target).forEach { icon ->
+                require(icon.isFile) { "missing desktop icon asset: ${icon.path}" }
+                icon.copyTo(appDir.resolve(icon.name), overwrite = true)
+            }
             val main = app.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
             val appJvm = jvmArgsOf(app)
             appDir.resolve(target).apply { writeText(macLauncher(target, main, appJvm)); setExecutable(true) }
