@@ -44,9 +44,9 @@ curl -fsSL https://raw.githubusercontent.com/rossetti/KSL/main/install.sh | bash
 irm https://raw.githubusercontent.com/rossetti/KSL/main/install.ps1 -OutFile "$env:TEMP\ksl-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\ksl-install.ps1"
 ```
 
-The installer verifies Java 21, then unpacks the suite into your `KSLWork` folder:
-`$KSLWORK` if set, otherwise `~/Documents/KSLWork` (or `~/KSLWork` if you have no
-`Documents`). Re-running it later updates the suite in place.
+The installer verifies Java 21, then installs the software into `~/Applications/KSL`
+(Windows: `%LOCALAPPDATA%\Programs\KSL`) and creates the app entry points. Your work stays
+in a separate folder — see §3. Re-running it later updates the software in place.
 
 > **Before the first release is published**, these URLs won't have a payload to
 > download yet. Build one yourself and install from it — see
@@ -54,24 +54,37 @@ The installer verifies Java 21, then unpacks the suite into your `KSLWork` folde
 
 ---
 
-## 3. What gets installed — the `KSLWork` layout
+## 3. What gets installed — two folders, kept apart
+
+**The software** — where the apps live. The installer owns this folder; deleting it
+uninstalls KSL.
 
 ```
-KSLWork/
-├── Apps/         Single/ Scenario/ Experiment/ Simopt/
-│                 Distribution/ Results/ Bundle/ Animation/
-│                 └─ plumbing: each app's jar + the raw launcher behind it
-├── Servers/      mcp/ rest/ code/ book/
-├── Tools/        kslpkg/
-├── lib/          shared libraries (~150 MB) — used by every app and server
-├── bin/          ksl — the suite manager (§5)
-├── bundles/      ← drop your model bundle JARs here (preserved across updates)
-├── manifest.json
-└── VERSIONS.txt  what was installed, and when
+~/Applications/KSL/                 (Windows: %LOCALAPPDATA%\Programs\KSL)
+├── KSL Single.app   KSL Scenario.app   …      ← the 8 apps you double-click
+├── bin/ksl                                     ← the suite manager (§5)
+└── .support/   (hidden — you never need to open it)
+      Apps/     each app's jar + the raw launcher behind it
+      lib/      the shared libraries (~150 MB) — ONE copy, used by every app and server
+      Servers/  mcp/ rest/ code/ book/
+      Tools/    kslpkg/
+      manifest.json, VERSIONS.txt
 ```
 
-Only `Apps/`, `Servers/`, `Tools/`, `lib/`, and `bin/` are replaced on an update —
-your `bundles/` folder and any results you've saved under `KSLWork` are never touched.
+**Your work** — where *you* keep things. The apps own this folder; the installer only ever
+creates `bundles/` in it, and updates never touch it.
+
+```
+~/Documents/KSLWork/
+├── bundles/      ← drop your model bundle JARs here
+└── KSLSingle/  KSLResults/  …    ← each app's configs and output
+```
+
+You can move the work folder anywhere from **File ▸ Set Working Directory…** in any app;
+the choice is remembered in `~/.ksl/settings.toml`.
+
+Because the apps resolve their own installation *relative to themselves*, you can also
+rename or move `~/Applications/KSL` and everything keeps working.
 
 ---
 
@@ -86,15 +99,13 @@ platform expects. **That's what you use:**
 | Windows | **Start Menu → KSL → KSL Single** |
 | Linux | **KSL Single** in your applications menu |
 
-You don't need to go into `Apps/` at all — that folder is plumbing. `Single.jar` holds only
-this app's own classes (everything it depends on is the shared `lib/`), so double-clicking the
-jar does nothing; and `Apps/Single/Single` is the raw launcher the entry point calls, which
-you *can* run from a terminal, but double-clicking it in a file manager just opens a terminal
-window that then has to stay open.
+Everything else is deliberately out of your way inside `.support/`: `Single.jar` holds only
+this app's own classes (all its dependencies are the shared `lib/`), so it isn't runnable on
+its own, and `Apps/Single/Single` is just the raw launcher the app bundle calls.
 
 The apps and what each is for:
 
-| App (`Apps/…`) | Guide |
+| App | Guide |
 |---|---|
 | Single | [Single-Model](single.md) — run one model, read a report |
 | Scenario | [Scenario](scenario.md) — compare configurations |
@@ -105,18 +116,19 @@ The apps and what each is for:
 | Distribution | [Distribution](distribution.md) — fit distributions to data |
 | Bundle | [Bundle Workbench](bundle-workbench.md) — package models as bundles |
 
-To load a model, drop its bundle JAR into `KSLWork/bundles/` — see
+To load a model, drop its bundle JAR into `~/Documents/KSLWork/bundles/` — see
 [Common UI & concepts](common-ui.md) for how the apps discover bundles and set the
-workspace. The `kslpkg` CLI (`Tools/kslpkg/kslpkg`) and the servers under `Servers/`
-round out the suite: point an MCP client at `Servers/mcp/` (or `code`/`book`) as
-described in the [MCP Server](mcp-server.md) guide.
+workspace. The `kslpkg` CLI and the servers round out the suite; both live under the
+software's `.support/` folder (`.support/Tools/kslpkg/kslpkg`,
+`.support/Servers/{mcp,rest,code,book}/`). Point an MCP client at `.support/Servers/mcp/`
+(or `code`/`book`) as described in the [MCP Server](mcp-server.md) guide.
 
 ---
 
 ## 5. Manage the suite with `ksl`
 
-`bin/ksl` (macOS/Linux) — or `bin\ksl` on Windows, via the bundled `ksl.cmd` shim —
-adds, removes, and updates individual pieces without a full reinstall:
+`~/Applications/KSL/bin/ksl` (macOS/Linux) — or `bin\ksl` on Windows, via the bundled
+`ksl.cmd` shim — adds, removes, and updates individual pieces without a full reinstall:
 
 ```
 ksl list                 # the catalog, and what's installed
@@ -157,10 +169,11 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -From build\ksl-suite.zip
 
 ## 7. Update & uninstall
 
-- **Update:** re-run the installer, or `ksl update`. Your `bundles/` and saved
-  results are preserved.
+- **Update:** re-run the installer, or `ksl update`. Only the software is replaced — your
+  work folder is never touched.
 - **Remove one piece:** `ksl uninstall <id>`.
-- **Remove everything:** delete the `KSLWork` folder.
+- **Remove everything:** delete `~/Applications/KSL` (Windows: `%LOCALAPPDATA%\Programs\KSL`).
+  Your work folder survives; delete it separately if you really want it gone.
 
 ---
 

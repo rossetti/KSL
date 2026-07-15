@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ksl — manage the KSL suite installed in this KSLWork folder.
+# ksl — manage the installed KSL suite.
 #
 #   ksl list                          what's available and what's installed
 #   ksl install <id> [--from <zip>]   add one item (reuses the shared lib/)
@@ -8,25 +8,34 @@
 #   ksl update [id] [--from <zip>]    refresh everything, or just one item
 #   ksl refresh                       rebuild the double-clickable app entry points
 #
+# Two roots, deliberately separate:
+#
+#   <KSL_HOME>          the SOFTWARE. This script's own home — ~/Applications/KSL on
+#                       macOS/Linux. Holds the double-clickable bundles, bin/ksl, and a
+#                       hidden .support/ with lib/, the per-app jars + launchers,
+#                       Servers/, Tools/ and manifest.json. Owned by the installer.
+#
+#   <workspace>         YOUR WORK — bundles/, configs, per-app output. Defaults to
+#                       ~/Documents/KSLWork, set in ~/.ksl/settings.toml, owned by the
+#                       apps. This script never reads or writes it.
+#
 # <id> comes from the catalog (see `ksl list`): e.g. single, results, mcp, book, kslpkg.
-# Without --from, install/update download ksl-suite.zip from the manifest (once a release
-# exists); --from <zip> installs from a local ksl-suite.zip. bundles/ and per-app working
-# output are never touched.
 #
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"     # bin/ksl -> KSLWork
-MANIFEST="$ROOT/manifest.json"
-MAC_APPS_DIR="$HOME/Applications/KSL"        # where the double-clickable .app bundles go
+KSL_HOME="$(cd "$(dirname "$0")/.." && pwd)"   # bin/ksl -> KSL_HOME
+SUPPORT="$KSL_HOME/.support"
+MANIFEST="$SUPPORT/manifest.json"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'ksl: %s\n' "$*" >&2; exit 1; }
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
-[ -f "$MANIFEST" ] || die "no manifest.json in $ROOT — run this as an installed KSLWork/bin/ksl"
+[ -f "$MANIFEST" ] || die "no manifest at $MANIFEST — run this as an installed <KSL_HOME>/bin/ksl"
 
-# catalog: one "id<TAB>kind<TAB>path" line per item object in manifest.json
+# catalog: one "id<TAB>kind<TAB>path" line per item object in manifest.json.
+# Paths (Apps/Single, Servers/mcp, …) are relative to $SUPPORT.
 catalog() {
   grep -oE '\{[^{}]*"id"[^{}]*\}' "$MANIFEST" | while read -r o; do
     printf '%s\t%s\t%s\n' \
@@ -41,7 +50,6 @@ path_of() { catalog | awk -F'\t' -v i="$1" '$1==i{r=$3} END{if (r!="") print r}'
 kind_of() { catalog | awk -F'\t' -v i="$1" '$1==i{r=$2} END{if (r!="") print r}'; }
 
 FROM=""
-# echo a usable ksl-suite.zip path: --from if given, else download from the manifest URL
 suite_zip() {
   if [ -n "$FROM" ]; then [ -f "$FROM" ] || die "--from: no such file: $FROM"; printf '%s\n' "$FROM"; return; fi
   local url; url="$(sed -n 's/.*"asset"[^"]*"\([^"]*ksl-suite\.zip\)".*/\1/p' "$MANIFEST" | head -1)"
@@ -53,33 +61,39 @@ suite_zip() {
 dequarantine() { [ "$(uname)" = "Darwin" ] && xattr -dr com.apple.quarantine "$@" >/dev/null 2>&1 || true; }
 
 # ── entry points ────────────────────────────────────────────────────────────────
-# The launchers under Apps/<Name>/ are shell scripts: double-clicking one in Finder
-# only opens a Terminal that then babysits the app. These build the real,
-# platform-native thing a student double-clicks instead.
-
 # Built with osacompile, which ships with macOS and emits a REAL universal Mach-O
 # applet. That is not cosmetic. A bundle whose executable is a shell script is
 # attributed by TCC to /bin/bash, which macOS then silently denies access to
-# ~/Documents (no prompt, regardless of where the bundle itself lives) — so a
-# script-based bundle cannot launch an app whose workspace is ~/Documents/KSLWork,
-# which is the default. A real applet is granted access normally. Do not "simplify"
-# this back into a hand-written Contents/MacOS shell script.
+# ~/Documents (no prompt, wherever the bundle lives) — so a script-based bundle
+# cannot launch an app whose workspace is ~/Documents/KSLWork, the default. A real
+# applet is granted access normally. Do not "simplify" this back to a shell script.
+#
+# The applet resolves KSL_HOME from its OWN location (`path to me`), so moving or
+# renaming ~/Applications/KSL keeps everything working — nothing absolute is baked in.
 make_macos_app() {
-  # NB: separate `local` statements — bash expands every word of a `local` line
-  # before it performs any assignment, so `local a="$1" b="$a"` leaves b empty
-  # (and trips `set -u`).
   local name="$1"
-  local app="$MAC_APPS_DIR/KSL $name.app"
+  local app="$KSL_HOME/KSL $name.app"
   local src="$TMP/$name.applescript"
-  mkdir -p "$MAC_APPS_DIR"
   rm -rf "$app"
-  # The two injected values first (simple printf, no escaping traps), then the body
-  # verbatim from a quoted heredoc so its backslashes survive into the AppleScript.
   {
     printf 'set appName to "KSL %s"\n' "$name"
-    printf 'set launcher to "%s"\n' "$ROOT/Apps/$name/$name"
+    printf 'set appDir to "%s"\n' "$name"
     cat <<'APPLESCRIPT'
 -- Generated by the KSL installer -- do not edit; `ksl refresh` rewrites it.
+set kslHome to do shell script "cd " & quoted form of (POSIX path of (path to me)) & "/.. && pwd"
+set launcher to kslHome & "/.support/Apps/" & appDir & "/" & appDir
+-- This applet backgrounds the app and discards its output, so a broken install would
+-- otherwise die in total silence. Say what is wrong instead.
+set installed to false
+try
+    do shell script "test -x " & quoted form of launcher
+    set installed to true
+end try
+if not installed then
+    set msg to appName & " cannot find its installation." & return & return & "It expected:" & return & launcher & return & return & "Re-run the KSL installer to fix this."
+    display dialog msg with title appName buttons {"OK"} default button "OK" with icon stop
+    return
+end if
 set probe to "J=java; if [ -n \"$JAVA_HOME\" ] && [ -x \"$JAVA_HOME/bin/java\" ]; then J=\"$JAVA_HOME/bin/java\"; fi; \"$J\" -version 2>&1 | head -1 | sed -E 's/.*version \"([0-9]+).*/\\1/'"
 set ver to ""
 try
@@ -92,10 +106,10 @@ try
     end if
 end try
 if not ok then
-    display dialog appName & " needs Java 21 - the same JDK you use in IntelliJ." & return & return & "Install JDK 21, then open " & appName & " again." with title appName buttons {"OK"} default button "OK" with icon caution
+    set msg2 to appName & " needs Java 21 - the same JDK you use in IntelliJ." & return & return & "Install JDK 21, then open " & appName & " again."
+    display dialog msg2 with title appName buttons {"OK"} default button "OK" with icon caution
     return
 end if
--- background it so the applet exits and the app keeps running on its own
 do shell script quoted form of launcher & " > /dev/null 2>&1 &"
 APPLESCRIPT
   } > "$src"
@@ -103,7 +117,8 @@ APPLESCRIPT
 }
 
 make_linux_desktop() {
-  local name="$1" dir="$HOME/.local/share/applications"
+  local name="$1"
+  local dir="$HOME/.local/share/applications"
   mkdir -p "$dir"
   cat > "$dir/ksl-$(lower "$name").desktop" <<DESKTOP
 [Desktop Entry]
@@ -111,8 +126,7 @@ Type=Application
 Version=1.0
 Name=KSL $name
 Comment=Kotlin Simulation Library — $name
-Exec=$ROOT/Apps/$name/$name
-Path=$ROOT
+Exec=$SUPPORT/Apps/$name/$name
 Terminal=false
 Categories=Education;Science;Development;
 DESKTOP
@@ -126,60 +140,56 @@ make_entry_point() {
 }
 remove_entry_point() {
   case "$(uname)" in
-    Darwin) rm -rf "${MAC_APPS_DIR:?}/KSL $1.app" ;;
+    Darwin) rm -rf "${KSL_HOME:?}/KSL $1.app" ;;
     Linux)  rm -f "$HOME/.local/share/applications/ksl-$(lower "$1").desktop" ;;
   esac
 }
 
-# The payload is ONE cross-platform zip, so every folder also ships the Windows
-# launchers. Drop what this machine can't run — otherwise double-clicking a .cmd
-# just asks the student which application should open it.
+# The payload is ONE cross-platform zip, so .support/ also receives the Windows
+# launchers. Drop what this machine can't run.
 prune_foreign() {
-  find "$ROOT/Apps" "$ROOT/Servers" "$ROOT/Tools" -name '*.cmd' -delete 2>/dev/null || true
-  rm -f "$ROOT/bin/ksl.cmd" "$ROOT/bin/ksl.ps1"
+  find "$SUPPORT/Apps" "$SUPPORT/Servers" "$SUPPORT/Tools" -name '*.cmd' -delete 2>/dev/null || true
+  rm -rf "$SUPPORT/bin"
 }
 
 cmd_refresh() {
   prune_foreign
-  # CS14 generated hand-rolled bundles here; they could never launch (TCC) and the
-  # real ones now live in ~/Applications/KSL. Clear the dead ones out.
-  [ "$(uname)" = "Darwin" ] && rm -rf "${ROOT:?}/Applications" || true
   local n=0 d
-  for d in "$ROOT"/Apps/*/; do
+  for d in "$SUPPORT"/Apps/*/; do
     [ -d "$d" ] || continue
     make_entry_point "$(basename "$d")"
     n=$((n + 1))
   done
   case "$(uname)" in
-    Darwin) say "refreshed $n app(s): find \"KSL <App>\" in Launchpad, or $MAC_APPS_DIR" ;;
+    Darwin) say "refreshed $n app(s): find \"KSL <App>\" in Launchpad, or $KSL_HOME" ;;
     Linux)  say "refreshed $n app(s): look for \"KSL <App>\" in your applications menu" ;;
     *)      say "refreshed $n app(s)" ;;
   esac
 }
 
 cmd_list() {
-  say "KSLWork: $ROOT"
-  [ -f "$ROOT/VERSIONS.txt" ] && grep -iE '^version:' "$ROOT/VERSIONS.txt" || true
+  say "KSL software: $KSL_HOME"
+  [ -f "$SUPPORT/VERSIONS.txt" ] && grep -iE '^version:' "$SUPPORT/VERSIONS.txt" || true
   printf '  %-13s %-7s %s\n' "id" "kind" "installed"
   catalog | while IFS="$(printf '\t')" read -r id kind path; do
-    if [ -d "$ROOT/$path" ]; then st="yes"; else st="-"; fi
+    if [ -d "$SUPPORT/$path" ]; then st="yes"; else st="-"; fi
     printf '  %-13s %-7s %s\n' "$id" "$kind" "$st"
   done
 }
 cmd_uninstall() {
   local path; path="$(path_of "$1")"
   [ -n "$path" ] || die "unknown id: $1 (see 'ksl list')"
-  [ -d "$ROOT/$path" ] || { say "$1 is not installed."; return; }
+  [ -d "$SUPPORT/$path" ] || { say "$1 is not installed."; return; }
   if [ "$(kind_of "$1")" = "app" ]; then remove_entry_point "$(basename "$path")"; fi
-  rm -rf "${ROOT:?}/$path"
+  rm -rf "${SUPPORT:?}/$path"
   say "removed $1 ($path)"
 }
 cmd_install() {
   local path; path="$(path_of "$1")"
   [ -n "$path" ] || die "unknown id: $1 (see 'ksl list')"
   local zip; zip="$(suite_zip)"
-  unzip -q -o "$zip" "$path/*" -d "$ROOT"
-  dequarantine "$ROOT/$path"
+  unzip -q -o "$zip" "$path/*" -d "$SUPPORT"
+  dequarantine "$SUPPORT/$path"
   prune_foreign
   if [ "$(kind_of "$1")" = "app" ]; then make_entry_point "$(basename "$path")"; fi
   say "installed $1 -> $path"
@@ -187,15 +197,20 @@ cmd_install() {
 cmd_update() {
   local zip; zip="$(suite_zip)"
   if [ -z "${1:-}" ]; then
-    unzip -q -o "$zip" 'lib/*' 'Apps/*' 'Servers/*' 'Tools/*' 'bin/*' -d "$ROOT"
-    dequarantine "$ROOT/Apps" "$ROOT/Servers" "$ROOT/Tools"
-    # an update re-extracts the cross-platform zip, so the foreign launchers come
-    # back and the entry points must be rebuilt
+    unzip -q -o "$zip" 'lib/*' 'Apps/*' 'Servers/*' 'Tools/*' -d "$SUPPORT"
+    # Replace this very script by rename, never by overwrite: bash reads a script
+    # incrementally, so truncating it mid-run corrupts execution. `mv` swaps the
+    # directory entry and leaves the running process on the old inode.
+    if unzip -q -o "$zip" 'bin/ksl' -d "$TMP" 2>/dev/null && [ -f "$TMP/bin/ksl" ]; then
+      chmod +x "$TMP/bin/ksl"
+      mv -f "$TMP/bin/ksl" "$KSL_HOME/bin/ksl"
+    fi
+    dequarantine "$SUPPORT"
     cmd_refresh
-    say "updated the whole suite (bundles/ and working output preserved)"
+    say "updated the whole suite (your workspace was not touched)"
   else
     local path; path="$(path_of "$1")"; [ -n "$path" ] || die "unknown id: $1"
-    unzip -q -o "$zip" "$path/*" -d "$ROOT"; dequarantine "$ROOT/$path"
+    unzip -q -o "$zip" "$path/*" -d "$SUPPORT"; dequarantine "$SUPPORT/$path"
     prune_foreign
     if [ "$(kind_of "$1")" = "app" ]; then make_entry_point "$(basename "$path")"; fi
     say "updated $1"

@@ -3,15 +3,20 @@
 Source assets that ship **inside** `ksl-suite.zip`. These are build inputs — nobody fetches
 them from this repo, and they are not run from here.
 
-`bin/` mirrors the payload layout: `assembleKSLWork` copies each file below into `bin/` in the
-zip, which becomes `KSLWork/bin/` once a student installs. So `distribution/bin/ksl` is the
-source of the `ksl` command a student actually runs.
+`assembleKSLWork` copies each file below into `bin/` in the zip. The installer unpacks the
+payload into the software root's hidden `.support/`, then lifts `bin/` up next to the app
+bundles — so `distribution/bin/ksl` is the source of the `ksl` command a student runs at
+`~/Applications/KSL/bin/ksl` (Windows: `%LOCALAPPDATA%\Programs\KSL\bin\ksl`).
 
 | File | Ships as | Role |
 |---|---|---|
-| `bin/ksl` | `KSLWork/bin/ksl` | suite manager (bash, macOS/Linux) — `list` / `install` / `uninstall` / `update` |
-| `bin/ksl.ps1` | `KSLWork/bin/ksl.ps1` | the same, in PowerShell (Windows) |
-| `bin/ksl.cmd` | `KSLWork/bin/ksl.cmd` | shim so plain `ksl <cmd>` runs `ksl.ps1` under any execution policy |
+| `bin/ksl` | `<KSL_HOME>/bin/ksl` | suite manager (bash, macOS/Linux) — `list` / `install` / `uninstall` / `update` / `refresh` |
+| `bin/ksl.ps1` | `<KSL_HOME>\bin\ksl.ps1` | the same, in PowerShell (Windows) |
+| `bin/ksl.cmd` | `<KSL_HOME>\bin\ksl.cmd` | shim so plain `ksl <cmd>` runs `ksl.ps1` under any execution policy |
+
+The helpers also build each platform's **entry points** (macOS `.app` bundles via
+`osacompile`, Windows Start-Menu `.lnk`s, Linux `.desktop` files) — see `ksl refresh`. The
+installer calls it, so a fresh install and `ksl update` cannot drift apart.
 
 ## What is deliberately *not* here
 

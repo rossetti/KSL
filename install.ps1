@@ -6,9 +6,15 @@
 # policy so `exit` stays contained and there's no Mark-of-the-Web block):
 #   irm https://raw.githubusercontent.com/rossetti/KSL/main/install.ps1 -OutFile "$env:TEMP\ksl-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\ksl-install.ps1"
 #
-# Installs the whole KSL suite (desktop apps + servers + kslpkg, sharing one ~150 MB
-# lib/) into a single KSLWork folder, on your system Java 21 — no bundled runtime.
-# Re-running updates in place; your model bundles and working output are never touched.
+# Installs the KSL suite — the desktop apps, the servers and kslpkg, all sharing ONE copy
+# of the ~150 MB library — on your system Java 21 (no bundled runtime). Two roots, kept
+# apart on purpose, mirroring the macOS layout:
+#
+#   %LOCALAPPDATA%\Programs\KSL   the SOFTWARE (this installer owns it): the app
+#                                 launchers, bin\ksl, and a hidden .support\ with the
+#                                 shared lib\ and jars. Start-Menu shortcuts point here.
+#   Documents\KSLWork             YOUR WORK (the apps own it) — bundles, configs, output.
+#                                 The installer only ever creates bundles\ here.
 #
 # Testing / offline: install from a locally-built payload instead of downloading:
 #   powershell -ExecutionPolicy Bypass -File install.ps1 -From build\ksl-suite.zip
@@ -38,14 +44,15 @@ $vmaj = if ($vtext -match 'version "(\d+)') { [int]$Matches[1] } else { 0 }
 if ($vmaj -lt 21) { Die "Java 21+ required. Found: $vline" }
 Say "* Java $vmaj ($java)"
 
-# --- 2. KSLWork root ---
-if ($env:KSLWORK) { $root = $env:KSLWORK }
-else {
-    $docs = [Environment]::GetFolderPath("MyDocuments")
-    $root = if ($docs) { Join-Path $docs "KSLWork" } else { Join-Path $HOME "KSLWork" }
-}
-New-Item -ItemType Directory -Force -Path $root | Out-Null
-Say "* Installing into: $root"
+# --- 2. where the software goes ---
+# %LOCALAPPDATA%\Programs\KSL is the per-user program location (no admin rights needed) —
+# the Windows counterpart of ~/Applications/KSL. This is NOT your workspace; see §8.
+$kslHome = if ($env:KSL_HOME) { $env:KSL_HOME }
+           elseif ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Programs\KSL" }
+           else { Join-Path $HOME "KSL" }
+$support = Join-Path $kslHome ".support"
+New-Item -ItemType Directory -Force -Path $support, (Join-Path $kslHome "bin") | Out-Null
+Say "* Installing the software into: $kslHome"
 
 # --- 3. obtain ksl-suite.zip ---
 $tmp = (New-Item -ItemType Directory -Force -Path (Join-Path ([System.IO.Path]::GetTempPath()) ("ksl-" + [System.IO.Path]::GetRandomFileName()))).FullName
@@ -73,53 +80,80 @@ try {
         }
     }
 
-    # --- 4. unpack (the zip holds only lib/ Apps/ Servers/ Tools/ bin/, so bundles/ and
-    #         the per-app working dirs already in $root are left untouched) ---
+    # --- 4. unpack into the hidden support folder ---
     Say "* Unpacking..."
-    Expand-Archive -Path $zip -DestinationPath $root -Force
-
-    # --- 5. Windows: clear the Mark-of-the-Web so launchers open without a SmartScreen block ---
-    if ($IsWin) {
-        Get-ChildItem -Recurse -File -ErrorAction SilentlyContinue -Path `
-            (Join-Path $root "Apps"),(Join-Path $root "Servers"),(Join-Path $root "Tools"),(Join-Path $root "bin") |
-            Unblock-File -ErrorAction SilentlyContinue
-        Say "* Cleared Mark-of-the-Web"
+    Expand-Archive -Path $zip -DestinationPath $support -Force
+    # The helper belongs next to the apps, not hidden away.
+    foreach ($f in @("ksl.ps1", "ksl.cmd")) {
+        $srcF = Join-Path $support "bin\$f"
+        if (Test-Path $srcF) { Move-Item -Force $srcF (Join-Path $kslHome "bin\$f") }
     }
+    Remove-Item -Recurse -Force (Join-Path $support "bin") -ErrorAction SilentlyContinue
+    # Dot-folders are not hidden on Windows; set the attribute so students don't see it.
+    if ($IsWin) { attrib +h $support 2>$null }
 
-    # --- 6. record what's installed ---
+    # --- 5. record what's installed (inside .support: plumbing, not for students) ---
     $ver = ""
     if ($manifest -and (Test-Path $manifest)) {
         try { $ver = (Get-Content $manifest -Raw | ConvertFrom-Json).suite.version } catch {}
-        Copy-Item $manifest (Join-Path $root "manifest.json") -Force
+        Copy-Item $manifest (Join-Path $support "manifest.json") -Force
     }
-    $apps    = (Get-ChildItem -Directory (Join-Path $root "Apps")    -ErrorAction SilentlyContinue | ForEach-Object Name) -join " "
-    $servers = (Get-ChildItem -Directory (Join-Path $root "Servers") -ErrorAction SilentlyContinue | ForEach-Object Name) -join " "
+    $apps    = (Get-ChildItem -Directory (Join-Path $support "Apps")    -ErrorAction SilentlyContinue | ForEach-Object Name) -join " "
+    $servers = (Get-ChildItem -Directory (Join-Path $support "Servers") -ErrorAction SilentlyContinue | ForEach-Object Name) -join " "
     @(
         "KSL suite installed $(Get-Date)"
-        "root:    $root"
+        "software: $kslHome"
         $(if ($ver) { "version: $ver" })
         "java:    $vline"
         "apps:    $apps"
         "servers: $servers"
-    ) | Where-Object { $_ } | Set-Content -Path (Join-Path $root "VERSIONS.txt")
+    ) | Where-Object { $_ } | Set-Content -Path (Join-Path $support "VERSIONS.txt")
+
+    # --- 6. Windows: clear the Mark-of-the-Web so nothing hits SmartScreen ---
+    if ($IsWin) {
+        Get-ChildItem -Recurse -File -Path $kslHome -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
+        Say "* Cleared Mark-of-the-Web"
+    }
 }
 finally { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
 
-# --- 7. entry points: put a real Start-Menu shortcut in front of each app, and drop
-#         the launchers this OS can't run (the payload is one cross-platform zip, so
-#         every app folder also ships a Unix shell script). bin\ksl.ps1 owns this so
-#         install, `ksl install` and `ksl update` all produce the same result.
-#         Runs after step 6: it reads the manifest we just copied in. ---
-$kslPs1 = Join-Path $root "bin\ksl.ps1"
+# --- 7. entry points (bin\ksl.ps1 owns this, so install and `ksl update` agree) ---
+$kslPs1 = Join-Path $kslHome "bin\ksl.ps1"
 if (Test-Path $kslPs1) { & $kslPs1 refresh | ForEach-Object { Say "* $_" } }
 
-# --- 8. next steps ---
+# --- 8. your workspace — the apps own it; we only make sure bundles\ exists ---
+$work = if ($env:KSLWORK) { $env:KSLWORK }
+        else {
+            $docs = [Environment]::GetFolderPath("MyDocuments")
+            if ($docs) { Join-Path $docs "KSLWork" } else { Join-Path $HOME "KSLWork" }
+        }
+New-Item -ItemType Directory -Force -Path (Join-Path $work "bundles") | Out-Null
+
+# --- 9. clean up software a pre-split installer unpacked INTO the workspace. Gated on
+#         our own manifest marker being present, and removes only the exact set we ever
+#         put there — bundles\ and every per-app work folder are untouched. ---
+function CleanupLegacy([string]$wk) {
+    if (-not $wk -or -not (Test-Path $wk)) { return }
+    $mf = Join-Path $wk "manifest.json"
+    if (-not (Test-Path $mf)) { return }
+    if (-not (Select-String -Path $mf -Pattern '"kslWorkLayout"' -Quiet -ErrorAction SilentlyContinue)) { return }
+    $removed = 0
+    foreach ($p in @("Apps", "lib", "Servers", "Tools", "bin", "Applications", "manifest.json", "VERSIONS.txt")) {
+        $t = Join-Path $wk $p
+        if (Test-Path $t) { Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue; $removed++ }
+    }
+    if ($removed -gt 0) { Say "* Cleaned $removed stale software item(s) out of $wk (your bundles and work are untouched)" }
+}
+foreach ($w in @($env:KSLWORK, $work)) { CleanupLegacy $w }
+
+# --- 10. next steps ---
 Say ""
-Say "Done. KSL is installed in $root"
-Say "  Apps      Start Menu -> KSL -> <Name>          e.g. KSL Single"
-Say "            (the folders under Apps\ are just plumbing)"
-Say "  Servers   at   $root\Servers\<name>\           (point your MCP client's config here)"
-Say "  kslpkg    run  $root\Tools\kslpkg\kslpkg.cmd"
-Say "  Manage    run  $root\bin\ksl list              (add / remove / update apps + servers)"
-Say "  Bundles + output stay under $root and are preserved across updates."
-Say "  Update later by re-running this installer, or: $root\bin\ksl update"
+Say "Done."
+Say '  Apps       Start Menu -> KSL -> "KSL <Name>"    e.g. KSL Single'
+Say "  Software   $kslHome        (delete this folder to uninstall)"
+Say "  Your work  $work           (bundles, configs, output — never touched by updates)"
+Say "             drop model bundle JARs into $work\bundles"
+Say "  Servers    $support\Servers\<name>\   (point your MCP client's config here)"
+Say "  kslpkg     $support\Tools\kslpkg\kslpkg.cmd"
+Say "  Manage     $kslHome\bin\ksl list      (add / remove / update apps + servers)"
+Say "  Update     re-run this installer, or: $kslHome\bin\ksl update"
