@@ -108,8 +108,8 @@ fi
 say ""
 say "Done. KSL is installed in $ROOT"
 if [ "$(uname)" = "Darwin" ]; then
-  say "  Apps      double-click  $ROOT/Applications/<Name>.app     e.g. Single.app"
-  say "            (drag them to your Dock; the folders under Apps/ are just plumbing)"
+  say "  Apps      Launchpad -> \"KSL <Name>\"                e.g. KSL Single"
+  say "            (they live in ~/Applications/KSL; the folders under Apps/ are plumbing)"
 else
   say "  Apps      \"KSL <Name>\" in your applications menu"
   say "            (or run $ROOT/Apps/<Name>/<Name> from a terminal)"

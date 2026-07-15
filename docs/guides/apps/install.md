@@ -58,7 +58,6 @@ The installer verifies Java 21, then unpacks the suite into your `KSLWork` folde
 
 ```
 KSLWork/
-├── Applications/ (macOS) Single.app, Scenario.app, …  ← what you double-click
 ├── Apps/         Single/ Scenario/ Experiment/ Simopt/
 │                 Distribution/ Results/ Bundle/ Animation/
 │                 └─ plumbing: each app's jar + the raw launcher behind it
@@ -78,12 +77,12 @@ your `bundles/` folder and any results you've saved under `KSLWork` are never to
 
 ## 4. Run an app
 
-The installer creates a real, double-clickable entry point for every app. **That's what you
-use:**
+The installer creates a real, double-clickable entry point for every app, in the place your
+platform expects. **That's what you use:**
 
 | Platform | Where |
 |---|---|
-| macOS | `KSLWork/Applications/Single.app` — double-click it, or drag it to your Dock |
+| macOS | **Launchpad → KSL Single** (the bundles live in `~/Applications/KSL/`) |
 | Windows | **Start Menu → KSL → KSL Single** |
 | Linux | **KSL Single** in your applications menu |
 

@@ -147,7 +147,13 @@ val macLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA"@JVMARGS@ -cp "DOLLARKSLWORK/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
+    # macOS: name the Dock tile and the app menu, or the JVM shows up as plain "java".
+    # -Xdock:* is macOS-only (passing it on Linux aborts the JVM with "Unrecognized
+    # option"), hence the uname guard -- written as `if`, since a bare `[ ] && x=y`
+    # returns 1 off macOS and `set -e` would kill the launcher.
+    DOCK=""
+    if [ "DOLLAR(uname)" = "Darwin" ]; then DOCK="-Xdock:name=KSL @NAME@"; fi
+    exec "DOLLARJAVA" DOLLAR{DOCK:+"DOLLARDOCK"}@JVMARGS@ -cp "DOLLARKSLWORK/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 val cliLauncherTemplate = """
