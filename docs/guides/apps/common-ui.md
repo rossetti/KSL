@@ -13,16 +13,29 @@ links back to this page instead of repeating them.
 
 A **model** is a KSL simulation (for example, an M/M/1 queue). The apps do not have
 models compiled into them. Instead they load **bundles** — JAR files that package one
-or more compiled models together with a `bundle.toml` manifest describing them. At
-launch each app discovers bundles from two folders under your working directory:
+or more compiled models together with a `bundle.toml` manifest describing them.
 
-- the shared `<KSLWork>/bundles/` folder, and
-- the app's own `<KSLWork>/<App>/bundles/` folder (e.g. `<KSLWork>/KSLSingle/bundles/`),
+**You start with models already.** The KSL suite ships the **KSL Book Examples** (the
+textbook's models) and the **KSL Animation Examples**, so every app has something to run
+the first time you open it.
 
-where `<KSLWork>` is your working directory — `~/Documents/KSLWork`, or `~/KSLWork` if
-you have no `Documents` folder. You can also add a bundle mid-session with **Bundles →
-Load JAR…**. Bundles are produced by the [Bundle Workbench](bundle-workbench.md) desktop
-app or the `kslpkg` command-line tool — see the [Bundle Tools guide](bundle-tools.md).
+At launch each app looks in three places, **in this order**:
+
+1. the app's own `<KSLWork>/<App>/bundles/` folder (e.g. `<KSLWork>/KSLSingle/bundles/`),
+2. the shared `<KSLWork>/bundles/` folder — **where you put your own bundles**, and
+3. the examples that ship with the suite.
+
+`<KSLWork>` is your working directory — `~/Documents/KSLWork`, or `~/KSLWork` if you have
+no `Documents` folder.
+
+The order matters: **the first copy of a bundle wins**, and the shipped examples come last.
+So if you drop your own edited copy of a shipped bundle into `<KSLWork>/bundles/`, yours is
+used and the shipped one steps aside. Updating the suite refreshes the shipped copies and
+never touches yours.
+
+You can also add a bundle mid-session with **Bundles → Load JAR…**. Bundles are produced by
+the [Bundle Workbench](bundle-workbench.md) desktop app or the `kslpkg` command-line tool —
+see the [Bundle Tools guide](bundle-tools.md).
 
 ### The workspace (working directory)
 

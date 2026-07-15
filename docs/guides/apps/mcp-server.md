@@ -79,51 +79,46 @@ The full tool list is in [§8](#8-reference). When in doubt, ask the assistant t
 java -version      # must report 21.x
 ```
 
-**Build the server.** The self-contained "fat jar" is the easiest to use — it carries
-the `--doctor` self-test and the `--setup` client-wiring helper:
+**You already have the server.** Installing the KSL suite puts it here, next to the other
+servers — there is nothing to download or build:
+
+| Platform | Location |
+|---|---|
+| macOS / Linux | `~/Applications/KSL/.support/Servers/mcp/` |
+| Windows | `%LOCALAPPDATA%\Programs\KSL\.support\Servers\mcp\` |
+
+Not installed yet? It's one command — see the [installation guide](install.md).
+(`.support` is hidden in a file browser on purpose; it holds the plumbing. You only need
+its path for a command like the one below.)
+
+**You already have models, too.** Unlike the code and book servers, this one *runs* your
+models, so it needs **bundle JARs** — and the suite ships two: the **KSL Book Examples**
+(the textbook's models) and the **KSL Animation Examples**. Nothing to build or copy.
+
+It also watches your workspace, so a bundle JAR you drop into `<KSLWork>/bundles/` — or
+the server's own `<KSLWork>/KSLServer/bundles/` — is picked up within a few seconds, **no
+restart needed**. To pin a directory of your choice instead, set `KSL_BUNDLES_DIR`.
+
+**Verify it** with the built-in self-test — it prints where it looks and what it found:
 
 ```bash
-./gradlew :KSLServerMcp:shadowJar
-# → KSLServerMcp/build/libs/ksl-mcp.jar
-```
-
-**Get a model to serve.** The server has no models built in — it discovers **bundle
-JARs** from your workspace. Build the ready-made KSL Book Examples bundle:
-
-```bash
-./gradlew :KSLExamples:bookExamplesBundleJar
-# → KSLExamples/build/libs/book-examples.jar   (16 textbook models)
-```
-
-Drop it into the server's bundle directory. That directory lives under your **KSL
-workspace** — by default `~/Documents/KSLWork` (or `~/KSLWork` if you have no
-`Documents` folder):
-
-```bash
-mkdir -p ~/Documents/KSLWork/KSLServer/bundles
-cp KSLExamples/build/libs/book-examples.jar ~/Documents/KSLWork/KSLServer/bundles/
-```
-
-> **Where exactly?** The server watches `<KSLWork>/KSLServer/bundles/` and
-> `<KSLWork>/bundles/`, and picks up a dropped jar within a few seconds — **no restart
-> needed**. Not sure of your path? `--doctor` prints it (below). To pin a directory of
-> your choice, set `KSL_BUNDLES_DIR`.
-
-**Verify the server sees it** with the built-in self-test:
-
-```bash
-java -jar KSLServerMcp/build/libs/ksl-mcp.jar --doctor
+~/Applications/KSL/.support/Servers/mcp/ksl-mcp --doctor
 ```
 
 ```text
 KSL MCP server - doctor
   version:     1.0.0
-  bundle dirs: /home/you/Documents/KSLWork/KSLServer/bundles, /home/you/Documents/KSLWork/bundles
-  bundles:     1
+  bundle dirs: /Users/you/Documents/KSLWork/KSLServer/bundles, /Users/you/Documents/KSLWork/bundles,
+               /Users/you/Applications/KSL/.support/bundles
+  bundles:     2
     - edu.uark.ksl.book-examples  models=[DriveThroughPharmacyWithQ, DriveThroughPharmacyWithResource,
       PalletWorkCenter, RQInventorySystem, StemFairMixerEnhanced, ... WalkInHealthClinic]
-  OK - the server runs and 1 model bundle(s) are available.
+    - edu.uark.ksl.animation-examples  models=[Example01DriveThroughPharmacy, ... Example15DroneDelivery]
+  OK - the server runs and 2 model bundle(s) are available.
 ```
+
+That last bundle directory is the suite's own — the shipped examples. **Your** directories
+come first, so if you put your own copy of a shipped bundle in the workspace, yours wins.
 
 If it says **`no model bundles were found`**, the jar is in the wrong place or isn't a
 real bundle — see [§10](#10-troubleshooting--gotchas).
@@ -138,7 +133,7 @@ in the client's MCP configuration.
 **The easy way — let the server wire itself in:**
 
 ```bash
-java -jar KSLServerMcp/build/libs/ksl-mcp.jar --setup
+~/Applications/KSL/.support/Servers/mcp/ksl-mcp --setup
 ```
 
 It detects installed agents (Claude Desktop, Cursor, Codex), merges in a `ksl` entry
@@ -152,16 +147,19 @@ No supported agent detected (Claude Desktop / Codex).
 Add this to your agent's MCP servers configuration:
 
 "ksl": {
-    "command": "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+    "command": "/Users/you/Applications/KSL/.support/Servers/mcp/ksl-mcp",
     "args": [
-        "-jar",
-        "/home/you/.../KSLServerMcp/build/libs/ksl-mcp.jar",
         "--stdio"
     ]
 }
-
-Self-test any time:  java -jar ".../ksl-mcp.jar" --doctor
 ```
+
+> **Why it points at that script and not at `java -jar`.** This server *shares* the suite's
+> ~150 MB of libraries rather than duplicating them, so its jar is a thin one that cannot
+> start on its own — `java -jar ksl-mcp.jar` fails with *"no main manifest attribute"*. The
+> `ksl-mcp` script assembles the classpath and starts it. `--setup` writes the right thing
+> automatically; you only need to know this if you hand-write the config. (The self-contained
+> `ksl-code` / `ksl-book` servers are the opposite — for them `java -jar` is correct.)
 
 **The manual way.** Put that same `ksl` block under `mcpServers` in your client's config
 (for Claude Desktop, `claude_desktop_config.json` — macOS
@@ -172,8 +170,8 @@ Self-test any time:  java -jar ".../ksl-mcp.jar" --doctor
 {
   "mcpServers": {
     "ksl": {
-      "command": "/absolute/path/to/java",
-      "args": ["-jar", "/absolute/path/to/ksl-mcp.jar", "--stdio"]
+      "command": "/Users/you/Applications/KSL/.support/Servers/mcp/ksl-mcp",
+      "args": ["--stdio"]
     }
   }
 }
@@ -194,7 +192,7 @@ connected — go to [§4](#4-tutorial--your-first-session).
 **Prefer HTTP?** Run the HTTP/SSE server instead (it stays up until you stop it):
 
 ```bash
-./gradlew :KSLServerMcp:runHttp        # or the ksl-mcp-http launcher from installDist
+~/Applications/KSL/.support/Servers/mcp/ksl-mcp-http        # Ctrl-C to stop
 ```
 
 ```text
@@ -480,11 +478,13 @@ a `preview_*` to see its cost *before* running. Long runs use `submit_run` →
 
 | Launcher / mode | Transport | Purpose |
 |---|---|---|
-| `KSLServerMcp` (installDist) or `ksl-mcp.jar --stdio` | stdio | the server an AI client runs |
-| `ksl-mcp-http` (installDist) or `:KSLServerMcp:runHttp` | HTTP/SSE | a standing server on port 3001 |
-| `ksl-mcp.jar --doctor` | — | self-test: version, bundle dirs, bundles found |
-| `ksl-mcp.jar --setup` / `--remove` | — | wire / unwire the server into detected clients |
-| `ksl-mcp.jar --version` | — | print the server version |
+| `ksl-mcp --stdio` | stdio | the server an AI client runs |
+| `ksl-mcp-http` | HTTP/SSE | a standing server on port 3001 |
+| `ksl-mcp --doctor` | — | self-test: version, bundle dirs, bundles found |
+| `ksl-mcp --setup` / `--remove` | — | wire / unwire the server into detected clients |
+| `ksl-mcp --version` | — | print the server version |
+
+Both launchers live in the suite's `.support/Servers/mcp/` folder.
 
 HTTP health routes: `GET /health`, `GET /ready` (503 until the first bundle scan finishes),
 `GET /version`.
@@ -496,7 +496,7 @@ defaults. The most-used knobs:
 
 | Env var | Default | What it does |
 |---|---|---|
-| `KSL_BUNDLES_DIR` | `<KSLWork>/KSLServer/bundles` + `<KSLWork>/bundles` | where the server looks for model bundles |
+| `KSL_BUNDLES_DIR` | `<KSLWork>/KSLServer/bundles` + `<KSLWork>/bundles` + the suite's shipped examples | where the server looks for model bundles (setting this replaces all three) |
 | `KSL_MCP_PORT` | `3001` | HTTP server port |
 | `KSL_BIND_HOST` | `127.0.0.1` | HTTP bind address (`0.0.0.0` to expose on a LAN) |
 | `KSL_AUTH_TOKEN` | *(none)* | when set, HTTP requires `Authorization: Bearer <token>` |
@@ -514,11 +514,11 @@ equivalent; other settings there include the result cache and `maxConcurrentJobs
 |---|---|
 | Serve **your own** model | Compile it to a *builders JAR* (public no-arg `ModelBuilderIfc` classes), then `kslpkg assemble your-builders.jar --id your.bundle.id` and drop the resulting `*-bundle.jar` into `<KSLWork>/KSLServer/bundles/`. See [Bundle Tools](bundle-tools.md). |
 | Pin the bundle directory | `export KSL_BUNDLES_DIR=/path/to/bundles` before launching |
-| Run a standing HTTP server | `./gradlew :KSLServerMcp:runHttp` (Ctrl-C to stop) |
-| Re-wire / remove a client | `ksl-mcp.jar --setup` / `ksl-mcp.jar --remove` |
+| Run a standing HTTP server | `ksl-mcp-http` (Ctrl-C to stop) |
+| Re-wire / remove a client | `ksl-mcp --setup` / `ksl-mcp --remove` |
 | Find earlier results | ask the assistant to call `list_results`, then `get_result <id>` |
 | Save a config to reuse | ask it to `save_document` (and `load_document` next session) |
-| Check the server is healthy | `ksl-mcp.jar --doctor` (stdio) or `curl .../health` (HTTP) |
+| Check the server is healthy | `ksl-mcp --doctor` (stdio) or `curl .../health` (HTTP) |
 
 To reach the server from another machine, see the security note in
 [§3](#3-connect-your-ai-client).

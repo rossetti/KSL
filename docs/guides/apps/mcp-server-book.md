@@ -64,39 +64,39 @@ The six tools it gains:
 java -version      # must report 21.x
 ```
 
-**Get the jar.** For a course, download `ksl-book-mcp.jar` from the link your instructor
-provides and skip to [§3](#3-connect-your-ai-client). To build it yourself from the KSL
-repository (requires JDK 21) — it is a module of the KSL root build:
+**You already have the server.** Installing the KSL suite puts it here, next to the other
+servers — there is nothing to download or build:
+
+| Platform | Location |
+|---|---|
+| macOS / Linux | `~/Applications/KSL/.support/Servers/book/` |
+| Windows | `%LOCALAPPDATA%\Programs\KSL\.support\Servers\book\` |
+
+Not installed yet? It's one command — see the [installation guide](install.md).
+(`.support` is hidden in a file browser on purpose; it holds the plumbing. You only need
+its path for a command like the one below.)
+
+The whole textbook is **baked into the jar** when the suite is assembled, so the server
+works offline and answers instantly.
+
+**Verify it** with the built-in self-test — it prints the server version and content stats:
 
 ```bash
-./gradlew :KSLBookServer:shadowJar
-# → KSLBookServer/build/libs/ksl-book-mcp.jar
-```
-
-> **Building needs the rendered book.** The build reads a rendered copy of the book from
-> the repo-root `_book/` directory (the `quarto render` output, git-ignored). If `_book/`
-> is absent the build still succeeds but bundles **empty** content — so a course jar is
-> normally built and released by hand from a fresh render (see the module's
-> `RELEASING.md`). Most students should just download the released jar.
-
-**Verify the jar** with the built-in self-test — it prints the server version and content
-stats:
-
-```bash
-java -jar KSLBookServer/build/libs/ksl-book-mcp.jar --doctor
+~/Applications/KSL/.support/Servers/book/ksl-book-mcp --doctor
 ```
 
 ```text
 KSL Book MCP server - doctor
-  server version: 1.0.0
-  chapters:       14
-  sections:       196
-  exercises:      212
-  OK - the server runs and the textbook content is loaded.
+  version:   1.0.0
+  chunks:    288 (9 front matter)
+  exercises: 273
+  chapters:  1 2 3 4 5 6 7 8 9 10 11 A B C D E F
+  OK - the server runs and the full book content is bundled.
 ```
 
-If `chapters`/`sections` read `0`, the jar was built without a rendered `_book/` — get a
-released jar or rebuild from a render.
+(The counts depend on the book edition your suite was built from.) If it reports **0
+chunks**, the suite was assembled without a rendered book — the content is missing, so
+report it rather than trying to fix it locally.
 
 ---
 
@@ -105,12 +105,13 @@ released jar or rebuild from a render.
 With stdio, **your client launches the server** as a subprocess — you just register it in
 the client's MCP configuration.
 
-**The easy way — let the server wire itself in.** Double-click the jar, or run the setup
-window:
+**The easy way — let the server wire itself in.** Run the setup window (or `--setup` to do
+it from the console):
 
 ```bash
-java -jar ksl-book-mcp.jar --gui      # setup window (also: double-click the jar)
-java -jar ksl-book-mcp.jar --setup    # or wire detected agents from the console
+cd ~/Applications/KSL/.support/Servers/book
+./ksl-book-mcp --gui        # setup window
+./ksl-book-mcp --setup      # or wire detected agents from the console
 ```
 
 It detects installed agents (Claude Desktop, Codex), merges in a `ksl-book` entry
@@ -212,11 +213,11 @@ problems; `get_related_sections` finds adjacent material.
 
 | Mode | Purpose |
 |---|---|
-| `ksl-book-mcp.jar --stdio` | the MCP server an AI client runs (JSON-RPC on stdout; logs to stderr) |
-| `ksl-book-mcp.jar --doctor` | self-test: server version, chapter / section / exercise counts |
-| `ksl-book-mcp.jar --gui` | setup window (also: double-click the jar) |
-| `ksl-book-mcp.jar --setup` / `--remove` | wire / unwire the server into detected clients |
-| `ksl-book-mcp.jar --version` | print the server version |
+| `ksl-book-mcp --stdio` | the MCP server an AI client runs (JSON-RPC on stdout; logs to stderr) |
+| `ksl-book-mcp --doctor` | self-test: server version, chunk / exercise / chapter counts |
+| `ksl-book-mcp --gui` | setup window |
+| `ksl-book-mcp --setup` / `--remove` | wire / unwire the server into detected clients |
+| `ksl-book-mcp --version` | print the server version |
 
 ### Keeping content current
 
@@ -235,7 +236,7 @@ site.
 | See what's loaded | run `--doctor` (chapter / section / exercise counts) |
 | List the chapters | ask the assistant to call `list_chapters` |
 | Force textbook-first answers | add the project instruction in [§3](#getting-the-assistant-to-actually-use-the-book) |
-| Re-wire / remove a client | `ksl-book-mcp.jar --setup` / `--remove` |
+| Re-wire / remove a client | `ksl-book-mcp --setup` / `--remove` |
 | Get a newer book | download the rebuilt jar (or re-render `_book/` and rebuild `shadowJar`) |
 
 ---

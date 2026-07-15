@@ -57,30 +57,29 @@ Usage:
 
 ## 2. Before you begin
 
-**Build the tool.** From the repository root, produce the self-contained fat JAR:
+**You already have the tool.** Installing the KSL suite puts `kslpkg` here — there is
+nothing to build:
+
+| Platform | Location |
+|---|---|
+| macOS / Linux | `~/Applications/KSL/.support/Tools/kslpkg/kslpkg` |
+| Windows | `%LOCALAPPDATA%\Programs\KSL\.support\Tools\kslpkg\kslpkg.cmd` |
+
+Not installed yet? See the [installation guide](install.md). So the commands below read
+naturally, alias it (or put that folder on your `PATH`):
 
 ```bash
-./gradlew :KSLBundleTools:shadowJar
-# → KSLBundleTools/build/libs/KSLBundleTools-1.0-SNAPSHOT-all.jar
+alias kslpkg=~/Applications/KSL/.support/Tools/kslpkg/kslpkg
 ```
-
-For convenience, alias `kslpkg` to it so the commands below read naturally:
-
-```bash
-alias kslpkg='java -jar KSLBundleTools/build/libs/KSLBundleTools-1.0-SNAPSHOT-all.jar'
-```
-
-> **Native launcher (optional).** `./gradlew :KSLBundleTools:runtime` builds a
-> self-contained native CLI with a bundled JRE at `KSLBundleTools/build/image/bin/kslpkg`
-> — run it as `kslpkg`, no `java -jar` needed. The `kslpkgZip` task packages that image
-> for distribution; it's how `kslpkg` ships on GitHub Releases.
 
 **Get a builders JAR** to work with. A *builders JAR* is just your compiled
-`ModelBuilderIfc` classes, with no manifest. This guide uses the KSL book models:
+`ModelBuilderIfc` classes, with no manifest — normally whatever your own project compiles.
+This guide uses the KSL book models, so **this tutorial needs a checkout of the KSL
+repository** (`kslpkg` itself does not):
 
 ```bash
 ./gradlew :KSLExamples:bookBuildersJar
-# → KSLExamples/build/libs/book-builders.jar   (17 model builders)
+# → KSLExamples/build/libs/book-builders.jar   (the book's model builders)
 ```
 
 ---

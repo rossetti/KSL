@@ -52,25 +52,17 @@ three building behind them, at simulated time **t = 60 of 150**:
 
 ## 2. Before you begin
 
-The app has **no models built in** — it discovers **bundle JARs** from your
-workspace. Build the KSL Book Examples bundle and drop it where the app looks:
+The app has **no models built in** — it discovers **bundle JARs**. **You already have
+them:** the KSL suite ships the **KSL Animation Examples** (models written to be animated)
+alongside the **KSL Book Examples**, so there is nothing to build or copy.
 
-```bash
-./gradlew :KSLExamples:bookExamplesBundleJar
-# → KSLExamples/build/libs/book-examples.jar
-mkdir -p ~/Documents/KSLWork/bundles
-cp KSLExamples/build/libs/book-examples.jar ~/Documents/KSLWork/bundles/
-```
+To animate a model of your own, drop its bundle JAR into `<KSLWork>/bundles/` or the app's
+own `<KSLWork>/KSLAnimation/bundles/` — where `<KSLWork>` is `~/Documents/KSLWork`, or
+`~/KSLWork` if you have no `Documents` folder. New to bundles? See
+[Bundle Tools](bundle-tools.md).
 
-The app watches `<KSLWork>/KSLAnimation/bundles/` and `<KSLWork>/bundles/` (where
-`<KSLWork>` is `~/Documents/KSLWork`, or `~/KSLWork` if you have no `Documents`
-folder). New to bundles? See [Bundle Tools](bundle-tools.md).
-
-**Launch the app:**
-
-```bash
-./gradlew :KSLAppSwingAnimation:run
-```
+**Launch the app:** open **KSL Animation** from Launchpad (macOS) or the Start Menu
+(Windows). Not installed yet? See the [installation guide](install.md).
 
 Unlike the Single-Model app, it does **not** pop a model picker at startup — the
 window opens on **"No model loaded."** with an **Open Model…** button in the model

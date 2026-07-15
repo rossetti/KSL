@@ -49,22 +49,23 @@ and writes the second; **your builders JAR is never modified**.
 
 ## 2. Before you begin
 
-**Build a builders JAR to work with.** This guide uses the KSL book models. From the
-repository root:
+**Launch the app:** open **KSL Bundle Workbench** from Launchpad (macOS) or the Start Menu
+(Windows). Not installed yet? See the [installation guide](install.md).
+
+**You need a builders JAR to work with** — a JAR of compiled model classes, which is the raw
+material the workbench turns into a bundle. In your own work that JAR is whatever your
+project compiles; see [Bundle Tools](bundle-tools.md).
+
+This guide uses the KSL book models, which means **this tutorial needs a checkout of the KSL
+repository** (the workbench itself does not):
 
 ```bash
 ./gradlew :KSLExamples:bookBuildersJar
-# → KSLExamples/build/libs/book-builders.jar   (17 model builders, no manifest)
+# → KSLExamples/build/libs/book-builders.jar   (the book's model builders, no manifest)
 ```
 
 (That's the same builders JAR the project's own `bookExamplesBundleJar` task feeds to
 `kslpkg assemble` — here you'll assemble it by hand instead.)
-
-**Launch the app:**
-
-```bash
-./gradlew :KSLAppSwingBundle:run
-```
 
 The window opens on the **Overview** tab reading *"Open a builders JAR … to begin"* —
 there is no model picker, because the workbench starts from a JAR you choose.

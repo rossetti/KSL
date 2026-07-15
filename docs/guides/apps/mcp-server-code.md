@@ -65,34 +65,38 @@ The eight tools it gains:
 java -version      # must report 21.x
 ```
 
-**Get the jar.** For a course, download `ksl-code-mcp.jar` from the link your instructor
-provides and skip to [§3](#3-connect-your-ai-client). To build it yourself from the KSL
-repository (requires JDK 21) — it is a module of the KSL root build:
+**You already have the server.** Installing the KSL suite puts it here, next to the other
+servers — there is nothing to download or build:
 
-```bash
-./gradlew :KSLCodeMCPServer:shadowJar
-# → KSLCodeMCPServer/build/libs/ksl-code-mcp.jar
-```
+| Platform | Location |
+|---|---|
+| macOS / Linux | `~/Applications/KSL/.support/Servers/code/` |
+| Windows | `%LOCALAPPDATA%\Programs\KSL\.support\Servers\code\` |
 
-The build parses the sibling `KSLCore/src/main/kotlin` and `KSLExamples/src/main/kotlin`
-source trees into the search index and bundles it into the jar — the index is rebuilt
-from source on every build, never committed.
+Not installed yet? It's one command — see the [installation guide](install.md).
+(`.support` is hidden in a file browser on purpose; it holds the plumbing. You only need
+its path for a command like the one below.)
 
-**Verify the jar** with the built-in self-test — it prints the server version and what's
+The server carries a **search index of the KSL source, built into the jar** when the suite
+was assembled — so it answers instantly and indexes nothing on your machine.
+
+**Verify it** with the built-in self-test — it prints the server version and what's
 indexed:
 
 ```bash
-java -jar KSLCodeMCPServer/build/libs/ksl-code-mcp.jar --doctor
+~/Applications/KSL/.support/Servers/code/ksl-code-mcp --doctor
 ```
 
 ```text
 KSL Code MCP server - doctor
-  server version: 1.0.0
-  KSL ref:        develop
-  declarations:   3187
-  modules:        KSLCore, KSLExamples
-  OK - the server runs and the code index is loaded.
+  version:      1.0.0
+  KSL ref:      develop  (indexed 2026-07-15)
+  declarations: 4041
+  by module:    {KSLCore=2972, KSLExamples=1069}
+  OK - the server runs and the KSL source index is bundled.
 ```
+
+(The ref and counts are whatever your suite was built from.)
 
 ---
 
@@ -101,12 +105,13 @@ KSL Code MCP server - doctor
 With stdio, **your client launches the server** as a subprocess — you just register it
 in the client's MCP configuration.
 
-**The easy way — let the server wire itself in.** Double-click the jar, or run the
-setup window:
+**The easy way — let the server wire itself in.** Run the setup window (or `--setup` to do
+it from the console):
 
 ```bash
-java -jar ksl-code-mcp.jar --gui      # setup window (also: double-click the jar)
-java -jar ksl-code-mcp.jar --setup    # or wire detected agents from the console
+cd ~/Applications/KSL/.support/Servers/code
+./ksl-code-mcp --gui        # setup window
+./ksl-code-mcp --setup      # or wire detected agents from the console
 ```
 
 It detects installed agents (Claude Desktop, Codex), merges in a `ksl-code` entry
@@ -120,10 +125,17 @@ Windows `%APPDATA%\Claude\`, Linux `~/.config/Claude/`):
 ```json
 {
   "mcpServers": {
-    "ksl-code": { "command": "java", "args": ["-jar", "/absolute/path/to/ksl-code-mcp.jar", "--stdio"] }
+    "ksl-code": {
+      "command": "/absolute/path/to/java",
+      "args": ["-jar", "/Users/you/Applications/KSL/.support/Servers/code/ksl-code-mcp.jar", "--stdio"]
+    }
   }
 }
 ```
+
+`ksl-code-mcp.jar` is self-contained, so `java -jar` starts it directly. (The `ksl` model
+server is different — it shares the suite's libraries, so its config points at its wrapper
+script instead. Its `--setup` handles that for you.)
 
 > **Use absolute paths.** A GUI client doesn't inherit your shell `PATH`, so use the full
 > path to `java` and an absolute jar path. The `--setup` output uses `java.home/bin/java`
@@ -208,23 +220,23 @@ implements `SpatialModel`?"; `get_package_overview` lists a whole package;
 
 ### Launcher modes
 
+Run these from the server's folder (`.support/Servers/code/`):
+
 | Mode | Purpose |
 |---|---|
-| `ksl-code-mcp.jar --stdio` | the MCP server an AI client runs (JSON-RPC on stdout; logs to stderr) |
-| `ksl-code-mcp.jar --doctor` | self-test: server version, indexed KSL ref, declaration count |
-| `ksl-code-mcp.jar --gui` | setup window (also: double-click the jar) |
-| `ksl-code-mcp.jar --setup` / `--remove` | wire / unwire the server into detected clients |
-| `ksl-code-mcp.jar --version` | print the server version |
+| `ksl-code-mcp --stdio` | the MCP server an AI client runs (JSON-RPC on stdout; logs to stderr) |
+| `ksl-code-mcp --doctor` | self-test: server version, indexed KSL ref, declaration count |
+| `ksl-code-mcp --gui` | setup window |
+| `ksl-code-mcp --setup` / `--remove` | wire / unwire the server into detected clients |
+| `ksl-code-mcp --version` | print the server version |
 
 ### Which KSL version am I searching?
 
 The bundled index corresponds to one KSL **git ref**, used in the citation URLs and
-reported by `get_server_info` (and `--doctor`). The default is `develop`. For a course,
-build against the tag your assignment depends on so the answers match your library:
-
-```bash
-./gradlew :KSLCodeMCPServer:shadowJar -PkslVersion=v2.0.1
-```
+reported by `get_server_info` (and `--doctor`). It is fixed when the suite is assembled, so
+every server in your installed suite searches the same ref — ask the assistant to call
+`get_server_info` when you need to know which one. Updating the suite brings a
+freshly-indexed server with it.
 
 ---
 
@@ -234,8 +246,8 @@ build against the tag your assignment depends on so the answers match your libra
 |---|---|
 | See what's indexed | ask the assistant to call `list_modules`, or run `--doctor` |
 | Check the indexed KSL ref | ask it to call `get_server_info` (or `--doctor`) |
-| Re-wire / remove a client | `ksl-code-mcp.jar --setup` / `--remove` |
-| Rebuild after the library moves on | `./gradlew :KSLCodeMCPServer:shadowJar` (optionally `-PkslVersion=<tag>`) |
+| Re-wire / remove a client | `ksl-code-mcp --setup` / `--remove` |
+| Pick up a newer KSL index | update the suite: `~/Applications/KSL/bin/ksl update` |
 | Ground the assistant in the API | just ask KSL coding questions — it routes to `search_code` |
 
 ---
@@ -245,7 +257,7 @@ build against the tag your assignment depends on so the answers match your libra
 | Symptom | Cause | Fix |
 |---|---|---|
 | `ksl-code` doesn't appear after `--setup` | The client wasn't fully restarted, or the config path is wrong. | Quit and reopen the client; confirm the `ksl-code` entry is in the right `mcpServers` config file. |
-| Answers cite an old API | The jar was built against an older KSL ref. | Check `get_server_info`; rebuild `shadowJar` (optionally pin `-PkslVersion`). |
+| Answers cite an old API | The suite was built against an older KSL ref. | Check `get_server_info`; update the suite (`ksl update`). |
 | The client shows garbled output / protocol errors | Something wrote to **stdout**, which is the MCP channel. | In `--stdio` mode only JSON-RPC goes to stdout; all logging goes to stderr — don't redirect logs to stdout. |
 | `UnsupportedClassVersion` on launch | Wrong Java. | Use JDK 21 (`java -version`). |
 | The assistant answers from memory instead of searching | It didn't route to the tools. | Ask explicitly: *"use the ksl-code tools to…"*, or add a project instruction to search KSL code first. |

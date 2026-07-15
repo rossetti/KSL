@@ -47,23 +47,18 @@ in the toolbar, and a report is written to your workspace.
 
 The app doesn't have models built in — it loads them from **bundles** (JAR files
 that advertise one or more models). When you launch the app, it shows a **Pick a
-Model** dialog listing the bundles it found in your `<KSLWork>/bundles/` folder:
+Model** dialog listing the bundles it found:
 
 ![Pick a Model dialog](images/single/single-bundle-picker.png)
 
-For this guide, the **KSL Book Examples** bundle and its **DriveThroughPharmacyWithQ**
-model are what you want — the *Selected model* panel summarizes the model's inputs
-and run defaults. Build the bundle and drop it where the app looks:
-
-```bash
-./gradlew :KSLExamples:bookExamplesBundleJar
-# → KSLExamples/build/libs/book-examples.jar   (16 textbook models)
-cp KSLExamples/build/libs/book-examples.jar <KSLWork>/bundles/
-```
+For this guide, use the **KSL Book Examples** bundle and its **DriveThroughPharmacyWithQ**
+model — the *Selected model* panel summarizes the model's inputs and run defaults.
+**It's already there:** the KSL suite ships the book examples, so the bundle is listed the
+first time you open the app. Nothing to build or copy.
 
 - If the model you want is already listed, select its bundle and model.
-- If the list is empty or missing your model, click **Load JAR…** to load a bundle
-  JAR, or drop the JAR into your `<KSLWork>/bundles/` folder before launching. See
+- To use a model of your own, drop its bundle JAR into your `<KSLWork>/bundles/` folder
+  before launching, or click **Load JAR…** to load one now. See
   [Common UI → Models and bundles](common-ui.md#models-and-bundles).
 
 You'll click **Pick** in [Step 1](#step-1--pick-the-model) of the tutorial.
