@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 #
-# ksl — manage the installed KSL suite (Windows).
+# ksl - manage the installed KSL suite (Windows).
 #
 #   ksl list                          what's available and what's installed
 #   ksl install <id> [--from <zip>]   add one item (reuses the shared lib\)
@@ -10,10 +10,10 @@
 #
 # Two roots, deliberately separate (mirroring the macOS layout):
 #
-#   <KSL_HOME>    the SOFTWARE. This script's own home — %LOCALAPPDATA%\Programs\KSL.
+#   <KSL_HOME>    the SOFTWARE. This script's own home - %LOCALAPPDATA%\Programs\KSL.
 #                 Holds bin\ksl and a hidden .support\ with lib\, the per-app jars and
 #                 launchers, Servers\, Tools\ and manifest.json. Owned by the installer.
-#   <workspace>   YOUR WORK — bundles, configs, per-app output. Defaults to
+#   <workspace>   YOUR WORK - bundles, configs, per-app output. Defaults to
 #                 Documents\KSLWork, set in ~/.ksl/settings.toml, owned by the apps.
 #                 This script never reads or writes it.
 #
@@ -30,9 +30,9 @@ $manifest = Join-Path $support "manifest.json"
 
 function Say([string]$m) { Write-Host $m }
 function Die([string]$m) { Write-Host "ksl: $m"; exit 1 }
-if (-not (Test-Path $manifest)) { Die "no manifest at $manifest — run this as an installed <KSL_HOME>\bin\ksl" }
+if (-not (Test-Path $manifest)) { Die "no manifest at $manifest - run this as an installed <KSL_HOME>\bin\ksl" }
 
-# catalog straight from the manifest — paths are relative to .support\
+# catalog straight from the manifest - paths are relative to .support\
 $items = @((Get-Content $manifest -Raw | ConvertFrom-Json).items)
 function PathOf([string]$id) { ($items | Where-Object { $_.id -eq $id } | Select-Object -First 1).path }
 function KindOf([string]$id) { ($items | Where-Object { $_.id -eq $id } | Select-Object -First 1).kind }
@@ -67,7 +67,12 @@ function ExtractItem([string]$zip, [string]$path) {
             if ([string]::IsNullOrEmpty($e.Name)) { continue }   # skip directory entries
             $dest = Join-Path $support ($e.FullName -replace '/', [System.IO.Path]::DirectorySeparatorChar)
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
-            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
+            try {
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
+            }
+            catch [System.IO.IOException] {
+                Die "could not replace $dest. Close any running KSL apps or servers, then try again."
+            }
         }
     } finally { $za.Dispose() }
 }
@@ -75,7 +80,7 @@ function Dequarantine([string]$p) {
     if ($IsWin -and (Test-Path $p)) { Get-ChildItem -Recurse -File $p -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue }
 }
 
-# ── entry points ────────────────────────────────────────────────────────────────
+# --- entry points --------------------------------------------------------------
 # Start-Menu shortcuts in front of the .cmd launchers buried in .support\. The .lnk
 # targets the .cmd rather than javaw directly, so the launcher's Java 21 preflight
 # still runs and its message is still visible. ($env:APPDATA is null off-Windows.)

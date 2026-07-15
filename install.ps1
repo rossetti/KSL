@@ -6,14 +6,14 @@
 # policy so `exit` stays contained and there's no Mark-of-the-Web block):
 #   irm https://raw.githubusercontent.com/rossetti/KSL/main/install.ps1 -OutFile "$env:TEMP\ksl-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\ksl-install.ps1"
 #
-# Installs the KSL suite — the desktop apps, the servers and kslpkg, all sharing ONE copy
-# of the ~150 MB library — on your system Java 21 (no bundled runtime). Two roots, kept
+# Installs the KSL suite - the desktop apps, the servers and kslpkg, all sharing ONE copy
+# of the ~150 MB library - on your system Java 21 (no bundled runtime). Two roots, kept
 # apart on purpose, mirroring the macOS layout:
 #
 #   %LOCALAPPDATA%\Programs\KSL   the SOFTWARE (this installer owns it): the app
 #                                 launchers, bin\ksl, and a hidden .support\ with the
 #                                 shared lib\ and jars. Start-Menu shortcuts point here.
-#   Documents\KSLWork             YOUR WORK (the apps own it) — bundles, configs, output.
+#   Documents\KSLWork             YOUR WORK (the apps own it) - bundles, configs, output.
 #                                 The installer only ever creates bundles\ here.
 #
 # Testing / offline: install from a locally-built payload instead of downloading:
@@ -35,18 +35,37 @@ function Say([string]$m) { Write-Host $m }
 function Die([string]$m) { Write-Host "error: $m"; exit 1 }
 
 # --- 1. Java 21+ ---
-$java = "java"
-if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin/java*"))) { $java = Join-Path $env:JAVA_HOME "bin/java" }
-try { $vtext = (& $java -version 2>&1 | Out-String) }
-catch { Die "Java not found. Install JDK 21 — the same one you use in IntelliJ — then re-run." }
+function JavaCommand {
+    $exe = if ($IsWin) { "java.exe" } else { "java" }
+    if ($env:JAVA_HOME) {
+        $candidate = Join-Path (Join-Path $env:JAVA_HOME "bin") $exe
+        if (Test-Path $candidate) { return $candidate }
+    }
+    return $exe
+}
+function JavaVersionText([string]$cmd) {
+    $oldEap = $ErrorActionPreference
+    try {
+        # java -version writes to stderr. Windows PowerShell 5.1 can turn that into
+        # NativeCommandError when ErrorActionPreference is Stop, even when redirected.
+        $ErrorActionPreference = "Continue"
+        return (& $cmd -version 2>&1 | Out-String)
+    }
+    finally {
+        $ErrorActionPreference = $oldEap
+    }
+}
+$java = JavaCommand
+try { $vtext = JavaVersionText $java }
+catch { Die "Java not found. Install JDK 21 - the same one you use in IntelliJ - then re-run." }
 $vline = ($vtext -split "\r?\n" | Where-Object { $_ } | Select-Object -First 1)
 $vmaj = if ($vtext -match 'version "(\d+)') { [int]$Matches[1] } else { 0 }
 if ($vmaj -lt 21) { Die "Java 21+ required. Found: $vline" }
 Say "* Java $vmaj ($java)"
 
 # --- 2. where the software goes ---
-# %LOCALAPPDATA%\Programs\KSL is the per-user program location (no admin rights needed) —
-# the Windows counterpart of ~/Applications/KSL. This is NOT your workspace; see §8.
+# %LOCALAPPDATA%\Programs\KSL is the per-user program location (no admin rights needed) -
+# the Windows counterpart of ~/Applications/KSL. This is NOT your workspace; see step 8.
 $kslHome = if ($env:KSL_HOME) { $env:KSL_HOME }
            elseif ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Programs\KSL" }
            else { Join-Path $HOME "KSL" }
@@ -121,7 +140,7 @@ finally { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
 $kslPs1 = Join-Path $kslHome "bin\ksl.ps1"
 if (Test-Path $kslPs1) { & $kslPs1 refresh | ForEach-Object { Say "* $_" } }
 
-# --- 8. your workspace — the apps own it; we only make sure bundles\ exists ---
+# --- 8. your workspace - the apps own it; we only make sure bundles\ exists ---
 $work = if ($env:KSLWORK) { $env:KSLWORK }
         else {
             $docs = [Environment]::GetFolderPath("MyDocuments")
@@ -131,7 +150,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $work "bundles") | Out-Null
 
 # --- 9. clean up software a pre-split installer unpacked INTO the workspace. Gated on
 #         our own manifest marker being present, and removes only the exact set we ever
-#         put there — bundles\ and every per-app work folder are untouched. ---
+#         put there - bundles\ and every per-app work folder are untouched. ---
 function CleanupLegacy([string]$wk) {
     if (-not $wk -or -not (Test-Path $wk)) { return }
     $mf = Join-Path $wk "manifest.json"
@@ -151,7 +170,7 @@ Say ""
 Say "Done."
 Say '  Apps       Start Menu -> KSL -> "KSL <Name>"    e.g. KSL Single'
 Say "  Software   $kslHome        (delete this folder to uninstall)"
-Say "  Your work  $work           (bundles, configs, output — never touched by updates)"
+Say "  Your work  $work           (bundles, configs, output - never touched by updates)"
 Say "             drop model bundle JARs into $work\bundles"
 Say "  Servers    $support\Servers\<name>\   (point your MCP client's config here)"
 Say "  kslpkg     $support\Tools\kslpkg\kslpkg.cmd"

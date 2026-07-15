@@ -219,7 +219,7 @@ val winAppTemplate = """
     @echo off
     setlocal
     set "JAVAW=javaw"
-    if defined JAVA_HOME set "JAVAW=%JAVA_HOME%\bin\javaw"
+    if defined JAVA_HOME set "JAVAW=%JAVA_HOME%\bin\javaw.exe"
     "%JAVAW%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
@@ -233,7 +233,7 @@ val winServerTemplate = """
     @echo off
     setlocal
     set "JAVA=java"
-    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java"
+    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java.exe"
     "%JAVA%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
@@ -246,7 +246,7 @@ val winCliTemplate = """
     @echo off
     setlocal
     set "JAVA=java"
-    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java"
+    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java.exe"
     "%JAVA%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
