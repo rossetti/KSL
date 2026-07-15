@@ -12,9 +12,18 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
 - **Java 21**, and the `gh` CLI authenticated to `rossetti/KSL`.
 - Run every command below **from the repo root** (not from this file's directory).
-- On an up-to-date **`main`** — the installers read `manifest.json` from
-  `raw.githubusercontent.com/rossetti/KSL/main`, so the release is only visible once the
-  manifest commit (step 5) lands there.
+- **The distribution work must already be on `main`.** The one-liner fetches `install.sh` /
+  `install.ps1`, and those in turn fetch `manifest.json`, from
+  `raw.githubusercontent.com/rossetti/KSL/main`. If those files aren't on `main` the install
+  404s before it ever reads the manifest — so this is a real gate for the *first* release,
+  since the work was developed on a feature branch. Check with:
+
+  ```
+  git ls-tree --name-only origin/main -- install.sh install.ps1 manifest.json
+  ```
+
+  All three must be listed. Steps 4–5 then run **from `main`**, so the tag points at the
+  merged commit and the manifest lands where the installers actually read it.
 - If book content changed, the repo-root **`_book/`** must be freshly rendered before
   building — the bundled `Servers/book` server bakes in that content. See
   [KSLBookServer/RELEASING.md](../KSLBookServer/RELEASING.md).
