@@ -85,12 +85,13 @@ val checkBacktickNames by tasks.registering {
 
 tasks.named("check") { dependsOn(checkBacktickNames) }
 
-// ---- KSLWork payload assembly — Release & Distribution Plan, Phase 1 --------------
-// ADDITIVE: this does NOT replace the jpackage / org.beryx.runtime build. It stages the
-// "shared lib/ + thin per-app JAR + launcher" KSLWork layout under build/kslwork, running on
-// the student's system Java (no bundled JRE). CS1 proved the mechanism on one app; CS2 scales
-// to all 8 desktop apps (thin over ONE shared lib/) + kslpkg (a deliberately-trimmed,
-// self-contained fat jar under Tools/). Cross-platform launchers + the zip come in a later step.
+// ---- KSLWork payload assembly — the KSL distribution mechanism ---------------------
+// Stages the "shared lib/ + thin per-app JAR + launcher" KSLWork layout under build/kslwork,
+// which packageKSLWork zips into ksl-suite.zip. This is how the apps, the servers and kslpkg
+// are distributed: one payload that runs on the student's system Java 21 — no bundled JRE and
+// no native installers (the per-app jpackage/org.beryx.runtime build was removed once this
+// replaced it). All 8 desktop apps are thin jars over ONE shared lib/; kslpkg and the
+// standalone servers are self-contained fat jars. To cut a release: docs/releasing-suite.md.
 val kslWorkDir = layout.buildDirectory.dir("kslwork")
 
 // Desktop apps: module -> Apps/<target> name. Each app's mainClass is read from its own
