@@ -31,8 +31,20 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
    ./gradlew stampSuiteManifest -PreleaseVersion=X.Y.Z
    ```
 
-3. **Review** `build/release/manifest.json`. The `sha256` should match
-   `shasum -a 256 build/ksl-suite.zip`, and the `items` catalog should be intact.
+3. **Verify the payload.**
+
+   - **The stamped manifest** — `build/release/manifest.json`'s `sha256` matches
+     `shasum -a 256 build/ksl-suite.zip`, and the `items` catalog is intact.
+   - **The bundled book server has content.** The book jar bakes in `_book/` at build time
+     and degrades *silently* if it was missing, so check it rather than assume:
+
+     ```
+     java -jar build/kslwork/Servers/book/ksl-book-mcp.jar --doctor
+     ```
+
+     A report of **0 chunks** means `_book/` wasn't rendered — render it, copy it into the
+     repo root, and rebuild before releasing. See
+     [KSLBookServer/RELEASING.md](KSLBookServer/RELEASING.md).
 
 4. **Publish the release** (uploads the zip):
 

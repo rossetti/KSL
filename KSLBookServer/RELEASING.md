@@ -1,8 +1,12 @@
-# Releasing the KSL Book MCP Server
+# Building the KSL Book MCP Server
 
-A short, manual process — there is **no book-specific CI**. (Folding the Book server into the
-one-command KSL installer is being designed separately under the KSL distribution plan; until
-then, releases are built and published by hand as described here.)
+The Book server ships as part of the **KSL suite**: `assembleKSLWork` bundles its
+self-contained jar into `ksl-suite.zip` as `Servers/book/`, and students get it from the
+one-command installer. There is no standalone `book-mcp-*` release channel and no
+book-specific CI — the jar is rebuilt on every suite build.
+
+This page covers the one thing the suite build **can't** do for you: rendering the book
+content that the jar bakes in. To cut a release, see [RELEASING-suite.md](../RELEASING-suite.md).
 
 ## Prerequisites
 
@@ -12,7 +16,7 @@ then, releases are built and published by hand as described here.)
   content in at build time, so a build **without** `_book/` produces an empty (non-functional)
   jar rather than failing.
 
-## Build the jar
+## Build and verify the jar
 
 From the KSL repo root:
 
@@ -28,7 +32,9 @@ java -jar KSLBookServer/build/libs/ksl-book-mcp.jar --doctor
 
 `--doctor` prints the version and content stats (chunk / exercise / chapter counts) and
 confirms the bundled book loads. If it reports **0 chunks**, `_book/` was missing or empty at
-build time — render it, copy it in, and rebuild.
+build time — render it, copy it in, and rebuild. The suite release runbook runs this same
+check against the bundled `Servers/book/` jar before publishing, so a content-less book
+server can't ship unnoticed.
 
 ## Install locally
 
@@ -40,21 +46,10 @@ java -jar ksl-book-mcp.jar --gui       # setup window (also: double-click the ja
 java -jar ksl-book-mcp.jar --remove    # un-register cleanly (client configs are backed up)
 ```
 
-## Distribute to students (optional)
-
-Attach the jar to a GitHub Release by hand, e.g.:
-
-```bash
-gh release create book-mcp-f26 KSLBookServer/build/libs/ksl-book-mcp.jar
-```
-
-…or share the file directly (course LMS, shared drive). Students download it and run `--setup`
-(or double-click the jar).
-
 ## The coupling to remember
 
-Rebuild and redistribute the jar **whenever you re-render the book** — chunk content and the
+Rebuild and re-release the **suite** whenever you re-render the book — chunk content and the
 citation URLs are baked into the jar at build time. The citation URLs point at the book's
 GitHub Pages site (`https://rossetti.github.io/KSLBook/…`), so they resolve in a browser only
 after the **matching** render is published there (the `KSLBook` repo's `docs/`). Publish the
-render and rebuild the jar together, so the bundled anchors and the live site agree.
+render and rebuild the suite together, so the bundled anchors and the live site agree.

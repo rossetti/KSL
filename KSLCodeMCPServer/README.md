@@ -130,7 +130,8 @@ keywords until added.
 
 ## Releases
 
-CI (`.github/workflows/build-code-mcp.yml`) builds and tests the jar on every pull request
-and on pushes to `develop`/`main` touching `KSLCore/`, `KSLExamples/`, or `code-mcp-server/`.
-The jar is attached to each run as a workflow artifact. A `workflow_dispatch` with a
-`release_tag` cuts a pinned semester release; a `kslVersion` input pins the indexed ref.
+The server ships as part of the **KSL suite**: `assembleKSLWork` bundles its self-contained
+jar into `ksl-suite.zip` as `Servers/code/`, and students get it from the one-command
+installer. There is no standalone `code-mcp-*` release channel and no server-specific CI —
+the jar, and the Lucene index of KSL source baked into it, are rebuilt from the current
+source on every suite build. To cut a release, see [RELEASING-suite.md](../RELEASING-suite.md).
