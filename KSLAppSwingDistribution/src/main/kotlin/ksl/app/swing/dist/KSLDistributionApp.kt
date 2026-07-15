@@ -20,6 +20,8 @@ package ksl.app.swing.dist
 
 import ksl.app.swing.common.appearance.AppTheme
 import ksl.app.swing.common.appearance.LookAndFeel
+import ksl.app.swing.common.app.KslAppIcons
+import ksl.app.swing.common.app.KslDesktopApp
 import javax.swing.SwingUtilities
 
 private const val APP_NAME = "KSL Distribution Fitting"
@@ -38,6 +40,7 @@ fun main() {
     SwingUtilities.invokeLater {
         val controller = DistributionAppController(APP_NAME)
         DistributionAppFrame(controller).apply {
+            KslAppIcons.install(KslDesktopApp.DISTRIBUTION, this)
             pack()
             setLocationRelativeTo(null)
             isVisible = true

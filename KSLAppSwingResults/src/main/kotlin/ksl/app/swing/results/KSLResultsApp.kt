@@ -20,6 +20,8 @@ package ksl.app.swing.results
 
 import ksl.app.swing.common.appearance.AppTheme
 import ksl.app.swing.common.appearance.LookAndFeel
+import ksl.app.swing.common.app.KslAppIcons
+import ksl.app.swing.common.app.KslDesktopApp
 import javax.swing.SwingUtilities
 
 private const val APP_NAME = "KSL Results Analyzer"
@@ -41,6 +43,7 @@ fun main() {
         // choosers open inside KSLWork instead of the home directory.
         controller.ensureAppWorkspace()
         ResultsAppFrame(controller).apply {
+            KslAppIcons.install(KslDesktopApp.RESULTS, this)
             pack()
             setLocationRelativeTo(null)
             isVisible = true

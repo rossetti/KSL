@@ -24,6 +24,8 @@ import ksl.app.settings.UserSettingsStore
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.appearance.AppTheme
 import ksl.app.swing.common.appearance.LookAndFeel
+import ksl.app.swing.common.app.KslAppIcons
+import ksl.app.swing.common.app.KslDesktopApp
 import ksl.simulation.ModelBuilderIfc
 import javax.swing.SwingUtilities
 
@@ -81,6 +83,7 @@ class KSLAnimationApp(val appName: String) {
         LookAndFeel.install(theme = AppTheme.SYSTEM, appName = appName)
         SwingUtilities.invokeLater {
             AnimationAppFrame(resolveController()).apply {
+                KslAppIcons.install(KslDesktopApp.ANIMATION, this)
                 pack()
                 setLocationRelativeTo(null)
                 isVisible = true

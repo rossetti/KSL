@@ -39,12 +39,14 @@ import javax.swing.SwingUtilities
  *
  *  @param appName window title + per-app workspace subdirectory name; must be
  *    non-blank.
+ *  @param app stable desktop-app identity used to select its icon family.
  *  @param controller builds the app controller from the app name.
  *  @param frame wraps the controller in its top-level [JFrame].
  *  @param theme look-and-feel theme; defaults to [AppTheme.SYSTEM].
  */
 fun <C> launchKslSwingApp(
     appName: String,
+    app: KslDesktopApp,
     controller: (String) -> C,
     frame: (C) -> JFrame,
     theme: AppTheme = AppTheme.SYSTEM,
@@ -53,6 +55,7 @@ fun <C> launchKslSwingApp(
     LookAndFeel.install(theme = theme, appName = appName)
     SwingUtilities.invokeLater {
         frame(controller(appName)).apply {
+            KslAppIcons.install(app, this)
             pack()
             setLocationRelativeTo(null)
             isVisible = true

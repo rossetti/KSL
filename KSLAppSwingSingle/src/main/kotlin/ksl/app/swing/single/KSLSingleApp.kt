@@ -25,6 +25,8 @@ import ksl.app.settings.UserSettingsStore
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.appearance.AppTheme
 import ksl.app.swing.common.appearance.LookAndFeel
+import ksl.app.swing.common.app.KslAppIcons
+import ksl.app.swing.common.app.KslDesktopApp
 import ksl.simulation.ModelBuilderIfc
 import javax.swing.SwingUtilities
 import kotlin.system.exitProcess
@@ -136,6 +138,7 @@ class KSLSingleApp(val appName: String) {
         SwingUtilities.invokeLater {
             val controller = resolveController() ?: return@invokeLater
             SingleAppFrame(controller).apply {
+                KslAppIcons.install(KslDesktopApp.SINGLE, this)
                 pack()
                 setLocationRelativeTo(null)
                 isVisible = true

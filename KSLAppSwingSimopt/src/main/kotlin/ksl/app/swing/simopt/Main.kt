@@ -18,11 +18,13 @@
 
 package ksl.app.swing.simopt
 
+import ksl.app.swing.common.app.KslDesktopApp
 import ksl.app.swing.common.app.launchKslSwingApp
 
 /** Entry point for the simulation-optimization Swing application. */
 fun main() = launchKslSwingApp(
     appName = "KSL Simopt",
+    app = KslDesktopApp.SIMOPT,
     controller = { SimoptAppController(it) },
     frame = { SimoptAppFrame(it) },
 )

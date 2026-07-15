@@ -18,11 +18,13 @@
 
 package ksl.app.swing.experiment
 
+import ksl.app.swing.common.app.KslDesktopApp
 import ksl.app.swing.common.app.launchKslSwingApp
 
 /** Entry point for the designed-experiment reference Swing application. */
 fun main() = launchKslSwingApp(
     appName = "KSL Experiment",
+    app = KslDesktopApp.EXPERIMENT,
     controller = { ExperimentAppController(it) },
     frame = { ExperimentAppFrame(it) },
 )

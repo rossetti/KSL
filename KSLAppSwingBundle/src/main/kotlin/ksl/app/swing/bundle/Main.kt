@@ -18,11 +18,13 @@
 
 package ksl.app.swing.bundle
 
+import ksl.app.swing.common.app.KslDesktopApp
 import ksl.app.swing.common.app.launchKslSwingApp
 
 /** Entry point for the KSL Bundle Workbench. */
 fun main() = launchKslSwingApp(
     appName = "KSL Bundle Workbench",
+    app = KslDesktopApp.BUNDLE,
     controller = { BundleWorkbenchController(it) },
     frame = { BundleWorkbenchFrame(it) },
 )

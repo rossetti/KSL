@@ -35,3 +35,13 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
 }
+
+// One shared runtime copy of the desktop icon family. Every Swing app already depends on
+// this module, so embedding the PNGs here avoids duplicating them in all eight thin app JARs.
+val desktopIconSizes = listOf(16, 24, 32, 48, 64, 128, 256, 512)
+tasks.processResources {
+    from(rootProject.file("distribution/icons/export")) {
+        include(desktopIconSizes.map { size -> "*/*-$size.png" })
+        into("ksl/app/icons")
+    }
+}

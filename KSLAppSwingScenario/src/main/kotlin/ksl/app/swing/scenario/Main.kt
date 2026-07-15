@@ -18,11 +18,13 @@
 
 package ksl.app.swing.scenario
 
+import ksl.app.swing.common.app.KslDesktopApp
 import ksl.app.swing.common.app.launchKslSwingApp
 
 /** Entry point for the multi-scenario reference Swing application. */
 fun main() = launchKslSwingApp(
     appName = "KSL Scenario Analyzer",
+    app = KslDesktopApp.SCENARIO,
     controller = { ScenarioAppController(it) },
     frame = { ScenarioAppFrame(it) },
 )
