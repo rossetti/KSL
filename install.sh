@@ -95,11 +95,27 @@ VER=""
   echo "servers: $(ls "$ROOT/Servers" 2>/dev/null | tr '\n' ' ')"
 } > "$ROOT/VERSIONS.txt"
 
-# --- 7. next steps ---
+# --- 7. entry points: build the real double-clickable app per app, and drop the
+#         launchers this OS can't run (the payload is one cross-platform zip, so
+#         every app folder also ships a Windows .cmd). bin/ksl owns this so that
+#         install, `ksl install` and `ksl update` all produce the same result.
+#         Runs after step 6: it reads the manifest we just copied in. ---
+if [ -x "$ROOT/bin/ksl" ]; then
+  "$ROOT/bin/ksl" refresh | sed 's/^/* /'
+fi
+
+# --- 8. next steps ---
 say ""
 say "Done. KSL is installed in $ROOT"
-say "  Apps      run  $ROOT/Apps/<Name>/<Name>       e.g.  $ROOT/Apps/Single/Single"
+if [ "$(uname)" = "Darwin" ]; then
+  say "  Apps      double-click  $ROOT/Applications/<Name>.app     e.g. Single.app"
+  say "            (drag them to your Dock; the folders under Apps/ are just plumbing)"
+else
+  say "  Apps      \"KSL <Name>\" in your applications menu"
+  say "            (or run $ROOT/Apps/<Name>/<Name> from a terminal)"
+fi
 say "  Servers   at   $ROOT/Servers/<name>/          (point your MCP client's config here)"
 say "  kslpkg    run  $ROOT/Tools/kslpkg/kslpkg"
+say "  Manage    run  $ROOT/bin/ksl list             (add / remove / update apps + servers)"
 say "  Bundles + output stay under $ROOT and are preserved across updates."
-say "  Update later by re-running this installer."
+say "  Update later by re-running this installer, or: $ROOT/bin/ksl update"

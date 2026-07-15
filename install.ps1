@@ -105,11 +105,21 @@ try {
 }
 finally { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
 
-# --- 7. next steps ---
+# --- 7. entry points: put a real Start-Menu shortcut in front of each app, and drop
+#         the launchers this OS can't run (the payload is one cross-platform zip, so
+#         every app folder also ships a Unix shell script). bin\ksl.ps1 owns this so
+#         install, `ksl install` and `ksl update` all produce the same result.
+#         Runs after step 6: it reads the manifest we just copied in. ---
+$kslPs1 = Join-Path $root "bin\ksl.ps1"
+if (Test-Path $kslPs1) { & $kslPs1 refresh | ForEach-Object { Say "* $_" } }
+
+# --- 8. next steps ---
 Say ""
 Say "Done. KSL is installed in $root"
-Say "  Apps      run  $root\Apps\<Name>\<Name>.cmd    e.g.  $root\Apps\Single\Single.cmd"
+Say "  Apps      Start Menu -> KSL -> <Name>          e.g. KSL Single"
+Say "            (the folders under Apps\ are just plumbing)"
 Say "  Servers   at   $root\Servers\<name>\           (point your MCP client's config here)"
 Say "  kslpkg    run  $root\Tools\kslpkg\kslpkg.cmd"
 Say "  Manage    run  $root\bin\ksl list              (add / remove / update apps + servers)"
 Say "  Bundles + output stay under $root and are preserved across updates."
+Say "  Update later by re-running this installer, or: $root\bin\ksl update"

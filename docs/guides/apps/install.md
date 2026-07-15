@@ -58,8 +58,10 @@ The installer verifies Java 21, then unpacks the suite into your `KSLWork` folde
 
 ```
 KSLWork/
+├── Applications/ (macOS) Single.app, Scenario.app, …  ← what you double-click
 ├── Apps/         Single/ Scenario/ Experiment/ Simopt/
 │                 Distribution/ Results/ Bundle/ Animation/
+│                 └─ plumbing: each app's jar + the raw launcher behind it
 ├── Servers/      mcp/ rest/ code/ book/
 ├── Tools/        kslpkg/
 ├── lib/          shared libraries (~150 MB) — used by every app and server
@@ -76,12 +78,20 @@ your `bundles/` folder and any results you've saved under `KSLWork` are never to
 
 ## 4. Run an app
 
-Launch an app by running its file under `Apps/<Name>/`:
+The installer creates a real, double-clickable entry point for every app. **That's what you
+use:**
 
-| Platform | Command |
+| Platform | Where |
 |---|---|
-| macOS / Linux | `KSLWork/Apps/Single/Single` |
-| Windows | `KSLWork\Apps\Single\Single.cmd` |
+| macOS | `KSLWork/Applications/Single.app` — double-click it, or drag it to your Dock |
+| Windows | **Start Menu → KSL → KSL Single** |
+| Linux | **KSL Single** in your applications menu |
+
+You don't need to go into `Apps/` at all — that folder is plumbing. `Single.jar` holds only
+this app's own classes (everything it depends on is the shared `lib/`), so double-clicking the
+jar does nothing; and `Apps/Single/Single` is the raw launcher the entry point calls, which
+you *can* run from a terminal, but double-clicking it in a file manager just opens a terminal
+window that then has to stay open.
 
 The apps and what each is for:
 

@@ -6,6 +6,7 @@
 #   ksl install <id> [--from <zip>]   add one item (reuses the shared lib/)
 #   ksl uninstall <id>                remove one item
 #   ksl update [id] [--from <zip>]    refresh everything, or just one item
+#   ksl refresh                       rebuild the Start-Menu shortcuts
 #
 # Invoked through bin\ksl.cmd so plain `ksl <cmd>` works regardless of execution
 # policy. This is the Windows twin of bin/ksl (the macOS/Linux bash version).
@@ -24,6 +25,7 @@ if (-not (Test-Path $manifest)) { Die "no manifest.json in $root — run this as
 # catalog straight from the manifest — no hand-rolled JSON parsing needed
 $items = @((Get-Content $manifest -Raw | ConvertFrom-Json).items)
 function PathOf([string]$id) { ($items | Where-Object { $_.id -eq $id } | Select-Object -First 1).path }
+function KindOf([string]$id) { ($items | Where-Object { $_.id -eq $id } | Select-Object -First 1).kind }
 
 # args: pull --from / -From out of the list, then dispatch on what's left
 $From = ""; $pos = @()
@@ -64,6 +66,55 @@ function Dequarantine([string]$p) {
     if ($IsWin -and (Test-Path $p)) { Get-ChildItem -Recurse -File $p -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue }
 }
 
+# ── entry points ────────────────────────────────────────────────────────────────
+# The launchers under Apps\<Name>\ are .cmd files buried in a folder. These put a
+# real Start-Menu shortcut in front of them. The .lnk targets the .cmd rather than
+# javaw directly, so the launcher's Java 21 preflight still runs and its message is
+# still visible. ($env:APPDATA is null off-Windows, so guard the path.)
+$StartMenu = if ($env:APPDATA) { Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\KSL" } else { "" }
+
+# The payload is ONE cross-platform zip, so every folder also ships the Unix
+# launchers (extension-less shell scripts). Drop what this machine can't run.
+function PruneForeign {
+    # Windows-only: off-Windows the "extension-less" files ARE the real launchers,
+    # so running this there would delete the working install.
+    if (-not $IsWin) { return }
+    foreach ($d in @("Apps", "Servers", "Tools")) {
+        $p = Join-Path $root $d
+        if (Test-Path $p) {
+            Get-ChildItem -Recurse -File -Path $p -ErrorAction SilentlyContinue |
+                Where-Object { -not $_.Extension } |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $root "bin\ksl")
+}
+function MakeEntryPoint([string]$name) {
+    if (-not $IsWin -or -not $StartMenu) { return }
+    $target = Join-Path $root "Apps\$name\$name.cmd"
+    if (-not (Test-Path $target)) { return }
+    New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
+    $sh = New-Object -ComObject WScript.Shell
+    $lnk = $sh.CreateShortcut((Join-Path $StartMenu "KSL $name.lnk"))
+    $lnk.TargetPath       = $target
+    $lnk.WorkingDirectory = $root
+    $lnk.Description      = "KSL $name"
+    $lnk.Save()
+}
+function RemoveEntryPoint([string]$name) {
+    if (-not $StartMenu) { return }
+    Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $StartMenu "KSL $name.lnk")
+}
+function CmdRefresh {
+    PruneForeign
+    $n = 0
+    foreach ($d in (Get-ChildItem -Directory -Path (Join-Path $root "Apps") -ErrorAction SilentlyContinue)) {
+        MakeEntryPoint $d.Name; $n++
+    }
+    if ($IsWin) { Say "refreshed $n app(s): look for the KSL folder in your Start Menu" }
+    else { Say "refreshed $n app(s)" }
+}
+
 function CmdList {
     Say "KSLWork: $root"
     if (Test-Path (Join-Path $root "VERSIONS.txt")) {
@@ -80,6 +131,7 @@ function CmdUninstall([string]$id) {
     if (-not $p) { Die "unknown id: $id (see 'ksl list')" }
     $full = Join-Path $root $p
     if (-not (Test-Path $full)) { Say "$id is not installed."; return }
+    if ((KindOf $id) -eq "app") { RemoveEntryPoint (Split-Path -Leaf $p) }
     Remove-Item -Recurse -Force $full
     Say "removed $id ($p)"
 }
@@ -88,6 +140,8 @@ function CmdInstall([string]$id) {
     if (-not $p) { Die "unknown id: $id (see 'ksl list')" }
     ExtractItem (SuiteZip) $p
     Dequarantine (Join-Path $root $p)
+    PruneForeign
+    if ((KindOf $id) -eq "app") { MakeEntryPoint (Split-Path -Leaf $p) }
     Say "installed $id -> $p"
 }
 function CmdUpdate([string]$id) {
@@ -95,11 +149,16 @@ function CmdUpdate([string]$id) {
     if (-not $id) {
         Expand-Archive -Path $zip -DestinationPath $root -Force
         Dequarantine (Join-Path $root "Apps"); Dequarantine (Join-Path $root "Servers"); Dequarantine (Join-Path $root "Tools")
+        # an update re-extracts the cross-platform zip, so the foreign launchers come
+        # back and the shortcuts must be rebuilt
+        CmdRefresh
         Say "updated the whole suite (bundles/ and working output preserved)"
     } else {
         $p = PathOf $id
         if (-not $p) { Die "unknown id: $id" }
         ExtractItem $zip $p; Dequarantine (Join-Path $root $p)
+        PruneForeign
+        if ((KindOf $id) -eq "app") { MakeEntryPoint (Split-Path -Leaf $p) }
         Say "updated $id"
     }
 }
@@ -108,6 +167,7 @@ switch ($cmd) {
     "list"      { CmdList }
     "install"   { if (-not $arg1) { Die "usage: ksl install <id> [--from <zip>]" }; CmdInstall $arg1 }
     "update"    { CmdUpdate $arg1 }
+    "refresh"   { CmdRefresh }
     { $_ -in "uninstall", "remove" } { if (-not $arg1) { Die "usage: ksl uninstall <id>" }; CmdUninstall $arg1 }
     { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> | update [id]} [--from <ksl-suite.zip>]" }
     default     { Die "unknown command: $cmd (try 'ksl list')" }
