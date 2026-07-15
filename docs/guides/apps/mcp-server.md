@@ -28,8 +28,9 @@ variates. You talk to the assistant in plain language; it drives KSL for you.
 
 ## 1. At a glance
 
-The server exposes KSL as **~68 tools** plus **7 guided prompts**, over either of two
-transports. You never call the tools yourself — your assistant does, in response to
+The server exposes KSL as a broad set of tools — running models, designed experiments,
+optimization, distribution fitting, and results analysis — plus a handful of guided
+prompts, over either of two transports. You never call the tools yourself — your assistant does, in response to
 what you ask it.
 
 **Two transports:**

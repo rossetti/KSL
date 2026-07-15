@@ -37,7 +37,7 @@ right one by context — no per-question configuration:
 | **`ksl-code`** (this server) | **Source code** — API declarations, KDoc, structure, code examples | this guide |
 
 You never call the tools yourself — the assistant does, in response to what you ask.
-The eight tools it gains:
+The tools it gains:
 
 | Tool | What it's for |
 |---|---|

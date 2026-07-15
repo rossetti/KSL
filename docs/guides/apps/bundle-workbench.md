@@ -68,15 +68,10 @@ may go inside the JAR. Starting fresh? **KSLProjectTemplate** ships a worked mod
 and catalog you can copy.
 
 The screenshots in this guide were taken with the KSL **book models**. If you'd like your
-window to match the walkthrough model-for-model, use that JAR instead — which needs a
-checkout of the KSL repository (the workbench itself does not):
-
-```bash
-./gradlew :KSLExamples:bookBuildersJar
-# → KSLExamples/build/libs/book-builders.jar   (the book's model builders, no manifest)
-```
-
-Either way the steps are identical; only the model names differ.
+window to match the walkthrough model-for-model, you can build that builders JAR from a
+checkout of the KSL repository, which defines the task in `KSLExamples/build.gradle.kts`
+(the workbench itself needs no checkout). Either way the steps are identical — only the
+model names differ.
 
 The window opens on the **Overview** tab reading *"Open a builders JAR … to begin"* —
 there is no model picker, because the workbench starts from a JAR you choose.

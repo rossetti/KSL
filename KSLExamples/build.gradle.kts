@@ -104,8 +104,8 @@ tasks.register<JavaExec>("bookExamplesBundleJar") {
     )
 }
 
-// ── Animation Examples bundle (the 16 worked animation gallery models) ────────
-// Mirrors bookExamplesBundleJar: a plain builders JAR (the 16 ModelBuilderIfc
+// ── Animation Examples bundle (the worked animation gallery models) ───────────
+// Mirrors bookExamplesBundleJar: a plain builders JAR (the ModelBuilderIfc
 // wrappers + the example models' class closure) assembled by `kslpkg assemble`
 // into a manifest bundle.  Dropped into the user's KSLWork/bundles folder, it
 // makes every animation example pickable in the apps' Open Model… picker.
@@ -118,7 +118,7 @@ tasks.register<Jar>("animationBuildersJar") {
     archiveVersion.set("")
     dependsOn(tasks.named("classes"))
     from(sourceSets["main"].output) {
-        include("ksl/examples/general/animationbundle/**")          // the 16 builders + example objects (incl. inline AnnotatedClinic)
+        include("ksl/examples/general/animationbundle/**")          // the builders + example objects (incl. inline AnnotatedClinic)
         include("ksl/examples/general/agent/**")                    // duplicated agent models (epidemic, flocking, AGV, drone, …)
         include("ksl/examples/book/chapter6/DriveThroughPharmacy*")
         include("ksl/examples/book/chapter7/StemFairMixerEnhanced*")
@@ -140,7 +140,7 @@ tasks.register<JavaExec>("animationExamplesBundleJar") {
         "--id", "edu.uark.ksl.animation-examples",
         "--name", "KSL Animation Examples",
         "--version", "1.0.0",
-        "--description", "The 16 worked KSL animation examples (process view, stations, conveyors, " +
+        "--description", "The worked KSL animation examples (process view, stations, conveyors, " +
             "movable/transport resources, and agent-based grid/continuous/network models), each ready " +
             "to capture and replay in the KSL animation app.",
         "-o", layout.buildDirectory.file("libs/animation-examples.jar").get().asFile.path,

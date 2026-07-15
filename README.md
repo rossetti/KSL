@@ -123,28 +123,30 @@ Please be aware that the book and documentation may lag the releases due to lack
 
 ## Build Structure
 
-The KSL is a multi-project Gradle build. The published library is **KSLCore**; the other
-modules are examples, tooling, and a set of desktop applications built on top of it.
+The KSL is a multi-project Gradle build. `settings.gradle.kts` is the authoritative list of
+modules, and each module's `build.gradle.kts` declares what it depends on. They fall into
+three tiers:
 
-| Module | Purpose |
-|---|---|
-| **KSLCore** | The published simulation library (`io.github.rossetti:KSLCore`) — all core simulation, statistics, random-variate, optimization, and reporting functionality, plus the `ksl.app.*` model-bundling and run-configuration infrastructure. |
-| **KSLExamples** | Example code, including the examples shown in the textbook. |
-| **KSLAppSwingCommon** | Shared Swing building blocks used by the desktop apps (bundle/model pickers, notifications, run console, look-and-feel). |
-| **KSLAppSwingSingle** | Desktop app for exercising a single model through its controls/parameters. |
-| **KSLAppSwingScenario** | Desktop app for defining and running a set of scenarios. |
-| **KSLAppSwingExperiment** | Desktop app for designed experiments over a model. |
-| **KSLAppSwingSimopt** | Desktop app for simulation optimization. |
-| **KSLAppSwingResults** | Desktop app for browsing and comparing results databases. |
-| **KSLAppSwingDistribution** | Desktop app for probability-distribution fitting and analysis. |
-| **KSLBundleTools** | Command-line tooling for packaging models as loadable KSL *bundle* JARs. |
-| **KSLTesting** | JUnit 5 test suite. |
+- **The library.** **KSLCore** is the published artifact (`io.github.rossetti:KSLCore`) — the
+  simulation engine, statistics, random-variate generation, optimization, and reporting.
+  **KSLApp** sits on top of it and holds the `ksl.app.*` application layer: run configuration,
+  orchestration, and the model-bundle infrastructure. It re-exports KSLCore, so whatever
+  depends on KSLApp gets KSLCore with it.
+- **The applications.** The `KSLAppSwing*` modules are the desktop apps — single model,
+  scenarios, designed experiments, simulation optimization, results browsing, distribution
+  fitting, bundle authoring, and animation — over a shared `KSLAppSwingCommon`. The
+  `KSLServiceCore` / `KSLServer*` modules are the headless server stack, which exposes the
+  same capability to AI assistants and other clients.
+- **Supporting modules.** The textbook examples, shared test fixtures, and the command-line
+  bundle tooling.
 
-The desktop apps depend only on **KSLCore** (and **KSLAppSwingCommon**). They load models as
-self-describing *bundle JARs* through the `ksl.app.bundle` `ServiceLoader` mechanism, discovered
-from `~/.ksl/bundles/` — so models are not compiled into the apps. **KSLProjectTemplate** is a
-separate, pre-configured starter project for building your own models against a published KSL
-release.
+The desktop apps depend on **KSLApp** (and **KSLAppSwingCommon**). They load models as
+self-describing *bundle JARs* through the `ksl.app.bundle` `ServiceLoader` mechanism,
+discovered from the `bundles/` folder of your KSL working directory — so models are not
+compiled into the apps. **KSLProjectTemplate** is a separate, pre-configured starter project
+for building your own models against a published KSL release; it ships a worked model and
+`ModelBuilderIfc` you can copy, and the [Bundle Tools guide](docs/guides/apps/bundle-tools.md)
+shows how to turn the JAR it builds into a bundle the apps can load.
 
 The published version is set in `KSLCore/build.gradle.kts` (the `version` property):
 

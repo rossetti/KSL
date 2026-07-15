@@ -38,7 +38,7 @@ by context — no per-question configuration:
 | `ksl-code` (KSLCodeMCPServer) | **Source code** — API declarations, KDoc, structure | [Code MCP Server](mcp-server-code.md) |
 
 You never call the tools yourself — the assistant does, in response to what you ask.
-The six tools it gains:
+The tools it gains:
 
 | Tool | What it's for |
 |---|---|

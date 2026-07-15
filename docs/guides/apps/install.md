@@ -49,8 +49,8 @@ The installer verifies Java 21, then installs the software into `~/Applications/
 in a separate folder — see §3. Re-running it later updates the software in place.
 
 > **Before the first release is published**, these URLs won't have a payload to
-> download yet. Build one yourself and install from it — see
-> [§6, Build the payload yourself](#6-build-the-payload-yourself).
+> download yet. Install from a `ksl-suite.zip` you build yourself instead — see
+> [§6, Install from a local payload](#6-install-from-a-local-payload).
 
 ---
 
@@ -61,7 +61,7 @@ uninstalls KSL.
 
 ```
 ~/Applications/KSL/                 (Windows: %LOCALAPPDATA%\Programs\KSL)
-├── KSL Single.app   KSL Scenario.app   …      ← the 8 apps you double-click
+├── KSL Single.app   KSL Scenario.app   …      ← the apps you double-click
 ├── bin/ksl                                     ← the suite manager (§5)
 └── .support/   (hidden — you never need to open it)
       Apps/     each app's jar + the raw launcher behind it
@@ -72,9 +72,9 @@ uninstalls KSL.
       manifest.json, VERSIONS.txt
 ```
 
-**You already have models.** The suite ships the **KSL Book Examples** (16 models from the
-textbook) and the **KSL Animation Examples** (13 animated models), so every app has something
-to run the moment it opens — no building required. They live with the software, so updates
+**You already have models.** The suite ships the **KSL Book Examples** (the textbook's models)
+and the **KSL Animation Examples** (the animated gallery), so every app has something to run
+the moment it opens — no building required. They live with the software, so updates
 refresh them and uninstalling removes them; they never clutter your work folder. If you want
 to change one, drop your own copy into `KSLWork/bundles/` — yours takes precedence over the
 shipped one of the same name.
@@ -154,14 +154,10 @@ exists).
 
 ---
 
-## 6. Build the payload yourself
+## 6. Install from a local payload
 
-No published release yet, or you want to install offline from the source tree? Build
-the suite payload with Gradle, then hand it to the installer with `--from`:
-
-```
-./gradlew assembleKSLWork          # -> build/ksl-suite.zip
-```
+No published release yet, or you want to install offline? Both installers accept a
+`ksl-suite.zip` you already have, instead of downloading one:
 
 ```
 # macOS / Linux
@@ -172,6 +168,9 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -From build\ksl-suite.zip
 ```
 
 `ksl install`/`ksl update` accept the same `--from build/ksl-suite.zip`.
+
+Building that payload from the source tree is a maintainer task — see
+[Releasing the KSL suite](../../releasing-suite.md) for the current Gradle recipe.
 
 ---
 
