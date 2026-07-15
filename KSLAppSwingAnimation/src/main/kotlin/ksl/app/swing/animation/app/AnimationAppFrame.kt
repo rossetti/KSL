@@ -88,10 +88,7 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
             // display name resolves to a different folder ("KSL_Animation_App"), so discovery missed the app's own
             // bundles dir (see AnimationApp.resolveController).
             val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, AnimationAppController.APP_FOLDER)
-            it.discoverFromDirectories(
-                WorkspaceLayout.bundlesDir(appWorkspace),
-                WorkspaceLayout.bundlesDir(activeWorkspace),
-            )
+            it.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, activeWorkspace))
         }
     }
 

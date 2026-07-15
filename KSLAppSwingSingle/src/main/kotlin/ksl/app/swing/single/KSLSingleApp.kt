@@ -160,10 +160,7 @@ class KSLSingleApp(val appName: String) {
         // controller writes its artifacts there, and the display name would sanitize to a different folder.
         val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, SingleAppController.APP_FOLDER)
         val bundleLibrary = BundleLibraryController()
-        bundleLibrary.discoverFromDirectories(
-            WorkspaceLayout.bundlesDir(appWorkspace),
-            WorkspaceLayout.bundlesDir(activeWorkspace),
-        )
+        bundleLibrary.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, activeWorkspace))
         return when (val outcome = BundleModelPickerDialog.show(bundleLibrary)) {
             BundleModelPickerDialog.Result.Cancelled -> {
                 // No model — exit the JVM cleanly.  The Swing

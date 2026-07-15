@@ -158,7 +158,7 @@ function CmdInstall([string]$id) {
 function CmdUpdate([string]$id) {
     $zip = SuiteZip
     if (-not $id) {
-        foreach ($top in @("lib", "Apps", "Servers", "Tools")) { ExtractItem $zip $top }
+        foreach ($top in @("lib", "Apps", "Servers", "Tools", "bundles")) { ExtractItem $zip $top }
         # Replace this very script by rename, never by overwrite -- PowerShell may still
         # be reading it. Move-Item swaps the entry and leaves the running process alone.
         $t = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())

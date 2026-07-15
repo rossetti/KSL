@@ -105,10 +105,7 @@ class KSLAnimationApp(val appName: String) {
         // looked for bundles in a different folder than the one it works in, silently loading a stale/absent JAR.
         val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, AnimationAppController.APP_FOLDER)
         val bundleLibrary = BundleLibraryController()
-        bundleLibrary.discoverFromDirectories(
-            WorkspaceLayout.bundlesDir(appWorkspace),
-            WorkspaceLayout.bundlesDir(activeWorkspace),
-        )
+        bundleLibrary.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, activeWorkspace))
         return AnimationAppController.forNoModel(appName, bundleLibrary)
     }
 

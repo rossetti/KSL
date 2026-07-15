@@ -26,6 +26,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 
 /**
  * Pure path-resolution helpers for the workspace layout described in
@@ -52,6 +53,46 @@ object WorkspaceLayout {
      *  bundle layers — pass the app workspace or the workspace root respectively. */
     fun bundlesDir(workspace: Path, createIfMissing: Boolean = false): Path =
         workspace.resolve("bundles").maybeCreate(createIfMissing)
+
+    /** System property naming the shipped bundle directory; set by the installed launcher. */
+    const val BUILTIN_BUNDLES_PROPERTY: String = "ksl.builtinBundles"
+
+    /**
+     *  The read-only bundle directory that ships with an installed KSL suite: the curated
+     *  example bundles (KSL Book Examples, KSL Animation Examples), so a fresh install can
+     *  run a real model immediately instead of opening an empty model picker.
+     *
+     *  Only the generated launcher knows where the software was installed, so it passes the
+     *  location as `-Dksl.builtinBundles=...`.  Returns null when the property is unset (an
+     *  IDE run, a test, a plain `java -cp`) or names nothing — callers then simply omit the
+     *  layer, which is why a development run behaves exactly as before.
+     *
+     *  Discover it **last**.  It is the lowest-precedence layer, so a user's own copy of a
+     *  shipped bundle id under `<workspace>/bundles/` shadows the shipped one rather than
+     *  colliding with it (see `BundleLibraryController.discoverFromDirectories`, which is
+     *  first-registration-wins).
+     */
+    fun builtinBundlesDir(): Path? =
+        System.getProperty(BUILTIN_BUNDLES_PROPERTY)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { Path.of(it) }
+            ?.takeIf { it.exists() && it.isDirectory() }
+
+    /**
+     *  The full bundle search path for a desktop app, in precedence order: the app's own
+     *  `<workspace>/<App>/bundles/`, then the shared `<workspace>/bundles/`, then the suite's
+     *  shipped examples (omitted when not running from an install).
+     *
+     *  Centralized so every app agrees on the order.  The shipped layer must come **last**:
+     *  discovery is first-registration-wins, so a user's own copy of a shipped bundle id
+     *  shadows the shipped one rather than the other way round.
+     */
+    fun appBundleDirs(appWorkspace: Path, sharedWorkspace: Path): Array<Path> =
+        listOfNotNull(
+            bundlesDir(appWorkspace),
+            bundlesDir(sharedWorkspace),
+            builtinBundlesDir(),
+        ).toTypedArray()
 
     /** Resolves `<workspace>/output/<runId>/`, optionally creating it. */
     fun outputDir(workspace: Path, runId: String, createIfMissing: Boolean = false): Path =

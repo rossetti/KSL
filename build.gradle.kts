@@ -130,15 +130,32 @@ val kslStandaloneServers: List<Pair<Project, String>> = listOf(
     evaluationDependsOn(":KSLBookServer") to "book",
 )
 
+// Curated example bundles shipped with the suite, so a fresh install can run a real model
+// immediately instead of opening an empty model picker. They are slim MANIFEST bundles
+// (~730 KB for both) — the models' dependencies are already in the shared lib/, so this is
+// 0.5% of the payload. They ship as SOFTWARE (bundles/ -> .support/bundles/ once installed),
+// never into the user's workspace: updates refresh them, uninstall removes them, and a user's
+// own copy of the same bundleId shadows them because the apps discover this directory LAST
+// (see WorkspaceLayout.builtinBundlesDir). The launchers point the apps at it with
+// -Dksl.builtinBundles.
+val kslExamples = evaluationDependsOn(":KSLExamples")
+val exampleBundles: List<Pair<String, String>> = listOf(
+    "bookExamplesBundleJar" to "book-examples.jar",
+    "animationExamplesBundleJar" to "animation-examples.jar",
+)
+
 // Launchers generated from templates. "DOLLAR" stands in for a literal shell '$' so the Kotlin
 // string needs no per-character escaping; it is substituted back at the end. The app launcher
 // runs a thin `-cp lib/*:App.jar Main`; the CLI launcher runs a self-contained `-jar tool.jar`.
 val macLauncherTemplate = """
     #!/bin/bash
-    # KSL @NAME@ desktop app — KSLWork launcher (runs on your system Java 21).
+    # KSL @NAME@ desktop app — suite launcher (runs on your system Java 21).
     set -e
     DIR="DOLLAR(cd "DOLLAR(dirname "DOLLAR0")" && pwd)"
-    KSLWORK="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
+    # The suite's support root (<KSL_HOME>/.support once installed): holds the shared lib/
+    # and the shipped example bundles. NOT the user's KSLWork workspace -- the app resolves
+    # that itself from ~/.ksl/settings.toml.
+    KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
     JAVA=java
     [ -n "DOLLARJAVA_HOME" ] && JAVA="DOLLARJAVA_HOME/bin/java"
     VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
@@ -153,7 +170,7 @@ val macLauncherTemplate = """
     # returns 1 off macOS and `set -e` would kill the launcher.
     DOCK=""
     if [ "DOLLAR(uname)" = "Darwin" ]; then DOCK="-Xdock:name=KSL @NAME@"; fi
-    exec "DOLLARJAVA" DOLLAR{DOCK:+"DOLLARDOCK"}@JVMARGS@ -cp "DOLLARKSLWORK/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA" DOLLAR{DOCK:+"DOLLARDOCK"} "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles"@JVMARGS@ -cp "DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 val cliLauncherTemplate = """
@@ -174,10 +191,12 @@ val cliLauncherTemplate = """
 
 val serverLauncherTemplate = """
     #!/bin/bash
-    # @NAME@ — KSLWork server launcher (runs on your system Java 21).
+    # @NAME@ — KSL server launcher (runs on your system Java 21).
     set -e
     DIR="DOLLAR(cd "DOLLAR(dirname "DOLLAR0")" && pwd)"
-    KSLWORK="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
+    # The suite's support root (<KSL_HOME>/.support once installed): the shared lib/ and the
+    # shipped example bundles. NOT the user's workspace.
+    KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
     JAVA=java
     [ -n "DOLLARJAVA_HOME" ] && JAVA="DOLLARJAVA_HOME/bin/java"
     VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
@@ -186,7 +205,7 @@ val serverLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA"@JVMARGS@ -cp "DOLLARDIR/server-lib/*:DOLLARKSLWORK/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles" -cp "DOLLARDIR/server-lib/*:DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 fun macLauncher(name: String, mainClass: String, jvmArgs: String): String =
@@ -226,7 +245,7 @@ val winAppTemplate = """
       pause
       exit /b 1
     )
-    start "" "%JAVAW%"@JVMARGS@ -cp "%~dp0..\..\lib\*;%~dp0@NAME@.jar" @MAIN@ %*
+    start "" "%JAVAW%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\bundles" -cp "%~dp0..\..\lib\*;%~dp0@NAME@.jar" @MAIN@ %*
 """.trimIndent()
 
 val winServerTemplate = """
@@ -239,7 +258,7 @@ val winServerTemplate = """
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
       exit /b 1
     )
-    "%JAVA%"@JVMARGS@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
+    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\bundles" -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
 """.trimIndent()
 
 val winCliTemplate = """
@@ -282,6 +301,10 @@ tasks.register("assembleKSLWork") {
     kslStandaloneServers.forEach { (server, _) ->
         dependsOn(server.tasks.named("shadowJar"))
         inputs.files(server.tasks.named("shadowJar"))
+    }
+    exampleBundles.forEach { (task, jar) ->
+        dependsOn(kslExamples.tasks.named(task))
+        inputs.file(kslExamples.layout.buildDirectory.file("libs/$jar"))
     }
     inputs.file("distribution/bin/ksl")
     inputs.file("distribution/bin/ksl.ps1")
@@ -373,9 +396,20 @@ tasks.register("assembleKSLWork") {
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
         }
 
-        // the ksl helper (manage what's installed in a KSLWork). Its sources live in
-        // distribution/bin/ — the repo path mirrors where they land in the payload — and are
-        // copied in verbatim: `ksl` (bash, macOS/Linux) + `ksl.ps1`/`ksl.cmd` (Windows).
+        // The shipped example bundles (see `exampleBundles` above). Without these a fresh
+        // install opens an empty model picker and the student can do nothing until they
+        // build a bundle from source — which would defeat a no-build distribution.
+        val bundlesDir = root.resolve("bundles").apply { mkdirs() }
+        exampleBundles.forEach { (_, jar) ->
+            val src = kslExamples.layout.buildDirectory.file("libs/$jar").get().asFile
+            require(src.isFile) { "expected example bundle ${src.path} (its task should have produced it)" }
+            src.copyTo(bundlesDir.resolve(jar), overwrite = true)
+            logger.lifecycle("assembleKSLWork: bundles/$jar (${src.length() / 1024} KB)")
+        }
+
+        // the ksl helper (manage what's installed). Its sources live in distribution/bin/ —
+        // the repo path mirrors where they land in the payload — and are copied in verbatim:
+        // `ksl` (bash, macOS/Linux) + `ksl.ps1`/`ksl.cmd` (Windows).
         val binDir = root.resolve("bin").apply { mkdirs() }
         file("distribution/bin/ksl").copyTo(binDir.resolve("ksl"), overwrite = true).setExecutable(true)
         file("distribution/bin/ksl.ps1").copyTo(binDir.resolve("ksl.ps1"), overwrite = true)

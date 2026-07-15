@@ -197,7 +197,7 @@ cmd_install() {
 cmd_update() {
   local zip; zip="$(suite_zip)"
   if [ -z "${1:-}" ]; then
-    unzip -q -o "$zip" 'lib/*' 'Apps/*' 'Servers/*' 'Tools/*' -d "$SUPPORT"
+    unzip -q -o "$zip" 'lib/*' 'Apps/*' 'Servers/*' 'Tools/*' 'bundles/*' -d "$SUPPORT"
     # Replace this very script by rename, never by overwrite: bash reads a script
     # incrementally, so truncating it mid-run corrupts execution. `mv` swaps the
     # directory entry and leaves the running process on the old inode.

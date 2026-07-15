@@ -66,10 +66,18 @@ uninstalls KSL.
 └── .support/   (hidden — you never need to open it)
       Apps/     each app's jar + the raw launcher behind it
       lib/      the shared libraries (~150 MB) — ONE copy, used by every app and server
+      bundles/  the example models that ship with KSL (see below)
       Servers/  mcp/ rest/ code/ book/
       Tools/    kslpkg/
       manifest.json, VERSIONS.txt
 ```
+
+**You already have models.** The suite ships the **KSL Book Examples** (16 models from the
+textbook) and the **KSL Animation Examples** (13 animated models), so every app has something
+to run the moment it opens — no building required. They live with the software, so updates
+refresh them and uninstalling removes them; they never clutter your work folder. If you want
+to change one, drop your own copy into `KSLWork/bundles/` — yours takes precedence over the
+shipped one of the same name.
 
 **Your work** — where *you* keep things. The apps own this folder; the installer only ever
 creates `bundles/` in it, and updates never touch it.

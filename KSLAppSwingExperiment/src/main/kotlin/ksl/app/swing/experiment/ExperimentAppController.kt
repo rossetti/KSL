@@ -284,10 +284,7 @@ class ExperimentAppController(
         // then shared KSLWork bundle folders; an injected library (tests) is used
         // exactly as supplied.  Mirrors the Scenario / Single controllers.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromDirectories(
-                WorkspaceLayout.bundlesDir(appWorkspace),
-                WorkspaceLayout.bundlesDir(appWorkspace.parent),
-            )
+            bundleLibrary.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, appWorkspace.parent))
         }
     }
 

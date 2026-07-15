@@ -220,10 +220,7 @@ class ScenarioAppController(
         // then shared KSLWork bundle folders.  An injected library (tests) is used
         // exactly as supplied.  JAR-loaded bundles join the list later via loadBundleJar.
         if (injectedBundleLibrary == null) {
-            bundleLibrary.discoverFromDirectories(
-                WorkspaceLayout.bundlesDir(appWorkspace),
-                WorkspaceLayout.bundlesDir(appWorkspace.parent),
-            )
+            bundleLibrary.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, appWorkspace.parent))
         }
     }
 

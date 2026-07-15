@@ -61,9 +61,14 @@ data class ServerConfig(
         System.getenv("KSL_BUNDLES_DIR")?.let { return listOf(ensureDir(expandHome(it))) }
         bundles.dir?.let { return listOf(ensureDir(expandHome(it))) }
         val workspace = UserSettingsStore().activeWorkspace()
-        return listOf(
+        return listOfNotNull(
             WorkspaceLayout.bundlesDir(appFolder(), createIfMissing = true),
             WorkspaceLayout.bundlesDir(workspace, createIfMissing = true),
+            // The suite's shipped example bundles, present only when the server is running
+            // from an install (the launcher passes -Dksl.builtinBundles). Without this a
+            // freshly-installed server exposes no models at all. Last in the list = lowest
+            // precedence, so a user's own copy of a shipped bundle id shadows it.
+            WorkspaceLayout.builtinBundlesDir(),
         )
     }
 
