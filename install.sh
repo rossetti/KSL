@@ -2,7 +2,7 @@
 #
 # KSL one-command installer (macOS / Linux).
 #
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/KSL/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/rossetti/KSL/main/install.sh | bash
 #
 # Installs the whole KSL suite (desktop apps + servers + kslpkg, sharing one ~150 MB
 # lib/) into a single KSLWork folder, run on your system Java 21 — no bundled runtime.
@@ -13,7 +13,7 @@
 #
 set -euo pipefail
 
-OWNER_REPO="<owner>/KSL"   # repo hosting the release (set when the first release is cut)
+OWNER_REPO="rossetti/KSL"   # repo hosting the suite release + manifest.json
 MANIFEST_URL="https://raw.githubusercontent.com/${OWNER_REPO}/main/manifest.json"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 

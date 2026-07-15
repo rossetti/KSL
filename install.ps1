@@ -4,7 +4,7 @@
 #
 # Run it (downloads to a temp file, then runs that file with a bypassed execution
 # policy so `exit` stays contained and there's no Mark-of-the-Web block):
-#   irm https://raw.githubusercontent.com/<owner>/KSL/main/install.ps1 -OutFile "$env:TEMP\ksl-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\ksl-install.ps1"
+#   irm https://raw.githubusercontent.com/rossetti/KSL/main/install.ps1 -OutFile "$env:TEMP\ksl-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\ksl-install.ps1"
 #
 # Installs the whole KSL suite (desktop apps + servers + kslpkg, sharing one ~150 MB
 # lib/) into a single KSLWork folder, on your system Java 21 — no bundled runtime.
@@ -21,7 +21,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue | Out-Null
 $IsWin = $env:OS -eq "Windows_NT"
 
-$OwnerRepo   = "<owner>/KSL"   # repo hosting the release (set when the first release is cut)
+$OwnerRepo   = "rossetti/KSL"   # repo hosting the suite release + manifest.json
 $ManifestUrl = "https://raw.githubusercontent.com/$OwnerRepo/main/manifest.json"
 $ScriptDir   = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 

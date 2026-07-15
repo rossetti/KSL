@@ -1,4 +1,6 @@
 
+import java.security.MessageDigest
+
 plugins {
     `java-library`
     kotlin("jvm") version "2.2.0"
@@ -390,3 +392,43 @@ tasks.register<Zip>("packageKSLWork") {
     dirPermissions { unix("0755") }
 }
 tasks.named("assembleKSLWork") { finalizedBy("packageKSLWork") }
+
+// Stamp manifest.json's `suite` block for a release: compute the SHA-256 of the built
+// ksl-suite.zip and write a ready-to-commit manifest to build/release/manifest.json with
+// the version, the suite-v<version> asset URL, and that hash (the items catalog is
+// preserved). The tracked manifest.json is NOT modified in place — the release runbook
+// (RELEASING-suite.md) copies the stamped file over it deliberately. Version comes from
+// -PreleaseVersion, else the kslSuiteVersion property.
+tasks.register("stampSuiteManifest") {
+    group = "distribution"
+    description = "Stamp manifest.json's suite block (version + asset URL + sha256 of ksl-suite.zip)."
+    dependsOn("packageKSLWork")
+    doLast {
+        val version = (project.findProperty("releaseVersion") as String?)?.takeIf { it.isNotBlank() }
+            ?: (project.findProperty("kslSuiteVersion") as String?)
+            ?: error("set kslSuiteVersion in gradle.properties or pass -PreleaseVersion=X.Y.Z")
+        val zip = layout.buildDirectory.file("ksl-suite.zip").get().asFile
+        require(zip.exists()) { "expected ${zip.path} — packageKSLWork should have produced it" }
+
+        val md = MessageDigest.getInstance("SHA-256")
+        zip.inputStream().buffered().use { ins ->
+            val buf = ByteArray(1 shl 16)
+            while (true) { val n = ins.read(buf); if (n < 0) break; md.update(buf, 0, n) }
+        }
+        val sha = md.digest().joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+        val asset = "https://github.com/rossetti/KSL/releases/download/suite-v$version/ksl-suite.zip"
+        val suiteLine = """  "suite": { "version": "$version", "asset": "$asset", "sha256": "$sha" },"""
+
+        val manifestFile = file("manifest.json")
+        val stamped = Regex("""(?m)^[ \t]*"suite":\s*\{.*\},[ \t]*$""")
+            .replace(manifestFile.readText()) { suiteLine }
+        check(stamped.contains(sha)) { "no \"suite\": { ... } line found to stamp in ${manifestFile.path}" }
+        val out = layout.buildDirectory.file("release/manifest.json").get().asFile
+        out.parentFile.mkdirs()
+        out.writeText(stamped)
+
+        logger.lifecycle("stampSuiteManifest: suite v$version  sha256=$sha")
+        logger.lifecycle("  wrote ${out.path}  (review, then copy over manifest.json)")
+        logger.lifecycle("  release: gh release create suite-v$version ${zip.path} --title \"KSL Suite $version\"")
+    }
+}
