@@ -249,8 +249,14 @@ KSLExtensions/build
 KSLKotlin/build
 KSLExamples/build
 KSLExampleProject/buil
-KSLProjectTemplate/gradle/wrapper/gradle-wrapper.jar
-KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
+# KSLProjectTemplate is the starter project students copy to build their own
+# models, so — unlike the subprojects above — its wrapper IS committed: a fresh
+# copy has to run ./gradlew without a preinstalled Gradle. These negations must
+# stay after the blanket `gradlew` rules above; the last match wins.
+!KSLProjectTemplate/gradlew
+!KSLProjectTemplate/gradlew.bat
+!KSLProjectTemplate/gradle/wrapper/gradle-wrapper.jar
+!KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
 *.hprof
 *.wal
 
