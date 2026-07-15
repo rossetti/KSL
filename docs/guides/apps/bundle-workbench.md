@@ -1,16 +1,17 @@
 # Bundle Workbench — User Guide
 
-The **Bundle Workbench** turns a **builders JAR** — your compiled model-builder
-classes — into a **bundle JAR** that the KSL desktop apps and servers can load. It
-walks you through it visually, one step per tab: **open** the builders JAR, give the
-bundle an **identity**, declare each model's **supported apps**, curate a **catalog**
-of headline inputs and outputs, **Validate**, and **Assemble**. It is the graphical
-twin of `kslpkg assemble` — same result, guided and with live validation.
+The **Bundle Workbench** turns the JAR your own project builds — your compiled
+model-builder classes — into a **bundle JAR** that the KSL desktop apps and servers
+can load. It walks you through it visually, one step per tab: **open** the JAR, give
+the bundle an **identity**, declare each model's **supported apps**, curate a
+**catalog** of headline inputs and outputs, **Validate**, and **Assemble**. It is the
+graphical twin of `kslpkg assemble` — same result, guided and with live validation.
 
-> **You will need:** Java 21 and a **builders JAR** (built below). New to bundles?
-> See [Common UI → Models and bundles](common-ui.md#models-and-bundles). Prefer the
+> **You will need:** Java 21 and a **builders JAR** — normally whatever your own
+> project compiles ([§2](#2-before-you-begin)). New to bundles? See
+> [Common UI → Models and bundles](common-ui.md#models-and-bundles). Prefer the
 > command line? The [Bundle Tools (`kslpkg`)](bundle-tools.md) guide does the same job
-> in a terminal.
+> in a terminal, and covers what your project needs to produce one.
 
 ## What you'll be able to do
 
@@ -53,19 +54,29 @@ and writes the second; **your builders JAR is never modified**.
 (Windows). Not installed yet? See the [installation guide](install.md).
 
 **You need a builders JAR to work with** — a JAR of compiled model classes, which is the raw
-material the workbench turns into a bundle. In your own work that JAR is whatever your
-project compiles; see [Bundle Tools](bundle-tools.md).
+material the workbench turns into a bundle. **Normally that is your own project's JAR:**
+build your project the ordinary way and open what it produces.
 
-This guide uses the KSL book models, which means **this tutorial needs a checkout of the KSL
-repository** (the workbench itself does not):
+```bash
+./gradlew jar
+# → build/libs/<your-project>.jar
+```
+
+The only requirement is that it holds at least one public, no-arg `ModelBuilderIfc` — see
+[Bundle Tools §2](bundle-tools.md#2-what-your-project-needs) for that contract and for what
+may go inside the JAR. Starting fresh? **KSLProjectTemplate** ships a worked model, builder,
+and catalog you can copy.
+
+The screenshots in this guide were taken with the KSL **book models**. If you'd like your
+window to match the walkthrough model-for-model, use that JAR instead — which needs a
+checkout of the KSL repository (the workbench itself does not):
 
 ```bash
 ./gradlew :KSLExamples:bookBuildersJar
 # → KSLExamples/build/libs/book-builders.jar   (the book's model builders, no manifest)
 ```
 
-(That's the same builders JAR the project's own `bookExamplesBundleJar` task feeds to
-`kslpkg assemble` — here you'll assemble it by hand instead.)
+Either way the steps are identical; only the model names differ.
 
 The window opens on the **Overview** tab reading *"Open a builders JAR … to begin"* —
 there is no model picker, because the workbench starts from a JAR you choose.
