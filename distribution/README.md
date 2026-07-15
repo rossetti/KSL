@@ -13,10 +13,14 @@ bundles — so `distribution/bin/ksl` is the source of the `ksl` command a stude
 | `bin/ksl` | `<KSL_HOME>/bin/ksl` | suite manager (bash, macOS/Linux) — `list` / `install` / `uninstall` / `update` / `refresh` |
 | `bin/ksl.ps1` | `<KSL_HOME>\bin\ksl.ps1` | the same, in PowerShell (Windows) |
 | `bin/ksl.cmd` | `<KSL_HOME>\bin\ksl.cmd` | shim so plain `ksl <cmd>` runs `ksl.ps1` under any execution policy |
+| `icons/source/` | not shipped | canonical SVG artwork for the eight desktop apps |
+| `icons/export/` | `.support/Apps/<Target>/` and the shared Swing library | reviewed PNG, ICNS, and ICO derivatives |
 
 The helpers also build each platform's **entry points** (macOS `.app` bundles via
 `osacompile`, Windows Start-Menu `.lnk`s, Linux `.desktop` files) — see `ksl refresh`. The
 installer calls it, so a fresh install and `ksl update` cannot drift apart.
+The icon sources, regeneration checklist, and validation contract are documented in
+[`icons/README.md`](icons/README.md).
 
 ## What is deliberately *not* here
 

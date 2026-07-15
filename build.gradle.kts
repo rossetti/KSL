@@ -117,6 +117,90 @@ fun kslAppIconFiles(target: String): List<File> {
         kslAppIconSizes.map { size -> dir.resolve("$target-$size.png") }
 }
 
+val validateKSLAppIcons = tasks.register("validateKSLAppIcons") {
+    group = "verification"
+    description = "Validate every desktop app's SVG, PNG, ICO, and ICNS icon assets."
+    val sourceFiles = kslAppTargets.map { (_, target) ->
+        file("distribution/icons/source/${target.lowercase()}.svg")
+    }
+    val exportFiles = kslAppTargets.flatMap { (_, target) -> kslAppIconFiles(target) }
+    inputs.files(sourceFiles + exportFiles)
+    doLast {
+        fun littleEndian16(bytes: ByteArray, offset: Int): Int =
+            (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
+
+        fun bigEndian32(bytes: ByteArray, offset: Int): Int =
+            ((bytes[offset].toInt() and 0xff) shl 24) or
+                ((bytes[offset + 1].toInt() and 0xff) shl 16) or
+                ((bytes[offset + 2].toInt() and 0xff) shl 8) or
+                (bytes[offset + 3].toInt() and 0xff)
+
+        val expectedIcoSizes = setOf(16, 24, 32, 48, 64, 128, 256)
+        val expectedIcnsChunks = setOf("icp4", "icp5", "icp6", "ic07", "ic08", "ic09", "ic10")
+        kslAppTargets.forEach { (_, target) ->
+            val source = file("distribution/icons/source/${target.lowercase()}.svg")
+            require(source.isFile) { "missing canonical desktop icon: ${source.path}" }
+            val svg = source.readText()
+            require("<svg" in svg && "viewBox=\"0 0 260 260\"" in svg) {
+                "invalid canonical desktop icon: ${source.path}"
+            }
+
+            kslAppIconSizes.forEach { size ->
+                val png = file("distribution/icons/export/$target/$target-$size.png")
+                require(png.isFile) { "missing desktop icon PNG: ${png.path}" }
+                val image = requireNotNull(javax.imageio.ImageIO.read(png)) {
+                    "unreadable desktop icon PNG: ${png.path}"
+                }
+                require(image.width == size && image.height == size && image.colorModel.hasAlpha()) {
+                    "desktop icon PNG must be ${size}x$size RGBA: ${png.path}"
+                }
+            }
+
+            val ico = file("distribution/icons/export/$target/$target.ico")
+            require(ico.isFile) { "missing Windows desktop icon: ${ico.path}" }
+            val icoBytes = ico.readBytes()
+            require(icoBytes.size >= 6 && littleEndian16(icoBytes, 0) == 0 && littleEndian16(icoBytes, 2) == 1) {
+                "invalid Windows icon header: ${ico.path}"
+            }
+            val icoCount = littleEndian16(icoBytes, 4)
+            require(icoBytes.size >= 6 + icoCount * 16) { "truncated Windows icon: ${ico.path}" }
+            val icoSizes = (0 until icoCount).map { index ->
+                val width = icoBytes[6 + index * 16].toInt() and 0xff
+                if (width == 0) 256 else width
+            }.toSet()
+            require(icoSizes == expectedIcoSizes) {
+                "Windows icon sizes for $target were $icoSizes; expected $expectedIcoSizes"
+            }
+
+            val icns = file("distribution/icons/export/$target/$target.icns")
+            require(icns.isFile) { "missing macOS desktop icon: ${icns.path}" }
+            val icnsBytes = icns.readBytes()
+            require(icnsBytes.size >= 8 && String(icnsBytes, 0, 4, Charsets.US_ASCII) == "icns") {
+                "invalid macOS icon header: ${icns.path}"
+            }
+            require(bigEndian32(icnsBytes, 4) == icnsBytes.size) { "invalid macOS icon length: ${icns.path}" }
+            val chunks = mutableSetOf<String>()
+            var offset = 8
+            while (offset < icnsBytes.size) {
+                require(offset + 8 <= icnsBytes.size) { "truncated macOS icon chunk: ${icns.path}" }
+                val type = String(icnsBytes, offset, 4, Charsets.US_ASCII)
+                val length = bigEndian32(icnsBytes, offset + 4)
+                require(length >= 8 && offset + length <= icnsBytes.size) {
+                    "invalid macOS icon chunk $type: ${icns.path}"
+                }
+                chunks += type
+                offset += length
+            }
+            require(chunks.containsAll(expectedIcnsChunks)) {
+                "macOS icon chunks for $target were $chunks; expected $expectedIcnsChunks"
+            }
+        }
+        logger.lifecycle("validateKSLAppIcons: ${kslAppTargets.size} complete desktop icon families")
+    }
+}
+
+tasks.named("check") { dependsOn(validateKSLAppIcons) }
+
 // kslpkg is a deliberately-trimmed, self-contained fat jar (it excludes the DB drivers /
 // lets-plot / POI the shared lib/ carries), so it ships standalone under Tools/, NOT over lib/.
 val kslBundleTools = evaluationDependsOn(":KSLBundleTools")
@@ -312,6 +396,7 @@ fun winCliLauncher(name: String, jvmArgs: String) =
 tasks.register("assembleKSLWork") {
     group = "distribution"
     description = "Assemble the KSLWork payload (shared lib/ + thin app JARs + kslpkg + launchers) under build/kslwork"
+    dependsOn(validateKSLAppIcons)
     kslAppTargets.forEach { (app, _) ->
         dependsOn(app.tasks.named("jar"))
         inputs.files(app.configurations.named("runtimeClasspath"))

@@ -43,6 +43,13 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
 3. **Verify the payload.**
 
+   - **The desktop icon families are complete.** This also runs during assembly, but invoke
+     it directly when reviewing an artwork or export change:
+
+     ```
+     ./gradlew validateKSLAppIcons
+     ```
+
    - **The stamped manifest** — `build/release/manifest.json`'s `sha256` matches
      `shasum -a 256 build/ksl-suite.zip`, and the `items` catalog is intact.
    - **The bundled book server has content.** The book jar bakes in `_book/` at build time
@@ -77,6 +84,18 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
    ```
    curl -fsSL https://raw.githubusercontent.com/rossetti/KSL/main/install.sh | bash
    ```
+
+   Check more than successful startup:
+
+   - **macOS:** all eight apps have distinct Launchpad and Finder icons; opening each app
+     preserves that identity in the Dock. `plutil -p` reports a unique
+     `io.github.rossetti.ksl.<app>` identifier and the expected `CFBundleIconFile`, and
+     `codesign --verify --deep --strict` succeeds.
+   - **Windows:** the KSL Start Menu folder shows eight distinct shortcut icons, and the
+     matching icon remains on the running window and taskbar.
+   - **Linux:** each generated desktop entry has the matching menu icon and launches normally.
+   - On every available platform, run `ksl refresh`, a whole-suite `ksl update`, and one
+     individual app update; icons must remain correct after each entry point is rebuilt.
 
 ## Notes
 
