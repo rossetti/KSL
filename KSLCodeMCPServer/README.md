@@ -134,4 +134,4 @@ The server ships as part of the **KSL suite**: `assembleKSLWork` bundles its sel
 jar into `ksl-suite.zip` as `Servers/code/`, and students get it from the one-command
 installer. There is no standalone `code-mcp-*` release channel and no server-specific CI —
 the jar, and the Lucene index of KSL source baked into it, are rebuilt from the current
-source on every suite build. To cut a release, see [RELEASING-suite.md](../RELEASING-suite.md).
+source on every suite build. To cut a release, see [docs/releasing-suite.md](../docs/releasing-suite.md).

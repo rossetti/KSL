@@ -6,7 +6,7 @@ one-command installer. There is no standalone `book-mcp-*` release channel and n
 book-specific CI — the jar is rebuilt on every suite build.
 
 This page covers the one thing the suite build **can't** do for you: rendering the book
-content that the jar bakes in. To cut a release, see [RELEASING-suite.md](../RELEASING-suite.md).
+content that the jar bakes in. To cut a release, see [docs/releasing-suite.md](../docs/releasing-suite.md).
 
 ## Prerequisites
 

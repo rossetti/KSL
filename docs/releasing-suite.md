@@ -11,12 +11,13 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 ## Prerequisites
 
 - **Java 21**, and the `gh` CLI authenticated to `rossetti/KSL`.
+- Run every command below **from the repo root** (not from this file's directory).
 - On an up-to-date **`main`** — the installers read `manifest.json` from
   `raw.githubusercontent.com/rossetti/KSL/main`, so the release is only visible once the
   manifest commit (step 5) lands there.
 - If book content changed, the repo-root **`_book/`** must be freshly rendered before
   building — the bundled `Servers/book` server bakes in that content. See
-  [KSLBookServer/RELEASING.md](KSLBookServer/RELEASING.md).
+  [KSLBookServer/RELEASING.md](../KSLBookServer/RELEASING.md).
 
 ## Steps
 
@@ -44,7 +45,7 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
      A report of **0 chunks** means `_book/` wasn't rendered — render it, copy it into the
      repo root, and rebuild before releasing. See
-     [KSLBookServer/RELEASING.md](KSLBookServer/RELEASING.md).
+     [KSLBookServer/RELEASING.md](../KSLBookServer/RELEASING.md).
 
 4. **Publish the release** (uploads the zip):
 

@@ -276,9 +276,9 @@ tasks.register("assembleKSLWork") {
         dependsOn(server.tasks.named("shadowJar"))
         inputs.files(server.tasks.named("shadowJar"))
     }
-    inputs.file("ksl")
-    inputs.file("ksl.ps1")
-    inputs.file("ksl.cmd")
+    inputs.file("distribution/bin/ksl")
+    inputs.file("distribution/bin/ksl.ps1")
+    inputs.file("distribution/bin/ksl.cmd")
     outputs.dir(kslWorkDir)
     doLast {
         val root = kslWorkDir.get().asFile
@@ -366,12 +366,13 @@ tasks.register("assembleKSLWork") {
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
         }
 
-        // the ksl helper (manage what's installed in a KSLWork) — repo-root scripts shipped in
-        // bin/: `ksl` (bash, macOS/Linux) + `ksl.ps1`/`ksl.cmd` (PowerShell + shim, Windows).
+        // the ksl helper (manage what's installed in a KSLWork). Its sources live in
+        // distribution/bin/ — the repo path mirrors where they land in the payload — and are
+        // copied in verbatim: `ksl` (bash, macOS/Linux) + `ksl.ps1`/`ksl.cmd` (Windows).
         val binDir = root.resolve("bin").apply { mkdirs() }
-        file("ksl").copyTo(binDir.resolve("ksl"), overwrite = true).setExecutable(true)
-        file("ksl.ps1").copyTo(binDir.resolve("ksl.ps1"), overwrite = true)
-        file("ksl.cmd").copyTo(binDir.resolve("ksl.cmd"), overwrite = true)
+        file("distribution/bin/ksl").copyTo(binDir.resolve("ksl"), overwrite = true).setExecutable(true)
+        file("distribution/bin/ksl.ps1").copyTo(binDir.resolve("ksl.ps1"), overwrite = true)
+        file("distribution/bin/ksl.cmd").copyTo(binDir.resolve("ksl.cmd"), overwrite = true)
 
         logger.lifecycle("assembleKSLWork: shared lib/ = ${libDir.listFiles()?.size ?: 0} jars; " +
             "${kslAppTargets.size} apps; kslpkg; ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers; bin/ksl(+.ps1/.cmd)")
@@ -397,7 +398,7 @@ tasks.named("assembleKSLWork") { finalizedBy("packageKSLWork") }
 // ksl-suite.zip and write a ready-to-commit manifest to build/release/manifest.json with
 // the version, the suite-v<version> asset URL, and that hash (the items catalog is
 // preserved). The tracked manifest.json is NOT modified in place — the release runbook
-// (RELEASING-suite.md) copies the stamped file over it deliberately. Version comes from
+// (docs/releasing-suite.md) copies the stamped file over it deliberately. Version comes from
 // -PreleaseVersion, else the kslSuiteVersion property.
 tasks.register("stampSuiteManifest") {
     group = "distribution"
