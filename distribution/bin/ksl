@@ -60,6 +60,12 @@ suite_zip() {
 }
 dequarantine() { [ "$(uname)" = "Darwin" ] && xattr -dr com.apple.quarantine "$@" >/dev/null 2>&1 || true; }
 
+set_plist_string() {
+  local plist="$1" key="$2" value="$3"
+  /usr/libexec/PlistBuddy -c "Set :$key $value" "$plist" >/dev/null 2>&1 ||
+    /usr/libexec/PlistBuddy -c "Add :$key string $value" "$plist" >/dev/null
+}
+
 # ── entry points ────────────────────────────────────────────────────────────────
 # Built with osacompile, which ships with macOS and emits a REAL universal Mach-O
 # applet. That is not cosmetic. A bundle whose executable is a shell script is
@@ -74,6 +80,15 @@ make_macos_app() {
   local name="$1"
   local app="$KSL_HOME/KSL $name.app"
   local src="$TMP/$name.applescript"
+  local icon="$SUPPORT/Apps/$name/$name.icns"
+  local plist="$app/Contents/Info.plist"
+  local display_name="KSL $name"
+  local bundle_id="io.github.rossetti.ksl.$(lower "$name")"
+  local suite_version bundle_version
+  suite_version="$(sed -n 's/^[[:space:]]*"suite":.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$MANIFEST")"
+  bundle_version="$(printf '%s\n' "$suite_version" | sed -nE 's/^([0-9]+(\.[0-9]+){0,2}).*/\1/p')"
+  [ -n "$bundle_version" ] || bundle_version="0"
+  [ -f "$icon" ] || die "missing macOS icon for $display_name: $icon"
   rm -rf "$app"
   {
     printf 'set appName to "KSL %s"\n' "$name"
@@ -114,6 +129,16 @@ do shell script quoted form of launcher & " > /dev/null 2>&1 &"
 APPLESCRIPT
   } > "$src"
   osacompile -o "$app" "$src"
+  cp "$icon" "$app/Contents/Resources/$name.icns"
+  set_plist_string "$plist" CFBundleIconFile "$name.icns"
+  set_plist_string "$plist" CFBundleIdentifier "$bundle_id"
+  set_plist_string "$plist" CFBundleName "$display_name"
+  set_plist_string "$plist" CFBundleDisplayName "$display_name"
+  set_plist_string "$plist" CFBundleShortVersionString "$bundle_version"
+  set_plist_string "$plist" CFBundleVersion "$bundle_version"
+  # osacompile creates an ad-hoc signature; changing its sealed resources and plist
+  # invalidates that signature, so seal the completed applet again.
+  codesign --force --deep --sign - "$app" >/dev/null
 }
 
 make_linux_desktop() {
@@ -127,6 +152,7 @@ Version=1.0
 Name=KSL $name
 Comment=Kotlin Simulation Library — $name
 Exec=$SUPPORT/Apps/$name/$name
+Icon=$SUPPORT/Apps/$name/$name-256.png
 Terminal=false
 Categories=Education;Science;Development;
 DESKTOP

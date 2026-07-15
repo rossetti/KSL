@@ -104,13 +104,16 @@ function PruneForeign {
 function MakeEntryPoint([string]$name) {
     if (-not $IsWin -or -not $StartMenu) { return }
     $target = Join-Path $support "Apps\$name\$name.cmd"
+    $icon = Join-Path $support "Apps\$name\$name.ico"
     if (-not (Test-Path $target)) { return }
+    if (-not (Test-Path $icon)) { Die "missing Windows icon for KSL ${name}: $icon" }
     New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
     $sh = New-Object -ComObject WScript.Shell
     $lnk = $sh.CreateShortcut((Join-Path $StartMenu "KSL $name.lnk"))
     $lnk.TargetPath       = $target
     $lnk.WorkingDirectory = $support
     $lnk.Description      = "KSL $name"
+    $lnk.IconLocation     = "$icon,0"
     $lnk.Save()
 }
 function RemoveEntryPoint([string]$name) {
