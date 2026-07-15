@@ -36,9 +36,10 @@ internal data class SetupResult(val agent: String, val action: String, val path:
  * else), and `--remove`s it cleanly. Any agent not handled here still works via
  * the universal snippet.
  *
- * The launch command uses the **absolute** path to the running JVM's `java`
- * (`java.home/bin/java`), not bare `java`, because GUI-launched agents (notably
- * macOS) often don't inherit the shell `PATH`.
+ * What the client is told to run comes from [launchSpec]: the suite's wrapper when we
+ * were started by one, else `java -jar`.  Where it is `java`, the **absolute** path to
+ * the running JVM's `java` (`java.home/bin/java`) is used rather than bare `java`,
+ * because GUI-launched agents (notably macOS) often don't inherit the shell `PATH`.
  *
  * Supported: **Claude Desktop** (`claude_desktop_config.json`, `mcpServers` JSON —
  * also Cursor / Claude Code) and **Codex** (`~/.codex/config.toml`,
@@ -51,19 +52,44 @@ internal object AgentSetup {
     private val adapters = listOf(ClaudeDesktopAdapter, CodexAdapter)
 
     fun configureDetected(jarPath: String): List<SetupResult> {
-        val cmd = javaCommand()
-        return adapters.mapNotNull { it.configure(cmd, jarPath) }
+        val spec = launchSpec(jarPath)
+        return adapters.mapNotNull { it.configure(spec) }
     }
 
     fun removeDetected(): List<SetupResult> = adapters.mapNotNull { it.remove() }
 
     fun universalSnippet(jarPath: String): String {
+        val spec = launchSpec(jarPath)
         val ksl = buildJsonObject {
-            put("command", javaCommand())
-            putJsonArray("args") { add("-jar"); add(jarPath); add("--stdio") }
+            put("command", spec.command)
+            putJsonArray("args") { spec.args.forEach { add(it) } }
         }
         return "\"ksl\": " + prettyJson.encodeToString(JsonObject.serializer(), ksl)
     }
+}
+
+/** How a client should start this server: an executable, plus the arguments to pass it. */
+internal data class LaunchSpec(val command: String, val args: List<String>)
+
+/** System property naming the wrapper that launched us; set by the suite's generated launcher. */
+internal const val LAUNCHER_PROPERTY: String = "ksl.mcp.launcher"
+
+/**
+ * What to tell an agent to run.
+ *
+ * When the installed suite's wrapper started us it passes `-Dksl.mcp.launcher` naming
+ * itself, and that wrapper is what the client must run — **not** `java -jar`. The installed
+ * `ksl-mcp.jar` is *thin*: no `Main-Class`, and its dependencies live in the suite's shared
+ * `lib/`, so `java -jar ksl-mcp.jar` fails outright with "no main manifest attribute". Only
+ * the wrapper knows how to assemble the classpath.
+ *
+ * Otherwise fall back to `java -jar <jar> --stdio`, which is exactly right for a
+ * self-contained fat jar and for a development run.
+ */
+internal fun launchSpec(jarPath: String): LaunchSpec {
+    val wrapper = System.getProperty(LAUNCHER_PROPERTY)?.takeIf { it.isNotBlank() }
+    return if (wrapper != null && File(wrapper).isFile) LaunchSpec(wrapper, listOf("--stdio"))
+    else LaunchSpec(javaCommand(), listOf("-jar", jarPath, "--stdio"))
 }
 
 private val prettyJson = Json { prettyPrint = true }
@@ -79,14 +105,14 @@ internal fun javaCommand(): String {
 // ---- pure merge / remove (unit-tested) ----
 
 /** Add/replace `mcpServers.ksl` in Claude Desktop JSON, preserving the rest. Throws on unparseable input. */
-internal fun mergeClaudeJson(existing: String?, command: String, jarPath: String): String {
+internal fun mergeClaudeJson(existing: String?, spec: LaunchSpec): String {
     val root: JsonObject = existing?.takeIf { it.isNotBlank() }
         ?.let { Json.parseToJsonElement(it).jsonObject }
         ?: JsonObject(emptyMap())
     val servers = (root["mcpServers"] as? JsonObject)?.toMutableMap() ?: linkedMapOf()
     servers["ksl"] = buildJsonObject {
-        put("command", command)
-        putJsonArray("args") { add("-jar"); add(jarPath); add("--stdio") }
+        put("command", spec.command)
+        putJsonArray("args") { spec.args.forEach { add(it) } }
     }
     val merged = root.toMutableMap().apply { this["mcpServers"] = JsonObject(servers) }
     return prettyJson.encodeToString(JsonObject.serializer(), JsonObject(merged))
@@ -104,11 +130,11 @@ internal fun removeClaudeJson(existing: String?): String? {
 }
 
 /** Add/replace `[mcp_servers.ksl]` in Codex TOML, preserving the rest. Literal-string paths (no escaping). */
-internal fun mergeCodexToml(existing: String?, command: String, jarPath: String): String {
+internal fun mergeCodexToml(existing: String?, spec: LaunchSpec): String {
     val block = listOf(
         "[mcp_servers.ksl]",
-        "command = '$command'",
-        "args = ['-jar', '$jarPath', '--stdio']",
+        "command = '${spec.command}'",
+        "args = [${spec.args.joinToString(", ") { "'$it'" }}]",
     )
     val text = existing ?: ""
     if (!Regex("(?m)^\\s*\\[mcp_servers\\.ksl]").containsMatchIn(text)) {
@@ -151,16 +177,16 @@ private interface AgentAdapter {
     val name: String
     fun configFile(): File
     fun present(): Boolean
-    fun addEntry(existing: String?, command: String, jarPath: String): String
+    fun addEntry(existing: String?, spec: LaunchSpec): String
     fun removeEntry(existing: String?): String?
 
     /** Write the merged config when the agent is installed; null when it isn't. Never throws. */
-    fun configure(command: String, jarPath: String): SetupResult? {
+    fun configure(spec: LaunchSpec): SetupResult? {
         if (!present()) return null
         val f = configFile()
         return try {
             val existed = f.exists()
-            val merged = addEntry(if (existed) f.readText() else null, command, jarPath)
+            val merged = addEntry(if (existed) f.readText() else null, spec)
             if (existed) backupOnce(f)
             f.parentFile?.mkdirs()
             f.writeText(merged)
@@ -202,8 +228,7 @@ private object ClaudeDesktopAdapter : AgentAdapter {
     }
     override fun configFile() = File(dir(), "claude_desktop_config.json")
     override fun present() = dir().isDirectory
-    override fun addEntry(existing: String?, command: String, jarPath: String) =
-        mergeClaudeJson(existing, command, jarPath)
+    override fun addEntry(existing: String?, spec: LaunchSpec) = mergeClaudeJson(existing, spec)
     override fun removeEntry(existing: String?) = removeClaudeJson(existing)
 }
 
@@ -212,7 +237,6 @@ private object CodexAdapter : AgentAdapter {
     private fun dir() = File(home(), ".codex")
     override fun configFile() = File(dir(), "config.toml")
     override fun present() = dir().isDirectory
-    override fun addEntry(existing: String?, command: String, jarPath: String) =
-        mergeCodexToml(existing, command, jarPath)
+    override fun addEntry(existing: String?, spec: LaunchSpec) = mergeCodexToml(existing, spec)
     override fun removeEntry(existing: String?) = removeCodexToml(existing)
 }

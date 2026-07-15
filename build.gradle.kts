@@ -121,6 +121,17 @@ val kslServers: List<Triple<Project, String, List<Pair<String, String>>>> = list
     Triple(evaluationDependsOn(":KSLServerRest"), "rest", emptyList()),
 )
 
+// The PACKAGED entry point for a server's launcher, where that differs from the module's
+// application{mainClass}. KSLServerMcp's application{} names MainKt — the raw stdio server —
+// so `gradle run` starts stdio for developers; but the packaged entry is LauncherKt, which is
+// what its own shadowJar manifest declares (Main-Class = ksl.server.mcp.LauncherKt). Reading
+// application{} here made the installed ksl-mcp silently ignore --setup/--gui/--doctor and
+// fall through to stdio, so `ksl-mcp --doctor` just hung. Overriding here (rather than
+// changing application{}) keeps `gradle run` behaving as developers expect.
+val serverDistMain: Map<String, String> = mapOf(
+    "mcp" to "ksl.server.mcp.LauncherKt",
+)
+
 // Standalone MCP servers: (project, Servers/<dir>). Self-contained fat shadowJars that share
 // NOTHING with the KSL runtime stack (MCP SDK + Lucene, no KSLCore) — no lib/, no server-lib/.
 // ksl-book bakes in the git-ignored _book/ render (empty content if absent); ksl-code bakes a
@@ -205,7 +216,7 @@ val serverLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles" -cp "DOLLARDIR/server-lib/*:DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles"@SELFD@ -cp "DOLLARDIR/server-lib/*:DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 fun macLauncher(name: String, mainClass: String, jvmArgs: String): String =
@@ -215,9 +226,12 @@ fun macLauncher(name: String, mainClass: String, jvmArgs: String): String =
 fun cliLauncher(name: String, jvmArgs: String): String =
     cliLauncherTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs).replace("DOLLAR", "\$") + "\n"
 
-fun serverLauncher(name: String, jar: String, mainClass: String, jvmArgs: String): String =
+// selfD: an extra -D naming this wrapper's own path, for the MCP stdio launcher only (see the
+// call site). Substituted BEFORE the DOLLAR pass so it can use DOLLARDIR like the template does.
+fun serverLauncher(name: String, jar: String, mainClass: String, jvmArgs: String, selfD: String = ""): String =
     serverLauncherTemplate.replace("@NAME@", name).replace("@JAR@", jar)
-        .replace("@MAIN@", mainClass).replace("@JVMARGS@", jvmArgs).replace("DOLLAR", "\$") + "\n"
+        .replace("@MAIN@", mainClass).replace("@JVMARGS@", jvmArgs).replace("@SELFD@", selfD)
+        .replace("DOLLAR", "\$") + "\n"
 
 fun jarOf(task: org.gradle.api.tasks.TaskProvider<*>): java.io.File =
     (task.get() as org.gradle.api.tasks.bundling.Jar).archiveFile.get().asFile
@@ -258,7 +272,7 @@ val winServerTemplate = """
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
       exit /b 1
     )
-    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\bundles" -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
+    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\bundles"@SELFD@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
 """.trimIndent()
 
 val winCliTemplate = """
@@ -278,9 +292,9 @@ fun winAppLauncher(name: String, mainClass: String, jvmArgs: String) =
     (winAppTemplate.replace("@NAME@", name).replace("@MAIN@", mainClass)
         .replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
 
-fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: String) =
+fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: String, selfD: String = "") =
     (winServerTemplate.replace("@NAME@", name).replace("@JAR@", jar).replace("@MAIN@", mainClass)
-        .replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
+        .replace("@JVMARGS@", jvmArgs).replace("@SELFD@", selfD)).replace("\n", "\r\n") + "\r\n"
 
 fun winCliLauncher(name: String, jvmArgs: String) =
     (winCliTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
@@ -373,11 +387,21 @@ tasks.register("assembleKSLWork") {
                     if (libVer != null) overrides += "${id.name} ${id.version} (lib/ has $libVer)"
                 }
             }
-            val primaryMain = server.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
+            val primaryMain = serverDistMain[dir]
+                ?: server.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
             val srvJvm = jvmArgsOf(server)
-            (listOf(jarBase to primaryMain) + extraLaunchers).forEach { (lname, main) ->
-                srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, srvJvm)); setExecutable(true) }
-                srvDir.resolve("$lname.cmd").writeText(winServerLauncher(lname, jarBase, main, srvJvm))
+            // Only the MCP stdio wrapper advertises its own path. AgentSetup writes a client
+            // config whose `command` is this script — the installed ksl-mcp.jar is THIN (no
+            // Main-Class, no deps), so the `java -jar <jar>` config AgentSetup writes by
+            // default cannot start it. The HTTP launcher must NOT advertise itself (a config
+            // pointing at it would start HTTP mode), and ksl-rest is not an MCP server.
+            val selfUnix = if (dir == "mcp") " \"-Dksl.mcp.launcher=DOLLARDIR/$jarBase\"" else ""
+            val selfWin = if (dir == "mcp") " \"-Dksl.mcp.launcher=%~dp0$jarBase.cmd\"" else ""
+            (listOf(jarBase to primaryMain) + extraLaunchers).forEachIndexed { i, (lname, main) ->
+                val su = if (i == 0) selfUnix else ""
+                val sw = if (i == 0) selfWin else ""
+                srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, srvJvm, su)); setExecutable(true) }
+                srvDir.resolve("$lname.cmd").writeText(winServerLauncher(lname, jarBase, main, srvJvm, sw))
             }
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $jarBase.jar + " +
                 "${serverLibDir.listFiles()?.size ?: 0} server-lib jars (${overrides.size} shadow lib/) + ${1 + extraLaunchers.size} launcher(s)")
