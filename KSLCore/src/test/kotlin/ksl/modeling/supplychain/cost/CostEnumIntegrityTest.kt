@@ -2,7 +2,6 @@ package ksl.modeling.supplychain.cost
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 
 /**
  * Integrity guard for the `all` registries on [CostLine] and
@@ -18,7 +17,6 @@ class CostEnumIntegrityTest {
 
     @Test
     fun `CostLine all is complete and null-free`() {
-        assertFalse(CostLine.all.any { it == null }, "CostLine.all has a null entry")
         assertEquals(
             CostLine::class.sealedSubclasses.mapNotNull { it.objectInstance }.toSet(),
             CostLine.all.toSet(),
@@ -28,7 +26,6 @@ class CostEnumIntegrityTest {
 
     @Test
     fun `NodeTier all is complete and null-free`() {
-        assertFalse(NodeTier.all.any { it == null }, "NodeTier.all has a null entry")
         assertEquals(
             NodeTier::class.sealedSubclasses.mapNotNull { it.objectInstance }.toSet(),
             NodeTier.all.toSet(),

@@ -62,7 +62,6 @@ class ReportingFrameworkTest {
             }
         }
 
-        assertTrue(myDoc is ReportNode.Document)
         assertTrue(myDoc.title == "Test Report")
         assertTrue(myDoc.children.size == 3, "Expected 3 top-level children")
         val mySectionA = myDoc.children[1] as ReportNode.Section
