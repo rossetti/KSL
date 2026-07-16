@@ -37,6 +37,24 @@ $items = @((Get-Content $manifest -Raw | ConvertFrom-Json).items)
 function PathOf([string]$id) { ($items | Where-Object { $_.id -eq $id } | Select-Object -First 1).path }
 function KindOf([string]$id) { ($items | Where-Object { $_.id -eq $id } | Select-Object -First 1).kind }
 
+# EntryInfoFor <id>: the Start-Menu shortcut's { Label; Target; Icon } for an item that gets
+# a double-clickable entry point, or $null if it gets none. Apps target Apps\<Name>\<Name>.cmd
+# with their own .ico; a setup-GUI server (entry -eq "gui") targets its windowless
+# Servers\<dir>\<launcher>-gui.cmd with the shared server.ico and a "KSL <display>" label.
+function EntryInfoFor([string]$id) {
+    $it = $items | Where-Object { $_.id -eq $id } | Select-Object -First 1
+    if (-not $it) { return $null }
+    $dir = Join-Path $support ($it.path -replace '/', '\')
+    if ($it.kind -eq "app") {
+        $name = Split-Path -Leaf $it.path
+        return [pscustomobject]@{ Label = "KSL $name"; Target = (Join-Path $dir "$name.cmd"); Icon = (Join-Path $dir "$name.ico") }
+    }
+    if ($it.entry -eq "gui") {
+        return [pscustomobject]@{ Label = "KSL $($it.display)"; Target = (Join-Path $dir "$($it.launcher)-gui.cmd"); Icon = (Join-Path $dir "server.ico") }
+    }
+    return $null
+}
+
 # args: pull --from / -From out of the list, then dispatch on what's left
 $From = ""; $pos = @()
 for ($i = 0; $i -lt $args.Count; $i++) {
@@ -101,33 +119,41 @@ function PruneForeign {
         }
     }
 }
-function MakeEntryPoint([string]$name) {
+# make/remove an entry point by item <id>. No-ops for items that get none (EntryInfoFor
+# is $null), so callers can invoke these unconditionally.
+function MakeEntryPoint([string]$id) {
     if (-not $IsWin -or -not $StartMenu) { return }
-    $target = Join-Path $support "Apps\$name\$name.cmd"
-    $icon = Join-Path $support "Apps\$name\$name.ico"
-    if (-not (Test-Path $target)) { return }
-    if (-not (Test-Path $icon)) { Die "missing Windows icon for KSL ${name}: $icon" }
+    $info = EntryInfoFor $id
+    if (-not $info) { return }
+    if (-not (Test-Path $info.Target)) { return }
+    if (-not (Test-Path $info.Icon)) { Die "missing Windows icon for $($info.Label): $($info.Icon)" }
     New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
     $sh = New-Object -ComObject WScript.Shell
-    $lnk = $sh.CreateShortcut((Join-Path $StartMenu "KSL $name.lnk"))
-    $lnk.TargetPath       = $target
+    $lnk = $sh.CreateShortcut((Join-Path $StartMenu "$($info.Label).lnk"))
+    $lnk.TargetPath       = $info.Target
     $lnk.WorkingDirectory = $support
-    $lnk.Description      = "KSL $name"
-    $lnk.IconLocation     = "$icon,0"
+    $lnk.Description      = $info.Label
+    $lnk.IconLocation     = "$($info.Icon),0"
     $lnk.Save()
 }
-function RemoveEntryPoint([string]$name) {
+function RemoveEntryPoint([string]$id) {
     if (-not $StartMenu) { return }
-    Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $StartMenu "KSL $name.lnk")
+    $info = EntryInfoFor $id
+    if (-not $info) { return }
+    Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $StartMenu "$($info.Label).lnk")
 }
 function CmdRefresh {
     PruneForeign
     $n = 0
-    foreach ($d in (Get-ChildItem -Directory -Path (Join-Path $support "Apps") -ErrorAction SilentlyContinue)) {
-        MakeEntryPoint $d.Name; $n++
+    # Entry points exist for the desktop apps and the setup-GUI servers (entry -eq "gui"),
+    # when installed.
+    foreach ($it in $items) {
+        if ($it.kind -ne "app" -and $it.entry -ne "gui") { continue }
+        if (-not (Test-Path (Join-Path $support $it.path))) { continue }
+        MakeEntryPoint $it.id; $n++
     }
-    if ($IsWin) { Say "refreshed $n app(s): look for the KSL folder in your Start Menu" }
-    else { Say "refreshed $n app(s)" }
+    if ($IsWin) { Say "refreshed $n entry point(s): look for the KSL folder in your Start Menu" }
+    else { Say "refreshed $n entry point(s)" }
 }
 
 function CmdList {
@@ -145,7 +171,7 @@ function CmdUninstall([string]$id) {
     if (-not $p) { Die "unknown id: $id (see 'ksl list')" }
     $full = Join-Path $support $p
     if (-not (Test-Path $full)) { Say "$id is not installed."; return }
-    if ((KindOf $id) -eq "app") { RemoveEntryPoint (Split-Path -Leaf $p) }
+    RemoveEntryPoint $id
     Remove-Item -Recurse -Force $full
     Say "removed $id ($p)"
 }
@@ -155,7 +181,7 @@ function CmdInstall([string]$id) {
     ExtractItem (SuiteZip) $p
     Dequarantine (Join-Path $support $p)
     PruneForeign
-    if ((KindOf $id) -eq "app") { MakeEntryPoint (Split-Path -Leaf $p) }
+    MakeEntryPoint $id
     Say "installed $id -> $p"
 }
 function CmdUpdate([string]$id) {
@@ -185,7 +211,7 @@ function CmdUpdate([string]$id) {
         if (-not $p) { Die "unknown id: $id" }
         ExtractItem $zip $p; Dequarantine (Join-Path $support $p)
         PruneForeign
-        if ((KindOf $id) -eq "app") { MakeEntryPoint (Split-Path -Leaf $p) }
+        MakeEntryPoint $id
         Say "updated $id"
     }
 }
