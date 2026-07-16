@@ -274,13 +274,18 @@ val macLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    # macOS: name the Dock tile and the app menu, or the JVM shows up as plain "java".
-    # -Xdock:* is macOS-only (passing it on Linux aborts the JVM with "Unrecognized
-    # option"), hence the uname guard -- written as `if`, since a bare `[ ] && x=y`
-    # returns 1 off macOS and `set -e` would kill the launcher.
-    DOCK=""
-    if [ "DOLLAR(uname)" = "Darwin" ]; then DOCK="-Xdock:name=KSL @NAME@"; fi
-    exec "DOLLARJAVA" DOLLAR{DOCK:+"DOLLARDOCK"} "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles"@JVMARGS@ -cp "DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
+    # macOS: name AND icon the Dock tile at JVM startup, so the app shows its own icon from
+    # the first frame -- during the model picker and the Documents-access prompt -- instead
+    # of the generic Java icon until Swing sets it later. -Xdock:* is macOS-only (it aborts
+    # the JVM on Linux with "Unrecognized option"), hence the uname guard -- written as `if`,
+    # since a bare `[ ] && x=y` returns 1 off macOS and `set -e` would kill the launcher.
+    # The two -Xdock flags must be two separate words, so two vars (not one string).
+    DOCKNAME=""; DOCKICON=""
+    if [ "DOLLAR(uname)" = "Darwin" ]; then
+      DOCKNAME="-Xdock:name=KSL @NAME@"
+      DOCKICON="-Xdock:icon=DOLLARDIR/@NAME@.icns"
+    fi
+    exec "DOLLARJAVA" DOLLAR{DOCKNAME:+"DOLLARDOCKNAME"} DOLLAR{DOCKICON:+"DOLLARDOCKICON"} "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles"@JVMARGS@ -cp "DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 val cliLauncherTemplate = """
