@@ -1,30 +1,78 @@
 # KSL Release Notes
 
 Release history for **KSLCore** (`io.github.rossetti:KSLCore`), newest first.
-These notes cover the published library, including the `ksl.app.*` infrastructure
-that ships inside it; the Swing applications are separate modules (see the README's
-build section) and are not part of the KSLCore artifact.
+These notes cover the published library — the simulation engine. As of R1.4 the
+`ksl.app.*` model-packaging / run infrastructure lives in a separate `KSLApp` module
+(not published to Maven); it and the Swing applications are separate modules (see the
+README's build section) and are not part of the KSLCore artifact.
 
-## R1.4 (upcoming — unreleased)
+## R1.4
 
-Changes on the development branch, not yet released.
+A reorganization and optimization-hardening release: 100+ commits to KSLCore since R1.3.
+The headline for the library is a **module-boundary change** — the `ksl.app.*`
+infrastructure introduced in R1.3 moves out of the published artifact — alongside a new
+animation-capture layer and a substantial round of simulation-optimization work. This
+release also coincides with a new one-command installable suite for the applications and
+servers (see the README).
 
 ### Module boundary
 
-- **`ksl.app.*` extracted into the new internal `KSLApp` module.** The
-  model-packaging / run / session infrastructure introduced in R1.3
-  (`ksl.app.bundle`, `KSLAppSession`, …) has moved **out of KSLCore** into a separate
-  `KSLApp` module, so the published KSLCore library now carries only the simulation
-  engine. `KSLApp` depends on KSLCore and is **not published to Maven**; it backs the
-  Swing applications and the servers.
+- **`ksl.app.*` extracted into the new internal `KSLApp` module.** The model-packaging /
+  run / session infrastructure introduced in R1.3 (`ksl.app.bundle`, `KSLAppSession`, run
+  configuration and codecs) has moved **out of KSLCore** into a separate `KSLApp` module,
+  so the published KSLCore library now carries only the simulation engine (plus the
+  animation-capture layer below). 
+  - `KSLApp` depends on KSLCore, and is **not published to
+    Maven at this time**, and backs the Swing applications and the servers. Code that imported `ksl.app.*`
+    from the KSLCore artifact must now depend on `KSLApp`.
+- **Optimization plotting and catalog validation relocated into KSLCore.** `ConvergencePlot`
+  and `CatalogValidation` now live in KSLCore, available to the library's own optimization
+  and bundle-authoring paths.
 
 ### Animation
 
-- **Model animation capture.** A `ksl.animation` layer in KSLCore captures a run as a
-  replayable trace — an `AnimationBuilder` DSL plus `AnimationCapture` — so a model's
-  movement, queues, and resources can be visualized. The capture side lives in KSLCore;
-  the replay engine and the desktop viewer live on the KSLApp / Swing side (see the
-  [Animation app](guides/apps/animation.md) guide).
+- **Model-animation capture (new).** A `ksl.animation` layer in KSLCore captures a run as a
+  replayable trace — an `AnimationBuilder` DSL and `AnimationCapture`, with emitters for
+  agents and stations — so a model's movement, queues, and resources can be visualized. The
+  **capture** side ships in KSLCore; the replay engine and the desktop viewer live on the
+  KSLApp / Swing side (see the [Animation app](guides/apps/animation.md) guide).
+
+### Simulation optimization (`ksl.simopt`)
+
+- **Penalty Function Method (new).** A memoryful penalty engine after Park & Kim (2015):
+  penalty functions are now an abstract class bound to their constraint (`PenaltyFunction`,
+  `ParkKimPenalty`, `PenalizableConstraint`), with penalty memory carried on the `Solution`
+  (inert for memoryless penalties). Fast solver-level integration guards were added for CE
+  and R-SPLINE.
+- **Default constraint penalty corrected.** The default now uses linear violation and drops
+  the `sqrt(N)` factor, fixing a regression in which the response-constraint penalty was far
+  too weak to steer solvers away from infeasible regions.
+- **Best-solution semantics.** Solvers recommend the best **feasible** solution rather than
+  the best penalized one, and `allowInfeasibleSolutions` is honored by the best-solution
+  archive.
+- **ISC corrected to the source papers.** Industrial-Strength COMPASS clean-up and
+  local-optimality statistics were corrected to match Kim (2005) and the ISC reference,
+  reproducibility and finite-value reporting were hardened, and clean-up now runs on
+  response-feasible solutions only.
+- **Feasible-lattice sampling.** A new `inputLatticeSize` and a `feasiblePointCapacity` API
+  drive feasible sampling; the feasible grid is enumerated when it is smaller than the
+  request, solvers warn when their size exceeds the input lattice, and
+  `sampleInputFeasiblePoints` is bounded to prevent an infinite-loop hang.
+- Smaller items: `startingPoint` exposed on the ISC solver factories; PSO's default inertia
+  horizon synced with `maximumIterations`.
+
+### Controls & configuration
+
+- **Finite JSON round-trips for controls.** `ControlData` decodes a wire `null` as its
+  canonical infinity, so control values survive a JSON round-trip without producing
+  non-finite output.
+- **Optional results database for scenario runs.** The scenario runners' `KSLDatabase` is
+  now optional, so a scenario batch can run without materializing a database.
+
+> Experimental / evolving APIs: the R1.3 supply-chain, queueing-network station, and
+> agent-based modeling packages remain experimental, as do the `@KSLStringControl` /
+> `@KSLJsonControl` controls and the new `ksl.animation` capture API. Expect refinements in
+> subsequent releases.
 
 ## R1.3
 

@@ -1,3 +1,5 @@
+# Kotlin Simulation Library (KSL)
+
 The Kotlin Simulation Library (KSL) is a Kotlin library for performing Monte Carlo and Discrete-Event
 Dynamic System computer simulations.
 
@@ -27,8 +29,13 @@ The KSL has the following functionality:
 Who knows what the future may bring! The KSL is a complex and extremely useful library for performing Monte Carlo and discrete event
 simulation experiments.  Here is some planned and potential future functionality.
 
-- Release 1.3 provides significant new enhancements that are noted in [the release notes](docs/release-notes.md) This includes a simulation application framework to enable the development of KSL based applications.
-- Preliminary work has been performed to add animation capabilities. This is still under active investigation.
+- Release 1.4 accomplished a significant reorganization of the repository noted in [the release notes](docs/release-notes.md) 
+  - New release and installation process
+  - A new animation framework and application
+  - MCP Servers for the code-base, application functionality, and the textbook
+- Future work is planned on 
+  - material handling, agent-based constructs, and server computing
+  - additional artifacts for maven to support KSL based applications
 
 ## Licensing
 
@@ -47,7 +54,7 @@ purposes can contact the KSL development team for other possible licensing arran
 
 The KSL desktop applications, MCP/REST servers, and the `kslpkg` command-line tool
 ship as a single suite that runs on your own **Java 21** — no build, no Gradle, no
-IntelliJ. Everything installs into one `KSLWork` folder.
+IntelliJ. The base applications are installed in your applications folder and a `KSLWork` folder will serve to hold artifacts of working with KSL applications.
 
 **macOS / Linux**
 ```
@@ -64,19 +71,9 @@ and working output are preserved across updates. See the
 [Applications install guide](docs/guides/apps/install.md) to run the apps, wire up the
 servers, and manage the suite.
 
-> Suite installs require the first published release. Until then, build the payload
+> Suite installs require a published release. Developers can build the payload
 > locally (`./gradlew assembleKSLWork`) and install it with the installer's `--from`
-> option — see the guide.
-
-The rest of this section is for **developers** building KSL from source.
-
-## Cloning and Setting Up a Project
-
-If you are using IntelliJ, you can use its clone repository functionality to 
-set up a working version. Or, simply download the repository and use IntelliJ to open up
-the repository.  IntelliJ will recognize the KSL project as a gradle build and configure an appropriate project.
-
-This is a Gradle based project.
+> option as noted in the guide.
 
 ## KSL Book
 
@@ -121,6 +118,16 @@ https://github.com/rossetti/KSLDocs
 
 Please be aware that the book and documentation may lag the releases due to lack of developer time.
 
+The rest of this section is for **developers** building KSL from source.
+
+## Cloning and Setting Up a Project
+
+If you are using IntelliJ, you can use its clone repository functionality to
+set up a working version. Or, simply download the repository and use IntelliJ to open up
+the repository.  IntelliJ will recognize the KSL project as a gradle build and configure an appropriate project.
+
+This is a Gradle based project.
+
 ## Build Structure
 
 The KSL is a multi-project Gradle build. `settings.gradle.kts` is the authoritative list of
@@ -141,8 +148,8 @@ three tiers:
   bundle tooling.
 
 The desktop apps depend on **KSLApp** (and **KSLAppSwingCommon**). They load models as
-self-describing *bundle JARs* through the `ksl.app.bundle` `ServiceLoader` mechanism,
-discovered from the `bundles/` folder of your KSL working directory — so models are not
+self-describing *bundle JARs* through the `ksl.app.bundle` loading mechanism,
+discovered from the `bundles/` folder of your KSL working directory. Models are not
 compiled into the apps. **KSLProjectTemplate** is a separate, pre-configured starter project
 for building your own models against a published KSL release; it ships a worked model and
 `ModelBuilderIfc` you can copy, and the [Bundle Tools guide](docs/guides/apps/bundle-tools.md)
@@ -153,11 +160,11 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.3"
+version = "R1.4"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.3")
+api("io.github.rossetti:KSLCore:R1.4")
 ```
 To your build for the latest release.
 
@@ -165,8 +172,11 @@ To your build for the latest release.
 
 The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**.
 
-**Latest — R1.3:** three new (experimental) modeling domains (supply-chain, queueing-network
-stations, agent-based), a model-bundling and run-configuration substrate, parallel designed
-experiments and scenarios, a multi-format reporting framework, plus dependency changes
-(Excel I/O moved from Apache POI to fastexcel; DuckDB removed). See
-[the release notes](docs/release-notes.md) for the full list.
+**R1.4:** a reorganization and packaging release. The `ksl.app.*` model-packaging /
+run infrastructure moved out of the published KSLCore into a new internal `KSLApp`
+module, so KSLCore is now just the simulation engine; a new `ksl.animation` capture
+layer feeds the animation app; and simulation optimization gained a penalty-function
+method (Park & Kim 2015) plus corrected ISC statistics, feasible-lattice sampling
+guards, and a fixed default constraint penalty. The applications and servers now ship
+as a single installable suite. See [the release notes](docs/release-notes.md) for the
+full list.
