@@ -117,13 +117,18 @@ fun kslAppIconFiles(target: String): List<File> {
         kslAppIconSizes.map { size -> dir.resolve("$target-$size.png") }
 }
 
+// Every icon family that must ship a complete SVG + PNG + ICO + ICNS set: the 8 desktop
+// apps plus the one shared "server" icon used by the setup-GUI server entry points. Same
+// export contract, so validation and file lookup cover them uniformly.
+val kslIconTargets: List<String> = kslAppTargets.map { it.second } + "server"
+
 val validateKSLAppIcons = tasks.register("validateKSLAppIcons") {
     group = "verification"
-    description = "Validate every desktop app's SVG, PNG, ICO, and ICNS icon assets."
-    val sourceFiles = kslAppTargets.map { (_, target) ->
+    description = "Validate every desktop app's and the shared server's SVG, PNG, ICO, and ICNS icon assets."
+    val sourceFiles = kslIconTargets.map { target ->
         file("distribution/icons/source/${target.lowercase()}.svg")
     }
-    val exportFiles = kslAppTargets.flatMap { (_, target) -> kslAppIconFiles(target) }
+    val exportFiles = kslIconTargets.flatMap { target -> kslAppIconFiles(target) }
     inputs.files(sourceFiles + exportFiles)
     doLast {
         fun littleEndian16(bytes: ByteArray, offset: Int): Int =
@@ -137,7 +142,7 @@ val validateKSLAppIcons = tasks.register("validateKSLAppIcons") {
 
         val expectedIcoSizes = setOf(16, 24, 32, 48, 64, 128, 256)
         val expectedIcnsChunks = setOf("icp4", "icp5", "icp6", "ic07", "ic08", "ic09", "ic10")
-        kslAppTargets.forEach { (_, target) ->
+        kslIconTargets.forEach { target ->
             val source = file("distribution/icons/source/${target.lowercase()}.svg")
             require(source.isFile) { "missing canonical desktop icon: ${source.path}" }
             val svg = source.readText()
@@ -195,7 +200,7 @@ val validateKSLAppIcons = tasks.register("validateKSLAppIcons") {
                 "macOS icon chunks for $target were $chunks; expected $expectedIcnsChunks"
             }
         }
-        logger.lifecycle("validateKSLAppIcons: ${kslAppTargets.size} complete desktop icon families")
+        logger.lifecycle("validateKSLAppIcons: ${kslIconTargets.size} complete icon families (${kslAppTargets.size} apps + shared server)")
     }
 }
 
