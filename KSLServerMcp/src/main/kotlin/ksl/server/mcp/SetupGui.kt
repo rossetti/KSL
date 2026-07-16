@@ -23,6 +23,11 @@ import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.GraphicsEnvironment
+import java.awt.HeadlessException
+import java.awt.Image
+import java.awt.Taskbar
+import java.io.File
+import javax.imageio.ImageIO
 import javax.swing.BorderFactory
 import javax.swing.JButton
 import javax.swing.JFrame
@@ -83,14 +88,42 @@ internal object SetupGui {
                 add(JScrollPane(output), BorderLayout.SOUTH)
             }
 
+            val icons = serverIcons(jarPath)
             JFrame("KSL MCP Server - Setup").apply {
                 defaultCloseOperation = JFrame.EXIT_ON_CLOSE
                 contentPane = content
+                if (icons.isNotEmpty()) {
+                    iconImages = icons
+                    installTaskbarIcon(icons.last())
+                }
                 minimumSize = Dimension(560, 360)
                 pack()
                 setLocationRelativeTo(null)
                 isVisible = true
             }
+        }
+    }
+
+    // The multi-resolution server icon, loaded from the PNGs staged beside the jar
+    // (Servers/<dir>/server-<size>.png). Absent in a dev run where nothing is staged,
+    // which just yields no icon -- the prior behavior. Mirrors how the desktop apps set
+    // their window/Dock icon so the setup window is not the generic Java coffee cup.
+    private fun serverIcons(jarPath: String): List<Image> {
+        val dir = File(jarPath).absoluteFile.parentFile ?: return emptyList()
+        return listOf(16, 24, 32, 48, 64, 128, 256, 512).mapNotNull { size ->
+            val f = File(dir, "server-$size.png")
+            if (f.isFile) runCatching { ImageIO.read(f) }.getOrNull() else null
+        }
+    }
+
+    private fun installTaskbarIcon(image: Image) {
+        try {
+            if (!Taskbar.isTaskbarSupported()) return
+            val taskbar = Taskbar.getTaskbar()
+            if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) taskbar.iconImage = image
+        } catch (_: HeadlessException) {
+        } catch (_: UnsupportedOperationException) {
+        } catch (_: SecurityException) {
         }
     }
 }
