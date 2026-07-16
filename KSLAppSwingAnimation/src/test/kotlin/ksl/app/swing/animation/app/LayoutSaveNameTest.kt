@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 class LayoutSaveNameTest {
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model = Model("Drive Through Pharmacy")
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model = Model("Drive Through Pharmacy")
     }
 
     @Test

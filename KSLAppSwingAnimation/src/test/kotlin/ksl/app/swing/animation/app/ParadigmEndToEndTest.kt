@@ -38,7 +38,7 @@ class ParadigmEndToEndTest {
     lateinit var tempRoot: Path
 
     private fun builderOf(make: () -> Model, len: Double) = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             make().apply { numberOfReplications = 1; lengthOfReplication = len }
     }
 

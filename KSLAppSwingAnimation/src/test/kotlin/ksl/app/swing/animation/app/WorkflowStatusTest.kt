@@ -58,7 +58,7 @@ class WorkflowStatusTest {
     // ── Live transitions through the controller ────────────────────────────────
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Model("TRFlow").apply { numberOfReplications = 1; lengthOfReplication = 30.0; TestAndRepairShopWithMovableResources(this, "TR") }
     }
 

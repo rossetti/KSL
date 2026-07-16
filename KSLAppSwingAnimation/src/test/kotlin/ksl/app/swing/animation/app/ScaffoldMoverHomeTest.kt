@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class ScaffoldMoverHomeTest {
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model = Example13MovableResources.buildModel()
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model = Example13MovableResources.buildModel()
     }
 
     @Test

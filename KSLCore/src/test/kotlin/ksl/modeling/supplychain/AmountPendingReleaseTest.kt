@@ -68,7 +68,7 @@ class AmountPendingReleaseTest {
         var pendingAtEnd = -1
         var ordersFired = 0.0
         inv.attachModelElementObserver(object : ModelElementObserver() {
-            override fun replicationEnded(me: ModelElement) {
+            override fun replicationEnded(modelElement: ModelElement) {
                 pendingAtEnd = inv.amountPending
                 ordersFired = inv.orderCounterCounter.value
             }

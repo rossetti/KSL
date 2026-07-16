@@ -36,7 +36,7 @@ class ScaffoldMovementTest {
     lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Model("TRMove").apply { numberOfReplications = 1; lengthOfReplication = 200.0; TestAndRepairShopWithMovableResources(this, "TR") }
     }
 

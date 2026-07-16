@@ -37,7 +37,7 @@ class AnnotatedClinicTest {
     @Test
     fun `object styles and process colors are editable tables of the model's types and processes (batch 3)`() {
         val c = AnimationAppController("clinic", object : ksl.simulation.ModelBuilderIfc {
-            override fun build(mc: Map<String, String>?, e: ksl.simulation.ExperimentRunParametersIfc?) =
+            override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ksl.simulation.ExperimentRunParametersIfc?) =
                 Example14AnnotatedClinic.buildModel()
         })
         try {

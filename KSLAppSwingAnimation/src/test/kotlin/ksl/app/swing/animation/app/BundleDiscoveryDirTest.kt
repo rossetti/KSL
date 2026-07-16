@@ -22,7 +22,7 @@ class BundleDiscoveryDirTest {
     lateinit var ws: Path
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model = Model("t")
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model = Model("t")
     }
 
     @Test

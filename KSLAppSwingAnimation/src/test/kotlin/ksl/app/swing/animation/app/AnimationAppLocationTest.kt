@@ -27,7 +27,7 @@ class AnimationAppLocationTest {
     }
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Model("Loc").apply { TinyAgents(this) }
     }
 
@@ -58,7 +58,7 @@ class AnimationAppLocationTest {
     }
 
     private val distBuilder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Model("Dist").apply { DistModel(this) }
     }
 

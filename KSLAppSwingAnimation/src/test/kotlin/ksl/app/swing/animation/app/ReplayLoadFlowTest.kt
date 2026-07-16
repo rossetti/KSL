@@ -29,7 +29,7 @@ class ReplayLoadFlowTest {
     lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Model("TRLoad").apply { numberOfReplications = 1; lengthOfReplication = 30.0; TestAndRepairShopWithMovableResources(this, "TR") }
     }
 

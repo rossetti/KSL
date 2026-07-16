@@ -24,7 +24,7 @@ class ObjectTypeTraceTest {
     lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model = Model("Types")
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model = Model("Types")
     }
 
     @Test

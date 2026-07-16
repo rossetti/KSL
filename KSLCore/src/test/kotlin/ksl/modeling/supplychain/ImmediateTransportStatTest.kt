@@ -62,7 +62,7 @@ class ImmediateTransportStatTest {
         var shipmentsToR = -1.0
         var weightToR = -1.0
         wCarrier.attachModelElementObserver(object : ModelElementObserver() {
-            override fun replicationEnded(me: ModelElement) {
+            override fun replicationEnded(modelElement: ModelElement) {
                 shipmentsToR = wCarrier.getNumberOfDemandShipments(r)
                 weightToR = wCarrier.totalLoadWeightAccumulator(r)?.value ?: -1.0
             }

@@ -24,7 +24,7 @@ class ImageEditingTest {
     lateinit var tempRoot: Path
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Model("TRimg").also { TestAndRepairShopWithMovableResources(it, "TR") }
     }
 

@@ -127,7 +127,9 @@ class DockTest {
                 observedDemand = d
                 d.setDemandSender(node)
                 d.setFiller(filler)
-                d.observe(object : DemandLifecycleObserver {
+                // DemandLifecycleObserver names its callback param 'd'; matching that here would
+                // shadow the outer demand 'd', so keep the clearer 'demand' and suppress the mismatch.
+                d.observe(@Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE") object : DemandLifecycleObserver {
                     override fun onDelivered(demand: SupplyChainModel.Demand) {
                         timeOfDeliveredCapture = time
                     }

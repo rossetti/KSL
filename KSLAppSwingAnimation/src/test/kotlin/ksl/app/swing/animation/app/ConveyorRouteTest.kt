@@ -62,7 +62,7 @@ class ConveyorRouteTest {
     // ── 10.5d: the editor Conveyor tool ──
 
     private val builder = object : ModelBuilderIfc {
-        override fun build(c: Map<String, String>?, e: ExperimentRunParametersIfc?): Model =
+        override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
             Example08ConveyorTandem.buildModel().apply { numberOfReplications = 1; lengthOfReplication = 10.0 }
     }
 
