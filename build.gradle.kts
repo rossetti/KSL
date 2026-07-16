@@ -398,6 +398,35 @@ fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: Str
 fun winCliLauncher(name: String, jvmArgs: String) =
     (winCliTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
 
+// Server dirs whose entry point opens the setup GUI (manifest `entry: "gui"`). These get the
+// shared server icon staged beside their launcher and a windowless GUI .cmd on Windows; `rest`
+// is absent, so it stays terminal-only. Keep in sync with manifest.json's `entry` fields.
+val guiServerDirs = setOf("mcp", "code", "book")
+
+// Windowless Windows GUI launcher for a setup-GUI server: javaw + start (no console), invoked
+// with NO args so Launcher.main opens the setup window. @EXEC@ is the java-invocation tail —
+// a shared-lib classpath + main class for the thin mcp server, or -jar for the fat code/book
+// servers — and @DFLAGS@ carries any extra -D properties. Windows needs this separate from the
+// stdio .cmd because that one uses console `java` (a real stdio channel the agent drives); a
+// double-click of it would leave a console window. The stdio .cmd itself is left untouched.
+val winServerGuiTemplate = """
+    @echo off
+    setlocal
+    set "JAVAW=javaw"
+    if defined JAVA_HOME set "JAVAW=%JAVA_HOME%\bin\javaw.exe"
+    "%JAVAW%" -version >nul 2>&1
+    if errorlevel 1 (
+      echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
+      pause
+      exit /b 1
+    )
+    start "" "%JAVAW%"@JVMARGS@@DFLAGS@ @EXEC@
+""".trimIndent()
+
+fun winServerGuiLauncher(name: String, exec: String, jvmArgs: String, dFlags: String = "") =
+    (winServerGuiTemplate.replace("@NAME@", name).replace("@EXEC@", exec)
+        .replace("@JVMARGS@", jvmArgs).replace("@DFLAGS@", dFlags)).replace("\n", "\r\n") + "\r\n"
+
 tasks.register("assembleKSLWork") {
     group = "distribution"
     description = "Assemble the KSLWork payload (shared lib/ + thin app JARs + kslpkg + launchers) under build/kslwork"
@@ -406,7 +435,7 @@ tasks.register("assembleKSLWork") {
         dependsOn(app.tasks.named("jar"))
         inputs.files(app.configurations.named("runtimeClasspath"))
     }
-    inputs.files(kslAppTargets.flatMap { (_, target) -> kslAppIconFiles(target) })
+    inputs.files(kslIconTargets.flatMap { target -> kslAppIconFiles(target) })
     dependsOn(kslBundleTools.tasks.named("shadowJar"))
     inputs.files(kslBundleTools.tasks.named("shadowJar"))
     kslServers.forEach { (server, _, _) ->
@@ -508,6 +537,23 @@ tasks.register("assembleKSLWork") {
                 srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, srvJvm, su)); setExecutable(true) }
                 srvDir.resolve("$lname.cmd").writeText(winServerLauncher(lname, jarBase, main, srvJvm, sw))
             }
+            if (dir in guiServerDirs) {
+                // Stage the shared server icon (macOS .icns / Windows .ico / Linux PNGs) beside the
+                // launcher, so this server's entry point (made by bin/ksl / ksl.ps1) has its artwork.
+                kslAppIconFiles("server").forEach { icon ->
+                    require(icon.isFile) { "missing server icon asset: ${icon.path}" }
+                    icon.copyTo(srvDir.resolve(icon.name), overwrite = true)
+                }
+                // Windows GUI cmd: windowless javaw, the SAME shared-lib classpath as the stdio
+                // launcher, no args (→ setup GUI). -Dksl.mcp.launcher names the STDIO cmd (not this
+                // one) so "Configure my coding agent" writes a config the agent can actually run —
+                // the thin jar has no Main-Class, so `java -jar` would fail. macOS/Linux reuse the
+                // existing launcher (no args) instead and need no extra file (pruned there anyway).
+                val guiExec = "-cp \"%~dp0server-lib\\*;%~dp0..\\..\\lib\\*;%~dp0$jarBase.jar\" $primaryMain"
+                val guiDFlags = " \"-Dksl.builtinBundles=%~dp0..\\..\\bundles\"" +
+                    if (dir == "mcp") " \"-Dksl.mcp.launcher=%~dp0$jarBase.cmd\"" else ""
+                srvDir.resolve("$jarBase-gui.cmd").writeText(winServerGuiLauncher(jarBase, guiExec, srvJvm, guiDFlags))
+            }
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $jarBase.jar + " +
                 "${serverLibDir.listFiles()?.size ?: 0} server-lib jars (${overrides.size} shadow lib/) + ${1 + extraLaunchers.size} launcher(s)")
             if (overrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   $dir server-lib/ overrides -> ${overrides.joinToString(", ")}")
@@ -522,6 +568,17 @@ tasks.register("assembleKSLWork") {
             val fatJvm = jvmArgsOf(server)
             sdir.resolve(name).apply { writeText(cliLauncher(name, fatJvm)); setExecutable(true) }
             sdir.resolve("$name.cmd").writeText(winCliLauncher(name, fatJvm))
+            if (dir in guiServerDirs) {
+                kslAppIconFiles("server").forEach { icon ->
+                    require(icon.isFile) { "missing server icon asset: ${icon.path}" }
+                    icon.copyTo(sdir.resolve(icon.name), overwrite = true)
+                }
+                // Windows GUI cmd: windowless javaw -jar, no args (→ setup GUI). The fat jar
+                // declares a Main-Class, so `java -jar` works and no -Dksl.mcp.launcher is needed
+                // (matching this server's flag-free stdio launcher). macOS/Linux reuse the launcher.
+                val guiExec = "-jar \"%~dp0$name.jar\""
+                sdir.resolve("$name-gui.cmd").writeText(winServerGuiLauncher(name, guiExec, fatJvm))
+            }
             logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
         }
 
