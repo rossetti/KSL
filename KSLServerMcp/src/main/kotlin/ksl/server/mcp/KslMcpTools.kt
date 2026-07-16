@@ -795,7 +795,7 @@ class KslMcpTools(
                 summary?.get("endTime")?.let { put("completedAt", it) }
                 summary?.get("endingStatus")?.let { put("status", it) }
             }
-            artifactStore.writeMeta(stored.resultId, kotlinx.serialization.json.Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), meta))
+            artifactStore.writeMeta(stored.resultId, json.encodeToString(JsonObject.serializer(), meta))
         }
     }
 

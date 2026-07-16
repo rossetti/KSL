@@ -171,8 +171,8 @@ class ModelControlsHierarchyTest {
               "jsonControls": []
             }
         """.trimIndent()
-        val export = Json { ignoreUnknownKeys = true }
-            .decodeFromString(ModelControlsExport.serializer(), legacy)
+        val json = Json { ignoreUnknownKeys = true }
+        val export = json.decodeFromString(ModelControlsExport.serializer(), legacy)
         val data = export.numericControls.single()
         assertNull(data.parentElementName)
         assertNull(data.parentElementId)

@@ -267,7 +267,6 @@ private fun spaceBounds(s: ksl.animation.SpatialSpaceDescriptor): java.awt.geom.
         val xs = s.nodes.map { it.position.x }; val ys = s.nodes.map { it.position.y }
         java.awt.geom.Rectangle2D.Double(xs.min(), ys.min(), xs.max() - xs.min(), ys.max() - ys.min())
     }
-    else -> null
 }
 
 /**

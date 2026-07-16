@@ -110,6 +110,5 @@ class AuthoringTest {
         is JsonObject -> JsonObject(el.mapValues { sanitizeNonFinite(it.value) })
         is JsonArray -> JsonArray(el.map(::sanitizeNonFinite))
         is JsonPrimitive -> if (!el.isString && el.doubleOrNull?.isFinite() == false) JsonNull else el
-        else -> el
     }
 }

@@ -1,5 +1,6 @@
 package ksl.controls
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -31,6 +32,7 @@ sealed class NullTolerantDoubleSerializer(private val whenNull: Double) : KSeria
 
     override fun serialize(encoder: Encoder, value: Double) = encoder.encodeDouble(value)
 
+    @OptIn(ExperimentalSerializationApi::class)
     override fun deserialize(decoder: Decoder): Double =
         if (decoder.decodeNotNullMark()) {
             decoder.decodeDouble()
