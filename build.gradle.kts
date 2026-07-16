@@ -665,3 +665,44 @@ tasks.register("stampSuiteManifest") {
         logger.lifecycle("  release: gh release create suite-v$version ${zip.path} --title \"KSL Suite $version\"")
     }
 }
+
+// ── Local install / uninstall (developer convenience) ────────────────────────────────
+// NOT the shipped path: students install with the standalone install.sh / install.ps1 (no
+// Gradle, no checkout). These wrap those installers so you can build+install from the IDE,
+// defaulting the target to build/ksl-home so local testing has NO side effect on your real
+// install -- both installers honor the KSL_HOME env var, which is the whole trick.
+//
+//   ./gradlew installKSLLocally                     -> build/ksl-home (safe, disposable)
+//   ./gradlew installKSLLocally -Pdest=<abs-path>   -> a real install (e.g. ~/Applications/KSL)
+//   ./gradlew uninstallKSLLocally [-Pdest=<abs-path>]
+//
+// Deliberately NOT wired into build/check/CI -- they run an external installer with a side effect.
+val kslLocalDest: String = (findProperty("dest") as String?)
+    ?: layout.buildDirectory.dir("ksl-home").get().asFile.path
+val kslHostIsWindows: Boolean = System.getProperty("os.name").orEmpty().lowercase().contains("win")
+
+tasks.register<Exec>("installKSLLocally") {
+    group = "distribution"
+    description = "Build the suite and install it to -Pdest (default build/ksl-home). Dev convenience, not the shipped path."
+    dependsOn("packageKSLWork")
+    workingDir = projectDir                        // the installer reads manifest.json from beside itself
+    environment("KSL_HOME", kslLocalDest)          // redirect the whole install to a throwaway dir
+    if (kslHostIsWindows) {
+        commandLine("powershell", "-ExecutionPolicy", "Bypass", "-File", "install.ps1", "-From", "build/ksl-suite.zip")
+    } else {
+        commandLine("./install.sh", "--from", "build/ksl-suite.zip")
+    }
+    doLast { logger.lifecycle("installKSLLocally: installed to $kslLocalDest  (try: $kslLocalDest/bin/ksl list)") }
+}
+
+tasks.register<Delete>("uninstallKSLLocally") {
+    group = "distribution"
+    description = "Remove the -Pdest install (default build/ksl-home). Your KSLWork workspace is never touched."
+    delete(kslLocalDest)
+    // On Windows the Start-Menu shortcuts live outside KSL_HOME (a fixed %APPDATA% path), so a
+    // redirected test install leaves them behind -- clear that folder too.
+    if (kslHostIsWindows) {
+        System.getenv("APPDATA")?.let { delete("$it/Microsoft/Windows/Start Menu/Programs/KSL") }
+    }
+    doLast { logger.lifecycle("uninstallKSLLocally: removed $kslLocalDest") }
+}
