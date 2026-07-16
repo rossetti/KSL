@@ -102,7 +102,12 @@ function Dequarantine([string]$p) {
 # Start-Menu shortcuts in front of the .cmd launchers buried in .support\. The .lnk
 # targets the .cmd rather than javaw directly, so the launcher's Java 21 preflight
 # still runs and its message is still visible. ($env:APPDATA is null off-Windows.)
-$StartMenu = if ($env:APPDATA) { Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\KSL" } else { "" }
+# KSL_STARTMENU lets a redirected test install (the installKSLLocally Gradle task) place its
+# shortcuts in a throwaway folder instead of the real Start Menu, so local testing leaves no
+# trace. Unset in a normal student install, so they get the real Start Menu.
+$StartMenu = if ($env:KSL_STARTMENU) { $env:KSL_STARTMENU }
+             elseif ($env:APPDATA) { Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\KSL" }
+             else { "" }
 
 # The payload is ONE cross-platform zip, so .support\ also receives the Unix launchers
 # (extension-less shell scripts). Drop what this machine can't run.

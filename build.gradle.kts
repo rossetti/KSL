@@ -677,9 +677,13 @@ tasks.register("stampSuiteManifest") {
 //   ./gradlew uninstallKSLLocally [-Pdest=<abs-path>]
 //
 // Deliberately NOT wired into build/check/CI -- they run an external installer with a side effect.
-val kslLocalDest: String = (findProperty("dest") as String?)
+val kslLocalDestProp: String? = findProperty("dest") as String?
+val kslLocalDest: String = kslLocalDestProp
     ?: layout.buildDirectory.dir("ksl-home").get().asFile.path
 val kslHostIsWindows: Boolean = System.getProperty("os.name").orEmpty().lowercase().contains("win")
+// No -Pdest -> the disposable sandbox: also isolate the Windows Start Menu. A real -Pdest
+// install keeps the normal Start Menu integration.
+val kslLocalIsolated: Boolean = kslLocalDestProp == null
 
 tasks.register<Exec>("installKSLLocally") {
     group = "distribution"
@@ -687,6 +691,9 @@ tasks.register<Exec>("installKSLLocally") {
     dependsOn("packageKSLWork")
     workingDir = projectDir                        // the installer reads manifest.json from beside itself
     environment("KSL_HOME", kslLocalDest)          // redirect the whole install to a throwaway dir
+    // ksl.ps1 honors KSL_STARTMENU (ignored on macOS/Linux). Set only for the default sandbox so
+    // the Windows shortcuts land under KSL_HOME instead of the real Start Menu -- full isolation.
+    if (kslLocalIsolated) environment("KSL_STARTMENU", "$kslLocalDest/StartMenu")
     if (kslHostIsWindows) {
         commandLine("powershell", "-ExecutionPolicy", "Bypass", "-File", "install.ps1", "-From", "build/ksl-suite.zip")
     } else {
@@ -699,9 +706,9 @@ tasks.register<Delete>("uninstallKSLLocally") {
     group = "distribution"
     description = "Remove the -Pdest install (default build/ksl-home). Your KSLWork workspace is never touched."
     delete(kslLocalDest)
-    // On Windows the Start-Menu shortcuts live outside KSL_HOME (a fixed %APPDATA% path), so a
-    // redirected test install leaves them behind -- clear that folder too.
-    if (kslHostIsWindows) {
+    // A real -Pdest install put Windows shortcuts in the OS Start Menu (outside KSL_HOME); clear
+    // them. The default sandbox isolated them under KSL_HOME via KSL_STARTMENU (removed above).
+    if (kslHostIsWindows && !kslLocalIsolated) {
         System.getenv("APPDATA")?.let { delete("$it/Microsoft/Windows/Start Menu/Programs/KSL") }
     }
     doLast { logger.lifecycle("uninstallKSLLocally: removed $kslLocalDest") }
