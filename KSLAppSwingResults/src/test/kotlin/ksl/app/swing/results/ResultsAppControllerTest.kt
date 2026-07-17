@@ -26,6 +26,7 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.ModelElementTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.dbutil.WithinRepStatTableData
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -47,6 +48,16 @@ class ResultsAppControllerTest {
     @TempDir
     lateinit var tempDir: Path
 
+    // Close every database/controller a test opens so the @TempDir can be deleted; on Windows an
+    // open connection (or a booted Derby engine) blocks the temp-dir cleanup (invisible on Unix).
+    private val openCloseables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        openCloseables.forEach { runCatching { it.close() } }
+        openCloseables.clear()
+    }
+
     @Test
     fun `controller starts with no database open`() {
         val controller = ResultsAppController("test")
@@ -61,7 +72,7 @@ class ResultsAppControllerTest {
         buildTwoExperimentDb(dbName)
 
         var notified = 0
-        val controller = ResultsAppController("test")
+        val controller = ResultsAppController("test").also { openCloseables += it }
         controller.addListener { notified++ }
 
         controller.openDatabase(File(tempDir.toFile(), dbName))
@@ -84,7 +95,7 @@ class ResultsAppControllerTest {
     fun `output directory is workspace-derived per database`() {
         val dbName = "ctrl_db"
         buildTwoExperimentDb(dbName)
-        val controller = ResultsAppController("My App")
+        val controller = ResultsAppController("My App").also { openCloseables += it }
         controller.openDatabase(File(tempDir.toFile(), dbName))
 
         // <workspace>/KSLResults/output/ctrl_db/reports — the app folder is the stable APP_FOLDER constant, not the
@@ -99,7 +110,7 @@ class ResultsAppControllerTest {
     @Test
     fun `histogram and frequency response names are listed`() {
         val dbName = "hist_freq_db"
-        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir)
+        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir).also { openCloseables += it }
         val expId = insertExperiment(database, "E", "M")
         val runId = insertSimRun(database, expId, "E_run", numReps = 3)
         insertHistogramBin(database, runId, elementId = 1, responseName = "SystemTime:Histogram", binNum = 1)
@@ -107,7 +118,7 @@ class ResultsAppControllerTest {
         insertFrequencyCell(database, runId, elementId = 2, name = "NQUponArrival", value = 0)
         insertFrequencyCell(database, runId, elementId = 2, name = "NQUponArrival", value = 1)
 
-        val controller = ResultsAppController("test")
+        val controller = ResultsAppController("test").also { openCloseables += it }
         controller.openDatabase(File(tempDir.toFile(), dbName))
 
         assertEquals(listOf("SystemTime:Histogram"), controller.histogramResponseNames("E"))
@@ -117,7 +128,7 @@ class ResultsAppControllerTest {
     // ── Fixture: a real on-disk SQLite KSL database ───────────────────────
 
     private fun buildTwoExperimentDb(dbName: String) {
-        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir)
+        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir).also { openCloseables += it }
         for (expName in listOf("A", "B")) {
             val expId = insertExperiment(database, expName, "M")
             val runId = insertSimRun(database, expId, "${expName}_run", numReps = 3)

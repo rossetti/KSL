@@ -21,6 +21,7 @@ package ksl.app.swing.results
 import ksl.utilities.io.dbutil.ExperimentTableData
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SimulationRunTableData
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -47,11 +48,21 @@ class ResultsAppControllerDerbyTest {
     @TempDir
     lateinit var tempDir: Path
 
+    // Close every database/controller a test opens so the @TempDir can be deleted; on Windows a
+    // booted Derby engine holds db.lck and blocks the temp-dir cleanup (invisible on Unix).
+    private val openCloseables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        openCloseables.forEach { runCatching { it.close() } }
+        openCloseables.clear()
+    }
+
     @Test
     fun `opens an embedded Derby KSL database without reporting not-configured`() {
         val dbName = "PalletDerby"
         // Create a Derby KSL database (schema KSL_DB) and seed one experiment.
-        val created = KSLDatabase.createEmbeddedDerbyKSLDatabase(dbName, tempDir)
+        val created = KSLDatabase.createEmbeddedDerbyKSLDatabase(dbName, tempDir).also { openCloseables += it }
         val expRecord = ExperimentTableData().apply {
             sim_name = "PalletSim"; model_name = "PalletModel"; exp_name = "E"
         }
@@ -62,7 +73,7 @@ class ResultsAppControllerDerbyTest {
         })
 
         // The Derby database is a directory containing service.properties.
-        val controller = ResultsAppController("test")
+        val controller = ResultsAppController("test").also { openCloseables += it }
         controller.openDatabase(File(tempDir.toFile(), dbName))
 
         assertTrue(controller.isDatabaseOpen, "controller should have opened the Derby database")

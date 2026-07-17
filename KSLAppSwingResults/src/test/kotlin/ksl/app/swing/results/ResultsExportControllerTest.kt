@@ -24,6 +24,7 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.ModelElementTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.dbutil.WithinRepStatTableData
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -42,6 +43,16 @@ class ResultsExportControllerTest {
 
     @TempDir
     lateinit var tempDir: Path
+
+    // Close every database/controller a test opens so the @TempDir can be deleted; on Windows an
+    // open connection blocks the temp-dir cleanup (invisible on Unix, which tolerates open files).
+    private val openCloseables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        openCloseables.forEach { runCatching { it.close() } }
+        openCloseables.clear()
+    }
 
     @Test
     fun `reports cannot-export before a database is open`() {
@@ -125,7 +136,7 @@ class ResultsExportControllerTest {
 
     private fun openExport(dbName: String): ResultsExportController {
         buildDb(dbName)
-        val controller = ResultsAppController("test")
+        val controller = ResultsAppController("test").also { openCloseables += it }
         controller.openDatabase(File(tempDir.toFile(), dbName))
         return ResultsExportController(controller)
     }
@@ -134,7 +145,7 @@ class ResultsExportControllerTest {
         if (Files.isDirectory(dir)) dir.toFile().list()?.toList() ?: emptyList() else emptyList()
 
     private fun buildDb(dbName: String) {
-        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir)
+        val database = KSLDatabase.createSQLiteKSLDatabase(dbName, tempDir).also { openCloseables += it }
         val expId = insertExperiment(database, "E", "M")
         val runId = insertSimRun(database, expId, "E_run", numReps = 3)
         insertModelElement(database, expId, elementId = 1, name = "Y", className = "Response")
