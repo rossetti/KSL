@@ -261,6 +261,7 @@ freshly-indexed server with it.
 | The client shows garbled output / protocol errors | Something wrote to **stdout**, which is the MCP channel. | In `--stdio` mode only JSON-RPC goes to stdout; all logging goes to stderr — don't redirect logs to stdout. |
 | `UnsupportedClassVersion` on launch | Wrong Java. | Use JDK 21 (`java -version`). |
 | The assistant answers from memory instead of searching | It didn't route to the tools. | Ask explicitly: *"use the ksl-code tools to…"*, or add a project instruction to search KSL code first. |
+| Several `java` processes using memory when idle | Clients start stdio servers eagerly, and each configured KSL server is its own process. | Turn the servers off when not in use — see [Managing MCP server processes](mcp-process-management.md). |
 
 ---
 
@@ -268,6 +269,7 @@ freshly-indexed server with it.
 
 - [MCP Server](mcp-server.md) — the `ksl` server that **runs** models for an assistant.
 - [Book MCP Server](mcp-server-book.md) — the `ksl-book` server for **textbook** concepts.
+- [Managing MCP server processes](mcp-process-management.md) — turn the KSL servers off when you're not using them.
 - The KSL library guides — [`ksl-entity`](../ksl-entity.md), [`ksl-modeling`](../ksl-modeling.md),
   and the rest under [`../README.md`](../README.md) — the same API, written for a human reader.
 - [KSL Book](https://rossetti.github.io/KSLBook/) — the simulation concepts behind the code.

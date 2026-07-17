@@ -181,6 +181,8 @@ Building that payload from the source tree is a maintainer task — see
 - **Remove one piece:** `ksl uninstall <id>`.
 - **Remove everything:** delete `~/Applications/KSL` (Windows: `%LOCALAPPDATA%\Programs\KSL`).
   Your work folder survives; delete it separately if you really want it gone.
+- **Just stop the MCP servers' Java processes** (no uninstall needed): remove the MCP entries
+  from your coding agent — see [Managing MCP server processes](mcp-process-management.md).
 
 ---
 
@@ -189,5 +191,6 @@ Building that payload from the source tree is a maintainer task — see
 - [Common UI & concepts](common-ui.md) — bundles, the workspace, themes, reports
 - [Single-Model](single.md) — the best first app to try
 - [MCP Server](mcp-server.md) — drive KSL from an AI assistant
+- [Managing MCP server processes](mcp-process-management.md) — turn the KSL servers off when not in use
 - [Bundle Tools](bundle-tools.md) — build your own model bundles with `kslpkg`
 - [KSL Book](https://rossetti.github.io/KSLBook/)

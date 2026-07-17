@@ -538,6 +538,7 @@ To reach the server from another machine, see the security note in
 | HTTP: port in use, `401`, or `/ready` returns `503` | Port conflict, missing/invalid bearer token, or the first bundle scan hasn't finished. | Change `KSL_MCP_PORT`; check the `Authorization: Bearer` token; or just retry — `/ready` is `503` only until the first bundle scan completes. |
 | *"server is at capacity"* | Too many concurrent jobs. | Raise `server.maxConcurrentJobs`, or retry. |
 | A run never finishes | An unbounded model. | Set `KSL_RUN_TIMEOUT_SECONDS`. |
+| Several `java` processes using memory when idle | Clients start stdio servers eagerly, and each configured KSL server is its own process. | Turn the servers off when not in use — see [Managing MCP server processes](mcp-process-management.md). |
 
 ---
 
@@ -546,6 +547,8 @@ To reach the server from another machine, see the security note in
 - **Sibling MCP servers** — [Code MCP Server](mcp-server-code.md) (`ksl-code`, searchable
   KSL source / API) and [Book MCP Server](mcp-server-book.md) (`ksl-book`, the textbook).
   This `ksl` server runs models; those two answer code and concept questions.
+- **Managing the servers** — [Managing MCP server processes](mcp-process-management.md):
+  why several Java processes appear, and how to turn the servers off/on.
 - The **REST server** — a sibling transport that drives the same models over plain
   HTTP for scripts and web apps (user guide planned).
 - [Bundle Tools](bundle-tools.md) — package your own models into loadable bundles (`kslpkg`).
