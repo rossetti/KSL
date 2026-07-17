@@ -57,9 +57,15 @@ class TraceReportMaterializerTest {
         m.numberOfReplications = 2
         m.lengthOfReplication = 200.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        ResponseTrace(m.response(SYSTEM_TIME)!!)
-        ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        val traces = listOf(
+            ResponseTrace(m.response(SYSTEM_TIME)!!),
+            ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        )
         m.simulate()
+        // Close the trace observers once their files are written so later steps (clearTraceData,
+        // ResponseTraceData reads, @TempDir cleanup) act on unlocked files — Windows blocks deleting
+        // a file that still has an open handle.
+        traces.forEach { it.close() }
     }
 
     private fun traceFile(outputDir: Path, responseName: String): Path =

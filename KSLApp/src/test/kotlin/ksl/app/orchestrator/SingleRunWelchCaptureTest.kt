@@ -150,9 +150,10 @@ class SingleRunWelchCaptureTest {
             val jsonPath = Files.list(dir).use { stream ->
                 stream.filter { it.fileName.toString().endsWith(".json") }.findFirst().orElseThrow()
             }
-            val analyzer = WelchDataFileAnalyzer.makeFromJSON(jsonPath)
-            assertTrue(analyzer.responseName.isNotBlank(),
-                "Reloaded analyzer for '$responseName' should expose a response name")
+            WelchDataFileAnalyzer.makeFromJSON(jsonPath).use { analyzer ->
+                assertTrue(analyzer.responseName.isNotBlank(),
+                    "Reloaded analyzer for '$responseName' should expose a response name")
+            }
         }
     }
 
