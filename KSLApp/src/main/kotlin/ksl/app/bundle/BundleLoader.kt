@@ -6,6 +6,7 @@ import ksl.app.config.BundleManifestToml
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.jar.JarFile
@@ -33,8 +34,10 @@ private val logger = KotlinLogging.logger {}
  * manifest) are loaded through the separate `ksl.utilities.io.JARModelBuilder` API
  * instead.
  *
- * `loadJar` and `loadDirectory` create a fresh `URLClassLoader` per JAR and
- * hand it to the `LoadedBundle`; the bundle's `close` releases it.
+ * `loadJar` and `loadDirectory` load each JAR's classes from a fresh private working
+ * copy (so the user's file is never held open — an app can rebuild a bundle JAR in
+ * place, which Windows forbids while the file is open); the `LoadedBundle`'s `close`
+ * releases the classloader and deletes the copy.
  */
 object BundleLoader {
 
@@ -60,32 +63,62 @@ object BundleLoader {
         parent: ClassLoader = defaultParent(),
     ): List<LoadedBundle> {
         require(jarPath.isRegularFile()) { "Not a regular file: $jarPath" }
-        val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parent)
+        // Identity comes from the ORIGINAL jar: sourceJar keys reloads and jarSha256 detects a
+        // rebuild-in-place. Read the manifest bytes directly from this JAR (not via a classloader)
+        // so a manifest on the parent classpath cannot be mistaken for this JAR's.
         val sha = sha256OfFile(jarPath)
         val builtAt = readBuiltAt(jarPath)
-
-        // 1. Manifest-driven bundle: one bundle.toml = one bundle. Read the manifest
-        //    bytes directly from this JAR (not via the classloader) so a manifest on
-        //    the parent classpath cannot be mistaken for this JAR's.
-        readManifestFromJar(jarPath)?.let { manifest ->
-            return listOf(
-                LoadedBundle(
-                    bundle = ManifestBackedBundle(classLoader, manifest),
-                    sourceJar = jarPath,
-                    classLoader = classLoader,
-                    ownedResources = classLoader,
-                    jarSha256 = sha,
-                    builtAt = builtAt,
-                )
-            )
+        val manifest = readManifestFromJar(jarPath) ?: run {
+            // No bundle.toml manifest: not a bundle JAR.  (Legacy ServiceLoader
+            // discovery has been retired — bundles are manifest-driven only.)
+            logger.info { "No bundle.toml manifest in $jarPath; not a bundle JAR" }
+            return emptyList()
         }
 
-        // No bundle.toml manifest: not a bundle JAR.  (Legacy ServiceLoader
-        // discovery has been retired — bundles are manifest-driven only.)
-        classLoader.close()
-        logger.info { "No bundle.toml manifest in $jarPath; not a bundle JAR" }
-        return emptyList()
+        // Load classes from a PRIVATE working copy, never the user's file. A URLClassLoader holds
+        // its jar open for the bundle's lifetime, and Windows refuses to replace an open file — so
+        // opening it over jarPath would block the very workflow this loader exists for: rebuild a
+        // bundle jar in place while an app has it loaded. The copy is deleted on close; sourceJar
+        // and contentHash still reflect the original above.
+        val workingCopy = copyToPrivateTemp(jarPath)
+        val classLoader = try {
+            URLClassLoader(arrayOf(workingCopy.toUri().toURL()), parent)
+        } catch (t: Throwable) {
+            runCatching { Files.deleteIfExists(workingCopy) }
+            throw t
+        }
+        return listOf(
+            LoadedBundle(
+                bundle = ManifestBackedBundle(classLoader, manifest),
+                sourceJar = jarPath,
+                classLoader = classLoader,
+                ownedResources = closeThenDelete(classLoader, workingCopy),
+                jarSha256 = sha,
+                builtAt = builtAt,
+            )
+        )
     }
+
+    /** Copies [jarPath] to a fresh private temp jar so a loaded bundle never holds the user's
+     *  file open (see [loadJar]); deleted when the owning bundle closes, with a JVM-exit backstop. */
+    private fun copyToPrivateTemp(jarPath: Path): Path {
+        val temp = Files.createTempFile("ksl-bundle-", ".jar")
+        temp.toFile().deleteOnExit()
+        Files.copy(jarPath, temp, StandardCopyOption.REPLACE_EXISTING)
+        return temp
+    }
+
+    /** The bundle's owned resource: close the classloader (releasing the working copy's handle),
+     *  then delete the working copy. */
+    private fun closeThenDelete(classLoader: URLClassLoader, workingCopy: Path): AutoCloseable =
+        AutoCloseable {
+            try {
+                classLoader.close()
+            } finally {
+                runCatching { Files.deleteIfExists(workingCopy) }
+                    .onFailure { logger.warn(it) { "Failed to delete bundle working copy $workingCopy" } }
+            }
+        }
 
     /**
      *  Best-effort build timestamp for a bundle JAR: the manifest's

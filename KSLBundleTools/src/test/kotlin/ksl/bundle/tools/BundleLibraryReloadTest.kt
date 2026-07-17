@@ -53,16 +53,23 @@ class BundleLibraryReloadTest {
 
     /** Assembles a manifest bundle (bundleId `test.stub`) at `<dir>/<name>.jar`.
      *  [version] varies the manifest content — and thus the JAR's SHA-256 — so
-     *  reload tests can simulate a rebuilt-but-same-bundleId JAR. */
+     *  reload tests can simulate a rebuilt-but-same-bundleId JAR.
+     *
+     *  Assert the assemble actually succeeded rather than discarding the result: a
+     *  rebuild-in-place can fail (e.g. Windows refuses to replace a JAR the loader still
+     *  holds open), and a swallowed failure would leave the prior JAR on disk and make a
+     *  downstream assertion fail for the wrong, confusing reason. Fail here, at the cause. */
     private fun buildAt(dir: Path, name: String = "bundle", version: String = "1.0.0"): Path {
         val builders = TestBundleBuilder.buildWithoutServicesFile(
             dir, "$name-builders", listOf(StubModelBuilder::class.java)
         )
         val bundle = dir.resolve("$name.jar")
-        AssembleCommand.run(
+        val errBuf = ByteArrayOutputStream()
+        val result = AssembleCommand.run(
             listOf(builders.toString(), "--id", "test.stub", "--version", version, "-o", bundle.toString(), "--force"),
-            out = sink, err = sink
+            out = sink, err = PrintStream(errBuf)
         )
+        assertEquals(CommandResult.Success, result, "assemble must succeed; stderr:\n$errBuf")
         return bundle
     }
 
