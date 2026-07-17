@@ -150,6 +150,24 @@ private fun kslBookTomlTableRange(text: String): Pair<Int, Int>? {
 private fun osName(): String = System.getProperty("os.name").orEmpty().lowercase()
 private fun home(): File = File(System.getProperty("user.home"))
 
+/** System property naming the agent-config redirect root; see `agentConfigRoot`. */
+internal const val AGENT_CONFIG_HOME_PROPERTY: String = "ksl.agent.config.home"
+
+/**
+ * Test/sandbox redirect: when set, agent config is read and written under this root instead of
+ * the real OS locations, so a throwaway install can exercise the wiring without touching the
+ * student's real Claude/Codex config. Unset in a normal install, which then behaves exactly as
+ * before. The system property is what unit tests set; the env var is the shell-friendly form,
+ * mirroring KSL_HOME / KSL_STARTMENU.
+ *
+ * Only the config ROOT moves. Detection is still "does the agent's config directory exist?", so
+ * a caller that wants an agent detected under the redirect creates that directory -- which keeps
+ * the "agent absent -> skip" path testable.
+ */
+private fun agentConfigRoot(): File? =
+    (System.getProperty(AGENT_CONFIG_HOME_PROPERTY) ?: System.getenv("KSL_AGENT_CONFIG_HOME"))
+        ?.takeIf { it.isNotBlank() }?.let { File(it) }
+
 /**
  * Where Claude Desktop reads its config on Windows. The Microsoft Store build is an MSIX
  * package, so the app's `%APPDATA%\Claude` is per-package virtualized and, to an ordinary
@@ -218,7 +236,7 @@ private fun backupOnce(f: File) {
 
 private object ClaudeDesktopAdapter : AgentAdapter {
     override val name = "Claude Desktop"
-    private fun dir(): File = when {
+    private fun dir(): File = agentConfigRoot()?.let { File(it, "Claude") } ?: when {
         osName().contains("mac") -> File(home(), "Library/Application Support/Claude")
         osName().contains("win") -> windowsClaudeConfigDir()
         else -> File(home(), ".config/Claude") // no official Linux app; best-effort
@@ -232,7 +250,7 @@ private object ClaudeDesktopAdapter : AgentAdapter {
 
 private object CodexAdapter : AgentAdapter {
     override val name = "Codex"
-    private fun dir() = File(home(), ".codex")
+    private fun dir(): File = agentConfigRoot()?.let { File(it, ".codex") } ?: File(home(), ".codex")
     override fun configFile() = File(dir(), "config.toml")
     override fun present() = dir().isDirectory
     override fun addEntry(existing: String?, command: String, jarPath: String) =

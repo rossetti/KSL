@@ -703,7 +703,18 @@ tasks.register<Exec>("installKSLLocally") {
     } else {
         commandLine("./install.sh", "--from", "build/ksl-suite.zip")
     }
-    doLast { logger.lifecycle("installKSLLocally: installed to $kslLocalDest  (try: $kslLocalDest/bin/ksl list)") }
+    doLast {
+        logger.lifecycle("installKSLLocally: installed to $kslLocalDest  (try: $kslLocalDest/bin/ksl list)")
+        // KSL_HOME isolates the install and KSL_STARTMENU the shortcuts -- neither covers agent
+        // config. Setup from a disposable install would wire the REAL Claude/Codex config to a path
+        // uninstallKSLLocally then deletes, leaving a dangling entry. Say so rather than surprise.
+        if (kslLocalIsolated) logger.lifecycle(
+            "  NOTE: agent config is NOT isolated. This install's --setup (or the setup GUI's\n" +
+                "        \"Configure my coding agent\") edits your REAL Claude/Codex config and points it\n" +
+                "        at this disposable path. To contain it, set KSL_AGENT_CONFIG_HOME first:\n" +
+                "        KSL_AGENT_CONFIG_HOME=$kslLocalDest/agent-config"
+        )
+    }
 }
 
 tasks.register<Delete>("uninstallKSLLocally") {

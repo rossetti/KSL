@@ -24,6 +24,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.DisplayName
 import java.io.File
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -203,5 +204,62 @@ class AgentSetupTest {
     fun `javaCommand is an absolute java path or a bare fallback`() {
         val cmd = javaCommand()
         assertTrue(cmd == "java" || cmd == "java.exe" || cmd.endsWith("java") || cmd.endsWith("java.exe"), cmd)
+    }
+
+    // ---- adapter wiring, exercised through the agent-config redirect ----
+    //
+    // dir()/present()/configure() had no coverage before: exercising them meant writing the
+    // developer's real Claude/Codex config. The redirect root points them at a temp dir instead.
+
+    private fun withAgentConfigRoot(block: (File) -> Unit) {
+        val root = Files.createTempDirectory("ksl-agent-cfg").toFile()
+        System.clearProperty(LAUNCHER_PROPERTY) // no suite wrapper -> a deterministic java -jar spec
+        System.setProperty(AGENT_CONFIG_HOME_PROPERTY, root.path)
+        try {
+            block(root)
+        } finally {
+            System.clearProperty(AGENT_CONFIG_HOME_PROPERTY)
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `configure writes a detected agent and skips one that is not installed`() {
+        withAgentConfigRoot { root ->
+            File(root, "Claude").mkdirs() // Claude "installed"; .codex deliberately absent
+            val results = AgentSetup.configureDetected(JAR)
+            assertEquals(listOf("Claude Desktop"), results.map { it.agent }, "only the detected agent")
+            assertEquals("created", results.single().action)
+            val servers = Json.parseToJsonElement(File(root, "Claude/claude_desktop_config.json").readText())
+                .jsonObject["mcpServers"]!!.jsonObject
+            assertTrue("ksl" in servers)
+            assertTrue(!File(root, ".codex").exists(), "an undetected agent must not be created")
+        }
+    }
+
+    @Test
+    fun `configure merges an existing config and backs up the original once`() {
+        withAgentConfigRoot { root ->
+            val codex = File(root, ".codex").apply { mkdirs() }
+            val cfg = File(codex, "config.toml").apply { writeText("model = \"gpt\"\n") }
+            assertEquals("updated", AgentSetup.configureDetected(JAR).single().action)
+            assertTrue(cfg.readText().contains("[mcp_servers.ksl]"))
+            assertTrue(cfg.readText().contains("model = \"gpt\""), "existing content preserved")
+            assertEquals(
+                "model = \"gpt\"\n",
+                File(codex, "config.toml.ksl-backup").readText(),
+                "the backup is the untouched original"
+            )
+        }
+    }
+
+    @Test
+    fun `remove takes the entry back out of a detected agent`() {
+        withAgentConfigRoot { root ->
+            File(root, ".codex").mkdirs()
+            AgentSetup.configureDetected(JAR)
+            assertEquals("removed", AgentSetup.removeDetected().single().action)
+            assertTrue(!File(root, ".codex/config.toml").readText().contains("[mcp_servers.ksl]"))
+        }
     }
 }
