@@ -24,6 +24,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import ksl.utilities.io.KSL
 import ksl.utilities.io.OutputDirectory
+import org.apache.derby.jdbc.EmbeddedDataSource
 import java.nio.file.Path
 import java.sql.Connection
 import java.util.*
@@ -37,8 +38,43 @@ open class Database @JvmOverloads constructor(
 
     final override var outputDirectory: OutputDirectory = KSL.myOutputDir
 
-    final override val longLastingConnection: Connection by lazy {
-        getConnection()
+    private val lazyLongLastingConnection: Lazy<Connection> = lazy { getConnection() }
+    final override val longLastingConnection: Connection
+        get() = lazyLongLastingConnection.value
+
+    @Volatile
+    private var closed: Boolean = false
+
+    /**
+     * Releases the resources this database holds so its backing files can be deleted or replaced.
+     * Idempotent. After close the database is unusable: metadata and query operations route
+     * through [longLastingConnection], which is now closed.
+     *
+     * - Closes the single long-lived JDBC connection ([longLastingConnection]) if it was ever
+     *   opened. A held connection is what locks the SQLite `.db` file on Windows; closing it
+     *   releases the file.
+     * - For an embedded Derby database, additionally issues the engine shutdown, because Derby
+     *   keeps the database booted — holding `db.lck` — after every connection is closed, until an
+     *   explicit `;shutdown=true`.
+     * - If [dataSource] is a pool (a HikariCP `HikariDataSource`, used by the properties/Postgres
+     *   path), closes it too. The plain embedded SQLite/Derby data sources are not `AutoCloseable`,
+     *   so this is a no-op for them.
+     */
+    override fun close() {
+        if (closed) return
+        closed = true
+        if (lazyLongLastingConnection.isInitialized()) {
+            runCatching { lazyLongLastingConnection.value.close() }
+                .onFailure { DatabaseIfc.logger.warn(it) { "Failed to close the long-lasting connection for database $label" } }
+        }
+        (dataSource as? EmbeddedDataSource)?.let { eds ->
+            runCatching { DerbyDb.shutDownDatabase(Path.of(eds.databaseName)) }
+                .onFailure { DatabaseIfc.logger.warn(it) { "Failed to shut down embedded Derby database ${eds.databaseName}" } }
+        }
+        (dataSource as? AutoCloseable)?.let { pool ->
+            runCatching { pool.close() }
+                .onFailure { DatabaseIfc.logger.warn(it) { "Failed to close the data source for database $label" } }
+        }
     }
 
     final override fun getConnection(): Connection = super.getConnection()
