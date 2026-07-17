@@ -301,6 +301,37 @@ cmd_unregister() {
   [ -n "$(path_of "$1")" ] || die "unknown id: $1 (see 'ksl list')"
   unregister "$1" || say "$1 is not an MCP setup server; nothing to unregister."
 }
+cmd_uninstall_suite() {
+  if [ "${YES:-}" != "1" ]; then
+    say "This removes the entire KSL software install at:"
+    say "  $KSL_HOME"
+    say "Your work in KSLWork is NOT touched. Re-run 'ksl uninstall-suite --yes' to proceed."
+    return
+  fi
+  # 1. Unregister every installed MCP setup server from Codex / Claude (needs the launchers, so
+  #    it must run before the delete).
+  if [ "${KEEP_CONFIG:-}" != "1" ]; then
+    while IFS=$'\t' read -r id kind path entry launcher display; do
+      [ "$entry" = "gui" ] && [ -d "$SUPPORT/$path" ] && unregister "$id" || true
+    done < <(catalog)
+  fi
+  # 2. Stop if any KSL server JVM is still using the install.
+  local pids; pids="$(active_processes_using "$SUPPORT")"
+  if [ -n "$pids" ]; then
+    say "cannot remove the suite — these processes are still using it:"
+    local pid
+    for pid in $pids; do ps -o pid=,args= -p "$pid" 2>/dev/null | sed 's/^/  /' || printf '  %s\n' "$pid"; done
+    die "restart Codex / Claude Desktop and close any KSL apps, then re-run 'ksl uninstall-suite --yes'."
+  fi
+  # 3. Remove entry points (Linux .desktop live outside KSL_HOME; macOS .app go with the dir below).
+  while IFS=$'\t' read -r id kind path entry launcher display; do
+    { [ "$kind" = "app" ] || [ "$entry" = "gui" ]; } && remove_entry_point "$id" || true
+  done < <(catalog)
+  # 4. Delete the whole software dir. Unlike the Windows twin, rm -rf works on our own $KSL_HOME
+  #    here — the running script's inode stays open until we exit — and KSLWork lives elsewhere.
+  rm -rf "${KSL_HOME:?}"
+  say "removed the KSL software (your KSLWork is untouched)"
+}
 cmd_install() {
   local path; path="$(path_of "$1")"
   [ -n "$path" ] || die "unknown id: $1 (see 'ksl list')"
@@ -336,7 +367,7 @@ cmd_update() {
 
 # pull --from out of the args, then dispatch
 A=()
-while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; --keep-config) KEEP_CONFIG=1; shift ;; *) A+=("$1"); shift ;; esac; done
+while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; --keep-config) KEEP_CONFIG=1; shift ;; --yes|-y) YES=1; shift ;; *) A+=("$1"); shift ;; esac; done
 set -- ${A[@]+"${A[@]}"}
 cmd="${1:-list}"; [ $# -gt 0 ] && shift || true
 case "$cmd" in
@@ -344,8 +375,9 @@ case "$cmd" in
   install)          [ $# -ge 1 ] || die "usage: ksl install <id> [--from <zip>]"; cmd_install "$1" ;;
   uninstall|remove) [ $# -ge 1 ] || die "usage: ksl uninstall <id> [--keep-config]"; cmd_uninstall "$1" ;;
   unregister)       [ $# -ge 1 ] || die "usage: ksl unregister <id>"; cmd_unregister "$1" ;;
+  uninstall-suite)  cmd_uninstall_suite ;;
   update)           cmd_update "${1:-}" ;;
   refresh)          cmd_refresh ;;
-  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | update [id] | refresh} [--from <ksl-suite.zip>]" ;;
+  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | uninstall-suite --yes | update [id] | refresh} [--from <ksl-suite.zip>]" ;;
   *) die "unknown command: $cmd (try 'ksl list')" ;;
 esac

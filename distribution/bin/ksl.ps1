@@ -56,10 +56,11 @@ function EntryInfoFor([string]$id) {
 }
 
 # args: pull --from / -From out of the list, then dispatch on what's left
-$From = ""; $KeepConfig = $false; $pos = @()
+$From = ""; $KeepConfig = $false; $Yes = $false; $pos = @()
 for ($i = 0; $i -lt $args.Count; $i++) {
     if ($args[$i] -eq "--from" -or $args[$i] -eq "-From") { $From = [string]$args[$i + 1]; $i++ }
     elseif ($args[$i] -eq "--keep-config") { $KeepConfig = $true }
+    elseif ($args[$i] -eq "--yes" -or $args[$i] -eq "-y") { $Yes = $true }
     else { $pos += [string]$args[$i] }
 }
 $cmd  = if ($pos.Count -ge 1) { $pos[0] } else { "list" }
@@ -245,6 +246,41 @@ function CmdUnregister([string]$id) {
     if (-not (PathOf $id)) { Die "unknown id: $id (see 'ksl list')" }
     if (-not (Unregister $id)) { Say "$id is not an MCP setup server; nothing to unregister." }
 }
+function CmdUninstallSuite([bool]$keepConfig, [bool]$yes) {
+    if (-not $yes) {
+        Say "This removes the entire KSL software install at:"
+        Say "  $kslHome"
+        Say "Your work in KSLWork is NOT touched. Re-run 'ksl uninstall-suite --yes' to proceed."
+        return
+    }
+    # 1. Unregister every installed MCP setup server from Codex / Claude (needs the launchers,
+    #    so it must run before the delete).
+    if (-not $keepConfig) {
+        foreach ($it in $items) {
+            if ($it.entry -eq "gui" -and (Test-Path (Join-Path $support ($it.path -replace '/', '\')))) {
+                Unregister $it.id | Out-Null
+            }
+        }
+    }
+    # 2. Stop if any KSL server JVM is still using the install.
+    $active = @(ActiveProcessesUsing $support)
+    if ($active.Count -gt 0) {
+        Say "cannot remove the suite -- these processes are still using it:"
+        foreach ($pr in $active) { Say ("  PID {0} {1} {2}" -f $pr.ProcessId, $pr.Name, $pr.CommandLine) }
+        Die "restart Codex / Claude Desktop and close any KSL apps, then re-run 'ksl uninstall-suite --yes'."
+    }
+    # 3. Remove the Start-Menu shortcuts (the whole KSL folder).
+    if ($StartMenu -and (Test-Path $StartMenu)) { Remove-Item -Recurse -Force $StartMenu -ErrorAction SilentlyContinue }
+    # 4. Delete the bulk (.support) now; the running launcher's own dir (bin\) can't be removed
+    #    while this process holds it open, so hand $kslHome to a DETACHED retry-deleter that runs
+    #    from the temp dir (outside the install) and finishes once this process exits and releases
+    #    bin\. It retries for up to 30s, then gives up gracefully (only bin\ would ever linger).
+    Remove-Item -Recurse -Force $support -ErrorAction SilentlyContinue
+    $q = $kslHome.Replace("'", "''")
+    $deleter = "`$e=(Get-Date).AddSeconds(30); do{ Start-Sleep -Milliseconds 300; Remove-Item -LiteralPath '$q' -Recurse -Force -ErrorAction SilentlyContinue }while( (Test-Path -LiteralPath '$q') -and (Get-Date) -lt `$e )"
+    Start-Process -WindowStyle Hidden -WorkingDirectory ([System.IO.Path]::GetTempPath()) -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $deleter) | Out-Null
+    Say "removed the KSL software (your KSLWork is untouched); the last program folder is cleaned up as this window closes."
+}
 function CmdInstall([string]$id) {
     $p = PathOf $id
     if (-not $p) { Die "unknown id: $id (see 'ksl list')" }
@@ -293,6 +329,7 @@ switch ($cmd) {
     "refresh"   { CmdRefresh }
     { $_ -in "uninstall", "remove" } { if (-not $arg1) { Die "usage: ksl uninstall <id> [--keep-config]" }; CmdUninstall $arg1 $KeepConfig }
     "unregister" { if (-not $arg1) { Die "usage: ksl unregister <id>" }; CmdUnregister $arg1 }
-    { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | update [id] | refresh} [--from <ksl-suite.zip>]" }
+    "uninstall-suite" { CmdUninstallSuite $KeepConfig $Yes }
+    { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | uninstall-suite --yes | update [id] | refresh} [--from <ksl-suite.zip>]" }
     default     { Die "unknown command: $cmd (try 'ksl list')" }
 }
