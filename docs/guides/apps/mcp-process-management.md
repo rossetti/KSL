@@ -61,8 +61,8 @@ On every platform they are named the same, and each controls one MCP server entr
 | **KSL Book Setup** | Remove KSL Book | `ksl-book` |
 
 Each setup window has three buttons — **Configure my coding agent**, **Self-test**, and the
-**Remove** button above. To manage processes you only need the **Remove** button; *Self-test*
-just reports the server's status.
+**Remove** button above. To manage processes you only need the **Remove** button; *Self-test*,
+ just reports the server's status.
 
 **Open the setup application for your platform:**
 
