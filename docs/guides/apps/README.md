@@ -41,6 +41,10 @@ and to the textbook — each running as its own process.
 | **[Book MCP Server](mcp-server-book.md)** | Give an AI assistant searchable access to the KSL **textbook**. | ✅ Available |
 | **REST Server** | Drive models over plain HTTP from scripts and web apps. The server module ships; a user guide is planned. | Guide planned |
 
+Running several of these? See **[Managing MCP server processes](mcp-process-management.md)** —
+why you may see multiple Java processes, and how to turn the servers off when you're not using
+them.
+
 ## How the apps relate
 
 ```mermaid
