@@ -33,9 +33,10 @@ import java.nio.file.Path
  * ### Side-effects at construction
  *
  * - [outDir] (the base directory) is created eagerly.
- * - [out] (the log writer) is created eagerly **only when** [autoCreateOutFile]
- *   is `true` (the default).  When `false`, [out] is a discard-all writer
- *   wrapping `Writer.nullWriter()` and no file is created on disk.
+ * - [out] (the log writer) is created **lazily on first access**, and only
+ *   when [autoCreateOutFile] is `true` (the default).  When `false`, [out] is
+ *   a discard-all writer wrapping `Writer.nullWriter()`.  An [out] that is
+ *   never read opens no file on disk and holds no file handle.
  * - The four subdirectory properties ([excelDir], [dbDir], [csvDir],
  *   [plotDir]) are **lazy**.  Each subdirectory is created on first access
  *   to its property and not before.  Code that never reads a subdirectory
@@ -66,7 +67,7 @@ class OutputDirectory(
     outputDirectoryPath: Path = KSLFileUtil.programLaunchDirectory,
     private val outFileName: String = "out.txt",
     private val autoCreateOutFile: Boolean = true
-) {
+) : AutoCloseable {
 
     /**
      * The path to the default output directory.  Always created eagerly
@@ -81,11 +82,30 @@ class OutputDirectory(
      * [autoCreateOutFile] is `true`.  When `false`, this writer discards
      * everything written to it (wraps `Writer.nullWriter()`) and no file
      * is created on disk.
+     *
+     * Created lazily on first access: an OutputDirectory whose `out` is never
+     * used opens no file and holds no file handle, so nothing blocks deleting
+     * its directory (an open handle would, on Windows).  Call `close()` to
+     * release the writer if it was used.
      */
-    val out: LogPrintWriter = if (autoCreateOutFile) {
-        KSLFileUtil.createLogPrintWriter(outDir.resolve(outFileName))
-    } else {
-        LogPrintWriter(Writer.nullWriter())
+    private val lazyOut: Lazy<LogPrintWriter> = lazy {
+        if (autoCreateOutFile) {
+            KSLFileUtil.createLogPrintWriter(outDir.resolve(outFileName))
+        } else {
+            LogPrintWriter(Writer.nullWriter())
+        }
+    }
+    val out: LogPrintWriter get() = lazyOut.value
+
+    /**
+     * Closes the log writer (`out`) if it was ever created, releasing its
+     * file handle.  A no-op when `out` was never accessed (the lazy writer
+     * stays uninitialized) or when autoCreateOutFile is `false`.  Idempotent.
+     */
+    override fun close() {
+        if (lazyOut.isInitialized()) {
+            runCatching { lazyOut.value.close() }
+        }
     }
 
     /** Creates a OutputDirectory with the current program launch directory with the base directory
