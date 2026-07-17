@@ -134,8 +134,11 @@ class ServerConfigTest {
 
     @Test
     fun `tilde expands to the user home`() {
-        val expanded = ServerConfig.expandHome("~/a/b").toString()
-        assertEquals(System.getProperty("user.home") + "/a/b", expanded)
-        assertEquals("/abs/path", ServerConfig.expandHome("/abs/path").toString())
+        // Compare Path values, not their rendered strings: the separator is platform-specific
+        // (\ on Windows) but expandHome resolves via Path.of(...).resolve(...), so Path equality
+        // is the portable, normalized check.
+        val home = Path.of(System.getProperty("user.home"))
+        assertEquals(home.resolve("a/b"), ServerConfig.expandHome("~/a/b"))
+        assertEquals(Path.of("/abs/path"), ServerConfig.expandHome("/abs/path"))
     }
 }
