@@ -81,6 +81,28 @@ class AgentSetupTest {
         }
     }
 
+    // Windows MCP clients that spawn via a bare CreateProcess (Electron/Node — Claude
+    // Desktop) cannot launch a .cmd directly; it must go through cmd.exe /c. Codex's
+    // spawner handles a .cmd natively, so only the Claude side wraps.
+    @Test
+    @DisplayName("shellWrapForWindows leaves a java command untouched")
+    fun shellWrapLeavesJavaAlone() {
+        assertEquals(JAR_SPEC, shellWrapForWindows(JAR_SPEC))
+    }
+
+    @Test
+    @DisplayName("shellWrapForWindows routes a .cmd wrapper through cmd.exe on Windows only")
+    fun shellWrapWrapsCmdOnWindows() {
+        val cmdSpec = LaunchSpec("C:\\ksl\\ksl-mcp.cmd", listOf("--stdio"))
+        val wrapped = shellWrapForWindows(cmdSpec)
+        if (System.getProperty("os.name").orEmpty().lowercase().contains("win")) {
+            assertEquals("cmd.exe", wrapped.command)
+            assertEquals(listOf("/c", "C:\\ksl\\ksl-mcp.cmd", "--stdio"), wrapped.args)
+        } else {
+            assertEquals(cmdSpec, wrapped, "no wrapping off Windows")
+        }
+    }
+
     // ---- Claude Desktop (JSON mcpServers) ----
 
     @Test

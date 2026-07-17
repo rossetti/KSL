@@ -150,6 +150,25 @@ private fun kslBookTomlTableRange(text: String): Pair<Int, Int>? {
 private fun osName(): String = System.getProperty("os.name").orEmpty().lowercase()
 private fun home(): File = File(System.getProperty("user.home"))
 
+/**
+ * Where Claude Desktop reads its config on Windows. The Microsoft Store build is an MSIX
+ * package, so the app's `%APPDATA%\Claude` is per-package virtualized and, to an ordinary
+ * process, lives under the package store at
+ * `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`. Writing the plain
+ * `%APPDATA%\Claude` misses it. Prefer the packaged location when a Claude package is
+ * present, else fall back to the classic (non-Store installer) `%APPDATA%\Claude`.
+ */
+private fun windowsClaudeConfigDir(): File {
+    System.getenv("LOCALAPPDATA")?.let { localAppData ->
+        File(localAppData, "Packages")
+            .listFiles { f -> f.isDirectory && f.name.contains("Claude", ignoreCase = true) }
+            ?.map { File(it, "LocalCache/Roaming/Claude") }
+            ?.firstOrNull { it.isDirectory }
+            ?.let { return it }
+    }
+    return File(System.getenv("APPDATA") ?: home().path, "Claude")
+}
+
 /** One agent's config location, detection, and merge/remove strategy. */
 private interface AgentAdapter {
     val name: String
@@ -201,7 +220,7 @@ private object ClaudeDesktopAdapter : AgentAdapter {
     override val name = "Claude Desktop"
     private fun dir(): File = when {
         osName().contains("mac") -> File(home(), "Library/Application Support/Claude")
-        osName().contains("win") -> File(System.getenv("APPDATA") ?: home().path, "Claude")
+        osName().contains("win") -> windowsClaudeConfigDir()
         else -> File(home(), ".config/Claude") // no official Linux app; best-effort
     }
     override fun configFile() = File(dir(), "claude_desktop_config.json")
