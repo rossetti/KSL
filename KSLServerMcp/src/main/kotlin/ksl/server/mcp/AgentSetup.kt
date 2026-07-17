@@ -59,7 +59,7 @@ internal object AgentSetup {
     fun removeDetected(): List<SetupResult> = adapters.mapNotNull { it.remove() }
 
     fun universalSnippet(jarPath: String): String {
-        val spec = launchSpec(jarPath)
+        val spec = shellWrapForWindows(launchSpec(jarPath))
         val ksl = buildJsonObject {
             put("command", spec.command)
             putJsonArray("args") { spec.args.forEach { add(it) } }
@@ -90,6 +90,22 @@ internal fun launchSpec(jarPath: String): LaunchSpec {
     val wrapper = System.getProperty(LAUNCHER_PROPERTY)?.takeIf { it.isNotBlank() }
     return if (wrapper != null && File(wrapper).isFile) LaunchSpec(wrapper, listOf("--stdio"))
     else LaunchSpec(javaCommand(), listOf("-jar", jarPath, "--stdio"))
+}
+
+/**
+ * Route a wrapper-script command through `cmd.exe` for Windows MCP clients that spawn
+ * with a bare CreateProcess and no shell (Electron/Node, e.g. Claude Desktop). Windows
+ * cannot execute a `.cmd` or `.bat` that way, so it is launched via `cmd.exe /c` with the
+ * original command and its args appended. A `java`/`.exe` command spawns directly and is
+ * returned unchanged. Codex's spawner handles a `.cmd` natively, so its adapter keeps the
+ * raw spec.
+ */
+internal fun shellWrapForWindows(spec: LaunchSpec): LaunchSpec {
+    val script = spec.command.endsWith(".cmd", ignoreCase = true) ||
+        spec.command.endsWith(".bat", ignoreCase = true)
+    return if (osName().contains("win") && script)
+        LaunchSpec("cmd.exe", listOf("/c", spec.command) + spec.args)
+    else spec
 }
 
 private val prettyJson = Json { prettyPrint = true }
@@ -172,6 +188,25 @@ private fun kslTomlTableRange(text: String): Pair<Int, Int>? {
 private fun osName(): String = System.getProperty("os.name").orEmpty().lowercase()
 private fun home(): File = File(System.getProperty("user.home"))
 
+/**
+ * Where Claude Desktop reads its config on Windows. The Microsoft Store build is an MSIX
+ * package, so the app's `%APPDATA%\Claude` is per-package virtualized and, to an ordinary
+ * process, lives under the package store at
+ * `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`. Writing the plain
+ * `%APPDATA%\Claude` misses it. Prefer the packaged location when a Claude package is
+ * present, else fall back to the classic (non-Store installer) `%APPDATA%\Claude`.
+ */
+private fun windowsClaudeConfigDir(): File {
+    System.getenv("LOCALAPPDATA")?.let { localAppData ->
+        File(localAppData, "Packages")
+            .listFiles { f -> f.isDirectory && f.name.contains("Claude", ignoreCase = true) }
+            ?.map { File(it, "LocalCache/Roaming/Claude") }
+            ?.firstOrNull { it.isDirectory }
+            ?.let { return it }
+    }
+    return File(System.getenv("APPDATA") ?: home().path, "Claude")
+}
+
 /** One agent's config location, detection, and merge/remove strategy. */
 private interface AgentAdapter {
     val name: String
@@ -223,12 +258,12 @@ private object ClaudeDesktopAdapter : AgentAdapter {
     override val name = "Claude Desktop"
     private fun dir(): File = when {
         osName().contains("mac") -> File(home(), "Library/Application Support/Claude")
-        osName().contains("win") -> File(System.getenv("APPDATA") ?: home().path, "Claude")
+        osName().contains("win") -> windowsClaudeConfigDir()
         else -> File(home(), ".config/Claude") // no official Linux app; best-effort
     }
     override fun configFile() = File(dir(), "claude_desktop_config.json")
     override fun present() = dir().isDirectory
-    override fun addEntry(existing: String?, spec: LaunchSpec) = mergeClaudeJson(existing, spec)
+    override fun addEntry(existing: String?, spec: LaunchSpec) = mergeClaudeJson(existing, shellWrapForWindows(spec))
     override fun removeEntry(existing: String?) = removeClaudeJson(existing)
 }
 

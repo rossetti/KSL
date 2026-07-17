@@ -83,7 +83,14 @@ internal fun buildDoctorReport(): String {
         appendLine("  exercises: ${store.exercises.size}")
         appendLine("  chapters:  ${store.chapters.joinToString(" ") { it.number }}")
         appendLine("  timing:    content loaded in $loadMs ms, search index built in $indexMs ms")
-        append("  OK - the server runs and the full book content is bundled.")
+        append(
+            if (store.chunks.isNotEmpty()) {
+                "  OK - the server runs and the full book content is bundled."
+            } else {
+                "  WARNING - the server runs but NO book content is bundled (0 chunks). " +
+                    "Render the book with Quarto and copy _book/ into the KSL repo root, then rebuild."
+            },
+        )
     }
 }
 
