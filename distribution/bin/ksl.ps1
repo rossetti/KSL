@@ -147,6 +147,20 @@ function RemoveEntryPoint([string]$id) {
     if (-not $info) { return }
     Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $StartMenu "$($info.Label).lnk")
 }
+# Best-effort detection of KSL server JVMs whose command line points into $dir. An MCP
+# server (mcp/code/book) launched as a stdio child of Codex or Claude Desktop keeps files
+# there open, which blocks a delete on Windows. Windows-only (Win32_Process); any failure
+# (no CIM access, etc.) yields nothing, so uninstall still falls back to its own delete.
+function ActiveProcessesUsing([string]$dir) {
+    if (-not $IsWin) { return @() }
+    $needle = $dir.TrimEnd('\')
+    try {
+        @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
+            ($_.Name -eq "java.exe" -or $_.Name -eq "javaw.exe") -and
+            $_.CommandLine -and ($_.CommandLine -like "*$needle*")
+        })
+    } catch { @() }
+}
 function CmdRefresh {
     PruneForeign
     $n = 0
@@ -174,10 +188,30 @@ function CmdList {
 function CmdUninstall([string]$id) {
     $p = PathOf $id
     if (-not $p) { Die "unknown id: $id (see 'ksl list')" }
-    $full = Join-Path $support $p
+    $full = Join-Path $support ($p -replace '/', '\')
     if (-not (Test-Path $full)) { Say "$id is not installed."; return }
+
+    # Preflight: an MCP server (mcp/code/book) can be launched as a stdio child of Codex or
+    # Claude Desktop and hold files under $full open, which blocks the delete on Windows.
+    # Detect those JVMs up front and stop before touching anything, so we never leave a
+    # partial state. Report only -- the script never kills processes automatically.
+    $active = @(ActiveProcessesUsing $full)
+    if ($active.Count -gt 0) {
+        Say "cannot uninstall $id -- these processes are still using it:"
+        foreach ($pr in $active) { Say ("  PID {0} {1} {2}" -f $pr.ProcessId, $pr.Name, $pr.CommandLine) }
+        Die "close Codex, Claude Desktop, and any running KSL apps or servers, then try again. For an MCP server, first remove its entry with the setup app (or the server's --remove)."
+    }
+
+    # Delete the files FIRST, the entry point SECOND. If the delete still fails (an undetected
+    # handle is open), abort before removing the Start-Menu shortcut, so the install stays
+    # consistent instead of losing its shortcut while the files remain.
+    try {
+        Remove-Item -Recurse -Force $full
+    }
+    catch {
+        Die "could not remove $full. Close Codex, Claude Desktop, and any running KSL apps or servers, then try again."
+    }
     RemoveEntryPoint $id
-    Remove-Item -Recurse -Force $full
     Say "removed $id ($p)"
 }
 function CmdInstall([string]$id) {

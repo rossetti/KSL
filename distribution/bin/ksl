@@ -207,6 +207,14 @@ remove_entry_point() {
   esac
 }
 
+# Best-effort: PIDs of processes whose command line points into $1 — an MCP server
+# (mcp/code/book) launched by Codex/Claude Desktop keeps files there open. Empty when none,
+# or when pgrep is unavailable. `|| true` keeps set -e / pipefail from tripping on no match.
+active_processes_using() {
+  command -v pgrep >/dev/null 2>&1 || return 0
+  pgrep -f "$1" 2>/dev/null || true
+}
+
 # The payload is ONE cross-platform zip, so .support/ also receives the Windows
 # launchers. Drop what this machine can't run.
 prune_foreign() {
@@ -244,9 +252,27 @@ cmd_list() {
 cmd_uninstall() {
   local path; path="$(path_of "$1")"
   [ -n "$path" ] || die "unknown id: $1 (see 'ksl list')"
-  [ -d "$SUPPORT/$path" ] || { say "$1 is not installed."; return; }
+  local full="${SUPPORT:?}/$path"
+  [ -d "$full" ] || { say "$1 is not installed."; return; }
+
+  # Preflight: a running MCP server (mcp/code/book) keeps files under $full open. On Windows
+  # the delete would fail; on macOS/Linux it "succeeds" but orphans the server JVM and leaves
+  # the client config pointing at deleted paths. Either way, stop and let the user close the
+  # client first, so uninstall behaves the same on both platforms. Report only — never kill.
+  local pids; pids="$(active_processes_using "$full")"
+  if [ -n "$pids" ]; then
+    say "cannot uninstall $1 — these processes are still using it:"
+    local pid
+    for pid in $pids; do
+      ps -o pid=,args= -p "$pid" 2>/dev/null | sed 's/^/  /' || printf '  %s\n' "$pid"
+    done
+    die "close Codex, Claude Desktop, and any running KSL apps or servers, then try again. For an MCP server, first remove its entry with the setup app (or the server's --remove)."
+  fi
+
+  # Delete the files FIRST, the entry point SECOND — mirror the Windows twin so a failed
+  # delete never removes the app/desktop entry while the files remain.
+  rm -rf "$full" || die "could not remove $full. Close Codex, Claude Desktop, and any running KSL apps or servers, then try again."
   remove_entry_point "$1"
-  rm -rf "${SUPPORT:?}/$path"
   say "removed $1 ($path)"
 }
 cmd_install() {
