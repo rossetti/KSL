@@ -695,9 +695,19 @@ tasks.register<Exec>("installKSLLocally") {
     dependsOn("packageKSLWork")
     workingDir = projectDir                        // the installer reads manifest.json from beside itself
     environment("KSL_HOME", kslLocalDest)          // redirect the whole install to a throwaway dir
-    // ksl.ps1 honors KSL_STARTMENU (ignored on macOS/Linux). Set only for the default sandbox so
-    // the Windows shortcuts land under KSL_HOME instead of the real Start Menu -- full isolation.
-    if (kslLocalIsolated) environment("KSL_STARTMENU", "$kslLocalDest/StartMenu")
+    // Default sandbox (no -Pdest): redirect every root that would otherwise touch real state, so a
+    // local test install writes nothing outside $kslLocalDest. A real -Pdest install keeps the normal
+    // workspace / Start Menu / agent-config integration.
+    //   KSLWORK               both installers honor it -> bundles/ lands in the sandbox, not ~/Documents/KSLWork
+    //   KSL_STARTMENU         ksl.ps1 honors it (ignored on macOS/Linux) -> Windows shortcuts under KSL_HOME
+    //   KSL_AGENT_CONFIG_HOME read by the server JVMs at --setup/uninstall, NOT by the installer itself;
+    //                         set here so it is reaped with the sandbox. Subsequent interactive commands
+    //                         run in their own shell, so the doLast note tells the user to export it too.
+    if (kslLocalIsolated) {
+        environment("KSLWORK", "$kslLocalDest/work")
+        environment("KSL_STARTMENU", "$kslLocalDest/StartMenu")
+        environment("KSL_AGENT_CONFIG_HOME", "$kslLocalDest/agent-config")
+    }
     if (kslHostIsWindows) {
         commandLine("powershell", "-ExecutionPolicy", "Bypass", "-File", "install.ps1", "-From", "build/ksl-suite.zip")
     } else {
@@ -705,14 +715,18 @@ tasks.register<Exec>("installKSLLocally") {
     }
     doLast {
         logger.lifecycle("installKSLLocally: installed to $kslLocalDest  (try: $kslLocalDest/bin/ksl list)")
-        // KSL_HOME isolates the install and KSL_STARTMENU the shortcuts -- neither covers agent
-        // config. Setup from a disposable install would wire the REAL Claude/Codex config to a path
-        // uninstallKSLLocally then deletes, leaving a dangling entry. Say so rather than surprise.
+        // The install itself now writes nothing outside $kslLocalDest (KSL_HOME + KSLWORK, plus the
+        // Start Menu on Windows). Agent config is the one thing the installer never touches but this
+        // sandbox's LATER --setup / setup-GUI / `bin/ksl uninstall` do -- and they read the env of
+        // whatever shell runs them, not this task's -- so tell the user how to keep those isolated too.
         if (kslLocalIsolated) logger.lifecycle(
-            "  NOTE: agent config is NOT isolated. This install's --setup (or the setup GUI's\n" +
-                "        \"Configure my coding agent\") edits your REAL Claude/Codex config and points it\n" +
-                "        at this disposable path. To contain it, set KSL_AGENT_CONFIG_HOME first:\n" +
-                "        KSL_AGENT_CONFIG_HOME=$kslLocalDest/agent-config"
+            "  Isolated: KSL_HOME + KSLWORK" + (if (kslHostIsWindows) " + KSL_STARTMENU" else "") +
+                " all under $kslLocalDest; the install touches nothing else.\n" +
+                "  For this sandbox's later agent-config commands (its --setup, the setup GUI's\n" +
+                "  \"Configure my coding agent\", or bin/ksl uninstall <server>), export the same redirect\n" +
+                "  in your shell first, so they hit the sandbox and not your real Claude/Codex config:\n" +
+                "        export KSL_AGENT_CONFIG_HOME=$kslLocalDest/agent-config\n" +
+                "  (A Finder/Launchpad double-click can't inherit that, so it would edit the real config.)"
         )
     }
 }
