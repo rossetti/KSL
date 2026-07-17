@@ -91,11 +91,17 @@ object SingleRunOrchestrator {
             "RunSpec.Single requires exactly one ScenarioSpec; got ${config.scenarios.size}"
         }
         val spec = config.scenarios.single()
-        val model = buildScenarioModel(spec, provider, config.outputConfig)
+        val built = buildScenarioModel(spec, provider, config.outputConfig)
         // Append the config-requested animation trace attachment; caller attachments are preserved. The
         // opening-frame snapshotter (9B) is installed by AnimationCapture itself when a capture window is set.
-        val allAttachments = attachments + listOfNotNull(animationAttachment(config.tracingConfig))
-        return Runner().submit(RunRequest.SingleRun(model, allAttachments), scope, preRunWarnings)
+        // The capture-cleanup attachment closes the per-run capture resources (KSLDatabase, Welch, trace)
+        // after the run so their handles are released (an open handle blocks deleting the run output dir
+        // on Windows).
+        val cleanup = if (built.captureCloseables.isEmpty()) null
+                      else CaptureCleanupAttachment(built.captureCloseables)
+        val allAttachments = attachments +
+            listOfNotNull(animationAttachment(config.tracingConfig), cleanup)
+        return Runner().submit(RunRequest.SingleRun(built.model, allAttachments), scope, preRunWarnings)
     }
 
     /**
@@ -110,6 +116,29 @@ object SingleRunOrchestrator {
             captureSpec = tracingConfig.capture,
             overlays = tracingConfig.overlays
         )
+    }
+
+    /** The built model plus the per-run capture resources that must be closed after the run. */
+    private data class BuiltScenario(
+        val model: ksl.simulation.Model,
+        val captureCloseables: List<AutoCloseable>
+    )
+
+    /**
+     * Closes the per-run capture resources (KSLDatabase, WelchFileObserver, ResponseTrace) that
+     * buildScenarioModel attached to the model.  These own file/DB handles that would otherwise stay
+     * open for the model's lifetime — on Windows an open handle blocks deleting the run output
+     * directory (invisible on Unix).  The observers self-attach in their constructors, so onAttach has
+     * nothing to do; onDetach (invoked by the Runner in its finally, after the run — so the observers'
+     * own afterExperiment metadata writes have already completed) releases them.
+     */
+    private class CaptureCleanupAttachment(
+        private val closeables: List<AutoCloseable>
+    ) : RunAttachmentIfc {
+        override fun onAttach(model: ksl.simulation.Model, scope: CoroutineScope) {}
+        override fun onDetach() {
+            closeables.forEach { runCatching { it.close() } }
+        }
     }
 
     /**
@@ -132,8 +161,11 @@ object SingleRunOrchestrator {
         spec: ksl.app.config.ScenarioSpec,
         provider: ModelProviderIfc?,
         outputConfig: ksl.app.config.OutputConfig
-    ): ksl.simulation.Model {
+    ): BuiltScenario {
         val model = buildModelFromReference(spec.modelReference, provider, spec.modelConfiguration)
+        // Per-run capture resources (KSLDatabase, Welch, trace observers) that own file/DB handles.
+        // They self-attach to the model but must be closed after the run — see CaptureCleanupAttachment.
+        val captureCloseables = mutableListOf<AutoCloseable>()
 
         val baseParams = model.extractRunParameters().copy(experimentName = spec.name)
         val finalParams = (spec.runOverrides ?: ksl.app.config.ExperimentRunOverrides.EMPTY).applyTo(baseParams)
@@ -215,6 +247,7 @@ object SingleRunOrchestrator {
                 dbDirectory = model.outputDirectory.dbDir
             )
             ksl.utilities.io.dbutil.KSLDatabaseObserver(model = model, db = db)
+            captureCloseables += db
         }
 
         // Welch warm-up capture.  Each WelchFileObserver self-attaches to
@@ -229,7 +262,7 @@ object SingleRunOrchestrator {
         if (outputConfig.enableWelchAnalysis) {
             for (spec in outputConfig.welchResponses) {
                 val response = model.response(spec.responseName) ?: continue
-                ksl.observers.welch.WelchFileObserver(response, spec.interval)
+                captureCloseables += ksl.observers.welch.WelchFileObserver(response, spec.interval)
             }
         }
 
@@ -246,7 +279,7 @@ object SingleRunOrchestrator {
             val traceManifest = LinkedHashMap<String, Boolean>()
             for (spec in outputConfig.traceResponses) {
                 val response = model.response(spec.responseName) ?: continue
-                ksl.observers.ResponseTrace(response).apply {
+                captureCloseables += ksl.observers.ResponseTrace(response).apply {
                     maxNumReplications = spec.maxReplications
                 }
                 traceManifest[ksl.app.single.results.TraceManifest.stemFor(response.name)] =
@@ -257,7 +290,7 @@ object SingleRunOrchestrator {
             }
         }
 
-        return model
+        return BuiltScenario(model, captureCloseables)
     }
 
     private fun buildModelFromReference(
