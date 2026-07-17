@@ -215,6 +215,21 @@ active_processes_using() {
   pgrep -f "$1" 2>/dev/null || true
 }
 
+# MCP setup server (entry == "gui"): run its launcher --remove to strip the ksl/ksl-code/
+# ksl-book entry from detected agents (Codex / Claude Desktop). Must precede any delete (the
+# launcher must still exist). Best-effort. Returns 0 if attempted, 1 if not a setup server or
+# no launcher. Note: --remove edits config only; a live stdio server keeps running until its
+# client restarts.
+unregister() {
+  [ "$(entry_of "$1")" = "gui" ] || return 1
+  local path launcher; path="$(path_of "$1")"; launcher="$(launcher_of "$1")"
+  local exe="$SUPPORT/$path/$launcher"
+  [ -x "$exe" ] || { say "note: $1 has no launcher at $exe; skipping client unregister (use its setup app)."; return 1; }
+  say "unregistering $1 from detected agents (Codex / Claude Desktop) ..."
+  "$exe" --remove 2>&1 | sed 's/^/  /' || say "  warning: --remove failed; remove the entry with the setup app instead."
+  return 0
+}
+
 # The payload is ONE cross-platform zip, so .support/ also receives the Windows
 # launchers. Drop what this machine can't run.
 prune_foreign() {
@@ -255,6 +270,13 @@ cmd_uninstall() {
   local full="${SUPPORT:?}/$path"
   [ -d "$full" ] || { say "$1 is not installed."; return; }
 
+  # Strip the client config entry before deleting files (the launcher must still exist for
+  # --remove to run). Only edits config — a live stdio server keeps running until its client
+  # restarts, which the preflight below then requires. --keep-config skips this.
+  if [ "${KEEP_CONFIG:-}" != "1" ] && unregister "$1"; then
+    say "if a server JVM is still running, restart Codex / Claude Desktop so it exits, then re-run."
+  fi
+
   # Preflight: a running MCP server (mcp/code/book) keeps files under $full open. On Windows
   # the delete would fail; on macOS/Linux it "succeeds" but orphans the server JVM and leaves
   # the client config pointing at deleted paths. Either way, stop and let the user close the
@@ -274,6 +296,10 @@ cmd_uninstall() {
   rm -rf "$full" || die "could not remove $full. Close Codex, Claude Desktop, and any running KSL apps or servers, then try again."
   remove_entry_point "$1"
   say "removed $1 ($path)"
+}
+cmd_unregister() {
+  [ -n "$(path_of "$1")" ] || die "unknown id: $1 (see 'ksl list')"
+  unregister "$1" || say "$1 is not an MCP setup server; nothing to unregister."
 }
 cmd_install() {
   local path; path="$(path_of "$1")"
@@ -310,15 +336,16 @@ cmd_update() {
 
 # pull --from out of the args, then dispatch
 A=()
-while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; *) A+=("$1"); shift ;; esac; done
+while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; --keep-config) KEEP_CONFIG=1; shift ;; *) A+=("$1"); shift ;; esac; done
 set -- ${A[@]+"${A[@]}"}
 cmd="${1:-list}"; [ $# -gt 0 ] && shift || true
 case "$cmd" in
   list)             cmd_list ;;
   install)          [ $# -ge 1 ] || die "usage: ksl install <id> [--from <zip>]"; cmd_install "$1" ;;
-  uninstall|remove) [ $# -ge 1 ] || die "usage: ksl uninstall <id>"; cmd_uninstall "$1" ;;
+  uninstall|remove) [ $# -ge 1 ] || die "usage: ksl uninstall <id> [--keep-config]"; cmd_uninstall "$1" ;;
+  unregister)       [ $# -ge 1 ] || die "usage: ksl unregister <id>"; cmd_unregister "$1" ;;
   update)           cmd_update "${1:-}" ;;
   refresh)          cmd_refresh ;;
-  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> | update [id] | refresh} [--from <ksl-suite.zip>]" ;;
+  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | update [id] | refresh} [--from <ksl-suite.zip>]" ;;
   *) die "unknown command: $cmd (try 'ksl list')" ;;
 esac

@@ -56,9 +56,10 @@ function EntryInfoFor([string]$id) {
 }
 
 # args: pull --from / -From out of the list, then dispatch on what's left
-$From = ""; $pos = @()
+$From = ""; $KeepConfig = $false; $pos = @()
 for ($i = 0; $i -lt $args.Count; $i++) {
     if ($args[$i] -eq "--from" -or $args[$i] -eq "-From") { $From = [string]$args[$i + 1]; $i++ }
+    elseif ($args[$i] -eq "--keep-config") { $KeepConfig = $true }
     else { $pos += [string]$args[$i] }
 }
 $cmd  = if ($pos.Count -ge 1) { $pos[0] } else { "list" }
@@ -161,6 +162,25 @@ function ActiveProcessesUsing([string]$dir) {
         })
     } catch { @() }
 }
+# Run an MCP setup server's --remove (strip its ksl/ksl-code/ksl-book entry from Codex /
+# Claude Desktop). Only for entry=="gui" items, and only while the launcher still exists (so
+# it must precede any delete). Best-effort: warns and points at the setup app on failure.
+# Returns $true if --remove was attempted. Note: --remove edits config only; a server already
+# running as a live stdio child keeps going until its client restarts.
+function Unregister([string]$id) {
+    $it = $items | Where-Object { $_.id -eq $id } | Select-Object -First 1
+    if (-not $it -or $it.entry -ne "gui") { return $false }
+    $dir = Join-Path $support ($it.path -replace '/', '\')
+    $launcher = Join-Path $dir "$($it.launcher).cmd"
+    if (-not (Test-Path $launcher)) {
+        Say "note: $id has no launcher at $launcher; skipping client unregister (use its setup app)."
+        return $false
+    }
+    Say "unregistering $id from detected agents (Codex / Claude Desktop) ..."
+    try { & $launcher --remove 2>&1 | ForEach-Object { Say "  $_" } }
+    catch { Say "  warning: --remove failed ($($_.Exception.Message)); remove the entry with the setup app instead." }
+    return $true
+}
 function CmdRefresh {
     PruneForeign
     $n = 0
@@ -185,11 +205,18 @@ function CmdList {
         Say ("  {0,-13} {1,-7} {2}" -f $it.id, $it.kind, $st)
     }
 }
-function CmdUninstall([string]$id) {
+function CmdUninstall([string]$id, [bool]$keepConfig) {
     $p = PathOf $id
     if (-not $p) { Die "unknown id: $id (see 'ksl list')" }
     $full = Join-Path $support ($p -replace '/', '\')
     if (-not (Test-Path $full)) { Say "$id is not installed."; return }
+
+    # Strip the client config entry before deleting files (the launcher must still exist for
+    # --remove to run). This only edits config -- a live stdio server keeps running until its
+    # client restarts, which the preflight below then requires. --keep-config skips this.
+    if (-not $keepConfig -and (Unregister $id)) {
+        Say "if a server JVM is still running, restart Codex / Claude Desktop so it exits, then re-run."
+    }
 
     # Preflight: an MCP server (mcp/code/book) can be launched as a stdio child of Codex or
     # Claude Desktop and hold files under $full open, which blocks the delete on Windows.
@@ -213,6 +240,10 @@ function CmdUninstall([string]$id) {
     }
     RemoveEntryPoint $id
     Say "removed $id ($p)"
+}
+function CmdUnregister([string]$id) {
+    if (-not (PathOf $id)) { Die "unknown id: $id (see 'ksl list')" }
+    if (-not (Unregister $id)) { Say "$id is not an MCP setup server; nothing to unregister." }
 }
 function CmdInstall([string]$id) {
     $p = PathOf $id
@@ -260,7 +291,8 @@ switch ($cmd) {
     "install"   { if (-not $arg1) { Die "usage: ksl install <id> [--from <zip>]" }; CmdInstall $arg1 }
     "update"    { CmdUpdate $arg1 }
     "refresh"   { CmdRefresh }
-    { $_ -in "uninstall", "remove" } { if (-not $arg1) { Die "usage: ksl uninstall <id>" }; CmdUninstall $arg1 }
-    { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> | update [id] | refresh} [--from <ksl-suite.zip>]" }
+    { $_ -in "uninstall", "remove" } { if (-not $arg1) { Die "usage: ksl uninstall <id> [--keep-config]" }; CmdUninstall $arg1 $KeepConfig }
+    "unregister" { if (-not $arg1) { Die "usage: ksl unregister <id>" }; CmdUnregister $arg1 }
+    { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | update [id] | refresh} [--from <ksl-suite.zip>]" }
     default     { Die "unknown command: $cmd (try 'ksl list')" }
 }
