@@ -216,8 +216,11 @@ class ResultDatabaseServiceTest {
         m.numberOfReplications = 2
         m.lengthOfReplication = 200.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        WelchFileObserver(m.response("System Time")!!, 1.0)
+        val welch = WelchFileObserver(m.response("System Time")!!, 1.0)
         m.simulate()
+        // Close the observer so its .wdf/.json handles are released and @TempDir can be deleted
+        // (on Windows an open handle blocks temp-dir cleanup; invisible on Unix).
+        welch.close()
 
         assertTrue(service.locate(outDir) == null, "no *.db should be found")
         val status = service.status(outDir)

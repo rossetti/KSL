@@ -56,10 +56,15 @@ class ReportArtifactServiceTest {
         m.numberOfReplications = 3
         m.lengthOfReplication = 2000.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        WelchFileObserver(m.response(SYSTEM_TIME)!!, 1.0)
-        ResponseTrace(m.response(SYSTEM_TIME)!!)
-        ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        val observers = listOf<AutoCloseable>(
+            WelchFileObserver(m.response(SYSTEM_TIME)!!, 1.0),
+            ResponseTrace(m.response(SYSTEM_TIME)!!),
+            ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        )
         m.simulate()
+        // Close the capture observers so their trace/Welch file handles are released and @TempDir
+        // can be deleted (on Windows an open handle blocks temp-dir cleanup; invisible on Unix).
+        observers.forEach { it.close() }
         // The orchestrator writes this in production; do it here for the raw sim.
         TraceManifest.write(outDir, mapOf(SYSTEM_TIME to false, NUM_IN_SYSTEM to true))
     }
