@@ -299,6 +299,16 @@ internal class WelchReportDialogImpl(
         }
     }
 
+    /**
+     * Closes the Welch analyzers this dialog opened at construction (each holds a `.wdf`
+     * file handle) before releasing the window, so a disposed dialog leaves no open handle —
+     * on Windows an open handle blocks deleting the captured Welch files.
+     */
+    override fun dispose() {
+        analyzers.forEach { runCatching { it.close() } }
+        super.dispose()
+    }
+
     /** Record each successful outcome into Recent saves; returns the count saved. */
     private fun record(outcomes: List<StandardReportOutcome>): Int {
         var saved = 0

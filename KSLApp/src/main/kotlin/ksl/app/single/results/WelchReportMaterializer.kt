@@ -116,6 +116,31 @@ object WelchReportMaterializer {
     }
 
     /**
+     * True when [outputDir] holds at least one Welch capture — a `<name>_Welch`
+     * subdirectory containing a `.json` metadata file — **without opening any
+     * `.wdf` data file**.  Use this for enablement probes (e.g. deciding whether
+     * to offer a Welch report); [discoverAnalyzers], which opens a
+     * `WelchDataFileAnalyzer` (holding a `.wdf` handle) per capture, is for
+     * actually rendering and its results must be closed by the caller.
+     *
+     * @param outputDir the run output directory to probe.
+     * @return true if any `_Welch` subdirectory with a `.json` metadata file exists.
+     */
+    fun hasWelchData(outputDir: Path): Boolean {
+        if (!outputDir.exists() || !Files.isDirectory(outputDir)) return false
+        Files.newDirectoryStream(outputDir).use { dirs ->
+            for (dir in dirs) {
+                if (!Files.isDirectory(dir)) continue
+                if (!dir.fileName.toString().endsWith(WELCH_DIR_SUFFIX)) continue
+                Files.newDirectoryStream(dir, "*.json").use { jsons ->
+                    if (jsons.iterator().hasNext()) return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
      * Deletes every immediate `<name>_Welch` capture subdirectory under
      * [outputDir], leaving all other run output (csvDir, dbDir,
      * kslOutput.txt, plotDir, …) untouched.  Called before a Simulate so a
