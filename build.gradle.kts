@@ -674,7 +674,7 @@ tasks.register("stampSuiteManifest") {
 //
 //   ./gradlew installKSLLocally                     -> build/ksl-home (safe, disposable)
 //   ./gradlew installKSLLocally -Pdest=<abs-path>   -> a real install (e.g. ~/Applications/KSL)
-//   ./gradlew uninstallKSLLocally [-Pdest=<abs-path>]
+//   ./gradlew uninstallKSLLocally [-Pdest=<abs-path>] [-PcleanStartMenu]
 //
 // Deliberately NOT wired into build/check/CI -- they run an external installer with a side effect.
 val kslLocalDestProp: String? = findProperty("dest") as String?
@@ -684,6 +684,10 @@ val kslHostIsWindows: Boolean = System.getProperty("os.name").orEmpty().lowercas
 // No -Pdest -> the disposable sandbox: also isolate the Windows Start Menu. A real -Pdest
 // install keeps the normal Start Menu integration.
 val kslLocalIsolated: Boolean = kslLocalDestProp == null
+// Removing the real Start Menu shortcuts is opt-in; see uninstallKSLLocally.
+val kslCleanStartMenu: Boolean = hasProperty("cleanStartMenu")
+val kslLocalDestFile = file(kslLocalDest)
+val kslBuildDirFile = layout.buildDirectory.get().asFile.canonicalFile
 
 tasks.register<Exec>("installKSLLocally") {
     group = "distribution"
@@ -705,10 +709,26 @@ tasks.register<Exec>("installKSLLocally") {
 tasks.register<Delete>("uninstallKSLLocally") {
     group = "distribution"
     description = "Remove the -Pdest install (default build/ksl-home). Your KSLWork workspace is never touched."
+    // -Pdest arrives raw from the command line and this task deletes it recursively, so a typo
+    // (-Pdest=$HOME) must not take an unrelated tree with it. Proceed only when the target is the
+    // disposable sandbox under build/, or actually looks like a KSL install.
+    doFirst {
+        if (kslLocalDestFile.exists()) {
+            val underBuild = kslLocalDestFile.canonicalFile.toPath().startsWith(kslBuildDirFile.toPath())
+            val looksLikeKsl = kslLocalDestFile.resolve(".support").isDirectory ||
+                kslLocalDestFile.resolve("bin").isDirectory
+            if (!underBuild && !looksLikeKsl) throw GradleException(
+                "refusing to delete $kslLocalDest -- it is not under build/ and has no .support/ or " +
+                    "bin/, so it does not look like a KSL install. Point -Pdest at the install root."
+            )
+        }
+    }
     delete(kslLocalDest)
-    // A real -Pdest install put Windows shortcuts in the OS Start Menu (outside KSL_HOME); clear
-    // them. The default sandbox isolated them under KSL_HOME via KSL_STARTMENU (removed above).
-    if (kslHostIsWindows && !kslLocalIsolated) {
+    // The real Start Menu is shared state: whichever install ran `ksl refresh` last owns the
+    // shortcuts, so removing one install must not silently strip another's -- opt in with
+    // -PcleanStartMenu. The default sandbox needs nothing here (KSL_STARTMENU put its shortcuts
+    // under KSL_HOME, removed above), and shortcuts are recoverable via `ksl refresh`.
+    if (kslHostIsWindows && !kslLocalIsolated && kslCleanStartMenu) {
         System.getenv("APPDATA")?.let { delete("$it/Microsoft/Windows/Start Menu/Programs/KSL") }
     }
     doLast { logger.lifecycle("uninstallKSLLocally: removed $kslLocalDest") }
