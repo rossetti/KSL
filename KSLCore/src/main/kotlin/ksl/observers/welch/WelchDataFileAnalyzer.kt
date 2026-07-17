@@ -60,7 +60,7 @@ import java.util.*
  *
  * @author rossetti
  */
-class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDataFileAnalyzer> {
+class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDataFileAnalyzer>, AutoCloseable {
     /**
      *
      * @return  the meta-data bean for the welch file
@@ -101,6 +101,16 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         } catch (ex: IOException) {
             val str = "Problem creating RandomAccessFile for " + wdfDataFile.absolutePath
             KSL.logger.error(ex) { str }
+        }
+    }
+
+    /**
+     * Closes the Welch data file (.wdf) random-access handle, releasing it so
+     * the file can be deleted (required on Windows).  Idempotent.
+     */
+    override fun close() {
+        if (::myWDFDataFile.isInitialized) {
+            runCatching { myWDFDataFile.close() }
         }
     }
 
