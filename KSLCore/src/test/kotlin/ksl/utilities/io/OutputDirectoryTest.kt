@@ -38,15 +38,26 @@ class OutputDirectoryTest {
     // ── autoCreateOutFile ─────────────────────────────────────────────────
 
     @Test
-    fun `autoCreateOutFile = true creates the out file eagerly (default behaviour)`(
+    fun `autoCreateOutFile = true creates the out file lazily on first access`(
         @TempDir tempDir: Path
     ) {
-        val od = OutputDirectory(tempDir.resolve("od1"), outFileName = "myLog.txt")
-        assertTrue(Files.exists(od.outDir), "outDir should exist")
-        assertTrue(
-            Files.exists(od.outDir.resolve("myLog.txt")),
-            "outFile should be created when autoCreateOutFile = true"
-        )
+        // close() releases the log-file handle once out has been used, so the @TempDir can be
+        // deleted (an open handle would block it on Windows).
+        OutputDirectory(tempDir.resolve("od1"), outFileName = "myLog.txt").use { od ->
+            assertTrue(Files.exists(od.outDir), "outDir should exist")
+            // Lazy: constructing the OutputDirectory must not open or create the log file, so an
+            // OutputDirectory whose out is never used holds no file handle.
+            assertFalse(
+                Files.exists(od.outDir.resolve("myLog.txt")),
+                "outFile must NOT be created until out is first accessed"
+            )
+            od.out.println("hello")
+            od.out.flush()
+            assertTrue(
+                Files.exists(od.outDir.resolve("myLog.txt")),
+                "outFile should be created on first access when autoCreateOutFile = true"
+            )
+        }
     }
 
     @Test

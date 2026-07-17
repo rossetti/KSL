@@ -84,8 +84,11 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * Remember to close the file after all processing
      */
     fun close() {
-        myConnection.close()
-        myRowSelector.close()
+        runCatching { myRowSelector.close() }
+        runCatching { myConnection.close() }
+        // Close the backing database too: it holds its own long-lived connection (opened by the
+        // metadata reads in init), which keeps the file locked on Windows until released.
+        runCatching { myDb.close() }
     }
 
     /**
@@ -441,19 +444,25 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
             val dataTableName = fixedFileName + "_Data"
             // open up the database file
             val database: DatabaseIfc = SQLiteDb.openDatabaseReadOnly(pathToFile)
-            // get the table metadata from the database
-            val tableMetaData = database.tableMetaData(dataTableName)
-            if (tableMetaData.isEmpty()) {
-                throw IllegalStateException("The path does represent a valid TabularInputFile $pathToFile")
+            try {
+                // get the table metadata from the database
+                val tableMetaData = database.tableMetaData(dataTableName)
+                if (tableMetaData.isEmpty()) {
+                    throw IllegalStateException("The path does represent a valid TabularInputFile $pathToFile")
+                }
+                // process the columns to determine the column names and data types
+                val columnTypes = mutableMapOf<String, DataType>()
+                for (colMetaData in tableMetaData) {
+                    val colName = colMetaData.name
+                    val colType = mapSQLTypeToDataType(colMetaData)
+                    columnTypes[colName] = colType
+                }
+                return columnTypes
+            } finally {
+                // Close the introspection connection so the file is not held open (a lingering
+                // handle blocks deleting the file on Windows).
+                runCatching { database.close() }
             }
-            // process the columns to determine the column names and data types
-            val columnTypes = mutableMapOf<String, DataType>()
-            for (colMetaData in tableMetaData) {
-                val colName = colMetaData.name
-                val colType = mapSQLTypeToDataType(colMetaData)
-                columnTypes[colName] = colType
-            }
-            return columnTypes
         }
 
         private fun mapSQLTypeToDataType(columnMetaData: ColumnMetaData): DataType {

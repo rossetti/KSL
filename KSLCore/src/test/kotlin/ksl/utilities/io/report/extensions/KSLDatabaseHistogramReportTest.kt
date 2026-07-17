@@ -25,6 +25,7 @@ import ksl.utilities.io.dbutil.HistogramTableData
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.report.ast.ReportNode
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -42,6 +43,16 @@ class KSLDatabaseHistogramReportTest {
 
     @TempDir
     lateinit var tempDir: Path
+
+    // Close every database opened by a test so its SQLite file is released and @TempDir can be
+    // deleted; on Windows an open connection blocks the temp-dir cleanup (invisible on Unix).
+    private val openDatabases = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpenDatabases() {
+        openDatabases.forEach { runCatching { it.close() } }
+        openDatabases.clear()
+    }
 
     @Test
     fun `single histogram report has a section, table, and plot`() {
@@ -129,7 +140,7 @@ class KSLDatabaseHistogramReportTest {
      *  integer-frequency response (3 cells).
      */
     private fun sampleDb(name: String): Pair<Database, KSLDatabase> {
-        val database = KSLDatabase.createSQLiteKSLDatabase(name, tempDir)
+        val database = KSLDatabase.createSQLiteKSLDatabase(name, tempDir).also { openDatabases += it }
         val kdb = KSLDatabase(database)
         val expId = insertExperiment(database, "E", "M")
         val runId = insertSimRun(database, expId, "E_run", numReps = 3)

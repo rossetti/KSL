@@ -58,11 +58,13 @@ class ExcelUtilDbRoundTripTest {
 
     @AfterEach
     fun tearDown() {
-        // Drop Derby connections so the temp dir can be cleaned. Derby's
-        // embedded driver retains a lock on the database folder until shut
-        // down; for the test it is enough that the JVM tears down and the
-        // @TempDir is removed afterwards.
         try { db.executeCommand("DROP TABLE $schema.$table") } catch (_: Exception) {}
+        // Close the database so the @TempDir can be deleted. Derby's embedded driver
+        // holds a lock on the database folder until the engine is shut down; db.close()
+        // performs that shutdown (and closes the long-lived connection). Without it the
+        // folder stays locked and @TempDir cleanup fails on Windows — Unix silently
+        // tolerates deleting open files, which is why this was invisible there.
+        db.close()
     }
 
     @Test

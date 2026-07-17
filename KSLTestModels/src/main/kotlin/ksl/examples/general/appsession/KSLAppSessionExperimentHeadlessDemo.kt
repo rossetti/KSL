@@ -187,6 +187,9 @@ suspend fun runKSLAppSessionExperimentHeadlessDemo(
     }
 
     if (observation.result !is RunResult.BatchCompleted) {
+        // Release the experiment's KSLDatabase (default output path) before returning so a later
+        // run can delete/recreate it — an open connection blocks the delete on Windows.
+        experiment.kslDb?.close()
         notifier.error(
             "Experiment did not complete cleanly: ${observation.result::class.simpleName}"
         )
@@ -211,11 +214,17 @@ suspend fun runKSLAppSessionExperimentHeadlessDemo(
             "'$EXPERIMENT_HEADLESS_DEMO_RESPONSE' (coded = $coded, CL = $confidenceLevel)."
     )
     val linearModel: LinearModel = experiment.design.linearModel(LinearModel.Type.FirstOrder)
-    val fit: RegressionResultsIfc = experiment.regressionResults(
-        responseName = EXPERIMENT_HEADLESS_DEMO_RESPONSE,
-        linearModel = linearModel,
-        coded = coded
-    )
+    val fit: RegressionResultsIfc = try {
+        experiment.regressionResults(
+            responseName = EXPERIMENT_HEADLESS_DEMO_RESPONSE,
+            linearModel = linearModel,
+            coded = coded
+        )
+    } finally {
+        // The experiment's KSLDatabase (default output path) is no longer needed after the
+        // regression; close it so its .db file is released (a later run must be able to delete it).
+        experiment.kslDb?.close()
+    }
 
     val fitRecord = RegressionFitRecord(
         timestamp = LocalDateTime.now(),

@@ -25,6 +25,7 @@ import ksl.simulation.Model
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.report
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -41,6 +42,16 @@ import kotlin.test.assertTrue
  */
 class WelchReportExtensionsTest {
 
+    // Close the Welch writer (its .wdf/.json handles) and the analyzer (its .wdf read handle) so the
+    // @TempDir can be deleted; on Windows an open handle blocks temp-dir cleanup (invisible on Unix).
+    private val closeables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        closeables.forEach { runCatching { it.close() } }
+        closeables.clear()
+    }
+
     /** Run a short sim with one tally response and return the analyzer. */
     private fun analyzerFor(outDir: Path): WelchDataFileAnalyzer {
         val m = Model("WelchExtModel", autoCSVReports = false)
@@ -48,12 +59,12 @@ class WelchReportExtensionsTest {
         m.numberOfReplications = 3
         m.lengthOfReplication = 1000.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        WelchFileObserver(m.response("System Time")!!, 1.0)
+        closeables += WelchFileObserver(m.response("System Time")!!, 1.0)
         m.simulate()
         val json = Files.list(outDir.resolve("System Time_Welch")).use { stream ->
             stream.filter { it.fileName.toString().endsWith(".json") }.findFirst().orElseThrow()
         }
-        return WelchDataFileAnalyzer.makeFromJSON(json)
+        return WelchDataFileAnalyzer.makeFromJSON(json).also { closeables += it }
     }
 
     /** All DataTable captions in the document, walking sections recursively. */

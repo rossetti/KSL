@@ -1397,13 +1397,8 @@ class ConcurrentScenarioRunnerTest {
             subdirs.size,
             "Legacy default should create one *_OutputDir per scenario; got ${subdirs.map { it.name }}"
         )
-        // Each per-scenario subdir contains the standard kslOutput.txt.
-        for (subdir in subdirs) {
-            val log = java.io.File(subdir, "kslOutput.txt")
-            assertTrue(
-                log.exists() && log.isFile,
-                "Expected kslOutput.txt inside ${subdir.name}; not found"
-            )
-        }
+        // The per-scenario kslOutput.txt is now created lazily (only if the run writes to `out`),
+        // so an unused, empty log is no longer emitted; the per-scenario subdir isolation asserted
+        // above is the legacy behaviour this test guards.
     }
 }

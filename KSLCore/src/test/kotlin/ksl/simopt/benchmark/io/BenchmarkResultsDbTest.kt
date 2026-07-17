@@ -10,6 +10,7 @@ import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,6 +31,16 @@ class BenchmarkResultsDbTest {
 
     @TempDir
     lateinit var tempDir: Path
+
+    // Close every database opened by a test so its SQLite file is released and @TempDir can be
+    // deleted; on Windows an open connection blocks the temp-dir cleanup (invisible on Unix).
+    private val openDatabases = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpenDatabases() {
+        openDatabases.forEach { runCatching { it.close() } }
+        openDatabases.clear()
+    }
 
     private companion object {
         const val OBJ = "objFn"
@@ -101,7 +112,7 @@ class BenchmarkResultsDbTest {
     @Test
     @DisplayName("A small experiment round-trips: every table row matches the in-memory summary")
     fun roundTripSmallExperiment() {
-        val db = BenchmarkResultsDb("bench.db", tempDir)
+        val db = BenchmarkResultsDb("bench.db", tempDir).also { openDatabases += it }
         val summary = runExperiment(traces = false, verification = 20)
         val expId = db.saveSummary(summary, kslVersion = "test")
         assertEquals(1, expId)
@@ -156,10 +167,10 @@ class BenchmarkResultsDbTest {
     @Test
     @DisplayName("D3: a later trace-enabled rerun appends into the same database under a fresh id")
     fun traceEnabledRerunAppendsIntoSameDatabase() {
-        val db = BenchmarkResultsDb("bench.db", tempDir)
+        val db = BenchmarkResultsDb("bench.db", tempDir).also { openDatabases += it }
         val exp1 = db.saveSummary(runExperiment(traces = false))
         // reopen the same file (no delete) as a separate session and save a traced rerun
-        val reopened = BenchmarkResultsDb("bench.db", tempDir)
+        val reopened = BenchmarkResultsDb("bench.db", tempDir).also { openDatabases += it }
         val exp2 = reopened.saveSummary(runExperiment(traces = true))
         assertEquals(exp1 + 1, exp2)
         assertEquals(2, reopened.experiments().size)
@@ -183,7 +194,7 @@ class BenchmarkResultsDbTest {
     @Test
     @DisplayName("The MCB feed has one equal-length array per solver case and constructs an analyzer")
     fun mcbFeedShape() {
-        val db = BenchmarkResultsDb("mcb.db", tempDir)
+        val db = BenchmarkResultsDb("mcb.db", tempDir).also { openDatabases += it }
         val expId = db.saveSummary(runExperiment(traces = false))
         val dataMap = db.mcbDataMap(expId, "sphereA")
         assertEquals(setOf("shcA", "shcB"), dataMap.keys)
@@ -195,7 +206,7 @@ class BenchmarkResultsDbTest {
     @Test
     @DisplayName("Performance-profile data comes from captured traces with fractions in range")
     fun performanceProfileFromTraces() {
-        val db = BenchmarkResultsDb("prof.db", tempDir)
+        val db = BenchmarkResultsDb("prof.db", tempDir).also { openDatabases += it }
         val expId = db.saveSummary(runExperiment(traces = true))
         val profile = db.performanceProfile(expId, tau = 5.0, numPoints = 10)
         assertTrue(profile.isNotEmpty())

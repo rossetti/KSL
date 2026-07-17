@@ -86,9 +86,14 @@ class TraceReportDialogTest {
         m.numberOfReplications = 2
         m.lengthOfReplication = 200.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        ResponseTrace(m.response(SYSTEM_TIME)!!)
-        ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        val traces = listOf(
+            ResponseTrace(m.response(SYSTEM_TIME)!!),
+            ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        )
         m.simulate()
+        // Close the trace observers so their *_Trace handles are released and @TempDir can be
+        // deleted (on Windows an open handle blocks temp-dir cleanup; invisible on Unix).
+        traces.forEach { it.close() }
     }
 
     @Test

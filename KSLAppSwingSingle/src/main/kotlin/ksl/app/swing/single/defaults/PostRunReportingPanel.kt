@@ -540,8 +540,7 @@ class PostRunReportingPanel(
         val available = try {
             currentSnapshot() != null &&
                 WelchReportMaterializer
-                    .discoverAnalyzers(controller.appWorkspace.resolve("output"))
-                    .isNotEmpty()
+                    .hasWelchData(controller.appWorkspace.resolve("output"))
         } catch (t: Throwable) {
             false
         }

@@ -23,6 +23,7 @@ import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
 import ksl.testutils.DisabledIfHeadless
 import ksl.utilities.io.OutputDirectory
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -50,6 +51,16 @@ class WelchReportMaterializerTest {
         const val NUM_IN_SYSTEM = "Num in System"
     }
 
+    // Close the Welch observers (their .wdf/.json write handles) and the analyzers (their .wdf read
+    // handles) so the @TempDir can be deleted; on Windows an open handle blocks temp-dir cleanup.
+    private val closeables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        closeables.forEach { runCatching { it.close() } }
+        closeables.clear()
+    }
+
     /**
      * Builds a small GIGc model whose runtime output is rooted at
      * [outputDir], attaches Welch observers to its tally and time-weighted
@@ -65,8 +76,8 @@ class WelchReportMaterializerTest {
         model.lengthOfReplication = 50000.0
         GIGcQueue(model, numServers = 1, name = "Q")
         // Self-attaching observers — one tally, one time-weighted.
-        WelchFileObserver(model.response(SYSTEM_TIME)!!, 1.0)
-        WelchFileObserver(model.response(NUM_IN_SYSTEM)!!, 10.0)
+        closeables += WelchFileObserver(model.response(SYSTEM_TIME)!!, 1.0)
+        closeables += WelchFileObserver(model.response(NUM_IN_SYSTEM)!!, 10.0)
         model.simulate()
     }
 
@@ -75,7 +86,7 @@ class WelchReportMaterializerTest {
     fun discoverAnalyzersFindsAnAnalyzerPerWelchDir(@TempDir tempDir: Path) {
         writeWelchData(tempDir)
 
-        val analyzers = WelchReportMaterializer.discoverAnalyzers(tempDir)
+        val analyzers = WelchReportMaterializer.discoverAnalyzers(tempDir).onEach { closeables += it }
         assertEquals(2, analyzers.size,
             "Expected one analyzer per captured response; got ${analyzers.map { it.responseName }}")
         val names = analyzers.map { it.responseName }.toSet()
@@ -124,7 +135,7 @@ class WelchReportMaterializerTest {
     @DisabledIfHeadless
     fun materializeHtmlWritesSectionPerResponse(@TempDir tempDir: Path) {
         writeWelchData(tempDir)
-        val analyzers = WelchReportMaterializer.discoverAnalyzers(tempDir)
+        val analyzers = WelchReportMaterializer.discoverAnalyzers(tempDir).onEach { closeables += it }
         val reportsDir = tempDir.resolve("reports")
 
         val outcome = WelchReportMaterializer.materialize(

@@ -25,6 +25,7 @@ import ksl.simulation.Model
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.report
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -46,6 +47,16 @@ class ResponseTraceReportExtensionsTest {
         const val NUM_IN_SYSTEM = "Num in System" // time-weighted
     }
 
+    // Close the trace observers (each owns a TabularOutputFile handle on its *_Trace file) so the
+    // @TempDir can be deleted; on Windows an open handle blocks temp-dir cleanup (invisible on Unix).
+    private val closeables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        closeables.forEach { runCatching { it.close() } }
+        closeables.clear()
+    }
+
     /** Run a short sim tracing one tally and one time-weighted response. */
     private fun runTraces(outDir: Path) {
         val m = Model("TraceExtModel", autoCSVReports = false)
@@ -53,8 +64,8 @@ class ResponseTraceReportExtensionsTest {
         m.numberOfReplications = 2
         m.lengthOfReplication = 200.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        ResponseTrace(m.response(SYSTEM_TIME)!!)
-        ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
+        closeables += ResponseTrace(m.response(SYSTEM_TIME)!!)
+        closeables += ResponseTrace(m.response(NUM_IN_SYSTEM)!!)
         m.simulate()
     }
 

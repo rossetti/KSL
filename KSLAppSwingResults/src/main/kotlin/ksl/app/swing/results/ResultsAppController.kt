@@ -59,7 +59,7 @@ data class PostgresConnectionSpec(
  *  non-clearing [KSLDatabase] constructor — the database is treated as
  *  read-only result data and is never mutated by this app.
  */
-class ResultsAppController(val appName: String) {
+class ResultsAppController(val appName: String) : AutoCloseable {
 
     var database: KSLDatabase? = null
         private set
@@ -177,6 +177,28 @@ class ResultsAppController(val appName: String) {
         databaseDisplayName = "${spec.databaseName}@${spec.server}"
         comparisonSource = KSLDatabaseComparisonSource(opened)
         notifyChanged()
+    }
+
+    /**
+     *  Releases the open database, if any, returning the controller to the
+     *  no-database-open state.  Closing the [KSLDatabase] closes its JDBC
+     *  connection and, for an embedded Derby database, shuts the engine down
+     *  so the database directory is no longer held.  Idempotent and never
+     *  throws.
+     *
+     *  The frame calls this from dispose(): a window disposed without exiting
+     *  the JVM (tests, or a future multi-window mode) must not leak the
+     *  connection or file lock — on Windows a lingering handle also blocks
+     *  deleting the database's files.
+     */
+    override fun close() {
+        val db = database ?: return
+        runCatching { db.close() }
+        database = null
+        databaseFile = null
+        comparisonSource = null
+        databaseKind = ""
+        databaseDisplayName = ""
     }
 
     /** Experiments available for analysis, in database order.  Empty

@@ -13,6 +13,7 @@ import ksl.controls.experiments.TwoLevelFactorialDesign
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.examples.general.models.LKInventoryModel
 import ksl.simulation.*
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -25,6 +26,17 @@ import kotlin.test.assertTrue
  * Reps kept very small (5) to ensure the test completes quickly.
  */
 class ExperimentOrchestratorTest {
+
+    // Close each experiment's KSLDatabase (opened at the default output path) after the test so a
+    // later same-named experiment can delete/recreate it — on Windows an open connection blocks the
+    // delete (surfaces as DataAccessException).
+    private val closeables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        closeables.forEach { runCatching { it.close() } }
+        closeables.clear()
+    }
 
     private val lkBuilder = object : ModelBuilderIfc {
         override fun build(
@@ -49,6 +61,7 @@ class ExperimentOrchestratorTest {
             rp to "Inventory.reorderPoint"
         )
         return ParallelDesignedExperiment("LKTest", lkBuilder, settings, design)
+            .also { it.kslDb?.let { db -> closeables += db } }
     }
 
     @Test
@@ -109,6 +122,7 @@ class ExperimentOrchestratorTest {
             rp to "Inventory.reorderPoint"
         )
         return DesignedExperiment("LKTestSeq", model, settings, design)
+            .also { it.kslDb?.let { db -> closeables += db } }
     }
 
     @Test
