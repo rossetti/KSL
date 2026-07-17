@@ -49,15 +49,16 @@ class ResultDatabaseServiceTest {
      *  under [outDir], yielding a multi-experiment database to analyze. */
     private fun buildDatabase(outDir: Path, experimentNames: List<String>, numServers: Int = 1) {
         Files.createDirectories(outDir)
-        val db = KSLDatabase("results.db", outDir)
-        for (expName in experimentNames) {
-            val m = Model("DbAnalysisModel", autoCSVReports = false)
-            m.numberOfReplications = 4
-            m.lengthOfReplication = 2000.0
-            m.experimentName = expName
-            GIGcQueue(m, numServers = numServers, name = "Q")
-            KSLDatabaseObserver(m, db)
-            m.simulate()
+        KSLDatabase("results.db", outDir).use { db ->
+            for (expName in experimentNames) {
+                val m = Model("DbAnalysisModel", autoCSVReports = false)
+                m.numberOfReplications = 4
+                m.lengthOfReplication = 2000.0
+                m.experimentName = expName
+                GIGcQueue(m, numServers = numServers, name = "Q")
+                KSLDatabaseObserver(m, db)
+                m.simulate()
+            }
         }
     }
 
