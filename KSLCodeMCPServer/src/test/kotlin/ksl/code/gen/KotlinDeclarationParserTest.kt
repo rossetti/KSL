@@ -1,5 +1,6 @@
 package ksl.code.gen
 
+import org.junit.jupiter.api.DisplayName
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -54,6 +55,43 @@ class KotlinDeclarationParserTest {
         assertTrue(d.members.any { it.startsWith("fun spin(): Int") }, d.members.toString())
         assertTrue(d.members.any { it.contains("protected val gears") }, d.members.toString())
         assertTrue(d.members.none { it.contains("secret") }, d.members.toString())
+    }
+
+    /**
+     * The source this parser is handed carries whatever line endings the checkout produced:
+     * LF on macOS/Linux, CRLF on Windows, where Git defaults core.autocrlf=true. Line endings
+     * must not change what is extracted. Unnormalized CRLF silently emptied the package of
+     * 61% of the shipped index and truncated annotated classes at their constructor header.
+     */
+    @Test
+    @DisplayName("CRLF source extracts identically to LF")
+    fun crlfSourceExtractsIdenticallyToLf() {
+        val src = """
+            package ksl.demo
+
+            /** A demo resource. */
+            open class Widget @JvmOverloads constructor(
+                parent: ModelElement,
+                cap: Int = 1
+            ) : ProcessModel(parent), WidgetIfc {
+                fun spin(): Int = 1
+                class Nested
+            }
+        """.trimIndent()
+        val relPath = "KSLCore/src/main/kotlin/pkg/Test.kt"
+        val lf = parser.parse(src, "KSLCore", relPath)
+        val crlf = parser.parse(src.replace("\n", "\r\n"), "KSLCore", relPath)
+
+        val widget = crlf.single { it.name == "Widget" }
+        assertEquals("ksl.demo.Widget", widget.fqn)
+        assertEquals("ksl.demo", widget.pkg)
+        assertEquals(listOf("ProcessModel", "WidgetIfc"), widget.supertypes)
+        assertTrue(widget.members.any { it.startsWith("fun spin()") }, widget.members.toString())
+        assertTrue(widget.signature.endsWith(": ProcessModel(parent), WidgetIfc"), widget.signature)
+        // a truncated parse stops at the constructor header, so the nested type disappears
+        assertTrue(crlf.any { it.name == "Nested" }, crlf.map { it.name }.toString())
+        // nothing at all may differ — line numbers and signatures included
+        assertEquals(lf, crlf)
     }
 
     @Test
