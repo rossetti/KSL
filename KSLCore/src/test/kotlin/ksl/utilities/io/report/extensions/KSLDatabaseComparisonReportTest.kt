@@ -25,6 +25,7 @@ import ksl.utilities.io.dbutil.ModelElementTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.dbutil.WithinRepStatTableData
 import ksl.utilities.io.report.ast.ReportNode
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -48,6 +49,16 @@ class KSLDatabaseComparisonReportTest {
 
     @TempDir
     lateinit var tempDir: Path
+
+    // Close every database opened by a test so its SQLite file is released and @TempDir can be
+    // deleted; on Windows an open connection blocks the temp-dir cleanup (invisible on Unix).
+    private val openDatabases = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpenDatabases() {
+        openDatabases.forEach { runCatching { it.close() } }
+        openDatabases.clear()
+    }
 
     @Test
     fun `full report contains the MCB sections and all four plots`() {
@@ -138,7 +149,7 @@ class KSLDatabaseComparisonReportTest {
      *  intervals and screening produce non-trivial content.
      */
     private fun threeExperimentDb(name: String): Pair<Database, KSLDatabase> {
-        val database = KSLDatabase.createSQLiteKSLDatabase(name, tempDir)
+        val database = KSLDatabase.createSQLiteKSLDatabase(name, tempDir).also { openDatabases += it }
         val kdb = KSLDatabase(database)
         val means = mapOf("A" to 10.0, "B" to 20.0, "C" to 30.0)
         for ((expName, base) in means) {
