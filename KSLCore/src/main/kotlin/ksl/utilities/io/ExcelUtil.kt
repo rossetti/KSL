@@ -621,12 +621,16 @@ object ExcelUtil {
                 val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
                 val pathToBadRows = Path.of(dirStr).resolve("${tableName}_MissingRows.txt")
                 DatabaseIfc.logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
-                val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
                 val numToSkip = if (skipFirstRow) 1 else 0
-                val success = importSheetToTable(
-                    db, sheet, tableName, tblMetaData, schemaName, numToSkip,
-                    unCompatibleRows = badRowsFile
-                )
+                // Close the missing-rows writer after each table so its file handle is released and
+                // its buffered content is flushed; a lingering open handle blocks workbook/@TempDir
+                // cleanup on Windows (invisible on Unix, which tolerates deleting open files).
+                val success = KSLFileUtil.createPrintWriter(pathToBadRows).use { badRowsFile ->
+                    importSheetToTable(
+                        db, sheet, tableName, tblMetaData, schemaName, numToSkip,
+                        unCompatibleRows = badRowsFile
+                    )
+                }
                 if (!success) {
                     DatabaseIfc.logger.warn { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
                 } else {

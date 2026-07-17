@@ -67,6 +67,10 @@ class ExcelUtilMultiSheetExportTest {
         for (t in tables) {
             try { db.executeCommand("DROP TABLE $schema.$t") } catch (_: Exception) {}
         }
+        // Close the database so the @TempDir can be deleted. Derby holds a lock on the
+        // database folder until the embedded engine is shut down, which db.close()
+        // performs (invisible on Unix, which tolerates deleting open files).
+        db.close()
     }
 
     /**
