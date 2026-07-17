@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.com.intellij.openapi.util.text.StringUtilRt
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
@@ -73,11 +74,17 @@ class KotlinDeclarationParser : AutoCloseable {
      * repo-relative source path recorded on each declaration.
      */
     fun parse(text: String, module: String, relPath: String): List<RawDecl> {
-        val ktFile: KtFile = factory.createFile(relPath.substringAfterLast('/'), text)
+        // PSI requires \n-only text: KtPsiFactory wraps the string in a LightVirtualFile,
+        // which skips the line-separator normalization a real file load performs. Given CRLF
+        // (any Windows checkout — Git defaults core.autocrlf=true) the tree comes back
+        // truncated with an empty packageFqName. PSI offsets index this normalized text, so
+        // every read below must use it rather than the caller's string.
+        val src = StringUtilRt.convertLineSeparators(text)
+        val ktFile: KtFile = factory.createFile(relPath.substringAfterLast('/'), src)
         val pkg = ktFile.packageFqName.asString()
-        val lines = LineMap(text)
+        val lines = LineMap(src)
         val out = ArrayList<RawDecl>()
-        ktFile.declarations.forEach { collect(it, module, pkg, relPath, text, lines, out) }
+        ktFile.declarations.forEach { collect(it, module, pkg, relPath, src, lines, out) }
         return out
     }
 

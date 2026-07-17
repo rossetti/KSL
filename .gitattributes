@@ -2,3 +2,9 @@
 # material, not part of the KSL library. Exclude them from GitHub's
 # language statistics (Linguist) so they don't show up in the language bar.
 *.R linguist-documentation
+
+# Check Kotlin sources out as LF on every platform. The build-time indexer behind
+# the KSL code MCP server parses .kt through the Kotlin compiler's PSI, which
+# requires \n-only text. A CRLF working tree (Git for Windows defaults
+# core.autocrlf=true) silently emptied the package of 61% of the generated index.
+*.kt text eol=lf
