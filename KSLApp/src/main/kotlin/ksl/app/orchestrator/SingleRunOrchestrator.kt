@@ -220,14 +220,14 @@ object SingleRunOrchestrator {
         // the analysis-derived stem and leaving the auto flags off gives
         // a single, correctly-named file per kind.
         if (outputConfig.enableReplicationCSV) {
-            ksl.observers.textfile.CSVReplicationReport(
+            captureCloseables += ksl.observers.textfile.CSVReplicationReport(
                 model = model,
                 reportName = "${outputStem}_CSVReplicationReport",
                 directoryPath = model.outputDirectory.csvDir
             )
         }
         if (outputConfig.enableExperimentCSV) {
-            ksl.observers.textfile.CSVExperimentReport(
+            captureCloseables += ksl.observers.textfile.CSVExperimentReport(
                 model = model,
                 reportName = "${outputStem}_CSVExperimentReport",
                 directoryPath = model.outputDirectory.csvDir
