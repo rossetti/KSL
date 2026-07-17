@@ -25,6 +25,7 @@ import ksl.utilities.io.dbutil.ModelElementTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.dbutil.WithinRepCounterStatTableData
 import ksl.utilities.io.dbutil.WithinRepStatTableData
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -48,6 +49,16 @@ class KSLDatabaseComparisonSourceTest {
 
     @TempDir
     lateinit var tempDir: Path
+
+    // Close every database opened by a test so its SQLite file is released and @TempDir can be
+    // deleted; on Windows an open connection blocks the temp-dir cleanup (invisible on Unix).
+    private val openDatabases = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpenDatabases() {
+        openDatabases.forEach { runCatching { it.close() } }
+        openDatabases.clear()
+    }
 
     // ── Test cases ────────────────────────────────────────────────────────
 
@@ -223,7 +234,7 @@ class KSLDatabaseComparisonSourceTest {
      *  and the [KSLDatabase] facade (for the adapter under test).
      */
     private fun makeDb(name: String): Pair<Database, KSLDatabase> {
-        val database = KSLDatabase.createSQLiteKSLDatabase(name, tempDir)
+        val database = KSLDatabase.createSQLiteKSLDatabase(name, tempDir).also { openDatabases += it }
         val kdb = KSLDatabase(database)
         return database to kdb
     }
