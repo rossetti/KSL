@@ -319,12 +319,14 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
 
     private fun exportDefaultDir(): Path = controller.appWorkspace.resolve("export")
 
-    /** Cancels the workspace status-bar's coroutine subscription before
-     *  the window is released, so a disposed frame leaves no live
-     *  collector behind (relevant when the frame is disposed without
-     *  exiting the JVM, e.g. in tests). */
+    /** Cancels the workspace status-bar's coroutine subscription and closes
+     *  the open database before the window is released, so a disposed frame
+     *  leaves no live collector behind and holds no database connection / file
+     *  lock (relevant when the frame is disposed without exiting the JVM, e.g.
+     *  in tests). */
     override fun dispose() {
         uiScope.cancel()
+        controller.close()
         super.dispose()
     }
 

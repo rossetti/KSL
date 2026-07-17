@@ -64,10 +64,15 @@ class HeadlessReportRenderingTest {
         m.numberOfReplications = 3
         m.lengthOfReplication = 2000.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        WelchFileObserver(m.response("System Time")!!, 1.0)
-        ResponseTrace(m.response("System Time")!!)
-        ResponseTrace(m.response("Num in System")!!)
+        val observers = listOf<AutoCloseable>(
+            WelchFileObserver(m.response("System Time")!!, 1.0),
+            ResponseTrace(m.response("System Time")!!),
+            ResponseTrace(m.response("Num in System")!!)
+        )
         m.simulate()
+        // Close the capture observers so their trace/Welch handles are released and @TempDir can be
+        // deleted (on Windows an open handle blocks temp-dir cleanup; invisible on Unix).
+        observers.forEach { it.close() }
         TraceManifest.write(outDir, mapOf("System Time" to false, "Num in System" to true))
     }
 

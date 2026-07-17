@@ -47,9 +47,14 @@ import kotlin.test.assertTrue
 class WelchReportDialogTest {
 
     private var controller: SingleAppController? = null
+    private var openDialog: WelchReportDialogImpl? = null
 
     @AfterTest
     fun closeController() {
+        // Dispose the dialog first: WelchReportDialog.dispose() closes the Welch analyzers it opened
+        // (each holds a .wdf handle), so @TempDir cleanup can delete the captured files on Windows.
+        openDialog?.dispose()
+        openDialog = null
         controller?.close()
         controller = null
     }
@@ -78,9 +83,14 @@ class WelchReportDialogTest {
         m.numberOfReplications = 5
         m.lengthOfReplication = 50000.0
         GIGcQueue(m, numServers = 1, name = "Q")
-        WelchFileObserver(m.response("System Time")!!, 1.0)
-        WelchFileObserver(m.response("Num in System")!!, 10.0)
+        val observers = listOf(
+            WelchFileObserver(m.response("System Time")!!, 1.0),
+            WelchFileObserver(m.response("Num in System")!!, 10.0)
+        )
         m.simulate()
+        // Close the observers so their .wdf/.json handles are released (Windows blocks deleting an
+        // open file); the dialog's read-side analyzers are released on dialog.dispose() in @AfterTest.
+        observers.forEach { it.close() }
     }
 
     @Test
@@ -99,7 +109,7 @@ class WelchReportDialogTest {
             owner = null,
             welchOutputDir = welchOutputDir,
             reportsDir = reportsDir
-        )
+        ).also { openDialog = it }
         // HTML is checked by default; the stem is pre-seeded.  Use the
         // synchronous render+record path (production runs it off the EDT).
         dialog.saveBlocking()
@@ -126,7 +136,7 @@ class WelchReportDialogTest {
             owner = null,
             welchOutputDir = welchOutputDir,
             reportsDir = tempDir.resolve("reports")
-        )
+        ).also { openDialog = it }
         assertTrue(dialog.saveButton.isEnabled, "with HTML checked by default, Save starts enabled")
         dialog.htmlBox.isSelected = false
         dialog.markdownBox.isSelected = false

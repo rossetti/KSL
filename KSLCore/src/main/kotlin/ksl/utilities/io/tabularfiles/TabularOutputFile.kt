@@ -51,7 +51,7 @@ import kotlin.math.max
 class TabularOutputFile(
     columnTypes: Map<String, DataType>,
     path: Path
-) : TabularFile(columnTypes, path) {
+) : TabularFile(columnTypes, path), AutoCloseable {
 
     /**
      * Uses [tabularData] as the schema pattern for defining the columns and their data types
@@ -205,6 +205,21 @@ class TabularOutputFile(
         if (myRowCount > 0) {
             insertData(myDataBuffer)
         }
+    }
+
+    private var closed = false
+
+    /**
+     * Flushes any buffered rows and closes the backing database, releasing the
+     * file handle so the tabular file can be deleted (required on Windows,
+     * where an open handle blocks deletion).  Idempotent; after close the file
+     * must not be written or queried.
+     */
+    override fun close() {
+        if (closed) return
+        closed = true
+        runCatching { flushRows() }
+        runCatching { myDb.close() }
     }
 
     /**

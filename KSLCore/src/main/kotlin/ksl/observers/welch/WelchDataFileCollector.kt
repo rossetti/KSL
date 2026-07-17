@@ -212,4 +212,19 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
     override fun cleanUpCollector() {
         myMetaData.println(welchFileMetaDataBeanAsJson)
     }
+
+    private var closed = false
+
+    /**
+     * Closes the data (.wdf) and metadata (.json) file handles, releasing them
+     * so the Welch files can be deleted (required on Windows).  The metadata is
+     * flushed on write (autoflush), so this only releases the OS handles.
+     * Idempotent.
+     */
+    fun close() {
+        if (closed) return
+        closed = true
+        runCatching { myMetaData.close() }
+        runCatching { myData.close() }
+    }
 }

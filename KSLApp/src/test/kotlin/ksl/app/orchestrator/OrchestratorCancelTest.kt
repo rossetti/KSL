@@ -19,6 +19,7 @@ import ksl.examples.general.models.LKInventoryModel
 import ksl.examples.general.simopt.makeLKInventoryModelProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simulation.*
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -42,6 +43,16 @@ class OrchestratorCancelTest {
         const val MM1_ID = "MM1Cancel"
         const val CANCEL_REASON = "test-cancel"
         const val TIMEOUT_MS = 30_000L
+    }
+
+    // Close each experiment's KSLDatabase after the test so a later same-named experiment can
+    // delete/recreate it (an open connection blocks the delete on Windows -> DataAccessException).
+    private val closeables = mutableListOf<AutoCloseable>()
+
+    @AfterEach
+    fun closeOpened() {
+        closeables.forEach { runCatching { it.close() } }
+        closeables.clear()
     }
 
     // ── model / solver builders ───────────────────────────────────────────────
@@ -115,6 +126,7 @@ class OrchestratorCancelTest {
         val design = TwoLevelFactorialDesign(setOf(oq, rp))
         val settings = mapOf(oq to "Inventory.orderQuantity", rp to "Inventory.reorderPoint")
         return ParallelDesignedExperiment("LKCancelTest", lkBuilder, settings, design)
+            .also { it.kslDb?.let { db -> closeables += db } }
     }
 
     private fun buildSolver(): Solver {

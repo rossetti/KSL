@@ -23,7 +23,7 @@ class ResponseTrace @JvmOverloads constructor(
     theResponse: Response,
     val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(
         theResponse.name.replace(':', '_') + "_Trace"),
-) : ModelElementObserver(theResponse.name), ResponseTraceDataIfc {
+) : ModelElementObserver(theResponse.name), ResponseTraceDataIfc, AutoCloseable {
 
     private val variable = theResponse
     private val tf: TabularOutputFile
@@ -126,6 +126,16 @@ class ResponseTrace @JvmOverloads constructor(
 
     override fun afterReplication(modelElement: ModelElement) {
         tf.flushRows()
+    }
+
+    /**
+     * Closes the underlying trace file, releasing its file handle so the trace
+     * can be deleted (required on Windows).  After close the on-observer query
+     * methods (e.g. traceDataMap) are unavailable; read a finished trace via
+     * ResponseTraceData instead.  Idempotent.
+     */
+    override fun close() {
+        tf.close()
     }
 
     /**

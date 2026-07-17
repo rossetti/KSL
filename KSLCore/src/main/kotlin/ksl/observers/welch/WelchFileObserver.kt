@@ -31,7 +31,7 @@ import java.util.*
  * @param batchSize the batch size for batching or discretizing the data
  *
  */
-class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelElementObserver() {
+class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelElementObserver(), AutoCloseable {
     private val myWelchDataFileCollector: WelchDataFileCollector
 
     /**
@@ -90,6 +90,15 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
 
     override fun afterExperiment(modelElement: ModelElement) {
         myWelchDataFileCollector.cleanUpCollector()
+    }
+
+    /**
+     * Closes the Welch data (.wdf) and metadata (.json) files, releasing their
+     * handles so they can be deleted (required on Windows).  Call when done
+     * with the observer (e.g. after building the analyzer).  Idempotent.
+     */
+    override fun close() {
+        myWelchDataFileCollector.close()
     }
 
     companion object {

@@ -34,7 +34,7 @@ abstract class CSVReport @JvmOverloads constructor(
     reportName: String = theModel.name.replace(':', '_') + "_CSVReport",
     directoryPath: Path = theModel.outputDirectory.outDir,
 ) :
-    ModelElementObserver(reportName) {
+    ModelElementObserver(reportName), AutoCloseable {
     var quoteChar : Char = '"'
     var headerFlag : Boolean = false
     var lineWidth : Int = 300
@@ -54,7 +54,7 @@ abstract class CSVReport @JvmOverloads constructor(
         model.attachModelElementObserver(this)
     }
 
-    fun close() {
+    override fun close() {
         myWriter.close()
     }
 

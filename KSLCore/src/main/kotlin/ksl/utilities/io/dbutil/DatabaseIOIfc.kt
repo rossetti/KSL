@@ -6,8 +6,13 @@ import java.nio.file.Path
 
 /**
  *  An interface that defines basic I/O capabilities for a database.
+ *
+ *  A database is a closeable resource: [close] releases the underlying connection and, for an
+ *  embedded backend, the file handles it holds (see the concrete `Database.close`). Callers that
+ *  open a database should close it — e.g. via `use { }` — so its files can be deleted or replaced;
+ *  this matters on Windows, which forbids deleting a file that is still open.
  */
-interface DatabaseIOIfc {
+interface DatabaseIOIfc : AutoCloseable {
 
     var outputDirectory: OutputDirectory
 

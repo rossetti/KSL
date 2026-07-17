@@ -65,15 +65,21 @@ class ReportArtifactService {
             logger.info { "trace/welch: no Welch data under $outputDir; skipping Welch report" }
             return emptyList()
         }
-        val options = WelchReportMaterializer.Options(
-            includePartialSums = req.includePartialSums,
-            includeBiasTest = req.includeBiasTest,
-            includeBatchMeans = req.includeBatchMeans,
-            deletionPoint = req.deletionPoint,
-        )
-        return req.formats.toFormats().mapNotNull { fmt ->
-            WelchReportMaterializer.materialize(analyzers, fmt, reportsDir, fileStem = "welch", options = options)
-                .fileOrLog("welch", fmt)
+        try {
+            val options = WelchReportMaterializer.Options(
+                includePartialSums = req.includePartialSums,
+                includeBiasTest = req.includeBiasTest,
+                includeBatchMeans = req.includeBatchMeans,
+                deletionPoint = req.deletionPoint,
+            )
+            return req.formats.toFormats().mapNotNull { fmt ->
+                WelchReportMaterializer.materialize(analyzers, fmt, reportsDir, fileStem = "welch", options = options)
+                    .fileOrLog("welch", fmt)
+            }
+        } finally {
+            // discoverAnalyzers opened a WelchDataFileAnalyzer (holding a .wdf handle) per capture;
+            // close them so the files are released (an open handle blocks deletion on Windows).
+            analyzers.forEach { runCatching { it.close() } }
         }
     }
 
