@@ -28,6 +28,7 @@ import ksl.server.mcp.KslMcpTools
 import ksl.server.suite.book.BookToolRegistry
 import ksl.server.suite.code.CodeToolRegistry
 import ksl.service.capability.run.BundleRegistry
+import ksl.service.usage.ToolUsageRecorder
 
 /**
  * The simulation capability — run / experiment / optimize / fit, plus guided prompts — backed by the
@@ -37,11 +38,12 @@ import ksl.service.capability.run.BundleRegistry
 class SimMcpCapability(
     private val tools: KslMcpTools,
     private val registry: BundleRegistry,
+    private val recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
 ) : McpToolCapability {
     override val id: String = "sim"
     override val instructions: String = SIM_INSTRUCTIONS
     override fun registerTools(server: Server) {
-        KslMcpServer.registerKslTools(server, tools)
+        KslMcpServer.registerKslTools(server, tools, recorder)
     }
 
     override fun readiness(): CapabilityReadiness {
@@ -54,11 +56,12 @@ class SimMcpCapability(
 class BookMcpCapability(
     private val store: BookStore,
     private val search: BookSearch,
+    private val recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
 ) : McpToolCapability {
     override val id: String = "book"
     override val instructions: String = BOOK_INSTRUCTIONS
     override fun registerTools(server: Server) {
-        BookToolRegistry.registerBookTools(server, store, search)
+        BookToolRegistry.registerBookTools(server, store, search, recorder)
     }
 
     override fun readiness(): CapabilityReadiness {
@@ -71,11 +74,12 @@ class BookMcpCapability(
 class CodeMcpCapability(
     private val store: CodeStore,
     private val search: CodeSearch,
+    private val recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
 ) : McpToolCapability {
     override val id: String = "code"
     override val instructions: String = CODE_INSTRUCTIONS
     override fun registerTools(server: Server) {
-        CodeToolRegistry.registerCodeTools(server, store, search)
+        CodeToolRegistry.registerCodeTools(server, store, search, recorder)
     }
 
     override fun readiness(): CapabilityReadiness {

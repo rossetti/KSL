@@ -29,9 +29,11 @@ import ksl.code.search.CodeStore
 import ksl.server.mcp.KslMcpTools
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
+import ksl.service.config.BuildInfo
 import ksl.service.config.ServerConfig
 import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
+import ksl.service.usage.UsageStore
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -56,6 +58,7 @@ fun main(args: Array<String>) {
 
 private fun runServer() {
     val config = ServerConfig.load()
+    val usage = UsageStore(config.appFolder().resolve("usage"))
     val capabilities = mutableListOf<McpToolCapability>()
     val cleanups = mutableListOf<() -> Unit>()
     // Only the simulation surface needs a readiness gate (its initial bundle scan); without it the
@@ -85,7 +88,7 @@ private fun runServer() {
             maxConcurrentJobs = config.server.maxConcurrentJobs,
             runDeadline = config.runDeadline(),
         )
-        capabilities += SimMcpCapability(kslTools, registry)
+        capabilities += SimMcpCapability(kslTools, registry, usage.recorderFor("sim"))
         cleanups += {
             watcherScope.cancel()
             kslTools.close()
@@ -95,20 +98,22 @@ private fun runServer() {
 
     if (config.bookEnabled()) {
         val bookStore = BookStore.instance
-        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore))
+        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore), usage.recorderFor("book"))
     }
 
     if (config.codeEnabled()) {
         val codeStore = CodeStore.instance
-        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore))
+        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore), usage.recorderFor("code"))
     }
 
     require(capabilities.isNotEmpty()) {
         "No capabilities enabled — enable at least one of sim/book/code in [capabilities] or via KSL_CAPABILITY_*."
     }
 
+    val adminOps = InProcessAdminOperations(BuildInfo.version, capabilities, usage)
     val server = KslSuiteMcpServer.create(
         capabilities = capabilities,
+        adminOps = adminOps,
         host = config.bindHost(),
         port = config.mcpPort(),
         ready = ready::get,

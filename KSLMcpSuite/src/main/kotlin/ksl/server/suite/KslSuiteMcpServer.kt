@@ -33,6 +33,9 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import kotlinx.serialization.json.Json
+import ksl.service.admin.ServerAdminOperations
+import ksl.service.admin.SuiteStatus
 import ksl.service.config.BuildInfo
 import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
@@ -85,6 +88,7 @@ object KslSuiteMcpServer {
      */
     fun create(
         capabilities: List<McpToolCapability>,
+        adminOps: ServerAdminOperations? = null,
         host: String = "127.0.0.1",
         port: Int = 3001,
         ready: () -> Boolean = { true },
@@ -120,9 +124,21 @@ object KslSuiteMcpServer {
             get("/version") {
                 call.respondText(HealthEndpoints.versionJson(SUITE_NAME), ContentType.Application.Json)
             }
+            if (adminOps != null) {
+                // Live server status: per-capability readiness + processing totals. Gated by the
+                // auth intercept when a token is set; open on the local-trust default.
+                get("/status") {
+                    call.respondText(
+                        adminJson.encodeToString(SuiteStatus.serializer(), adminOps.status()),
+                        ContentType.Application.Json,
+                    )
+                }
+            }
         }
         mcp { buildAggregatedServer(capabilities) }
     }
+
+    private val adminJson = Json { encodeDefaults = true }
 
     /** Suite preamble + each enabled capability's own routing guidance. */
     private fun instructionsFor(capabilities: List<McpToolCapability>): String = buildString {

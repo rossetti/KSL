@@ -25,6 +25,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import ksl.code.search.CodeSearch
 import ksl.code.search.CodeStore
+import ksl.service.usage.ToolUsageRecorder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -38,9 +39,9 @@ private const val KSL = "the Kotlin Simulation Library (KSL) — the discrete-ev
 
 /**
  * Registers the eight source-code tools onto a (possibly shared) MCP server, over a KSLCodeSearch
- * `CodeStore` + `CodeSearch`. Copied from the standalone KSLCodeMCPServer's tool registration; the
- * standalone `build()` server factory is intentionally omitted — the aggregated server is built by
- * `KslSuiteMcpServer` and this only contributes tools.
+ * `CodeStore` + `CodeSearch`. Every call is timed and recorded through [recorder] for the usage
+ * study (a no-op with the default NONE recorder). Copied from the standalone KSLCodeMCPServer's tool
+ * registration; the standalone `build()` server factory is intentionally omitted.
  */
 object CodeToolRegistry {
 
@@ -48,8 +49,43 @@ object CodeToolRegistry {
         server: Server,
         store: CodeStore = CodeStore.instance,
         search: CodeSearch = CodeSearch(store),
+        recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
     ) {
         val handlers = CodeToolHandlers(store, search)
+
+        // Local so it captures `recorder`; the tool definitions below are unchanged.
+        fun Server.addCodeTool(
+            name: String,
+            description: String,
+            properties: JsonObject = buildJsonObject {},
+            required: List<String> = emptyList(),
+            handler: (JsonObject) -> String,
+        ) {
+            addTool(name, description, ToolSchema(properties, required)) { request ->
+                val start = System.currentTimeMillis()
+                var ok = false
+                try {
+                    val text = handler(request.arguments ?: buildJsonObject {})
+                    ok = true
+                    logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
+                    CallToolResult(listOf(TextContent(text)))
+                } catch (e: ToolInputException) {
+                    CallToolResult(listOf(TextContent(e.message ?: "Invalid input.")), true)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    // Throwable, not Exception: even an Error must produce a response — an
+                    // unanswered request looks like a client timeout.
+                    logger.error(e) { "tool $name failed" }
+                    CallToolResult(
+                        listOf(TextContent("Internal error in $name: ${e::class.simpleName}: ${e.message}")),
+                        true,
+                    )
+                } finally {
+                    recorder.record(name, System.currentTimeMillis() - start, ok)
+                }
+            }
+        }
 
         server.addCodeTool(
             name = "search_code",
@@ -174,35 +210,6 @@ object CodeToolRegistry {
                 "the index build date, and the total declaration count. Use to verify the index is current " +
                 "with the course's KSL version.",
         ) { _ -> handlers.getServerInfo() }
-    }
-
-    private fun Server.addCodeTool(
-        name: String,
-        description: String,
-        properties: JsonObject = buildJsonObject {},
-        required: List<String> = emptyList(),
-        handler: (JsonObject) -> String,
-    ) {
-        addTool(name, description, ToolSchema(properties, required)) { request ->
-            val start = System.currentTimeMillis()
-            try {
-                val text = handler(request.arguments ?: buildJsonObject {})
-                logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
-                CallToolResult(listOf(TextContent(text)))
-            } catch (e: ToolInputException) {
-                CallToolResult(listOf(TextContent(e.message ?: "Invalid input.")), true)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                // Throwable, not Exception: even an Error must produce a response — an
-                // unanswered request looks like a client timeout.
-                logger.error(e) { "tool $name failed" }
-                CallToolResult(
-                    listOf(TextContent("Internal error in $name: ${e::class.simpleName}: ${e.message}")),
-                    true,
-                )
-            }
-        }
     }
 
     private fun JsonObject.string(key: String): String? =

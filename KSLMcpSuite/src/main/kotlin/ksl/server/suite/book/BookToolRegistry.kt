@@ -25,6 +25,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import ksl.book.search.BookSearch
 import ksl.book.search.BookStore
+import ksl.service.usage.ToolUsageRecorder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -38,9 +39,9 @@ private const val BOOK = "the textbook \"Simulation Modeling using the Kotlin Si
 
 /**
  * Registers the six textbook tools onto a (possibly shared) MCP server, over a KSLBookSearch
- * `BookStore` + `BookSearch`. Copied from the standalone KSLBookServer's tool registration; the
- * standalone `build()` server factory is intentionally omitted — in the suite the aggregated
- * server is built by `KslSuiteMcpServer` and this only contributes tools.
+ * `BookStore` + `BookSearch`. Every call is timed and recorded through [recorder] for the usage
+ * study (a no-op with the default NONE recorder). Copied from the standalone KSLBookServer's tool
+ * registration; the standalone `build()` server factory is intentionally omitted.
  */
 object BookToolRegistry {
 
@@ -48,8 +49,43 @@ object BookToolRegistry {
         server: Server,
         store: BookStore = BookStore.instance,
         search: BookSearch = BookSearch(store),
+        recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
     ) {
         val handlers = BookToolHandlers(store, search)
+
+        // Local so it captures `recorder`; the tool definitions below are unchanged.
+        fun Server.addBookTool(
+            name: String,
+            description: String,
+            properties: JsonObject = buildJsonObject {},
+            required: List<String> = emptyList(),
+            handler: (JsonObject) -> String,
+        ) {
+            addTool(name, description, ToolSchema(properties, required)) { request ->
+                val start = System.currentTimeMillis()
+                var ok = false
+                try {
+                    val text = handler(request.arguments ?: buildJsonObject {})
+                    ok = true
+                    logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
+                    CallToolResult(listOf(TextContent(text)))
+                } catch (e: ToolInputException) {
+                    CallToolResult(listOf(TextContent(e.message ?: "Invalid input.")), true)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    // Throwable, not Exception: an Error (class loading, OOM) must still
+                    // produce a response — an unanswered request looks like a client timeout
+                    logger.error(e) { "tool $name failed" }
+                    CallToolResult(
+                        listOf(TextContent("Internal error in $name: ${e::class.simpleName}: ${e.message}")),
+                        true,
+                    )
+                } finally {
+                    recorder.record(name, System.currentTimeMillis() - start, ok)
+                }
+            }
+        }
 
         server.addBookTool(
             name = "search_textbook",
@@ -156,35 +192,6 @@ object BookToolRegistry {
             required = listOf("section"),
         ) { args ->
             handlers.getRelatedSections(args.string("section") ?: throw ToolInputException("section is required."))
-        }
-    }
-
-    private fun Server.addBookTool(
-        name: String,
-        description: String,
-        properties: JsonObject = buildJsonObject {},
-        required: List<String> = emptyList(),
-        handler: (JsonObject) -> String,
-    ) {
-        addTool(name, description, ToolSchema(properties, required)) { request ->
-            val start = System.currentTimeMillis()
-            try {
-                val text = handler(request.arguments ?: buildJsonObject {})
-                logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
-                CallToolResult(listOf(TextContent(text)))
-            } catch (e: ToolInputException) {
-                CallToolResult(listOf(TextContent(e.message ?: "Invalid input.")), true)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                // Throwable, not Exception: an Error (class loading, OOM) must still
-                // produce a response — an unanswered request looks like a client timeout
-                logger.error(e) { "tool $name failed" }
-                CallToolResult(
-                    listOf(TextContent("Internal error in $name: ${e::class.simpleName}: ${e.message}")),
-                    true,
-                )
-            }
         }
     }
 
