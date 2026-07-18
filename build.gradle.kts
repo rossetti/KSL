@@ -312,8 +312,10 @@ val serverLauncherTemplate = """
     # The suite's support root (<KSL_HOME>/.support once installed): the shared lib/ and the
     # shipped example bundles. NOT the user's workspace.
     KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
+    # Pin cwd to our own dir: an agent may spawn us with an arbitrary/stale working directory.
+    cd "DOLLARDIR"
     JAVA=java
-    [ -n "DOLLARJAVA_HOME" ] && JAVA="DOLLARJAVA_HOME/bin/java"
+    [ -n "DOLLARJAVA_HOME" ] && [ -x "DOLLARJAVA_HOME/bin/java" ] && JAVA="DOLLARJAVA_HOME/bin/java"
     VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
     if [ -z "DOLLARVER" ] || ! [ "DOLLARVER" -ge 21 ] 2>/dev/null; then
       echo "@NAME@ needs Java 21 — the same JDK you use in IntelliJ."
@@ -352,11 +354,14 @@ fun jvmArgsOf(project: Project): String {
 // Windows .cmd launchers (written CRLF). Batch uses %VAR% / %* / ';' and no '$', so these
 // templates need no escaping. GUI apps use javaw + start (no lingering console); the KSL-runtime
 // servers and CLIs use java. The full Java-21 check stays in the installer preflight.
+// Each also pins its own dir (cd /d "%~dp0") so a client spawning the launcher with an arbitrary
+// or stale cwd can't break it, and trusts %JAVA_HOME% only when its java(w).exe exists (else PATH java).
 val winAppTemplate = """
     @echo off
     setlocal
+    cd /d "%~dp0"
     set "JAVAW=javaw"
-    if defined JAVA_HOME set "JAVAW=%JAVA_HOME%\bin\javaw.exe"
+    if defined JAVA_HOME if exist "%JAVA_HOME%\bin\javaw.exe" set "JAVAW=%JAVA_HOME%\bin\javaw.exe"
     "%JAVAW%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
@@ -369,8 +374,9 @@ val winAppTemplate = """
 val winServerTemplate = """
     @echo off
     setlocal
+    cd /d "%~dp0"
     set "JAVA=java"
-    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java.exe"
+    if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA=%JAVA_HOME%\bin\java.exe"
     "%JAVA%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
@@ -382,8 +388,9 @@ val winServerTemplate = """
 val winCliTemplate = """
     @echo off
     setlocal
+    cd /d "%~dp0"
     set "JAVA=java"
-    if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java.exe"
+    if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA=%JAVA_HOME%\bin\java.exe"
     "%JAVA%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
@@ -417,8 +424,9 @@ val guiServerDirs = setOf("mcp", "code", "book")
 val winServerGuiTemplate = """
     @echo off
     setlocal
+    cd /d "%~dp0"
     set "JAVAW=javaw"
-    if defined JAVA_HOME set "JAVAW=%JAVA_HOME%\bin\javaw.exe"
+    if defined JAVA_HOME if exist "%JAVA_HOME%\bin\javaw.exe" set "JAVAW=%JAVA_HOME%\bin\javaw.exe"
     "%JAVAW%" -version >nul 2>&1
     if errorlevel 1 (
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
