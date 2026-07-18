@@ -35,15 +35,16 @@ import ksl.service.store.ResultStore
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * HTTP entrypoint for the KSL MCP Suite — one long-running server exposing the simulation, textbook,
- * and source-code tool surfaces on a single MCP endpoint. This is the composition root: it builds
- * the heavy per-capability state ONCE, wraps each surface in an [McpToolCapability], and hands the
- * list to the serving helper. Settings come from `ServerConfig` (`~/.ksl/config.toml`); the listen
- * port is `server.mcpPort` (env `KSL_MCP_PORT`).
+ * HTTP entrypoint for the KSL MCP Suite — one long-running server exposing the enabled tool surfaces
+ * (simulation, textbook, source-code) on a single MCP endpoint. `main(args)` either performs a
+ * client-setup command (`--configure` / `--remove`, see `SetupCli`) or starts the server.
  *
- * The simulation state (bundle registry + run services) is the heavy part; the book/code stores load
- * their (small) JSON at first touch and their Lucene indexes build lazily on the first search, so
- * startup stays light.
+ * The server is the composition root: it builds the heavy per-capability state ONCE, wraps each
+ * enabled surface in an [McpToolCapability], and hands the list to the serving helper. Which surfaces
+ * are enabled comes from `ServerConfig` (`[capabilities]`, or `KSL_CAPABILITY_{SIM,BOOK,CODE}`);
+ * disabling `sim` skips the bundle registry and run services entirely, so a textbook-only deployment
+ * starts light. The book/code stores load their JSON at first touch and their Lucene indexes build
+ * lazily on the first search.
  */
 fun main(args: Array<String>) {
     if (SetupCli.isSetupCommand(args)) {
@@ -55,42 +56,56 @@ fun main(args: Array<String>) {
 
 private fun runServer() {
     val config = ServerConfig.load()
+    val capabilities = mutableListOf<McpToolCapability>()
+    val cleanups = mutableListOf<() -> Unit>()
+    // Only the simulation surface needs a readiness gate (its initial bundle scan); without it the
+    // server is ready as soon as it is listening.
+    val ready = AtomicBoolean(true)
 
-    // --- simulation capability state ---
-    val registry = BundleRegistry.empty()
-    val ready = AtomicBoolean(false) // flips true after the initial bundle scan (/ready)
-    val watcher = BundleDirectoryWatcher(registry, config.bundleDirs(), config.pollInterval())
-    watcher.scanOnce()
-    ready.set(true)
-    val watcherScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    watcher.start(watcherScope)
+    if (config.simEnabled()) {
+        val registry = BundleRegistry.empty()
+        ready.set(false) // not ready until the initial bundle scan completes
+        val watcher = BundleDirectoryWatcher(registry, config.bundleDirs(), config.pollInterval())
+        watcher.scanOnce()
+        ready.set(true)
+        val watcherScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        watcher.start(watcherScope)
 
-    val resultStore = ResultStore(
-        config.resultCacheDir(),
-        config.cache.maxMemoryBytes,
-        config.cache.maxDiskEntries,
-        config.cache.maxDiskBytes,
-    )
-    val artifactStore = ArtifactStore(config.outputRoot())
-    val kslTools = KslMcpTools(
-        registry,
-        resultStore,
-        artifactStore,
-        maxConcurrentJobs = config.server.maxConcurrentJobs,
-        runDeadline = config.runDeadline(),
-    )
+        val resultStore = ResultStore(
+            config.resultCacheDir(),
+            config.cache.maxMemoryBytes,
+            config.cache.maxDiskEntries,
+            config.cache.maxDiskBytes,
+        )
+        val artifactStore = ArtifactStore(config.outputRoot())
+        val kslTools = KslMcpTools(
+            registry,
+            resultStore,
+            artifactStore,
+            maxConcurrentJobs = config.server.maxConcurrentJobs,
+            runDeadline = config.runDeadline(),
+        )
+        capabilities += SimMcpCapability(kslTools, registry)
+        cleanups += {
+            watcherScope.cancel()
+            kslTools.close()
+            registry.close()
+        }
+    }
 
-    // --- search capability state (light; indexes build lazily on first search) ---
-    val bookStore = BookStore.instance
-    val bookSearch = BookSearch(bookStore)
-    val codeStore = CodeStore.instance
-    val codeSearch = CodeSearch(codeStore)
+    if (config.bookEnabled()) {
+        val bookStore = BookStore.instance
+        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore))
+    }
 
-    val capabilities = listOf(
-        SimMcpCapability(kslTools, registry),
-        BookMcpCapability(bookStore, bookSearch),
-        CodeMcpCapability(codeStore, codeSearch),
-    )
+    if (config.codeEnabled()) {
+        val codeStore = CodeStore.instance
+        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore))
+    }
+
+    require(capabilities.isNotEmpty()) {
+        "No capabilities enabled — enable at least one of sim/book/code in [capabilities] or via KSL_CAPABILITY_*."
+    }
 
     val server = KslSuiteMcpServer.create(
         capabilities = capabilities,
@@ -99,12 +114,6 @@ private fun runServer() {
         ready = ready::get,
         authToken = config.authToken(),
     )
-    Runtime.getRuntime().addShutdownHook(
-        Thread {
-            watcherScope.cancel()
-            kslTools.close()
-            registry.close()
-        },
-    )
+    Runtime.getRuntime().addShutdownHook(Thread { cleanups.forEach { runCatching { it() } } })
     server.start(wait = true)
 }

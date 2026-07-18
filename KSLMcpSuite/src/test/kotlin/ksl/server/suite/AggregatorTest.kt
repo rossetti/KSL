@@ -38,4 +38,20 @@ class AggregatorTest {
             kslTools.close()
         }
     }
+
+    /**
+     * Selective enablement (B5): the serving helper aggregates any subset of capabilities. A
+     * textbook + source-code server (simulation disabled) builds without the heavy sim state.
+     */
+    @Test
+    @DisplayName("aggregates a subset (book + code, simulation disabled) on one server")
+    fun buildsSubsetServerWithoutSim() {
+        val bookStore = BookStore.instance
+        val codeStore = CodeStore.instance
+        val capabilities: List<McpToolCapability> = listOf(
+            BookMcpCapability(bookStore, BookSearch(bookStore)),
+            CodeMcpCapability(codeStore, CodeSearch(codeStore)),
+        )
+        assertNotNull(KslSuiteMcpServer.buildAggregatedServer(capabilities))
+    }
 }

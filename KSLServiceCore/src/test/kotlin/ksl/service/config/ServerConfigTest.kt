@@ -141,4 +141,34 @@ class ServerConfigTest {
         assertEquals(home.resolve("a/b"), ServerConfig.expandHome("~/a/b"))
         assertEquals(Path.of("/abs/path"), ServerConfig.expandHome("/abs/path"))
     }
+
+    @Test
+    @DisplayName("capability flags default to enabled and honor the file value")
+    fun capabilityFlagsDefaultEnabledAndHonorFile() {
+        // KSL_CAPABILITY_* are not set in the test JVM, so the resolver falls through to the file
+        // value (then the default true).
+        if (System.getenv("KSL_CAPABILITY_SIM") == null) {
+            assertTrue(ServerConfig().simEnabled(), "sim enabled by default")
+            assertTrue(!ServerConfig(capabilities = CapabilitiesConfig(sim = false)).simEnabled(), "file value honored")
+        }
+        if (System.getenv("KSL_CAPABILITY_BOOK") == null) {
+            assertTrue(!ServerConfig(capabilities = CapabilitiesConfig(book = false)).bookEnabled())
+        }
+        if (System.getenv("KSL_CAPABILITY_CODE") == null) {
+            assertTrue(ServerConfig(capabilities = CapabilitiesConfig(code = true)).codeEnabled())
+        }
+    }
+
+    @Test
+    @DisplayName("a [capabilities] section disables one surface and defaults the rest")
+    fun capabilitiesSectionPartialDefaults() {
+        val toml = """
+            [capabilities]
+            book = false
+        """.trimIndent()
+        val config = ServerConfigToml.decode(toml)
+        assertTrue(!config.capabilities.book, "book disabled by the file")
+        assertTrue(config.capabilities.sim, "sim defaults to enabled")
+        assertTrue(config.capabilities.code, "code defaults to enabled")
+    }
 }
