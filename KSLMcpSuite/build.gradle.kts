@@ -1,7 +1,9 @@
-// KSLMcpSuite — the aggregated MCP server (WS2b). One long-running HTTP server that exposes the
-// simulation, source-code, and textbook tool surfaces on a single MCP endpoint, so a client
-// configures ONE server and gets every KSL tool. Depends on the three server modules for their
-// register*Tools providers and index/tool backends; the heavy state is constructed once and shared.
+// KSLMcpSuite — the aggregated MCP server and composition root. One long-running HTTP server that
+// exposes the simulation, textbook, and source-code tool surfaces on a single MCP endpoint, so a
+// client configures ONE server and gets every enabled tool. It owns the McpToolCapability contract
+// and the book/code MCP adapters; the simulation tools come from KSLServerMcp, and the search
+// backends from the mcp-free KSLBookSearch / KSLCodeSearch libraries. Heavy state is built once and
+// shared across SSE sessions.
 plugins {
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.serialization") version "2.2.0"
@@ -24,10 +26,10 @@ configurations.all {
 }
 
 dependencies {
-    implementation(project(":KSLServiceCore"))     // ServerConfig, stores, BundleRegistry, HealthEndpoints, ServerAuth
+    implementation(project(":KSLServiceCore"))     // ServerConfig, stores, BundleRegistry, HealthEndpoints, ServerAuth, BuildInfo
     implementation(project(":KSLServerMcp"))        // KslMcpServer.registerKslTools, KslMcpTools
-    implementation(project(":KSLBookServer"))       // BookMcpServer.registerBookTools, BookStore, BookSearch
-    implementation(project(":KSLCodeMCPServer"))    // CodeMcpServer.registerCodeTools, CodeStore, CodeSearch
+    implementation(project(":KSLBookSearch"))       // BookStore, BookSearch (mcp-free search library)
+    implementation(project(":KSLCodeSearch"))       // CodeStore, CodeSearch (mcp-free search library)
     implementation("io.modelcontextprotocol:kotlin-sdk:0.8.3")
     implementation("io.ktor:ktor-server-cio:3.2.3")
     implementation("io.ktor:ktor-server-core:3.2.3")

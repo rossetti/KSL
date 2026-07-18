@@ -22,10 +22,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import ksl.book.mcp.BookSearch
-import ksl.book.mcp.BookStore
-import ksl.code.mcp.CodeSearch
-import ksl.code.mcp.CodeStore
+import ksl.book.search.BookSearch
+import ksl.book.search.BookStore
+import ksl.code.search.CodeSearch
+import ksl.code.search.CodeStore
 import ksl.server.mcp.KslMcpTools
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
@@ -35,16 +35,20 @@ import ksl.service.store.ResultStore
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * HTTP entrypoint for the KSL MCP Suite — one long-running server exposing the simulation, code, and
- * textbook tool surfaces on a single MCP endpoint. Settings come from `ServerConfig`
- * (`~/.ksl/config.toml`); the listen port is `server.mcpPort` (env `KSL_MCP_PORT`).
+ * HTTP entrypoint for the KSL MCP Suite — one long-running server exposing the simulation, textbook,
+ * and source-code tool surfaces on a single MCP endpoint. This is the composition root: it builds
+ * the heavy per-capability state ONCE, wraps each surface in an [McpToolCapability], and hands the
+ * list to the serving helper. Settings come from `ServerConfig` (`~/.ksl/config.toml`); the listen
+ * port is `server.mcpPort` (env `KSL_MCP_PORT`).
  *
- * The heavy shared state is built once: the bundle registry + run services (as in the standalone
- * simulation server), and the book/code stores. The two Lucene indexes build lazily on the first
- * search of each, so startup stays light.
+ * The simulation state (bundle registry + run services) is the heavy part; the book/code stores load
+ * their (small) JSON at first touch and their Lucene indexes build lazily on the first search, so
+ * startup stays light.
  */
 fun main() {
     val config = ServerConfig.load()
+
+    // --- simulation capability state ---
     val registry = BundleRegistry.empty()
     val ready = AtomicBoolean(false) // flips true after the initial bundle scan (/ready)
     val watcher = BundleDirectoryWatcher(registry, config.bundleDirs(), config.pollInterval())
@@ -68,19 +72,20 @@ fun main() {
         runDeadline = config.runDeadline(),
     )
 
-    // The book/code stores load their (small) JSON at first touch; the Lucene indexes build lazily
-    // on the first search of each, so we do NOT warm them up here — startup stays light.
+    // --- search capability state (light; indexes build lazily on first search) ---
     val bookStore = BookStore.instance
     val bookSearch = BookSearch(bookStore)
     val codeStore = CodeStore.instance
     val codeSearch = CodeSearch(codeStore)
 
+    val capabilities = listOf(
+        SimMcpCapability(kslTools, registry),
+        BookMcpCapability(bookStore, bookSearch),
+        CodeMcpCapability(codeStore, codeSearch),
+    )
+
     val server = KslSuiteMcpServer.create(
-        kslTools = kslTools,
-        bookStore = bookStore,
-        bookSearch = bookSearch,
-        codeStore = codeStore,
-        codeSearch = codeSearch,
+        capabilities = capabilities,
         host = config.bindHost(),
         port = config.mcpPort(),
         ready = ready::get,

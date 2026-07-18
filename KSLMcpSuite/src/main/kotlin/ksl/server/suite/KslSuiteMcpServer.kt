@@ -33,73 +33,58 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
-import ksl.book.mcp.BookMcpServer
-import ksl.book.mcp.BookSearch
-import ksl.book.mcp.BookStore
-import ksl.code.mcp.CodeMcpServer
-import ksl.code.mcp.CodeSearch
-import ksl.code.mcp.CodeStore
-import ksl.server.mcp.KslMcpServer
-import ksl.server.mcp.KslMcpTools
+import ksl.service.config.BuildInfo
 import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
 
 /**
- * The KSL MCP Suite: ONE long-running HTTP MCP server that aggregates all three KSL tool surfaces —
- * the simulation server (run / experiment / optimize / fit), the source-code search server, and the
- * textbook search server — on a single MCP endpoint, so a client configures one server and gets
- * every tool. The heavy per-surface state (the bundle registry + run services, and the two Lucene
- * indexes) is constructed once and shared; the SDK's `mcp { }` installer builds a fresh aggregated
- * `Server` per SSE session, all delegating to that shared state.
+ * The KSL MCP Suite serving helper: ONE long-running HTTP MCP server that aggregates a set of
+ * [McpToolCapability] surfaces (simulation, textbook search, source-code search) on a single MCP
+ * endpoint, so a client configures one server and gets every enabled tool. The heavy per-capability
+ * state is constructed once in the composition root and captured by each capability; the SDK's
+ * `mcp { }` installer builds a fresh aggregated `Server` per SSE session, all delegating to that
+ * shared state.
+ *
+ * This unifies the ktor wiring that previously lived separately in `KslMcpHttpServer` (the
+ * simulation server) and this suite: content negotiation, the `ServerAuth` intercept, `/health`
+ * `/ready` `/version`, and the `mcp { }` SSE endpoint. Registering the tools is delegated to the
+ * capabilities, so the aggregator no longer knows the individual tool surfaces.
  *
  * Transport note (D9): this serves the SDK's SSE transport (proven, multi-session). Streamable HTTP
- * is a deferred refinement — the Phase-4 bridge connects via the client-side `mcpSse` transport.
+ * is a deferred refinement — the bridge connects via the client-side `mcpSse` transport.
  */
 object KslSuiteMcpServer {
 
     const val SUITE_NAME: String = "ksl-suite-mcp"
 
     /**
-     * Builds one MCP `Server` carrying the union of all three tool surfaces. Tool names are disjoint
-     * across the surfaces (the simulation `run_*`/`get_started`/…, code `search_code`/…, textbook
-     * `search_textbook`/…), so registering all three on one server never collides. The aggregated
-     * capabilities advertise both tools and prompts, because the simulation surface registers guided
-     * prompts (`KslMcpServer.registerKslTools`) while book/code register tools only.
+     * Builds one MCP `Server` carrying the union of the given capabilities' tools. Tool names are
+     * disjoint across surfaces, so registering all of them on one server never collides. The server
+     * instructions are the suite preamble followed by each enabled capability's own guidance, so a
+     * server running only a subset advertises only those surfaces.
      */
-    fun buildAggregatedServer(
-        kslTools: KslMcpTools,
-        bookStore: BookStore,
-        bookSearch: BookSearch,
-        codeStore: CodeStore,
-        codeSearch: CodeSearch,
-    ): Server {
+    fun buildAggregatedServer(capabilities: List<McpToolCapability>): Server {
         val server = Server(
-            serverInfo = Implementation(name = SUITE_NAME, version = ksl.service.config.BuildInfo.version),
+            serverInfo = Implementation(name = SUITE_NAME, version = BuildInfo.version),
             options = ServerOptions(
                 capabilities = ServerCapabilities(
                     tools = ServerCapabilities.Tools(listChanged = true),
                     prompts = ServerCapabilities.Prompts(listChanged = false),
                 ),
             ),
-            instructions = SUITE_INSTRUCTIONS,
+            instructions = instructionsFor(capabilities),
         )
-        KslMcpServer.registerKslTools(server, kslTools)
-        BookMcpServer.registerBookTools(server, bookStore, bookSearch)
-        CodeMcpServer.registerCodeTools(server, codeStore, codeSearch)
+        capabilities.forEach { it.registerTools(server) }
         return server
     }
 
     /**
      * Creates (but does not start) an embedded CIO server exposing the aggregated MCP surface over
-     * SSE, plus `/health` `/ready` `/version`. Mirrors `ksl.server.mcp.KslMcpHttpServer`; the `mcp { }`
-     * block builds a fresh aggregated server per session over the shared state passed in here.
+     * SSE, plus `/health` `/ready` `/version`. The `mcp { }` block builds a fresh aggregated server
+     * per session over the shared capability state passed in here.
      */
     fun create(
-        kslTools: KslMcpTools,
-        bookStore: BookStore,
-        bookSearch: BookSearch,
-        codeStore: CodeStore,
-        codeSearch: CodeSearch,
+        capabilities: List<McpToolCapability>,
         host: String = "127.0.0.1",
         port: Int = 3001,
         ready: () -> Boolean = { true },
@@ -136,21 +121,21 @@ object KslSuiteMcpServer {
                 call.respondText(HealthEndpoints.versionJson(SUITE_NAME), ContentType.Application.Json)
             }
         }
-        mcp { buildAggregatedServer(kslTools, bookStore, bookSearch, codeStore, codeSearch) }
+        mcp { buildAggregatedServer(capabilities) }
     }
 
-    // Connect-time orientation for all three surfaces, injected into the model's context on connect.
-    private const val SUITE_INSTRUCTIONS =
+    /** Suite preamble + each enabled capability's own routing guidance. */
+    private fun instructionsFor(capabilities: List<McpToolCapability>): String = buildString {
+        append(SUITE_PREAMBLE)
+        capabilities.forEach { c ->
+            c.instructions?.let {
+                append("\n\n")
+                append(it)
+            }
+        }
+    }
+
+    private const val SUITE_PREAMBLE =
         "This is the KSL MCP Suite for a simulation course using the Kotlin Simulation Library (KSL). " +
-            "It exposes three capabilities on one server; route by the user's intent:\n" +
-            "1. RUN and analyze simulation models — single runs, scenario comparisons, designed " +
-            "experiments, simulation-optimization, and distribution fitting (tools: run_model, " +
-            "run_experiment, run_optimization, fit_dataset, and more). If the user is unsure what to " +
-            "do, call get_started, which returns the live model catalog and routes to a workflow.\n" +
-            "2. SEARCH the KSL SOURCE CODE and API — for ANY question about a KSL class, function, or " +
-            "API, call search_code FIRST, then get_class and get_example, and cite the returned source " +
-            "URLs. Do not invent KSL names or signatures; verify them here.\n" +
-            "3. SEARCH the KSL TEXTBOOK — for ANY simulation concept, method, or homework question, " +
-            "call search_textbook FIRST (before general knowledge or web search), then get_section and " +
-            "cite the section URLs."
+            "It exposes the capabilities below on one server; route by the user's intent."
 }
