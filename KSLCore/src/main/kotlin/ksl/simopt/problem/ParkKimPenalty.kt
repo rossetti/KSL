@@ -37,7 +37,7 @@ class ParkKimMemory(
  *  visits ([ParkKimMemory]): a standardized measure of violation S that magnifies infeasibility as
  *  observations accumulate (Park and Kim 2015, Section 3.1), and a penalty sequence that appreciates
  *  for solutions that look infeasible and depreciates for those that look feasible (the [sequence]).
- *  The ranking-time contribution is lambda * [S]+ (their Section 3.1). The memory is folded at
+ *  The ranking-time contribution is lambda * (S)+ (their Section 3.1). The memory is folded at
  *  evaluation time by the evaluator via [foldVisit] and carried on the [Solution]; [penalty] only
  *  reads it, so the penalized objective stays a pure function of the solution.
  *

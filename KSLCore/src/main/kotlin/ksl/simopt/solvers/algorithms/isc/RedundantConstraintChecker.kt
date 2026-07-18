@@ -20,7 +20,7 @@ fun interface RedundantConstraintChecker {
 
 /**
  *  An exact, dependency-free redundancy checker for a *continuous* polytope based on Fourier–Motzkin
- *  elimination. A half-space `a · x <= b` is redundant with respect to [others] when the system
+ *  elimination. A half-space `a · x <= b` is redundant with respect to others when the system
  *  `others ∧ (a · x > b)` is infeasible. Strict violation is approximated by the closed system
  *  `others ∧ (-a · x <= -b - tolerance)`; if that system has no real solution, the target adds
  *  nothing and is redundant.

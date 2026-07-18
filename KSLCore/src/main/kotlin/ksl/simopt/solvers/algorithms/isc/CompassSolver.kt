@@ -162,7 +162,7 @@ class CompassSolver @JvmOverloads constructor(
      *  The cap on the total number of replications a single COMPASS run may request. When the
      *  accumulated request count reaches this cap the search stops (best-effort), bounding the run even
      *  when a noisy, flat landscape would otherwise keep the search moving. Must be >= 1. Complements
-     *  the per-iteration [maxIterations] ceiling and the local-optimality test's own per-system cap.
+     *  the per-iteration maxIterations ceiling and the local-optimality test's own per-system cap.
      */
     var maxReplications: Int = maxReplications
         set(value) {
