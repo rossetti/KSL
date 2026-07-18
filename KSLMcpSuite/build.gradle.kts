@@ -28,6 +28,7 @@ configurations.all {
 dependencies {
     implementation(project(":KSLServiceCore"))     // ServerConfig, stores, BundleRegistry, HealthEndpoints, ServerAuth, BuildInfo
     implementation(project(":KSLServerMcp"))        // KslMcpServer.registerKslTools, KslMcpTools
+    implementation(project(":KSLAgentConfig"))      // AgentConfigurator for the client-setup CLI
     implementation(project(":KSLBookSearch"))       // BookStore, BookSearch (mcp-free search library)
     implementation(project(":KSLCodeSearch"))       // CodeStore, CodeSearch (mcp-free search library)
     implementation("io.modelcontextprotocol:kotlin-sdk:0.8.3")

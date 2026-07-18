@@ -45,7 +45,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  * their (small) JSON at first touch and their Lucene indexes build lazily on the first search, so
  * startup stays light.
  */
-fun main() {
+fun main(args: Array<String>) {
+    if (SetupCli.isSetupCommand(args)) {
+        SetupCli.runAndReport(args)
+        return
+    }
+    runServer()
+}
+
+private fun runServer() {
     val config = ServerConfig.load()
 
     // --- simulation capability state ---
