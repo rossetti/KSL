@@ -16,6 +16,12 @@ repositories { mavenCentral() }
 kotlin { jvmToolchain(21) }
 
 dependencies {
+    // GUI: match the other KSL desktop apps' look/feel via the shared Swing module (Phase 5c). This
+    // pulls the app stack (KSLApp -> KSLCore) in, making the manager a normal-weight desktop app --
+    // acceptable because it is launched on demand, not a resident server.
+    implementation(project(":KSLCore"))
+    implementation(project(":KSLApp"))
+    implementation(project(":KSLAppSwingCommon"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0") // Claude config JSON merge
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
@@ -26,8 +32,7 @@ dependencies {
 }
 
 application {
-    // GUI entry point arrives with Phase 5c; for now the module ships the manager core.
-    mainClass.set("ksl.app.servers.SuiteProcessManagerKt")
+    mainClass.set("ksl.app.servers.ServerManagerAppKt")
 }
 
 tasks.test { useJUnitPlatform() }
