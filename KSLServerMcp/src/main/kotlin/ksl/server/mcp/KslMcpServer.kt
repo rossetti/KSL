@@ -62,7 +62,16 @@ object KslMcpServer {
             // from the same renderer the get_started tool/prompt use.
             instructions = KslMcpPrompts.serverInstructions(tools.availableBundles()),
         )
+        registerKslTools(server, tools)
+        return server
+    }
 
+    /**
+     * Registers the KSL simulation tools and guided prompts onto an existing (possibly shared) MCP
+     * server, so the same surface backs either the standalone `ksl` server (via `build`) or the
+     * aggregated KSLMcpSuite.
+     */
+    fun registerKslTools(server: Server, tools: KslMcpTools) {
         // get_started heads the tool list on purpose — the "start here" entry point a model can
         // call when the user is vague, so orientation is reachable by push, not only by prompt.
         server.addTool(
@@ -1293,7 +1302,5 @@ object KslMcpServer {
 
         // Guided-workflow prompts (Phase 8.7) over the same live catalog.
         KslMcpPrompts.register(server, tools)
-
-        return server
     }
 }
