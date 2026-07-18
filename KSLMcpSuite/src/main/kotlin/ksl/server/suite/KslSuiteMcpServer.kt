@@ -27,6 +27,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.request.path
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
@@ -34,6 +35,8 @@ import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import kotlinx.serialization.json.Json
+import ksl.agent.config.AgentConfigurator
+import ksl.agent.config.LaunchSpec
 import ksl.service.admin.ServerAdminOperations
 import ksl.service.admin.SuiteStatus
 import ksl.service.config.BuildInfo
@@ -132,6 +135,39 @@ object KslSuiteMcpServer {
                         adminJson.encodeToString(SuiteStatus.serializer(), adminOps.status()),
                         ContentType.Application.Json,
                     )
+                }
+                // The built-in web console (Phase-B7 skeleton; full UX in Phase E).
+                get("/admin") {
+                    call.respondText(
+                        AdminConsole.renderStatusHtml(adminOps.status(), adminOps.usageSummary()),
+                        ContentType.Text.Html,
+                    )
+                }
+                get("/admin/events") {
+                    // One SSE event per connection; the browser's EventSource reconnects for updates
+                    // (Phase E turns this into a persistent push stream).
+                    val data = "data: " +
+                        adminJson.encodeToString(SuiteStatus.serializer(), adminOps.status()) + "\n\n"
+                    call.respondText(data, ContentType.parse("text/event-stream"))
+                }
+                // Machine-local op: configure the local coding-agent client. Reachable ONLY over the
+                // loopback interface (absent in a hosted deployment, where students configure their
+                // own client to the URL).
+                post("/admin/config/client") {
+                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
+                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
+                        return@post
+                    }
+                    val bridge = call.request.queryParameters["bridge"]
+                    if (bridge.isNullOrBlank()) {
+                        call.respondText("bridge is required", ContentType.Text.Plain, HttpStatusCode.BadRequest)
+                        return@post
+                    }
+                    val url = call.request.queryParameters["url"] ?: "http://127.0.0.1:$port/"
+                    val results = AgentConfigurator.configure(SetupCli.SUITE_KEY, LaunchSpec(bridge, listOf("--url", url)))
+                    val body = if (results.isEmpty()) "No coding agents detected."
+                    else results.joinToString("\n") { "${it.agent}: ${it.action} -> ${it.path}" }
+                    call.respondText(body, ContentType.Text.Plain)
                 }
             }
         }
