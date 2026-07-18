@@ -4,6 +4,7 @@
 // configurator are layered on top in later steps. Deliberately light — NO KSLCore.
 plugins {
     kotlin("jvm") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
     application
 }
 
@@ -15,6 +16,7 @@ repositories { mavenCentral() }
 kotlin { jvmToolchain(21) }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0") // Claude config JSON merge
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
 
