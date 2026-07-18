@@ -267,7 +267,7 @@ val macLauncherTemplate = """
     # that itself from ~/.ksl/settings.toml.
     KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
     JAVA=java
-    [ -n "DOLLARJAVA_HOME" ] && JAVA="DOLLARJAVA_HOME/bin/java"
+    [ -n "DOLLARJAVA_HOME" ] && [ -x "DOLLARJAVA_HOME/bin/java" ] && JAVA="DOLLARJAVA_HOME/bin/java"
     VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
     if [ -z "DOLLARVER" ] || ! [ "DOLLARVER" -ge 21 ] 2>/dev/null; then
       echo "@NAME@ needs Java 21 — the same JDK you use in IntelliJ."
@@ -294,7 +294,7 @@ val cliLauncherTemplate = """
     set -e
     DIR="DOLLAR(cd "DOLLAR(dirname "DOLLAR0")" && pwd)"
     JAVA=java
-    [ -n "DOLLARJAVA_HOME" ] && JAVA="DOLLARJAVA_HOME/bin/java"
+    [ -n "DOLLARJAVA_HOME" ] && [ -x "DOLLARJAVA_HOME/bin/java" ] && JAVA="DOLLARJAVA_HOME/bin/java"
     VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
     if [ -z "DOLLARVER" ] || ! [ "DOLLARVER" -ge 21 ] 2>/dev/null; then
       echo "@NAME@ needs Java 21 — the same JDK you use in IntelliJ."
