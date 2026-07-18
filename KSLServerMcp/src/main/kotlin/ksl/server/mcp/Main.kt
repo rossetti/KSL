@@ -28,6 +28,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlin.system.exitProcess
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
@@ -62,6 +63,11 @@ fun runStdioServer() {
         System.setProperty("apple.awt.UIElement", "true")
     }
     serveStdio()
+    // The client disconnected (the transport closed) and cleanup ran. Force JVM exit rather than
+    // returning: a heavy run may have started non-daemon threads — the AWT EDT from a rendered
+    // fit-report plot, or a HikariCP pool — that would otherwise keep this now-clientless
+    // background process alive indefinitely (the orphaned-JVM leak this fixes).
+    exitProcess(0)
 }
 
 private fun serveStdio() = runBlocking {
@@ -87,8 +93,13 @@ private fun serveStdio() = runBlocking {
         System.out.asSink().buffered(),
     )
 
+    // Complete `done` from the TRANSPORT's onClose, not the Server's. The SDK's multi-session
+    // Server fires session teardown on stdin EOF (client disconnect) but never the server-level
+    // onClose — so hooking server.onClose left this coroutine parked in runBlocking forever, the
+    // root cause of the orphaned server JVMs. Registering on the transport BEFORE createSession
+    // chains ahead of the session's own teardown, with no race.
     val done = Job()
-    server.onClose { done.complete() }
+    transport.onClose { done.complete() }
     server.createSession(transport)
     done.join()
     watcherScope.cancel()

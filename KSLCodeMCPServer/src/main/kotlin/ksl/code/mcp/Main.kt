@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlin.system.exitProcess
 
 private val logger = KotlinLogging.logger {}
 
@@ -27,10 +28,16 @@ fun runStdioServer() {
         System.out.asSink().buffered(),
     )
     runBlocking {
+        // Complete `done` from the TRANSPORT's onClose, not the Server's: the SDK fires session
+        // teardown on stdin EOF (client disconnect) but never the server-level onClose, so hooking
+        // server.onClose left runBlocking parked forever — the orphaned-JVM leak. Registering on
+        // the transport BEFORE createSession chains ahead of the session's own teardown, no race.
         val done = Job()
-        server.onClose { done.complete() }
+        transport.onClose { done.complete() }
         server.createSession(transport)
         done.join()
     }
     logger.info { "server closed" }
+    // Force JVM exit rather than returning, so a now-clientless background process cannot linger.
+    exitProcess(0)
 }
