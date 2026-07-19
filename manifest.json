@@ -12,10 +12,6 @@
     { "id": "bundle",       "kind": "app",     "path": "Apps/Bundle" },
     { "id": "animation",    "kind": "app",     "path": "Apps/Animation" },
     { "id": "suite",        "kind": "server",  "path": "Servers/suite", "entry": "gui", "launcher": "ksl-server",   "display": "Server" },
-    { "id": "mcp",          "kind": "server",  "path": "Servers/mcp",  "entry": "gui", "launcher": "ksl-mcp",      "display": "MCP Setup"  },
-    { "id": "rest",         "kind": "server",  "path": "Servers/rest" },
-    { "id": "code",         "kind": "server",  "path": "Servers/code", "entry": "gui", "launcher": "ksl-code-mcp", "display": "Code Setup" },
-    { "id": "book",         "kind": "server",  "path": "Servers/book", "entry": "gui", "launcher": "ksl-book-mcp", "display": "Book Setup" },
     { "id": "kslpkg",       "kind": "tool",    "path": "Tools/kslpkg" },
     { "id": "examples",     "kind": "bundles", "path": "bundles" }
   ]

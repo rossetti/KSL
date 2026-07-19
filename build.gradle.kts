@@ -210,42 +210,13 @@ tasks.named("check") { dependsOn(validateKSLAppIcons) }
 // lets-plot / POI the shared lib/ carries), so it ships standalone under Tools/, NOT over lib/.
 val kslBundleTools = evaluationDependsOn(":KSLBundleTools")
 
-// KSL-runtime servers: (project, Servers/<dir>, extra launchers). They build on KSLServiceCore ->
-// KSLApp/KSLCore (already in the shared lib/), so they ship THIN over lib/ + a small server-lib/
-// of the extras the apps don't carry (KSLServiceCore, Ktor, MCP SDK). The primary launcher's main
-// is read from application{}; mcp adds an HTTP entry point that lives outside application{}, named
-// explicitly here.
-val kslServers: List<Triple<Project, String, List<Pair<String, String>>>> = listOf(
-    Triple(evaluationDependsOn(":KSLServerMcp"), "mcp", listOf("ksl-mcp-http" to "ksl.server.mcp.MainHttpKt")),
-    Triple(evaluationDependsOn(":KSLServerRest"), "rest", emptyList()),
-)
-
-// The PACKAGED entry point for a server's launcher, where that differs from the module's
-// application{mainClass}. KSLServerMcp's application{} names MainKt — the raw stdio server —
-// so `gradle run` starts stdio for developers; but the packaged entry is LauncherKt, which is
-// what its own shadowJar manifest declares (Main-Class = ksl.server.mcp.LauncherKt). Reading
-// application{} here made the installed ksl-mcp silently ignore --setup/--gui/--doctor and
-// fall through to stdio, so `ksl-mcp --doctor` just hung. Overriding here (rather than
-// changing application{}) keeps `gradle run` behaving as developers expect.
-val serverDistMain: Map<String, String> = mapOf(
-    "mcp" to "ksl.server.mcp.LauncherKt",
-)
-
-// Standalone MCP servers: (project, Servers/<dir>). Self-contained fat shadowJars that share
-// NOTHING with the KSL runtime stack (MCP SDK + Lucene, no KSLCore) — no lib/, no server-lib/.
-// ksl-book bakes in the git-ignored _book/ render (empty content if absent); ksl-code bakes a
-// Lucene index of KSL source built at assembly time (pinned via -PkslVersion, default develop).
-val kslStandaloneServers: List<Pair<Project, String>> = listOf(
-    evaluationDependsOn(":KSLCodeMCPServer") to "code",
-    evaluationDependsOn(":KSLBookServer") to "book",
-)
-
 // The consolidated MCP suite (Phase F): ONE Servers/suite/ dir holds THREE artifacts — the thin suite
 // server jar (ksl-suite-mcp, over the shared lib/ + a shared server-lib/), the thin "KSL Server" tray
 // agent (ksl-server, same lib/), and the self-contained stdio<->HTTP bridge (ksl-bridge, fat). The tray
 // execs the ksl-suite launcher as a managed child; stdio clients (Claude Desktop / Codex) spawn
-// ksl-bridge, which SetupCli auto-detects beside the suite jar. The generic kslServers loop stages one
-// jar per dir, so this trio gets its own staging block in assembleKSLWork below.
+// ksl-bridge, which SetupCli auto-detects beside the suite jar. The suite is the ONLY packaged server:
+// Phase I retired the standalone mcp/code/book servers, and the REST server is repo-only (a future
+// cloud seed), not shipped. This trio gets its own staging block in assembleKSLWork below.
 val kslSuite = evaluationDependsOn(":KSLMcpSuite")
 val kslServerTray = evaluationDependsOn(":KSLServerTray")
 val kslBridge = evaluationDependsOn(":KSLBridge")
@@ -420,17 +391,11 @@ fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: Str
 fun winCliLauncher(name: String, jvmArgs: String) =
     (winCliTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
 
-// Server dirs whose entry point opens the setup GUI (manifest `entry: "gui"`). These get the
-// shared server icon staged beside their launcher and a windowless GUI .cmd on Windows; `rest`
-// is absent, so it stays terminal-only. Keep in sync with manifest.json's `entry` fields.
-val guiServerDirs = setOf("mcp", "code", "book")
-
-// Windowless Windows GUI launcher for a setup-GUI server: javaw + start (no console), invoked
-// with NO args so Launcher.main opens the setup window. @EXEC@ is the java-invocation tail —
-// a shared-lib classpath + main class for the thin mcp server, or -jar for the fat code/book
-// servers — and @DFLAGS@ carries any extra -D properties. Windows needs this separate from the
-// stdio .cmd because that one uses console `java` (a real stdio channel the agent drives); a
-// double-click of it would leave a console window. The stdio .cmd itself is left untouched.
+// Windowless Windows GUI launcher for a GUI-entry server (manifest `entry: "gui"`): javaw + start
+// (no console), invoked with NO args so the main opens the setup/agent window. @EXEC@ is the
+// java-invocation tail — a shared-lib classpath + main class — and @DFLAGS@ carries any extra -D
+// properties. Windows needs this separate from a console `java` launcher, whose double-click would
+// leave a console window. Used by the suite's ksl-server (menu-bar) GUI launcher below.
 val winServerGuiTemplate = """
     @echo off
     setlocal
@@ -461,14 +426,6 @@ tasks.register("assembleKSLWork") {
     inputs.files(kslIconTargets.flatMap { target -> kslAppIconFiles(target) })
     dependsOn(kslBundleTools.tasks.named("shadowJar"))
     inputs.files(kslBundleTools.tasks.named("shadowJar"))
-    kslServers.forEach { (server, _, _) ->
-        dependsOn(server.tasks.named("jar"))
-        inputs.files(server.configurations.named("runtimeClasspath"))
-    }
-    kslStandaloneServers.forEach { (server, _) ->
-        dependsOn(server.tasks.named("shadowJar"))
-        inputs.files(server.tasks.named("shadowJar"))
-    }
     // The suite trio: thin suite + tray jars (over lib/ + a shared server-lib/) and the fat bridge jar.
     listOf(kslSuite, kslServerTray).forEach { server ->
         dependsOn(server.tasks.named("jar"))
@@ -537,57 +494,6 @@ tasks.register("assembleKSLWork") {
         // lib/ on the classpath, so the server gets its versions while the apps (which never see
         // server-lib/) keep lib/'s — no build-wide version alignment needed.
         val libModuleVersion = byModule.mapValues { it.value.first() }  // module -> version (one per)
-        kslServers.forEach { (server, dir, extraLaunchers) ->
-            val srvDir = root.resolve("Servers/$dir").apply { mkdirs() }
-            val jarBase = "ksl-$dir"
-            jarOf(server.tasks.named("jar")).copyTo(srvDir.resolve("$jarBase.jar"), overwrite = true)
-            val serverLibDir = srvDir.resolve("server-lib").apply { mkdirs() }
-            val overrides = mutableListOf<String>()
-            server.configurations.named("runtimeClasspath").get().resolvedConfiguration.resolvedArtifacts.forEach { art ->
-                val id = art.moduleVersion.id
-                val libVer = libModuleVersion["${id.group}:${id.name}"]
-                if (libVer != id.version) {  // not in lib/, or a different version -> goes in server-lib/
-                    art.file.copyTo(serverLibDir.resolve(art.file.name), overwrite = true)
-                    if (libVer != null) overrides += "${id.name} ${id.version} (lib/ has $libVer)"
-                }
-            }
-            val primaryMain = serverDistMain[dir]
-                ?: server.extensions.getByType(org.gradle.api.plugins.JavaApplication::class.java).mainClass.get()
-            val srvJvm = jvmArgsOf(server)
-            // Only the MCP stdio wrapper advertises its own path. AgentSetup writes a client
-            // config whose `command` is this script — the installed ksl-mcp.jar is THIN (no
-            // Main-Class, no deps), so the `java -jar <jar>` config AgentSetup writes by
-            // default cannot start it. The HTTP launcher must NOT advertise itself (a config
-            // pointing at it would start HTTP mode), and ksl-rest is not an MCP server.
-            val selfUnix = if (dir == "mcp") " \"-Dksl.mcp.launcher=DOLLARDIR/$jarBase\"" else ""
-            val selfWin = if (dir == "mcp") " \"-Dksl.mcp.launcher=%~dp0$jarBase.cmd\"" else ""
-            (listOf(jarBase to primaryMain) + extraLaunchers).forEachIndexed { i, (lname, main) ->
-                val su = if (i == 0) selfUnix else ""
-                val sw = if (i == 0) selfWin else ""
-                srvDir.resolve(lname).apply { writeText(serverLauncher(lname, jarBase, main, srvJvm, su)); setExecutable(true) }
-                srvDir.resolve("$lname.cmd").writeText(winServerLauncher(lname, jarBase, main, srvJvm, sw))
-            }
-            if (dir in guiServerDirs) {
-                // Stage the shared server icon (macOS .icns / Windows .ico / Linux PNGs) beside the
-                // launcher, so this server's entry point (made by bin/ksl / ksl.ps1) has its artwork.
-                kslAppIconFiles("server").forEach { icon ->
-                    require(icon.isFile) { "missing server icon asset: ${icon.path}" }
-                    icon.copyTo(srvDir.resolve(icon.name), overwrite = true)
-                }
-                // Windows GUI cmd: windowless javaw, the SAME shared-lib classpath as the stdio
-                // launcher, no args (→ setup GUI). -Dksl.mcp.launcher names the STDIO cmd (not this
-                // one) so "Configure my coding agent" writes a config the agent can actually run —
-                // the thin jar has no Main-Class, so `java -jar` would fail. macOS/Linux reuse the
-                // existing launcher (no args) instead and need no extra file (pruned there anyway).
-                val guiExec = "-cp \"%~dp0server-lib\\*;%~dp0..\\..\\lib\\*;%~dp0$jarBase.jar\" $primaryMain"
-                val guiDFlags = " \"-Dksl.builtinBundles=%~dp0..\\..\\bundles\"" +
-                    if (dir == "mcp") " \"-Dksl.mcp.launcher=%~dp0$jarBase.cmd\"" else ""
-                srvDir.resolve("$jarBase-gui.cmd").writeText(winServerGuiLauncher(jarBase, guiExec, srvJvm, guiDFlags))
-            }
-            logger.lifecycle("assembleKSLWork: Servers/$dir -> $jarBase.jar + " +
-                "${serverLibDir.listFiles()?.size ?: 0} server-lib jars (${overrides.size} shadow lib/) + ${1 + extraLaunchers.size} launcher(s)")
-            if (overrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   $dir server-lib/ overrides -> ${overrides.joinToString(", ")}")
-        }
 
         // The consolidated suite (Phase F): three artifacts in ONE Servers/suite/ dir. The thin suite and
         // tray jars share a server-lib/ (their extras not already in lib/); the bridge is a self-contained
@@ -603,7 +509,7 @@ tasks.register("assembleKSLWork") {
 
             // Shared server-lib/: the union of the suite's and tray's runtime deps NOT already carried by
             // lib/ at the same version (KSLServiceCore, KSLServerMcp, the search libs with their baked
-            // indexes, MCP SDK, Ktor, ...). Same lib/-ahead rule as the kslServers loop; dedup by filename.
+            // indexes, MCP SDK, Ktor, ...). server-lib/ goes AHEAD of lib/ on the classpath; dedup by filename.
             val suiteLibDir = suiteDir.resolve("server-lib").apply { mkdirs() }
             val suiteOverrides = sortedSetOf<String>()
             listOf(kslSuite, kslServerTray).forEach { proj ->
@@ -656,28 +562,6 @@ tasks.register("assembleKSLWork") {
             if (suiteOverrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   suite server-lib/ overrides -> ${suiteOverrides.joinToString(", ")}")
         }
 
-        // Standalone MCP servers: self-contained fat shadowJar + a pass-through launcher (system
-        // Java, no shared lib/). ksl-book's content depends on _book/ being rendered at build time.
-        kslStandaloneServers.forEach { (server, dir) ->
-            val name = "ksl-$dir-mcp"
-            val sdir = root.resolve("Servers/$dir").apply { mkdirs() }
-            jarOf(server.tasks.named("shadowJar")).copyTo(sdir.resolve("$name.jar"), overwrite = true)
-            val fatJvm = jvmArgsOf(server)
-            sdir.resolve(name).apply { writeText(cliLauncher(name, fatJvm)); setExecutable(true) }
-            sdir.resolve("$name.cmd").writeText(winCliLauncher(name, fatJvm))
-            if (dir in guiServerDirs) {
-                kslAppIconFiles("server").forEach { icon ->
-                    require(icon.isFile) { "missing server icon asset: ${icon.path}" }
-                    icon.copyTo(sdir.resolve(icon.name), overwrite = true)
-                }
-                // Windows GUI cmd: windowless javaw -jar, no args (→ setup GUI). The fat jar
-                // declares a Main-Class, so `java -jar` works and no -Dksl.mcp.launcher is needed
-                // (matching this server's flag-free stdio launcher). macOS/Linux reuse the launcher.
-                val guiExec = "-jar \"%~dp0$name.jar\""
-                sdir.resolve("$name-gui.cmd").writeText(winServerGuiLauncher(name, guiExec, fatJvm))
-            }
-            logger.lifecycle("assembleKSLWork: Servers/$dir -> $name.jar (self-contained fat) + launcher")
-        }
 
         // The shipped example bundles (see `exampleBundles` above). Without these a fresh
         // install opens an empty model picker and the student can do nothing until they
@@ -699,7 +583,7 @@ tasks.register("assembleKSLWork") {
         file("distribution/bin/ksl.cmd").copyTo(binDir.resolve("ksl.cmd"), overwrite = true)
 
         logger.lifecycle("assembleKSLWork: shared lib/ = ${libDir.listFiles()?.size ?: 0} jars; " +
-            "${kslAppTargets.size} apps; kslpkg; ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers + suite; bin/ksl(+.ps1/.cmd)")
+            "${kslAppTargets.size} apps; kslpkg; suite; bin/ksl(+.ps1/.cmd)")
     }
 }
 

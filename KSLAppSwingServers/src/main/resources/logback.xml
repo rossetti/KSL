@@ -1,6 +1,0 @@
-<configuration>
-    <!-- Match the other KSL desktop apps: a distinct log basename over the shared base config
-         (ships in KSLApp), so logs land in ~/.ksl/logs/ksl-servers.log with console at WARN+. -->
-    <property name="ksl.logfile" value="ksl-servers"/>
-    <include resource="ksl-logging-base.xml"/>
-</configuration>
