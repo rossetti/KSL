@@ -34,11 +34,14 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import ksl.agent.config.AgentConfigurator
 import ksl.agent.config.LaunchSpec
 import ksl.service.admin.ServerAdminOperations
 import ksl.service.admin.SuiteStatus
+import ksl.service.usage.UsageEvent
+import ksl.service.usage.UsageSummary
 import ksl.service.config.BuildInfo
 import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
@@ -149,6 +152,22 @@ object KslSuiteMcpServer {
                     val data = "data: " +
                         adminJson.encodeToString(SuiteStatus.serializer(), adminOps.status()) + "\n\n"
                     call.respondText(data, ContentType.parse("text/event-stream"))
+                }
+                // Usage aggregate + recent activity for an external UI / CLI (the built-in console
+                // reads them in-process). Same DTOs as ServerAdminOperations, so the KSLServerManager
+                // HttpAdminOperations parses them directly.
+                get("/admin/usage") {
+                    call.respondText(
+                        adminJson.encodeToString(UsageSummary.serializer(), adminOps.usageSummary()),
+                        ContentType.Application.Json,
+                    )
+                }
+                get("/admin/activity") {
+                    val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                    call.respondText(
+                        adminJson.encodeToString(ListSerializer(UsageEvent.serializer()), adminOps.recentActivity(limit)),
+                        ContentType.Application.Json,
+                    )
                 }
                 // Machine-local op: configure the local coding-agent client. Reachable ONLY over the
                 // loopback interface (absent in a hosted deployment, where students configure their

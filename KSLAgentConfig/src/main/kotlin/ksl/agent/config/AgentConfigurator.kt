@@ -47,6 +47,13 @@ object AgentConfigurator {
     /** Remove the `<entryKey>` entry from every detected agent. */
     fun remove(entryKey: String): List<ConfigResult> =
         adapters.mapNotNull { it.remove(entryKey) }
+
+    /** One agent's current configuration state for an entry. */
+    data class ClientState(val agent: String, val present: Boolean, val path: String)
+
+    /** Whether each detected agent currently has the `<entryKey>` entry (drives the clients panel). */
+    fun state(entryKey: String): List<ClientState> =
+        adapters.mapNotNull { it.state(entryKey) }
 }
 
 /** System property naming the agent-config redirect root. */
@@ -126,6 +133,16 @@ private interface AgentAdapter {
         } catch (e: Exception) {
             AgentConfigurator.ConfigResult(name, "left unchanged (${e.message})", f.path)
         }
+    }
+
+    /** This agent's current state for the entry (present == its config file contains the entry). */
+    fun state(entryKey: String): AgentConfigurator.ClientState? {
+        if (!present()) return null
+        val f = configFile()
+        val text = if (f.exists()) f.readText() else null
+        // removeEntry returns non-null iff the entry is present, so it doubles as a presence probe.
+        val has = text != null && runCatching { removeEntry(text, entryKey) }.getOrNull() != null
+        return AgentConfigurator.ClientState(name, has, f.path)
     }
 }
 

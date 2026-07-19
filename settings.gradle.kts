@@ -24,6 +24,7 @@ include(":KSLServerRest")
 include(":KSLCodeMCPServer")
 include(":KSLBookServer")
 include(":KSLMcpSuite")
+include(":KSLServerManager")
 include(":KSLBridge")
 include(":KSLAppSwingServers")
 
