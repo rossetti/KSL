@@ -73,7 +73,17 @@ class UsageStore(private val dir: Path) {
     private val lock = Any()
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Append one event (best-effort: a write failure never propagates into a tool call). */
+    // A bounded, current-run view kept in memory, so the console reads O(1) from here and never
+    // re-scans the growing file — and nothing accumulates unbounded in RAM (the ring is capped). The
+    // file (record / all) remains the durable, all-time study log.
+    private val ring = ArrayDeque<UsageEvent>()
+    private var runTotal = 0
+    private var runOk = 0
+    private val runByTool = LinkedHashMap<String, Int>()
+    private val runByCapability = LinkedHashMap<String, Int>()
+    private var runLastActivityMillis: Long? = null
+
+    /** Append one event to the durable log and the current-run view (best-effort: a write failure never propagates into a tool call). */
     fun record(event: UsageEvent) {
         synchronized(lock) {
             runCatching {
@@ -85,6 +95,13 @@ class UsageStore(private val dir: Path) {
                     StandardOpenOption.APPEND,
                 )
             }
+            ring.addLast(event)
+            while (ring.size > RING_CAPACITY) ring.removeFirst()
+            runTotal++
+            if (event.ok) runOk++
+            runByTool.merge(event.tool, 1, Int::plus)
+            runByCapability.merge(event.capability, 1, Int::plus)
+            runLastActivityMillis = event.timestampMillis
         }
     }
 
@@ -97,7 +114,7 @@ class UsageStore(private val dir: Path) {
             record(UsageEvent(tool, capability, System.currentTimeMillis(), durationMs, ok))
         }
 
-    /** All recorded events in insertion order (unreadable lines are skipped). */
+    /** ALL events ever recorded (all-time), read from the durable file — the CSV-export / study path. */
     fun all(): List<UsageEvent> = synchronized(lock) {
         if (!Files.isRegularFile(file)) return emptyList()
         runCatching {
@@ -107,22 +124,24 @@ class UsageStore(private val dir: Path) {
         }.getOrDefault(emptyList())
     }
 
-    /** The most recent [limit] events, newest first. */
-    fun recent(limit: Int): List<UsageEvent> = all().takeLast(limit).asReversed()
+    /** The most recent [limit] events of THIS run, newest first (from the bounded in-memory ring). */
+    fun recent(limit: Int): List<UsageEvent> = synchronized(lock) { ring.toList() }.takeLast(limit).asReversed()
 
-    /** Aggregate counts across all recorded events. */
-    fun summary(): UsageSummary {
-        val events = all()
-        return UsageSummary(
-            total = events.size,
-            ok = events.count { it.ok },
-            byTool = events.groupingBy { it.tool }.eachCount(),
-            byCapability = events.groupingBy { it.capability }.eachCount(),
-            lastActivityMillis = events.maxOfOrNull { it.timestampMillis },
+    /** Aggregate counts for THIS run, from in-memory counters (O(1); no file scan). */
+    fun summary(): UsageSummary = synchronized(lock) {
+        UsageSummary(
+            total = runTotal,
+            ok = runOk,
+            byTool = LinkedHashMap(runByTool),
+            byCapability = LinkedHashMap(runByCapability),
+            lastActivityMillis = runLastActivityMillis,
         )
     }
 
     companion object {
         const val FILE: String = "usage.jsonl"
+
+        /** Cap on the in-memory current-run ring — the console shows the last ~10; this is headroom. */
+        const val RING_CAPACITY: Int = 256
     }
 }

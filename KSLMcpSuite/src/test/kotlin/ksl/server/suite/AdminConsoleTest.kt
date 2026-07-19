@@ -84,6 +84,18 @@ class AdminConsoleTest {
     }
 
     @Test
+    @DisplayName("live-usage hooks, refresh, the Last-N-of-X label, the stale banner, and the restart reminder are present")
+    fun liveAffordances() {
+        val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = true)
+        assertTrue("id=\"feedTitle\"" in html && "id=\"usageBars\"" in html) // client re-render targets
+        assertTrue("id=\"refreshUsage\"" in html)                            // manual refresh button
+        assertTrue("last 1 of 5" in html)                                    // "Last N of X" (1 shown, 5 total)
+        assertTrue("id=\"stale\"" in html)                                   // stale-page banner element
+        assertTrue("refresh" in html.lowercase())
+        assertTrue("restart Claude Desktop / Codex" in html)                 // connected restart reminder
+    }
+
+    @Test
     @DisplayName("without loopback the machine-local controls are hidden but the console still renders")
     fun hidesLocalControlsWhenRemote() {
         val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = false)

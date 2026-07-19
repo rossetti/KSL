@@ -32,6 +32,7 @@ import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
 import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
+import ksl.service.usage.ToolUsageRecorder
 import ksl.service.usage.UsageStore
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -61,7 +62,10 @@ fun main(args: Array<String>) {
 
 private fun runServer() {
     val config = ServerConfig.load()
-    val usage = UsageStore(config.appFolder().resolve("usage"))
+    val usage = UsageStore(config.usageDir())
+    // Gate recording on the config; a disabled study yields a no-op recorder so nothing is written.
+    val recorder: (String) -> ToolUsageRecorder =
+        if (config.usageEnabled()) usage::recorderFor else { _ -> ToolUsageRecorder.NONE }
     val capabilities = mutableListOf<McpToolCapability>()
     val cleanups = mutableListOf<() -> Unit>()
     // Only the simulation surface needs a readiness gate (its initial bundle scan); without it the
@@ -91,7 +95,7 @@ private fun runServer() {
             maxConcurrentJobs = config.server.maxConcurrentJobs,
             runDeadline = config.runDeadline(),
         )
-        capabilities += SimMcpCapability(kslTools, registry, usage.recorderFor("sim"))
+        capabilities += SimMcpCapability(kslTools, registry, recorder("sim"))
         cleanups += {
             watcherScope.cancel()
             kslTools.close()
@@ -101,12 +105,12 @@ private fun runServer() {
 
     if (config.bookEnabled()) {
         val bookStore = BookStore.instance
-        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore), usage.recorderFor("book"))
+        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore), recorder("book"))
     }
 
     if (config.codeEnabled()) {
         val codeStore = CodeStore.instance
-        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore), usage.recorderFor("code"))
+        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore), recorder("code"))
     }
 
     require(capabilities.isNotEmpty()) {
@@ -121,6 +125,7 @@ private fun runServer() {
         port = config.mcpPort(),
         ready = ready::get,
         authToken = config.authToken(),
+        exportActivity = usage::all,   // CSV export = the durable all-time log, not the current-run view
     )
     Runtime.getRuntime().addShutdownHook(Thread { cleanups.forEach { runCatching { it() } } })
     server.start(wait = true)

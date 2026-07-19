@@ -27,13 +27,21 @@ class UsageStoreTest {
     }
 
     @Test
-    @DisplayName("recent returns newest first and persists across store instances")
-    fun recentNewestFirstAndPersists(@TempDir tmp: Path) {
+    @DisplayName("recent() is the newest-first current-run view; all() is the durable cross-instance log")
+    fun recentIsCurrentRunAllIsDurable(@TempDir tmp: Path) {
         UsageStore(tmp).recorderFor("code").record("search_code", 5, true)
-        UsageStore(tmp).recorderFor("code").record("get_class", 7, true)
-        val recent = UsageStore(tmp).recent(10) // a fresh instance reads the same JSONL file
-        assertEquals(2, recent.size)
-        assertEquals("get_class", recent.first().tool) // newest first
+        val store = UsageStore(tmp)
+        store.recorderFor("code").record("get_class", 7, true)
+
+        // recent() is THIS run only (the in-memory ring), newest first
+        val recent = store.recent(10)
+        assertEquals(1, recent.size)
+        assertEquals("get_class", recent.first().tool)
+        // a fresh instance has an empty current-run view (the ring is not seeded from the file)
+        assertEquals(0, UsageStore(tmp).recent(10).size)
+        // ...but the durable file holds all-time events across instances (the CSV-export path)
+        val all = UsageStore(tmp).all()
+        assertEquals(listOf("search_code", "get_class"), all.map { it.tool })
     }
 
     @Test

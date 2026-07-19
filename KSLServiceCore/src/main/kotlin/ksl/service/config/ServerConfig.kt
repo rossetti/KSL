@@ -49,6 +49,7 @@ data class ServerConfig(
     val cache: CacheConfig = CacheConfig(),
     val server: ServerSettings = ServerSettings(),
     val capabilities: CapabilitiesConfig = CapabilitiesConfig(),
+    val usage: UsageConfig = UsageConfig(),
 ) {
     /**
      * The bundle directories the server discovers, in priority order: the
@@ -147,6 +148,13 @@ data class ServerConfig(
     private fun capabilityEnabled(id: String, fileValue: Boolean): Boolean =
         System.getenv("KSL_CAPABILITY_$id")?.toBooleanStrictOrNull() ?: fileValue
 
+    /** Whether the local usage study is recorded: `KSL_USAGE_ENABLED` > `usage.enabled` > true. */
+    fun usageEnabled(): Boolean =
+        System.getenv("KSL_USAGE_ENABLED")?.toBooleanStrictOrNull() ?: usage.enabled
+
+    /** The directory holding the append-only usage log: `KSL_USAGE_DIR` > `usage.dir` > `<appFolder>/usage`. */
+    fun usageDir(): Path = resolveDir("KSL_USAGE_DIR", usage.dir, appFolder().resolve(USAGE_FOLDER))
+
     private fun resolveDir(env: String, fileValue: String?, default: Path): Path {
         val chosen = System.getenv(env)?.let { expandHome(it) } ?: fileValue?.let { expandHome(it) } ?: default
         runCatching { Files.createDirectories(chosen) }
@@ -166,6 +174,9 @@ data class ServerConfig(
         /** Subfolder of the server app folder holding the memoization result-cache
          *  (`KSLWork/KSLServer/result-cache/`) — kept in the workspace so `~/.ksl` stays settings-only. */
         const val RESULT_CACHE_FOLDER: String = "result-cache"
+
+        /** Subfolder of the app folder holding the append-only usage-study log (`usage/usage.jsonl`). */
+        const val USAGE_FOLDER: String = "usage"
 
         /** README written at the app-folder root so a user browsing the filesystem understands the layout. */
         private val APP_FOLDER_README: String = """
@@ -287,4 +298,18 @@ data class CapabilitiesConfig(
     val book: Boolean = true,
     @TomlComment("Enable the source-code search surface (search_code, ...). KSL_CAPABILITY_CODE overrides.")
     val code: Boolean = true,
+)
+
+/**
+ * The local usage study: an append-only JSONL log of tool invocations (tool name, capability, timing,
+ * ok/error, coarse client id — never arguments or results), for studying how students use the tools.
+ * The console shows a bounded current-run view; this file is the durable all-time record. Nothing is
+ * transmitted off the machine.
+ */
+@Serializable
+data class UsageConfig(
+    @TomlComment("Record the local usage study. KSL_USAGE_ENABLED overrides.")
+    val enabled: Boolean = true,
+    @TomlComment("Directory for the append-only usage log (usage.jsonl). Absent => <appFolder>/usage. KSL_USAGE_DIR overrides.")
+    val dir: String? = null,
 )

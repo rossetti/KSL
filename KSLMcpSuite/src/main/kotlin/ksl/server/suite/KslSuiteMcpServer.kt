@@ -102,6 +102,7 @@ object KslSuiteMcpServer {
         port: Int = 3001,
         ready: () -> Boolean = { true },
         authToken: String? = null,
+        exportActivity: () -> List<UsageEvent> = { emptyList() },
     ) = embeddedServer(CIO, host = host, port = port) {
         if (!authToken.isNullOrBlank()) {
             intercept(ApplicationCallPipeline.Plugins) {
@@ -149,7 +150,7 @@ object KslSuiteMcpServer {
                         AdminConsole.renderConsole(
                             status = adminOps.status(),
                             usage = adminOps.usageSummary(),
-                            activity = adminOps.recentActivity(20),
+                            activity = adminOps.recentActivity(10),
                             clients = AgentConfigurator.state(SetupCli.SUITE_KEY),
                             loopback = loopback,
                         ),
@@ -252,7 +253,8 @@ object KslSuiteMcpServer {
                 // Usage export as CSV (download). Local, read-only, no PII.
                 get("/admin/usage/export.csv") {
                     call.response.headers.append("Content-Disposition", "attachment; filename=\"ksl-usage.csv\"")
-                    call.respondText(AdminConsole.usageCsv(adminOps.recentActivity(Int.MAX_VALUE)), ContentType.parse("text/csv"))
+                    // The durable all-time log (exportActivity), not the console's bounded current-run view.
+                    call.respondText(AdminConsole.usageCsv(exportActivity()), ContentType.parse("text/csv"))
                 }
             }
         }

@@ -30,18 +30,22 @@ import java.time.format.DateTimeFormatter
  * The built-in web console the suite serves at `/admin` — the operator's answer to "is the KSL server
  * working, and if not, what do I do?", plus a usage-study surface. Server-rendered from the live
  * server state (via `InProcessAdminOperations`) and the local client-config; the header, capability
- * call-counts, and activity feed refresh live from the `/admin/events` SSE stream.
+ * call-counts, activity feed, and usage bars refresh live from the `/admin/events` SSE stream (the feed
+ * and bars re-fetch whenever the served count changes, so a tool call from any client appears without a
+ * page reload). A manual Refresh button forces an immediate update.
  *
- * The regions are ordered by the operator's workflow, not the implementation: **Clients first** (the
- * one thing that has to happen before any assistant can reach the server), then capabilities, activity
- * & usage, and diagnostics. The presentation shows the task, never the plumbing — button tooltips carry
- * the "what does this do" text, and the bridge command is auto-detected rather than typed. Start/stop
- * live in the menu-bar/tray app, so the console has no lifecycle controls.
+ * The regions are ordered by the operator's workflow: **Clients first**, then capabilities, activity &
+ * usage, and diagnostics. The activity feed shows a bounded current-run window (last 10 of this run) —
+ * the durable, all-time study log is the append-only `usage.jsonl` (CSV export). If the server stops,
+ * the SSE drop is surfaced as a clear "stale page" banner rather than a page that silently looks live.
  *
  * Rendering and the loopback check are pure functions (no HTTP), so they unit-test directly; the route
  * wiring in `KslSuiteMcpServer` is verified live at the phase gate.
  */
 object AdminConsole {
+
+    /** How many recent events the live feed shows (a bounded current-run window). */
+    private const val FEED_LIMIT = 10
 
     /** True when a request's remote address is the local loopback — the gate for machine-local ops. */
     fun isLoopbackHost(host: String): Boolean {
@@ -58,6 +62,7 @@ object AdminConsole {
         loopback: Boolean,
     ): String = buildString {
         append(PAGE_HEAD)
+        append(staleBanner())
         append(statusHeader(status))
         append(clientsSection(clients, loopback))     // first: setup is the prerequisite for everything else
         append(capabilitiesSection(status, loopback))
@@ -66,6 +71,11 @@ object AdminConsole {
         append(script(loopback))
         append(PAGE_TAIL)
     }
+
+    // A disconnected-state banner, hidden until the SSE stream drops and can't reconnect (server stopped).
+    private fun staleBanner(): String =
+        "<div id=\"stale\" class=\"stale\" hidden>&#9888; Server stopped &mdash; this page is stale. " +
+            "Restart KSL Server (menu&#8209;bar icon), then reload this page.</div>"
 
     // ---- region 1: status header (the trust surface) ----
     private fun statusHeader(status: SuiteStatus): String {
@@ -93,7 +103,6 @@ object AdminConsole {
             "<tr><td colspan='2' class='detail'>No coding assistant found on this machine (Claude Desktop or Codex).</td></tr>"
         } else {
             clients.joinToString("\n") { c ->
-                // The config-file path is trust info, not something to read every time — it lives on hover.
                 val badge = if (c.present)
                     "<span class='ok' title='${escape(c.path)}'>connected</span>"
                 else
@@ -101,7 +110,10 @@ object AdminConsole {
                 "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge</td></tr>"
             }
         }
-        // The buttons carry their own explanation as tooltips — no standing body prose, no bridge field.
+        // A standing reminder once configured — the tools appear only after the assistant restarts.
+        val connectedNote = if (anyConfigured)
+            "<div class=\"hint\">&#10003; Connected &mdash; <b>restart Claude Desktop / Codex</b> so it loads the KSL tools.</div>"
+        else ""
         val controls = when {
             !loopback ->
                 "<div class='hint'>Assistant setup is available from the console on the server's own machine.</div>"
@@ -116,7 +128,6 @@ object AdminConsole {
                     "<button id=\"rmClient\" class=\"secondary\" title=\"Removes the KSL entry from your assistant(s).\">Disconnect</button>",
                 )
                 append("</div>")
-                // Dev-only escape hatch: override the auto-detected bridge command. Hidden behind a disclosure.
                 append(
                     "<details class=\"adv\"><summary>Advanced</summary>" +
                         "<div class=\"row\"><input id=\"bridgeCmd\" placeholder=\"bridge command (leave blank to auto-detect)\"></div>" +
@@ -136,6 +147,7 @@ object AdminConsole {
               <h2>$heading</h2>
               $lead
               <table>$rows</table>
+              $connectedNote
               $controls
             </section>
         """.trimIndent()
@@ -175,6 +187,7 @@ object AdminConsole {
 
     // ---- region 4: activity & usage (the researcher surface) ----
     private fun activitySection(usage: UsageSummary, activity: List<UsageEvent>): String {
+        val shown = activity.take(FEED_LIMIT)
         val top = usage.byTool.entries.sortedByDescending { it.value }.take(8)
         val maxN = (top.maxOfOrNull { it.value } ?: 1).coerceAtLeast(1)
         val bars = top.joinToString("\n") { (tool, n) ->
@@ -182,7 +195,7 @@ object AdminConsole {
             "<div class='bar-row'><span class='bar-label'>${escape(tool)}</span><span class='bar'><span style='width:${pct}%'></span></span><span class='num'>$n</span></div>"
         }.ifBlank { "<div class='detail'>(no tool calls recorded yet)</div>" }
         val rate = "%.1f".format(usage.successRate * 100)
-        val feed = activity.take(20).joinToString("\n") { e ->
+        val feed = shown.joinToString("\n") { e ->
             val ok = if (e.ok) "<span class='ok'>ok</span>" else "<span class='err'>err</span>"
             "<tr><td class='detail'>${relTime(e.timestampMillis)}</td><td>${escape(e.capability)}</td><td class='cap'>${escape(e.tool)}</td><td class='num'>${e.durationMs}ms</td><td>$ok</td></tr>"
         }.ifBlank { "<tr><td colspan='5' class='detail'>(no recent activity)</td></tr>" }
@@ -191,14 +204,17 @@ object AdminConsole {
               <h2>Activity &amp; usage</h2>
               <div class="two-col">
                 <div>
-                  <h3>Live activity</h3>
+                  <h3 id="feedTitle">Live activity &mdash; last ${shown.size} of ${usage.total}</h3>
                   <table id="feed"><tr><th>when</th><th>surface</th><th>tool</th><th>ms</th><th></th></tr>$feed</table>
                 </div>
                 <div>
-                  <h3>Usage &middot; ${usage.total} calls, ${rate}% ok</h3>
-                  $bars
-                  <div class="row"><a class="btn" href="/admin/usage/export.csv">Export usage (CSV)</a></div>
-                  <div class="hint">Data stays on this machine &mdash; nothing is transmitted.</div>
+                  <h3 id="usageTitle">Usage &middot; ${usage.total} calls, ${rate}% ok</h3>
+                  <div id="usageBars">$bars</div>
+                  <div class="row">
+                    <a class="btn" href="/admin/usage/export.csv">Export usage (CSV)</a>
+                    <button id="refreshUsage" class="secondary" title="Re-read the current-run usage now.">Refresh</button>
+                  </div>
+                  <div class="hint">Live current-run view; the full study is the append-only log. Nothing is transmitted off this machine.</div>
                 </div>
               </div>
             </section>
@@ -212,6 +228,7 @@ object AdminConsole {
         return """
             <section>
               <h2>Diagnostics</h2>
+              <div class="hint">A copy-paste summary for a bug report or support email.</div>
               <pre id="diag">${escape(diag)}</pre>
               <div class="row"><button id="copyDiag" class="secondary" title="Copies the version + capability summary for a bug report.">Copy diagnostics</button></div>
               <div class="hint">The full server log is under <code>~/.ksl/logs</code>.</div>
@@ -247,24 +264,59 @@ object AdminConsole {
     private fun escape(s: String): String =
         s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
+    // Vanilla JS. Client-side render of the feed + usage bars mirrors the server-side markup, so the SSE
+    // tick (and the Refresh button) update those regions in place — no page reload. JS strings are
+    // double-quoted and the HTML they build uses single-quoted attributes, so no escaping is needed.
     private fun script(loopback: Boolean): String = """
         <script>
-          // Live status via SSE (the server sets retry, so EventSource re-polls on the server's cadence).
-          const es = new EventSource('/admin/events');
-          es.onmessage = (e) => {
-            try {
-              const s = JSON.parse(e.data);
-              const degraded = (s.capabilities || []).some(c => c.enabled && !c.ready);
-              document.getElementById('state').textContent = degraded ? 'DEGRADED' : 'RUNNING';
-              document.getElementById('lamp').className = 'lamp ' + (degraded ? 'degraded' : 'running');
-              document.getElementById('served').textContent = s.served;
-              (s.capabilities || []).forEach(c => {
-                const el = document.querySelector('[data-calls="' + c.id + '"]');
-                if (el) el.textContent = c.callCount;
-              });
-            } catch (_) {}
+          function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+          function relTime(ms){var a=Date.now()-ms;if(a<0)return new Date(ms).toLocaleTimeString();
+            if(a<60000)return Math.floor(a/1000)+"s ago";if(a<3600000)return Math.floor(a/60000)+"m ago";
+            if(a<86400000)return Math.floor(a/3600000)+"h ago";return new Date(ms).toLocaleString();}
+          function renderFeed(events,total){
+            var rows=events.map(function(e){return "<tr><td class='detail'>"+relTime(e.timestampMillis)+"</td><td>"+esc(e.capability)
+              +"</td><td class='cap'>"+esc(e.tool)+"</td><td class='num'>"+e.durationMs+"ms</td><td>"
+              +(e.ok?"<span class='ok'>ok</span>":"<span class='err'>err</span>")+"</td></tr>";}).join("")
+              ||"<tr><td colspan='5' class='detail'>(no recent activity)</td></tr>";
+            document.getElementById("feed").innerHTML="<tr><th>when</th><th>surface</th><th>tool</th><th>ms</th><th></th></tr>"+rows;
+            var ft=document.getElementById("feedTitle");if(ft)ft.innerHTML="Live activity &mdash; last "+events.length+" of "+total;
+          }
+          function renderUsage(s){
+            var total=s.total||0,ok=s.ok||0,rate=total?(100*ok/total).toFixed(1):"0.0";
+            document.getElementById("usageTitle").innerHTML="Usage &middot; "+total+" calls, "+rate+"% ok";
+            var t=s.byTool||{},top=Object.keys(t).map(function(k){return [k,t[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+            var maxN=Math.max.apply(null,[1].concat(top.map(function(x){return x[1];})));
+            var bars=top.map(function(x){var pct=Math.min(100,Math.max(2,Math.round(x[1]*100/maxN)));
+              return "<div class='bar-row'><span class='bar-label'>"+esc(x[0])+"</span><span class='bar'><span style='width:"+pct+"%'></span></span><span class='num'>"+x[1]+"</span></div>";}).join("")
+              ||"<div class='detail'>(no tool calls recorded yet)</div>";
+            document.getElementById("usageBars").innerHTML=bars;
+          }
+          var lastServed=-1;
+          async function refreshUsage(){
+            try{
+              var r=await Promise.all([fetch("/admin/usage").then(function(x){return x.json();}),
+                fetch("/admin/activity?limit=10").then(function(x){return x.json();})]);
+              renderUsage(r[0]);renderFeed(r[1],r[0].total||0);lastServed=r[0].total||0;
+            }catch(_){}
+          }
+          var staleTimer=null;
+          function showStale(){var b=document.getElementById("stale");if(b)b.hidden=false;document.body.classList.add("disconnected");}
+          function hideStale(){var b=document.getElementById("stale");if(b)b.hidden=true;document.body.classList.remove("disconnected");if(staleTimer){clearTimeout(staleTimer);staleTimer=null;}}
+          var es=new EventSource("/admin/events");
+          es.onmessage=function(e){
+            hideStale();
+            try{
+              var s=JSON.parse(e.data);
+              var degraded=(s.capabilities||[]).some(function(c){return c.enabled&&!c.ready;});
+              document.getElementById("state").textContent=degraded?"DEGRADED":"RUNNING";
+              document.getElementById("lamp").className="lamp "+(degraded?"degraded":"running");
+              document.getElementById("served").textContent=s.served;
+              (s.capabilities||[]).forEach(function(c){var el=document.querySelector('[data-calls="'+c.id+'"]');if(el)el.textContent=c.callCount;});
+              if(s.served!==lastServed){lastServed=s.served;refreshUsage();}
+            }catch(_){}
           };
-          es.onerror = () => { document.getElementById('lamp').className = 'lamp down'; document.getElementById('state').textContent = 'RECONNECTING'; };
+          es.onerror=function(){document.getElementById("lamp").className="lamp down";document.getElementById("state").textContent="DISCONNECTED";if(!staleTimer)staleTimer=setTimeout(showStale,5000);};
+          var rf=document.getElementById("refreshUsage");if(rf)rf.onclick=refreshUsage;
           ${if (loopback) LOOPBACK_JS else ""}
         </script>
     """.trimIndent()
@@ -283,7 +335,8 @@ object AdminConsole {
             const adv = document.getElementById('bridgeCmd');
             const b = adv && adv.value.trim();
             const q = b ? ('?bridge=' + encodeURIComponent(b)) : '';
-            alert(await post('/admin/config/client' + q));
+            const res = await post('/admin/config/client' + q);
+            alert(res + '\n\nNow RESTART Claude Desktop / Codex so it loads the KSL tools.');
             location.reload();
           };
           const rmBtn = document.getElementById('rmClient');
@@ -304,6 +357,9 @@ object AdminConsole {
           h1,h2,h3 { font-weight:600; } h2 { font-size:1rem; border-bottom:1px solid var(--line); padding-bottom:.3rem; }
           section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1rem 1.2rem; margin:1rem 0; }
           section.cta { border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.14); }
+          .stale { position:sticky; top:.4rem; z-index:10; background:#dc2626; color:#fff; padding:.6rem 1rem;
+            border-radius:8px; margin-bottom:1rem; font-weight:600; }
+          body.disconnected .hdr, body.disconnected section { opacity:.55; }
           .hdr { display:flex; align-items:center; gap:1rem; background:var(--card); border:1px solid var(--line);
             border-radius:10px; padding:1rem 1.2rem; }
           .hdr-main { flex:1; } .state { font-weight:700; letter-spacing:.05em; } .id { color:var(--muted); font-size:.85rem; }
