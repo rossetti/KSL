@@ -171,4 +171,12 @@ class ServerConfigTest {
         assertTrue(config.capabilities.sim, "sim defaults to enabled")
         assertTrue(config.capabilities.code, "code defaults to enabled")
     }
+
+    @Test
+    @DisplayName("usageDetail resolves OFF when disabled, else the configured level (default FULL)")
+    fun usageDetailResolves() {
+        assertEquals(ksl.service.usage.UsageLevel.FULL, ServerConfig().usageDetail())
+        assertEquals(ksl.service.usage.UsageLevel.OFF, ServerConfig(usage = UsageConfig(enabled = false)).usageDetail())
+        assertEquals(ksl.service.usage.UsageLevel.COUNTS, ServerConfig(usage = UsageConfig(detail = "counts")).usageDetail())
+    }
 }

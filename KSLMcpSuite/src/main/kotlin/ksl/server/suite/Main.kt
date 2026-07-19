@@ -30,10 +30,12 @@ import ksl.server.mcp.KslMcpTools
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
+import ksl.service.config.ServerConfigToml
 import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
-import ksl.service.usage.ToolUsageRecorder
+import ksl.service.usage.UsageLevel
 import ksl.service.usage.UsageStore
+import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -62,10 +64,9 @@ fun main(args: Array<String>) {
 
 private fun runServer() {
     val config = ServerConfig.load()
-    val usage = UsageStore(config.usageDir())
-    // Gate recording on the config; a disabled study yields a no-op recorder so nothing is written.
-    val recorder: (String) -> ToolUsageRecorder =
-        if (config.usageEnabled()) usage::recorderFor else { _ -> ToolUsageRecorder.NONE }
+    // The store's level (from config) gates recording — including OFF for the opt-out — so recording can
+    // be toggled live from the console without a restart.
+    val usage = UsageStore(config.usageDir(), config.usageDetail())
     val capabilities = mutableListOf<McpToolCapability>()
     val cleanups = mutableListOf<() -> Unit>()
     // Only the simulation surface needs a readiness gate (its initial bundle scan); without it the
@@ -95,7 +96,7 @@ private fun runServer() {
             maxConcurrentJobs = config.server.maxConcurrentJobs,
             runDeadline = config.runDeadline(),
         )
-        capabilities += SimMcpCapability(kslTools, registry, recorder("sim"))
+        capabilities += SimMcpCapability(kslTools, registry, usage.recorderFor("sim"))
         cleanups += {
             watcherScope.cancel()
             kslTools.close()
@@ -105,12 +106,12 @@ private fun runServer() {
 
     if (config.bookEnabled()) {
         val bookStore = BookStore.instance
-        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore), recorder("book"))
+        capabilities += BookMcpCapability(bookStore, BookSearch(bookStore), usage.recorderFor("book"))
     }
 
     if (config.codeEnabled()) {
         val codeStore = CodeStore.instance
-        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore), recorder("code"))
+        capabilities += CodeMcpCapability(codeStore, CodeSearch(codeStore), usage.recorderFor("code"))
     }
 
     require(capabilities.isNotEmpty()) {
@@ -118,6 +119,12 @@ private fun runServer() {
     }
 
     val adminOps = InProcessAdminOperations(SuiteBuildInfo.version, capabilities, usage)
+    val usageControl = UsageControl(
+        dir = config.usageDir().toString(),
+        level = { usage.level },
+        setLevel = { lvl -> usage.level = lvl; persistUsageLevel(lvl) },  // live + persisted (the opt-out)
+        exportAll = usage::all,       // CSV export = the durable all-time log, not the current-run view
+    )
     val server = KslSuiteMcpServer.create(
         capabilities = capabilities,
         adminOps = adminOps,
@@ -125,8 +132,19 @@ private fun runServer() {
         port = config.mcpPort(),
         ready = ready::get,
         authToken = config.authToken(),
-        exportActivity = usage::all,   // CSV export = the durable all-time log, not the current-run view
+        usage = usageControl,
     )
     Runtime.getRuntime().addShutdownHook(Thread { cleanups.forEach { runCatching { it() } } })
     server.start(wait = true)
+}
+
+/** Persist the chosen usage level to the config file so the opt-out survives a restart. */
+private fun persistUsageLevel(level: UsageLevel) {
+    runCatching {
+        val cfg = ServerConfig.load()
+        val updated = cfg.copy(usage = cfg.usage.copy(enabled = level != UsageLevel.OFF, detail = level.name.lowercase()))
+        val file = ServerConfig.activeConfigFile()   // the same file load() read — never clobber ~/.ksl when redirected
+        Files.createDirectories(file.parent)
+        Files.writeString(file, ServerConfigToml.encode(updated))
+    }
 }

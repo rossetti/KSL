@@ -21,6 +21,7 @@ package ksl.server.suite
 import ksl.agent.config.AgentConfigurator
 import ksl.service.admin.SuiteStatus
 import ksl.service.usage.UsageEvent
+import ksl.service.usage.UsageLevel
 import ksl.service.usage.UsageSummary
 import java.time.Instant
 import java.time.ZoneId
@@ -60,6 +61,8 @@ object AdminConsole {
         activity: List<UsageEvent>,
         clients: List<AgentConfigurator.ClientState>,
         loopback: Boolean,
+        usageLevel: UsageLevel = UsageLevel.FULL,
+        usageDir: String? = null,
     ): String = buildString {
         append(PAGE_HEAD)
         append(staleBanner())
@@ -67,6 +70,7 @@ object AdminConsole {
         append(clientsSection(clients, loopback))     // first: setup is the prerequisite for everything else
         append(capabilitiesSection(status, loopback))
         append(activitySection(usage, activity))
+        append(usageStudySection(usageLevel, usageDir, loopback))
         append(diagnosticsSection(status))
         append(script(loopback))
         append(PAGE_TAIL)
@@ -221,6 +225,39 @@ object AdminConsole {
         """.trimIndent()
     }
 
+    // ---- region: usage study (the opt-out + disclosure; student-facing) ----
+    private fun usageStudySection(level: UsageLevel, usageDir: String?, loopback: Boolean): String {
+        val disclosure = when (level) {
+            UsageLevel.OFF -> "Recording is <b>off</b> &mdash; nothing is stored."
+            UsageLevel.COUNTS -> "Recording which tools, sections, and searches are used and how they fare " +
+                "&mdash; but <b>no search text</b>. Stored locally; nothing is transmitted."
+            UsageLevel.FULL -> "Recording tool usage <b>including search text</b> (to study what students ask " +
+                "about). Stored locally; nothing is transmitted."
+        }
+        val where = usageDir?.let { "<div class=\"hint\">Log file: <code>${escape(it)}/usage.jsonl</code></div>" } ?: ""
+        val controls = if (loopback) {
+            val btns = listOf(
+                UsageLevel.OFF to "Off",
+                UsageLevel.COUNTS to "Counts (no text)",
+                UsageLevel.FULL to "Full",
+            ).joinToString("") { (lvl, label) ->
+                val active = if (lvl == level) " active" else ""
+                "<button class=\"lvl$active\" data-level=\"${lvl.name.lowercase()}\">$label</button>"
+            }
+            "<div class=\"row\">$btns</div>"
+        } else {
+            "<div class=\"hint\">Current level: ${level.name.lowercase()}. Change it from the console on the server's own machine.</div>"
+        }
+        return """
+            <section>
+              <h2>Usage study</h2>
+              <div class="hint">$disclosure</div>
+              $controls
+              $where
+            </section>
+        """.trimIndent()
+    }
+
     // ---- region 5: diagnostics (troubleshooting) ----
     private fun diagnosticsSection(status: SuiteStatus): String {
         val caps = status.capabilities.joinToString(", ") { "${it.id}=${if (it.enabled) "on" else "off"}" }
@@ -343,6 +380,7 @@ object AdminConsole {
           if (rmBtn) rmBtn.onclick = async () => { alert(await post('/admin/config/client/remove')); location.reload(); };
           const copyBtn = document.getElementById('copyDiag');
           if (copyBtn) copyBtn.onclick = () => navigator.clipboard.writeText(document.getElementById('diag').textContent);
+          document.querySelectorAll('.lvl').forEach(function(b){ b.onclick = async function(){ await post('/admin/config/usage?level=' + b.dataset.level); location.reload(); }; });
     """
 
     private val PAGE_HEAD = """
@@ -374,6 +412,8 @@ object AdminConsole {
           .hint { color:var(--muted); font-size:.82rem; margin-top:.5rem; }
           button,.btn { font:inherit; background:var(--accent); color:#fff; border:0; border-radius:6px; padding:.4rem .8rem;
             cursor:pointer; text-decoration:none; } button.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+          button.lvl { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+          button.lvl.active { background:var(--accent); color:#fff; }
           input { font:inherit; padding:.4rem .6rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); flex:1; min-width:16rem; }
           details.adv { margin-top:.6rem; } details.adv > summary { color:var(--muted); font-size:.82rem; cursor:pointer; list-style:revert; }
           details.adv[open] > summary { margin-bottom:.2rem; }

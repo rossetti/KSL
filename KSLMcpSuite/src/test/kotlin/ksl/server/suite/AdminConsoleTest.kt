@@ -4,6 +4,7 @@ import ksl.agent.config.AgentConfigurator
 import ksl.service.admin.CapabilityStatus
 import ksl.service.admin.SuiteStatus
 import ksl.service.usage.UsageEvent
+import ksl.service.usage.UsageLevel
 import ksl.service.usage.UsageSummary
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -93,6 +94,21 @@ class AdminConsoleTest {
         assertTrue("id=\"stale\"" in html)                                   // stale-page banner element
         assertTrue("refresh" in html.lowercase())
         assertTrue("restart Claude Desktop / Codex" in html)                 // connected restart reminder
+    }
+
+    @Test
+    @DisplayName("the Usage study panel shows the opt-out levels + disclosure and reflects the active level")
+    fun usageStudyPanel() {
+        val html = AdminConsole.renderConsole(
+            status, usage, activity, connected, loopback = true,
+            usageLevel = UsageLevel.COUNTS, usageDir = "/x/usage",
+        )
+        assertTrue("Usage study" in html)
+        assertTrue("data-level=\"off\"" in html && "data-level=\"counts\"" in html && "data-level=\"full\"" in html)
+        assertTrue("lvl active\" data-level=\"counts\"" in html)  // active reflects the current level
+        assertTrue("no search text" in html)                      // COUNTS disclosure
+        assertTrue("usage.jsonl" in html)                         // the file location is disclosed
+        assertTrue("/admin/config/usage" in html)                 // the opt-out endpoint the JS posts to
     }
 
     @Test

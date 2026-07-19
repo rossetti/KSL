@@ -24,7 +24,13 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
-/** One recorded tool invocation. `client` is a coarse agent id when known (no arguments, no PII). */
+/**
+ * One recorded tool invocation. The first six fields are always present; the rest are optional, filled
+ * selectively by each capability's recording wrapper (U2), and gated by the study's [UsageLevel] — the
+ * free-text fields (`query`, `paramsDigest`, `errorSummary`) are written only at [UsageLevel.FULL]. All
+ * additions are nullable so existing `usage.jsonl` lines decode unchanged. Never arguments or results
+ * beyond what a field explicitly captures; nothing is transmitted off the machine.
+ */
 @Serializable
 data class UsageEvent(
     val tool: String,
@@ -32,7 +38,15 @@ data class UsageEvent(
     val timestampMillis: Long,
     val durationMs: Long,
     val ok: Boolean,
-    val client: String? = null,
+    val client: String? = null,          // coarse agent id (claude-desktop / codex) — populated in U2
+    val sessionId: String? = null,       // per-connection id grouping a working session — U2
+    val errorClass: String? = null,      // NOT_FOUND | INVALID_INPUT | TIMEOUT | UNAVAILABLE | INTERNAL
+    val errorSummary: String? = null,    // short reason (FULL only)
+    val target: String? = null,          // the call's subject: section id / class fqn / model name — U2
+    val resultCount: Int? = null,        // hits (search) or 1/0 found (fetch) — U2
+    val topScore: Double? = null,        // top relevance score of a search — U2
+    val query: String? = null,           // raw search terms (FULL only) — U2
+    val paramsDigest: String? = null,    // compact, PII-free run config (FULL only) — U2
 )
 
 /** An aggregate view of recorded usage for the console / export. */
@@ -49,25 +63,79 @@ data class UsageSummary(
 }
 
 /**
- * Records one tool invocation. Implementations MUST be thread-safe — concurrent SSE sessions call
- * tools in parallel. [NONE] is the no-op used by the standalone servers and by tests.
+ * Privacy/detail level for the usage study, applied centrally in [UsageStore] so lowering it provably
+ * cannot leak text. `OFF` records nothing (the opt-out); `COUNTS` records everything except free text;
+ * `FULL` records all fields including the raw query.
  */
-fun interface ToolUsageRecorder {
-    fun record(tool: String, durationMs: Long, ok: Boolean)
+enum class UsageLevel {
+    OFF, COUNTS, FULL;
 
     companion object {
-        val NONE: ToolUsageRecorder = ToolUsageRecorder { _, _, _ -> }
+        /** Parse "off"/"counts"/"full" (case-insensitive); unknown ⇒ [FULL]. */
+        fun fromString(s: String?): UsageLevel = when (s?.trim()?.lowercase()) {
+            "off" -> OFF
+            "counts" -> COUNTS
+            else -> FULL
+        }
     }
 }
 
 /**
- * A LOCAL, append-only record of tool invocations for a usage study (which tools students actually
- * use, how often, and how often they fail). One JSONL file under the server workspace; nothing is
- * transmitted, and only the tool name, capability, timing, ok/error, and a coarse client id are
- * stored — never arguments or results. Writes append under a lock so concurrent sessions are safe;
- * reads (recent / summary) scan the file.
+ * The optional per-call detail a capability's recording wrapper contributes (U2). All nullable; the
+ * wrapper fills what it knows and [UsageStore] applies the active [UsageLevel] before writing.
  */
-class UsageStore(private val dir: Path) {
+data class UsageDetails(
+    val client: String? = null,
+    val sessionId: String? = null,
+    val errorClass: String? = null,
+    val errorSummary: String? = null,
+    val target: String? = null,
+    val resultCount: Int? = null,
+    val topScore: Double? = null,
+    val query: String? = null,
+    val paramsDigest: String? = null,
+)
+
+/** Maps a thrown error to a coarse [UsageEvent.errorClass] bucket; null for cancellation (not an error). */
+object UsageErrors {
+    fun classify(t: Throwable): String? = when (t) {
+        is kotlin.coroutines.cancellation.CancellationException -> null
+        is java.util.NoSuchElementException, is java.io.FileNotFoundException -> "NOT_FOUND"
+        is IllegalArgumentException -> "INVALID_INPUT"
+        is java.util.concurrent.TimeoutException -> "TIMEOUT"
+        is java.io.IOException -> "UNAVAILABLE"
+        else -> "INTERNAL"
+    }
+}
+
+/**
+ * Records one tool invocation. Implementations MUST be thread-safe — concurrent SSE sessions call tools
+ * in parallel. The 4-arg form is the SAM; the 3-arg form is a convenience so existing call sites (which
+ * pass no [UsageDetails]) keep compiling. [NONE] is the no-op used by the standalone servers and tests.
+ */
+fun interface ToolUsageRecorder {
+    fun record(tool: String, durationMs: Long, ok: Boolean, details: UsageDetails?)
+
+    fun record(tool: String, durationMs: Long, ok: Boolean): Unit = record(tool, durationMs, ok, null)
+
+    companion object {
+        val NONE: ToolUsageRecorder = ToolUsageRecorder { _, _, _, _ -> }
+    }
+}
+
+/**
+ * A LOCAL, append-only record of tool invocations for a usage study (which tools students actually use,
+ * how often, how often they fail, and — per the active [UsageLevel] — what they searched for). One JSONL
+ * file under the server workspace; nothing is transmitted. The [level] gates what is written: `OFF`
+ * records nothing, `COUNTS` records everything except free text, `FULL` records all fields. Writes append
+ * under a lock so concurrent sessions are safe; reads (recent / summary) use the in-memory current-run
+ * view, and `all()` reads the durable file for export.
+ */
+class UsageStore(private val dir: Path, initialLevel: UsageLevel = UsageLevel.FULL) {
+
+    /** The active detail level. Mutable (volatile) so the console can toggle the study live. */
+    @Volatile
+    var level: UsageLevel = initialLevel
 
     private val file: Path = dir.resolve(FILE)
     private val lock = Any()
@@ -83,25 +151,37 @@ class UsageStore(private val dir: Path) {
     private val runByCapability = LinkedHashMap<String, Int>()
     private var runLastActivityMillis: Long? = null
 
-    /** Append one event to the durable log and the current-run view (best-effort: a write failure never propagates into a tool call). */
+    /**
+     * Append one event to the durable log and the current-run view, applying the active [level]: `OFF`
+     * records nothing; `COUNTS` drops the free-text fields (`query`/`paramsDigest`/`errorSummary`) before
+     * anything is written or counted, so a lower level provably cannot leak text. Best-effort: a write
+     * failure never propagates into a tool call.
+     */
     fun record(event: UsageEvent) {
+        val lvl = level
+        if (lvl == UsageLevel.OFF) return
+        val e = if (lvl == UsageLevel.COUNTS) {
+            event.copy(query = null, paramsDigest = null, errorSummary = null)
+        } else {
+            event
+        }
         synchronized(lock) {
             runCatching {
                 Files.createDirectories(dir)
                 Files.writeString(
                     file,
-                    json.encodeToString(UsageEvent.serializer(), event) + "\n",
+                    json.encodeToString(UsageEvent.serializer(), e) + "\n",
                     StandardOpenOption.CREATE,
                     StandardOpenOption.APPEND,
                 )
             }
-            ring.addLast(event)
+            ring.addLast(e)
             while (ring.size > RING_CAPACITY) ring.removeFirst()
             runTotal++
-            if (event.ok) runOk++
-            runByTool.merge(event.tool, 1, Int::plus)
-            runByCapability.merge(event.capability, 1, Int::plus)
-            runLastActivityMillis = event.timestampMillis
+            if (e.ok) runOk++
+            runByTool.merge(e.tool, 1, Int::plus)
+            runByCapability.merge(e.capability, 1, Int::plus)
+            runLastActivityMillis = e.timestampMillis
         }
     }
 
@@ -110,8 +190,17 @@ class UsageStore(private val dir: Path) {
      * Hand this to a tool surface's registration so every call it serves is recorded uniformly.
      */
     fun recorderFor(capability: String): ToolUsageRecorder =
-        ToolUsageRecorder { tool, durationMs, ok ->
-            record(UsageEvent(tool, capability, System.currentTimeMillis(), durationMs, ok))
+        ToolUsageRecorder { tool, durationMs, ok, details ->
+            record(
+                UsageEvent(
+                    tool = tool, capability = capability, timestampMillis = System.currentTimeMillis(),
+                    durationMs = durationMs, ok = ok,
+                    client = details?.client, sessionId = details?.sessionId,
+                    errorClass = details?.errorClass, errorSummary = details?.errorSummary,
+                    target = details?.target, resultCount = details?.resultCount, topScore = details?.topScore,
+                    query = details?.query, paramsDigest = details?.paramsDigest,
+                ),
+            )
         }
 
     /** ALL events ever recorded (all-time), read from the durable file — the CSV-export / study path. */

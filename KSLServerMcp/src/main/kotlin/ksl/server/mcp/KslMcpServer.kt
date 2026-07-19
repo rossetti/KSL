@@ -92,10 +92,20 @@ object KslMcpServer {
             server.addTool(name = name, description = description, inputSchema = inputSchema, outputSchema = outputSchema) { request ->
                 val start = System.currentTimeMillis()
                 var ok = false
+                var errorClass: String? = null
                 try {
-                    handler(request).also { ok = it.isError != true }
+                    handler(request).also {
+                        ok = it.isError != true
+                        if (!ok) errorClass = "INVALID_INPUT" // a tool error result is usually bad input; U2 refines per tool
+                    }
+                } catch (t: Throwable) {
+                    errorClass = ksl.service.usage.UsageErrors.classify(t)
+                    throw t
                 } finally {
-                    recorder.record(name, System.currentTimeMillis() - start, ok)
+                    recorder.record(
+                        name, System.currentTimeMillis() - start, ok,
+                        errorClass?.let { ksl.service.usage.UsageDetails(errorClass = it) },
+                    )
                 }
             }
         }

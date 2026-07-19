@@ -64,25 +64,31 @@ object BookToolRegistry {
             addTool(name, description, ToolSchema(properties, required)) { request ->
                 val start = System.currentTimeMillis()
                 var ok = false
+                var errorClass: String? = null
                 try {
                     val text = handler(request.arguments ?: buildJsonObject {})
                     ok = true
                     logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
                     CallToolResult(listOf(TextContent(text)))
                 } catch (e: ToolInputException) {
+                    errorClass = "INVALID_INPUT"
                     CallToolResult(listOf(TextContent(e.message ?: "Invalid input.")), true)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Throwable) {
                     // Throwable, not Exception: an Error (class loading, OOM) must still
                     // produce a response — an unanswered request looks like a client timeout
+                    errorClass = ksl.service.usage.UsageErrors.classify(e)
                     logger.error(e) { "tool $name failed" }
                     CallToolResult(
                         listOf(TextContent("Internal error in $name: ${e::class.simpleName}: ${e.message}")),
                         true,
                     )
                 } finally {
-                    recorder.record(name, System.currentTimeMillis() - start, ok)
+                    recorder.record(
+                        name, System.currentTimeMillis() - start, ok,
+                        errorClass?.let { ksl.service.usage.UsageDetails(errorClass = it) },
+                    )
                 }
             }
         }

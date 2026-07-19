@@ -102,7 +102,7 @@ object KslSuiteMcpServer {
         port: Int = 3001,
         ready: () -> Boolean = { true },
         authToken: String? = null,
-        exportActivity: () -> List<UsageEvent> = { emptyList() },
+        usage: UsageControl? = null,
     ) = embeddedServer(CIO, host = host, port = port) {
         if (!authToken.isNullOrBlank()) {
             intercept(ApplicationCallPipeline.Plugins) {
@@ -153,6 +153,8 @@ object KslSuiteMcpServer {
                             activity = adminOps.recentActivity(10),
                             clients = AgentConfigurator.state(SetupCli.SUITE_KEY),
                             loopback = loopback,
+                            usageLevel = usage?.level?.invoke() ?: ksl.service.usage.UsageLevel.FULL,
+                            usageDir = usage?.dir,
                         ),
                         ContentType.Text.Html,
                     )
@@ -241,7 +243,7 @@ object KslSuiteMcpServer {
                             code = q["code"]?.toBooleanStrictOrNull() ?: cfg.capabilities.code,
                         ),
                     )
-                    val file = ServerConfig.defaultConfigFile()
+                    val file = ServerConfig.activeConfigFile()  // same file load() read; don't clobber ~/.ksl when redirected
                     java.nio.file.Files.createDirectories(file.parent)
                     java.nio.file.Files.writeString(file, ServerConfigToml.encode(updated))
                     call.respondText(
@@ -251,10 +253,21 @@ object KslSuiteMcpServer {
                     )
                 }
                 // Usage export as CSV (download). Local, read-only, no PII.
+                // Machine-local op: set the usage-study detail level (off/counts/full) LIVE and persist it
+                // — the student's opt-out. Loopback-only, like the other config writes.
+                post("/admin/config/usage") {
+                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
+                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
+                        return@post
+                    }
+                    val level = ksl.service.usage.UsageLevel.fromString(call.request.queryParameters["level"])
+                    usage?.setLevel?.invoke(level)
+                    call.respondText("Usage study set to ${level.name.lowercase()}.", ContentType.Text.Plain)
+                }
                 get("/admin/usage/export.csv") {
                     call.response.headers.append("Content-Disposition", "attachment; filename=\"ksl-usage.csv\"")
-                    // The durable all-time log (exportActivity), not the console's bounded current-run view.
-                    call.respondText(AdminConsole.usageCsv(exportActivity()), ContentType.parse("text/csv"))
+                    // The durable all-time log, not the console's bounded current-run view.
+                    call.respondText(AdminConsole.usageCsv(usage?.exportAll?.invoke() ?: emptyList()), ContentType.parse("text/csv"))
                 }
             }
         }

@@ -155,6 +155,14 @@ data class ServerConfig(
     /** The directory holding the append-only usage log: `KSL_USAGE_DIR` > `usage.dir` > `<appFolder>/usage`. */
     fun usageDir(): Path = resolveDir("KSL_USAGE_DIR", usage.dir, appFolder().resolve(USAGE_FOLDER))
 
+    /** The active study detail level: OFF when disabled, else `KSL_USAGE_DETAIL` > `usage.detail` > full. */
+    fun usageDetail(): ksl.service.usage.UsageLevel =
+        if (!usageEnabled()) {
+            ksl.service.usage.UsageLevel.OFF
+        } else {
+            ksl.service.usage.UsageLevel.fromString(System.getenv("KSL_USAGE_DETAIL") ?: usage.detail)
+        }
+
     private fun resolveDir(env: String, fileValue: String?, default: Path): Path {
         val chosen = System.getenv(env)?.let { expandHome(it) } ?: fileValue?.let { expandHome(it) } ?: default
         runCatching { Files.createDirectories(chosen) }
@@ -211,6 +219,13 @@ data class ServerConfig(
 
         /** `~/.ksl/config.toml` — the conventional config location. */
         fun defaultConfigFile(): Path = kslHome().resolve("config.toml")
+
+        /**
+         * The config file in effect: `KSL_CONFIG_FILE` when set, else [defaultConfigFile]. Writes that
+         * persist a console change (capabilities, usage level) MUST target this — the same file [load]
+         * reads — so persistence lands where the running server read from (and tests can redirect it).
+         */
+        fun activeConfigFile(): Path = System.getenv("KSL_CONFIG_FILE")?.let { expandHome(it) } ?: defaultConfigFile()
 
         /** `~/.ksl/bundles` — the default watched bundle directory. */
         fun defaultBundlesDir(): Path = kslHome().resolve("bundles")
@@ -312,4 +327,6 @@ data class UsageConfig(
     val enabled: Boolean = true,
     @TomlComment("Directory for the append-only usage log (usage.jsonl). Absent => <appFolder>/usage. KSL_USAGE_DIR overrides.")
     val dir: String? = null,
+    @TomlComment("Detail level: off | counts (no free text) | full. KSL_USAGE_DETAIL overrides; enabled=false forces off.")
+    val detail: String = "full",
 )
