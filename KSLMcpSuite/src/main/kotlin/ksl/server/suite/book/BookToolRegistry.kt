@@ -102,6 +102,7 @@ object BookToolRegistry {
                             query = args.string("query"),
                             target = args.string("section") ?: args.string("chapter"),
                             resultCount = reply?.resultCount, topScore = reply?.topScore,
+                            intent = args.string("intent"),
                         ),
                     )
                 }
@@ -132,6 +133,14 @@ object BookToolRegistry {
                 putJsonObject("maxResults") {
                     put("type", "integer")
                     put("description", "Number of results to return (default 5, max 10)")
+                }
+                putJsonObject("intent") {
+                    put("type", "string")
+                    put(
+                        "description",
+                        "Optional: the student's original question in their own words. Pass it (for the " +
+                            "local course usage study) when the search terms are your paraphrase of what they asked.",
+                    )
                 }
             },
             required = listOf("query"),

@@ -125,6 +125,7 @@ object KslMcpServer {
                             errorClass = errorClass, errorSummary = errorSummary,
                             target = simArg(a, "modelId") ?: simArg(a, "bundleId"),
                             paramsDigest = simParamsDigest(a),
+                            intent = simArg(a, "intent"),
                         ),
                     )
                 }

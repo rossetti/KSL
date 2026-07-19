@@ -144,7 +144,7 @@ class AdminConsoleTest {
                 client = "codex", query = "seize", resultCount = 3, topScore = 4.2,
             ),
         )
-        assertTrue(AdminConsole.usageCsv(events).lines()[0].endsWith("query,paramsDigest"))  // rich columns
+        assertTrue(AdminConsole.usageCsv(events).lines()[0].endsWith("query,paramsDigest,intent"))  // rich columns
         val jsonl = AdminConsole.usageJsonl(events)
         assertTrue(jsonl.lines().size == 1)
         assertTrue("\"query\":\"seize\"" in jsonl && "\"resultCount\":3" in jsonl && "\"client\":\"codex\"" in jsonl)

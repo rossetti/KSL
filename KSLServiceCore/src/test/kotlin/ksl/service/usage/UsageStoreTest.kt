@@ -30,13 +30,14 @@ class UsageStoreTest {
             "search_textbook", 10, true,
             UsageDetails(
                 query = "event scheduling", target = "sec-x", resultCount = 3, topScore = 4.2,
-                errorSummary = "boom", paramsDigest = "reps=30",
+                errorSummary = "boom", paramsDigest = "reps=30", intent = "how do events work?",
             ),
         )
         val e = store.recent(1).first()
         assertNull(e.query)
         assertNull(e.paramsDigest)
         assertNull(e.errorSummary)
+        assertNull(e.intent)
         assertEquals("sec-x", e.target)
         assertEquals(3, e.resultCount)
         assertEquals(4.2, e.topScore)

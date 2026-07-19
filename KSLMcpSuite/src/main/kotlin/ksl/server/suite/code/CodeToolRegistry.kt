@@ -100,6 +100,7 @@ object CodeToolRegistry {
                             query = args.string("query") ?: args.string("topic"),
                             target = args.string("fqn"),
                             resultCount = reply?.resultCount, topScore = reply?.topScore,
+                            intent = args.string("intent"),
                         ),
                     )
                 }
@@ -133,6 +134,14 @@ object CodeToolRegistry {
                 putJsonObject("module") {
                     put("type", "string")
                     put("description", "Optional filter: \"KSLCore\" (the API) or \"KSLExamples\" (worked programs)")
+                }
+                putJsonObject("intent") {
+                    put("type", "string")
+                    put(
+                        "description",
+                        "Optional: the student's original question in their own words. Pass it (for the " +
+                            "local course usage study) when the search terms are your paraphrase of what they asked.",
+                    )
                 }
             },
             required = listOf("query"),

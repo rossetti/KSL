@@ -47,6 +47,7 @@ data class UsageEvent(
     val topScore: Double? = null,        // top relevance score of a search — U2
     val query: String? = null,           // raw search terms (FULL only) — U2
     val paramsDigest: String? = null,    // compact, PII-free run config (FULL only) — U2
+    val intent: String? = null,          // the student's originating question, if the assistant passes it (FULL only) — U4
 )
 
 /** An aggregate view of recorded usage for the console / export. */
@@ -94,6 +95,7 @@ data class UsageDetails(
     val topScore: Double? = null,
     val query: String? = null,
     val paramsDigest: String? = null,
+    val intent: String? = null,
 )
 
 /**
@@ -170,7 +172,7 @@ class UsageStore(private val dir: Path, initialLevel: UsageLevel = UsageLevel.FU
         val lvl = level
         if (lvl == UsageLevel.OFF) return
         val e = if (lvl == UsageLevel.COUNTS) {
-            event.copy(query = null, paramsDigest = null, errorSummary = null)
+            event.copy(query = null, paramsDigest = null, errorSummary = null, intent = null)
         } else {
             event
         }
@@ -207,7 +209,7 @@ class UsageStore(private val dir: Path, initialLevel: UsageLevel = UsageLevel.FU
                     client = details?.client, sessionId = details?.sessionId,
                     errorClass = details?.errorClass, errorSummary = details?.errorSummary,
                     target = details?.target, resultCount = details?.resultCount, topScore = details?.topScore,
-                    query = details?.query, paramsDigest = details?.paramsDigest,
+                    query = details?.query, paramsDigest = details?.paramsDigest, intent = details?.intent,
                 ),
             )
         }

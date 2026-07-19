@@ -289,7 +289,7 @@ object AdminConsole {
     fun usageCsv(events: List<UsageEvent>): String = buildString {
         appendLine(
             "timestampMillis,capability,tool,durationMs,ok,client,sessionId,errorClass,errorSummary," +
-                "target,resultCount,topScore,query,paramsDigest",
+                "target,resultCount,topScore,query,paramsDigest,intent",
         )
         events.forEach { e ->
             appendLine(
@@ -297,7 +297,7 @@ object AdminConsole {
                     e.timestampMillis.toString(), csv(e.capability), csv(e.tool), e.durationMs.toString(),
                     e.ok.toString(), csv(e.client ?: ""), csv(e.sessionId ?: ""), csv(e.errorClass ?: ""),
                     csv(e.errorSummary ?: ""), csv(e.target ?: ""), e.resultCount?.toString() ?: "",
-                    e.topScore?.toString() ?: "", csv(e.query ?: ""), csv(e.paramsDigest ?: ""),
+                    e.topScore?.toString() ?: "", csv(e.query ?: ""), csv(e.paramsDigest ?: ""), csv(e.intent ?: ""),
                 ).joinToString(","),
             )
         }
