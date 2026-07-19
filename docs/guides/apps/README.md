@@ -35,18 +35,9 @@ long-running server that gives an AI assistant searchable, tool-driven access to
 surfaces at once — running models, the source code, and the textbook — started from a
 menu-bar / system-tray app and set up with one click from a web console.
 
-| Guide | What it's for | Status |
-|---|---|---|
-| **[KSL Server](ksl-server.md)** | **Start here.** One server, all three tool surfaces (models, textbook, source), one-click setup, web console. | ✅ Recommended |
-| **[MCP Server](mcp-server.md)** | Run and analyze models from an AI assistant over the Model Context Protocol. | Legacy — superseded by KSL Server |
-| **[Code MCP Server](mcp-server-code.md)** | Give an AI assistant searchable access to the KSL **source code** and API. | Legacy — superseded by KSL Server |
-| **[Book MCP Server](mcp-server-book.md)** | Give an AI assistant searchable access to the KSL **textbook**. | Legacy — superseded by KSL Server |
-| **REST Server** | Drive models over plain HTTP from scripts and web apps. The server module ships; a user guide is planned. | Guide planned |
-
-The three standalone MCP servers still ship, but the KSL Server consolidates them into one
-process and will replace them. Managing the older servers' Java processes? See
-**[Managing MCP server processes](mcp-process-management.md)** — why you may see multiple Java
-processes, and how to turn them off when you're not using them.
+See the **[KSL Server guide](ksl-server.md)** to install it, open the console, connect your
+assistant with one click, and make a first tool call. It runs headless too, and you can serve
+just some surfaces (say, textbook search only for a course that isn't modeling yet).
 
 ## How the apps relate
 

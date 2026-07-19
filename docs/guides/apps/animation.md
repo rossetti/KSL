@@ -265,5 +265,5 @@ station contents, and fit/zoom.
   [`ksl-agent`](../ksl-agent.md) (agent-based models and the capture overlays).
 - The other desktop apps — [Single](single.md) · [Scenario](scenario.md) ·
   [Experiment](experiment.md) · [Simopt](simopt.md) · [Results](results.md).
-- [MCP Server](mcp-server.md) — an AI assistant can auto-derive, render, and export
+- [KSL Server](ksl-server.md) — an AI assistant can auto-derive, render, and export
   an animation layout for the desktop app to open.

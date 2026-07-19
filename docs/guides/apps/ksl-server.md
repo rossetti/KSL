@@ -9,21 +9,16 @@ surfaces on a single endpoint:
 - **search the KSL textbook** — sections, chapter outlines, and exercises, with cited URLs;
 - **search the KSL source code** — the public API and the worked examples.
 
-You talk to the assistant in plain language; it calls the tools. Unlike the older setup —
-three separate servers, each its own cold-starting process with its own Setup app — you now
-run **one** server: you start it from a **menu-bar / system-tray app**, connect your client
-with **one click**, and manage everything from a **web console** in your browser. No JSON to
-edit, and one warm server shared by every client instead of three JVMs starting up per chat.
+You talk to the assistant in plain language; it calls the tools. You run **one** server: start
+it from a **menu-bar / system-tray app**, connect your client with **one click**, and manage
+everything from a **web console** in your browser. No JSON to edit, and one warm server is
+shared by every client.
 
 > **You will need:** the KSL suite installed (see [Install the KSL suite](install.md)) and an
 > **MCP-capable client** (this guide uses Claude Desktop). That's it — the server ships with
 > the suite, already knows the example models, and wires itself into your client. Unlike the
 > desktop-app guides, this is a *server* your assistant drives, so the examples below are
 > **real tool interactions**, not screenshots.
->
-> This guide replaces the three standalone server guides — [MCP Server](mcp-server.md),
-> [Code MCP Server](mcp-server-code.md), and [Book MCP Server](mcp-server-book.md). Those
-> still ship for now, but the KSL Server supersedes all three. **Start here.**
 
 ## What you'll be able to do
 
@@ -52,14 +47,13 @@ the console configures for you.
 | **book** | search the KSL textbook and cite it | `search_textbook`, `get_section`, `get_chapter_outline`, `list_chapters`, `get_exercises` |
 | **code** | search the KSL source code and API | `search_code`, `get_class`, `get_example`, `find_subclasses`, `get_package_overview` |
 
-The full simulation tool catalog (and worked run/experiment/optimization/fit transcripts) is
-documented in the [MCP Server](mcp-server.md) guide — every one of those tools is available
-here, on the same server as textbook and code search.
+Your assistant discovers every tool the server exposes and picks the right one from plain
+language — ask it to run a model, compare scenarios, design an experiment, optimize inputs, or
+fit a distribution. `get_started` gives it the live model catalog and a suggested workflow.
 
-| Use **the KSL Server** when… | Use a sibling when… |
-|---|---|
-| You want an **AI assistant** to run models, and to answer course and code questions from the real book and source. | You want a hands-on GUI → the [desktop apps](README.md) (Single, Scenario, …). |
-| You want **one** server, set up once, warm and shared by every client. | You want to script runs from a shell or web app → the **REST** server. |
+Use the KSL Server when you want an **AI assistant** to run models and answer course and code
+questions from the real book and source. Prefer a hands-on GUI? The [desktop apps](README.md)
+(Single, Scenario, …) reach the same KSL capabilities.
 
 ---
 
@@ -157,9 +151,10 @@ URLs. Try the others too:
 > *"List the available models and run the DriveThroughPharmacyWithQ for 30 replications."*
 > *"Search the KSL source for how to seize and release a resource."*
 
-You're connected. For a full worked run — reading the result table, comparing scenarios,
-optimizing, fitting — follow the [MCP Server](mcp-server.md) tutorial; every tool there runs
-on this same server.
+You're connected. From here, just ask in plain language — run a model and read the result
+table, compare scenarios, design an experiment, optimize inputs, or fit a distribution; the
+assistant calls the right tool. Ask it to *"get started"* for the live model catalog and a
+suggested workflow.
 
 ### Step 6 — Leave it running (or quit)
 
@@ -334,8 +329,6 @@ then the default:
 
 - [Installing the KSL Applications](install.md) — install, update, and uninstall the suite.
 - [Common UI & concepts](common-ui.md) — models & bundles, the workspace, reports.
-- [MCP Server](mcp-server.md) — the full simulation tool catalog and worked
-  run / experiment / optimization / fit transcripts; every tool there runs on the KSL Server.
 - The desktop app guides — [Single](single.md), [Scenario](scenario.md),
   [Experiment](experiment.md), [Simopt](simopt.md), [Results](results.md),
   [Distribution](distribution.md) — the GUI way to reach the same KSL capabilities.

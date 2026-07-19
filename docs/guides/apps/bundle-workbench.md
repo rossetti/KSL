@@ -208,7 +208,7 @@ supported apps and catalog) and, per model, a **`descriptor.json`** capturing it
 input/output surface — everything a consumer needs **without instantiating a Kotlin
 class**. Drop it into `<KSLWork>/bundles/` and the [Single](single.md),
 [Scenario](scenario.md), [Experiment](experiment.md), and [Simopt](simopt.md) apps
-(and the [MCP](mcp-server.md) / REST servers) will discover and run its models, with
+(and the [KSL Server](ksl-server.md)) will discover and run its models, with
 your catalog shaping their pickers.
 
 ---
@@ -292,4 +292,4 @@ problem read-out. Featured order is picker priority; labels and units show in ev
   `inspect` a JAR and `assemble` bundles in scripts and CI.
 - The run apps that consume your bundle — [Single](single.md) ·
   [Scenario](scenario.md) · [Experiment](experiment.md) · [Simopt](simopt.md).
-- [MCP Server](mcp-server.md) — run the bundled models from an AI assistant.
+- [KSL Server](ksl-server.md) — run the bundled models from an AI assistant.

@@ -25,10 +25,9 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   All three must be listed. Steps 4–5 then run **from `main`**, so the tag points at the
   merged commit and the manifest lands where the installers actually read it.
 - If book content changed, the repo-root **`_book/`** must be freshly rendered before
-  building — both the bundled `Servers/book` server and the **KSL Server** (`Servers/suite`,
-  whose `book` capability backs `search_textbook`) bake in that content, and both degrade
-  *silently* to empty search if it was missing. See
-  [KSLBookServer/RELEASING.md](../KSLBookServer/RELEASING.md).
+  building — the **KSL Server** (`Servers/suite`, whose `book` capability backs
+  `search_textbook`) bakes in that content and degrades *silently* to empty search if it was
+  missing.
 
 ## Steps
 
@@ -54,16 +53,12 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
    - **The stamped manifest** — `build/release/manifest.json`'s `sha256` matches
      `shasum -a 256 build/ksl-suite.zip`, and the `items` catalog is intact.
-   - **The bundled book server has content.** The book jar bakes in `_book/` at build time
-     and degrades *silently* if it was missing, so check it rather than assume:
-
-     ```
-     java -jar build/kslwork/Servers/book/ksl-book-mcp.jar --doctor
-     ```
-
-     A report of **0 chunks** means `_book/` wasn't rendered — render it, copy it into the
-     repo root, and rebuild before releasing. See
-     [KSLBookServer/RELEASING.md](../KSLBookServer/RELEASING.md).
+   - **The KSL Server's book capability has content.** The suite bakes `_book/` in at build
+     time and degrades *silently* to empty search if it was missing, so verify rather than
+     assume: start the KSL Server and check its console (or `/status`) — the **book**
+     capability should report its chunk count, not "not rendered." **0 chunks / "not
+     rendered"** means `_book/` wasn't rendered; render it, copy it into the repo root, and
+     rebuild before releasing.
 
 4. **Publish the release** (uploads the zip):
 
