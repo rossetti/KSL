@@ -87,8 +87,13 @@ object KslSuiteMcpServer {
             instructions = instructionsFor(capabilities),
         )
         // One session context per aggregated server (= per SSE session), so every recorded call of this
-        // connection shares a sessionId. Client attribution is a follow-up (SDK clientInfo at initialize).
-        val session = ksl.service.usage.ToolCallSession(sessionId = java.util.UUID.randomUUID().toString().take(8))
+        // connection shares a sessionId. client is resolved lazily from the session's clientVersion (set
+        // by the MCP initialize handshake, before any tool call), so events are attributed to the
+        // connecting assistant (e.g. claude-ai / codex).
+        val session = ksl.service.usage.ToolCallSession(
+            sessionId = java.util.UUID.randomUUID().toString().take(8),
+            client = { runCatching { server.sessions.values.firstOrNull()?.clientVersion?.name }.getOrNull() },
+        )
         capabilities.forEach { it.registerTools(server, session) }
         return server
     }

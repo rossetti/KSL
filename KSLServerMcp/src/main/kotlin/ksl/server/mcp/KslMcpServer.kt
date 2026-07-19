@@ -69,6 +69,18 @@ object KslMcpServer {
         return server
     }
 
+    /** A string/number argument value from a tool's JSON arguments, or null (for the usage study). */
+    private fun simArg(args: kotlinx.serialization.json.JsonObject?, key: String): String? {
+        val p = args?.get(key) as? kotlinx.serialization.json.JsonPrimitive ?: return null
+        return if (p is kotlinx.serialization.json.JsonNull) null else p.content
+    }
+
+    /** A compact, PII-free digest of a run's replication controls (e.g. `numberOfReplications=30`). */
+    private fun simParamsDigest(args: kotlinx.serialization.json.JsonObject?): String? =
+        listOf("numberOfReplications", "lengthOfReplication", "replicationSet")
+            .mapNotNull { k -> simArg(args, k)?.let { "$k=$it" } }
+            .joinToString(",").ifBlank { null }
+
     /**
      * Registers the KSL simulation tools and guided prompts onto an existing (possibly shared) MCP
      * server, so the same surface backs either the standalone `ksl` server (via `build`) or the
@@ -105,11 +117,14 @@ object KslMcpServer {
                     errorSummary = t.message?.take(200)
                     throw t
                 } finally {
+                    val a = request.arguments
                     recorder.record(
                         name, System.currentTimeMillis() - start, ok,
                         ksl.service.usage.UsageDetails(
-                            sessionId = session?.sessionId, client = session?.client,
+                            sessionId = session?.sessionId, client = session?.client?.invoke(),
                             errorClass = errorClass, errorSummary = errorSummary,
+                            target = simArg(a, "modelId") ?: simArg(a, "bundleId"),
+                            paramsDigest = simParamsDigest(a),
                         ),
                     )
                 }

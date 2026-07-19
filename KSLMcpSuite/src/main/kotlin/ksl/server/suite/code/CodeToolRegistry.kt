@@ -95,7 +95,7 @@ object CodeToolRegistry {
                     recorder.record(
                         name, System.currentTimeMillis() - start, ok,
                         ksl.service.usage.UsageDetails(
-                            sessionId = session?.sessionId, client = session?.client,
+                            sessionId = session?.sessionId, client = session?.client?.invoke(),
                             errorClass = errorClass, errorSummary = errorSummary,
                             query = args.string("query") ?: args.string("topic"),
                             target = args.string("fqn"),
