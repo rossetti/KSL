@@ -25,7 +25,9 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   All three must be listed. Steps 4–5 then run **from `main`**, so the tag points at the
   merged commit and the manifest lands where the installers actually read it.
 - If book content changed, the repo-root **`_book/`** must be freshly rendered before
-  building — the bundled `Servers/book` server bakes in that content. See
+  building — both the bundled `Servers/book` server and the **KSL Server** (`Servers/suite`,
+  whose `book` capability backs `search_textbook`) bake in that content, and both degrade
+  *silently* to empty search if it was missing. See
   [KSLBookServer/RELEASING.md](../KSLBookServer/RELEASING.md).
 
 ## Steps
@@ -96,6 +98,14 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
    - **Linux:** each generated desktop entry has the matching menu icon and launches normally.
    - On every available platform, run `ksl refresh`, a whole-suite `ksl update`, and one
      individual app update; icons must remain correct after each entry point is rebuilt.
+   - **The KSL Server works end to end.** The suite ships `Servers/suite` (the **KSL Server**).
+     Open **KSL Server** (Launchpad / Start Menu → KSL / applications menu) so its menu-bar /
+     system-tray lamp turns green, choose **Open Console** — it opens at
+     `http://127.0.0.1:3001/admin` — click **Connect** to configure a client with one click,
+     restart that client, and confirm a first tool call (e.g. *"search the textbook for event
+     scheduling"*, which exercises the book capability from step 3). The console's **Usage
+     study** region exports the local study log as `.jsonl` (all fields) or `.csv` (15
+     columns), with filenames `ksl-usage[-<label>]-<date>.<ext>`.
 
 ## Notes
 

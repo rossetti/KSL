@@ -1,5 +1,11 @@
 # KSL Code MCP Server — User Guide
 
+> **Superseded by the [KSL Server](ksl-server.md).** One long-running server now exposes all
+> three tool surfaces — simulation, textbook search, and source-code search — on a single
+> endpoint, with one-click setup and a web console. This page documents the **standalone
+> legacy** `ksl-code` server, which still ships but will be retired. New here? Start with the
+> [KSL Server guide](ksl-server.md).
+
 The **KSL Code MCP server** gives any MCP-capable AI assistant (Claude Desktop,
 Cursor, Codex, …) **searchable access to the KSL source code** — the public API of
 `KSLCore` and the worked programs in `KSLExamples`. Ask your assistant a coding

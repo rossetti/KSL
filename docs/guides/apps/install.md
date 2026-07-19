@@ -67,7 +67,7 @@ uninstalls KSL.
       Apps/     each app's jar + the raw launcher behind it
       lib/      the shared libraries (~150 MB) — ONE copy, used by every app and server
       bundles/  the example models that ship with KSL (see below)
-      Servers/  mcp/ rest/ code/ book/
+      Servers/  suite/ (the KSL Server) rest/ mcp/ code/ book/
       Tools/    kslpkg/
       manifest.json, VERSIONS.txt
 ```
@@ -128,8 +128,10 @@ To load a model, drop its bundle JAR into `~/Documents/KSLWork/bundles/` — see
 [Common UI & concepts](common-ui.md) for how the apps discover bundles and set the
 workspace. The `kslpkg` CLI and the servers round out the suite; both live under the
 software's `.support/` folder (`.support/Tools/kslpkg/kslpkg`,
-`.support/Servers/{mcp,rest,code,book}/`). Point an MCP client at `.support/Servers/mcp/`
-(or `code`/`book`) as described in the [MCP Server](mcp-server.md) guide.
+`.support/Servers/{suite,rest,mcp,code,book}/`). To connect an AI assistant, use the
+**[KSL Server](ksl-server.md)** — one server for all three tool surfaces (models, textbook,
+source code), set up with one click from its web console, no config editing. (The older
+per-surface `mcp`/`code`/`book` servers still ship but are superseded by it.)
 
 ---
 
@@ -147,8 +149,8 @@ ksl update mcp           # refresh just one item
 ```
 
 The catalog `<id>`s are: `single`, `scenario`, `experiment`, `simopt`,
-`distribution`, `results`, `bundle`, `animation` (apps); `mcp`, `rest`, `code`,
-`book` (servers); and `kslpkg`. Add `--from <ksl-suite.zip>` to install or update
+`distribution`, `results`, `bundle`, `animation` (apps); `suite` (the KSL Server), `rest`,
+`mcp`, `code`, `book` (servers); and `kslpkg`. Add `--from <ksl-suite.zip>` to install or update
 from a local payload instead of downloading (useful offline, or before a release
 exists).
 
@@ -190,7 +192,7 @@ Building that payload from the source tree is a maintainer task — see
 
 - [Common UI & concepts](common-ui.md) — bundles, the workspace, themes, reports
 - [Single-Model](single.md) — the best first app to try
-- [MCP Server](mcp-server.md) — drive KSL from an AI assistant
+- [KSL Server](ksl-server.md) — drive KSL from an AI assistant (one server, one-click setup)
 - [Managing MCP server processes](mcp-process-management.md) — turn the KSL servers off when not in use
 - [Bundle Tools](bundle-tools.md) — build your own model bundles with `kslpkg`
 - [KSL Book](https://rossetti.github.io/KSLBook/)

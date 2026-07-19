@@ -1,5 +1,31 @@
 # Managing KSL MCP Server Processes
 
+> **The [KSL Server](ksl-server.md) makes most of this unnecessary.** It consolidates the
+> three servers below into **one** long-running server that you start and stop from a
+> menu-bar / system-tray app. If you've moved to the KSL Server, you don't manage per-server
+> processes at all — read the [KSL Server guide](ksl-server.md) instead. This page remains for
+> the **standalone legacy servers** (`ksl`, `ksl-code`, `ksl-book`), which still ship.
+
+## One server instead of three
+
+The [KSL Server](ksl-server.md) supersedes the per-server juggling this page describes:
+
+- **One process, not three.** A single server exposes all three tool surfaces, so a client
+  connects to one server and starts one Java process — not one per surface, per chat.
+- **Start and stop from the tray.** Opening **KSL Server** starts it as a managed background
+  process; **Quit** from the menu-bar / system-tray icon stops it. There's no need to remove
+  MCP entries and restart the client just to shut the servers down.
+- **Health at a glance.** The tray icon is a status lamp — green (running), amber (starting),
+  gray (stopped) — so you can see whether the server is up without opening a process viewer.
+- **Orphans largely gone.** The tray owns exactly one child process and stops it cleanly on
+  Quit (and only if it started it), so the runaway-`java`-processes problem below doesn't
+  arise the same way.
+
+The rest of this page applies to the **legacy** `ksl` / `ksl-code` / `ksl-book` servers. If
+you use those, here is how to manage their processes.
+
+---
+
 KSL can connect Claude Desktop or Codex to three local MCP servers:
 
 - **KSL MCP Server** (`ksl`): runs KSL models and simulations

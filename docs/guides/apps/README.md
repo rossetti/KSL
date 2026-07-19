@@ -29,21 +29,24 @@ console, reports), so the individual guides don't repeat them.
 
 ## Servers
 
-Prefer to drive KSL from outside a GUI? The server modules expose KSL's
-capabilities to programs and AI assistants. Three separate **MCP servers** give an
-AI assistant searchable, tool-driven access — to running models, to the source code,
-and to the textbook — each running as its own process.
+Prefer to drive KSL from outside a GUI? The server modules expose KSL's capabilities to
+programs and AI assistants. The **[KSL Server](ksl-server.md)** is the one to use: a single
+long-running server that gives an AI assistant searchable, tool-driven access to all three
+surfaces at once — running models, the source code, and the textbook — started from a
+menu-bar / system-tray app and set up with one click from a web console.
 
 | Guide | What it's for | Status |
 |---|---|---|
-| **[MCP Server](mcp-server.md)** | Run and analyze models from an AI assistant (Claude Desktop, Cursor, Codex) over the Model Context Protocol. | ✅ Available |
-| **[Code MCP Server](mcp-server-code.md)** | Give an AI assistant searchable access to the KSL **source code** and API. | ✅ Available |
-| **[Book MCP Server](mcp-server-book.md)** | Give an AI assistant searchable access to the KSL **textbook**. | ✅ Available |
+| **[KSL Server](ksl-server.md)** | **Start here.** One server, all three tool surfaces (models, textbook, source), one-click setup, web console. | ✅ Recommended |
+| **[MCP Server](mcp-server.md)** | Run and analyze models from an AI assistant over the Model Context Protocol. | Legacy — superseded by KSL Server |
+| **[Code MCP Server](mcp-server-code.md)** | Give an AI assistant searchable access to the KSL **source code** and API. | Legacy — superseded by KSL Server |
+| **[Book MCP Server](mcp-server-book.md)** | Give an AI assistant searchable access to the KSL **textbook**. | Legacy — superseded by KSL Server |
 | **REST Server** | Drive models over plain HTTP from scripts and web apps. The server module ships; a user guide is planned. | Guide planned |
 
-Running several of these? See **[Managing MCP server processes](mcp-process-management.md)** —
-why you may see multiple Java processes, and how to turn the servers off when you're not using
-them.
+The three standalone MCP servers still ship, but the KSL Server consolidates them into one
+process and will replace them. Managing the older servers' Java processes? See
+**[Managing MCP server processes](mcp-process-management.md)** — why you may see multiple Java
+processes, and how to turn them off when you're not using them.
 
 ## How the apps relate
 

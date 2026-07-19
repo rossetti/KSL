@@ -1,5 +1,11 @@
 # KSL MCP Server — User Guide
 
+> **Superseded by the [KSL Server](ksl-server.md).** One long-running server now exposes all
+> three tool surfaces — simulation, textbook search, and source-code search — on a single
+> endpoint, with one-click setup and a web console. This page documents the **standalone
+> legacy** `ksl` simulation server, which still ships but will be retired. New here? Start
+> with the [KSL Server guide](ksl-server.md).
+
 The **KSL MCP server** turns any MCP-capable AI assistant (Claude Desktop, Cursor,
 Codex, …) into a front-end for KSL: the assistant **calls tools** to run and analyze
 your simulation models — single runs, scenario comparisons, designed experiments,
