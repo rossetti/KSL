@@ -108,5 +108,8 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   integrity verification. Stamping fills it so downloads are checked.
 - **`ksl update`** on an already-installed machine re-reads the manifest and pulls the
   new zip; no reinstall needed.
-- To automate steps 2–5 on a `suite-v*` tag, see the optional release workflow (added
-  separately); the manual path here is the source of truth and always works.
+- **Release publishing stays manual.** Steps 2–5 are not automated: the release bakes in the
+  git-ignored `_book/` (see the prerequisite above), so a CI runner would silently ship an empty
+  textbook unless it first renders `_book/` and guards on a non-zero chunk count. Until that's
+  solved, the manual path here is the source of truth. (A separate `build.yml` CI verifies
+  compilation + tests on every push / PR to `main`, but it does not publish.)
