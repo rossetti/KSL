@@ -26,6 +26,7 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.request.path
 import io.ktor.server.response.respondText
+import io.ktor.server.response.respondTextWriter
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -34,6 +35,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import kotlinx.coroutines.delay
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import ksl.agent.config.AgentConfigurator
@@ -43,8 +45,11 @@ import ksl.service.admin.SuiteStatus
 import ksl.service.usage.UsageEvent
 import ksl.service.usage.UsageSummary
 import ksl.service.config.BuildInfo
+import ksl.service.config.CapabilitiesConfig
 import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
+import ksl.service.config.ServerConfig
+import ksl.service.config.ServerConfigToml
 
 /**
  * The KSL MCP Suite serving helper: ONE long-running HTTP MCP server that aggregates a set of
@@ -139,19 +144,35 @@ object KslSuiteMcpServer {
                         ContentType.Application.Json,
                     )
                 }
-                // The built-in web console (Phase-B7 skeleton; full UX in Phase E).
+                // The built-in web console (Phase E): the six operator regions, server-rendered.
                 get("/admin") {
+                    val loopback = AdminConsole.isLoopbackHost(call.request.local.remoteHost)
                     call.respondText(
-                        AdminConsole.renderStatusHtml(adminOps.status(), adminOps.usageSummary()),
+                        AdminConsole.renderConsole(
+                            status = adminOps.status(),
+                            usage = adminOps.usageSummary(),
+                            activity = adminOps.recentActivity(20),
+                            clients = AgentConfigurator.state(SetupCli.SUITE_KEY),
+                            loopback = loopback,
+                        ),
                         ContentType.Text.Html,
                     )
                 }
                 get("/admin/events") {
-                    // One SSE event per connection; the browser's EventSource reconnects for updates
-                    // (Phase E turns this into a persistent push stream).
-                    val data = "data: " +
-                        adminJson.encodeToString(SuiteStatus.serializer(), adminOps.status()) + "\n\n"
-                    call.respondText(data, ContentType.parse("text/event-stream"))
+                    // Persistent SSE: push a status snapshot every 2s until the client disconnects (a
+                    // write failure breaks the loop). `retry:` sets the browser's reconnect delay.
+                    call.respondTextWriter(ContentType.parse("text/event-stream")) {
+                        write("retry: 2000\n\n")
+                        try {
+                            while (true) {
+                                write("data: " + adminJson.encodeToString(SuiteStatus.serializer(), adminOps.status()) + "\n\n")
+                                flush()
+                                delay(2000)
+                            }
+                        } catch (_: Exception) {
+                            // client disconnected — end the stream
+                        }
+                    }
                 }
                 // Usage aggregate + recent activity for an external UI / CLI (the built-in console
                 // reads them in-process). Same DTOs as ServerAdminOperations, so the KSLServerManager
@@ -187,6 +208,46 @@ object KslSuiteMcpServer {
                     val body = if (results.isEmpty()) "No coding agents detected."
                     else results.joinToString("\n") { "${it.agent}: ${it.action} -> ${it.path}" }
                     call.respondText(body, ContentType.Text.Plain)
+                }
+                post("/admin/config/client/remove") {
+                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
+                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
+                        return@post
+                    }
+                    val results = AgentConfigurator.remove(SetupCli.SUITE_KEY)
+                    val body = if (results.isEmpty()) "No coding agents detected."
+                    else results.joinToString("\n") { "${it.agent}: ${it.action} -> ${it.path}" }
+                    call.respondText(body, ContentType.Text.Plain)
+                }
+                // Machine-local op: write the [capabilities] flags to the config file. Takes effect on
+                // the next (launcher/host) restart — a server can't cleanly restart itself.
+                post("/admin/config/capabilities") {
+                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
+                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
+                        return@post
+                    }
+                    val q = call.request.queryParameters
+                    val cfg = ServerConfig.load()
+                    val updated = cfg.copy(
+                        capabilities = CapabilitiesConfig(
+                            sim = q["sim"]?.toBooleanStrictOrNull() ?: cfg.capabilities.sim,
+                            book = q["book"]?.toBooleanStrictOrNull() ?: cfg.capabilities.book,
+                            code = q["code"]?.toBooleanStrictOrNull() ?: cfg.capabilities.code,
+                        ),
+                    )
+                    val file = ServerConfig.defaultConfigFile()
+                    java.nio.file.Files.createDirectories(file.parent)
+                    java.nio.file.Files.writeString(file, ServerConfigToml.encode(updated))
+                    call.respondText(
+                        "Saved: sim=${updated.capabilities.sim}, book=${updated.capabilities.book}, " +
+                            "code=${updated.capabilities.code}. Restart the suite (via the launcher) to apply.",
+                        ContentType.Text.Plain,
+                    )
+                }
+                // Usage export as CSV (download). Local, read-only, no PII.
+                get("/admin/usage/export.csv") {
+                    call.response.headers.append("Content-Disposition", "attachment; filename=\"ksl-usage.csv\"")
+                    call.respondText(AdminConsole.usageCsv(adminOps.recentActivity(Int.MAX_VALUE)), ContentType.parse("text/csv"))
                 }
             }
         }
