@@ -134,4 +134,23 @@ class AdminConsoleTest {
         assertTrue(lines[1].contains("run_model") && lines[1].contains("claude"))
         assertTrue(lines[2].contains("\"search, code\""))
     }
+
+    @Test
+    @DisplayName("usageCsv includes the v2 columns; usageJsonl is one object per event; the panel offers the hand-off")
+    fun exportAndHandoff() {
+        val events = listOf(
+            UsageEvent(
+                tool = "search_code", capability = "code", timestampMillis = 1000L, durationMs = 12L, ok = true,
+                client = "codex", query = "seize", resultCount = 3, topScore = 4.2,
+            ),
+        )
+        assertTrue(AdminConsole.usageCsv(events).lines()[0].endsWith("query,paramsDigest"))  // rich columns
+        val jsonl = AdminConsole.usageJsonl(events)
+        assertTrue(jsonl.lines().size == 1)
+        assertTrue("\"query\":\"seize\"" in jsonl && "\"resultCount\":3" in jsonl && "\"client\":\"codex\"" in jsonl)
+
+        val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = true)
+        assertTrue("/admin/usage/export.jsonl" in html && "export.csv" in html && "id=\"revealUsage\"" in html)
+        assertTrue("Hand this file to your instructor" in html)
+    }
 }

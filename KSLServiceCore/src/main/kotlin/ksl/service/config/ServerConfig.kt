@@ -329,4 +329,6 @@ data class UsageConfig(
     val dir: String? = null,
     @TomlComment("Detail level: off | counts (no free text) | full. KSL_USAGE_DETAIL overrides; enabled=false forces off.")
     val detail: String = "full",
+    @TomlComment("Optional student label stamped into the exported usage filename (for attribution on hand-off).")
+    val label: String? = null,
 )

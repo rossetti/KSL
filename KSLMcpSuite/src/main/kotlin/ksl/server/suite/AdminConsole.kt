@@ -248,12 +248,24 @@ object AdminConsole {
         } else {
             "<div class=\"hint\">Current level: ${level.name.lowercase()}. Change it from the console on the server's own machine.</div>"
         }
+        // Hand-off: how the student gives the study file to the instructor (local console only).
+        val handoff = if (loopback) {
+            """
+              <div class="row">
+                <a class="btn" href="/admin/usage/export.jsonl">Export data (.jsonl)</a>
+                <a class="btn" href="/admin/usage/export.csv">Export (.csv)</a>
+                <button id="revealUsage" class="secondary" title="Open the folder holding the usage file.">Show file</button>
+              </div>
+              <div class="hint">Hand this file to your instructor when asked &mdash; the .jsonl keeps every detail; the .csv opens in a spreadsheet. Nothing is sent automatically.</div>
+            """
+        } else ""
         return """
             <section>
               <h2>Usage study</h2>
               <div class="hint">$disclosure</div>
               $controls
               $where
+              $handoff
             </section>
         """.trimIndent()
     }
@@ -273,13 +285,29 @@ object AdminConsole {
         """.trimIndent()
     }
 
-    /** Usage export as CSV (one row per recorded call). */
+    /** Usage export as CSV — one row per recorded call, ALL recorded fields (for spreadsheet analysis). */
     fun usageCsv(events: List<UsageEvent>): String = buildString {
-        appendLine("timestampMillis,capability,tool,durationMs,ok,client")
+        appendLine(
+            "timestampMillis,capability,tool,durationMs,ok,client,sessionId,errorClass,errorSummary," +
+                "target,resultCount,topScore,query,paramsDigest",
+        )
         events.forEach { e ->
-            appendLine("${e.timestampMillis},${csv(e.capability)},${csv(e.tool)},${e.durationMs},${e.ok},${csv(e.client ?: "")}")
+            appendLine(
+                listOf(
+                    e.timestampMillis.toString(), csv(e.capability), csv(e.tool), e.durationMs.toString(),
+                    e.ok.toString(), csv(e.client ?: ""), csv(e.sessionId ?: ""), csv(e.errorClass ?: ""),
+                    csv(e.errorSummary ?: ""), csv(e.target ?: ""), e.resultCount?.toString() ?: "",
+                    e.topScore?.toString() ?: "", csv(e.query ?: ""), csv(e.paramsDigest ?: ""),
+                ).joinToString(","),
+            )
         }
     }
+
+    /** Usage export as JSONL — one JSON object per recorded call, the highest-fidelity study format. */
+    fun usageJsonl(events: List<UsageEvent>): String =
+        events.joinToString("\n") { exportJson.encodeToString(UsageEvent.serializer(), it) }
+
+    private val exportJson = kotlinx.serialization.json.Json { encodeDefaults = false }
 
     private fun csv(s: String): String =
         if (s.any { it == ',' || it == '"' || it == '\n' }) "\"" + s.replace("\"", "\"\"") + "\"" else s
@@ -381,6 +409,8 @@ object AdminConsole {
           const copyBtn = document.getElementById('copyDiag');
           if (copyBtn) copyBtn.onclick = () => navigator.clipboard.writeText(document.getElementById('diag').textContent);
           document.querySelectorAll('.lvl').forEach(function(b){ b.onclick = async function(){ await post('/admin/config/usage?level=' + b.dataset.level); location.reload(); }; });
+          const rev = document.getElementById('revealUsage');
+          if (rev) rev.onclick = async () => { alert(await post('/admin/usage/reveal')); };
     """
 
     private val PAGE_HEAD = """

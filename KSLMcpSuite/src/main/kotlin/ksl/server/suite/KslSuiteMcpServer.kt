@@ -272,10 +272,44 @@ object KslSuiteMcpServer {
                     usage?.setLevel?.invoke(level)
                     call.respondText("Usage study set to ${level.name.lowercase()}.", ContentType.Text.Plain)
                 }
+                // Hand-off exports (the durable all-time log, not the console's bounded current-run view).
+                // JSONL keeps every field at highest fidelity; CSV is spreadsheet-friendly. Both filenames
+                // carry the optional student label + the date, so a collected file is self-identifying.
+                get("/admin/usage/export.jsonl") {
+                    call.response.headers.append(
+                        "Content-Disposition", "attachment; filename=\"${exportFilename(usage, "jsonl")}\"",
+                    )
+                    call.respondText(
+                        AdminConsole.usageJsonl(usage?.exportAll?.invoke() ?: emptyList()),
+                        ContentType.parse("application/x-ndjson"),
+                    )
+                }
                 get("/admin/usage/export.csv") {
-                    call.response.headers.append("Content-Disposition", "attachment; filename=\"ksl-usage.csv\"")
-                    // The durable all-time log, not the console's bounded current-run view.
+                    call.response.headers.append(
+                        "Content-Disposition", "attachment; filename=\"${exportFilename(usage, "csv")}\"",
+                    )
                     call.respondText(AdminConsole.usageCsv(usage?.exportAll?.invoke() ?: emptyList()), ContentType.parse("text/csv"))
+                }
+                // Machine-local op: reveal the usage file's folder in the OS file browser — the hand-off aid
+                // (the student can't open a folder from a sandboxed browser, but the local server can).
+                post("/admin/usage/reveal") {
+                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
+                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
+                        return@post
+                    }
+                    val dir = usage?.dir
+                    val opened = dir != null && runCatching {
+                        if (java.awt.Desktop.isDesktopSupported()) {
+                            val d = java.awt.Desktop.getDesktop()
+                            if (d.isSupported(java.awt.Desktop.Action.OPEN)) { d.open(java.io.File(dir)); true } else false
+                        } else {
+                            false
+                        }
+                    }.getOrDefault(false)
+                    call.respondText(
+                        if (opened) "Opened the usage folder:\n$dir" else "Your usage file is:\n${dir ?: "(unknown)"}/usage.jsonl",
+                        ContentType.Text.Plain,
+                    )
                 }
             }
         }
@@ -283,6 +317,13 @@ object KslSuiteMcpServer {
     }
 
     private val adminJson = Json { encodeDefaults = true }
+
+    /** The hand-off download filename: `ksl-usage[-<label>]-<yyyy-MM-dd>.<ext>` (label sanitized). */
+    private fun exportFilename(usage: UsageControl?, ext: String): String {
+        val label = usage?.label?.takeIf { it.isNotBlank() }
+            ?.let { "-" + it.replace(Regex("[^A-Za-z0-9_-]"), "_") } ?: ""
+        return "ksl-usage$label-${java.time.LocalDate.now()}.$ext"
+    }
 
     /** Suite preamble + each enabled capability's own routing guidance. */
     private fun instructionsFor(capabilities: List<McpToolCapability>): String = buildString {

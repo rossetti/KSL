@@ -25,14 +25,16 @@ import ksl.service.usage.UsageLevel
  * Everything the console needs to display and control the local usage study, bundled so
  * `KslSuiteMcpServer.create` keeps a small signature. The composition root ([ksl.server.suite]'s `main`)
  * builds it over the shared `UsageStore` + config:
- * - [dir] — where the append-only log lives (for the console's disclosure);
+ * - [dir] — where the append-only log lives (for the console's disclosure + the "Show file" reveal);
  * - [level] — the current detail level (for the console + the Usage-study control's active state);
  * - [setLevel] — apply a new level LIVE and persist it to config (the opt-out);
- * - [exportAll] — the durable, all-time events for the CSV export (not the current-run view).
+ * - [exportAll] — the durable, all-time events for the CSV / JSONL export (not the current-run view);
+ * - [label] — an optional student label stamped into the export filename, for attribution on hand-off.
  */
 class UsageControl(
     val dir: String,
     val level: () -> UsageLevel,
     val setLevel: (UsageLevel) -> Unit,
     val exportAll: () -> List<UsageEvent>,
+    val label: String? = null,
 )

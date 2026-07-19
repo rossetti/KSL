@@ -123,7 +123,8 @@ private fun runServer() {
         dir = config.usageDir().toString(),
         level = { usage.level },
         setLevel = { lvl -> usage.level = lvl; persistUsageLevel(lvl) },  // live + persisted (the opt-out)
-        exportAll = usage::all,       // CSV export = the durable all-time log, not the current-run view
+        exportAll = usage::all,       // CSV / JSONL export = the durable all-time log, not the current-run view
+        label = config.usage.label,   // optional student label stamped into the export filename
     )
     val server = KslSuiteMcpServer.create(
         capabilities = capabilities,
