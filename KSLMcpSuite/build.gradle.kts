@@ -51,6 +51,13 @@ application {
 
 tasks.test { useJUnitPlatform() }
 
+// The distribution ships the THIN jar (over the shared lib/ + server-lib/), so stamp its manifest too —
+// SuiteBuildInfo reads Implementation-Version from THIS jar to report the release version (kslSuiteVersion),
+// not KSLServiceCore's engine version. The shadowJar below keeps its own stamp for a standalone/dev run.
+tasks.jar {
+    manifest { attributes["Implementation-Version"] = project.version.toString() }
+}
+
 // A self-contained runnable server jar (the aggregator holds all three surfaces + KSLCore, so it is
 // NOT a thin jar). mergeServiceFiles keeps ktor + the MCP SDK's ServiceLoader registrations working.
 tasks.shadowJar {

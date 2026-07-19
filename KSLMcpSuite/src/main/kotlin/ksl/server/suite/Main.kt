@@ -29,7 +29,6 @@ import ksl.code.search.CodeStore
 import ksl.server.mcp.KslMcpTools
 import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
-import ksl.service.config.BuildInfo
 import ksl.service.config.ServerConfig
 import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultStore
@@ -50,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 fun main(args: Array<String>) {
     if ("--version" in args) {
-        println(BuildInfo.version)
+        println(SuiteBuildInfo.version)
         return
     }
     if (SetupCli.isSetupCommand(args)) {
@@ -114,7 +113,7 @@ private fun runServer() {
         "No capabilities enabled — enable at least one of sim/book/code in [capabilities] or via KSL_CAPABILITY_*."
     }
 
-    val adminOps = InProcessAdminOperations(BuildInfo.version, capabilities, usage)
+    val adminOps = InProcessAdminOperations(SuiteBuildInfo.version, capabilities, usage)
     val server = KslSuiteMcpServer.create(
         capabilities = capabilities,
         adminOps = adminOps,

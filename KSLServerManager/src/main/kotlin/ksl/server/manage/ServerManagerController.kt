@@ -112,6 +112,10 @@ class ServerManagerController(
     /** Start the suite jar detached (lifecycle is the launcher/host's, not the console's). */
     fun startSuite(suiteJar: Path, port: Int? = null): Process = ServerProcessInventory.startSuite(suiteJar, port)
 
+    /** Start the suite via its installed launcher script (the thin distribution suite; see inventory). */
+    fun startSuiteLauncher(launcher: Path, port: Int? = null): Process =
+        ServerProcessInventory.startSuiteLauncher(launcher, port)
+
     /** Stop the running suite process(es); returns the pids reaped. */
     fun stopSuite(): List<Long> {
         val suites = ServerProcessInventory.findKslProcesses().filter { it.kind == Kind.SUITE }.map { it.pid }

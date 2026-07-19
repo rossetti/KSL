@@ -43,7 +43,6 @@ import ksl.service.admin.ServerAdminOperations
 import ksl.service.admin.SuiteStatus
 import ksl.service.usage.UsageEvent
 import ksl.service.usage.UsageSummary
-import ksl.service.config.BuildInfo
 import ksl.service.config.CapabilitiesConfig
 import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
@@ -78,7 +77,7 @@ object KslSuiteMcpServer {
      */
     fun buildAggregatedServer(capabilities: List<McpToolCapability>): Server {
         val server = Server(
-            serverInfo = Implementation(name = SUITE_NAME, version = BuildInfo.version),
+            serverInfo = Implementation(name = SUITE_NAME, version = SuiteBuildInfo.version),
             options = ServerOptions(
                 capabilities = ServerCapabilities(
                     tools = ServerCapabilities.Tools(listChanged = true),
@@ -121,7 +120,7 @@ object KslSuiteMcpServer {
         }
         routing {
             get("/health") {
-                call.respondText(HealthEndpoints.healthJson(SUITE_NAME), ContentType.Application.Json)
+                call.respondText(HealthEndpoints.healthJson(SUITE_NAME, SuiteBuildInfo.version), ContentType.Application.Json)
             }
             get("/ready") {
                 val isReady = ready()
@@ -132,7 +131,7 @@ object KslSuiteMcpServer {
                 )
             }
             get("/version") {
-                call.respondText(HealthEndpoints.versionJson(SUITE_NAME), ContentType.Application.Json)
+                call.respondText(HealthEndpoints.versionJson(SUITE_NAME, SuiteBuildInfo.version), ContentType.Application.Json)
             }
             if (adminOps != null) {
                 // Live server status: per-capability readiness + processing totals. Gated by the

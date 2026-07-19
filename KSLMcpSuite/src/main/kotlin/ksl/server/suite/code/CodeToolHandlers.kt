@@ -21,7 +21,7 @@ package ksl.server.suite.code
 import ksl.code.search.CodeDecl
 import ksl.code.search.CodeSearch
 import ksl.code.search.CodeStore
-import ksl.service.config.BuildInfo
+import ksl.server.suite.SuiteBuildInfo
 
 /** Invalid tool input; the message is returned to the client as an isError result. */
 class ToolInputException(message: String) : IllegalArgumentException(message)
@@ -181,7 +181,7 @@ class CodeToolHandlers(
 
     fun getServerInfo(): String = buildString {
         appendLine("KSL Code MCP server")
-        appendLine("  server version: ${BuildInfo.version}")
+        appendLine("  server version: ${SuiteBuildInfo.version}")
         appendLine("  KSL ref:        ${store.meta.kslVersion}")
         appendLine("  index built:    ${store.meta.buildDate}")
         appendLine("  declarations:   ${store.meta.declarationCount}")

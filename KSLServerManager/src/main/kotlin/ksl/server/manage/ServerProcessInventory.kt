@@ -115,4 +115,19 @@ object ServerProcessInventory {
         kslWork?.let { pb.environment()["KSLWORK"] = it.toString() }
         return pb.start()
     }
+
+    /**
+     * Start the suite via its installed launcher SCRIPT (the distribution suite jar is thin — no
+     * Main-Class, no deps — so `java -jar` cannot start it; the launcher assembles the shared-lib
+     * classpath and the -Dksl.builtinBundles flag). Detached, output discarded. This is how the tray
+     * agent and the local launcher start the packaged suite; [startSuite] stays for a fat/test jar.
+     */
+    fun startSuiteLauncher(launcher: Path, port: Int? = null): Process {
+        val pb = ProcessBuilder(launcher.toString())
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+        pb.directory(launcher.toAbsolutePath().parent?.toFile())
+        port?.let { pb.environment()["KSL_MCP_PORT"] = it.toString() }
+        return pb.start()
+    }
 }
