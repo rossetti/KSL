@@ -50,6 +50,7 @@ object CodeToolRegistry {
         store: CodeStore = CodeStore.instance,
         search: CodeSearch = CodeSearch(store),
         recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
+        session: ksl.service.usage.ToolCallSession? = null,
     ) {
         val handlers = CodeToolHandlers(store, search)
 
@@ -62,16 +63,19 @@ object CodeToolRegistry {
             handler: (JsonObject) -> String,
         ) {
             addTool(name, description, ToolSchema(properties, required)) { request ->
+                val args = request.arguments ?: buildJsonObject {}
                 val start = System.currentTimeMillis()
                 var ok = false
                 var errorClass: String? = null
+                var errorSummary: String? = null
                 try {
-                    val text = handler(request.arguments ?: buildJsonObject {})
+                    val text = handler(args)
                     ok = true
                     logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
                     CallToolResult(listOf(TextContent(text)))
                 } catch (e: ToolInputException) {
                     errorClass = "INVALID_INPUT"
+                    errorSummary = e.message?.take(200)
                     CallToolResult(listOf(TextContent(e.message ?: "Invalid input.")), true)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
@@ -79,6 +83,7 @@ object CodeToolRegistry {
                     // Throwable, not Exception: even an Error must produce a response — an
                     // unanswered request looks like a client timeout.
                     errorClass = ksl.service.usage.UsageErrors.classify(e)
+                    errorSummary = e.message?.take(200)
                     logger.error(e) { "tool $name failed" }
                     CallToolResult(
                         listOf(TextContent("Internal error in $name: ${e::class.simpleName}: ${e.message}")),
@@ -87,7 +92,12 @@ object CodeToolRegistry {
                 } finally {
                     recorder.record(
                         name, System.currentTimeMillis() - start, ok,
-                        errorClass?.let { ksl.service.usage.UsageDetails(errorClass = it) },
+                        ksl.service.usage.UsageDetails(
+                            sessionId = session?.sessionId, client = session?.client,
+                            errorClass = errorClass, errorSummary = errorSummary,
+                            query = args.string("query") ?: args.string("topic"),
+                            target = args.string("fqn"),
+                        ),
                     )
                 }
             }

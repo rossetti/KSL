@@ -96,6 +96,13 @@ data class UsageDetails(
     val paramsDigest: String? = null,
 )
 
+/**
+ * Per-connection context threaded to each tool surface's registration (U2), so every recorded event of
+ * one SSE session shares a [sessionId] (to reconstruct a student's workflow) and the connecting [client].
+ * The suite mints one per session in `buildAggregatedServer`.
+ */
+class ToolCallSession(val sessionId: String, val client: String? = null)
+
 /** Maps a thrown error to a coarse [UsageEvent.errorClass] bucket; null for cancellation (not an error). */
 object UsageErrors {
     fun classify(t: Throwable): String? = when (t) {

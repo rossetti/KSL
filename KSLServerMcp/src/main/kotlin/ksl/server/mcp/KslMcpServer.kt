@@ -78,6 +78,7 @@ object KslMcpServer {
         server: Server,
         tools: KslMcpTools,
         recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
+        session: ksl.service.usage.ToolCallSession? = null,
     ) {
         // Route every tool registration through this local wrapper so each call is timed and
         // recorded (ok = the handler produced a non-error result) for the usage study. With the
@@ -93,18 +94,23 @@ object KslMcpServer {
                 val start = System.currentTimeMillis()
                 var ok = false
                 var errorClass: String? = null
+                var errorSummary: String? = null
                 try {
                     handler(request).also {
                         ok = it.isError != true
-                        if (!ok) errorClass = "INVALID_INPUT" // a tool error result is usually bad input; U2 refines per tool
+                        if (!ok) errorClass = "INVALID_INPUT" // a tool error result is usually bad input; refined later
                     }
                 } catch (t: Throwable) {
                     errorClass = ksl.service.usage.UsageErrors.classify(t)
+                    errorSummary = t.message?.take(200)
                     throw t
                 } finally {
                     recorder.record(
                         name, System.currentTimeMillis() - start, ok,
-                        errorClass?.let { ksl.service.usage.UsageDetails(errorClass = it) },
+                        ksl.service.usage.UsageDetails(
+                            sessionId = session?.sessionId, client = session?.client,
+                            errorClass = errorClass, errorSummary = errorSummary,
+                        ),
                     )
                 }
             }

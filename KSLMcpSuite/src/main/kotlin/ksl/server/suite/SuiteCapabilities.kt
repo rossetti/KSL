@@ -28,6 +28,7 @@ import ksl.server.mcp.KslMcpTools
 import ksl.server.suite.book.BookToolRegistry
 import ksl.server.suite.code.CodeToolRegistry
 import ksl.service.capability.run.BundleRegistry
+import ksl.service.usage.ToolCallSession
 import ksl.service.usage.ToolUsageRecorder
 
 /**
@@ -42,8 +43,8 @@ class SimMcpCapability(
 ) : McpToolCapability {
     override val id: String = "sim"
     override val instructions: String = SIM_INSTRUCTIONS
-    override fun registerTools(server: Server) {
-        KslMcpServer.registerKslTools(server, tools, recorder)
+    override fun registerTools(server: Server, session: ToolCallSession) {
+        KslMcpServer.registerKslTools(server, tools, recorder, session)
     }
 
     override fun readiness(): CapabilityReadiness {
@@ -60,8 +61,8 @@ class BookMcpCapability(
 ) : McpToolCapability {
     override val id: String = "book"
     override val instructions: String = BOOK_INSTRUCTIONS
-    override fun registerTools(server: Server) {
-        BookToolRegistry.registerBookTools(server, store, search, recorder)
+    override fun registerTools(server: Server, session: ToolCallSession) {
+        BookToolRegistry.registerBookTools(server, store, search, recorder, session)
     }
 
     override fun readiness(): CapabilityReadiness {
@@ -78,8 +79,8 @@ class CodeMcpCapability(
 ) : McpToolCapability {
     override val id: String = "code"
     override val instructions: String = CODE_INSTRUCTIONS
-    override fun registerTools(server: Server) {
-        CodeToolRegistry.registerCodeTools(server, store, search, recorder)
+    override fun registerTools(server: Server, session: ToolCallSession) {
+        CodeToolRegistry.registerCodeTools(server, store, search, recorder, session)
     }
 
     override fun readiness(): CapabilityReadiness {

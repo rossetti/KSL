@@ -57,7 +57,8 @@ class SuiteAdapterTest {
             ),
             instructions = "test",
         )
-        caps.forEach { it.registerTools(server) } // disjoint tool names -> no collision, no throw
+        val session = ksl.service.usage.ToolCallSession(sessionId = "test")
+        caps.forEach { it.registerTools(server, session) } // disjoint tool names -> no collision, no throw
         assertTrue(caps.first { it.id == "code" }.readiness().ready, "code capability should be ready")
     }
 }

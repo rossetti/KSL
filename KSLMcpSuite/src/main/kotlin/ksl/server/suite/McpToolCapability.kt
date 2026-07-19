@@ -19,6 +19,7 @@
 package ksl.server.suite
 
 import io.modelcontextprotocol.kotlin.sdk.server.Server
+import ksl.service.usage.ToolCallSession
 
 /**
  * Readiness of one capability, contributed to `/ready` and `/status`. `detail` is a short
@@ -46,8 +47,11 @@ interface McpToolCapability {
     /** Connect-time routing guidance for this surface, or null to contribute none. */
     val instructions: String?
 
-    /** Register this surface's tools onto [server]. Tool names are disjoint across capabilities. */
-    fun registerTools(server: Server)
+    /**
+     * Register this surface's tools onto [server]. Tool names are disjoint across capabilities. [session]
+     * carries the per-connection id + client so each recorded call can be attributed to a session.
+     */
+    fun registerTools(server: Server, session: ToolCallSession)
 
     /** A readiness snapshot for `/ready` and `/status`. */
     fun readiness(): CapabilityReadiness

@@ -86,7 +86,10 @@ object KslSuiteMcpServer {
             ),
             instructions = instructionsFor(capabilities),
         )
-        capabilities.forEach { it.registerTools(server) }
+        // One session context per aggregated server (= per SSE session), so every recorded call of this
+        // connection shares a sessionId. Client attribution is a follow-up (SDK clientInfo at initialize).
+        val session = ksl.service.usage.ToolCallSession(sessionId = java.util.UUID.randomUUID().toString().take(8))
+        capabilities.forEach { it.registerTools(server, session) }
         return server
     }
 
