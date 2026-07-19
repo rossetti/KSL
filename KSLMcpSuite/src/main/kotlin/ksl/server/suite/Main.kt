@@ -49,6 +49,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  * lazily on the first search.
  */
 fun main(args: Array<String>) {
+    if ("--version" in args) {
+        println(BuildInfo.version)
+        return
+    }
     if (SetupCli.isSetupCommand(args)) {
         SetupCli.runAndReport(args)
         return

@@ -12,7 +12,9 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = (findProperty("kslSuiteMcpVersion") as String?) ?: "1.0.0"
+// The suite reports the whole-distribution version (kslSuiteVersion), stamped into the shadowJar
+// manifest below so /version, /health, and the console show the real release, not "dev".
+version = (findProperty("kslSuiteVersion") as String?) ?: "1.0.0"
 
 repositories { mavenCentral() }
 
@@ -56,5 +58,9 @@ tasks.shadowJar {
     archiveClassifier.set("")
     archiveVersion.set("")
     mergeServiceFiles()
-    manifest { attributes["Main-Class"] = "ksl.server.suite.MainKt" }
+    manifest {
+        attributes["Main-Class"] = "ksl.server.suite.MainKt"
+        // BuildInfo.version reads this from the package's implementationVersion at runtime.
+        attributes["Implementation-Version"] = project.version.toString()
+    }
 }

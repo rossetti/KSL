@@ -10,7 +10,8 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = (findProperty("kslBridgeVersion") as String?) ?: "1.0.0"
+// The bridge ships with the suite, so it carries the whole-distribution version (kslSuiteVersion).
+version = (findProperty("kslSuiteVersion") as String?) ?: "1.0.0"
 
 repositories { mavenCentral() }
 
@@ -45,5 +46,8 @@ tasks.shadowJar {
     archiveClassifier.set("")
     archiveVersion.set("")
     mergeServiceFiles()
-    manifest { attributes["Main-Class"] = "ksl.bridge.MainKt" }
+    manifest {
+        attributes["Main-Class"] = "ksl.bridge.MainKt"
+        attributes["Implementation-Version"] = project.version.toString()
+    }
 }
