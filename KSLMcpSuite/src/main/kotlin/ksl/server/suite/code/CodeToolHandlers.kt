@@ -39,15 +39,19 @@ class CodeToolHandlers(
 ) {
     private val maxMembersInline = 80
 
-    fun searchCode(query: String, maxResults: Int, module: String?): String {
+    fun searchCode(query: String, maxResults: Int, module: String?): ksl.server.suite.ToolReply {
         if (query.isBlank()) throw ToolInputException("query must not be blank.")
         module?.let { validateModule(it) }
         val hits = search.search(query, maxResults.coerceIn(1, 15), module)
         if (hits.isEmpty()) {
-            return "No results for \"$query\"" + (module?.let { " in module $it" } ?: "") + ". " +
-                "Try fewer or different terms, or list_modules to see what is indexed."
+            // resultCount = 0 is the content-gap signal: an API students looked for but couldn't find.
+            return ksl.server.suite.ToolReply(
+                "No results for \"$query\"" + (module?.let { " in module $it" } ?: "") + ". " +
+                    "Try fewer or different terms, or list_modules to see what is indexed.",
+                resultCount = 0,
+            )
         }
-        return buildString {
+        val text = buildString {
             appendLine("Results for \"$query\"" + (module?.let { " (module $it)" } ?: "") + ":")
             appendLine()
             hits.forEachIndexed { i, hit ->
@@ -60,6 +64,7 @@ class CodeToolHandlers(
             }
             append("Use get_class with an fqn for the full API, or get_example to see it used.")
         }.trim()
+        return ksl.server.suite.ToolReply(text, resultCount = hits.size, topScore = hits.first().score.toDouble())
     }
 
     fun getClass(ref: String): String {

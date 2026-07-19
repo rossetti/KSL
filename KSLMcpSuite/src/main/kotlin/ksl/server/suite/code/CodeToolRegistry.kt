@@ -54,13 +54,14 @@ object CodeToolRegistry {
     ) {
         val handlers = CodeToolHandlers(store, search)
 
-        // Local so it captures `recorder`; the tool definitions below are unchanged.
-        fun Server.addCodeTool(
+        // The recording registrar (search-aware): the handler returns a ToolReply (text + optional
+        // resultCount/topScore). addCodeTool wraps a plain-String handler over this for non-search tools.
+        fun Server.addRecordedTool(
             name: String,
             description: String,
             properties: JsonObject = buildJsonObject {},
             required: List<String> = emptyList(),
-            handler: (JsonObject) -> String,
+            handler: (JsonObject) -> ksl.server.suite.ToolReply,
         ) {
             addTool(name, description, ToolSchema(properties, required)) { request ->
                 val args = request.arguments ?: buildJsonObject {}
@@ -68,11 +69,12 @@ object CodeToolRegistry {
                 var ok = false
                 var errorClass: String? = null
                 var errorSummary: String? = null
+                var reply: ksl.server.suite.ToolReply? = null
                 try {
-                    val text = handler(args)
+                    reply = handler(args)
                     ok = true
                     logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
-                    CallToolResult(listOf(TextContent(text)))
+                    CallToolResult(listOf(TextContent(reply.text)))
                 } catch (e: ToolInputException) {
                     errorClass = "INVALID_INPUT"
                     errorSummary = e.message?.take(200)
@@ -97,13 +99,22 @@ object CodeToolRegistry {
                             errorClass = errorClass, errorSummary = errorSummary,
                             query = args.string("query") ?: args.string("topic"),
                             target = args.string("fqn"),
+                            resultCount = reply?.resultCount, topScore = reply?.topScore,
                         ),
                     )
                 }
             }
         }
 
-        server.addCodeTool(
+        fun Server.addCodeTool(
+            name: String,
+            description: String,
+            properties: JsonObject = buildJsonObject {},
+            required: List<String> = emptyList(),
+            handler: (JsonObject) -> String,
+        ) = addRecordedTool(name, description, properties, required) { ksl.server.suite.ToolReply(handler(it)) }
+
+        server.addRecordedTool(
             name = "search_code",
             description = "Full-text search over the KSL source — $KSL. Use this FIRST for any question " +
                 "about a KSL class, interface, function, or API. Returns ranked declarations with kind, " +

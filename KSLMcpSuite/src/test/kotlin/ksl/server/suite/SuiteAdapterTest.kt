@@ -27,7 +27,10 @@ class SuiteAdapterTest {
         val store = CodeStore.instance
         val handlers = CodeToolHandlers(store, CodeSearch(store))
         assertTrue(store.meta.declarationCount > 0, "code index should be non-empty")
-        assertTrue(handlers.searchCode("resource seize release", 5, null).isNotBlank())
+        val codeSearch = handlers.searchCode("resource seize release", 5, null)
+        assertTrue(codeSearch.text.isNotBlank())
+        assertTrue((codeSearch.resultCount ?: 0) > 0, "search over the real index returns hits")
+        assertTrue(codeSearch.topScore != null, "and a top relevance score")
         assertTrue("KSLCore" in handlers.listModules())
         assertTrue("declarations" in handlers.getServerInfo())
     }

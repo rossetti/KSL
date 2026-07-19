@@ -37,14 +37,18 @@ class BookToolHandlers(
     /** Inline subsection content in get_section up to this total size. */
     private val inlineChildrenLimit = 20_000
 
-    fun searchTextbook(query: String, maxResults: Int): String {
+    fun searchTextbook(query: String, maxResults: Int): ksl.server.suite.ToolReply {
         if (query.isBlank()) throw ToolInputException("query must not be blank.")
         val hits = search.search(query, maxResults.coerceIn(1, 10))
         if (hits.isEmpty()) {
-            return "No results for \"$query\". Try fewer or different terms; " +
-                "list_chapters shows what the book covers."
+            // resultCount = 0 is the content-gap signal: a topic students wanted that the book didn't answer.
+            return ksl.server.suite.ToolReply(
+                "No results for \"$query\". Try fewer or different terms; " +
+                    "list_chapters shows what the book covers.",
+                resultCount = 0,
+            )
         }
-        return buildString {
+        val text = buildString {
             appendLine("Results for \"$query\":")
             appendLine()
             hits.forEachIndexed { i, hit ->
@@ -56,6 +60,7 @@ class BookToolHandlers(
             }
             append("Use get_section with a section number or id for the full content.")
         }
+        return ksl.server.suite.ToolReply(text, resultCount = hits.size, topScore = hits.first().score.toDouble())
     }
 
     fun getSection(section: String): String {

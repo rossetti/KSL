@@ -54,13 +54,16 @@ object BookToolRegistry {
     ) {
         val handlers = BookToolHandlers(store, search)
 
-        // Local so it captures `recorder`; the tool definitions below are unchanged.
-        fun Server.addBookTool(
+        // The recording registrar: a tool whose handler returns a ToolReply (text + optional search
+        // metadata). Times the call, classifies failures, and records the usage event with the session +
+        // args-derived query/target + the reply's resultCount/topScore. addBookTool wraps a plain-String
+        // handler over this for the non-search tools (their definitions are unchanged).
+        fun Server.addRecordedTool(
             name: String,
             description: String,
             properties: JsonObject = buildJsonObject {},
             required: List<String> = emptyList(),
-            handler: (JsonObject) -> String,
+            handler: (JsonObject) -> ksl.server.suite.ToolReply,
         ) {
             addTool(name, description, ToolSchema(properties, required)) { request ->
                 val args = request.arguments ?: buildJsonObject {}
@@ -68,11 +71,12 @@ object BookToolRegistry {
                 var ok = false
                 var errorClass: String? = null
                 var errorSummary: String? = null
+                var reply: ksl.server.suite.ToolReply? = null
                 try {
-                    val text = handler(args)
+                    reply = handler(args)
                     ok = true
                     logger.info { "$name completed in ${System.currentTimeMillis() - start} ms" }
-                    CallToolResult(listOf(TextContent(text)))
+                    CallToolResult(listOf(TextContent(reply.text)))
                 } catch (e: ToolInputException) {
                     errorClass = "INVALID_INPUT"
                     errorSummary = e.message?.take(200)
@@ -97,13 +101,22 @@ object BookToolRegistry {
                             errorClass = errorClass, errorSummary = errorSummary,
                             query = args.string("query"),
                             target = args.string("section") ?: args.string("chapter"),
+                            resultCount = reply?.resultCount, topScore = reply?.topScore,
                         ),
                     )
                 }
             }
         }
 
-        server.addBookTool(
+        fun Server.addBookTool(
+            name: String,
+            description: String,
+            properties: JsonObject = buildJsonObject {},
+            required: List<String> = emptyList(),
+            handler: (JsonObject) -> String,
+        ) = addRecordedTool(name, description, properties, required) { ksl.server.suite.ToolReply(handler(it)) }
+
+        server.addRecordedTool(
             name = "search_textbook",
             description = "Full-text search over $BOOK — the student's course textbook. Use this FIRST, " +
                 "before web search or answering from general knowledge, for any question about " +
