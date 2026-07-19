@@ -39,7 +39,6 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import ksl.agent.config.AgentConfigurator
-import ksl.agent.config.LaunchSpec
 import ksl.service.admin.ServerAdminOperations
 import ksl.service.admin.SuiteStatus
 import ksl.service.usage.UsageEvent
@@ -190,21 +189,28 @@ object KslSuiteMcpServer {
                         ContentType.Application.Json,
                     )
                 }
-                // Machine-local op: configure the local coding-agent client. Reachable ONLY over the
-                // loopback interface (absent in a hosted deployment, where students configure their
-                // own client to the URL).
+                // Machine-local op: configure the local coding-agent client with one click. The bridge
+                // command is auto-detected next to the suite jar (SetupCli), so no path is needed; an
+                // optional `bridge` override backs the console's Advanced field for a dev jar. Reachable
+                // ONLY over loopback (absent when hosted, where students configure their own client).
                 post("/admin/config/client") {
                     if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
                         call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
                         return@post
                     }
-                    val bridge = call.request.queryParameters["bridge"]
-                    if (bridge.isNullOrBlank()) {
-                        call.respondText("bridge is required", ContentType.Text.Plain, HttpStatusCode.BadRequest)
+                    val bridge = call.request.queryParameters["bridge"]  // null/blank → auto-detect the bundled bridge
+                    val url = call.request.queryParameters["url"] ?: "http://127.0.0.1:$port/"
+                    val results = try {
+                        SetupCli.configure(bridge, url)
+                    } catch (e: IllegalStateException) {
+                        call.respondText(
+                            (e.message ?: "could not configure the client") +
+                                "\nRun the suite from its installed launcher, or set the bridge under Advanced.",
+                            ContentType.Text.Plain,
+                            HttpStatusCode.BadRequest,
+                        )
                         return@post
                     }
-                    val url = call.request.queryParameters["url"] ?: "http://127.0.0.1:$port/"
-                    val results = AgentConfigurator.configure(SetupCli.SUITE_KEY, LaunchSpec(bridge, listOf("--url", url)))
                     val body = if (results.isEmpty()) "No coding agents detected."
                     else results.joinToString("\n") { "${it.agent}: ${it.action} -> ${it.path}" }
                     call.respondText(body, ContentType.Text.Plain)
@@ -214,7 +220,7 @@ object KslSuiteMcpServer {
                         call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
                         return@post
                     }
-                    val results = AgentConfigurator.remove(SetupCli.SUITE_KEY)
+                    val results = SetupCli.remove()
                     val body = if (results.isEmpty()) "No coding agents detected."
                     else results.joinToString("\n") { "${it.agent}: ${it.action} -> ${it.path}" }
                     call.respondText(body, ContentType.Text.Plain)

@@ -20,15 +20,20 @@ package ksl.server.suite
 
 import ksl.agent.config.AgentConfigurator
 import ksl.agent.config.LaunchSpec
+import ksl.agent.config.javaCommand
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
- * The suite's client-setup CLI, over the shared KSLAgentConfig library. It writes/removes the ONE
- * `ksl-suite` MCP entry in each detected coding agent's config (Claude Desktop, Codex), so a student
- * configures a single server for all three tool surfaces. The entry launches the thin `ksl-bridge`,
- * which forwards over HTTP to this long-running suite.
+ * The suite's client-setup logic, over the shared KSLAgentConfig library. It writes/removes the ONE
+ * `ksl-suite` MCP entry in each detected coding agent (Claude Desktop, Codex), so a student configures
+ * a single server for every tool surface. The entry launches the thin `ksl-bridge`, which forwards
+ * over HTTP to this long-running suite.
  *
- * The bridge command is a deployment detail (where `ksl-bridge` is installed), so `--configure`
- * takes it explicitly via `--bridge`; the suite URL defaults to the local bind. Honors the
+ * The **bridge command is auto-detected** next to the running suite jar — the installed `ksl-bridge`
+ * launcher, else `java -jar ksl-bridge.jar` — so the console's Configure button and a plain
+ * `--configure` need no bridge path from the user. An explicit override is accepted (`--bridge`, or the
+ * console's Advanced field) for a dev jar that isn't co-located with the bridge. Honors the
  * `KSL_AGENT_CONFIG_HOME` sandbox redirect for safe testing.
  */
 object SetupCli {
@@ -40,17 +45,52 @@ object SetupCli {
     fun isSetupCommand(args: Array<String>): Boolean =
         "--configure" in args || "--remove" in args
 
-    /** Dispatch a setup command; returns the per-agent outcomes (empty if no agent detected). */
+    /** Dispatch a CLI setup command; returns the per-agent outcomes (empty if no agent detected). */
     fun run(args: Array<String>): List<AgentConfigurator.ConfigResult> = when {
-        "--remove" in args -> AgentConfigurator.remove(SUITE_KEY)
-        "--configure" in args -> {
-            val bridge = args.valueAfter("--bridge")
-                ?: error("--configure requires --bridge <command that launches ksl-bridge>")
-            val url = args.valueAfter("--url") ?: DEFAULT_URL
-            AgentConfigurator.configure(SUITE_KEY, LaunchSpec(bridge, listOf("--url", url)))
-        }
+        "--remove" in args -> remove()
+        "--configure" in args -> configure(args.valueAfter("--bridge"), args.valueAfter("--url") ?: DEFAULT_URL)
         else -> emptyList()
     }
+
+    /**
+     * Write the `ksl-suite` entry using an explicit [bridgeOverride], or — when null/blank — the bundled
+     * bridge auto-detected next to the suite jar. The one-click console Configure and plain `--configure`
+     * both rely on the default; throws only when neither an override nor a co-located bridge exists.
+     */
+    fun configure(bridgeOverride: String?, suiteUrl: String = DEFAULT_URL): List<AgentConfigurator.ConfigResult> {
+        val spec = if (!bridgeOverride.isNullOrBlank()) {
+            LaunchSpec(bridgeOverride, listOf("--url", suiteUrl))
+        } else {
+            defaultBridgeSpec(suiteUrl)
+                ?: error("could not find the bundled ksl-bridge next to the suite; supply a bridge command")
+        }
+        return AgentConfigurator.configure(SUITE_KEY, spec)
+    }
+
+    /** Remove the `ksl-suite` entry from every detected agent. */
+    fun remove(): List<AgentConfigurator.ConfigResult> = AgentConfigurator.remove(SUITE_KEY)
+
+    /**
+     * The bridge launch spec auto-detected beside the running suite jar: the installed `ksl-bridge`
+     * launcher script when present (a single command), else `java -jar ksl-bridge.jar`. Null when the
+     * suite runs from compiled classes (dev / tests) or no bridge sits beside it.
+     */
+    fun defaultBridgeSpec(suiteUrl: String = DEFAULT_URL): LaunchSpec? {
+        val dir = suiteJarDir() ?: return null
+        val windows = System.getProperty("os.name").orEmpty().lowercase().contains("win")
+        val launcher = dir.resolve(if (windows) "ksl-bridge.cmd" else "ksl-bridge")
+        if (Files.exists(launcher)) return LaunchSpec(launcher.toString(), listOf("--url", suiteUrl))
+        val jar = dir.resolve("ksl-bridge.jar")
+        if (Files.exists(jar)) return LaunchSpec(javaCommand(), listOf("-jar", jar.toString(), "--url", suiteUrl))
+        return null
+    }
+
+    /** The directory holding the running suite jar, or null when running from classes (dev / tests). */
+    private fun suiteJarDir(): Path? = runCatching {
+        val uri = SetupCli::class.java.protectionDomain.codeSource.location.toURI()
+        val path = Path.of(uri)
+        if (path.toString().endsWith(".jar")) path.parent else null
+    }.getOrNull()
 
     /** Run a setup command and print a human-readable report to stdout. */
     fun runAndReport(args: Array<String>) {

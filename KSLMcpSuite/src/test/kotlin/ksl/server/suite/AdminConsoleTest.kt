@@ -23,7 +23,8 @@ class AdminConsoleTest {
     )
     private val usage = UsageSummary(total = 5, ok = 4, byTool = mapOf("run_model" to 5), byCapability = mapOf("sim" to 5))
     private val activity = listOf(UsageEvent("run_model", "sim", System.currentTimeMillis(), 120L, ok = true))
-    private val clients = listOf(AgentConfigurator.ClientState("Claude Desktop", present = true, path = "/x/claude.json"))
+    private val connected = listOf(AgentConfigurator.ClientState("Claude Desktop", present = true, path = "/x/claude.json"))
+    private val unconfigured = listOf(AgentConfigurator.ClientState("Claude Desktop", present = false, path = "/x/claude.json"))
 
     @Test
     @DisplayName("isLoopbackHost accepts loopback forms and rejects remote addresses")
@@ -37,26 +38,58 @@ class AdminConsoleTest {
     }
 
     @Test
-    @DisplayName("renders the six console regions with live data + the SSE hook")
+    @DisplayName("renders the console regions with live data + the SSE hook")
     fun rendersConsole() {
-        val html = AdminConsole.renderConsole(status, usage, activity, clients, loopback = true)
+        val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = true)
         assertTrue("KSL MCP Suite" in html && "1.4.0" in html)
-        assertTrue("Capabilities" in html && "Clients" in html && "Activity" in html)
-        assertTrue("Diagnostics" in html && "Lifecycle" in html)
+        assertTrue("Capabilities" in html && "Clients" in html && "Activity" in html && "Diagnostics" in html)
         assertTrue("DEGRADED" in html, "code enabled but not ready => degraded")
         assertTrue("run_model" in html && "8 bundles" in html)
-        assertTrue("Claude Desktop" in html && "configured" in html)
+        assertTrue("Claude Desktop" in html && ">connected<" in html)
         assertTrue("/admin/events" in html)             // the live SSE hook
         assertTrue("Apply &amp; Restart" in html)        // loopback-only capability apply
         assertTrue("export.csv" in html)                 // usage export
     }
 
     @Test
+    @DisplayName("Clients (setup) renders before Capabilities — the workflow order")
+    fun clientsComeFirst() {
+        val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = true)
+        assertTrue(html.indexOf("<h2>Clients") < html.indexOf("<h2>Capabilities"))
+    }
+
+    @Test
+    @DisplayName("no implementation leakage: no visible bridge-path field or standing body prose")
+    fun noBridgeLeakage() {
+        val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = true)
+        // the old console showed a required "ksl-bridge command (path to the bridge launcher)" input and
+        // a "Writes the one ksl-suite entry ..." paragraph — both are gone from the default view
+        assertFalse("path to the bridge launcher" in html)
+        assertFalse("Writes the one" in html)
+        // explanations moved to button tooltips; the override lives behind an Advanced disclosure
+        assertTrue("title=\"Removes the KSL entry" in html)
+        assertTrue(">Advanced</summary>" in html)
+    }
+
+    @Test
+    @DisplayName("when nothing is configured, Clients is emphasized with a one-click Connect and no bridge path")
+    fun emphasizesClientsWhenUnconfigured() {
+        val html = AdminConsole.renderConsole(status, usage, activity, unconfigured, loopback = true)
+        assertTrue("Connect your assistant" in html)      // emphasized heading
+        assertTrue("class=\"cta\"" in html)               // CTA styling on the section
+        assertTrue("Connect</button>" in html)            // the one-click action
+        assertTrue(">not connected<" in html)             // per-agent state
+        assertTrue("title=\"Adds KSL to your assistant" in html)  // the what-does-this-do tooltip
+        assertFalse("path to the bridge launcher" in html)
+    }
+
+    @Test
     @DisplayName("without loopback the machine-local controls are hidden but the console still renders")
     fun hidesLocalControlsWhenRemote() {
-        val html = AdminConsole.renderConsole(status, usage, activity, clients, loopback = false)
+        val html = AdminConsole.renderConsole(status, usage, activity, connected, loopback = false)
         assertFalse("Apply &amp; Restart" in html)
-        assertFalse("Configure</button>" in html)
+        assertFalse("Disconnect</button>" in html)
+        assertFalse("bridgeCmd" in html)                  // no client-setup controls at all when remote
         assertTrue("KSL MCP Suite" in html)
     }
 

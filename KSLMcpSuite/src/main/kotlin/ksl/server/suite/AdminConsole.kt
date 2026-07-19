@@ -30,8 +30,13 @@ import java.time.format.DateTimeFormatter
  * The built-in web console the suite serves at `/admin` — the operator's answer to "is the KSL server
  * working, and if not, what do I do?", plus a usage-study surface. Server-rendered from the live
  * server state (via `InProcessAdminOperations`) and the local client-config; the header, capability
- * call-counts, and activity feed refresh live from the `/admin/events` SSE stream. Six workflow-driven
- * regions: status header, capabilities, clients, activity & usage, diagnostics, lifecycle.
+ * call-counts, and activity feed refresh live from the `/admin/events` SSE stream.
+ *
+ * The regions are ordered by the operator's workflow, not the implementation: **Clients first** (the
+ * one thing that has to happen before any assistant can reach the server), then capabilities, activity
+ * & usage, and diagnostics. The presentation shows the task, never the plumbing — button tooltips carry
+ * the "what does this do" text, and the bridge command is auto-detected rather than typed. Start/stop
+ * live in the menu-bar/tray app, so the console has no lifecycle controls.
  *
  * Rendering and the loopback check are pure functions (no HTTP), so they unit-test directly; the route
  * wiring in `KslSuiteMcpServer` is verified live at the phase gate.
@@ -54,16 +59,15 @@ object AdminConsole {
     ): String = buildString {
         append(PAGE_HEAD)
         append(statusHeader(status))
+        append(clientsSection(clients, loopback))     // first: setup is the prerequisite for everything else
         append(capabilitiesSection(status, loopback))
-        append(clientsSection(clients, loopback))
         append(activitySection(usage, activity))
         append(diagnosticsSection(status))
-        append(lifecycleSection(loopback))
         append(script(loopback))
         append(PAGE_TAIL)
     }
 
-    // ---- region 1: status header (W2 — the trust surface) ----
+    // ---- region 1: status header (the trust surface) ----
     private fun statusHeader(status: SuiteStatus): String {
         val degraded = status.capabilities.any { it.enabled && !it.ready }
         val lamp = if (degraded) "degraded" else "running"
@@ -81,7 +85,63 @@ object AdminConsole {
         """.trimIndent()
     }
 
-    // ---- region 2: capabilities (W4 — the 1-of-3) ----
+    // ---- region 2: clients (setup — comes FIRST; nothing else works until an assistant is connected) ----
+    private fun clientsSection(clients: List<AgentConfigurator.ClientState>, loopback: Boolean): String {
+        val anyConfigured = clients.any { it.present }
+        val allConfigured = clients.isNotEmpty() && clients.all { it.present }
+        val rows = if (clients.isEmpty()) {
+            "<tr><td colspan='2' class='detail'>No coding assistant found on this machine (Claude Desktop or Codex).</td></tr>"
+        } else {
+            clients.joinToString("\n") { c ->
+                // The config-file path is trust info, not something to read every time — it lives on hover.
+                val badge = if (c.present)
+                    "<span class='ok' title='${escape(c.path)}'>connected</span>"
+                else
+                    "<span class='muted'>not connected</span>"
+                "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge</td></tr>"
+            }
+        }
+        // The buttons carry their own explanation as tooltips — no standing body prose, no bridge field.
+        val controls = when {
+            !loopback ->
+                "<div class='hint'>Assistant setup is available from the console on the server's own machine.</div>"
+            clients.isEmpty() -> ""
+            else -> buildString {
+                append("<div class='row'>")
+                if (!allConfigured) append(
+                    "<button id=\"cfgClient\" title=\"Adds KSL to your assistant(s), pointed at this running server. " +
+                        "Restart the assistant afterward so it loads the tools.\">Connect</button>",
+                )
+                if (anyConfigured) append(
+                    "<button id=\"rmClient\" class=\"secondary\" title=\"Removes the KSL entry from your assistant(s).\">Disconnect</button>",
+                )
+                append("</div>")
+                // Dev-only escape hatch: override the auto-detected bridge command. Hidden behind a disclosure.
+                append(
+                    "<details class=\"adv\"><summary>Advanced</summary>" +
+                        "<div class=\"row\"><input id=\"bridgeCmd\" placeholder=\"bridge command (leave blank to auto-detect)\"></div>" +
+                        "<div class=\"hint\">Only needed when running the suite from a dev jar that isn't installed beside the bridge.</div>" +
+                        "</details>",
+                )
+            }
+        }
+        val emphasize = loopback && clients.isNotEmpty() && !anyConfigured
+        val cls = if (emphasize) "cta" else ""
+        val heading = if (emphasize) "Connect your assistant" else "Clients"
+        val lead = if (emphasize)
+            "<div class=\"hint\">One click adds KSL to your coding assistant &mdash; do this first.</div>"
+        else ""
+        return """
+            <section class="$cls">
+              <h2>$heading</h2>
+              $lead
+              <table>$rows</table>
+              $controls
+            </section>
+        """.trimIndent()
+    }
+
+    // ---- region 3: capabilities (the 1-of-3) ----
     private fun capabilitiesSection(status: SuiteStatus, loopback: Boolean): String {
         val rows = status.capabilities.joinToString("\n") { c ->
             val toggle = if (loopback)
@@ -98,8 +158,8 @@ object AdminConsole {
             """.trimIndent()
         }
         val apply = if (loopback)
-            """<div class="row"><button id="applyCaps">Apply &amp; Restart</button>
-               <span class="hint">Toggling a surface takes effect after the launcher restarts the suite.</span></div>"""
+            """<div class="row"><button id="applyCaps" title="Saves which surfaces are enabled. Takes effect when the server next restarts.">Apply &amp; Restart</button>
+               <span class="hint">Turn a surface on or off, then restart the server (from the KSL Server menu-bar app) to apply.</span></div>"""
         else ""
         return """
             <section>
@@ -113,34 +173,7 @@ object AdminConsole {
         """.trimIndent()
     }
 
-    // ---- region 3: clients (W1 — setup) ----
-    private fun clientsSection(clients: List<AgentConfigurator.ClientState>, loopback: Boolean): String {
-        val rows = if (clients.isEmpty()) {
-            "<tr><td colspan='2' class='detail'>No coding agents detected on this machine.</td></tr>"
-        } else {
-            clients.joinToString("\n") { c ->
-                val badge = if (c.present) "<span class='ok'>configured</span>" else "<span class='warn'>not configured</span>"
-                "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge <span class='detail'>${escape(c.path)}</span></td></tr>"
-            }
-        }
-        val controls = if (loopback)
-            """<div class="row">
-                 <input id="bridgeCmd" placeholder="ksl-bridge command (path to the bridge launcher)">
-                 <button id="cfgClient">Configure</button>
-                 <button id="rmClient" class="secondary">Remove</button>
-               </div>
-               <div class="hint">Writes the one <code>ksl-suite</code> entry (launching the bridge at this suite's URL) into each detected agent.</div>"""
-        else "<div class='hint'>Client configuration is available from the console on the server's own machine.</div>"
-        return """
-            <section>
-              <h2>Clients</h2>
-              <table>$rows</table>
-              $controls
-            </section>
-        """.trimIndent()
-    }
-
-    // ---- region 4: activity & usage (W5 — the researcher surface) ----
+    // ---- region 4: activity & usage (the researcher surface) ----
     private fun activitySection(usage: UsageSummary, activity: List<UsageEvent>): String {
         val top = usage.byTool.entries.sortedByDescending { it.value }.take(8)
         val maxN = (top.maxOfOrNull { it.value } ?: 1).coerceAtLeast(1)
@@ -172,7 +205,7 @@ object AdminConsole {
         """.trimIndent()
     }
 
-    // ---- region 5: diagnostics (W3 — troubleshooting) ----
+    // ---- region 5: diagnostics (troubleshooting) ----
     private fun diagnosticsSection(status: SuiteStatus): String {
         val caps = status.capabilities.joinToString(", ") { "${it.id}=${if (it.enabled) "on" else "off"}" }
         val diag = "KSL MCP Suite v${status.version} | capabilities: $caps | served: ${status.served}"
@@ -180,22 +213,8 @@ object AdminConsole {
             <section>
               <h2>Diagnostics</h2>
               <pre id="diag">${escape(diag)}</pre>
-              <div class="row"><button id="copyDiag" class="secondary">Copy diagnostics</button></div>
+              <div class="row"><button id="copyDiag" class="secondary" title="Copies the version + capability summary for a bug report.">Copy diagnostics</button></div>
               <div class="hint">The full server log is under <code>~/.ksl/logs</code>.</div>
-            </section>
-        """.trimIndent()
-    }
-
-    // ---- region 6: lifecycle (W6 — background operation) ----
-    private fun lifecycleSection(loopback: Boolean): String {
-        val note = if (loopback)
-            "This console is served by the suite itself; closing this tab leaves the server running. Start/stop and restart are owned by the launcher (locally) or the platform (when hosted)."
-        else
-            "Lifecycle (start/stop/restart) is owned by the host platform."
-        return """
-            <section>
-              <h2>Lifecycle</h2>
-              <div class="hint">$note</div>
             </section>
         """.trimIndent()
     }
@@ -260,9 +279,11 @@ object AdminConsole {
           };
           const cfgBtn = document.getElementById('cfgClient');
           if (cfgBtn) cfgBtn.onclick = async () => {
-            const bridge = document.getElementById('bridgeCmd').value.trim();
-            if (!bridge) { alert('Enter the ksl-bridge command first.'); return; }
-            alert(await post('/admin/config/client?bridge=' + encodeURIComponent(bridge)));
+            // The bridge is auto-detected; only send an override when the Advanced field is filled in.
+            const adv = document.getElementById('bridgeCmd');
+            const b = adv && adv.value.trim();
+            const q = b ? ('?bridge=' + encodeURIComponent(b)) : '';
+            alert(await post('/admin/config/client' + q));
             location.reload();
           };
           const rmBtn = document.getElementById('rmClient');
@@ -282,6 +303,7 @@ object AdminConsole {
             font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif; padding:1rem; max-width:960px; margin:0 auto; }
           h1,h2,h3 { font-weight:600; } h2 { font-size:1rem; border-bottom:1px solid var(--line); padding-bottom:.3rem; }
           section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1rem 1.2rem; margin:1rem 0; }
+          section.cta { border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.14); }
           .hdr { display:flex; align-items:center; gap:1rem; background:var(--card); border:1px solid var(--line);
             border-radius:10px; padding:1rem 1.2rem; }
           .hdr-main { flex:1; } .state { font-weight:700; letter-spacing:.05em; } .id { color:var(--muted); font-size:.85rem; }
@@ -291,12 +313,14 @@ object AdminConsole {
           table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:.35rem .5rem; border-bottom:1px solid var(--line); }
           th { color:var(--muted); font-weight:500; font-size:.8rem; } .cap { font-family:ui-monospace,monospace; }
           .num { text-align:right; font-variant-numeric:tabular-nums; } .detail { color:var(--muted); font-size:.85rem; }
-          .ok { color:#16a34a; } .warn { color:#d97706; } .err { color:#dc2626; }
+          .ok { color:#16a34a; } .warn { color:#d97706; } .err { color:#dc2626; } .muted { color:var(--muted); }
           .row { display:flex; gap:.6rem; align-items:center; margin-top:.8rem; flex-wrap:wrap; }
           .hint { color:var(--muted); font-size:.82rem; margin-top:.5rem; }
           button,.btn { font:inherit; background:var(--accent); color:#fff; border:0; border-radius:6px; padding:.4rem .8rem;
             cursor:pointer; text-decoration:none; } button.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
           input { font:inherit; padding:.4rem .6rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); flex:1; min-width:16rem; }
+          details.adv { margin-top:.6rem; } details.adv > summary { color:var(--muted); font-size:.82rem; cursor:pointer; list-style:revert; }
+          details.adv[open] > summary { margin-bottom:.2rem; }
           pre { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.6rem; overflow-x:auto; font-size:.82rem; }
           .two-col { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; } @media (max-width:680px){ .two-col{ grid-template-columns:1fr; } }
           .bar-row { display:flex; align-items:center; gap:.5rem; margin:.25rem 0; }
