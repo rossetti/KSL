@@ -86,7 +86,12 @@ import ksl.utilities.io.report.toHtml
 import ksl.service.capability.fit.FitDocuments
 import ksl.service.capability.fit.FitService
 import ksl.service.capability.run.BundleRegistry
+import ksl.service.capability.run.EventsSnapshot
+import ksl.service.capability.run.RunApplicationService
+import ksl.service.capability.run.RunCancelOutcome
+import ksl.service.capability.run.RunResultOutcome
 import ksl.service.capability.run.RunService
+import ksl.service.capability.run.RunSubmitOutcome
 import ksl.service.capability.run.holdsServableResult
 import ksl.service.capability.run.dto.RunResultDto
 import ksl.service.capability.run.dto.mapping.toDto
@@ -159,6 +164,9 @@ class KslMcpTools(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val runService = RunService.fromRegistry(registry, runDeadline = runDeadline)
     private val runJobs = JobManager<RunEvent, RunResult>(scope, maxConcurrentJobs)
+    // The async run-lifecycle orchestrator (submit / poll / cancel + store-on-completion + top-up),
+    // extracted to the service layer. It shares runService/runJobs with the blocking paths below.
+    private val runApp = RunApplicationService(registry, runService, runJobs, resultStore, artifactStore, json)
     private val reportArtifacts = ksl.service.capability.report.ReportArtifactService()
     private val resultDb = ksl.service.capability.dbanalysis.ResultDatabaseService()
     private val bundleAuthoring = ksl.service.capability.authoring.BundleAuthoringService()
@@ -825,54 +833,24 @@ class KslMcpTools(
         val (built, argError) = buildRun(arguments)
         if (argError != null) return argError
         built!!
-        val useCache = useCache(arguments)
-        // Serve only a successful cached result. A retained Failed/Cancelled run (kept for
-        // diagnostics) is treated as a miss so the identical request re-runs.
-        if (useCache && resultStore.get(built.key)?.holdsServableResult() == true) {
-            return jobResult(buildJsonObject {
-                put("jobId", built.key)
+        return when (val outcome = runApp.submitRun(built.config, built.key, built.request, useCache(arguments))) {
+            is RunSubmitOutcome.AlreadyCached -> jobResult(buildJsonObject {
+                put("jobId", outcome.resultId)
                 put("status", JobStatus.TERMINAL.name)
-                put("resultId", built.key)
+                put("resultId", outcome.resultId)
                 put("cached", true)
             })
+            is RunSubmitOutcome.Started -> jobResult(buildJsonObject {
+                put("jobId", outcome.jobId)
+                put("status", JobStatus.RUNNING.name)
+                put("resultId", outcome.resultId)
+                put("cached", false)
+                outcome.reusedReplications?.let { put("reusedReplications", it) }
+            })
+            is RunSubmitOutcome.AtCapacity ->
+                error("server is at capacity (${outcome.limit} concurrent runs); try again shortly")
+            is RunSubmitOutcome.Failed -> error("could not start run: ${outcome.message}")
         }
-
-        // Incremental planning: if the rep count grew over a cached shorter run of
-        // the same identity, run only the missing replications; the combine happens
-        // on result fetch. The identity (when eligible) also feeds the family index.
-        val m = IncrementalRunCache.replications(built.config)
-        val identity = if (useCache && m != null && IncrementalRunCache.eligible(built.config)) {
-            IncrementalRunCache.runIdentity(built.config, CacheVersion.forRun(registry, built.config))
-        } else {
-            null
-        }
-        val topUp = identity?.let { planTopUp(it, m!!) }
-        val runConfig = if (topUp != null) IncrementalRunCache.topUpConfig(built.config, topUp.reuseN) else built.config
-
-        val jobId = try {
-            runJobs.register { runService.submitRunConfig(runConfig) }.jobId
-        } catch (e: JobAtCapacityException) {
-            return error("server is at capacity (${e.limit} concurrent runs); try again shortly")
-        } catch (e: Exception) {
-            return error("could not start run: ${e.message}")
-        }
-        pendingRuns[jobId] = PendingRun(built.key, ResultKind.RUN, built.request, identity, m, topUp)
-        return jobResult(buildJsonObject {
-            put("jobId", jobId)
-            put("status", JobStatus.RUNNING.name)
-            put("resultId", built.key)
-            put("cached", false)
-            topUp?.let { put("reusedReplications", it.reuseN) }
-        })
-    }
-
-    /** The largest cached shorter run (with sufficient stats) to extend, or null. */
-    private fun planTopUp(identity: String, target: Int): TopUp? {
-        val best = resultStore.familyMembers(identity).filterKeys { it < target }.maxByOrNull { it.key } ?: return null
-        val dto = resultStore.get(best.value)?.payload
-            ?.let { runCatching { json.decodeFromJsonElement(RunResultDto.serializer(), it) }.getOrNull() }
-        val usable = dto is RunResultDto.Completed && dto.responses.all { it.sum != null && it.deviationSumOfSquares != null }
-        return if (usable) TopUp(best.value, best.key) else null
     }
 
     /**
@@ -884,34 +862,21 @@ class KslMcpTools(
     fun getRunEvents(arguments: JsonObject?): CallToolResult {
         val jobId = arguments.string("jobId") ?: return error("missing required argument 'jobId'")
         val fromOffset = (arguments.int("fromOffset") ?: 0).coerceAtLeast(0)
-        val events = runJobs.eventsNow(jobId, fromOffset)
-            ?: return if (resultStore.get(jobId) != null) {
-                // A cached / content-key id: the run already completed; no live journal.
-                eventsResult(buildJsonObject {
-                    put("jobId", jobId)
-                    put("fromOffset", fromOffset)
-                    put("nextOffset", fromOffset)
-                    put("status", JobStatus.TERMINAL.name)
-                    putJsonArray("events") {}
-                })
-            } else {
-                error("unknown jobId '$jobId'")
-            }
-        val payload = buildJsonObject {
-            put("jobId", jobId)
-            put("fromOffset", fromOffset)
-            put("nextOffset", fromOffset + events.size)
-            put("status", runJobs.status(jobId)?.name ?: "UNKNOWN")
+        val snapshot = runApp.eventsSnapshot(jobId, fromOffset) ?: return error("unknown jobId '$jobId'")
+        return eventsResult(buildJsonObject {
+            put("jobId", snapshot.jobId)
+            put("fromOffset", snapshot.fromOffset)
+            put("nextOffset", snapshot.nextOffset)
+            put("status", snapshot.status)
             putJsonArray("events") {
-                events.forEach { event ->
+                snapshot.events.forEach { event ->
                     add(buildJsonObject {
                         put("type", event::class.simpleName ?: "RunEvent")
                         put("detail", event.toString())
                     })
                 }
             }
-        }
-        return eventsResult(payload)
+        })
     }
 
     /**
@@ -924,21 +889,17 @@ class KslMcpTools(
      */
     suspend fun getRunResult(arguments: JsonObject?): CallToolResult {
         val jobId = arguments.string("jobId") ?: return error("missing required argument 'jobId'")
-        val liveStatus = runJobs.status(jobId)
-        if (liveStatus != null) {
-            if (liveStatus != JobStatus.TERMINAL) {
-                return result(
-                    "Run status: ${liveStatus.name} — not finished; poll get_run_result again.",
-                    buildJsonObject { put("status", liveStatus.name) },
-                )
-            }
-            val result = runJobs.result(jobId) ?: return error("result for '$jobId' is unavailable")
-            val cached = storeRun(jobId, result)
-                ?: return error("the incremental base run was evicted before completion; please re-submit")
-            return runResult(cached)
+        return when (val outcome = runApp.getRunResult(jobId)) {
+            is RunResultOutcome.Running -> result(
+                "Run status: ${outcome.status} — not finished; poll get_run_result again.",
+                buildJsonObject { put("status", outcome.status) },
+            )
+            is RunResultOutcome.Ready -> runResult(outcome.cached)
+            RunResultOutcome.Unavailable -> error("result for '$jobId' is unavailable")
+            RunResultOutcome.EvictedBase ->
+                error("the incremental base run was evicted before completion; please re-submit")
+            RunResultOutcome.Unknown -> error("unknown jobId '$jobId'")
         }
-        val stored = resultStore.get(jobId) ?: return error("unknown jobId '$jobId'")
-        return runResult(stored, fromCache = true)
     }
 
     /**
@@ -950,40 +911,17 @@ class KslMcpTools(
     fun cancelRun(arguments: JsonObject?): CallToolResult {
         val jobId = arguments.string("jobId") ?: return error("missing required argument 'jobId'")
         val reason = arguments.string("reason") ?: "Cancelled by user"
-        val status = runJobs.status(jobId)
-        if (status != JobStatus.RUNNING) {
-            val why = if (status == JobStatus.TERMINAL) "already finished" else "unknown or evicted"
-            return result(
-                "No running job '$jobId' to cancel ($why).",
-                buildJsonObject { put("jobId", jobId); put("cancelled", false); put("message", why) },
+        return when (val outcome = runApp.cancelRun(jobId, reason)) {
+            is RunCancelOutcome.NotRunning -> result(
+                "No running job '$jobId' to cancel (${outcome.why}).",
+                buildJsonObject { put("jobId", jobId); put("cancelled", false); put("message", outcome.why) },
+            )
+            RunCancelOutcome.Cancelled -> result(
+                "Cancellation requested for job '$jobId'.",
+                buildJsonObject { put("jobId", jobId); put("cancelled", true); put("message", "cancellation requested: $reason") },
             )
         }
-        runJobs.cancel(jobId, reason)
-        return result(
-            "Cancellation requested for job '$jobId'.",
-            buildJsonObject { put("jobId", jobId); put("cancelled", true); put("message", "cancellation requested: $reason") },
-        )
     }
-
-    // jobId -> the content key / kind / request an async run will be stored under
-    // when it terminates (store-on-completion; mirrors the REST path). Bounded by
-    // the JobManager's own retention; cleared when the result is stored.
-    private val pendingRuns = ConcurrentHashMap<String, PendingRun>()
-
-    private class PendingRun(
-        val resultId: String,
-        val kind: ResultKind,
-        val request: JsonElement,
-        // Set for an eligible single-scenario run so the result is recorded in the
-        // run-identity family on completion (a producer the incremental path reuses).
-        val identity: String? = null,
-        val replications: Int? = null,
-        // Non-null when the registered job runs only the top-up: its result must be
-        // combined with the cached shorter run before being served as the full result.
-        val topUp: TopUp? = null,
-    )
-
-    private class TopUp(val cachedResultId: String, val reuseN: Int)
 
     /** A built single-run document plus its content key and canonical request. */
     private class BuiltRun(val config: RunConfiguration, val key: String, val request: JsonElement)
@@ -1040,58 +978,6 @@ class KslMcpTools(
             key = ResultKeys.forRunConfig(config, CacheVersion.forRun(registry, config)),
             request = json.parseToJsonElement(RunConfigurationJson.encode(config)),
         ) to null
-    }
-
-    /**
-     * Store-on-completion for an async run (idempotent). For a plain run, stores
-     * the DTO and (when eligible) records it in the run-identity family so later
-     * escalations can reuse it. For an incremental top-up, combines the job's
-     * (M−N)-rep result with the cached N-rep run into the full M-rep result before
-     * storing. Returns null only when the incremental base was evicted before the
-     * top-up finished (so the full result cannot be assembled).
-     */
-    private fun storeRun(jobId: String, result: RunResult): CachedResult? {
-        val meta = pendingRuns.remove(jobId)
-        val resultId = meta?.resultId ?: jobId
-        // Idempotency guard, but only for an already-stored SUCCESS — a retained failure under this
-        // key must be overwritten by this run's result (self-healing), not returned in its place.
-        resultStore.get(resultId)?.takeIf { it.holdsServableResult() }
-            ?.let { return CachedResult(it, fromCache = false) }
-
-        val dto = result.toDto()
-        val topUp = meta?.topUp
-        if (topUp != null) {
-            val cachedDto = resultStore.get(topUp.cachedResultId)?.payload
-                ?.let { runCatching { json.decodeFromJsonElement(RunResultDto.serializer(), it) }.getOrNull() }
-            if (cachedDto !is RunResultDto.Completed || dto !is RunResultDto.Completed) return null
-            val stored = persistRun(resultId, meta.request, IncrementalCombine.completed(cachedDto, dto))
-            indexFamily(meta, resultId)
-            return CachedResult(stored, fromCache = false, reusedReplications = topUp.reuseN)
-        }
-        val stored = persistRun(resultId, meta?.request ?: JsonNull, dto)
-        if (dto is RunResultDto.Completed) indexFamily(meta, resultId)
-        return CachedResult(stored, fromCache = false)
-    }
-
-    private fun indexFamily(meta: PendingRun?, resultId: String) {
-        val identity = meta?.identity ?: return
-        val replications = meta.replications ?: return
-        resultStore.indexFamily(identity, replications, resultId)
-    }
-
-    private fun persistRun(resultId: String, request: JsonElement, dto: RunResultDto): StoredResult {
-        val enriched = dto.withArtifacts(artifactStore.list(resultId))
-        val stored = StoredResult(
-            resultId = resultId,
-            kind = ResultKind.RUN,
-            createdAt = Clock.System.now(),
-            request = request,
-            payload = json.encodeToJsonElement(RunResultDto.serializer(), enriched),
-        )
-        // Retain every outcome (successes and failures) for diagnostics; the read side
-        // (holdsServableResult) refuses to serve a stored failure, so a retry re-runs.
-        resultStore.put(stored)
-        return stored
     }
 
     /**

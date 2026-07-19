@@ -240,6 +240,16 @@ val kslStandaloneServers: List<Pair<Project, String>> = listOf(
     evaluationDependsOn(":KSLBookServer") to "book",
 )
 
+// The consolidated MCP suite (Phase F): ONE Servers/suite/ dir holds THREE artifacts — the thin suite
+// server jar (ksl-suite-mcp, over the shared lib/ + a shared server-lib/), the thin "KSL Server" tray
+// agent (ksl-server, same lib/), and the self-contained stdio<->HTTP bridge (ksl-bridge, fat). The tray
+// execs the ksl-suite launcher as a managed child; stdio clients (Claude Desktop / Codex) spawn
+// ksl-bridge, which SetupCli auto-detects beside the suite jar. The generic kslServers loop stages one
+// jar per dir, so this trio gets its own staging block in assembleKSLWork below.
+val kslSuite = evaluationDependsOn(":KSLMcpSuite")
+val kslServerTray = evaluationDependsOn(":KSLServerTray")
+val kslBridge = evaluationDependsOn(":KSLBridge")
+
 // Curated example bundles shipped with the suite, so a fresh install can run a real model
 // immediately instead of opening an empty model picker. They are slim MANIFEST bundles
 // (~730 KB for both) — the models' dependencies are already in the shared lib/, so this is
@@ -459,6 +469,13 @@ tasks.register("assembleKSLWork") {
         dependsOn(server.tasks.named("shadowJar"))
         inputs.files(server.tasks.named("shadowJar"))
     }
+    // The suite trio: thin suite + tray jars (over lib/ + a shared server-lib/) and the fat bridge jar.
+    listOf(kslSuite, kslServerTray).forEach { server ->
+        dependsOn(server.tasks.named("jar"))
+        inputs.files(server.configurations.named("runtimeClasspath"))
+    }
+    dependsOn(kslBridge.tasks.named("shadowJar"))
+    inputs.files(kslBridge.tasks.named("shadowJar"))
     exampleBundles.forEach { (task, jar) ->
         dependsOn(kslExamples.tasks.named(task))
         inputs.file(kslExamples.layout.buildDirectory.file("libs/$jar"))
@@ -572,6 +589,73 @@ tasks.register("assembleKSLWork") {
             if (overrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   $dir server-lib/ overrides -> ${overrides.joinToString(", ")}")
         }
 
+        // The consolidated suite (Phase F): three artifacts in ONE Servers/suite/ dir. The thin suite and
+        // tray jars share a server-lib/ (their extras not already in lib/); the bridge is a self-contained
+        // fat jar stdio clients spawn. Launchers: ksl-suite (the HTTP server — exec'd as a child by the
+        // tray, or run directly when hosted), ksl-server (the entry:"gui" menu-bar agent), and ksl-bridge
+        // (the stdio<->HTTP pump). The tray launcher passes the two sibling launcher paths via -D so the
+        // agent can start the suite child and manage its own Start-at-login without guessing paths.
+        run {
+            val suiteDir = root.resolve("Servers/suite").apply { mkdirs() }
+            jarOf(kslSuite.tasks.named("jar")).copyTo(suiteDir.resolve("ksl-suite-mcp.jar"), overwrite = true)
+            jarOf(kslServerTray.tasks.named("jar")).copyTo(suiteDir.resolve("ksl-server.jar"), overwrite = true)
+            jarOf(kslBridge.tasks.named("shadowJar")).copyTo(suiteDir.resolve("ksl-bridge.jar"), overwrite = true)
+
+            // Shared server-lib/: the union of the suite's and tray's runtime deps NOT already carried by
+            // lib/ at the same version (KSLServiceCore, KSLServerMcp, the search libs with their baked
+            // indexes, MCP SDK, Ktor, ...). Same lib/-ahead rule as the kslServers loop; dedup by filename.
+            val suiteLibDir = suiteDir.resolve("server-lib").apply { mkdirs() }
+            val suiteOverrides = sortedSetOf<String>()
+            listOf(kslSuite, kslServerTray).forEach { proj ->
+                proj.configurations.named("runtimeClasspath").get().resolvedConfiguration.resolvedArtifacts.forEach { art ->
+                    val id = art.moduleVersion.id
+                    val libVer = libModuleVersion["${id.group}:${id.name}"]
+                    if (libVer != id.version) {
+                        art.file.copyTo(suiteLibDir.resolve(art.file.name), overwrite = true)
+                        if (libVer != null) suiteOverrides += "${id.name} ${id.version} (lib/ has $libVer)"
+                    }
+                }
+            }
+
+            val suiteJvm = jvmArgsOf(kslSuite)
+            val trayJvm = jvmArgsOf(kslServerTray)
+            val bridgeJvm = jvmArgsOf(kslBridge)
+
+            // ksl-suite: the HTTP MCP server (thin over server-lib/ + lib/).
+            suiteDir.resolve("ksl-suite").apply {
+                writeText(serverLauncher("ksl-suite", "ksl-suite-mcp", "ksl.server.suite.MainKt", suiteJvm)); setExecutable(true)
+            }
+            suiteDir.resolve("ksl-suite.cmd").writeText(winServerLauncher("ksl-suite", "ksl-suite-mcp", "ksl.server.suite.MainKt", suiteJvm))
+
+            // ksl-server: the menu-bar/tray agent (thin over server-lib/ + lib/). Both sibling launcher
+            // paths go in via -D (DOLLARDIR / %~dp0 resolve to Servers/suite/ at run time).
+            val trayUnixD = " \"-Dksl.suite.launcher=DOLLARDIR/ksl-suite\" \"-Dksl.server.launcher=DOLLARDIR/ksl-server\""
+            val trayWinD = " \"-Dksl.suite.launcher=%~dp0ksl-suite.cmd\" \"-Dksl.server.launcher=%~dp0ksl-server.cmd\""
+            suiteDir.resolve("ksl-server").apply {
+                writeText(serverLauncher("ksl-server", "ksl-server", "ksl.server.tray.MainKt", trayJvm, trayUnixD)); setExecutable(true)
+            }
+            suiteDir.resolve("ksl-server.cmd").writeText(winServerLauncher("ksl-server", "ksl-server", "ksl.server.tray.MainKt", trayJvm, trayWinD))
+
+            // ksl-bridge: the self-contained stdio<->HTTP bridge (fat jar; SetupCli auto-detects it here).
+            suiteDir.resolve("ksl-bridge").apply { writeText(cliLauncher("ksl-bridge", bridgeJvm)); setExecutable(true) }
+            suiteDir.resolve("ksl-bridge.cmd").writeText(winCliLauncher("ksl-bridge", bridgeJvm))
+
+            // ksl-server is entry:"gui" (a menu-bar agent): stage the shared server icon + a windowless
+            // Windows launcher (javaw, no console) that starts the tray with the sibling launcher -Ds.
+            kslAppIconFiles("server").forEach { icon ->
+                require(icon.isFile) { "missing server icon asset: ${icon.path}" }
+                icon.copyTo(suiteDir.resolve(icon.name), overwrite = true)
+            }
+            val guiExec = "-cp \"%~dp0server-lib\\*;%~dp0..\\..\\lib\\*;%~dp0ksl-server.jar\" ksl.server.tray.MainKt"
+            suiteDir.resolve("ksl-server-gui.cmd").writeText(winServerGuiLauncher("ksl-server", guiExec, trayJvm, trayWinD))
+
+            logger.lifecycle(
+                "assembleKSLWork: Servers/suite -> ksl-suite-mcp.jar + ksl-server.jar + ksl-bridge.jar (fat) + " +
+                    "${suiteLibDir.listFiles()?.size ?: 0} server-lib jars + ksl-suite/ksl-server/ksl-bridge launchers",
+            )
+            if (suiteOverrides.isNotEmpty()) logger.lifecycle("assembleKSLWork:   suite server-lib/ overrides -> ${suiteOverrides.joinToString(", ")}")
+        }
+
         // Standalone MCP servers: self-contained fat shadowJar + a pass-through launcher (system
         // Java, no shared lib/). ksl-book's content depends on _book/ being rendered at build time.
         kslStandaloneServers.forEach { (server, dir) ->
@@ -615,7 +699,7 @@ tasks.register("assembleKSLWork") {
         file("distribution/bin/ksl.cmd").copyTo(binDir.resolve("ksl.cmd"), overwrite = true)
 
         logger.lifecycle("assembleKSLWork: shared lib/ = ${libDir.listFiles()?.size ?: 0} jars; " +
-            "${kslAppTargets.size} apps; kslpkg; ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers; bin/ksl(+.ps1/.cmd)")
+            "${kslAppTargets.size} apps; kslpkg; ${kslServers.size} thin + ${kslStandaloneServers.size} fat servers + suite; bin/ksl(+.ps1/.cmd)")
     }
 }
 

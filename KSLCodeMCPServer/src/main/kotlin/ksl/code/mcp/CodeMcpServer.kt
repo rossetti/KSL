@@ -32,7 +32,6 @@ object CodeMcpServer {
         store: CodeStore = CodeStore.instance,
         search: CodeSearch = CodeSearch(store),
     ): Server {
-        val handlers = ToolHandlers(store, search)
         val server = Server(
             Implementation(name = "ksl-code-mcp", version = BuildInfo.version),
             ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = true))),
@@ -47,6 +46,20 @@ object CodeMcpServer {
                 "at ref ${store.meta.kslVersion}. (For simulation theory and textbook concepts, the " +
                 "companion ksl-book server has the textbook; for running models, the ksl model server.)",
         )
+        registerCodeTools(server, store, search)
+        return server
+    }
+
+    /**
+     * Registers the eight source-code tools onto an existing (possibly shared) MCP server, so the
+     * same tools back either the standalone code server (via `build`) or the aggregated KSLMcpSuite.
+     */
+    fun registerCodeTools(
+        server: Server,
+        store: CodeStore = CodeStore.instance,
+        search: CodeSearch = CodeSearch(store),
+    ) {
+        val handlers = ToolHandlers(store, search)
 
         server.addCodeTool(
             name = "search_code",
@@ -171,8 +184,6 @@ object CodeMcpServer {
                 "the index build date, and the total declaration count. Use to verify the index is current " +
                 "with the course's KSL version.",
         ) { _ -> handlers.getServerInfo() }
-
-        return server
     }
 
     private fun Server.addCodeTool(

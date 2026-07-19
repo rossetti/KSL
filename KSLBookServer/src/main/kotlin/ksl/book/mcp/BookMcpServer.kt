@@ -25,7 +25,6 @@ object BookMcpServer {
         store: BookStore = BookStore.instance,
         search: BookSearch = BookSearch(store),
     ): Server {
-        val handlers = ToolHandlers(store, search)
         val server = Server(
             Implementation(name = "ksl-book-mcp", version = BuildInfo.version),
             ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = true))),
@@ -44,6 +43,20 @@ object BookMcpServer {
                 "optimization, plus appendices on random generation, distribution fitting, and queueing " +
                 "formulas.",
         )
+        registerBookTools(server, store, search)
+        return server
+    }
+
+    /**
+     * Registers the six textbook tools onto an existing (possibly shared) MCP server, so the same
+     * tools back either the standalone book server (via `build`) or the aggregated KSLMcpSuite.
+     */
+    fun registerBookTools(
+        server: Server,
+        store: BookStore = BookStore.instance,
+        search: BookSearch = BookSearch(store),
+    ) {
+        val handlers = ToolHandlers(store, search)
 
         server.addBookTool(
             name = "search_textbook",
@@ -151,8 +164,6 @@ object BookMcpServer {
         ) { args ->
             handlers.getRelatedSections(args.string("section") ?: throw ToolInputException("section is required."))
         }
-
-        return server
     }
 
     private fun Server.addBookTool(

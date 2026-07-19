@@ -48,6 +48,7 @@ data class ServerConfig(
     val bundles: BundlesConfig = BundlesConfig(),
     val cache: CacheConfig = CacheConfig(),
     val server: ServerSettings = ServerSettings(),
+    val capabilities: CapabilitiesConfig = CapabilitiesConfig(),
 ) {
     /**
      * The bundle directories the server discovers, in priority order: the
@@ -133,6 +134,18 @@ data class ServerConfig(
 
     /** The bundle-directory poll interval. */
     fun pollInterval(): Duration = bundles.pollSeconds.seconds
+
+    /** Whether the simulation tool surface is enabled: `KSL_CAPABILITY_SIM` > `capabilities.sim` > true. */
+    fun simEnabled(): Boolean = capabilityEnabled("SIM", capabilities.sim)
+
+    /** Whether the textbook-search surface is enabled: `KSL_CAPABILITY_BOOK` > `capabilities.book` > true. */
+    fun bookEnabled(): Boolean = capabilityEnabled("BOOK", capabilities.book)
+
+    /** Whether the source-code-search surface is enabled: `KSL_CAPABILITY_CODE` > `capabilities.code` > true. */
+    fun codeEnabled(): Boolean = capabilityEnabled("CODE", capabilities.code)
+
+    private fun capabilityEnabled(id: String, fileValue: Boolean): Boolean =
+        System.getenv("KSL_CAPABILITY_$id")?.toBooleanStrictOrNull() ?: fileValue
 
     private fun resolveDir(env: String, fileValue: String?, default: Path): Path {
         val chosen = System.getenv(env)?.let { expandHome(it) } ?: fileValue?.let { expandHome(it) } ?: default
@@ -257,4 +270,21 @@ data class ServerSettings(
         "KSL_AUTH_TOKEN overrides."
     )
     val authToken: String? = null,
+)
+
+/**
+ * Which MCP tool surfaces the aggregated suite serves. Disabling a surface skips constructing its
+ * backend entirely — notably, disabling `sim` avoids loading the bundle registry and run services,
+ * so a textbook-only deployment starts light. Each flag is overridable by `KSL_CAPABILITY_<ID>`
+ * (SIM / BOOK / CODE). The single `ksl-suite` client entry is unchanged; the suite simply advertises
+ * only the enabled surfaces' tools.
+ */
+@Serializable
+data class CapabilitiesConfig(
+    @TomlComment("Enable the simulation surface (run/experiment/optimize/fit). KSL_CAPABILITY_SIM overrides.")
+    val sim: Boolean = true,
+    @TomlComment("Enable the textbook search surface (search_textbook, ...). KSL_CAPABILITY_BOOK overrides.")
+    val book: Boolean = true,
+    @TomlComment("Enable the source-code search surface (search_code, ...). KSL_CAPABILITY_CODE overrides.")
+    val code: Boolean = true,
 )

@@ -1,0 +1,13 @@
+<configuration>
+    <!-- The suite serves over HTTP (not stdio), but log to stderr anyway for consistency with the
+         other KSL servers and to keep stdout clean if ever run in a stdio/dev mode. -->
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

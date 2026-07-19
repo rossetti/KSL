@@ -1,0 +1,13 @@
+<configuration>
+    <!-- The bridge is a stdio MCP server: stdout is the JSON-RPC channel to the client, so ALL log
+         output must go to stderr or it would corrupt the protocol stream. -->
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

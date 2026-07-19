@@ -42,12 +42,15 @@ object BuildInfo {
  */
 object HealthEndpoints {
 
-    /** `{"status":"UP","service":<name>,"version":<ver>}` */
-    fun healthJson(service: String): String =
+    /**
+     * `{"status":"UP","service":<name>,"version":<ver>}`. [version] defaults to the server-stack
+     * [BuildInfo.version]; the suite passes its own distribution version so /health matches the release.
+     */
+    fun healthJson(service: String, version: String = BuildInfo.version): String =
         buildJsonObject {
             put("status", "UP")
             put("service", service)
-            put("version", BuildInfo.version)
+            put("version", version)
         }.toString()
 
     /** `{"status":"READY"|"STARTING","ready":<bool>}` */
@@ -57,10 +60,13 @@ object HealthEndpoints {
             put("ready", ready)
         }.toString()
 
-    /** `{"service":<name>,"version":<ver>}` — the body of `GET /version` (A7). */
-    fun versionJson(service: String): String =
+    /**
+     * `{"service":<name>,"version":<ver>}` — the body of `GET /version` (A7). [version] defaults to the
+     * server-stack [BuildInfo.version]; the suite passes its own distribution version.
+     */
+    fun versionJson(service: String, version: String = BuildInfo.version): String =
         buildJsonObject {
             put("service", service)
-            put("version", BuildInfo.version)
+            put("version", version)
         }.toString()
 }

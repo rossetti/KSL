@@ -22,7 +22,10 @@ import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import ksl.service.usage.ToolUsageRecorder
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -62,10 +65,43 @@ object KslMcpServer {
             // from the same renderer the get_started tool/prompt use.
             instructions = KslMcpPrompts.serverInstructions(tools.availableBundles()),
         )
+        registerKslTools(server, tools)
+        return server
+    }
 
+    /**
+     * Registers the KSL simulation tools and guided prompts onto an existing (possibly shared) MCP
+     * server, so the same surface backs either the standalone `ksl` server (via `build`) or the
+     * aggregated KSLMcpSuite.
+     */
+    fun registerKslTools(
+        server: Server,
+        tools: KslMcpTools,
+        recorder: ToolUsageRecorder = ToolUsageRecorder.NONE,
+    ) {
+        // Route every tool registration through this local wrapper so each call is timed and
+        // recorded (ok = the handler produced a non-error result) for the usage study. With the
+        // default NONE recorder (the standalone server and tests) it is a no-op around addTool.
+        fun add(
+            name: String,
+            description: String,
+            inputSchema: ToolSchema,
+            outputSchema: ToolSchema,
+            handler: suspend (CallToolRequest) -> CallToolResult,
+        ) {
+            server.addTool(name = name, description = description, inputSchema = inputSchema, outputSchema = outputSchema) { request ->
+                val start = System.currentTimeMillis()
+                var ok = false
+                try {
+                    handler(request).also { ok = it.isError != true }
+                } finally {
+                    recorder.record(name, System.currentTimeMillis() - start, ok)
+                }
+            }
+        }
         // get_started heads the tool list on purpose — the "start here" entry point a model can
         // call when the user is vague, so orientation is reachable by push, not only by prompt.
-        server.addTool(
+        add(
             name = "get_started",
             description = "Start here. What this KSL server can do and how to ask — routes you to the " +
                 "right workflow (run / experiment / optimize / fit / generate). Call this when the user " +
@@ -74,7 +110,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.bundles,
         ) { _ -> tools.getStarted() }
 
-        server.addTool(
+        add(
             name = "list_bundles",
             description = "List the KSL model bundles available to this server (structuredContent " +
                 "{bundles:[...]} with id, display name, version, and the model ids each provides). " +
@@ -83,7 +119,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.bundles,
         ) { _ -> tools.listBundles() }
 
-        server.addTool(
+        add(
             name = "list_models",
             description = "List the model ids provided by a bundle (structuredContent " +
                 "{bundleId, models:[...]}). Present the full list; don't truncate.",
@@ -99,7 +135,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.models,
         ) { request -> tools.listModels(request.arguments) }
 
-        server.addTool(
+        add(
             name = "describe_model",
             description = "Describe a model: structuredContent with its task kinds (supportedApps), " +
                 "responses, and JSON Schemas for run arguments and outputs (catalog-led when the model " +
@@ -115,7 +151,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.modelDescriptor,
         ) { request -> tools.describeModel(request.arguments) }
 
-        server.addTool(
+        add(
             name = "run_model",
             description = "Run a single simulation of a bundled model. Returns structuredContent with the " +
                 "full result and a text summary. When reporting, present EVERY response in the `responses` " +
@@ -220,7 +256,7 @@ object KslMcpServer {
             required = listOf("bundleId", "modelId"),
         )
 
-        server.addTool(
+        add(
             name = "submit_run",
             description = "Start a run without waiting; returns structuredContent with the jobId, status, " +
                 "resultId, and cache disposition. When reporting, give the user the status and jobId, then " +
@@ -230,7 +266,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.job,
         ) { request -> tools.submitRun(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_run_events",
             description = "Snapshot a run's progress events from fromOffset (the journal retains " +
                 "every event, so any offset replays). Returns structuredContent with the events, the next " +
@@ -248,7 +284,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.events,
         ) { request -> tools.getRunEvents(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_run_result",
             description = "The result of a run once it has finished (structuredContent with the full result, " +
                 "reported exactly like run_model — every response with average, standard error, and 95% CI " +
@@ -260,7 +296,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.projection,
         ) { request -> tools.getRunResult(request.arguments) }
 
-        server.addTool(
+        add(
             name = "cancel_run",
             description = "Request cancellation of a still-running job started by submit_run. Returns " +
                 "structuredContent {jobId, cancelled, message}: cancelled=true when a cancel was issued to a " +
@@ -276,7 +312,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.cancel,
         ) { request -> tools.cancelRun(request.arguments) }
 
-        server.addTool(
+        add(
             name = "run_optimization",
             description = "Run a simulation-optimization (stochastic hill climbing) over a bundled " +
                 "model: minimize/maximize a response over numeric decision variables. Returns structuredContent " +
@@ -314,7 +350,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.run,
         ) { request -> tools.runOptimization(request.arguments) }
 
-        server.addTool(
+        add(
             name = "run_experiment",
             description = "Run a two-level factorial designed experiment over a bundled model. " +
                 "Each factor binds a model control key to low/high levels; needs at least two factors. " +
@@ -386,7 +422,7 @@ object KslMcpServer {
             )
         }
 
-        server.addTool(
+        add(
             name = "run_config",
             description = "Run a complete RunConfiguration document (single run or scenario batch) as " +
                 "authored. The full-fidelity path; the document is validated before running. Returns " +
@@ -395,7 +431,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.run,
         ) { request -> tools.runConfig(request.arguments) }
 
-        server.addTool(
+        add(
             name = "run_optimization_config",
             description = "Run a complete OptimizationRunConfiguration document as authored, validated first. " +
                 "Returns structuredContent with the best solution and iteration trace; report the best inputs, " +
@@ -412,7 +448,7 @@ object KslMcpServer {
             required = listOf("bundleId", "modelId"),
         )
 
-        server.addTool(
+        add(
             name = "experiment_template",
             description = "Get a ready-to-edit ExperimentConfiguration document scaffold for a model " +
                 "(a two-level factorial over its first two numeric controls). The text is the document to " +
@@ -421,7 +457,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.document,
         ) { request -> tools.experimentTemplate(request.arguments) }
 
-        server.addTool(
+        add(
             name = "auto_layout",
             description = "Generate the richest available animation layout for a bundled model — the same 'Auto " +
                 "Layout' the desktop animation app produces. With a run's captured trace (pass its resultId; the " +
@@ -444,7 +480,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.document,
         ) { request -> tools.autoLayout(request.arguments) }
 
-        server.addTool(
+        add(
             name = "validate_animation_layout",
             description = "Validate a (possibly edited) animation layout against a model's structure: reports " +
                 "unmatched queue / resource / movable-resource / response / selector bindings, each with a " +
@@ -462,7 +498,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.animationLayoutValidation,
         ) { request -> tools.validateAnimationLayout(request.arguments) }
 
-        server.addTool(
+        add(
             name = "render_animation_layout",
             description = "Render a proposed or edited animation layout to a static PNG preview so you can see " +
                 "the placement — the propose (auto_layout) → render → look → revise " +
@@ -479,7 +515,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.renderAnimationLayout(request.arguments) }
 
-        server.addTool(
+        add(
             name = "bundle_authoring_candidates",
             description = "Start authoring a model bundle from a builders JAR (a JAR of ModelBuilderIfc classes): " +
                 "returns each discoverable model's annotatable inputs (controls + RV parameters) and outputs, " +
@@ -527,7 +563,7 @@ object KslMcpServer {
             required = listOf("ok", "findings"),
         )
 
-        server.addTool(
+        add(
             name = "preview_bundle_authoring",
             description = "Dry-run an authoring payload against a builders JAR: apply it and validate WITHOUT writing, " +
                 "returning the findings (unresolved catalog keys, an invalid bundleId, a supportedApps claim the model " +
@@ -536,7 +572,7 @@ object KslMcpServer {
             outputSchema = bundleValidationOutput,
         ) { request -> tools.previewBundleAuthoring(request.arguments) }
 
-        server.addTool(
+        add(
             name = "assemble_bundle",
             description = "Assemble a runnable model bundle JAR from a builders JAR + an authoring payload — its " +
                 "catalog (display names/descriptions/units), per-model supportedApps classification, and identity " +
@@ -546,7 +582,7 @@ object KslMcpServer {
             outputSchema = bundleValidationOutput,
         ) { request -> tools.assembleBundle(request.arguments) }
 
-        server.addTool(
+        add(
             name = "experiment_config",
             description = "Run a complete ExperimentConfiguration document (factors + design) as authored, " +
                 "validated first. Returns structuredContent with per-design-point results; when reporting, " +
@@ -555,7 +591,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.run,
         ) { request -> tools.experimentConfig(request.arguments) }
 
-        server.addTool(
+        add(
             name = "validate_experiment_config",
             description = "Validate an ExperimentConfiguration document without running it. Returns " +
                 "structuredContent {valid, errors[], warnings[]}. Report the verdict: state VALID, or list " +
@@ -564,7 +600,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.validation,
         ) { request -> tools.validateExperiment(request.arguments) }
 
-        server.addTool(
+        add(
             name = "run_template",
             description = "Get a ready-to-edit RunConfiguration document scaffold for a model " +
                 "(controls and run parameters pre-filled at defaults). The text is the document to edit; " +
@@ -573,7 +609,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.document,
         ) { request -> tools.runTemplate(request.arguments) }
 
-        server.addTool(
+        add(
             name = "optimization_template",
             description = "Get a ready-to-edit OptimizationRunConfiguration document scaffold for a model " +
                 "(a placeholder single decision variable over its first numeric control, minimizing its " +
@@ -584,7 +620,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.document,
         ) { request -> tools.optimizationTemplate(request.arguments) }
 
-        server.addTool(
+        add(
             name = "validate_run_config",
             description = "Validate a RunConfiguration document without running it. Returns structuredContent " +
                 "{valid, errors[], warnings[]}. Report the verdict: state VALID, or list EVERY error with its " +
@@ -593,7 +629,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.validation,
         ) { request -> tools.validateRun(request.arguments) }
 
-        server.addTool(
+        add(
             name = "validate_optimization_config",
             description = "Validate an OptimizationRunConfiguration document without running it. Returns " +
                 "structuredContent {valid, errors[], warnings[]}. Report the verdict: state VALID, or list " +
@@ -602,7 +638,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.validation,
         ) { request -> tools.validateOptimization(request.arguments) }
 
-        server.addTool(
+        add(
             name = "preview_run_config",
             description = "Preview a RunConfiguration without running it: structuredContent with the canonical " +
                 "(normalized) document and its workload — scenario count and replication budget. Report the " +
@@ -611,7 +647,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.preview,
         ) { request -> tools.previewRun(request.arguments) }
 
-        server.addTool(
+        add(
             name = "preview_optimization_config",
             description = "Preview an OptimizationRunConfiguration: structuredContent with the canonical " +
                 "document and its cost — solver, max iterations, replications per evaluation, decision " +
@@ -620,7 +656,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.preview,
         ) { request -> tools.previewOptimization(request.arguments) }
 
-        server.addTool(
+        add(
             name = "preview_experiment_config",
             description = "Preview an ExperimentConfiguration: structuredContent with the canonical document " +
                 "and its cost — factor count, design type, design-point count (the 2^k blow-up), and total " +
@@ -629,7 +665,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.preview,
         ) { request -> tools.previewExperiment(request.arguments) }
 
-        server.addTool(
+        add(
             name = "preview_fit_config",
             description = "Preview a FitConfiguration: structuredContent with the canonical document and its " +
                 "cost — distribution kind, data source, dataset and estimator counts, and whether bootstrap " +
@@ -643,7 +679,7 @@ object KslMcpServer {
             required = listOf("resultId"),
         )
 
-        server.addTool(
+        add(
             name = "get_result",
             description = "Fetch a retained result by resultId (no re-run), projected back through the SAME " +
                 "envelope its run/fit tool used: structuredContent with the full result plus a complete " +
@@ -652,7 +688,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.projection,
         ) { request -> tools.getResult(request.arguments) }
 
-        server.addTool(
+        add(
             name = "list_responses",
             description = "List the response names available in a retained result (structuredContent " +
                 "{responses:[...]}); present the full list, don't truncate.",
@@ -660,7 +696,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.responseNames,
         ) { request -> tools.listResponses(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_response",
             description = "Get one response's statistics from a retained result, by name. Returns " +
                 "structuredContent with the response object; report its average, standard error, and 95% CI " +
@@ -675,7 +711,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.response,
         ) { request -> tools.getResponse(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_artifacts",
             description = "List the rendered artifacts (reports, plot images, exports) retained for a result " +
                 "(structuredContent {artifacts:[{name, mediaType, path}]}). Present the full list; fetch one " +
@@ -684,7 +720,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.getArtifacts(request.arguments) }
 
-        server.addTool(
+        add(
             name = "list_results",
             description = "List every result the server has retained (its runs, experiments, optimizations, " +
                 "and fits) with its id, kind, and artifact names — so you can find and fetch earlier work in a " +
@@ -705,7 +741,7 @@ object KslMcpServer {
             },
             required = listOf("kind", "name"),
         )
-        server.addTool(
+        add(
             name = "save_document",
             description = "Save an authored document under a name so it persists across sessions and can be " +
                 "reloaded/restarted — a run/experiment/optimization/fit config, or an animation layout. 'kind' " +
@@ -724,7 +760,7 @@ object KslMcpServer {
             ),
         ) { request -> tools.saveDocument(request.arguments) }
 
-        server.addTool(
+        add(
             name = "export_layout",
             description = "Write an animation layout as a .lay.toml (or .lay.json) file the desktop animation app " +
                 "can open directly. Unlike save_document (server document store, bare name), this writes a proper " +
@@ -746,7 +782,7 @@ object KslMcpServer {
             ),
         ) { request -> tools.exportLayout(request.arguments) }
 
-        server.addTool(
+        add(
             name = "load_document",
             description = "Load a previously saved document (by kind + name) back as text — ready to submit to " +
                 "run_config / experiment_config / run_optimization_config, or to render/validate for a layout.",
@@ -757,7 +793,7 @@ object KslMcpServer {
             ),
         ) { request -> tools.loadDocument(request.arguments) }
 
-        server.addTool(
+        add(
             name = "list_documents",
             description = "List the saved documents (configs + layouts), optionally filtered by 'kind'.",
             inputSchema = ToolSchema(
@@ -770,7 +806,7 @@ object KslMcpServer {
             ),
         ) { request -> tools.listDocuments(request.arguments) }
 
-        server.addTool(
+        add(
             name = "delete_document",
             description = "Delete a saved document by kind + name.",
             inputSchema = documentKeySchema,
@@ -780,7 +816,7 @@ object KslMcpServer {
             ),
         ) { request -> tools.deleteDocument(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_artifact",
             description = "Fetch one artifact by name. Text artifacts (HTML/Markdown/text/CSV/JSON/SVG) come " +
                 "back inline as the text content; structuredContent carries {name, mediaType, path, content?} " +
@@ -795,7 +831,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifact,
         ) { request -> tools.getArtifact(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_open_external",
             description = "Open a pre-existing KSL database the server did not produce — a SQLite .db file or an " +
                 "embedded Derby directory — so the db_* tools can analyze it. Opening validates the KSL schema (a " +
@@ -813,7 +849,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.externalDb,
         ) { request -> tools.dbOpenExternal(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_status",
             description = "Report whether a result has an analyzable KSL database (structuredContent " +
                 "{present, experimentCount, message}). A run produces one only when it enabled the database " +
@@ -822,7 +858,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dbStatus,
         ) { request -> tools.dbStatus(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_experiments",
             description = "List the experiments recorded in a result's database (structuredContent " +
                 "{experiments:[{name, modelIdentifier, numReplications, responses}]}). Returns guidance when " +
@@ -831,7 +867,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dbExperiments,
         ) { request -> tools.dbExperiments(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_summary",
             description = "Across-replication summary statistics for one experiment in a result's database, " +
                 "as JSON in structuredContent.summary (average, std error, CI half-width, count, min/max per " +
@@ -846,7 +882,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dbJson,
         ) { request -> tools.dbSummary(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_compare",
             description = "Multiple-comparison (MCB) analysis of a response across the database's experiments, " +
                 "as JSON in structuredContent.comparison {response, delta, level, results, intervals, screening}. " +
@@ -865,7 +901,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dbJson,
         ) { request -> tools.dbCompare(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_views",
             description = "List the statistical DataFrame views available for a result's database " +
                 "(structuredContent {views:[...]}): across-replication, within-replication, time-series " +
@@ -875,7 +911,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dbViews,
         ) { request -> tools.dbViews(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_view",
             description = "Fetch one named statistical view as JSON in structuredContent.view, a row-capped " +
                 "envelope {view, total, returned, truncated, rows}. Optional 'experiment' filter and 'limit'. " +
@@ -892,7 +928,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dbJson,
         ) { request -> tools.dbView(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_compare_report",
             description = "Render a multiple-comparison (MCB) report — intervals plus confidence-interval and " +
                 "box plots — as a downloadable artifact (structuredContent {artifacts:[...]}; fetch with " +
@@ -911,7 +947,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.dbCompareReport(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_export",
             description = "Export the result's database tables as downloadable artifacts: 'format' CSV (one file " +
                 "per table) or EXCEL (a single workbook). Returns structuredContent {artifacts:[...]}; fetch with " +
@@ -926,7 +962,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.dbExport(request.arguments) }
 
-        server.addTool(
+        add(
             name = "db_summary_report",
             description = "Render a single-experiment summary report — across-replication statistics plus " +
                 "embedded histograms and frequency distributions — as a downloadable artifact " +
@@ -945,7 +981,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.dbSummaryReport(request.arguments) }
 
-        server.addTool(
+        add(
             name = "experiment_regression",
             description = "Fit a factor-effects regression — main effects plus optional interactions, with " +
                 "ANOVA, coefficients, p-values and R² — to a designed experiment that was run with the " +
@@ -977,7 +1013,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.experimentRegression(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_design_point",
             description = "Get one scenario/design-point result from a retained batch result, by index. " +
                 "Returns structuredContent with the design point (its factor settings and per-response " +
@@ -992,7 +1028,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.projection,
         ) { request -> tools.getDesignPoint(request.arguments) }
 
-        server.addTool(
+        add(
             name = "fit_dataset",
             description = "Fit candidate probability distributions to a numeric dataset. Candidates are ranked by " +
                 "MODA (multi-objective) over weighted metrics. Returns structuredContent with the recommended " +
@@ -1033,7 +1069,7 @@ object KslMcpServer {
             required = emptyList(),
         )
 
-        server.addTool(
+        add(
             name = "fit_template",
             description = "Get a ready-to-edit FitConfiguration document scaffold for a kind " +
                 "(CONTINUOUS/DISCRETE): an inline data source to fill plus catalog-default estimators. " +
@@ -1043,7 +1079,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.document,
         ) { request -> tools.fitTemplate(request.arguments) }
 
-        server.addTool(
+        add(
             name = "fit_config",
             description = "Fit candidate distributions from a complete FitConfiguration document " +
                 "(any data source: inline, delimited file, generated RV, or database), validated first. " +
@@ -1055,7 +1091,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.fit,
         ) { request -> tools.fitConfig(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_fit_scoring",
             description = "Get the full MODA scoring for a retained continuous fit result by resultId: the " +
                 "metrics (with weights and direction), each candidate distribution's scaled score per metric, " +
@@ -1069,7 +1105,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.fitScoring,
         ) { request -> tools.getFitScoring(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_fit_report",
             description = "Render the full HTML report for a retained distribution fit — data summary, shift " +
                 "analysis, ranked fits, MODA scoring, goodness-of-fit, and the diagnostic plots (density, ECDF, " +
@@ -1090,7 +1126,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.fitReport,
         ) { request -> tools.getFitReport(request.arguments) }
 
-        server.addTool(
+        add(
             name = "validate_fit_config",
             description = "Validate a FitConfiguration document without running it. Returns structuredContent " +
                 "{valid, errors[], warnings[]}. Report the verdict: state VALID, or list EVERY error with its " +
@@ -1099,7 +1135,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.validation,
         ) { request -> tools.validateFit(request.arguments) }
 
-        server.addTool(
+        add(
             name = "summarize_data",
             description = "Compute the engine's full statistical summary and an equal-bin histogram over a " +
                 "numeric array — without running a distribution fit. Returns structuredContent {datasetName, " +
@@ -1134,7 +1170,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dataSummary,
         ) { request -> tools.summarizeData(request.arguments) }
 
-        server.addTool(
+        add(
             name = "acf_analysis",
             description = "Sample autocorrelation function of a numeric series: the correlation at each lag " +
                 "1..maxLag, a white-noise significance band (±1.96/√n), and a lag-1 independence verdict — a check " +
@@ -1153,7 +1189,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.acf,
         ) { request -> tools.acfAnalysis(request.arguments) }
 
-        server.addTool(
+        add(
             name = "shift_analysis",
             description = "The left-shift a distribution fit would apply to a numeric series, computed standalone " +
                 "(otherwise only visible inside a full fit). A positive shift means the data is offset from a lower " +
@@ -1171,7 +1207,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.shift,
         ) { request -> tools.shiftAnalysis(request.arguments) }
 
-        server.addTool(
+        add(
             name = "family_frequency_bootstrap",
             description = "Resample a numeric series numSamples times, re-run the full distribution fit on each " +
                 "resample, and tally how often each family is the recommended fit — a robustness check on a fit " +
@@ -1192,7 +1228,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.familyBootstrap,
         ) { request -> tools.familyFrequencyBootstrap(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_fit_data_summary",
             description = "Project the data summary (and, for a continuous fit, the histogram) that a retained " +
                 "distribution fit already computed — no re-run. Returns the same structuredContent {datasetName, " +
@@ -1208,7 +1244,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.dataSummary,
         ) { request -> tools.getFitDataSummary(request.arguments) }
 
-        server.addTool(
+        add(
             name = "list_distributions",
             description = "List every scalar-parameter probability distribution family the server can generate " +
                 "random variates from (structuredContent {distributions:[{familyId, displayName, kind, " +
@@ -1222,7 +1258,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.distributions,
         ) { _ -> tools.listDistributions() }
 
-        server.addTool(
+        add(
             name = "generate_variates",
             description = "Generate a random sample of n values from a named scalar-parameter distribution " +
                 "family (discover the families and their parameters with list_distributions first). Returns " +
@@ -1263,7 +1299,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.variates,
         ) { request -> tools.generateVariates(request.arguments) }
 
-        server.addTool(
+        add(
             name = "get_workspace",
             description = "Report the active KSL workspace and the directory where this server writes its " +
                 "reports and generated data. The workspace is shared with the other KSL apps (via " +
@@ -1273,7 +1309,7 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.workspace,
         ) { _ -> tools.getWorkspace() }
 
-        server.addTool(
+        add(
             name = "set_workspace",
             description = "Set the active KSL working directory. Persists to ~/.ksl/settings.toml, the same " +
                 "setting the other KSL apps use, so the change applies everywhere. The directory must already " +
@@ -1293,7 +1329,5 @@ object KslMcpServer {
 
         // Guided-workflow prompts (Phase 8.7) over the same live catalog.
         KslMcpPrompts.register(server, tools)
-
-        return server
     }
 }
