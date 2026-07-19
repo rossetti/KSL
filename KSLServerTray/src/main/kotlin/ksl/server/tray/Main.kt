@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import ksl.server.manage.ServerManagerController
 import ksl.server.manage.ServerProcessInventory
+import ksl.server.manage.SuiteClientConfig
 import java.awt.GraphicsEnvironment
 import java.awt.SystemTray
 
@@ -38,12 +39,32 @@ private const val DEFAULT_PORT = 3001
  * JVM with no display) it degrades to a foreground supervisor — start the suite, print the console URL,
  * and stay up until the suite exits.
  *
- * `--version` prints the distribution version and exits.
+ * `--version` prints the distribution version; `--remove` strips the `ksl-suite` client entry (what
+ * `ksl uninstall` calls). Both exit without starting the server.
  */
 fun main(args: Array<String>) {
     if ("--version" in args) {
         // Reads the packaged jar manifest's Implementation-Version (stamped by the jar task); "dev" from classes.
         println(ServerTray::class.java.`package`?.implementationVersion ?: "dev")
+        return
+    }
+    // Client-setup commands. `ksl uninstall` / `ksl unregister` run this launcher with `--remove` to
+    // strip the one `ksl-suite` MCP entry from detected agents (Claude Desktop / Codex). Handle setup
+    // flags HERE so they never fall through to *starting* the server. remove() edits config only (and
+    // honors the KSL_AGENT_CONFIG_HOME sandbox); a live client keeps running until it restarts.
+    // Configuring is the console's Connect (or `ksl-suite --configure`), which auto-detects the bridge,
+    // so `--configure` here just points there rather than duplicating that detection.
+    if ("--remove" in args) {
+        val results = SuiteClientConfig.remove()
+        if (results.isEmpty()) {
+            println("No coding agents detected (no Claude Desktop or Codex config directory).")
+        } else {
+            results.forEach { println("${it.agent}: ${it.action}  ->  ${it.path}") }
+        }
+        return
+    }
+    if ("--configure" in args) {
+        println("To connect a client, open the console and click Connect, or run: ksl-suite --configure")
         return
     }
     val port = System.getenv("KSL_MCP_PORT")?.toIntOrNull() ?: DEFAULT_PORT

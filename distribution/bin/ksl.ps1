@@ -149,10 +149,10 @@ function RemoveEntryPoint([string]$id) {
     if (-not $info) { return }
     Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $StartMenu "$($info.Label).lnk")
 }
-# Best-effort detection of KSL server JVMs whose command line points into $dir. An MCP
-# server (mcp/code/book) launched as a stdio child of Codex or Claude Desktop keeps files
-# there open, which blocks a delete on Windows. Windows-only (Win32_Process); any failure
-# (no CIM access, etc.) yields nothing, so uninstall still falls back to its own delete.
+# Best-effort detection of KSL server JVMs whose command line points into $dir. A KSL server
+# process (the suite, or a stdio bridge a client spawned) keeps files there open, which blocks
+# a delete on Windows. Windows-only (Win32_Process); any failure (no CIM access, etc.) yields
+# nothing, so uninstall still falls back to its own delete.
 function ActiveProcessesUsing([string]$dir) {
     if (-not $IsWin) { return @() }
     $needle = $dir.TrimEnd('\')
@@ -163,9 +163,9 @@ function ActiveProcessesUsing([string]$dir) {
         })
     } catch { @() }
 }
-# Run an MCP setup server's --remove (strip its ksl/ksl-code/ksl-book entry from Codex /
-# Claude Desktop). Only for entry=="gui" items, and only while the launcher still exists (so
-# it must precede any delete). Best-effort: warns and points at the setup app on failure.
+# Run a gui server's --remove (strip its MCP entry -- the suite's ksl-suite entry -- from Codex
+# / Claude Desktop). Only for entry=="gui" items, and only while the launcher still exists (so
+# it must precede any delete). Best-effort: warns and points at the console on failure.
 # Returns $true if --remove was attempted. Note: --remove edits config only; a server already
 # running as a live stdio child keeps going until its client restarts.
 function Unregister([string]$id) {
@@ -219,10 +219,10 @@ function CmdUninstall([string]$id, [bool]$keepConfig) {
         Say "if a server JVM is still running, restart Codex / Claude Desktop so it exits, then re-run."
     }
 
-    # Preflight: an MCP server (mcp/code/book) can be launched as a stdio child of Codex or
-    # Claude Desktop and hold files under $full open, which blocks the delete on Windows.
-    # Detect those JVMs up front and stop before touching anything, so we never leave a
-    # partial state. Report only -- the script never kills processes automatically.
+    # Preflight: a KSL server process (the suite, or a stdio bridge a client spawned) can hold
+    # files under $full open, which blocks the delete on Windows. Detect those JVMs up front and
+    # stop before touching anything, so we never leave a partial state. Report only -- the script
+    # never kills processes automatically.
     $active = @(ActiveProcessesUsing $full)
     if ($active.Count -gt 0) {
         Say "cannot uninstall $id -- these processes are still using it:"

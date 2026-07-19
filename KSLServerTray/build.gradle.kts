@@ -23,6 +23,7 @@ dependencies {
     // The management seam: controller (StateFlow health/status + start/stop) + process inventory +
     // client-config. Brings KSLServiceCore -> KSLCore/KSLApp transitively (all in the shared lib/).
     implementation(project(":KSLServerManager"))
+    implementation(project(":KSLAgentConfig"))                               // AgentConfigurator.ConfigResult (the --remove report rows)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")   // collect the controller's StateFlows
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.18")

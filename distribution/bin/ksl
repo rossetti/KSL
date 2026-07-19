@@ -207,19 +207,19 @@ remove_entry_point() {
   esac
 }
 
-# Best-effort: PIDs of processes whose command line points into $1 — an MCP server
-# (mcp/code/book) launched by Codex/Claude Desktop keeps files there open. Empty when none,
-# or when pgrep is unavailable. `|| true` keeps set -e / pipefail from tripping on no match.
+# Best-effort: PIDs of processes whose command line points into $1 — a KSL server process (the
+# suite, or a stdio bridge a client spawned) keeps files there open. Empty when none, or when
+# pgrep is unavailable. `|| true` keeps set -e / pipefail from tripping on no match.
 active_processes_using() {
   command -v pgrep >/dev/null 2>&1 || return 0
   pgrep -f "$1" 2>/dev/null || true
 }
 
-# MCP setup server (entry == "gui"): run its launcher --remove to strip the ksl/ksl-code/
-# ksl-book entry from detected agents (Codex / Claude Desktop). Must precede any delete (the
-# launcher must still exist). Best-effort. Returns 0 if attempted, 1 if not a setup server or
-# no launcher. Note: --remove edits config only; a live stdio server keeps running until its
-# client restarts.
+# A gui server (entry == "gui"): run its launcher --remove to strip that server's MCP entry —
+# the suite's `ksl-suite` entry — from detected agents (Codex / Claude Desktop). Must precede any
+# delete (the launcher must still exist). Best-effort. Returns 0 if attempted, 1 if not a gui
+# server or no launcher. Note: --remove edits config only; a live client keeps running until it
+# restarts.
 unregister() {
   [ "$(entry_of "$1")" = "gui" ] || return 1
   local path launcher; path="$(path_of "$1")"; launcher="$(launcher_of "$1")"
@@ -271,16 +271,17 @@ cmd_uninstall() {
   [ -d "$full" ] || { say "$1 is not installed."; return; }
 
   # Strip the client config entry before deleting files (the launcher must still exist for
-  # --remove to run). Only edits config — a live stdio server keeps running until its client
-  # restarts, which the preflight below then requires. --keep-config skips this.
+  # --remove to run). Only edits config — a live client keeps running until it restarts, which
+  # the preflight below then requires. --keep-config skips this.
   if [ "${KEEP_CONFIG:-}" != "1" ] && unregister "$1"; then
     say "if a server JVM is still running, restart Codex / Claude Desktop so it exits, then re-run."
   fi
 
-  # Preflight: a running MCP server (mcp/code/book) keeps files under $full open. On Windows
-  # the delete would fail; on macOS/Linux it "succeeds" but orphans the server JVM and leaves
-  # the client config pointing at deleted paths. Either way, stop and let the user close the
-  # client first, so uninstall behaves the same on both platforms. Report only — never kill.
+  # Preflight: a running KSL server process (the suite, or a stdio bridge a client spawned) keeps
+  # files under $full open. On Windows the delete would fail; on macOS/Linux it "succeeds" but
+  # orphans the JVM and leaves the client config pointing at deleted paths. Either way, stop and
+  # let the user close the client first, so uninstall behaves the same on both platforms. Report
+  # only — never kill.
   local pids; pids="$(active_processes_using "$full")"
   if [ -n "$pids" ]; then
     say "cannot uninstall $1 — these processes are still using it:"
