@@ -39,6 +39,25 @@ class AgentConfiguratorTest {
     }
 
     @Test
+    @DisplayName("configure also writes Cursor and Windsurf (mcpServers JSON clients)")
+    fun configureWritesCursorAndWindsurf(@TempDir tmp: Path) {
+        System.setProperty(AGENT_CONFIG_HOME_PROPERTY, tmp.toString())
+        File(tmp.toFile(), ".cursor").mkdirs()
+        File(tmp.toFile(), "windsurf").mkdirs()
+
+        val results = AgentConfigurator.configure(
+            "ksl-suite", LaunchSpec("ksl-bridge", listOf("--url", "http://127.0.0.1:3001/"))
+        )
+
+        assertEquals(setOf("Cursor", "Windsurf"), results.map { it.agent }.toSet())
+        val cursor = File(tmp.toFile(), ".cursor/mcp.json")
+        val windsurf = File(tmp.toFile(), "windsurf/mcp_config.json")
+        assertTrue(cursor.exists() && windsurf.exists())
+        assertTrue(cursor.readText().contains("\"mcpServers\"") && cursor.readText().contains("\"ksl-suite\""))
+        assertTrue(windsurf.readText().contains("\"ksl-suite\""))
+    }
+
+    @Test
     @DisplayName("an agent whose config directory is absent is skipped")
     fun absentAgentSkipped(@TempDir tmp: Path) {
         System.setProperty(AGENT_CONFIG_HOME_PROPERTY, tmp.toString())

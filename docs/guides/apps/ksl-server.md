@@ -1,6 +1,6 @@
 # KSL Server — User Guide
 
-The **KSL Server** turns any MCP-capable AI assistant (Claude Desktop, Codex, …) into a
+The **KSL Server** turns any MCP-capable AI assistant (Claude Desktop, Cursor, Codex, …) into a
 front-end for KSL. It is **one long-running server** that exposes all three KSL tool
 surfaces on a single endpoint:
 
@@ -125,19 +125,21 @@ http://127.0.0.1:3001/admin
 
 In the console's **Clients** region (the first one), click **Connect**. This:
 
-- auto-detects the bundled bridge and your installed assistant (Claude Desktop / Codex);
+- auto-detects the bundled bridge and your installed assistant (Claude Desktop, Cursor,
+  Windsurf, or Codex);
 - writes a **single** `ksl-suite` entry into that client's MCP configuration — **no JSON
   editing**;
 - points it at the running server.
 
-That's the whole setup. If no assistant is found, the console says so — install Claude
-Desktop or Codex first, then click **Connect** again.
+That's the whole setup. If no assistant is found, the console says so — install one of those
+clients first, then click **Connect** again. Using a different MCP client (VS Code, Cline, …)?
+See [Connecting a different MCP client](#connecting-a-different-mcp-client) below.
 
 ### Step 4 — Restart the assistant
 
-MCP clients read their server list at startup, so **fully quit and reopen** Claude Desktop
-(or Codex). The KSL tools appear after the restart (in Claude Desktop, under
-Settings → Connectors, as **ksl-suite**).
+MCP clients read their server list at startup, so **fully quit and reopen** your assistant.
+The KSL tools appear after the restart (in Claude Desktop, under Settings → Connectors, as
+**ksl-suite**).
 
 ### Step 5 — Make your first tool call
 
@@ -161,6 +163,36 @@ suggested workflow.
 The server keeps running in the background, warm and shared, until you **Quit** it from the
 menu (or reboot, unless you enabled **Start at login**). You don't need to reconnect the
 client again — the `ksl-suite` entry stays.
+
+### Connecting a different MCP client
+
+**Connect** auto-configures Claude Desktop, Cursor, Windsurf, and Codex. Any **other** MCP
+client works too — the KSL Server is a standard MCP server, and the bundled **`ksl-bridge`** is
+a standard stdio MCP server. Add one entry to that client's own MCP config, pointing at the
+bridge:
+
+- **command** — `~/Applications/KSL/.support/Servers/suite/ksl-bridge` (Windows: the
+  `ksl-bridge.cmd` in that folder, launched via `cmd.exe /c`)
+- **args** — `--url http://127.0.0.1:3001/`
+- **name** — `ksl-suite`
+
+Most clients use the same `mcpServers` JSON that Claude Desktop does — just in that client's
+own config file or UI:
+
+```json
+{
+  "mcpServers": {
+    "ksl-suite": {
+      "command": "/Users/you/Applications/KSL/.support/Servers/suite/ksl-bridge",
+      "args": ["--url", "http://127.0.0.1:3001/"]
+    }
+  }
+}
+```
+
+A client that speaks **HTTP/SSE MCP directly** can skip the bridge and point at the server's
+endpoint, `http://127.0.0.1:3001/`. Either way, restart the client (Step 4) and the KSL tools
+appear.
 
 ---
 
@@ -316,7 +348,7 @@ then the default:
 | Symptom | Cause | Fix |
 |---|---|---|
 | The lamp never turns green (stays amber or gray) | The server failed to start. | Run `~/Applications/KSL/.support/Servers/suite/ksl-suite` in a terminal to see the error; check `~/.ksl/logs`. Confirm Java 21 with `java -version`. |
-| **Connect** says no assistant found | Claude Desktop / Codex isn't installed, or its config folder doesn't exist yet. | Install and launch the assistant once, then click **Connect** again. |
+| **Connect** says no assistant found | None of the auto-detected clients (Claude Desktop, Cursor, Windsurf, Codex) is installed, or its config folder doesn't exist yet. | Install and launch one once, then click **Connect** again — or connect another client by hand (see [Connecting a different MCP client](#connecting-a-different-mcp-client)). |
 | KSL tools don't appear after **Connect** | The client wasn't fully restarted. | Quit the assistant completely and reopen it; the `ksl-suite` tools then load. |
 | Port `3001` already in use | Another program (or a second KSL Server) holds the port. | Quit the other user, or run the server on another port: set `KSL_MCP_PORT` and open the console at that port. |
 | The console shows a red **"Server stopped — this page is stale"** banner | You quit the server while the console page was open. | Reopen **KSL Server**, then reload the console page. |

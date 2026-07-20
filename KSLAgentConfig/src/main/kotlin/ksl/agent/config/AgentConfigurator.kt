@@ -30,15 +30,18 @@ import java.io.File
  * writer reports "left unchanged"). Honors the `ksl.agent.config.home` system property /
  * `KSL_AGENT_CONFIG_HOME` env for a test/sandbox redirect.
  *
- * Supported: Claude Desktop (`claude_desktop_config.json`, `mcpServers` JSON — also Cursor / Claude
- * Code) and Codex (`~/.codex/config.toml`, `[mcp_servers.<key>]`).
+ * Supported (auto-detected): Claude Desktop (`claude_desktop_config.json`), Cursor
+ * (`~/.cursor/mcp.json`), and Windsurf (`~/.codeium/windsurf/mcp_config.json`) — all sharing the
+ * `mcpServers` JSON shape — plus Codex (`~/.codex/config.toml`, `[mcp_servers.<key>]`). Any other MCP
+ * client uses the same entry, added by hand (see the KSL Server guide).
  */
 object AgentConfigurator {
 
     /** One agent's outcome: what was written (or left alone) and where. */
     data class ConfigResult(val agent: String, val action: String, val path: String)
 
-    private val adapters: List<AgentAdapter> = listOf(ClaudeDesktopAdapter, CodexAdapter)
+    private val adapters: List<AgentAdapter> =
+        listOf(ClaudeDesktopAdapter, CursorAdapter, WindsurfAdapter, CodexAdapter)
 
     /** Write the `<entryKey>` entry (from [spec]) into every detected agent. */
     fun configure(entryKey: String, spec: LaunchSpec): List<ConfigResult> =
@@ -172,4 +175,38 @@ private object CodexAdapter : AgentAdapter {
         AgentConfigCodec.mergeCodexToml(existing, entryKey, spec)
     override fun removeEntry(existing: String?, entryKey: String) =
         AgentConfigCodec.removeCodexToml(existing, entryKey)
+}
+
+/**
+ * Cursor: a dedicated MCP config file `~/.cursor/mcp.json` using the same `mcpServers` JSON shape as
+ * Claude Desktop, so it reuses the JSON codec (and the Windows shell-wrap, since Cursor is Electron).
+ * Detection = the `.cursor` directory exists.
+ */
+private object CursorAdapter : AgentAdapter {
+    override val name = "Cursor"
+    private fun dir(): File = agentConfigRoot()?.let { File(it, ".cursor") } ?: File(home(), ".cursor")
+
+    override fun configFile() = File(dir(), "mcp.json")
+    override fun present() = dir().isDirectory
+    override fun addEntry(existing: String?, entryKey: String, spec: LaunchSpec) =
+        AgentConfigCodec.mergeClaudeJson(existing, entryKey, shellWrapForWindows(spec))
+    override fun removeEntry(existing: String?, entryKey: String) =
+        AgentConfigCodec.removeClaudeJson(existing, entryKey)
+}
+
+/**
+ * Windsurf (Codeium): a dedicated MCP config file `~/.codeium/windsurf/mcp_config.json`, again the
+ * `mcpServers` JSON shape. Under the sandbox redirect its directory is a flat `windsurf/`. Detection =
+ * the config directory exists.
+ */
+private object WindsurfAdapter : AgentAdapter {
+    override val name = "Windsurf"
+    private fun dir(): File = agentConfigRoot()?.let { File(it, "windsurf") } ?: File(home(), ".codeium/windsurf")
+
+    override fun configFile() = File(dir(), "mcp_config.json")
+    override fun present() = dir().isDirectory
+    override fun addEntry(existing: String?, entryKey: String, spec: LaunchSpec) =
+        AgentConfigCodec.mergeClaudeJson(existing, entryKey, shellWrapForWindows(spec))
+    override fun removeEntry(existing: String?, entryKey: String) =
+        AgentConfigCodec.removeClaudeJson(existing, entryKey)
 }

@@ -104,7 +104,7 @@ object AdminConsole {
         val anyConfigured = clients.any { it.present }
         val allConfigured = clients.isNotEmpty() && clients.all { it.present }
         val rows = if (clients.isEmpty()) {
-            "<tr><td colspan='2' class='detail'>No coding assistant found on this machine (Claude Desktop or Codex).</td></tr>"
+            "<tr><td colspan='2' class='detail'>No coding assistant found on this machine (Claude Desktop, Cursor, Windsurf, or Codex).</td></tr>"
         } else {
             clients.joinToString("\n") { c ->
                 val badge = if (c.present)
@@ -116,7 +116,7 @@ object AdminConsole {
         }
         // A standing reminder once configured — the tools appear only after the assistant restarts.
         val connectedNote = if (anyConfigured)
-            "<div class=\"hint\">&#10003; Connected &mdash; <b>restart Claude Desktop / Codex</b> so it loads the KSL tools.</div>"
+            "<div class=\"hint\">&#10003; Connected &mdash; <b>restart your assistant</b> so it loads the KSL tools.</div>"
         else ""
         val controls = when {
             !loopback ->
@@ -401,7 +401,7 @@ object AdminConsole {
             const b = adv && adv.value.trim();
             const q = b ? ('?bridge=' + encodeURIComponent(b)) : '';
             const res = await post('/admin/config/client' + q);
-            alert(res + '\n\nNow RESTART Claude Desktop / Codex so it loads the KSL tools.');
+            alert(res + '\n\nNow RESTART your assistant so it loads the KSL tools.');
             location.reload();
           };
           const rmBtn = document.getElementById('rmClient');

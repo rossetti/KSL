@@ -26,7 +26,7 @@ import java.nio.file.Path
 
 /**
  * The suite's client-setup logic, over the shared KSLAgentConfig library. It writes/removes the ONE
- * `ksl-suite` MCP entry in each detected coding agent (Claude Desktop, Codex), so a student configures
+ * `ksl-suite` MCP entry in each detected coding agent (Claude Desktop, Codex, Cursor, Windsurf), so a student configures
  * a single server for every tool surface. The entry launches the thin `ksl-bridge`, which forwards
  * over HTTP to this long-running suite.
  *
@@ -101,7 +101,7 @@ object SetupCli {
             return
         }
         if (results.isEmpty()) {
-            println("No coding agents detected (no Claude Desktop or Codex config directory).")
+            println("No coding agents detected (no Claude Desktop, Codex, Cursor, or Windsurf config directory).")
         } else {
             results.forEach { println("${it.agent}: ${it.action}  ->  ${it.path}") }
         }

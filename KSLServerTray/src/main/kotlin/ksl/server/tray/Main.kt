@@ -49,7 +49,7 @@ fun main(args: Array<String>) {
         return
     }
     // Client-setup commands. `ksl uninstall` / `ksl unregister` run this launcher with `--remove` to
-    // strip the one `ksl-suite` MCP entry from detected agents (Claude Desktop / Codex). Handle setup
+    // strip the one `ksl-suite` MCP entry from detected agents (Claude Desktop, Codex, Cursor, …). Handle setup
     // flags HERE so they never fall through to *starting* the server. remove() edits config only (and
     // honors the KSL_AGENT_CONFIG_HOME sandbox); a live client keeps running until it restarts.
     // Configuring is the console's Connect (or `ksl-suite --configure`), which auto-detects the bridge,
@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
     if ("--remove" in args) {
         val results = SuiteClientConfig.remove()
         if (results.isEmpty()) {
-            println("No coding agents detected (no Claude Desktop or Codex config directory).")
+            println("No coding agents detected (no Claude Desktop, Codex, Cursor, or Windsurf config directory).")
         } else {
             results.forEach { println("${it.agent}: ${it.action}  ->  ${it.path}") }
         }

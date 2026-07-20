@@ -93,7 +93,7 @@ class AdminConsoleTest {
         assertTrue("last 1 of 5" in html)                                    // "Last N of X" (1 shown, 5 total)
         assertTrue("id=\"stale\"" in html)                                   // stale-page banner element
         assertTrue("refresh" in html.lowercase())
-        assertTrue("restart Claude Desktop / Codex" in html)                 // connected restart reminder
+        assertTrue("restart your assistant" in html)                         // connected restart reminder
     }
 
     @Test
