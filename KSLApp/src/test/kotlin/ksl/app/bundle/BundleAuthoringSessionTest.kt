@@ -2,6 +2,7 @@ package ksl.app.bundle
 
 import ksl.simulation.ModelCatalog
 import ksl.simulation.NominatedOutput
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,10 +20,13 @@ class BundleAuthoringSessionTest {
     @TempDir
     lateinit var tmp: Path
 
-    private fun buildersJar(name: String): Path {
+    private fun buildersJar(
+        name: String,
+        classes: List<Class<*>> = listOf(Phase1TestBuilder::class.java, Phase1ObjectBuilder::class.java),
+    ): Path {
         val target = tmp.resolve(name)
         JarOutputStream(Files.newOutputStream(target), Manifest()).use { jar ->
-            for (cls in listOf(Phase1TestBuilder::class.java, Phase1ObjectBuilder::class.java)) {
+            for (cls in classes) {
                 val entry = cls.name.replace('.', '/') + ".class"
                 jar.putNextEntry(JarEntry(entry).apply { time = 0L })
                 cls.classLoader.getResourceAsStream(entry)!!.use { it.copyTo(jar) }
@@ -39,6 +43,34 @@ class BundleAuthoringSessionTest {
         assertTrue(session.discoveryErrors.isEmpty())
         // "Phase1TestBuilder" -> "Phase1Test" (trailing "Builder" stripped)
         assertTrue(session.models.any { it.modelId == "Phase1Test" }, "got ${session.models.map { it.modelId }}")
+    }
+
+    @Test
+    @DisplayName("EXPERIMENT is defaulted only when the model exposes at least two numeric factors")
+    fun experimentDefaultsOnlyWithTwoOrMoreNumericFactors() {
+        val session = BundleAuthoringSession.open(
+            buildersJar("rv.jar", listOf(Phase1RvFactorBuilder::class.java, Phase1TestBuilder::class.java))
+        )
+
+        // RV-only model (M/M/1): its two factors are RV means, no @KSLControl controls — so the
+        // count comes entirely from the RV-parameter path. It must still default to EXPERIMENT.
+        val rvModel = session.models.first { it.builderClass == Phase1RvFactorBuilder::class.java.name }
+        assertEquals(
+            2, rvModel.descriptor.inputNames.size,
+            "the RV-only fixture should expose 2 numeric factors via the RV-parameter path"
+        )
+        assertTrue(
+            KSLAppKind.EXPERIMENT in rvModel.supportedApps,
+            "a model with >= 2 numeric factors (here, RV means) must default to include EXPERIMENT"
+        )
+
+        // Response-only model: 0 numeric factors -> EXPERIMENT must NOT be defaulted.
+        val plainModel = session.models.first { it.builderClass == Phase1TestBuilder::class.java.name }
+        assertEquals(0, plainModel.descriptor.inputNames.size)
+        assertEquals(
+            setOf(KSLAppKind.SINGLE, KSLAppKind.SCENARIO), plainModel.supportedApps,
+            "a model with < 2 numeric factors must default to SINGLE + SCENARIO only (no EXPERIMENT)"
+        )
     }
 
     @Test

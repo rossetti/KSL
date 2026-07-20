@@ -22,8 +22,9 @@ import java.nio.file.Paths
  * This is a thin CLI over the headless `ksl.app.bundle.BundleAuthoringSession` (the
  * same authoring core the Bundle Workbench drives). Identity comes from CLI flags
  * (`--id` is required); per-model metadata uses the session's defaults — `modelId`
- * derived from the builder FQN, `supportedApps` = SINGLE/SCENARIO/EXPERIMENT. Richer
- * per-model authoring (e.g. tuning `supportedApps` per model, curating a catalog) is
+ * derived from the builder FQN, `supportedApps` = SINGLE + SCENARIO (plus EXPERIMENT when
+ * the model exposes at least two numeric factors — @KSLControl controls or RV parameters).
+ * Richer per-model authoring (e.g. tuning `supportedApps` per model, curating a catalog) is
  * the Bundle Workbench's job.
  *
  * The draft is validated before anything is written: if validation reports an ERROR

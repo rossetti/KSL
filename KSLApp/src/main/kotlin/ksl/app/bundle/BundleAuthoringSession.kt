@@ -57,11 +57,16 @@ class BundleAuthoringSession private constructor(
         var modelId: String = defaultModelId(builderClass)
         var displayName: String = modelId
         var description: String = ""
-        // Sensible default: nearly every model works in the single, scenario, and
-        // (two-level) experiment apps. SIMOPT is left off — it needs bounded numeric
+        // Sensible default: every model works in the single and scenario apps. EXPERIMENT is
+        // added only when the model exposes at least two numeric factors — the same predicate
+        // BundleValidation and ExperimentDocuments enforce. `inputNames` unifies the numeric
+        // @KSLControl keys AND the RV parameter keys, so an M/M/1-style model whose only factors
+        // are its RV means still qualifies. SIMOPT is left off — it also needs bounded numeric
         // inputs and an objective the author should opt into.
         val supportedApps: MutableSet<KSLAppKind> =
-            linkedSetOf(KSLAppKind.SINGLE, KSLAppKind.SCENARIO, KSLAppKind.EXPERIMENT)
+            linkedSetOf(KSLAppKind.SINGLE, KSLAppKind.SCENARIO).apply {
+                if (descriptor.inputNames.size >= 2) add(KSLAppKind.EXPERIMENT)
+            }
         var catalog: ModelCatalog? = null
     }
 
