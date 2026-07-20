@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 100" width="260" height="100" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">KSL — Kotlin Simulation Library</title>
+<desc id="dsc">The letters KSL above a left-to-right time axis with overlapping event arcs indicating concurrent discrete events.</desc>
+<text x="130" y="44" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="#4338CA">KSL</text>
+<line x1="44" y1="84" x2="212" y2="84" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M205 79 L213 84 L205 89" fill="none" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="62" cy="84" r="2.5" fill="#F59E0B"/>
+<circle cx="100" cy="84" r="2.5" fill="#F59E0B"/>
+<circle cx="140" cy="84" r="2.5" fill="#F59E0B"/>
+<path d="M62 84 Q90 52 118 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M100 84 Q129 24 158 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M140 84 Q169 40 198 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M112 78 L118 84 L121 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M152 78 L158 84 L161 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M192 78 L198 84 L201 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

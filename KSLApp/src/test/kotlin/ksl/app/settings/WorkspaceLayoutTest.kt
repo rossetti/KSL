@@ -1,5 +1,6 @@
 package ksl.app.settings
 
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -57,6 +58,19 @@ class WorkspaceLayoutTest {
         val result = WorkspaceLayout.abbreviate(long, maxLen = 30, userHome = home)
         assertTrue(result.startsWith(".../"), "expected plain prefix, got: $result")
         assertFalse(result.startsWith("~"), "must not pretend to be under home: $result")
+    }
+
+    @Test
+    @DisplayName("abbreviate never expands a shallow over-length path")
+    fun abbreviateNeverExpandsShallowPath() {
+        // Regression: a path too shallow to collapse (3 or fewer segments) has
+        // nothing to elide, so prepending the ".../" marker would make it LONGER
+        // than the original. This is the shape of a Linux /tmp/junit-<id>/<leaf>
+        // temp dir, which failed only on the CI runner -- deep macOS temp paths
+        // masked it locally. See WorkspaceStatusBarTest.
+        val shallow = Path.of("/tmp/junit-123456789/" + "a".repeat(50))
+        val result = WorkspaceLayout.abbreviate(shallow, maxLen = 30)
+        assertEquals(shallow.toString(), result, "shallow path must be returned unchanged, not expanded")
     }
 
     // ── dir resolvers ───────────────────────────────────────────────────────

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KSL Brand Kit</title>
+<style>
+  :root{
+    --indigo:#4338CA; --indigo-light:#C7D2FE; --amber:#F59E0B;
+    --deep:#1E1B4B; --navy:#0F172A; --ink:#111827; --muted:#6B7280; --line:#E5E7EB; --paper:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:var(--ink);
+       background:#F8FAFC;line-height:1.55;padding:32px}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:28px;font-weight:700;margin:0 0 4px}
+  h2{font-size:18px;font-weight:700;margin:36px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  p{margin:6px 0}
+  .sub{color:var(--muted);margin-bottom:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .card{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--paper)}
+  .card .cap{font-size:13px;color:var(--muted);margin-top:10px}
+  .tile{border-radius:10px;display:flex;align-items:center;justify-content:center;padding:16px;min-height:96px}
+  .on-white{background:#FFFFFF;border:1px solid var(--line)}
+  .on-deep{background:var(--deep)}
+  .on-navy{background:var(--navy)}
+  .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .sw{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .sw .chip{height:56px}
+  .sw .meta{padding:8px 10px;font-size:13px}
+  .sw .meta b{display:block}
+  .sw .hex{color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace}
+  .btns{display:flex;flex-wrap:wrap;gap:10px}
+  button{font:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--indigo);
+         border:0;border-radius:8px;padding:10px 14px;cursor:pointer}
+  button:hover{background:#3730A3}
+  a.file{display:inline-block;font-size:14px;font-weight:700;color:var(--indigo);
+          border:1px solid var(--indigo);border-radius:8px;padding:9px 13px;text-decoration:none;margin:4px 8px 4px 0}
+  a.file:hover{background:#EEF2FF}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:4px 0}
+  pre{background:#0F172A;color:#E2E8F0;border-radius:10px;padding:14px;overflow:auto;font-size:12px;
+      font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.4}
+  .note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:12px 14px;font-size:14px;color:#78350F}
+  .fav{display:flex;align-items:center;gap:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>KSL Brand Kit</h1>
+  <p class="sub">The discrete-event timeline monogram — the wordmark <b>KSL</b> over an arrow of time, with amber event arcs that overlap to signify concurrent discrete events.</p>
+
+  <div class="note">Open this file in your own browser (Chrome or Safari), then use the download buttons below — each renders a crisp PNG at the exact pixel size named. The vector <b>.svg</b> files sit next to this page.</div>
+
+  <h2>Palette</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#4338CA"></div><div class="meta"><b>KSL Indigo</b><span class="hex">#4338CA</span> — primary ink</div></div>
+    <div class="sw"><div class="chip" style="background:#C7D2FE"></div><div class="meta"><b>KSL Indigo Light</b><span class="hex">#C7D2FE</span> — reversed ink</div></div>
+    <div class="sw"><div class="chip" style="background:#F59E0B"></div><div class="meta"><b>KSL Amber</b><span class="hex">#F59E0B</span> — events / accent</div></div>
+    <div class="sw"><div class="chip" style="background:#1E1B4B"></div><div class="meta"><b>KSL Deep Indigo</b><span class="hex">#1E1B4B</span> — banner / avatar bg</div></div>
+    <div class="sw"><div class="chip" style="background:#0F172A"></div><div class="meta"><b>Ink / Navy</b><span class="hex">#0F172A</span> — dark surfaces</div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid #E5E7EB"></div><div class="meta"><b>Paper</b><span class="hex">#FFFFFF</span></div></div>
+  </div>
+
+  <h2>Logo variants</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="tile on-white">
+        <svg viewBox="0 0 260 100" width="220" xmlns="http://www.w3.org/2000/svg">
+          <text x="130" y="44" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="#4338CA">KSL</text>
+          <line x1="44" y1="84" x2="212" y2="84" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M205 79 L213 84 L205 89" fill="none" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="62" cy="84" r="2.5" fill="#F59E0B"/><circle cx="100" cy="84" r="2.5" fill="#F59E0B"/><circle cx="140" cy="84" r="2.5" fill="#F59E0B"/>
+          <path d="M62 84 Q90 52 118 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M100 84 Q129 24 158 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M140 84 Q169 40 198 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M112 78 L118 84 L121 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M152 78 L158 84 L161 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M192 78 L198 84 L201 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="cap"><b>Primary</b> — default; the only version below ~200px wide.</div>
+    </div>
+
+    <div class="card">
+      <div class="tile on-deep">
+        <svg viewBox="0 0 260 100" width="220" xmlns="http://www.w3.org/2000/svg">
+          <text x="130" y="44" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="#E0E7FF">KSL</text>
+          <line x1="44" y1="84" x2="212" y2="84" stroke="#E0E7FF" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M205 79 L213 84 L205 89" fill="none" stroke="#E0E7FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="62" cy="84" r="2.5" fill="#F59E0B"/><circle cx="100" cy="84" r="2.5" fill="#F59E0B"/><circle cx="140" cy="84" r="2.5" fill="#F59E0B"/>
+          <path d="M62 84 Q90 52 118 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M100 84 Q129 24 158 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M140 84 Q169 40 198 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M112 78 L118 84 L121 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M152 78 L158 84 L161 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M192 78 L198 84 L201 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="cap"><b>Reversed</b> — for dark / photographic backgrounds.</div>
+    </div>
+
+    <div class="card">
+      <div class="tile on-white">
+        <svg viewBox="0 0 260 110" width="230" xmlns="http://www.w3.org/2000/svg">
+          <text x="130" y="42" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="#4338CA">KSL</text>
+          <line x1="44" y1="84" x2="216" y2="84" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M209 79 L217 84 L209 89" fill="none" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="60" cy="84" r="2.5" fill="#F59E0B"/><circle cx="96" cy="84" r="2.5" fill="#F59E0B"/><circle cx="132" cy="84" r="2.5" fill="#F59E0B"/>
+          <path d="M60 84 Q96 44 132 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M96 84 Q132 20 168 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M132 84 Q168 36 204 84" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M126 78 L132 84 L135 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M162 78 L168 84 L171 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M198 78 L204 84 L207 77" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <g font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-style="italic" font-size="12" fill="#4338CA" opacity="0.62">
+            <text x="60" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">1</tspan></text>
+            <text x="96" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">2</tspan></text>
+            <text x="132" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">3</tspan></text>
+            <text x="168" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">4</tspan></text>
+            <text x="204" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">5</tspan></text>
+          </g>
+        </svg>
+      </div>
+      <div class="cap"><b>Expanded</b> — labeled event times; large formats only.</div>
+    </div>
+
+    <div class="card">
+      <div class="fav" style="justify-content:center;min-height:96px">
+        <div class="tile on-white" style="min-height:0;padding:10px"><svg viewBox="0 0 100 100" width="60" xmlns="http://www.w3.org/2000/svg">
+          <line x1="18" y1="64" x2="80" y2="64" stroke="#4338CA" stroke-width="4" stroke-linecap="round"/>
+          <path d="M73 58 L82 64 L73 70" fill="none" stroke="#4338CA" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="28" cy="64" r="3.2" fill="#F59E0B"/><circle cx="46" cy="64" r="3.2" fill="#F59E0B"/>
+          <path d="M28 64 Q40 38 52 64" fill="none" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+          <path d="M46 64 Q58 32 70 64" fill="none" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+          <path d="M46 57 L52 64 L55 56" fill="none" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M64 57 L70 64 L73 56" fill="none" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg></div>
+        <div class="tile on-deep" style="min-height:0;padding:10px;border-radius:14px"><svg viewBox="0 0 100 100" width="52" xmlns="http://www.w3.org/2000/svg">
+          <line x1="24" y1="64" x2="78" y2="64" stroke="#E0E7FF" stroke-width="6" stroke-linecap="round"/>
+          <path d="M70 57 L80 64 L70 71" fill="none" stroke="#E0E7FF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M30 64 Q50 26 70 64" fill="none" stroke="#F59E0B" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="30" cy="64" r="4" fill="#F59E0B"/>
+          <path d="M63 55 L70 64 L74 54" fill="none" stroke="#F59E0B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg></div>
+      </div>
+      <div class="cap"><b>Mark / favicon</b> — glyph alone (left) and the simplified favicon (right).</div>
+    </div>
+  </div>
+
+  <h2>Download PNGs</h2>
+  <p class="sub">Exact-size, ready to upload. (Transparent where noted.)</p>
+  <div class="btns">
+    <button onclick="exportAsset('logo')">Logo — transparent</button>
+    <button onclick="exportAsset('logo-rev')">Logo reversed — transparent</button>
+    <button onclick="exportAsset('banner')">LinkedIn banner — 1584×396</button>
+    <button onclick="exportAsset('avatar')">Repo avatar — 400×400</button>
+    <button onclick="exportAsset('social')">GitHub social — 1280×640</button>
+    <button onclick="exportAsset('fav180')">Favicon — 180×180</button>
+    <button onclick="exportAsset('fav32')">Favicon — 32×32</button>
+  </div>
+
+  <h2>Vector source files</h2>
+  <p><a class="file" href="ksl-logo.svg" download>ksl-logo.svg</a><a class="file" href="ksl-logo-reversed.svg" download>ksl-logo-reversed.svg</a><a class="file" href="ksl-logo-expanded.svg" download>ksl-logo-expanded.svg</a><a class="file" href="ksl-mark.svg" download>ksl-mark.svg</a></p>
+
+  <h2>One-color (mono) source</h2>
+  <p class="sub">Uses <code>currentColor</code>, so it takes on whatever color you set — for stamps, embroidery, grayscale, or a single-ink print.</p>
+  <pre>&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 100" fill="none" stroke="currentColor" color="#000000"&gt;
+  &lt;text x="130" y="44" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="currentColor" stroke="none"&gt;KSL&lt;/text&gt;
+  &lt;line x1="44" y1="84" x2="212" y2="84" stroke-width="2.5" stroke-linecap="round"/&gt;
+  &lt;path d="M205 79 L213 84 L205 89" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/&gt;
+  &lt;circle cx="62" cy="84" r="2.5" fill="currentColor" stroke="none"/&gt;
+  &lt;circle cx="100" cy="84" r="2.5" fill="currentColor" stroke="none"/&gt;
+  &lt;circle cx="140" cy="84" r="2.5" fill="currentColor" stroke="none"/&gt;
+  &lt;path d="M62 84 Q90 52 118 84" stroke-width="2.5" stroke-linecap="round"/&gt;
+  &lt;path d="M100 84 Q129 24 158 84" stroke-width="2.5" stroke-linecap="round"/&gt;
+  &lt;path d="M140 84 Q169 40 198 84" stroke-width="2.5" stroke-linecap="round"/&gt;
+  &lt;path d="M112 78 L118 84 L121 77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/&gt;
+  &lt;path d="M152 78 L158 84 L161 77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/&gt;
+  &lt;path d="M192 78 L198 84 L201 77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/&gt;
+&lt;/svg&gt;</pre>
+
+  <h2>Usage &amp; don'ts</h2>
+  <ul>
+    <li><b>Tiers:</b> Primary (clean) is the default and the only version below ~200px. Expanded (labeled) is for large formats only — the banner, slides, the social card, print.</li>
+    <li><b>Clear space:</b> keep padding of at least the cap-height of the "K" around the whole mark.</li>
+    <li><b>LinkedIn:</b> the banner (1584×396) uses the brand; keep your <b>headshot</b> as your profile photo — people follow people.</li>
+    <li><b>Don't</b> recolor the amber, stretch the mark, add shadows or gradients, or use the labeled version small.</li>
+    <li><b>Final production tip:</b> convert the "KSL" text to outlines so the wordmark renders identically on machines without Helvetica/Arial.</li>
+  </ul>
+
+</div>
+
+<script>
+function coreLogo(ink, amber){
+  return '<text x="130" y="44" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="'+ink+'">KSL</text>'
+   +'<line x1="44" y1="84" x2="212" y2="84" stroke="'+ink+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M205 79 L213 84 L205 89" fill="none" stroke="'+ink+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<circle cx="62" cy="84" r="2.5" fill="'+amber+'"/><circle cx="100" cy="84" r="2.5" fill="'+amber+'"/><circle cx="140" cy="84" r="2.5" fill="'+amber+'"/>'
+   +'<path d="M62 84 Q90 52 118 84" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M100 84 Q129 24 158 84" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M140 84 Q169 40 198 84" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M112 78 L118 84 L121 77" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<path d="M152 78 L158 84 L161 77" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<path d="M192 78 L198 84 L201 77" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+}
+function coreExpanded(ink, amber, label){
+  return '<text x="130" y="42" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="'+ink+'">KSL</text>'
+   +'<line x1="44" y1="84" x2="216" y2="84" stroke="'+ink+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M209 79 L217 84 L209 89" fill="none" stroke="'+ink+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<circle cx="60" cy="84" r="2.5" fill="'+amber+'"/><circle cx="96" cy="84" r="2.5" fill="'+amber+'"/><circle cx="132" cy="84" r="2.5" fill="'+amber+'"/>'
+   +'<path d="M60 84 Q96 44 132 84" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M96 84 Q132 20 168 84" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M132 84 Q168 36 204 84" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<path d="M126 78 L132 84 L135 77" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<path d="M162 78 L168 84 L171 77" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<path d="M198 78 L204 84 L207 77" fill="none" stroke="'+amber+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<g font-family="Helvetica,Arial,sans-serif" font-style="italic" font-size="12" fill="'+label+'">'
+   +'<text x="60" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">1</tspan></text>'
+   +'<text x="96" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">2</tspan></text>'
+   +'<text x="132" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">3</tspan></text>'
+   +'<text x="168" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">4</tspan></text>'
+   +'<text x="204" y="103" text-anchor="middle">t<tspan baseline-shift="sub" font-size="8">5</tspan></text></g>';
+}
+function faviconSvg(size){
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 100 100">'
+   +'<rect width="100" height="100" rx="22" fill="#1E1B4B"/>'
+   +'<line x1="24" y1="64" x2="78" y2="64" stroke="#E0E7FF" stroke-width="6" stroke-linecap="round"/>'
+   +'<path d="M70 57 L80 64 L70 71" fill="none" stroke="#E0E7FF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+   +'<path d="M30 64 Q50 26 70 64" fill="none" stroke="#F59E0B" stroke-width="7" stroke-linecap="round"/>'
+   +'<circle cx="30" cy="64" r="4" fill="#F59E0B"/>'
+   +'<path d="M63 55 L70 64 L74 54" fill="none" stroke="#F59E0B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function svgDoc(w,h,inner){
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+inner+'</svg>';
+}
+function banner(){
+  return svgDoc(1584,396,
+     '<rect width="1584" height="396" fill="#1E1B4B"/>'
+    +'<svg x="96" y="88" width="520" height="220" viewBox="0 0 260 110">'+coreExpanded('#E0E7FF','#F59E0B','#A5B4FC')+'</svg>'
+    +'<text x="672" y="176" font-family="Helvetica,Arial,sans-serif" font-size="52" font-weight="700" fill="#FFFFFF">Kotlin Simulation Library</text>'
+    +'<text x="674" y="222" font-family="Helvetica,Arial,sans-serif" font-size="26" fill="#C7D2FE">Monte Carlo &amp; discrete-event simulation — free &amp; open source</text>'
+    +'<text x="674" y="298" font-family="Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#F59E0B">github.com/rossetti/KSL   ·   rossetti.github.io/KSLBook</text>');
+}
+function avatar(){
+  return svgDoc(400,400,
+     '<rect width="400" height="400" rx="72" fill="#1E1B4B"/>'
+    +'<svg x="44" y="120" width="312" height="160" viewBox="0 0 260 100">'+coreLogo('#E0E7FF','#F59E0B')+'</svg>');
+}
+function social(){
+  return svgDoc(1280,640,
+     '<rect width="1280" height="640" fill="#1E1B4B"/>'
+    +'<svg x="340" y="150" width="600" height="231" viewBox="0 0 260 100">'+coreLogo('#E0E7FF','#F59E0B')+'</svg>'
+    +'<text x="640" y="470" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="38" fill="#C7D2FE">Monte Carlo &amp; discrete-event simulation — free &amp; open source</text>'
+    +'<text x="640" y="530" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="34" font-weight="700" fill="#F59E0B">github.com/rossetti/KSL</text>');
+}
+function downloadPng(svgStr,w,h,filename){
+  var blob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var img=new Image();
+  img.onload=function(){
+    var c=document.createElement('canvas');c.width=w;c.height=h;
+    var ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);
+    c.toBlob(function(b){
+      var a=document.createElement('a');a.download=filename;a.href=URL.createObjectURL(b);
+      document.body.appendChild(a);a.click();a.remove();
+    },'image/png');
+  };
+  img.onerror=function(){alert('Render failed — open this file directly in Chrome or Safari and try again.');};
+  img.src=url;
+}
+function exportAsset(kind){
+  if(kind==='logo')      downloadPng(svgDoc(1300,500,'<svg x="0" y="0" width="1300" height="500" viewBox="0 0 260 100">'+coreLogo('#4338CA','#F59E0B')+'</svg>'),1300,500,'ksl-logo.png');
+  else if(kind==='logo-rev') downloadPng(svgDoc(1300,500,'<svg x="0" y="0" width="1300" height="500" viewBox="0 0 260 100">'+coreLogo('#C7D2FE','#F59E0B')+'</svg>'),1300,500,'ksl-logo-reversed.png');
+  else if(kind==='banner')   downloadPng(banner(),1584,396,'ksl-linkedin-banner.png');
+  else if(kind==='avatar')   downloadPng(avatar(),400,400,'ksl-avatar.png');
+  else if(kind==='social')   downloadPng(social(),1280,640,'ksl-social-card.png');
+  else if(kind==='fav180')   downloadPng(faviconSvg(180),180,180,'ksl-favicon-180.png');
+  else if(kind==='fav32')    downloadPng(faviconSvg(32),32,32,'ksl-favicon-32.png');
+}
+</script>
+</body>
+</html>

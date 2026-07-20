@@ -122,7 +122,10 @@ object WorkspaceLayout {
      * Abbreviates a path for compact display in a status bar.  Returns
      * the original `toString()` when shorter than [maxLen]; otherwise
      * collapses the leading segments to `~/.../` (or `.../` when not
-     * under the user's home) and keeps the last three segments.
+     * under the user's home) and keeps the last three segments.  A path
+     * too shallow to collapse (three or fewer segments) has nothing to
+     * elide, so it is returned unchanged rather than made longer by the
+     * marker.
      */
     fun abbreviate(path: Path, maxLen: Int = 40, userHome: Path = Path.of(System.getProperty("user.home"))): String {
         val full = path.toString()
@@ -131,7 +134,11 @@ object WorkspaceLayout {
         val firstKept = maxOf(0, n - 3)
         val tail = (firstKept until n).joinToString("/") { path.getName(it).toString() }
         val prefix = if (path.startsWith(userHome)) "~/.../" else ".../"
-        return prefix + tail
+        val abbreviated = prefix + tail
+        // Never expand: a shallow path (3 or fewer segments) keeps every segment,
+        // so the ".../" marker would make the result longer than the original.
+        // Fall back to the full path when collapsing doesn't actually shorten it.
+        return if (abbreviated.length < full.length) abbreviated else full
     }
 
     /**
