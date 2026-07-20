@@ -31,16 +31,28 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
 ## Steps
 
-1. **Set the version.** Bump `kslSuiteVersion` in `gradle.properties` (or pass
-   `-PreleaseVersion=X.Y.Z` in step 2 to override for this cut only).
+1. **Set the version.** `kslSuiteVersion` in `gradle.properties` is the **single source of
+   truth** — the shipped jars stamp their `Implementation-Version` from it, so `/version`,
+   `/health`, the console, and the MCP `serverInfo` all report exactly this. Bump it to
+   `X.Y.Z` and commit it (on `main`, per the prerequisite) so the release tag names the
+   version the binaries actually carry.
 
-2. **Build + stamp.** This builds `build/ksl-suite.zip` and writes a stamped manifest to
-   `build/release/manifest.json` — the version, the `suite-vX.Y.Z` asset URL, and the
-   zip's SHA-256 (the `items` catalog is carried over unchanged):
+2. **Build + stamp.** From `main`, build `build/ksl-suite.zip` and write a stamped manifest to
+   `build/release/manifest.json` — the version, the `suite-vX.Y.Z` asset URL, and the zip's
+   SHA-256 (the `items` catalog is carried over unchanged):
 
    ```
-   ./gradlew stampSuiteManifest -PreleaseVersion=X.Y.Z
+   ./gradlew stampSuiteManifest
    ```
+
+   The task builds the zip first (it depends on `packageKSLWork` → `assembleKSLWork`), then
+   prints the exact `gh release create …` command for step 4.
+
+   > **`-PreleaseVersion=X.Y.Z` restamps the manifest and tag *only*** — it does **not** change
+   > the version baked into the jars (that is always `kslSuiteVersion`). Passing a value that
+   > differs from `kslSuiteVersion` would ship a server that reports a different version than
+   > its own release. For a real release, set the version in step 1; use `-PreleaseVersion`
+   > only for a dry run.
 
 3. **Verify the payload.**
 
