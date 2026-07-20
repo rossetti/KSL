@@ -36,7 +36,14 @@ class WorkspaceStatusBarTest {
     fun `bar tooltip carries the full path even when text is abbreviated`(@TempDir tempDir: Path) {
         val home = tempDir.resolve("home").also { it.createDirectories() }
         val longSegment = "a".repeat(50)
-        val workspace = tempDir.resolve(longSegment).also { it.createDirectories() }
+        // Nest a few levels deep so abbreviate() always has a prefix to elide,
+        // independent of how shallow the OS temp root is. A Linux /tmp/junit-<id>
+        // root is only ~2 segments, so a single leaf here would leave nothing to
+        // collapse and abbreviate() would (correctly) return the full path,
+        // failing the "starts with .../" check below. See WorkspaceLayoutTest for
+        // the OS-independent unit-level regression.
+        val workspace = tempDir.resolve("projects/2026/analysis").resolve(longSegment)
+            .also { it.createDirectories() }
         val store = UserSettingsStore(settingsDir = tempDir.resolve("settings"), userHome = home)
         store.setCurrentDirectory(workspace)
 
