@@ -2,8 +2,7 @@
 
 How to cut a `ksl-suite.zip` release so the one-command installers (`install.sh` /
 `install.ps1`) have something to download. This is the **only** way the KSL apps, servers
-and `kslpkg` are distributed — the old per-app `jpackage` installers, and the `release.yml`
-workflow that built them, were removed once this replaced them.
+and `kslpkg` are distributed.
 
 The suite is OS-independent (JARs + plain-text launchers), so **one build on any one
 OS** produces the payload for macOS, Windows, and Linux — there are no per-OS runners.
