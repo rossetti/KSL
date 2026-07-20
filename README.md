@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/branding/ksl-logo-reversed.svg">
+    <img src="docs/branding/ksl-logo.svg" alt="KSL — Kotlin Simulation Library" width="440">
+  </picture>
+</p>
+
 # Kotlin Simulation Library (KSL)
 
 The Kotlin Simulation Library (KSL) is a Kotlin library for performing Monte Carlo and Discrete-Event
