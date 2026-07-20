@@ -2,11 +2,11 @@
 
 Step-by-step, user-facing guides for the KSL applications. Most are **desktop
 apps** — each guide walks through the app click-by-click with a concrete worked
-example. **Bundle Tools** (`kslpkg`) and the **MCP Server** are command-line and
-server tools, driven from a terminal.
+example. **Bundle Tools** (`kslpkg`) is a command-line tool, and the
+**[KSL Server](ksl-server.md)** drives KSL from an AI assistant.
 
 **First time?** **[Install the KSL suite](install.md)** — one command installs all
-these apps, the servers, and `kslpkg` into a single `KSLWork` folder, running on your
+these apps, the KSL Server, and `kslpkg` into a single `KSLWork` folder, running on your
 own Java 21 (no build required).
 
 New to these apps? Read **[Common UI & concepts](common-ui.md)** next — it covers

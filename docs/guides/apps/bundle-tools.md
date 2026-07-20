@@ -5,7 +5,7 @@ fine while you are developing, but it is where things stop: you cannot compare s
 run a designed experiment, optimize it, or browse its results without writing more code.
 
 `kslpkg` is the bridge. It takes the JAR your project already builds and turns it into a
-**bundle** — the same kind of JAR the KSL desktop apps and servers load. One command, and
+**bundle** — the same kind of JAR the KSL desktop apps and the KSL Server load. One command, and
 your model shows up in the apps next to the shipped examples.
 
 Unlike the other guides, this one is a *terminal* tool, so the examples are **command

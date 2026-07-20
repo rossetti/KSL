@@ -1,7 +1,9 @@
 # Common UI & Concepts (all KSL desktop apps)
 
-The KSL desktop applications — **Single**, **Scenario**, **Experiment**, **Simopt**,
-**Results**, and **Distribution** — share a common look and a common set of building
+The KSL desktop applications — [Single](single.md), [Scenario](scenario.md),
+[Experiment](experiment.md), [Simopt](simopt.md), [Animation](animation.md),
+[Results](results.md), [Distribution](distribution.md), and
+[Bundle Workbench](bundle-workbench.md) — share a common look and a common set of building
 blocks (from the `KSLAppSwingCommon` module). Learn these once here; each app guide
 links back to this page instead of repeating them.
 

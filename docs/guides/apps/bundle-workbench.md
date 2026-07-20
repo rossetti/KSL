@@ -1,7 +1,7 @@
 # Bundle Workbench — User Guide
 
 The **Bundle Workbench** turns the JAR your own project builds — your compiled
-model-builder classes — into a **bundle JAR** that the KSL desktop apps and servers
+model-builder classes — into a **bundle JAR** that the KSL desktop apps and the KSL Server
 can load. It walks you through it visually, one step per tab: **open** the JAR, give
 the bundle an **identity**, declare each model's **supported apps**, curate a
 **catalog** of headline inputs and outputs, **Validate**, and **Assemble**. It is the

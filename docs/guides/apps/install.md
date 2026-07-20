@@ -1,6 +1,6 @@
 # Installing the KSL Applications
 
-The KSL desktop apps, the MCP/REST servers, and the `kslpkg` command-line tool ship
+The KSL desktop apps, the KSL Server, and the `kslpkg` command-line tool ship
 as a single **suite** that runs on your own **Java 21** — no build, no Gradle, no
 IntelliJ. One command installs everything into one `KSLWork` folder, where the apps
 share a single library folder so the whole suite is about 150 MB, not 150 MB per app.
@@ -11,7 +11,7 @@ share a single library folder so the whole suite is about 150 MB, not 150 MB per
 
 ## What you'll be able to do
 
-- Install all the KSL apps, servers, and `kslpkg` with one command.
+- Install all the KSL apps, the KSL Server, and `kslpkg` with one command.
 - Run any app from your `KSLWork` folder.
 - Add, remove, and update individual pieces with the `ksl` helper.
 - Update later without losing your model bundles or results.
@@ -65,7 +65,7 @@ uninstalls KSL.
 ├── bin/ksl                                     ← the suite manager (§5)
 └── .support/   (hidden — you never need to open it)
       Apps/     each app's jar + the raw launcher behind it
-      lib/      the shared libraries (~150 MB) — ONE copy, used by every app and server
+      lib/      the shared libraries (~150 MB) — ONE copy, used by every app and the server
       bundles/  the example models that ship with KSL (see below)
       Servers/  suite/ (the KSL Server)
       Tools/    kslpkg/
@@ -126,7 +126,7 @@ The apps and what each is for:
 
 To load a model, drop its bundle JAR into `~/Documents/KSLWork/bundles/` — see
 [Common UI & concepts](common-ui.md) for how the apps discover bundles and set the
-workspace. The `kslpkg` CLI and the servers round out the suite; both live under the
+workspace. The `kslpkg` CLI and the KSL Server round out the suite; both live under the
 software's `.support/` folder (`.support/Tools/kslpkg/kslpkg`,
 `.support/Servers/suite/`). To connect an AI assistant, use the
 **[KSL Server](ksl-server.md)** — one server for all three tool surfaces (models, textbook,
@@ -144,7 +144,7 @@ ksl list                 # the catalog, and what's installed
 ksl uninstall simopt     # remove one app
 ksl install simopt       # add it back
 ksl update               # refresh the whole suite (keeps bundles/)
-ksl update mcp           # refresh just one item
+ksl update single        # refresh just one item
 ```
 
 The catalog `<id>`s are: `single`, `scenario`, `experiment`, `simopt`,
