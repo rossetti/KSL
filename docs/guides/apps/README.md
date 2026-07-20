@@ -48,6 +48,7 @@ flowchart TD
     bundle --> scenario["Scenario<br/>compare configurations"]
     bundle --> experiment["Experiment<br/>designed experiment"]
     bundle --> simopt["Simopt<br/>optimize inputs"]
+    bundle --> animation["Animation<br/>visual replay"]
     single --> db[("Results database<br/>+ reports")]
     scenario --> db
     experiment --> db
@@ -58,9 +59,10 @@ flowchart TD
 ```
 
 A model is packaged once as a **bundle**, then run by the **Single**, **Scenario**,
-**Experiment**, or **Simopt** apps. Those runs write a **results database and
-reports**, which the **Results** app browses and compares. The **Distribution** app
-is the front of the pipeline — it fits distributions to data that feed your models.
+**Experiment**, or **Simopt** apps — or replayed visually by **Animation**. Those runs write a
+**results database and reports**, which the **Results** app browses and compares. The
+**Distribution** app is the front of the pipeline — it fits distributions to data that feed
+your models.
 
 ## For guide authors
 

@@ -375,7 +375,7 @@ one call after a run:
 
 ```kotlin
 val db = BenchmarkResultsDb("pilotStudy.db", KSL.dbDir, deleteIfExists = false)
-val expId = db.saveSummary(summary, kslVersion = "R1.2.7")   // one BenchmarkSummary → one experiment
+val expId = db.saveSummary(summary, kslVersion = "R1.4")   // one BenchmarkSummary → one experiment
 ```
 
 - **Append by default.** With `deleteIfExists = false`, an existing file is kept

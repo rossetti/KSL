@@ -7,12 +7,13 @@ doesn't fit seven sections — extend it, and say so near the top.
 Library-guide code snippets are compile-verified against the source on
 every build.
 
-> **Looking for the desktop apps?** Step-by-step, student-facing user
-> guides for the KSL desktop applications (Single, Scenario, Experiment,
-> Simopt, Animation, Results, Distribution, Bundle Workbench), the `kslpkg`
-> CLI, and the MCP server live under [`apps/`](apps/README.md). Those are GUI
-> walkthroughs with real screenshots; the guides below are developer/library
-> references.
+> **Looking for the desktop apps?** Step-by-step, student-facing user guides for the KSL
+> desktop applications — [Single](apps/single.md), [Scenario](apps/scenario.md),
+> [Experiment](apps/experiment.md), [Simopt](apps/simopt.md), [Animation](apps/animation.md),
+> [Results](apps/results.md), [Distribution](apps/distribution.md), and
+> [Bundle Workbench](apps/bundle-workbench.md) — plus the [`kslpkg`](apps/bundle-tools.md) CLI
+> and the [KSL Server](apps/ksl-server.md) live under [`apps/`](apps/README.md). Those are
+> hands-on walkthroughs; the guides below are developer/library references.
 
 ## Reading order
 
