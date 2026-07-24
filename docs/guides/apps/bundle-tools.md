@@ -177,6 +177,20 @@ the app whenever you change the model.
 That is the whole loop: **edit in the IDE → `./gradlew jar` → `kslpkg assemble` → drop in
 `bundles/`.**
 
+> **Shortcut — if you started from `KSLProjectTemplate`.** The template ships two Gradle
+> tasks that run this whole loop for you, driving the same `kslpkg`:
+>
+> ```bash
+> ./gradlew deployBundle
+> ```
+>
+> `assembleBundle` builds your JAR and writes the bundle to `build/libs/`; `deployBundle`
+> also copies it into your `KSLWork/bundles/`. Set your bundle's `id`, `name`, and `version`
+> in the block at the top of the template's `build.gradle.kts`. The tasks find the `kslpkg`
+> your KSL install already provides (override with `-Pkslpkg.jar=…`, `KSL_HOME`, or
+> `-Pksl.workspace=…`); an ordinary `./gradlew build` is unaffected when the suite is not
+> installed. See `KSLProjectTemplate/README.md`.
+
 ---
 
 ## 4. What belongs in a bundle
@@ -221,7 +235,8 @@ of the size and update benefits above.
 | Drop a helper/closure from the model set | `--exclude <modelId,...>` |
 | Add identity metadata | `--name`, `--description`, `--version`, `--author`, `--homepage`, `--license`, `--tag` |
 | Check the tool version | `kslpkg --version` |
-| Wire `assemble` into a Gradle build | see the `JavaExec` pattern in `KSLBundleTools/README.md` |
+| One-command build + deploy (from `KSLProjectTemplate`) | `./gradlew deployBundle` |
+| Wire `assemble` into another Gradle build | see the `JavaExec` pattern in `KSLBundleTools/README.md` |
 
 ---
 
