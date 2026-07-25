@@ -10,6 +10,10 @@
 The Kotlin Simulation Library (KSL) is a Kotlin library for performing Monte Carlo and Discrete-Event
 Dynamic System computer simulations.
 
+<p align="center">
+  <img src="docs/branding/ksl-launch2-hero.gif" alt="One KSL model driving eight desktop applications and an AI agent over MCP/REST — a live tandem queueing simulation" width="900">
+</p>
+
 The KSL has the following functionality:
 
 - Discrete event calendar and executive
