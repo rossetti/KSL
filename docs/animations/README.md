@@ -61,3 +61,35 @@ Lessons from the first model, which generalise:
   about the system being modelled, and its extent line is often the longest thing on screen.
 - **A queue's extent line is `spacing × maxShown`.** Leaving `maxShown` generous advertises a capacity
   that is never reached and dominates the picture.
+- **A station is "queue + resource", and it has to read left to right.** Waiting members on the left, the
+  head of the line, then the server: `growthDegrees = 180.0` with the head just left of the resource. This
+  is what the auto-layout already does, and it beats a queue hanging below its station, which grows a
+  vertical stalk and carries the eye the wrong way.
+- **Size the elements to the arrangement, not to the old canvas.** Sizes carried over from a hand-placed
+  layout leave the stations as specks once they are spread over a real distance matrix. A block a fifth of
+  the arrangement's width reads as a machine; a block a twentieth reads as a dot.
+- **A resource is one cell per unit of capacity**, in a row centred on its position, so its half-width is
+  `capacity × size / 2`. Assuming a single cell tucks a multi-server station's queue underneath the block.
+  Capacity is a property of the run, so it comes from the trace, not the layout.
+- **A movable resource's drawn position resolves through the *location* of the same name.** A machine
+  sitting exactly on its location therefore has workers parked on top of it, hiding the part being worked
+  on. Offsetting the machine leaves the location as the spot on the floor where a worker stands.
+- **Draw the routes.** Stations alone float in white space with nothing to connect them. Reading the
+  station-to-station moves that *parts* actually made out of the trace gives the picture a floor plan and
+  costs no invention. Exclude the workers' own repositioning: a worker will travel anywhere to fetch its
+  next job, so including it makes the graph nearly complete and says nothing about how the shop is routed.
+
+### On placement produced by MDS
+
+The auto-layout places stations by classical multidimensional scaling of the model's own distance matrix,
+which is worth preserving — the picture then carries real information. MDS fixes only the *shape*: a
+configuration is determined up to rotation, reflection and translation, so re-orienting it to read left to
+right is free, and a script can search all 360° × both reflections for the orientation that best does so.
+Assert that pairwise distances survive the transform; a sign error yields a plausible-looking picture with
+the wrong distances in it.
+
+What re-orientation cannot fix is a station the model itself places far from the others. In
+`Example13MovableResources`, Diagnostics→Test 3 is the largest distance in the matrix, so Test 3 reads as
+remote in every orientation. That is the model, not the layout. The choice is to keep the placement
+faithful and let scale and routes carry the composition, or to abandon MDS and place stations by hand —
+not to quietly distort the distances while still calling them a distance matrix.

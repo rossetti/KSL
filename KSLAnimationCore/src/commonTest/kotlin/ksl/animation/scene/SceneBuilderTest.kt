@@ -24,6 +24,7 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
+import ksl.animation.BarDisplayElement
 import ksl.animation.HistogramDisplayElement
 import ksl.animation.PlotDisplayElement
 import ksl.animation.StorageLayoutElement
@@ -477,6 +478,23 @@ class SceneBuilderDisplayTest {
             .filterIsInstance<DrawCmd.Polyline>().firstOrNull()
         // Window [1.5, 3.0] excludes the t=1 sample.
         assertEquals(2, assertNotNull(series).points.size)
+    }
+
+    /**
+     * The caption must carry the value, not only the response name. A filled bar on its own communicates a
+     * fraction of an undeclared maximum, which is not a reading; the desktop canvas has always printed the
+     * number beside it, and the two viewers must not disagree about what a bar says.
+     */
+    @Test
+    fun aBarCaptionCarriesItsCurrentValue() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            bars = listOf(BarDisplayElement("WaitTime", LayoutPoint(10.0, 10.0), width = 100.0, maxValue = 10.0))
+        )
+        val text = sceneOf(layout, responseEvents, 3.0).commandsOf("displays")
+            .filterIsInstance<DrawCmd.Text>().joinToString(" ") { it.text }
+        assertTrue("WaitTime" in text, "the response is named; got '$text'")
+        assertTrue("4.0" in text, "and its value at t=3 is shown; got '$text'")
     }
 
     @Test

@@ -682,7 +682,17 @@ class SceneBuilder(
                     )
                 )
             }
-            cmds.add(DrawCmd.Text(bar.position.x, bar.position.y - 3.0, bar.label ?: bar.responseName, RgbaColor.DARK_GRAY))
+            // The caption carries the value, not just the name. A bar alone says "about two thirds of the
+            // way along" and leaves the reader to guess the scale; the desktop canvas has always spelled the
+            // number out, and a bar that reads differently in the two viewers is the kind of drift this
+            // renderer exists to avoid.
+            cmds.add(
+                DrawCmd.Text(
+                    bar.position.x, bar.position.y - 3.0,
+                    "${bar.label ?: bar.responseName}: ${formatFixed(value, 1)}",
+                    RgbaColor.DARK_GRAY
+                )
+            )
         }
         for (plot in l.plots) {
             cmds.addAll(plotCommands(plot, t, static))

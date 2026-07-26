@@ -1,14 +1,14 @@
 {
  "title": "Test & Repair \u2014 movable workers + MDS-placed stations (8K.5 + 8K.6b)",
  "baseTimeUnit": "MILLISECOND",
- "width": 780,
- "height": 615,
+ "width": 796,
+ "height": 696,
  "objectClasses": [
   {
    "typeName": "Part",
    "shape": "CIRCLE",
    "color": "#1f77b4",
-   "size": 12.0,
+   "size": 19.8,
    "imageRef": null,
    "label": null
   }
@@ -18,90 +18,195 @@
    "kind": "TEXT",
    "points": [
     {
-     "x": 24.0,
-     "y": 60.0,
+     "x": 30.0,
+     "y": 82.0,
      "z": 0.0
     }
    ],
-   "text": "Parts flow left to right: Diagnostics \u2192 tests \u2192 Repair. Stations are placed from the model's distance matrix.",
+   "text": "Parts flow left to right: Diagnostics \u2192 tests \u2192 Repair.",
    "color": "#666666",
    "strokeWidth": 1.0,
    "imageRef": null,
-   "fontSize": 11.0,
+   "fontSize": 13.9,
    "fontFamily": null
   },
   {
    "kind": "TEXT",
    "points": [
     {
-     "x": 24.0,
-     "y": 78.0,
+     "x": 30.0,
+     "y": 106.0,
      "z": 0.0
     }
    ],
-   "text": "Triangles are the 3 transport workers carrying parts between stations.",
+   "text": "Station spacing is the model's own distance matrix; triangles are the 3 transport workers.",
    "color": "#666666",
    "strokeWidth": 1.0,
    "imageRef": null,
-   "fontSize": 11.0,
+   "fontSize": 13.9,
    "fontFamily": null
   }
  ],
- "paths": [],
+ "paths": [
+  {
+   "name": "DiagnosticStation->TestStation3",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "DiagnosticStation"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "TestStation3"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "TestStation3->TestStation1",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "TestStation3"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "TestStation1"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "DiagnosticStation->TestStation1",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "DiagnosticStation"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "TestStation1"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "DiagnosticStation->TestStation2",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "DiagnosticStation"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "TestStation2"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "TestStation1->RepairStation",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "TestStation1"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "RepairStation"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "TestStation2->TestStation3",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "TestStation2"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "TestStation3"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "TestStation3->RepairStation",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "TestStation3"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "RepairStation"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "TestStation2->TestStation1",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "TestStation2"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "TestStation1"
+   },
+   "bidirectional": true
+  }
+ ],
  "queues": [
   {
    "queueName": "DiagnosticWorkers:Q",
    "position": {
-    "x": 90.0,
-    "y": 264.0,
+    "x": 121.0,
+    "y": 550.0,
     "z": 0.0
    },
-   "growthDegrees": 90.0,
-   "spacing": 14.0,
+   "growthDegrees": 180.0,
+   "spacing": 25.7,
    "maxShown": 3
   },
   {
    "queueName": "Test1:Q",
    "position": {
-    "x": 386.3,
-    "y": 156.0,
+    "x": 451.3,
+    "y": 561.8,
     "z": 0.0
    },
-   "growthDegrees": 90.0,
-   "spacing": 14.0,
+   "growthDegrees": 180.0,
+   "spacing": 25.7,
    "maxShown": 3
   },
   {
    "queueName": "Test2:Q",
    "position": {
-    "x": 480.9,
-    "y": 193.1,
+    "x": 530.7,
+    "y": 498.4,
     "z": 0.0
    },
-   "growthDegrees": 90.0,
-   "spacing": 14.0,
+   "growthDegrees": 180.0,
+   "spacing": 25.7,
    "maxShown": 3
   },
   {
    "queueName": "Test3:Q",
    "position": {
-    "x": 714.5,
-    "y": 475.1,
+    "x": 670.6,
+    "y": 160.0,
     "z": 0.0
    },
-   "growthDegrees": 90.0,
-   "spacing": 14.0,
+   "growthDegrees": 180.0,
+   "spacing": 25.7,
    "maxShown": 3
   },
   {
    "queueName": "RepairWorkers:Q",
    "position": {
-    "x": 651.1,
-    "y": 264.0,
+    "x": 640.6,
+    "y": 384.2,
     "z": 0.0
    },
-   "growthDegrees": 90.0,
-   "spacing": 14.0,
+   "growthDegrees": 180.0,
+   "spacing": 25.7,
    "maxShown": 3
   }
  ],
@@ -109,11 +214,11 @@
   {
    "resourceName": "DiagnosticWorkers",
    "position": {
-    "x": 90.0,
-    "y": 234.0,
+    "x": 170.0,
+    "y": 550.0,
     "z": 0.0
    },
-   "size": 30.0,
+   "size": 33.0,
    "idleColor": "#2ca02c",
    "busyColor": "#d62728",
    "failedColor": "#7f7f7f",
@@ -127,11 +232,11 @@
   {
    "resourceName": "Test1",
    "position": {
-    "x": 386.3,
-    "y": 130.0,
+    "x": 483.8,
+    "y": 561.8,
     "z": 0.0
    },
-   "size": 26.0,
+   "size": 33.0,
    "idleColor": "#2ca02c",
    "busyColor": "#d62728",
    "failedColor": "#7f7f7f",
@@ -145,11 +250,11 @@
   {
    "resourceName": "Test2",
    "position": {
-    "x": 480.9,
-    "y": 167.1,
+    "x": 563.2,
+    "y": 498.4,
     "z": 0.0
    },
-   "size": 26.0,
+   "size": 33.0,
    "idleColor": "#2ca02c",
    "busyColor": "#d62728",
    "failedColor": "#7f7f7f",
@@ -163,11 +268,11 @@
   {
    "resourceName": "Test3",
    "position": {
-    "x": 714.5,
-    "y": 449.1,
+    "x": 703.1,
+    "y": 160.0,
     "z": 0.0
    },
-   "size": 26.0,
+   "size": 33.0,
    "idleColor": "#2ca02c",
    "busyColor": "#d62728",
    "failedColor": "#7f7f7f",
@@ -181,11 +286,11 @@
   {
    "resourceName": "RepairWorkers",
    "position": {
-    "x": 651.1,
-    "y": 234.0,
+    "x": 706.1,
+    "y": 384.2,
     "z": 0.0
    },
-   "size": 30.0,
+   "size": 33.0,
    "idleColor": "#2ca02c",
    "busyColor": "#d62728",
    "failedColor": "#7f7f7f",
@@ -202,11 +307,11 @@
   {
    "responseName": "NumInSystem",
    "position": {
-    "x": 60.0,
-    "y": 381.3,
+    "x": 40.0,
+    "y": 320.2,
     "z": 0.0
    },
-   "width": 300.0,
+   "width": 340.0,
    "height": 20.0,
    "maxValue": 20.0,
    "color": "#1f77b4",
@@ -217,13 +322,13 @@
  "clocks": [
   {
    "position": {
-    "x": 24.0,
-    "y": 34.0,
+    "x": 30.0,
+    "y": 44.0,
     "z": 0.0
    },
    "format": "0.0",
    "label": "Time",
-   "fontSize": 13.0
+   "fontSize": 19.1
   }
  ],
  "spaces": [],
@@ -237,7 +342,7 @@
    "name": "TransportWorkerPool:R1",
    "shape": "TRIANGLE",
    "color": "#ff7f0e",
-   "size": 15.0,
+   "size": 25.1,
    "imageRef": null,
    "label": null,
    "position": null,
@@ -250,7 +355,7 @@
    "name": "TransportWorkerPool:R2",
    "shape": "TRIANGLE",
    "color": "#9467bd",
-   "size": 15.0,
+   "size": 25.1,
    "imageRef": null,
    "label": null,
    "position": null,
@@ -263,7 +368,7 @@
    "name": "TransportWorkerPool:R3",
    "shape": "TRIANGLE",
    "color": "#17becf",
-   "size": 15.0,
+   "size": 25.1,
    "imageRef": null,
    "label": null,
    "position": null,
@@ -305,71 +410,71 @@
    "kind": "RESOURCE",
    "name": "DiagnosticWorkers",
    "text": "Diagnostics",
-   "dy": -23.0
+   "dy": -27.5
   },
   {
    "kind": "RESOURCE",
    "name": "RepairWorkers",
    "text": "Repair",
-   "dy": -23.0
+   "dy": -27.5
   },
   {
    "kind": "RESOURCE",
    "name": "Test1",
    "text": "Test 1",
-   "dy": -21.0
+   "dy": -27.5
   },
   {
    "kind": "RESOURCE",
    "name": "Test2",
    "text": "Test 2",
-   "dy": -21.0
+   "dy": -27.5
   },
   {
    "kind": "RESOURCE",
    "name": "Test3",
    "text": "Test 3",
-   "dy": -21.0
+   "dy": -27.5
   },
   {
    "kind": "QUEUE",
    "name": "DiagnosticWorkers:Q",
    "visible": false,
    "valueVisible": true,
-   "valueDx": 10.0,
-   "valueDy": 4.0
+   "valueDx": -6.0,
+   "valueDy": 20.5
   },
   {
    "kind": "QUEUE",
    "name": "Test1:Q",
    "visible": false,
    "valueVisible": true,
-   "valueDx": 10.0,
-   "valueDy": 4.0
+   "valueDx": -6.0,
+   "valueDy": 20.5
   },
   {
    "kind": "QUEUE",
    "name": "Test2:Q",
    "visible": false,
    "valueVisible": true,
-   "valueDx": 10.0,
-   "valueDy": 4.0
+   "valueDx": -6.0,
+   "valueDy": 20.5
   },
   {
    "kind": "QUEUE",
    "name": "Test3:Q",
    "visible": false,
    "valueVisible": true,
-   "valueDx": 10.0,
-   "valueDy": 4.0
+   "valueDx": -6.0,
+   "valueDy": 20.5
   },
   {
    "kind": "QUEUE",
    "name": "RepairWorkers:Q",
    "visible": false,
    "valueVisible": true,
-   "valueDx": 10.0,
-   "valueDy": 4.0
+   "valueDx": -6.0,
+   "valueDy": 20.5
   },
   {
    "kind": "MOVABLE_RESOURCE",
@@ -392,8 +497,8 @@
   {
    "locationName": "DiagnosticStation",
    "position": {
-    "x": 90.0,
-    "y": 234.0,
+    "x": 170.0,
+    "y": 580.0,
     "z": 0.0
    },
    "label": "DiagnosticStation"
@@ -401,8 +506,8 @@
   {
    "locationName": "TestStation1",
    "position": {
-    "x": 386.3,
-    "y": 130.0,
+    "x": 483.8,
+    "y": 591.8,
     "z": 0.0
    },
    "label": "TestStation1"
@@ -410,8 +515,8 @@
   {
    "locationName": "TestStation2",
    "position": {
-    "x": 480.9,
-    "y": 167.1,
+    "x": 563.2,
+    "y": 528.4,
     "z": 0.0
    },
    "label": "TestStation2"
@@ -419,8 +524,8 @@
   {
    "locationName": "RepairStation",
    "position": {
-    "x": 651.1,
-    "y": 234.0,
+    "x": 706.1,
+    "y": 414.2,
     "z": 0.0
    },
    "label": "RepairStation"
@@ -428,8 +533,8 @@
   {
    "locationName": "TestStation3",
    "position": {
-    "x": 714.5,
-    "y": 449.1,
+    "x": 703.1,
+    "y": 190.0,
     "z": 0.0
    },
    "label": "TestStation3"
