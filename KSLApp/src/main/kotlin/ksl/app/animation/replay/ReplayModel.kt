@@ -26,7 +26,7 @@ import ksl.animation.LayoutPoint
 import ksl.animation.NetworkEdge
 import ksl.animation.NetworkNode
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.animation.geom.BoundingBox
+import ksl.app.animation.geom.BoundingBox
 import ksl.app.animation.io.AnimationSource
 
 /** A resource's state at a point in time. */

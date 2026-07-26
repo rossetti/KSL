@@ -19,18 +19,18 @@
 package ksl.animation.web
 
 import ksl.animation.LayoutShape
-import ksl.animation.geom.ViewTransform
-import ksl.animation.scene.DrawCmd
-import ksl.animation.scene.DrawSpace
-import ksl.animation.scene.DrawSurface
-import ksl.animation.scene.TextAnchor
-import ksl.animation.style.RgbaColor
+import ksl.app.animation.geom.ViewTransform
+import ksl.app.animation.scene.DrawCmd
+import ksl.app.animation.scene.DrawSpace
+import ksl.app.animation.scene.DrawSurface
+import ksl.app.animation.scene.TextAnchor
+import ksl.app.animation.style.RgbaColor
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLImageElement
 import kotlin.math.PI
 
 /**
- * Draws a [ksl.animation.scene.Scene] onto an HTML canvas.
+ * Draws a [ksl.app.animation.scene.Scene] onto an HTML canvas.
  *
  * This is the entire browser renderer. It decides nothing about what an animation contains — the scene
  * already settled that — so it is a translation from the drawing vocabulary to the 2D context, and the
@@ -73,7 +73,7 @@ internal class Canvas2dSurface(
     // would also scale stroke widths and text, which must stay in pixels.
     private fun px(x: Double): Double = if (space == DrawSpace.WORLD) view.toScreenX(x) else x
     private fun py(y: Double): Double = if (space == DrawSpace.WORLD) view.toScreenY(y) else y
-    private fun len(extent: ksl.animation.scene.Extent): Double = resolveExtent(extent, space, view)
+    private fun len(extent: ksl.app.animation.scene.Extent): Double = resolveExtent(extent, space, view)
 
     override fun resolveImage(ref: String): Any? = images.get(ref)
 

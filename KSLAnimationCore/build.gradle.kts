@@ -66,19 +66,21 @@ val sharedSources = listOf(
     "ksl/animation/CaptureSpec.kt",
     "ksl/animation/OverlaySpec.kt",
     "ksl/animation/AnimationSink.kt",
-    "ksl/animation/geom/BoundingBox.kt",
-    "ksl/animation/geom/ViewTransform.kt",
-    // ── visual resolution: layout colours/shapes/sizes -> concrete values (KSLCore) ──
-    "ksl/animation/style/RgbaColor.kt",
-    "ksl/animation/style/VisualStyle.kt",
-    // ── the toolkit-neutral drawing vocabulary (KSLCore) ──
-    "ksl/animation/scene/DrawCmd.kt",
-    "ksl/animation/scene/DrawSurface.kt",
-    "ksl/animation/scene/SceneOptions.kt",
     // ── grid geometry carried inside a layout (KSLCore) ──
     "ksl/modeling/agent/Cell.kt",
     "ksl/modeling/agent/MovementRule.kt",
     "ksl/modeling/agent/GridGeometrySpec.kt",
+    // ── geometry, visual resolution and the drawing vocabulary (KSLApp) ──
+    // These are replay/rendering concerns, so they live with the replay engine rather than in KSLCore:
+    // R1.4 drew that line deliberately -- the capture side ships in KSLCore, the replay engine and the
+    // viewer do not -- and KSLCore has no use for a bounding box or a draw command.
+    "ksl/app/animation/geom/BoundingBox.kt",
+    "ksl/app/animation/geom/ViewTransform.kt",
+    "ksl/app/animation/style/RgbaColor.kt",
+    "ksl/app/animation/style/VisualStyle.kt",
+    "ksl/app/animation/scene/DrawCmd.kt",
+    "ksl/app/animation/scene/DrawSurface.kt",
+    "ksl/app/animation/scene/SceneOptions.kt",
     // ── the replay engine: index a trace, query state at a time (KSLApp) ──
     "ksl/app/animation/io/AnimationSource.kt",
     "ksl/app/animation/replay/AnchorResolver.kt",

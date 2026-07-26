@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.style
+package ksl.app.animation.style
 
 /**
  * An immutable sRGB color with an alpha channel, in the 0..255 range on every channel.

@@ -16,13 +16,13 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.style
+package ksl.app.animation.style
 
 import ksl.animation.AnimationLayout
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
 import ksl.animation.ResourceLayoutElement
-import ksl.animation.geom.BoundingBox
+import ksl.app.animation.geom.BoundingBox
 
 /**
  * Resolves how an animated object should look — its color, shape and size — from an [AnimationLayout],

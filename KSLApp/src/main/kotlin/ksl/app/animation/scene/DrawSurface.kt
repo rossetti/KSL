@@ -16,10 +16,10 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.scene
+package ksl.app.animation.scene
 
-import ksl.animation.geom.ViewTransform
-import ksl.animation.style.RgbaColor
+import ksl.app.animation.geom.ViewTransform
+import ksl.app.animation.style.RgbaColor
 
 /**
  * A device that can execute [DrawCmd]s — one implementation per rendering technology.

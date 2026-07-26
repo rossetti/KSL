@@ -18,7 +18,7 @@
 
 package ksl.animation.web
 
-import ksl.animation.style.RgbaColor
+import ksl.app.animation.style.RgbaColor
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.get

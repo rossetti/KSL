@@ -16,11 +16,11 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.scene
+package ksl.app.animation.scene
 
 import ksl.animation.LayoutShape
-import ksl.animation.geom.BoundingBox
-import ksl.animation.style.RgbaColor
+import ksl.app.animation.geom.BoundingBox
+import ksl.app.animation.style.RgbaColor
 
 /**
  * Whether a layer's coordinates are world (layout) units or screen pixels.

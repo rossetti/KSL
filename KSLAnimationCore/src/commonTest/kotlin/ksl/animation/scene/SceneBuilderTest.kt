@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.scene
+package ksl.app.animation.scene
 
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
@@ -27,7 +27,7 @@ import ksl.animation.ObjectClassDefinition
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.SpatialSpaceDescriptor
-import ksl.animation.geom.BoundingBox
+import ksl.app.animation.geom.BoundingBox
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.scene.SceneBuilder

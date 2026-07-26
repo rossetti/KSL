@@ -18,7 +18,7 @@
 
 package ksl.app.animation.replay
 
-import ksl.animation.geom.BoundingBox
+import ksl.app.animation.geom.BoundingBox
 
 /** A position in world coordinates (z defaults to 0 for 2D). */
 data class WorldPoint(val x: Double, val y: Double, val z: Double = 0.0)

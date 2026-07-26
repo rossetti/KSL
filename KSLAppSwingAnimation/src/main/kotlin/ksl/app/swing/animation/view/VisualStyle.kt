@@ -21,11 +21,11 @@ package ksl.app.swing.animation.view
 import ksl.animation.AnimationLayout
 import ksl.animation.LayoutShape
 import ksl.animation.ResourceLayoutElement
-import ksl.animation.style.RgbaColor
+import ksl.app.animation.style.RgbaColor
 import java.awt.Color
 
 /**
- * The Swing view of [ksl.animation.style.VisualStyle]: identical answers, expressed as `java.awt.Color`.
+ * The Swing view of [ksl.app.animation.style.VisualStyle]: identical answers, expressed as `java.awt.Color`.
  *
  * The resolution rules themselves — palette assignment, the exact-then-longest-substring match for agent
  * states and processes, the substring match for resource states — now live in the shared style, so the
@@ -35,7 +35,7 @@ import java.awt.Color
  */
 class VisualStyle(layout: AnimationLayout?) {
 
-    private val shared = ksl.animation.style.VisualStyle(layout)
+    private val shared = ksl.app.animation.style.VisualStyle(layout)
 
     fun objectColor(typeName: String): Color = shared.objectColor(typeName).toAwt()
 

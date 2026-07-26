@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.geom
+package ksl.app.animation.geom
 
 /**
  * An immutable axis-aligned box in world (layout) coordinates.

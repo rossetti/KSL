@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.geom
+package ksl.app.animation.geom
 
 /** A point in device (screen) pixels. */
 data class ScreenPoint(val x: Double, val y: Double)

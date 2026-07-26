@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.animation.scene
+package ksl.app.animation.scene
 
 /**
  * The size of the area a scene is being built for, in pixels.

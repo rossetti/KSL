@@ -18,11 +18,11 @@
 
 package ksl.animation.web
 
-import ksl.animation.geom.ViewTransform
-import ksl.animation.scene.SceneOptions
-import ksl.animation.scene.SceneRenderer
-import ksl.animation.scene.Viewport
-import ksl.animation.style.RgbaColor
+import ksl.app.animation.geom.ViewTransform
+import ksl.app.animation.scene.SceneOptions
+import ksl.app.animation.scene.SceneRenderer
+import ksl.app.animation.scene.Viewport
+import ksl.app.animation.style.RgbaColor
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.scene.SceneBuilder

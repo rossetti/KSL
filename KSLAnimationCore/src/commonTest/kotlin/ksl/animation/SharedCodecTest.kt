@@ -18,7 +18,7 @@
 
 package ksl.animation
 
-import ksl.animation.geom.BoundingBox
+import ksl.app.animation.geom.BoundingBox
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.swing.animation.playback.PlaybackController
