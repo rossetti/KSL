@@ -79,3 +79,4 @@ tasks.register<JavaExec>("screenshotsAnimation") {
         if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
     }
 }
+

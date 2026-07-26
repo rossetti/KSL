@@ -147,3 +147,28 @@ tasks.register<JavaExec>("animationExamplesBundleJar") {
         "--force",
     )
 }
+
+// Showcase tooling: capture a trace plus the auto-layout generated from it, as the starting point for
+// polishing an animation for the README and the animation guide. It lives here because this is the module
+// that has both the example models and KSLApp's auto-layout generator; the desktop app deliberately does
+// not depend on the examples.
+//
+// The trace and the layout are separate files bound by element name, so the trace is captured once and the
+// layout is then edited freely -- no recompile, no re-run. That is what makes polishing affordable.
+// Re-running never overwrites a layout once polishing has begun.
+//
+// Usage: ./gradlew :KSLExamples:showcaseCapture -PmodelName=Example13MovableResources -Pout=build/showcase
+tasks.register<JavaExec>("showcaseCapture") {
+    group = "documentation"
+    description = "Capture a showcase trace + its auto-layout starting point."
+    dependsOn("classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("ksl.examples.general.animationbundle.showcase.ShowcaseCaptureKt")
+    jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
+    workingDir = rootDir
+    // NOTE: not -Pmodel. Gradle's Project already has a `model`, so hasProperty("model") is always true
+    // and the value that arrives is the Project itself -- the same trap as -Playout (see renderFrames).
+    listOf("modelName", "out").forEach { p ->
+        if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
+    }
+}

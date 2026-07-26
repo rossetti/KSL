@@ -1,0 +1,422 @@
+{
+ "title": "Test & Repair \u2014 movable workers + MDS-placed stations (8K.5 + 8K.6b)",
+ "baseTimeUnit": "MILLISECOND",
+ "width": 780,
+ "height": 502,
+ "objectClasses": [
+  {
+   "typeName": "Part",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 12.0,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 24.0,
+     "y": 60.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Triangles: 3 transport workers carrying parts between stations",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 11.0,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [
+  {
+   "queueName": "DiagnosticWorkers:Q",
+   "position": {
+    "x": 720.0,
+    "y": 370.0120864570654,
+    "z": 0.0
+   },
+   "growthDegrees": 90.0,
+   "spacing": 14.0,
+   "maxShown": 3
+  },
+  {
+   "queueName": "Test1:Q",
+   "position": {
+    "x": 466.47320435978736,
+    "y": 180.76211879338155,
+    "z": 0.0
+   },
+   "growthDegrees": 90.0,
+   "spacing": 14.0,
+   "maxShown": 3
+  },
+  {
+   "queueName": "Test2:Q",
+   "position": {
+    "x": 365.18648669798654,
+    "y": 188.94136076276845,
+    "z": 0.0
+   },
+   "growthDegrees": 90.0,
+   "spacing": 14.0,
+   "maxShown": 3
+  },
+  {
+   "queueName": "Test3:Q",
+   "position": {
+    "x": 60.0,
+    "y": 391.23788120661845,
+    "z": 0.0
+   },
+   "growthDegrees": 90.0,
+   "spacing": 14.0,
+   "maxShown": 3
+  },
+  {
+   "queueName": "RepairWorkers:Q",
+   "position": {
+    "x": 182.870394906745,
+    "y": 207.663996307665,
+    "z": 0.0
+   },
+   "growthDegrees": 90.0,
+   "spacing": 14.0,
+   "maxShown": 3
+  }
+ ],
+ "resources": [
+  {
+   "resourceName": "DiagnosticWorkers",
+   "position": {
+    "x": 720.0,
+    "y": 340.0120864570654,
+    "z": 0.0
+   },
+   "size": 30.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Test1",
+   "position": {
+    "x": 466.47320435978736,
+    "y": 154.76211879338155,
+    "z": 0.0
+   },
+   "size": 26.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Test2",
+   "position": {
+    "x": 365.18648669798654,
+    "y": 162.94136076276845,
+    "z": 0.0
+   },
+   "size": 26.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Test3",
+   "position": {
+    "x": 60.0,
+    "y": 365.23788120661845,
+    "z": 0.0
+   },
+   "size": 26.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "RepairWorkers",
+   "position": {
+    "x": 182.870394906745,
+    "y": 177.663996307665,
+    "z": 0.0
+   },
+   "size": 30.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  }
+ ],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "NumInSystem",
+   "position": {
+    "x": 250.0,
+    "y": 462.0,
+    "z": 0.0
+   },
+   "width": 380.0,
+   "height": 20.0,
+   "maxValue": 20.0,
+   "color": "#1f77b4",
+   "label": "Number in system"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 24.0,
+    "y": 32.0,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 12.0
+  }
+ ],
+ "spaces": [],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [
+  {
+   "name": "TransportWorkerPool:R1",
+   "shape": "TRIANGLE",
+   "color": "#ff7f0e",
+   "size": 15.0,
+   "imageRef": null,
+   "label": null,
+   "position": null,
+   "busyColor": null,
+   "idleImage": null,
+   "busyImage": null,
+   "homeBase": null
+  },
+  {
+   "name": "TransportWorkerPool:R2",
+   "shape": "TRIANGLE",
+   "color": "#9467bd",
+   "size": 15.0,
+   "imageRef": null,
+   "label": null,
+   "position": null,
+   "busyColor": null,
+   "idleImage": null,
+   "busyImage": null,
+   "homeBase": null
+  },
+  {
+   "name": "TransportWorkerPool:R3",
+   "shape": "TRIANGLE",
+   "color": "#17becf",
+   "size": 15.0,
+   "imageRef": null,
+   "label": null,
+   "position": null,
+   "busyColor": null,
+   "idleImage": null,
+   "busyImage": null,
+   "homeBase": null
+  }
+ ],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [
+  {
+   "kind": "LOCATION",
+   "name": "DiagnosticStation",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "TestStation1",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "TestStation2",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "RepairStation",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "TestStation3",
+   "visible": false
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "DiagnosticWorkers",
+   "text": "Diagnostics",
+   "dy": -23.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "RepairWorkers",
+   "text": "Repair",
+   "dy": -23.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Test1",
+   "text": "Test 1",
+   "dy": -21.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Test2",
+   "text": "Test 2",
+   "dy": -21.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Test3",
+   "text": "Test 3",
+   "dy": -21.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "DiagnosticWorkers:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": 10.0,
+   "valueDy": 4.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Test1:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": 10.0,
+   "valueDy": 4.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Test2:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": 10.0,
+   "valueDy": 4.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Test3:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": 10.0,
+   "valueDy": 4.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "RepairWorkers:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": 10.0,
+   "valueDy": 4.0
+  },
+  {
+   "kind": "MOVABLE_RESOURCE",
+   "name": "TransportWorkerPool:R1",
+   "visible": false
+  },
+  {
+   "kind": "MOVABLE_RESOURCE",
+   "name": "TransportWorkerPool:R2",
+   "visible": false
+  },
+  {
+   "kind": "MOVABLE_RESOURCE",
+   "name": "TransportWorkerPool:R3",
+   "visible": false
+  }
+ ],
+ "spaceGeometry": [],
+ "locations": [
+  {
+   "locationName": "DiagnosticStation",
+   "position": {
+    "x": 720.0,
+    "y": 340.0120864570654,
+    "z": 0.0
+   },
+   "label": "DiagnosticStation"
+  },
+  {
+   "locationName": "TestStation1",
+   "position": {
+    "x": 466.47320435978736,
+    "y": 154.76211879338155,
+    "z": 0.0
+   },
+   "label": "TestStation1"
+  },
+  {
+   "locationName": "TestStation2",
+   "position": {
+    "x": 365.18648669798654,
+    "y": 162.94136076276845,
+    "z": 0.0
+   },
+   "label": "TestStation2"
+  },
+  {
+   "locationName": "RepairStation",
+   "position": {
+    "x": 182.870394906745,
+    "y": 177.663996307665,
+    "z": 0.0
+   },
+   "label": "RepairStation"
+  },
+  {
+   "locationName": "TestStation3",
+   "position": {
+    "x": 60.0,
+    "y": 365.23788120661845,
+    "z": 0.0
+   },
+   "label": "TestStation3"
+  }
+ ]
+}
