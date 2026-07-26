@@ -67,6 +67,14 @@ val sharedSources = listOf(
     "ksl/animation/OverlaySpec.kt",
     "ksl/animation/AnimationSink.kt",
     "ksl/animation/geom/BoundingBox.kt",
+    "ksl/animation/geom/ViewTransform.kt",
+    // ── visual resolution: layout colours/shapes/sizes -> concrete values (KSLCore) ──
+    "ksl/animation/style/RgbaColor.kt",
+    "ksl/animation/style/VisualStyle.kt",
+    // ── the toolkit-neutral drawing vocabulary (KSLCore) ──
+    "ksl/animation/scene/DrawCmd.kt",
+    "ksl/animation/scene/DrawSurface.kt",
+    "ksl/animation/scene/SceneOptions.kt",
     // ── grid geometry carried inside a layout (KSLCore) ──
     "ksl/modeling/agent/Cell.kt",
     "ksl/modeling/agent/MovementRule.kt",
@@ -81,6 +89,8 @@ val sharedSources = listOf(
     "ksl/app/animation/replay/ReplayModel.kt",
     "ksl/app/animation/replay/StepTimeline.kt",
     "ksl/app/animation/replay/StreamingTraceMiner.kt",
+    // ── replay state at a time -> a Scene (KSLApp; needs ReplayModel) ──
+    "ksl/app/animation/scene/SceneBuilder.kt",
     // ── playback state machine (KSLAppSwingAnimation; already toolkit-free) ──
     "ksl/app/swing/animation/playback/PlaybackController.kt",
 )

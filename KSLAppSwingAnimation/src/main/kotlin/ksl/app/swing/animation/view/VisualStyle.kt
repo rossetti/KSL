@@ -20,115 +20,54 @@ package ksl.app.swing.animation.view
 
 import ksl.animation.AnimationLayout
 import ksl.animation.LayoutShape
-import ksl.animation.ObjectClassDefinition
 import ksl.animation.ResourceLayoutElement
+import ksl.animation.style.RgbaColor
 import java.awt.Color
 
 /**
- * Resolves the visual appearance (colors, shapes, sizes) for animated objects from the layout's
- * [ObjectClassDefinition]s and [ResourceLayoutElement]s, with sensible defaults when the layout is
- * silent. Pure (no Swing painting), so the mapping logic stays testable.
+ * The Swing view of [ksl.animation.style.VisualStyle]: identical answers, expressed as `java.awt.Color`.
+ *
+ * The resolution rules themselves — palette assignment, the exact-then-longest-substring match for agent
+ * states and processes, the substring match for resource states — now live in the shared style, so the
+ * desktop canvas, the headless image renderer and a browser renderer cannot disagree about what a model
+ * looks like. This class only converts the result at the toolkit boundary, which is why every existing
+ * call site in `SimulationCanvas` is unchanged.
  */
 class VisualStyle(layout: AnimationLayout?) {
 
-    private val objectClasses: Map<String, ObjectClassDefinition> =
-        layout?.objectClasses?.associateBy { it.typeName } ?: emptyMap()
+    private val shared = ksl.animation.style.VisualStyle(layout)
 
-    private val agentStateColors: Map<String, String> = layout?.agentStateColors ?: emptyMap()
+    fun objectColor(typeName: String): Color = shared.objectColor(typeName).toAwt()
 
-    private val processColors: Map<String, String> = layout?.processColors ?: emptyMap()
+    fun objectShape(typeName: String): LayoutShape = shared.objectShape(typeName)
 
-    private val defaultPalette = listOf(
-        Color(0x1f77b4), Color(0xff7f0e), Color(0x2ca02c), Color(0xd62728),
-        Color(0x9467bd), Color(0x8c564b), Color(0xe377c2), Color(0x17becf)
-    )
-    private val assigned = HashMap<String, Color>()
+    fun objectSize(typeName: String): Double = shared.objectSize(typeName)
 
-    /** Color for an entity/agent type, from the layout or a stable auto-assigned palette color. */
-    fun objectColor(typeName: String): Color {
-        objectClasses[typeName]?.let { return parseColor(it.color) }
-        return assigned.getOrPut(typeName) { defaultPalette[assigned.size % defaultPalette.size] }
-    }
+    fun objectImageRef(typeName: String): String? = shared.objectImageRef(typeName)
 
-    /** Drawing shape for an entity/agent type (defaults to a circle). */
-    fun objectShape(typeName: String): LayoutShape = objectClasses[typeName]?.shape ?: LayoutShape.CIRCLE
+    fun objectClassNames(): List<String> = shared.objectClassNames()
 
-    /** Drawing size (diameter, world units) for an entity/agent type. */
-    fun objectSize(typeName: String): Double = objectClasses[typeName]?.size ?: 10.0
+    fun agentStateColorEntries(): List<Pair<String, Color>> =
+        shared.agentStateColorEntries().map { it.first to it.second.toAwt() }
 
-    /** Image path for an entity/agent type when its shape is IMAGE, or null (8I.3c). */
-    fun objectImageRef(typeName: String): String? = objectClasses[typeName]?.imageRef
+    fun processColorEntries(): List<Pair<String, Color>> =
+        shared.processColorEntries().map { it.first to it.second.toAwt() }
 
-    /** The declared object-class type names, for the legend (8I.3a). */
-    fun objectClassNames(): List<String> = objectClasses.keys.toList()
+    fun processColor(process: String?): Color? = shared.processColor(process)?.toAwt()
 
-    /** The agent state-color entries (state name → color), for the legend (8I.3a). */
-    fun agentStateColorEntries(): List<Pair<String, Color>> = agentStateColors.map { it.key to parseColor(it.value) }
+    fun agentStateColor(state: String?): Color? = shared.agentStateColor(state)?.toAwt()
 
-    /** The process-color entries (process name → color), for the legend (10.1e). */
-    fun processColorEntries(): List<Pair<String, Color>> = processColors.map { it.key to parseColor(it.value) }
+    fun resourceColor(element: ResourceLayoutElement, state: String?): Color =
+        shared.resourceColor(element, state).toAwt()
 
-    /**
-     * Color for an entity currently in [process], or null if the layout defines no matching process color
-     * (then the caller falls back to the type color). Matches by exact name first, then the longest containing
-     * substring (10.1e), the entity analogue of [agentStateColor]; e.g. a current process "Triage" matches a
-     * `processColors` entry keyed "Triage".
-     */
-    fun processColor(process: String?): Color? {
-        if (process == null) return null
-        val hex = processColors.entries.firstOrNull { it.key.equals(process, ignoreCase = true) }?.value
-            ?: processColors.entries.filter { process.contains(it.key, ignoreCase = true) }
-                .maxByOrNull { it.key.length }?.value
-        return hex?.let { parseColor(it) }
-    }
-
-    /**
-     * Color for an agent in statechart [state], or null if the layout defines no matching state
-     * color (then the caller falls back to the type color). Matches by exact name first, then the longest
-     * containing substring (8F.1), so a specific state like "Uninformed" is never captured by a shorter key
-     * ("Informed") and a leaf state like "Working" still matches an `agentStateColor("Working", …)` entry.
-     */
-    fun agentStateColor(state: String?): Color? {
-        if (state == null) return null
-        val hex = agentStateColors.entries.firstOrNull { it.key.equals(state, ignoreCase = true) }?.value
-            ?: agentStateColors.entries.filter { state.contains(it.key, ignoreCase = true) }
-                .maxByOrNull { it.key.length }?.value
-        return hex?.let { parseColor(it) }
-    }
-
-    /**
-     * Color for a resource in the given [state]. The state name may be resource-qualified
-     * (e.g. "Worker_Busy"), so this matches on substring rather than equality.
-     */
-    fun resourceColor(element: ResourceLayoutElement, state: String?): Color = when {
-        state == null -> parseColor(element.idleColor)
-        state.contains("Fail", ignoreCase = true) -> parseColor(element.failedColor)
-        state.contains("Inactive", ignoreCase = true) -> parseColor(element.inactiveColor)
-        state.contains("Busy", ignoreCase = true) -> parseColor(element.busyColor)
-        else -> parseColor(element.idleColor)
-    }
-
-    /** The per-state image ref for [element] in [state] (10.7), or null to fall back to [resourceColor]. */
-    fun resourceImageRef(element: ResourceLayoutElement, state: String?): String? = when {
-        state == null -> element.idleImage
-        state.contains("Fail", ignoreCase = true) -> element.failedImage
-        state.contains("Inactive", ignoreCase = true) -> element.inactiveImage
-        state.contains("Busy", ignoreCase = true) -> element.busyImage
-        else -> element.idleImage
-    }
+    fun resourceImageRef(element: ResourceLayoutElement, state: String?): String? =
+        shared.resourceImageRef(element, state)
 
     companion object {
         /** Parses a "#rrggbb" (or "#aarrggbb") hex color; falls back to gray on malformed input. */
-        fun parseColor(hex: String): Color = runCatching {
-            val s = hex.removePrefix("#")
-            when (s.length) {
-                6 -> Color(s.substring(0, 2).toInt(16), s.substring(2, 4).toInt(16), s.substring(4, 6).toInt(16))
-                8 -> Color(
-                    s.substring(2, 4).toInt(16), s.substring(4, 6).toInt(16),
-                    s.substring(6, 8).toInt(16), s.substring(0, 2).toInt(16)
-                )
-                else -> Color.GRAY
-            }
-        }.getOrDefault(Color.GRAY)
+        fun parseColor(hex: String): Color = RgbaColor.parse(hex).toAwt()
     }
 }
+
+/** This color as an AWT color — the conversion at the Swing boundary. */
+fun RgbaColor.toAwt(): Color = Color(r, g, b, a)
