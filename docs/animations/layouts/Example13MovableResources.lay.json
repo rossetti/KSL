@@ -2,7 +2,7 @@
  "title": "Test & Repair \u2014 movable workers + MDS-placed stations (8K.5 + 8K.6b)",
  "baseTimeUnit": "MILLISECOND",
  "width": 780,
- "height": 502,
+ "height": 615,
  "objectClasses": [
   {
    "typeName": "Part",
@@ -23,7 +23,23 @@
      "z": 0.0
     }
    ],
-   "text": "Triangles: 3 transport workers carrying parts between stations",
+   "text": "Parts flow left to right: Diagnostics \u2192 tests \u2192 Repair. Stations are placed from the model's distance matrix.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 11.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 24.0,
+     "y": 78.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Triangles are the 3 transport workers carrying parts between stations.",
    "color": "#666666",
    "strokeWidth": 1.0,
    "imageRef": null,
@@ -36,8 +52,8 @@
   {
    "queueName": "DiagnosticWorkers:Q",
    "position": {
-    "x": 720.0,
-    "y": 370.0120864570654,
+    "x": 90.0,
+    "y": 264.0,
     "z": 0.0
    },
    "growthDegrees": 90.0,
@@ -47,8 +63,8 @@
   {
    "queueName": "Test1:Q",
    "position": {
-    "x": 466.47320435978736,
-    "y": 180.76211879338155,
+    "x": 386.3,
+    "y": 156.0,
     "z": 0.0
    },
    "growthDegrees": 90.0,
@@ -58,8 +74,8 @@
   {
    "queueName": "Test2:Q",
    "position": {
-    "x": 365.18648669798654,
-    "y": 188.94136076276845,
+    "x": 480.9,
+    "y": 193.1,
     "z": 0.0
    },
    "growthDegrees": 90.0,
@@ -69,8 +85,8 @@
   {
    "queueName": "Test3:Q",
    "position": {
-    "x": 60.0,
-    "y": 391.23788120661845,
+    "x": 714.5,
+    "y": 475.1,
     "z": 0.0
    },
    "growthDegrees": 90.0,
@@ -80,8 +96,8 @@
   {
    "queueName": "RepairWorkers:Q",
    "position": {
-    "x": 182.870394906745,
-    "y": 207.663996307665,
+    "x": 651.1,
+    "y": 264.0,
     "z": 0.0
    },
    "growthDegrees": 90.0,
@@ -93,8 +109,8 @@
   {
    "resourceName": "DiagnosticWorkers",
    "position": {
-    "x": 720.0,
-    "y": 340.0120864570654,
+    "x": 90.0,
+    "y": 234.0,
     "z": 0.0
    },
    "size": 30.0,
@@ -111,8 +127,8 @@
   {
    "resourceName": "Test1",
    "position": {
-    "x": 466.47320435978736,
-    "y": 154.76211879338155,
+    "x": 386.3,
+    "y": 130.0,
     "z": 0.0
    },
    "size": 26.0,
@@ -129,8 +145,8 @@
   {
    "resourceName": "Test2",
    "position": {
-    "x": 365.18648669798654,
-    "y": 162.94136076276845,
+    "x": 480.9,
+    "y": 167.1,
     "z": 0.0
    },
    "size": 26.0,
@@ -147,8 +163,8 @@
   {
    "resourceName": "Test3",
    "position": {
-    "x": 60.0,
-    "y": 365.23788120661845,
+    "x": 714.5,
+    "y": 449.1,
     "z": 0.0
    },
    "size": 26.0,
@@ -165,8 +181,8 @@
   {
    "resourceName": "RepairWorkers",
    "position": {
-    "x": 182.870394906745,
-    "y": 177.663996307665,
+    "x": 651.1,
+    "y": 234.0,
     "z": 0.0
    },
    "size": 30.0,
@@ -186,11 +202,11 @@
   {
    "responseName": "NumInSystem",
    "position": {
-    "x": 250.0,
-    "y": 462.0,
+    "x": 60.0,
+    "y": 381.3,
     "z": 0.0
    },
-   "width": 380.0,
+   "width": 300.0,
    "height": 20.0,
    "maxValue": 20.0,
    "color": "#1f77b4",
@@ -202,12 +218,12 @@
   {
    "position": {
     "x": 24.0,
-    "y": 32.0,
+    "y": 34.0,
     "z": 0.0
    },
    "format": "0.0",
    "label": "Time",
-   "fontSize": 12.0
+   "fontSize": 13.0
   }
  ],
  "spaces": [],
@@ -376,8 +392,8 @@
   {
    "locationName": "DiagnosticStation",
    "position": {
-    "x": 720.0,
-    "y": 340.0120864570654,
+    "x": 90.0,
+    "y": 234.0,
     "z": 0.0
    },
    "label": "DiagnosticStation"
@@ -385,8 +401,8 @@
   {
    "locationName": "TestStation1",
    "position": {
-    "x": 466.47320435978736,
-    "y": 154.76211879338155,
+    "x": 386.3,
+    "y": 130.0,
     "z": 0.0
    },
    "label": "TestStation1"
@@ -394,8 +410,8 @@
   {
    "locationName": "TestStation2",
    "position": {
-    "x": 365.18648669798654,
-    "y": 162.94136076276845,
+    "x": 480.9,
+    "y": 167.1,
     "z": 0.0
    },
    "label": "TestStation2"
@@ -403,8 +419,8 @@
   {
    "locationName": "RepairStation",
    "position": {
-    "x": 182.870394906745,
-    "y": 177.663996307665,
+    "x": 651.1,
+    "y": 234.0,
     "z": 0.0
    },
    "label": "RepairStation"
@@ -412,8 +428,8 @@
   {
    "locationName": "TestStation3",
    "position": {
-    "x": 60.0,
-    "y": 365.23788120661845,
+    "x": 714.5,
+    "y": 449.1,
     "z": 0.0
    },
    "label": "TestStation3"
