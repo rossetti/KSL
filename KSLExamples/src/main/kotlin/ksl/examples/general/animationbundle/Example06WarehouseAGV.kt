@@ -56,7 +56,7 @@ object Example06WarehouseAGV {
     fun buildLayout(model: Model): AnimationLayout = model.animation {
         title = "Warehouse AGVs (agent demo)"
         size(GRID.toDouble(), GRID + 4.0)
-        clock(0.3, 0.7)
+        clock(0.3, 0.7, fontSize = GRID * 0.045)
 
         objectClass("AGV") { color = "#1f77b4"; size = 1.4 }
         // Color AGVs by their statechart state (8F.1): idle gray, bidding amber, working green,

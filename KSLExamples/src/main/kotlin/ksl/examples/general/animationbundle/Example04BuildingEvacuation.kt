@@ -47,7 +47,7 @@ object Example04BuildingEvacuation {
     fun buildLayout(model: Model): AnimationLayout = model.animation {
         title = "Building Evacuation (agent demo)"
         size(GRID.toDouble(), GRID + 4.0)
-        clock(0.3, 0.7)
+        clock(0.3, 0.7, fontSize = GRID * 0.045)
 
         objectClass("Pedestrian") { color = "#1f77b4"; size = 0.6 }
         gridSpace("floor", cols = GRID, rows = GRID, cellSize = 1.0)

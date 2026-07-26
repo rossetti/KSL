@@ -65,7 +65,7 @@ object Example03GridEpidemic {
         title = "SIR Epidemic on a Grid (agent demo)"
         // World is the grid (0..GRID) plus a strip below it for the SIR bars.
         size(GRID.toDouble(), GRID + 4.0)
-        clock(0.3, 0.7)
+        clock(0.3, 0.7, fontSize = GRID * 0.045)
 
         objectClass("Person") { color = "#1f77b4"; size = 0.7 }
 

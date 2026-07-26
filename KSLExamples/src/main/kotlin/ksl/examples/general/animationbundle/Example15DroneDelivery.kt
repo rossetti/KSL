@@ -60,7 +60,7 @@ object Example15DroneDelivery {
     fun buildLayout(model: Model): AnimationLayout = model.animation {
         title = "Drone Delivery (3D agent demo, flattened to 2D)"
         size(WORLD, WORLD + 40.0) // airspace footprint + a strip for read-outs
-        clock(10.0, WORLD + 28.0)
+        clock(10.0, WORLD + 28.0, fontSize = WORLD * 0.045)
 
         objectClass("Drone") { color = "#1f77b4"; size = 6.0 }
         continuousSpace("airspace", xMin = 0.0, xMax = WORLD, yMin = 0.0, yMax = WORLD)

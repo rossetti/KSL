@@ -1031,6 +1031,27 @@ class SceneBuilder(
      * font metrics — it does not know which surface will draw it. Slightly generous is the safe direction:
      * the text sits inside the box either way.
      */
+    /**
+     * The screen-space room the legend needs, or null when there is nothing to legend.
+     *
+     * Published so a viewer can *reserve* this column before fitting the world into its panel. Without
+     * that, the legend — which is drawn last, in screen space, in the corner — lands on top of whatever
+     * the layout happens to put on its right edge, and a scaffolded layout puts the servers exactly
+     * there. Reserving costs a little drawing area and guarantees nothing is hidden.
+     */
+    fun legendFootprint(): Viewport? {
+        val classes = style.objectClassNames()
+        val states = style.agentStateColorEntries()
+        if (classes.isEmpty() && states.isEmpty()) return null
+        val labels = classes + states.map { it.first }
+        val widest = labels.maxOf { it.length }
+        val textWidth = (widest * LEGEND_CHAR_WIDTH).coerceAtLeast(40.0)
+        return Viewport(
+            widthPx = LEGEND_PAD * 2 + LEGEND_SWATCH + 6 + textWidth + LEGEND_MARGIN * 2,
+            heightPx = LEGEND_PAD * 2 + labels.size * LEGEND_ROW + LEGEND_MARGIN * 2
+        )
+    }
+
     private fun legendCommands(viewport: Viewport?): List<DrawCmd> {
         val classes = style.objectClassNames()
         val states = style.agentStateColorEntries()

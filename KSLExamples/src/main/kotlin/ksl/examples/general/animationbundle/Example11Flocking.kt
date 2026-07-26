@@ -45,7 +45,7 @@ object Example11Flocking {
     fun buildLayout(model: Model): AnimationLayout = model.animation {
         title = "Flocking on a torus (8F.7)"
         size(WORLD, WORLD + 16.0)
-        clock(2.0, 4.0)
+        clock(2.0, 4.0, fontSize = WORLD * 0.045)
 
         objectClass("Boid") { color = "#1f77b4"; size = 1.8 }
         continuousSpace("sky", xMin = 0.0, xMax = WORLD, yMin = 0.0, yMax = WORLD, torus = true)

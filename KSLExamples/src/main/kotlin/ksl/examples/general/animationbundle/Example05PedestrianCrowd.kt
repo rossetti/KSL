@@ -46,7 +46,7 @@ object Example05PedestrianCrowd {
     fun buildLayout(model: Model): AnimationLayout = model.animation {
         title = "Pedestrian Crowd (agent demo)"
         size(25.0, 29.0)
-        clock(0.3, 0.7)
+        clock(0.3, 0.7, fontSize = 1.16)
 
         objectClass("Pedestrian") { color = "#1f77b4"; size = 0.5 }
         continuousSpace("room", xMin = 0.0, xMax = 25.0, yMin = 0.0, yMax = 25.0)

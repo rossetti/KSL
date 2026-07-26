@@ -188,7 +188,9 @@ internal class KslAnimationPlayer(
         viewport = Viewport(cssWidth, cssHeight)
         surface = Canvas2dSurface(ctx, cssWidth, cssHeight, images ?: ImageCache(null))
         builder?.let { b ->
-            val fitted = ViewTransform.fit(b.worldBounds(), cssWidth, cssHeight)
+            // Reserve the legend's column so it cannot land on the layout's rightmost element.
+            val reserved = if (options.showLegend) b.legendFootprint()?.widthPx ?: 0.0 else 0.0
+            val fitted = ViewTransform.fit(b.worldBounds(), (cssWidth - reserved).coerceAtLeast(1.0), cssHeight)
             basePanX = fitted.panX
             basePanY = fitted.panY
             view = fitted.withZoomPan(zoom, basePanX + userPanX, basePanY + userPanY)
