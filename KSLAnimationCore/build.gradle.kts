@@ -104,6 +104,9 @@ val sharedSources = listOf(
 kotlin {
     js(IR) {
         browser {
+            commonWebpackConfig {
+                outputFileName = "ksl-animation.js"
+            }
             testTask {
                 useKarma {
                     // Headless Chrome only; no interactive browser is launched in CI.
@@ -111,7 +114,8 @@ kotlin {
                 }
             }
         }
-        binaries.library()
+        // An executable: the bundle mounts players into a page (see AutoMount.kt).
+        binaries.executable()
     }
 
     sourceSets {

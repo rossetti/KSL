@@ -19,6 +19,15 @@
 package ksl.animation.scene
 
 /**
+ * The size of the area a scene is being built for, in pixels.
+ *
+ * Only screen-space chrome needs this, and only the chrome that hugs an edge: a legend sits in the
+ * top-right corner, which cannot be expressed without knowing where the right edge is. Everything else in
+ * a scene is in world units and is independent of how large the view happens to be.
+ */
+data class Viewport(val widthPx: Double, val heightPx: Double)
+
+/**
  * What a scene should include. Each flag drops a whole layer rather than changing how anything is drawn,
  * so a viewer's toggles cost nothing when off.
  *

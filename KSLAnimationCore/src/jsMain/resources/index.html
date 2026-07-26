@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KSL animation — web player</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin: 0 auto; padding: 24px; max-width: 1000px; color: #222; background: #fff;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p.lede { color: #666; margin: 0 0 24px; }
+    h2 { font-size: 15px; margin: 28px 0 4px; }
+    p.note { color: #666; font-size: 13px; margin: 0 0 10px; }
+    .player { border: 1px solid #ddd; border-radius: 6px; padding: 8px; background: #fff; }
+    code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 13px; }
+    pre { background: #f7f7f7; border: 1px solid #eee; border-radius: 6px; padding: 12px;
+          overflow-x: auto; font-size: 12.5px; }
+  </style>
+</head>
+<body>
+  <h1>KSL animation in the browser</h1>
+  <p class="lede">
+    Each player below replays a real <code>.atf</code> trace produced by a KSL run, through the same
+    replay engine and playback clock the desktop viewer uses, compiled to JavaScript. No server is
+    involved — the traces are static files.
+  </p>
+
+  <h2>Discrete-event: an annotated clinic</h2>
+  <p class="note">
+    A queue of patients and one nurse. Watch the queue fill while the nurse is busy (red) and drain when
+    idle (green). Scrub to any point; drag to pan; scroll to zoom; double-click to reset the view.
+  </p>
+  <div class="player"
+       data-ksl-trace="traces/AnnotatedClinic.atf"
+       data-ksl-layout="traces/AnnotatedClinic.lay.json"
+       data-ksl-fit="25"
+       style="height:440px"></div>
+
+  <h2>Agent-based: flocking</h2>
+  <p class="note">
+    Eighty boids in a continuous space, from a 20,000-event trace. The trace is served gzipped and
+    decoded in the browser; parsing is chunked, so the progress line moves instead of the page freezing.
+  </p>
+  <div class="player"
+       data-ksl-trace="traces/FlockVecOn.atf.gz"
+       data-ksl-layout="traces/FlockVecOn.lay.json"
+       data-ksl-fit="12"
+       data-ksl-autoplay="true"
+       style="height:440px"></div>
+
+  <h2>Embedding one</h2>
+  <p class="note">This is the whole integration — no JavaScript of your own:</p>
+  <pre>&lt;div data-ksl-trace="traces/pharmacy.atf.gz"
+     data-ksl-layout="traces/pharmacy.lay.json"
+     style="height:480px"&gt;&lt;/div&gt;
+&lt;script src="ksl-animation.js"&gt;&lt;/script&gt;</pre>
+
+  <script src="ksl-animation.js"></script>
+</body>
+</html>

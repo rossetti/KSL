@@ -36,6 +36,7 @@ import ksl.animation.scene.Extent
 import ksl.animation.scene.Layer
 import ksl.animation.scene.Scene
 import ksl.animation.scene.SceneOptions
+import ksl.animation.scene.Viewport
 import ksl.animation.style.RgbaColor
 import ksl.animation.style.VisualStyle
 import ksl.app.animation.replay.ReplayModel
@@ -143,12 +144,15 @@ class SceneBuilder(
     }
 
     /** The static skeleton only — every element at rest, with no replay state. */
-    fun buildStatic(): Scene = build(STATIC_TIME, static = true)
+    fun buildStatic(viewport: Viewport? = null): Scene = build(STATIC_TIME, static = true, viewport = viewport)
 
-    /** The frame at simulated time [t]. */
-    fun build(t: Double): Scene = build(t, static = false)
+    /**
+     * The frame at simulated time [t]. [viewport] is only needed for edge-anchored screen chrome (the
+     * legend); without it the legend falls back to the top-left corner.
+     */
+    fun build(t: Double, viewport: Viewport? = null): Scene = build(t, static = false, viewport = viewport)
 
-    private fun build(t: Double, static: Boolean): Scene {
+    private fun build(t: Double, static: Boolean, viewport: Viewport? = null): Scene {
         val layers = ArrayList<Layer>()
         fun layer(name: String, space: DrawSpace, cmds: List<DrawCmd>) {
             if (cmds.isNotEmpty()) layers.add(Layer(name, space, cmds))
@@ -173,7 +177,7 @@ class SceneBuilder(
         if (options.showMarkerPulses && !static) layer("pulses", DrawSpace.WORLD, pulseCommands(t))
         layer("labels", DrawSpace.WORLD, labelCommands(t, static))
         layer("clock", DrawSpace.WORLD, clockCommands(t, static))
-        if (options.showLegend) layer("legend", DrawSpace.SCREEN, legendCommands())
+        if (options.showLegend) layer("legend", DrawSpace.SCREEN, legendCommands(viewport))
 
         return Scene(layers, worldBounds(), t)
     }
@@ -759,33 +763,56 @@ class SceneBuilder(
     }
 
     /**
-     * The legend: one row per declared object class and agent state. Drawn in screen space in the
-     * top-right, so it is unaffected by zoom and pan.
+     * The legend: a swatch and a name per declared object class and agent state, in a boxed panel.
+     *
+     * It sits in the top-right when the viewport is known, which is where the desktop viewer puts it and
+     * which keeps it clear of the clock and the value read-outs authors tend to place top-left. Without a
+     * viewport it falls back to the top-left, since the right edge is then unknown.
+     *
+     * The panel width is estimated from the character count rather than measured, because a scene has no
+     * font metrics — it does not know which surface will draw it. Slightly generous is the safe direction:
+     * the text sits inside the box either way.
      */
-    private fun legendCommands(): List<DrawCmd> {
+    private fun legendCommands(viewport: Viewport?): List<DrawCmd> {
         val classes = style.objectClassNames()
         val states = style.agentStateColorEntries()
         if (classes.isEmpty() && states.isEmpty()) return emptyList()
+
+        val labels = classes + states.map { it.first }
+        val widest = labels.maxOf { it.length }
+        val textWidth = (widest * LEGEND_CHAR_WIDTH).coerceAtLeast(40.0)
+        val boxWidth = LEGEND_PAD * 2 + LEGEND_SWATCH + 6 + textWidth
+        val boxHeight = LEGEND_PAD * 2 + labels.size * LEGEND_ROW
+        val boxLeft = viewport?.let { (it.widthPx - boxWidth - LEGEND_MARGIN).coerceAtLeast(0.0) } ?: LEGEND_MARGIN
+
         val cmds = ArrayList<DrawCmd>()
-        var y = LEGEND_TOP + LEGEND_ROW / 2
+        cmds.add(
+            DrawCmd.Rect(
+                boxLeft, LEGEND_TOP, Extent.px(boxWidth), Extent.px(boxHeight),
+                fill = LEGEND_FILL, stroke = RgbaColor.GRAY
+            )
+        )
+        val swatchCenter = boxLeft + LEGEND_PAD + LEGEND_SWATCH / 2
+        val textLeft = boxLeft + LEGEND_PAD + LEGEND_SWATCH + 6
+        var y = LEGEND_TOP + LEGEND_PAD + LEGEND_ROW / 2
         for (name in classes) {
             cmds.add(
                 DrawCmd.Glyph(
-                    LEGEND_LEFT + LEGEND_SWATCH / 2, y, Extent.px(LEGEND_SWATCH),
+                    swatchCenter, y, Extent.px(LEGEND_SWATCH),
                     style.objectShape(name), style.objectColor(name), style.objectImageRef(name)
                 )
             )
-            cmds.add(DrawCmd.Text(LEGEND_LEFT + LEGEND_SWATCH + 6, y + 4, name, RgbaColor.BLACK))
+            cmds.add(DrawCmd.Text(textLeft, y + 4, name, RgbaColor.BLACK))
             y += LEGEND_ROW
         }
         for ((state, color) in states) {
             cmds.add(
                 DrawCmd.Rect(
-                    LEGEND_LEFT, y - LEGEND_SWATCH / 2,
+                    swatchCenter - LEGEND_SWATCH / 2, y - LEGEND_SWATCH / 2,
                     Extent.px(LEGEND_SWATCH), Extent.px(LEGEND_SWATCH), fill = color
                 )
             )
-            cmds.add(DrawCmd.Text(LEGEND_LEFT + LEGEND_SWATCH + 6, y + 4, state, RgbaColor.BLACK))
+            cmds.add(DrawCmd.Text(textLeft, y + 4, state, RgbaColor.BLACK))
             y += LEGEND_ROW
         }
         return cmds
@@ -834,10 +861,14 @@ class SceneBuilder(
         private const val DEFAULT_VALUE_DY = 14.0
         private const val PULSE_MIN_RADIUS = 6.0
         private const val PULSE_GROWTH = 22.0
-        private const val LEGEND_LEFT = 12.0
+        private const val LEGEND_MARGIN = 8.0
         private const val LEGEND_TOP = 8.0
         private const val LEGEND_ROW = 18.0
         private const val LEGEND_SWATCH = 12.0
+        private const val LEGEND_PAD = 6.0
+
+        /** Approximate advance width per character at the default label size, for sizing the panel. */
+        private const val LEGEND_CHAR_WIDTH = 7.0
 
         /** Content occupying less than this share of the declared canvas is framed on its own. */
         private const val CANVAS_SHARE = 0.2
@@ -860,5 +891,6 @@ class SceneBuilder(
         private val MOVER_BUSY_RING = RgbaColor(0xd6, 0x27, 0x28)
         private val PLANNED_PATH = RgbaColor(0x15, 0x6e, 0xc8, 0x99)
         private val PULSE_DEFAULT = RgbaColor(0xff, 0x7f, 0x0e)
+        private val LEGEND_FILL = RgbaColor(255, 255, 255, 220)
     }
 }
