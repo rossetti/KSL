@@ -19,6 +19,7 @@
 package ksl.app.swing.animation.app
 
 import ksl.animation.AnimationLayout
+import ksl.app.animation.web.SelfContainedHtmlExporter
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.AnimationEvent
 import ksl.animation.TraceFileReader
@@ -62,6 +63,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     private val traceCombo = JComboBox<TraceItem>()
     private val layoutCombo = JComboBox<LayoutChoice>()
     private val loadButton = JButton("Load")
+    private val exportHtmlButton = JButton("Export to HTML…")
     private val loadedLabel = JLabel(" ")
     private val compatLabel = JLabel(" ")
     private val gridToggle = JCheckBox("Show grid")
@@ -107,6 +109,14 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
             add(JButton("Rescan folders").apply {
                 toolTipText = "Re-read the model's traces/ and layouts/ folders for new files"
                 addActionListener { rescan() }
+            })
+            add(exportHtmlButton.apply {
+                toolTipText = if (SelfContainedHtmlExporter.isAvailable())
+                    "Save what is loaded here as a single self-contained web page"
+                else
+                    "Unavailable in this build - the animation web player was not built"
+                isEnabled = SelfContainedHtmlExporter.isAvailable()
+                addActionListener { exportHtml() }
             })
         }, BorderLayout.NORTH)
         add(buildViewBar(), BorderLayout.CENTER) // grid + zoom/pan parity with the Layout canvas (10.9)
@@ -324,6 +334,61 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
 
     private fun <T> selectComboItem(combo: JComboBox<T>, match: (T) -> Boolean) {
         for (i in 0 until combo.itemCount) if (match(combo.getItemAt(i))) { combo.selectedIndex = i; return }
+    }
+
+    /**
+     * Writes what is currently loaded — this trace, through this layout — as one self-contained web page.
+     *
+     * The Replay tab is the right home for it because it already holds exactly the two inputs an export
+     * needs, and because this is where a layout stops being a work in progress: whatever was polished on
+     * the Layout tab and paired with a trace here is what the page will show. The result needs no server
+     * and no install, so it can be mailed to someone or posted to a course site as it stands.
+     */
+    private fun exportHtml() {
+        val header = cachedHeader
+        if (header == null || cachedEvents.isEmpty()) {
+            showError("Load a trace first, then export what you see.")
+            return
+        }
+        val exporter = SelfContainedHtmlExporter.bundled()
+        if (exporter == null) {
+            showError(SelfContainedHtmlExporter.MISSING_PLAYER_MESSAGE)
+            return
+        }
+        val suggested = (currentTraceFile?.fileName?.toString() ?: "animation")
+            .removeSuffix(".gz").removeSuffix(".atf").trim('.')
+        val chooser = JFileChooser(ensuredDir(app.tracesDir)).apply {
+            dialogTitle = "Export animation to HTML"
+            selectedFile = java.io.File(ensuredDir(app.tracesDir), "$suggested.html")
+        }
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val out = chooser.selectedFile.toPath()
+
+        // Export the layout actually on screen, not whichever file happens to be selected: the user may
+        // have auto-laid-out or edited it since, and the page should match what they are looking at.
+        val layout = canvas.replay?.layout
+        val layoutFile = layout?.let {
+            java.nio.file.Files.createTempFile("ksl-export-", ".lay.json").also { tmp -> it.writeToFile(tmp) }
+        }
+        try {
+            val report = exporter.export(
+                trace = currentTraceFile ?: return,
+                layout = layoutFile,
+                out = out,
+                title = suggested
+            )
+            JOptionPane.showMessageDialog(
+                this,
+                "Exported to:\n$out\n\n${report.summary()}\n\n" +
+                    "This page is self-contained - it needs no server and no KSL install.",
+                "Export complete",
+                JOptionPane.INFORMATION_MESSAGE
+            )
+        } catch (e: Exception) {
+            showError("Export failed: ${e.message}")
+        } finally {
+            layoutFile?.let { runCatching { java.nio.file.Files.deleteIfExists(it) } }
+        }
     }
 
     private fun showError(message: String) =

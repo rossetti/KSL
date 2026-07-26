@@ -41,15 +41,14 @@ import kotlin.system.exitProcess
  *    layout of the same base name when one is present.
  */
 fun main() {
-    val player = property("player")?.let { Path.of(it) }
-        ?: defaultPlayerBundle()
+    val explicit = property("player")?.let { Path.of(it) }
+    val exporter = (explicit?.let { SelfContainedHtmlExporter.using(it) }
+        ?: SelfContainedHtmlExporter.bundledOr(defaultPlayerBundle()))
         ?: fail(
             "no player bundle found. Build it first:\n" +
                 "  ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack\n" +
                 "or pass -Pplayer=<path to ksl-animation.js>"
         )
-
-    val exporter = SelfContainedHtmlExporter(player)
     val out = Path.of(property("out") ?: fail("-Pout is required"))
 
     val dir = property("dir")

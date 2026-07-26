@@ -88,3 +88,48 @@ listOf(
         }
     }
 }
+
+/*
+ * Packaging the animation web player.
+ *
+ * The player is built by the standalone KSLAnimationCore build, which is deliberately outside this one so
+ * that `./gradlew build` needs no Node.js (decision S5). That leaves the question of how a *running* app
+ * gets hold of it, since the desktop app and the MCP server both offer "export this animation as HTML".
+ *
+ * Answer: package it as a resource when it exists. Then neither of them needs to know where a build put
+ * anything -- SelfContainedHtmlExporter.bundled() reads it off the classpath.
+ *
+ * Absence is tolerated on purpose. A plain `./gradlew build` with no web build produces a jar without the
+ * player, and the export action reports what to run rather than failing obscurely. A release always has
+ * it, because cutting the suite builds the web module first (see docs/releasing-suite.md).
+ */
+val animationPlayerBundle: File =
+    rootDir.resolve("KSLAnimationCore/build/kotlin-webpack/js/productionExecutable/ksl-animation.js")
+
+val packageAnimationPlayer by tasks.registering(Copy::class) {
+    description = "Package the animation web player into KSLApp resources, when it has been built."
+    group = "build"
+    from(animationPlayerBundle)
+    into(layout.buildDirectory.dir("generated/animation-player/ksl/animation/web"))
+    // Nothing to copy is a normal state, not a failure.
+    onlyIf { animationPlayerBundle.isFile }
+}
+
+sourceSets["main"].resources.srcDir(layout.buildDirectory.dir("generated/animation-player"))
+tasks.named("processResources") { dependsOn(packageAnimationPlayer) }
+
+/** Reports whether this build carries the player, so a release can check before publishing. */
+tasks.register("checkAnimationPlayerPackaged") {
+    group = "verification"
+    description = "Report whether the animation web player is packaged into KSLApp."
+    doLast {
+        if (animationPlayerBundle.isFile) {
+            logger.lifecycle("animation web player packaged (${animationPlayerBundle.length() / 1024} KB)")
+        } else {
+            logger.lifecycle(
+                "animation web player NOT packaged - HTML export will be unavailable.\n" +
+                    "  Build it with: ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack"
+            )
+        }
+    }
+}

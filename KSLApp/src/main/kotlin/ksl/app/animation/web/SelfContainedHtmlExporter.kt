@@ -67,12 +67,48 @@ data class AnimationRunRef(
  *
  * @param playerBundle the compiled `ksl-animation.js`
  */
-class SelfContainedHtmlExporter(private val playerBundle: Path) {
+class SelfContainedHtmlExporter private constructor(private val player: String) {
 
-    init {
-        require(Files.isRegularFile(playerBundle)) {
-            "player bundle not found: $playerBundle (build it with: ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack)"
+    companion object {
+
+        /** Where the built player is packaged, so a running app needs no knowledge of the filesystem. */
+        private const val PLAYER_RESOURCE = "/ksl/animation/web/ksl-animation.js"
+
+        private const val PLAYER_FILE = "ksl-animation.js"
+        private const val ESCAPED_TITLE_MARK = "@@TITLE@@"
+
+        /**
+         * What to tell a user when the player is missing. It is only ever missing in a development build:
+         * the released suite always carries it, because the release wires the web build in.
+         */
+        const val MISSING_PLAYER_MESSAGE: String =
+            "This build does not include the animation web player, so an animation cannot be exported to " +
+                "HTML. Build it with:\n\n    ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack\n\n" +
+                "then rebuild, or pass an explicit bundle path."
+
+        /** Whether this build can export at all — worth asking before offering the action. */
+        fun isAvailable(): Boolean =
+            SelfContainedHtmlExporter::class.java.getResource(PLAYER_RESOURCE) != null
+
+        /**
+         * An exporter using the player packaged with this build, or null when it carries none.
+         *
+         * Reading it from the classpath rather than a path is what lets the desktop app and the MCP server
+         * export without either of them knowing where a build put anything.
+         */
+        fun bundled(): SelfContainedHtmlExporter? =
+            SelfContainedHtmlExporter::class.java.getResourceAsStream(PLAYER_RESOURCE)
+                ?.bufferedReader()?.use { SelfContainedHtmlExporter(it.readText()) }
+
+        /** An exporter using an explicit bundle — for a build that has none, and for the CLI. */
+        fun using(playerBundle: Path): SelfContainedHtmlExporter {
+            require(Files.isRegularFile(playerBundle)) { "player bundle not found: $playerBundle" }
+            return SelfContainedHtmlExporter(Files.readString(playerBundle))
         }
+
+        /** The bundled player if there is one, else one read from [fallback]. */
+        fun bundledOr(fallback: Path?): SelfContainedHtmlExporter? =
+            bundled() ?: fallback?.takeIf { Files.isRegularFile(it) }?.let { using(it) }
     }
 
     /**
@@ -94,7 +130,6 @@ class SelfContainedHtmlExporter(private val playerBundle: Path) {
         // a trace records where things move, not where a queue or its server belongs. The desktop viewer
         // scaffolds in exactly this situation, and an exported page should not be worse than the app.
         val layoutJson = (layout?.let { AnimationLayout.readFromFile(it) } ?: scaffoldFor(trace))?.toJson()
-        val player = Files.readString(playerBundle)
 
         val html = buildString {
             append(pageHead(title))
@@ -150,7 +185,7 @@ class SelfContainedHtmlExporter(private val playerBundle: Path) {
     fun exportGallery(runs: List<AnimationRunRef>, outDir: Path, title: String = "KSL animation gallery"): ExportSizeReport {
         val traceDir = outDir.resolve("traces")
         Files.createDirectories(traceDir)
-        Files.copy(playerBundle, outDir.resolve(PLAYER_FILE), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        Files.writeString(outDir.resolve(PLAYER_FILE), player)
 
         var traceBytes = 0L
         val sections = StringBuilder()
@@ -187,10 +222,10 @@ class SelfContainedHtmlExporter(private val playerBundle: Path) {
         Files.writeString(index, html)
 
         return ExportSizeReport(
-            playerBytes = Files.size(playerBundle),
+            playerBytes = player.length.toLong(),
             traceBytes = traceBytes,
             layoutBytes = 0,
-            totalBytes = Files.size(index) + Files.size(playerBundle) + traceBytes
+            totalBytes = Files.size(index) + player.length.toLong() + traceBytes
         )
     }
 
@@ -251,8 +286,4 @@ class SelfContainedHtmlExporter(private val playerBundle: Path) {
     private fun escapeForScriptTag(s: String): String =
         s.replace("</", "<\\/").replace("<!--", "<\\!--")
 
-    private companion object {
-        const val PLAYER_FILE = "ksl-animation.js"
-        const val ESCAPED_TITLE_MARK = "@@TITLE@@"
-    }
 }

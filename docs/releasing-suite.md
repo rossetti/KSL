@@ -27,6 +27,21 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   building — the **KSL Server** (`Servers/suite`, whose `book` capability backs
   `search_textbook`) bakes in that content and degrades *silently* to empty search if it was
   missing.
+- **Build the animation web player before building the suite.** The Animation app's
+  *Export to HTML…* action and the MCP `render_animation_html` tool both embed this bundle in
+  the page they produce, and it is packaged into KSLApp as a resource. It is built by the
+  standalone `KSLAnimationCore` project, which is deliberately **outside** the root build so
+  that an ordinary `./gradlew build` needs no Node.js — which also means an ordinary build does
+  not produce it, and a suite built without it ships an app whose export action is disabled.
+
+  ```
+  ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
+  ./gradlew :KSLApp:checkAnimationPlayerPackaged
+  ```
+
+  The second command prints whether the bundle was found. It needs Node.js, which Gradle
+  downloads on first use — so this step (unlike the rest of a release) needs network access the
+  first time it runs on a machine.
 
 ## Steps
 

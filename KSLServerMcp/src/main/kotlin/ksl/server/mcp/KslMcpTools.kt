@@ -47,6 +47,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import ksl.animation.AnimationLayout
+import ksl.app.animation.web.SelfContainedHtmlExporter
 import ksl.app.animation.io.load
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.AutoLayoutSource
@@ -533,6 +534,69 @@ class KslMcpTools(
                 ),
             ),
             structuredContent = sanitizeNonFinite(structured).jsonObject,
+        )
+    }
+
+    /** `render_animation_html` — turn a captured run into ONE self-contained web page: the animation, its
+     *  layout and the player all inside a single file that opens with no server and no KSL install.
+     *
+     *  This is the fourth step of the animation loop the other three tools already form. `auto_layout`
+     *  proposes a layout, `validate_animation_layout` checks it against the model, `render_animation_layout`
+     *  shows a still of it — and this turns the polished result into something playable that can be handed
+     *  to someone else. Takes the `resultId` of a run captured with tracing on, and the layout to view it
+     *  through (usually the one just polished); with no layout, one is scaffolded from the trace. */
+    fun renderAnimationHtml(arguments: JsonObject?): CallToolResult {
+        val resultId = arguments.string("resultId")
+            ?: return error("missing required argument 'resultId' (a run captured with tracing enabled)")
+        val exporter = SelfContainedHtmlExporter.bundled()
+            ?: return error(SelfContainedHtmlExporter.MISSING_PLAYER_MESSAGE)
+
+        val traceFile = artifactStore.list(resultId)
+            .firstOrNull { it.name.endsWith(".atf") || it.name.endsWith(".atf.gz") }
+            ?.let { java.nio.file.Path.of(it.path) }
+            ?: return error(
+                "run '$resultId' has no animation trace. Re-run it with tracing enabled so it produces a .atf."
+            )
+
+        // An explicit layout wins; otherwise the exporter scaffolds from the trace.
+        val layoutFile = arguments.string("layout")?.let { text ->
+            val layout = try {
+                if (text.trimStart().startsWith("{")) AnimationLayout.fromJson(text) else AnimationLayout.fromToml(text)
+            } catch (e: Exception) {
+                return error("could not parse the layout (expected a JSON or TOML AnimationLayout): ${e.message}")
+            }
+            java.nio.file.Files.createTempFile("ksl-mcp-layout-", ".lay.json").also { layout.writeToFile(it) }
+        }
+
+        val out = artifactStore.dirFor(resultId).resolve("animation.html")
+        val report = try {
+            exporter.export(
+                trace = traceFile,
+                layout = layoutFile,
+                out = out,
+                title = arguments.string("title") ?: resultId,
+                autoPlay = arguments.string("autoPlay")?.toBoolean() ?: true
+            )
+        } catch (e: Exception) {
+            return error("could not export the animation: ${e.message}")
+        } finally {
+            layoutFile?.let { runCatching { java.nio.file.Files.deleteIfExists(it) } }
+        }
+
+        val structured = buildJsonObject {
+            put("resultId", resultId)
+            put("selfContained", true)
+            put("totalBytes", report.totalBytes)
+            putJsonArray("artifacts") {
+                artifactStore.list(resultId).forEach {
+                    add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) })
+                }
+            }
+        }
+        return result(
+            "Exported a self-contained animation page: ${report.summary()}. It needs no server and no KSL " +
+                "install. Fetch it with get_artifact(resultId=\"$resultId\", name=\"animation.html\").",
+            structured
         )
     }
 

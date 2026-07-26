@@ -498,7 +498,7 @@ object KslMcpServer {
                 "located anchors; without a trace it returns the static model scaffold. 'source' is AUTO (default: " +
                 "trace when available, else scaffold) or MODEL (force the scaffold). 'format' is json (default) or " +
                 "toml. The text is the editable layout document; check edits with validate_animation_layout and " +
-                "preview with render_animation_layout.",
+                "preview with render_animation_layout, then render_animation_html to make it playable.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("bundleId") { put("type", "string") }
@@ -546,6 +546,28 @@ object KslMcpServer {
             ),
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.renderAnimationLayout(request.arguments) }
+
+        add(
+            name = "render_animation_html",
+            description = "Turn a captured run into ONE self-contained web page — the animation, its layout and " +
+                "the player all inside a single HTML file that plays in any browser with no server and no KSL " +
+                "install, so it can be mailed, posted to a course site or kept as a record. This is the payoff " +
+                "step after auto_layout → validate_animation_layout → render_animation_layout: once a layout " +
+                "looks right, this makes it playable. 'resultId' is a run captured with tracing enabled (it must " +
+                "have produced a .atf). 'layout' is the JSON or TOML AnimationLayout to view it through — usually " +
+                "the one you just polished; omit it and a layout is scaffolded from the trace. Returns a " +
+                "downloadable artifact (get_artifact, name=animation.html).",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("resultId") { put("type", "string"); put("description", "A run captured with tracing enabled.") }
+                    putJsonObject("layout") { put("type", "string"); put("description", "A JSON or TOML AnimationLayout; omit to scaffold one from the trace.") }
+                    putJsonObject("title") { put("type", "string"); put("description", "Page title; defaults to the resultId.") }
+                    putJsonObject("autoPlay") { put("type", "string"); put("description", "\"false\" to open paused; defaults to playing.") }
+                },
+                required = listOf("resultId"),
+            ),
+            outputSchema = McpResultSchemas.artifacts,
+        ) { request -> tools.renderAnimationHtml(request.arguments) }
 
         add(
             name = "bundle_authoring_candidates",
