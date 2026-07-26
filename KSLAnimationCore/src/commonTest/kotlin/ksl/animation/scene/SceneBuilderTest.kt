@@ -30,6 +30,7 @@ import ksl.animation.SpatialSpaceDescriptor
 import ksl.app.animation.geom.BoundingBox
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.autoLayout
 import ksl.app.animation.scene.SceneBuilder
 import kotlin.math.abs
 import kotlin.test.Test
@@ -356,24 +357,30 @@ class SceneBuilderTest {
     }
 
     @Test
-    fun aTraceWithNoLayoutGetsAGlyphSizeScaledToItsWorld() {
+    fun aTraceWithNoLayoutIsScaffoldedIntoSomethingDrawable() {
         // No layout at all: the declared default glyph of 10 world units would be a tenth of a 100-unit
         // space. The size must instead come from the world extent.
-        val model = ReplayModel.build(
+        val traceEvents = events(
+            """{"event":"SpaceDefined","simTime":0.0,"name":"sky","kind":"Continuous","cols":0,"rows":0,"cellSize":1.0,"xMin":0.0,"xMax":100.0,"yMin":0.0,"yMax":100.0,"torus":false}""",
+            """{"event":"AgentRegistered","simTime":0.0,"agentName":"b1","agentType":"Boid"}""",
+            """{"event":"AgentPositionChanged","simTime":0.0,"agentName":"b1","projectionName":"sky","x":50.0,"y":50.0,"z":0.0}""",
+        )
+        val model = ReplayModel.build(AnimationSource(null, AnimationTraceHeader(), traceEvents))
+        // What a bare trace gets is a scaffolded layout, exactly as the desktop viewer produces one --
+        // which is what makes the agents drawable at a sensible size rather than at a process-view default
+        // that would make each one a tenth of a 100-unit space.
+        val events = model.let { m -> m }
+        val scaffolded = ksl.app.animation.replay.ReplayModel.build(
             AnimationSource(
-                null, AnimationTraceHeader(),
-                events(
-                    """{"event":"SpaceDefined","simTime":0.0,"name":"sky","kind":"Continuous","cols":0,"rows":0,"cellSize":1.0,"xMin":0.0,"xMax":100.0,"yMin":0.0,"yMax":100.0,"torus":false}""",
-                    """{"event":"AgentRegistered","simTime":0.0,"agentName":"b1","agentType":"Boid"}""",
-                    """{"event":"AgentPositionChanged","simTime":0.0,"agentName":"b1","projectionName":"sky","x":50.0,"y":50.0,"z":0.0}""",
-                )
+                model.autoLayout(traceEvents, "spatial"), AnimationTraceHeader(), traceEvents
             )
         )
-        val scene = SceneBuilder(model).build(0.0)
+        val scene = SceneBuilder(scaffolded).build(0.0)
         val glyph = assertNotNull(scene.commandsOf("agents").filterIsInstance<DrawCmd.Glyph>().firstOrNull())
         val size = assertNotNull(glyph.size as? Extent.World).value
-        assertTrue(size < 5.0, "a default glyph must not dominate a 100-unit space; got $size")
+        assertTrue(size < 5.0, "a scaffolded glyph must not dominate a 100-unit space; got $size")
         assertTrue(size > 0.0, "but it must still be visible; got $size")
+        assertTrue(scaffolded.layout!!.objectClasses.isNotEmpty(), "the scaffold declares the observed types")
     }
 
     // ── static skeleton ─────────────────────────────────────────────────────────────────────────────

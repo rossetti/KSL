@@ -25,6 +25,7 @@ import ksl.app.animation.scene.Viewport
 import ksl.app.animation.style.RgbaColor
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.autoLayout
 import ksl.app.animation.scene.SceneBuilder
 import ksl.app.swing.animation.playback.PlaybackController
 import kotlinx.browser.document
@@ -109,7 +110,7 @@ internal class KslAnimationPlayer(
     }
 
     private fun adopt(source: AnimationSource) {
-        val replay = ReplayModel.build(source)
+        val replay = scaffoldIfNeeded(ReplayModel.build(source), source)
         model = replay
         images = ImageCache(source.assetBase)
         builder = SceneBuilder(replay, SceneOptions(showLegend = options.showLegend))
@@ -133,6 +134,24 @@ internal class KslAnimationPlayer(
         loop = AnimationLoop(controller).also { it.start() }
         if (options.autoPlay) controller.play() else render(replay.timeRange.start)
         transport?.showTime(controller.currentTime, controller)
+    }
+
+    /**
+     * Scaffolds a layout when the trace arrived without one, and rebuilds the replay against it.
+     *
+     * A layout is what says where a queue is drawn, where its server sits, which colour an entity class
+     * takes. A trace carries none of that for a process-view model — positions only exist for things that
+     * physically move — so replaying a queueing model with no layout draws an empty canvas. The desktop
+     * viewer has always scaffolded one in this situation; doing the same here is what lets someone drop a
+     * bare `.atf` into a page and see their model rather than nothing.
+     *
+     * A spatial model would render either way, since its coordinates ride in the trace, but it still
+     * benefits: the scaffold declares object classes, so agents get stable colours and sensible sizes.
+     */
+    private fun scaffoldIfNeeded(replay: ReplayModel, source: AnimationSource): ReplayModel {
+        if (replay.layout != null) return replay
+        val scaffold = replay.autoLayout(source.events, source.header.description)
+        return ReplayModel.build(AnimationSource(scaffold, source.header, source.events, source.assetBase))
     }
 
     private fun describe(replay: ReplayModel): String {

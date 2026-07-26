@@ -72,7 +72,7 @@ fun main() {
         )
         println("Wrote ${out.toAbsolutePath()}")
         println(report.summary())
-        if (layout == null) println("note: no layout found; the animation renders from the trace alone")
+        if (layout == null) println("note: no layout file found; a layout was scaffolded from the trace")
     }
 }
 

@@ -21,7 +21,7 @@ package ksl.app.animation.replay
 import ksl.animation.AnimationEvent
 import ksl.animation.LayoutPoint
 import ksl.animation.MoverMode
-import java.awt.geom.Rectangle2D
+import ksl.app.animation.geom.BoundingBox
 
 /**
  * The named locations seen in a trace ([names], including non-Cartesian ones and conveyor anchors) and
@@ -41,7 +41,7 @@ data class MoverSummary(val names: Set<String>, val homes: Map<String, LayoutPoi
  * `NaN` coordinates (see `LocationIfc.x`), so those are skipped and [result] is null when the trace carries no
  * planar coordinate at all.
  */
-class ObservedExtent : TraceAccumulator<Rectangle2D.Double?> {
+class ObservedExtent : TraceAccumulator<BoundingBox?> {
     private var minX = Double.POSITIVE_INFINITY
     private var minY = Double.POSITIVE_INFINITY
     private var maxX = Double.NEGATIVE_INFINITY
@@ -63,8 +63,8 @@ class ObservedExtent : TraceAccumulator<Rectangle2D.Double?> {
         minY = minOf(minY, y); maxY = maxOf(maxY, y)
     }
 
-    override fun result(): Rectangle2D.Double? =
-        if (!any) null else Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
+    override fun result(): BoundingBox? =
+        if (!any) null else BoundingBox(minX, minY, maxX, maxY)
 }
 
 /**
@@ -121,7 +121,7 @@ class MoverHomes : TraceAccumulator<MoverSummary> {
         if (event !is AnimationEvent.SpatialElementMoved) return
         names.add(event.name)
         if (event.fromX.isFinite() && event.fromY.isFinite()) {
-            first.putIfAbsent(event.name, LayoutPoint(event.fromX, event.fromY))
+            first.getOrPut(event.name) { LayoutPoint(event.fromX, event.fromY) }
         }
         if (event.mode == MoverMode.RETURNING_HOME && event.toX.isFinite() && event.toY.isFinite()) {
             home[event.name] = LayoutPoint(event.toX, event.toY)
@@ -194,18 +194,18 @@ class FlowOrder : TraceAccumulator<FlowOrderResult> {
     override fun accept(event: AnimationEvent) {
         when (event) {
             is AnimationEvent.SeizeAllocated -> {
-                val i = visits.getOrDefault(event.entityId, 0)
+                val i = visits[event.entityId] ?: 0
                 index.getOrPut(event.resourceName) { Avg() }.let { it.sum += i; it.n++ }
                 visits[event.entityId] = i + 1
             }
-            is AnimationEvent.SeizeQueued -> queueOf.putIfAbsent(event.resourceName, event.queueName)
+            is AnimationEvent.SeizeQueued -> queueOf.getOrPut(event.resourceName) { event.queueName }
             is AnimationEvent.EntityDisposed -> visits.remove(event.entityId)
             else -> {}
         }
     }
 
     override fun result(): FlowOrderResult =
-        FlowOrderResult(index.mapValues { (_, a) -> Math.round(a.sum / a.n).toInt() }, queueOf)
+        FlowOrderResult(index.mapValues { (_, a) -> kotlin.math.round(a.sum / a.n).toInt() }, queueOf)
 }
 
 /**
@@ -223,7 +223,7 @@ class StationFlow : TraceAccumulator<Map<String, Int>> {
     override fun accept(event: AnimationEvent) {
         when (event) {
             is AnimationEvent.StationEntered -> {
-                val i = visits.getOrDefault(event.entityId, 0)
+                val i = visits[event.entityId] ?: 0
                 index.getOrPut(event.stationName) { Avg() }.let { it.sum += i; it.n++ }
                 visits[event.entityId] = i + 1
             }
@@ -232,7 +232,7 @@ class StationFlow : TraceAccumulator<Map<String, Int>> {
         }
     }
 
-    override fun result(): Map<String, Int> = index.mapValues { (_, a) -> Math.round(a.sum / a.n).toInt() }
+    override fun result(): Map<String, Int> = index.mapValues { (_, a) -> kotlin.math.round(a.sum / a.n).toInt() }
 }
 
 /**
@@ -245,7 +245,7 @@ class ConveyorAnchors : TraceAccumulator<Map<String, List<Pair<String, Int>>>> {
 
     override fun accept(event: AnimationEvent) {
         if (event is AnimationEvent.ConveyorDefined) {
-            byConveyor.putIfAbsent(event.conveyorName, event.anchorLocations.zip(event.anchorCells))
+            byConveyor.getOrPut(event.conveyorName) { event.anchorLocations.zip(event.anchorCells) }
         }
     }
 

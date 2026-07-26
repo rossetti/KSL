@@ -19,6 +19,10 @@
 package ksl.app.animation.web
 
 import ksl.animation.AnimationLayout
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.io.load
+import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.autoLayout
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -86,7 +90,10 @@ class SelfContainedHtmlExporter(private val playerBundle: Path) {
         fitSeconds: Double = 20.0
     ): ExportSizeReport {
         val traceText = readTraceText(trace)
-        val layoutJson = layout?.let { AnimationLayout.readFromFile(it).toJson() }
+        // Scaffold a layout when none was supplied. Without one a process-view model draws nothing at all:
+        // a trace records where things move, not where a queue or its server belongs. The desktop viewer
+        // scaffolds in exactly this situation, and an exported page should not be worse than the app.
+        val layoutJson = (layout?.let { AnimationLayout.readFromFile(it) } ?: scaffoldFor(trace))?.toJson()
         val player = Files.readString(playerBundle)
 
         val html = buildString {
@@ -185,6 +192,16 @@ class SelfContainedHtmlExporter(private val playerBundle: Path) {
             layoutBytes = 0,
             totalBytes = Files.size(index) + Files.size(playerBundle) + traceBytes
         )
+    }
+
+    /**
+     * Builds a layout from the trace itself, as the desktop viewer does when handed a trace with no
+     * layout. Returns null only if the trace yields nothing to place.
+     */
+    private fun scaffoldFor(trace: Path): AnimationLayout? {
+        val source = AnimationSource.load(null, trace)
+        val replay = ReplayModel.build(source)
+        return runCatching { replay.autoLayout(source.events, source.header.description) }.getOrNull()
     }
 
     /**

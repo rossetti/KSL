@@ -89,6 +89,12 @@ val sharedSources = listOf(
     "ksl/app/animation/replay/ReplayModel.kt",
     "ksl/app/animation/replay/StepTimeline.kt",
     "ksl/app/animation/replay/StreamingTraceMiner.kt",
+    // ── scaffolding a layout from a trace alone (KSLApp) ──
+    // Trace-only despite an earlier misreading: the entry point is ReplayModel.autoLayout(events, title)
+    // and it reaches for nothing but the animation types. Without it a browser handed a bare trace can
+    // only consume a layout, never produce one -- which for a queueing model means drawing nothing.
+    "ksl/app/animation/replay/TraceAccumulators.kt",
+    "ksl/app/animation/replay/AutoLayout.kt",
     // ── replay state at a time -> a Scene (KSLApp; needs ReplayModel) ──
     "ksl/app/animation/scene/SceneBuilder.kt",
     // ── playback state machine (KSLAppSwingAnimation; already toolkit-free) ──

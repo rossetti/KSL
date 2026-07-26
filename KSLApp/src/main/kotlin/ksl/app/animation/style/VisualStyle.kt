@@ -22,7 +22,6 @@ import ksl.animation.AnimationLayout
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
 import ksl.animation.ResourceLayoutElement
-import ksl.app.animation.geom.BoundingBox
 
 /**
  * Resolves how an animated object should look — its color, shape and size — from an [AnimationLayout],
@@ -53,26 +52,6 @@ class VisualStyle(private val layout: AnimationLayout?) {
 
     private val assigned = HashMap<String, RgbaColor>()
 
-    /**
-     * The default glyph diameter, in world units, for a type the layout does not declare.
-     *
-     * The declared default of 10.0 world units suits a process-view layout spanning hundreds of units,
-     * but is far too large for a spatial model spanning tens — an agent space 100 units across would draw
-     * each agent a tenth of the space wide. So when a world extent is known, the default is a small
-     * fraction of its diagonal instead, which keeps a layout-free trace readable. This only ever applies
-     * to types the layout is silent about; a declared size is always honored exactly.
-     */
-    var defaultObjectSize: Double = FALLBACK_OBJECT_SIZE
-        private set
-
-    /** Scales [defaultObjectSize] to [world], for a trace whose layout declares no object classes. */
-    fun calibrateTo(world: BoundingBox?) {
-        if (world == null) return
-        val diagonal = kotlin.math.sqrt(world.width * world.width + world.height * world.height)
-        if (diagonal <= 0.0) return
-        defaultObjectSize = (diagonal * DEFAULT_SIZE_FRACTION).coerceIn(MIN_DEFAULT_SIZE, FALLBACK_OBJECT_SIZE)
-    }
-
     /** Color for an entity/agent type, from the layout or a stable auto-assigned palette color. */
     fun objectColor(typeName: String): RgbaColor {
         objectClasses[typeName]?.let { return RgbaColor.parse(it.color) }
@@ -83,7 +62,7 @@ class VisualStyle(private val layout: AnimationLayout?) {
     fun objectShape(typeName: String): LayoutShape = objectClasses[typeName]?.shape ?: LayoutShape.CIRCLE
 
     /** Drawing size (diameter, world units) for an entity/agent type. */
-    fun objectSize(typeName: String): Double = objectClasses[typeName]?.size ?: defaultObjectSize
+    fun objectSize(typeName: String): Double = objectClasses[typeName]?.size ?: DEFAULT_OBJECT_SIZE
 
     /** Image path for an entity/agent type whose shape is IMAGE, or null. */
     fun objectImageRef(typeName: String): String? = objectClasses[typeName]?.imageRef
@@ -142,13 +121,17 @@ class VisualStyle(private val layout: AnimationLayout?) {
     }
 
     companion object {
-        /** The declared default in [ObjectClassDefinition], used when no world extent is known. */
-        const val FALLBACK_OBJECT_SIZE: Double = 10.0
-
-        /** A default glyph spans this fraction of the world diagonal. */
-        private const val DEFAULT_SIZE_FRACTION: Double = 0.015
-
-        /** Below this the glyph is a dot regardless of world size; the surface's pixel floor takes over. */
-        private const val MIN_DEFAULT_SIZE: Double = 0.05
+        /**
+         * Diameter for a type the layout does not declare, matching [ObjectClassDefinition]'s own default
+         * and therefore the desktop viewer.
+         *
+         * An earlier version scaled this to the world extent, because a trace replayed with no layout
+         * drew agents a tenth of their space wide. That was treating a symptom: the real problem was that
+         * no layout was being scaffolded, and a scaffold seeds every observed type with a size suited to
+         * the frame. With scaffolding in place this fallback is reached only for a type that appears in
+         * neither the layout nor the scaffold, and keeping it fixed means the two renderers cannot
+         * disagree about how large anything is.
+         */
+        const val DEFAULT_OBJECT_SIZE: Double = 10.0
     }
 }

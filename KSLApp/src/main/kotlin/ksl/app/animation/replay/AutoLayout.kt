@@ -19,6 +19,7 @@
 package ksl.app.animation.replay
 
 import ksl.animation.AnimationEvent
+import ksl.app.animation.geom.BoundingBox
 import ksl.animation.AnimationLayout
 import ksl.animation.ConveyorLayoutElement
 import ksl.animation.LayoutPoint
@@ -100,9 +101,9 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // Frame the canvas to the declared spatial space (grid/continuous), if any, unioned with where movement
     // actually happened — so agents/movers fill the view instead of clumping in a corner (P5).
     val spaceBox = effectiveSpaces.mapNotNull { spaceBounds(it) }
-        .reduceOrNull { a, b -> a.createUnion(b) as java.awt.geom.Rectangle2D.Double }
+        .reduceOrNull { a, b -> a.union(b) }
     val frame = listOfNotNull(spaceBox, observed)
-        .reduceOrNull { a, b -> a.createUnion(b) as java.awt.geom.Rectangle2D.Double }
+        .reduceOrNull { a, b -> a.union(b) }
     if (frame != null) {
         // Coordinate-aware layout: process elements go in a side strip scaled to the frame; named locations are
         // placed at their real centroids (the renderer interpolates movers between them).
@@ -111,7 +112,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val rowGap = unit * 1.8
         // Servers sit at the right of the strip; each queue's head is just to their left with members growing
         // further left, so a row reads "members -> head -> server" (fixes the server-left-of-its-queue-head look).
-        val rowY = { i: Int -> frame.y + margin + i * rowGap }
+        val rowY = { i: Int -> frame.minY + margin + i * rowGap }
         val qHeadX = frame.maxX + margin + unit * 8   // queue-head column (members fill the gap to its left)
         val resColX = qHeadX + unit * 3               // servers, to the right of their queue head
         val resourceRow = staticResources.sorted().withIndex().associate { (i, n) -> n to i }
@@ -156,7 +157,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val firstColX = originX + 160.0
     // Group resources into flow-stage columns; resources never seized in the trace trail as a final column.
     val maxRank = flow.ranks.values.maxOrNull() ?: -1
-    val byRank = staticResources.groupBy { flow.ranks[it] ?: (maxRank + 1) }.toSortedMap()
+    val byRank = staticResources.groupBy { flow.ranks[it] ?: (maxRank + 1) }.toList().sortedBy { it.first }.toMap()
     val resources = mutableListOf<ResourceLayoutElement>()
     val queues = mutableListOf<QueueLayoutElement>()
     val placedQueues = mutableSetOf<String>()
@@ -202,7 +203,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val y = laneY; laneY += 80.0
         val maxCell = (anchors.maxOfOrNull { it.second } ?: 0).coerceAtLeast(1)
         anchors.forEach { (loc, cell) ->
-            conveyorAnchorPos.putIfAbsent(loc, LayoutPoint(firstColX + beltSpan * cell / maxCell, y))
+            conveyorAnchorPos.getOrPut(loc) { LayoutPoint(firstColX + beltSpan * cell / maxCell, y) }
         }
         conveyorElements += ConveyorLayoutElement(conveyorName = conveyorName, showDirection = true)
     }
@@ -225,14 +226,14 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // Remaining named travel locations (name-only SpatialElementMoved movers) not already placed as a network
     // station or a conveyor anchor: a ring, so name-resolved mover movement still animates.
     val placedNames = stationNameSet + conveyorAnchorPos.keys
-    val ringNames = location.names.filter { it !in placedNames }.toSortedSet()
+    val ringNames = location.names.filter { it !in placedNames }.sorted()
     // Coordinate-free travel locations on a ring (Phase 5: locations, not stations). A DistancesModel's MDS
     // positions later override these via withModelLocations (inventory positions are authoritative).
     val ringLocations = if (ringNames.isEmpty()) emptyList() else {
         val cx = width / 2.0; val cy = height / 2.0
         val radius = minOf(width, height) * 0.32
         ringNames.toList().mapIndexed { i, name ->
-            val a = 2.0 * Math.PI * i / ringNames.size - Math.PI / 2.0 // first location at top
+            val a = 2.0 * kotlin.math.PI * i / ringNames.size - kotlin.math.PI / 2.0 // first location at top
             LocationLayoutElement(locationName = name, position = LayoutPoint(cx + radius * cos(a), cy + radius * sin(a)), label = name)
         }
     }
@@ -258,14 +259,14 @@ private val PALETTE = listOf(
 )
 
 /** The world bounding box of a spatial space descriptor (grid/continuous); null for spaces without planar bounds. */
-private fun spaceBounds(s: ksl.animation.SpatialSpaceDescriptor): java.awt.geom.Rectangle2D.Double? = when (s) {
+private fun spaceBounds(s: ksl.animation.SpatialSpaceDescriptor): BoundingBox? = when (s) {
     is ksl.animation.SpatialSpaceDescriptor.Grid ->
-        java.awt.geom.Rectangle2D.Double(s.originX, s.originY, s.cols * s.cellSize, s.rows * s.cellSize)
+        BoundingBox(s.originX, s.originY, s.originX + s.cols * s.cellSize, s.originY + s.rows * s.cellSize)
     is ksl.animation.SpatialSpaceDescriptor.Continuous ->
-        java.awt.geom.Rectangle2D.Double(s.xMin, s.yMin, s.xMax - s.xMin, s.yMax - s.yMin)
+        BoundingBox(s.xMin, s.yMin, s.xMax, s.yMax)
     is ksl.animation.SpatialSpaceDescriptor.Network -> if (s.nodes.isEmpty()) null else {
         val xs = s.nodes.map { it.position.x }; val ys = s.nodes.map { it.position.y }
-        java.awt.geom.Rectangle2D.Double(xs.min(), ys.min(), xs.max() - xs.min(), ys.max() - ys.min())
+        BoundingBox(xs.min(), ys.min(), xs.max(), ys.max())
     }
 }
 

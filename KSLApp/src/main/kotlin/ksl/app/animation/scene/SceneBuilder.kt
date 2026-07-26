@@ -68,13 +68,6 @@ class SceneBuilder(
 
     private val layout: AnimationLayout? = model.layout
 
-    init {
-        // A layout-free trace has no declared glyph sizes, and the declared default suits a process-view
-        // canvas rather than an agent space a hundred units across. Calibrating to the world extent keeps
-        // such a trace readable (it is a no-op wherever the layout declares its object classes).
-        style.calibrateTo(worldBounds())
-    }
-
     /**
      * The world rectangle a view should frame.
      *
