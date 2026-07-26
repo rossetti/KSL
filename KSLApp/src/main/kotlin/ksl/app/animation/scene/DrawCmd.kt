@@ -88,7 +88,15 @@ sealed interface DrawCmd {
         val strokeWidth: Double = 1.0
     ) : DrawCmd
 
-    /** An axis-aligned rectangle whose top-left corner is ([x], [y]). */
+    /**
+     * An axis-aligned rectangle whose top-left corner is ([x], [y]), or which is **centered** on ([x], [y])
+     * when [centered] is set.
+     *
+     * A caller drawing a world-sized box can centre it itself by subtracting half the side. A caller drawing
+     * a **screen**-sized box anchored to a world point cannot: half of an [Extent.Px] is a number of pixels,
+     * and the world coordinate it corresponds to depends on the zoom. [centered] exists for that case — it
+     * defers the halving to the surface, which is where extents are resolved to pixels.
+     */
     data class Rect(
         val x: Double,
         val y: Double,
@@ -96,7 +104,8 @@ sealed interface DrawCmd {
         val height: Extent,
         val fill: RgbaColor? = null,
         val stroke: RgbaColor? = null,
-        val strokeWidth: Double = 1.0
+        val strokeWidth: Double = 1.0,
+        val centered: Boolean = false
     ) : DrawCmd
 
     /**

@@ -21,29 +21,37 @@ package ksl.examples.general.animationbundle
 import ksl.animation.AnimationLayout
 import ksl.animation.StorageStyle
 import ksl.animation.animation
-import ksl.examples.book.chapter7.StemFairMixerEnhanced
+import ksl.examples.general.animationbundle.models.AnimatedStemFairMixer
 import ksl.simulation.Model
 
 /**
- * Example 12 — **storages for bare `delay()`s** (8K.4). The STEM-fair mixer is almost entirely bare
- * delays (students walk, get name tags, converse), so today most of the model renders as *nothing* —
- * only the two recruiter resources have geometry. Storages fix that:
+ * Example 12 — **storages for bare `delay()`s** (8K.4), on a venue students actually walk through.
  *
- *  - `storage("Student", …)` binds to the **entity type** (the automatic default for *unnamed* delays),
- *    so every student currently mid-delay — walking or at name tags — shows up as an ambient crowd
- *    with **no model changes at all**.
- *  - `storage("ConversationArea", …)` binds to a delay the model **named** (`delay(t, suspensionName =
- *    "ConversationArea")`) — a progress belt where each student drifts from entry to exit as their
- *    conversation elapses.
+ * The STEM-fair mixer is a `DistancesModel`: five named locations (Entrance, NameTags, ConversationArea,
+ * Recruiting, Exit) with students walking between them at a sampled speed. Two things then have to be
+ * drawn, and they come from opposite ends of the trace:
+ *
+ *  - **The walking is free.** A `moveTo` reports the locations it runs between, so the students' paths
+ *    through the venue are in the trace already and the renderer interpolates along them.
+ *  - **The stopping is not.** Where a student *stops* is a bare `delay()`, which has no geometry and
+ *    renders as nothing — and between them the two stops hold nearly everyone in the building. Storages
+ *    are what make them visible, and a storage binds to a delay's **suspension name**:
+ *      - `storage("NameTags", …)` — a packed region: a crowd at the name-tag table.
+ *      - `storage("ConversationArea", …)` — a progress belt, each student drifting from one end to the
+ *        other as their conversation elapses. At ~19 minutes against a walk's few seconds, this is where
+ *        the fair actually happens.
  *
  * The recruiter visits are `use(...)` (seize+delay), so those students draw inside the resources
  * (in-service), not in a storage — storages catch exactly the otherwise-invisible delays.
+ *
+ * The model is [AnimatedStemFairMixer], a copy of chapter 8's `StemFairMixerEnhancedWithMovement` whose
+ * only change is that those two delays are named. The book examples are left uninstrumented on purpose.
  */
 object Example12StemFairStorage {
 
     fun buildModel(): Model {
         val m = Model("StemFairStorageModel")
-        StemFairMixerEnhanced(m, "Mixer")
+        AnimatedStemFairMixer(m, "Mixer")
         m.numberOfReplications = 1
         m.lengthOfReplication = 360.0
         return m
@@ -61,10 +69,10 @@ object Example12StemFairStorage {
         text("Conversation area", 330.0, 170.0)
         text("Recruiting", 700.0, 80.0)
 
-        // The ambient crowd: every student currently in an UNNAMED delay (walking, name tags), keyed by
-        // the entity type "Student". No model changes needed — this is the automatic default key.
-        storage("Student", 40.0, 100.0) {
-            style = StorageStyle.PACKED_REGION; width = 240.0; height = 180.0; spacing = 18.0; label = "In transit"
+        // The name-tag table: a place students are AT, so a packed region — a crowd — rather than a belt,
+        // which would imply they are crossing a distance.
+        storage("NameTags", 40.0, 100.0) {
+            style = StorageStyle.PACKED_REGION; width = 240.0; height = 180.0; spacing = 18.0; label = "Name tags"
         }
 
         // The conversation area: a NAMED delay ("ConversationArea") shown as a progress belt — students

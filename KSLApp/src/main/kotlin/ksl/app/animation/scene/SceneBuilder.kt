@@ -320,7 +320,7 @@ class SceneBuilder(
             val p = loc.position ?: return@mapNotNull null // unplaced -> nothing to draw
             DrawCmd.Rect(
                 p.x, p.y, LOCATION_SIDE, LOCATION_SIDE,
-                stroke = MARKER, strokeWidth = 1.5
+                stroke = MARKER, strokeWidth = 1.5, centered = true
             )
         } ?: emptyList()
 

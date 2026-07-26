@@ -30,6 +30,34 @@ geometry changes. `polish-Example13.py` is the worked example.
 
 ---
 
+## When the model has to change
+
+Most polishing needs no model change at all: a trace already carries positions, movement, queues, resource
+states and responses. One thing is different. A bare `delay()` has **no geometry and no name**, so it
+renders as nothing, and an animation storage binds to a delay's *suspension name* — meaning an unnamed
+delay cannot be drawn even in principle. Naming it is a model edit:
+
+```kotlin
+delay(myInteractionTimeRV, suspensionName = "ConversationArea")
+```
+
+This is metadata. It names a suspension point and touches neither the random number streams nor the
+schedule, so every statistic the model produces is unchanged. Prove that rather than asserting it: capture
+a trace before and after and diff them with `suspensionName` stripped. If the two are identical, the naming
+changed nothing.
+
+**Do not instrument a book example.** The book's models teach modelling, and threading animation concerns
+through them puts a second subject into code written to explain one. Copy the model into
+`ksl.examples.general.animationbundle.models` and instrument the copy — the student processes are private,
+so a subclass cannot override them and a copy is the only option. `AnimatedStemFairMixer` is the worked
+example: a copy of chapter 8's `StemFairMixerEnhancedWithMovement` whose sole difference is that its two
+bare delays are named.
+
+Movement needs no instrumentation. A `moveTo` already reports the locations it runs between, so paths come
+out of the trace on their own.
+
+---
+
 ## The defect catalogue
 
 In fix order. Each entry is *symptom → cause → fix*.

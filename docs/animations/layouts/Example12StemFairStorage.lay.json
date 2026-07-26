@@ -1,0 +1,508 @@
+{
+ "title": "STEM Fair Mixer \u2014 students walking a venue, and the delays that hold them",
+ "baseTimeUnit": null,
+ "width": 1294,
+ "height": 660.0,
+ "objectClasses": [
+  {
+   "typeName": "Student",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 13.0,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "LINE",
+   "points": [
+    {
+     "x": 251.8,
+     "y": 352.0,
+     "z": 0.0
+    },
+    {
+     "x": 251.8,
+     "y": 400.0,
+     "z": 0.0
+    }
+   ],
+   "text": null,
+   "color": "#c8c8c8",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 12.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "LINE",
+   "points": [
+    {
+     "x": 449.4,
+     "y": 400.0,
+     "z": 0.0
+    },
+    {
+     "x": 449.4,
+     "y": 470.0,
+     "z": 0.0
+    }
+   ],
+   "text": null,
+   "color": "#c8c8c8",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 12.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "LINE",
+   "points": [
+    {
+     "x": 778.8,
+     "y": 339.0,
+     "z": 0.0
+    },
+    {
+     "x": 778.8,
+     "y": 400.0,
+     "z": 0.0
+    }
+   ],
+   "text": null,
+   "color": "#c8c8c8",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 12.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.0,
+     "y": 86.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Students walk a five-location venue; the line is the corridor and the dots on it are students in transit.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 14.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.0,
+     "y": 110.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Where they stop is a bare delay() with no geometry \u2014 a storage bound to the delay's name is what draws it.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 14.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.0,
+     "y": 148.0,
+     "z": 0.0
+    }
+   ],
+   "text": "A conversation runs ~18 minutes against a few seconds of walking, so the belt below is where the fair is.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 12.5,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 34.0,
+     "y": 405.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Entrance",
+   "color": "#333333",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 14.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 1190.0,
+     "y": 405.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Exit",
+   "color": "#333333",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 14.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 744.8,
+     "y": 424.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Recruiting",
+   "color": "#333333",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 14.0,
+   "fontFamily": null
+  }
+ ],
+ "paths": [
+  {
+   "name": "Entrance->NameTags",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "Entrance"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "NameTags"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "NameTags->Recruiting",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "NameTags"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "Recruiting"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "NameTags->ConversationArea",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "NameTags"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "ConversationArea"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "Recruiting->Exit",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "Recruiting"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "Exit"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "ConversationArea->Recruiting",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "ConversationArea"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "Recruiting"
+   },
+   "bidirectional": true
+  },
+  {
+   "name": "ConversationArea->Exit",
+   "points": [],
+   "from": {
+    "kind": "LOCATION",
+    "name": "ConversationArea"
+   },
+   "to": {
+    "kind": "LOCATION",
+    "name": "Exit"
+   },
+   "bidirectional": true
+  }
+ ],
+ "queues": [
+  {
+   "queueName": "MalWartR:Q",
+   "position": {
+    "x": 728.8,
+    "y": 322.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 16.0,
+   "maxShown": 8
+  },
+  {
+   "queueName": "JHBuntR:Q",
+   "position": {
+    "x": 711.8,
+    "y": 232.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 16.0,
+   "maxShown": 8
+  }
+ ],
+ "resources": [
+  {
+   "resourceName": "MalWartR",
+   "position": {
+    "x": 778.8,
+    "y": 322.0,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "JHBuntR",
+   "position": {
+    "x": 778.8,
+    "y": 232.0,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  }
+ ],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "NumInSystem",
+   "position": {
+    "x": 32.0,
+    "y": 560.0,
+    "z": 0.0
+   },
+   "width": 300.0,
+   "height": 22.0,
+   "maxValue": 40.0,
+   "color": "#1f77b4",
+   "label": "Students in the mixer"
+  },
+  {
+   "responseName": "NumInConversationArea",
+   "position": {
+    "x": 32.0,
+    "y": 606.0,
+    "z": 0.0
+   },
+   "width": 300.0,
+   "height": 22.0,
+   "maxValue": 10.0,
+   "color": "#1f77b4",
+   "label": "In conversation"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 32.0,
+    "y": 44.0,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 20.0
+  }
+ ],
+ "spaces": [],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [
+  {
+   "suspensionName": "NameTags",
+   "position": {
+    "x": 211.8,
+    "y": 300.0,
+    "z": 0.0
+   },
+   "style": "PACKED_REGION",
+   "width": 80.0,
+   "height": 52.0,
+   "growthDegrees": 0.0,
+   "spacing": 16.0,
+   "capacity": 0,
+   "maxShown": 12,
+   "byType": true,
+   "label": "Name tags"
+  },
+  {
+   "suspensionName": "ConversationArea",
+   "position": {
+    "x": 449.4,
+    "y": 470.0,
+    "z": 0.0
+   },
+   "style": "PROGRESS_BELT",
+   "width": 280.0,
+   "height": 54.0,
+   "growthDegrees": 0.0,
+   "spacing": 16.0,
+   "capacity": 0,
+   "maxShown": 16,
+   "byType": true,
+   "label": "Conversing"
+  }
+ ],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [
+  {
+   "kind": "RESOURCE",
+   "name": "JHBuntR",
+   "text": "J.H. Bunt",
+   "dy": -29.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "MalWartR",
+   "text": "Mal-Wart",
+   "dy": -29.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "JHBuntR:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "MalWartR:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Entrance",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "NameTags",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "ConversationArea",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Recruiting",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Exit",
+   "visible": false
+  }
+ ],
+ "spaceGeometry": [],
+ "locations": [
+  {
+   "locationName": "ConversationArea",
+   "position": {
+    "x": 449.4,
+    "y": 400.0,
+    "z": 0.0
+   },
+   "label": "ConversationArea"
+  },
+  {
+   "locationName": "Entrance",
+   "position": {
+    "x": 120.0,
+    "y": 400.0,
+    "z": 0.0
+   },
+   "label": "Entrance"
+  },
+  {
+   "locationName": "Exit",
+   "position": {
+    "x": 1174.0,
+    "y": 400.0,
+    "z": 0.0
+   },
+   "label": "Exit"
+  },
+  {
+   "locationName": "NameTags",
+   "position": {
+    "x": 251.8,
+    "y": 400.0,
+    "z": 0.0
+   },
+   "label": "NameTags"
+  },
+  {
+   "locationName": "Recruiting",
+   "position": {
+    "x": 778.8,
+    "y": 400.0,
+    "z": 0.0
+   },
+   "label": "Recruiting"
+  }
+ ]
+}

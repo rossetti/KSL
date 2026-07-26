@@ -22,6 +22,7 @@ import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
+import ksl.animation.LocationLayoutElement
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
 import ksl.animation.BarDisplayElement
@@ -478,6 +479,27 @@ class SceneBuilderDisplayTest {
             .filterIsInstance<DrawCmd.Polyline>().firstOrNull()
         // Window [1.5, 3.0] excludes the t=1 sample.
         assertEquals(2, assertNotNull(series).points.size)
+    }
+
+    /**
+     * A location's marker must be centred on the location, not hung off it.
+     *
+     * The marker is a fixed pixel size anchored to a world point, so its caller cannot centre it — half of a
+     * pixel extent is not a world distance. Getting this wrong offsets every location by half a marker, which
+     * is small enough to survive a glance and wrong everywhere movers resolve through a location.
+     */
+    @Test
+    fun aLocationMarkerIsCentredOnItsLocation() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            locations = listOf(LocationLayoutElement("Dock", LayoutPoint(120.0, 90.0)))
+        )
+        val rect = assertNotNull(
+            sceneOf(layout, emptyList(), 0.0).commandsOf("locations").filterIsInstance<DrawCmd.Rect>().singleOrNull()
+        )
+        assertEquals(120.0, rect.x, "anchored at the location itself")
+        assertEquals(90.0, rect.y)
+        assertTrue(rect.centered, "and centred on it, the way the desktop canvas draws it")
     }
 
     /**

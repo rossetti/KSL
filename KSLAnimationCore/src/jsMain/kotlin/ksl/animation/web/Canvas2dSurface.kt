@@ -106,10 +106,12 @@ internal class Canvas2dSurface(
             }
 
             is DrawCmd.Rect -> {
-                val x = px(command.x)
-                val y = py(command.y)
                 val w = len(command.width)
                 val h = len(command.height)
+                // Centring happens here, after the extents are pixels: a screen-sized box anchored to a world
+                // point cannot be centred by its caller (see DrawCmd.Rect.centered).
+                val x = px(command.x) - if (command.centered) w / 2 else 0.0
+                val y = py(command.y) - if (command.centered) h / 2 else 0.0
                 command.fill?.let { ctx.fillStyle = it.toCssRgba(); ctx.fillRect(x, y, w, h) }
                 command.stroke?.let {
                     ctx.strokeStyle = it.toCssRgba()
