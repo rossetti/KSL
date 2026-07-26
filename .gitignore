@@ -278,5 +278,5 @@ KSLBundleTools/gradle/wrapper/gradle-wrapper.properties
 
 _book/
 
-# Phase S animation-web spike: Kotlin/JS build scratch (disposable spike, see spike/*/FINDINGS.md)
-spike/**/kotlin-js-store/
+# Kotlin/JS build scratch (KSLAnimationCore web target)
+kotlin-js-store/
