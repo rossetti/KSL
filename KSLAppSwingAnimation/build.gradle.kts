@@ -42,7 +42,8 @@ tasks.test {
 
 // Doc tooling: render real animation frames from a captured `.atf` trace through the app's own
 // SimulationCanvas, headless — used to produce the canvas images in docs/guides/apps/animation.md.
-// Usage: ./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf> [-Pframes=N -Pout=<dir> -Pw=1200 -Ph=820]
+// Usage: ./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf> [-PlayoutFile=<run.lay.json>
+//          -Pframes=N -Pout=<dir> -Pw=1200 -Ph=820]
 tasks.register<JavaExec>("renderFrames") {
     group = "documentation"
     description = "Render animation frames from a captured .atf trace (docs/guides/apps/animation.md visuals)."
@@ -53,6 +54,12 @@ tasks.register<JavaExec>("renderFrames") {
     listOf("trace", "frames", "out", "w", "h").forEach { p ->
         if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
     }
+    // The renderer accepts an authored layout, but it cannot be passed as -Playout: Gradle's Project
+    // already owns a `layout` property, so hasProperty("layout") is always true and the value that
+    // arrives is a ProjectLayout. Hence -PlayoutFile, mapped to the system property the tool reads.
+    // Without a layout the tool falls back to an auto-generated one, which places elements differently
+    // and assigns its own colours -- fine for a quick look, misleading for comparing renderers.
+    if (project.hasProperty("layoutFile")) systemProperty("layout", project.property("layoutFile")!!)
 }
 
 // Doc tooling: capture real screenshots of the app window and its four tabs (Capture · Run · Layout ·

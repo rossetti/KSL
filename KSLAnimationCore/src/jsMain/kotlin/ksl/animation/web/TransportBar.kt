@@ -91,10 +91,13 @@ internal class TransportBar(private val container: HTMLElement) {
         for (multiplier in SPEEDS) {
             val option = document.createElement("option") as org.w3c.dom.HTMLOptionElement
             option.value = multiplier.toString()
-            option.textContent = if (multiplier == 1.0) "1x" else "${trimZero(multiplier)}x"
+            option.textContent = label(multiplier)
             speedSelect.appendChild(option)
         }
-        speedSelect.value = "1.0"
+        // Selected by index, not by value. Kotlin/JS prints an integral Double without its fractional
+        // part, so 1.0.toString() is "1" -- assigning value = "1.0" here matched no option at all and left
+        // the control blank.
+        speedSelect.selectedIndex = SPEEDS.indexOf(1.0)
         speedSelect.addEventListener("change", {
             controller?.speed = baseSpeed * (speedSelect.value.toDoubleOrNull() ?: 1.0)
         })
@@ -123,7 +126,7 @@ internal class TransportBar(private val container: HTMLElement) {
     fun bind(controller: PlaybackController) {
         this.controller = controller
         baseSpeed = controller.speed
-        speedSelect.value = "1.0"
+        speedSelect.selectedIndex = SPEEDS.indexOf(1.0)
         syncPlayLabel(controller)
         progressFill.style.width = "0"
     }
@@ -149,9 +152,10 @@ internal class TransportBar(private val container: HTMLElement) {
         playButton.textContent = if (controller.isPlaying) "Pause" else "Play"
     }
 
-    private fun trimZero(v: Double): String {
+    /** A speed multiplier as a label, e.g. "0.5x" or "2x". */
+    private fun label(v: Double): String {
         val s = v.toString()
-        return if (s.endsWith(".0")) s.dropLast(2) else s
+        return (if (s.endsWith(".0")) s.dropLast(2) else s) + "x"
     }
 
     /** Fixed-point formatting that does not depend on platform number formatting. */
