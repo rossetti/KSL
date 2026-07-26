@@ -8,6 +8,7 @@ import ksl.simulation.Model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * G7: a NetworkProjection (non-spatial graph) is snapshotted at replication start with an auto circular

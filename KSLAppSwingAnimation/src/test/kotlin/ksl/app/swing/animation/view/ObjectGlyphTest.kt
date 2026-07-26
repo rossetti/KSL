@@ -55,7 +55,7 @@ class ObjectGlyphTest {
             AnimationEvent.EntityCreated(0.0, 2L, "Tri"), stationaryMove(2L, 150.0, 50.0),
             AnimationEvent.EntityCreated(0.0, 3L, "Dia"), stationaryMove(3L, 250.0, 50.0)
         )
-        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), events, baseDir = dir))
+        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), events, assetBase = dir.toString()))
 
         val canvas = SimulationCanvas()
         canvas.setSize(600, 200)

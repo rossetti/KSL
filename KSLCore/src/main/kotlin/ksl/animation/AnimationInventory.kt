@@ -78,23 +78,6 @@ data class ProcessInfo(val name: String, val include: Boolean = true)
 @Serializable
 data class QueueInfo(val name: String, val reporting: Boolean = true, val waitTimeStats: Boolean = true)
 
-/** One chained segment of a conveyor (10.5a): its named [entryLocation]→[exitLocation] anchors and cell length. */
-@Serializable
-data class SegmentInfo(val entryLocation: String, val exitLocation: String, val lengthCells: Int)
-
-/**
- * A conveyor's structure exposed pre-run from the built [ksl.modeling.entity.Conveyor] (10.5a): its [cellSize],
- * whether it is [accumulating], and its ordered, chained [segments]. Lets the editor route the belt against the
- * stations/locations its segments connect before any run.
- */
-@Serializable
-data class ConveyorInfo(
-    val name: String,
-    val cellSize: Int,
-    val accumulating: Boolean,
-    val segments: List<SegmentInfo> = emptyList()
-)
-
 /**
  * An animatable entity/agent **type** (10.1b): its [typeName] (the class `simpleName`, matching
  * `EntityCreated.entityType`) and the [processes] declared on it (from `@KSLAnimatedProcess`, or — when none are

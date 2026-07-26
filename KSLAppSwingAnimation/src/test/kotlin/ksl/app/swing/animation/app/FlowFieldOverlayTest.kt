@@ -7,6 +7,7 @@ import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * G11: the flow-field gradient overlay is captured only when explicitly enabled (off by default = zero cost),

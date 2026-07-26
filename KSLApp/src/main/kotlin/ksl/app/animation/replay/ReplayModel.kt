@@ -26,6 +26,7 @@ import ksl.animation.LayoutPoint
 import ksl.animation.NetworkEdge
 import ksl.animation.NetworkNode
 import ksl.animation.SpatialSpaceDescriptor
+import ksl.animation.geom.BoundingBox
 import ksl.app.animation.io.AnimationSource
 
 /** A resource's state at a point in time. */
@@ -198,8 +199,8 @@ class ReplayModel(
     private val moverStates: Map<String, StepTimeline<MoverState>>,
     /** The toroidal space bounds, if any, for wrap-aware agent drawing (8F.7). */
     val torusBounds: TorusBounds? = null,
-    /** Directory to resolve relative image references against (from the layout file's location). */
-    val baseDir: java.nio.file.Path? = null,
+    /** Where relative image references resolve against: a directory path, or a URL prefix in a browser. */
+    val assetBase: String? = null,
     /** Flow-field gradient overlays captured in the trace (G11); empty unless the overlay was enabled. */
     val flowFieldOverlays: List<AnimationEvent.FlowFieldDefined> = emptyList(),
     /** Per-agent planned routes over time (G12); empty unless the overlay was enabled. */
@@ -286,11 +287,10 @@ class ReplayModel(
      * bounds so continuous-space movers whose coordinates fall outside the authored canvas (Regime B) are
      * still framed on-screen. Agents are excluded — they have their own space-aware (grid/torus) placement.
      */
-    fun coordinateBounds(): java.awt.geom.Rectangle2D.Double? {
-        var box: java.awt.geom.Rectangle2D.Double? = null
+    fun coordinateBounds(): BoundingBox? {
+        var box: BoundingBox? = null
         for (track in entityMotion.values.asSequence() + spatialMotion.values.asSequence()) {
-            val b = track.bounds() ?: continue
-            if (box == null) box = java.awt.geom.Rectangle2D.Double(b.x, b.y, b.width, b.height) else box.add(b)
+            box = BoundingBox.union(box, track.bounds())
         }
         return box
     }
@@ -737,7 +737,7 @@ class ReplayModel(
                     is AnimationEvent.DelayEnded -> {
                         openDelay.remove(event.entityId)?.let { open ->
                             runningStorage[open.key]?.let { list ->
-                                list.removeIf { it.entityId == event.entityId }
+                                list.removeAll { it.entityId == event.entityId }
                                 storageMembers.getOrPut(open.key) { StepTimeline() }.add(event.simTime, list.toList())
                             }
                             entityStorage.getOrPut(event.entityId) { StepTimeline() }.add(event.simTime, "")
@@ -763,7 +763,7 @@ class ReplayModel(
                 spatialMotion, agentMotion, agentTypes, entityActivity, entityProcess, networkEntities, networkTransit, agentFirstSeen, agentRemovedAt, agentState,
                 derivedSpaces.values.toList(),
                 storageMembers, entityStorage,
-                conveyorBlocked, conveyorGeom, conveyorMaxCell, conveyorOccupied, moverStates, torus, source.baseDir,
+                conveyorBlocked, conveyorGeom, conveyorMaxCell, conveyorOccupied, moverStates, torus, source.assetBase,
                 flowFieldOverlays = flowFieldOverlays, plannedPaths = plannedPaths, agentVectors = agentVectors,
                 markerPulses = markerPulses
             )

@@ -2523,7 +2523,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         // static Layout tab (they otherwise only appear during replay, which carries the real ConveyorDefined) — E2.
         val conveyorEvents = conveyorDefinedEvents(controller.inventory.conveyorInfos)
         canvas.replay = layout?.let {
-            ReplayModel.build(AnimationSource(layout = it, header = AnimationTraceHeader(), events = conveyorEvents, baseDir = imageBase))
+            ReplayModel.build(AnimationSource(layout = it, header = AnimationTraceHeader(), events = conveyorEvents, assetBase = imageBase?.toString()))
         }
         canvas.currentTime = 0.0
     }
@@ -2849,7 +2849,8 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     internal fun previewHasModelForTest(): Boolean = canvas.replay != null
 
     /** The base directory the preview resolves relative image refs against (layout file's dir, or layouts dir). */
-    internal fun previewBaseDirForTest(): java.nio.file.Path? = canvas.replay?.baseDir
+    internal fun previewBaseDirForTest(): java.nio.file.Path? =
+        canvas.replay?.assetBase?.let { java.nio.file.Path.of(it) }
 
     /** The current validation strip text. */
     internal fun validationTextForTest(): String = validationLabel.text

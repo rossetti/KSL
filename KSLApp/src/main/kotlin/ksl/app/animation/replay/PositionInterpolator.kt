@@ -18,6 +18,8 @@
 
 package ksl.app.animation.replay
 
+import ksl.animation.geom.BoundingBox
+
 /** A position in world coordinates (z defaults to 0 for 2D). */
 data class WorldPoint(val x: Double, val y: Double, val z: Double = 0.0)
 
@@ -98,20 +100,11 @@ class MotionTrack {
     }
 
     /** Axis-aligned bounding box of this track's endpoints (skipping NaN), or null when it has none. */
-    fun bounds(): java.awt.geom.Rectangle2D.Double? {
-        var minX = Double.POSITIVE_INFINITY; var minY = Double.POSITIVE_INFINITY
-        var maxX = Double.NEGATIVE_INFINITY; var maxY = Double.NEGATIVE_INFINITY
-        for (s in segments) {
-            val pts = listOf(s.x0 to s.y0, s.x1 to s.y1) + s.via.map { it.x to it.y }
-            for ((x, y) in pts) {
-                if (x.isNaN() || y.isNaN()) continue
-                if (x < minX) minX = x; if (x > maxX) maxX = x
-                if (y < minY) minY = y; if (y > maxY) maxY = y
-            }
+    fun bounds(): BoundingBox? = BoundingBox.of(
+        segments.asSequence().flatMap { s ->
+            sequenceOf(s.x0 to s.y0, s.x1 to s.y1) + s.via.asSequence().map { it.x to it.y }
         }
-        if (minX > maxX) return null // all endpoints were NaN
-        return java.awt.geom.Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
-    }
+    )
 
     fun positionAt(t: Double): WorldPoint? {
         if (segments.isEmpty()) return null

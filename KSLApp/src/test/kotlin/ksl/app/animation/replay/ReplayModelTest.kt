@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * Keystone headless test: generate a real two-file trace from a process model via the

@@ -54,3 +54,42 @@ jobs:
           name: test-reports
           path: '**/build/reports/tests/'
           retention-days: 7
+
+  animation-web:
+    # KSLAnimationCore compiles KSL's own animation sources a SECOND time, for Kotlin/JS, so a browser
+    # can replay a .atf trace. It is a standalone build and is deliberately absent from the root
+    # settings.gradle.kts, which is what keeps `./gradlew build` above free of Node.js, Yarn and any
+    # network fetch. That exclusion has a cost: nothing in the main build would notice if a shared
+    # source stopped being portable. This job is that notice.
+    #
+    # The break it exists to catch is asymmetric and easy to miss locally: adding a `java.*` import — or
+    # a Kotlin stdlib member that only exists on the JVM, such as removeIf, toSortedMap, toSortedSet or
+    # putIfAbsent — to a shared file compiles perfectly for the JVM and fails only here.
+    #
+    # Retired at Path A, when those sources move into the module for real and it joins the root build.
+    name: animation web core (Kotlin/JS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      # `check` runs the Kotlin/JS test suite in headless Chrome and asserts that every shared source is
+      # free of JVM-only imports.
+      - name: Compile and test the shared animation core for the web
+        run: ./gradlew -p KSLAnimationCore check --stacktrace
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animation-web-test-reports
+          path: 'KSLAnimationCore/build/reports/tests/'
+          retention-days: 7

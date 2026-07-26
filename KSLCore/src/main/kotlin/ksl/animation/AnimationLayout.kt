@@ -22,8 +22,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.nio.file.Files
-import java.nio.file.Path
 
 /** A 2D/3D point used by layout elements (z defaults to 0 for 2D layouts). */
 @Serializable
@@ -466,19 +464,6 @@ data class AnimationLayout(
     /** Serializes this layout to pretty-printed JSON (the `.lay.json` content). */
     fun toJson(): String = format.encodeToString(this)
 
-    /** Writes this layout to [path] (typically a `.lay.json` file), UTF-8, pretty-printed. */
-    fun writeToFile(path: Path) {
-        Files.newBufferedWriter(path).use { it.write(toJson()) }
-    }
-
-    /** Serializes this layout to TOML (an alternate, human-friendly layout format, 8E.2). */
-    fun toToml(): String = tomlFormat.encodeToString(serializer(), this)
-
-    /** Writes this layout to [path] (typically a `.lay.toml` file) as TOML. */
-    fun writeTomlToFile(path: Path) {
-        Files.newBufferedWriter(path).use { it.write(toToml()) }
-    }
-
     companion object {
         /**
          * JSON configuration for the layout file: pretty-printed and self-describing,
@@ -495,23 +480,5 @@ data class AnimationLayout(
 
         /** Parses a `.lay.json` string into an [AnimationLayout]. */
         fun fromJson(json: String): AnimationLayout = format.decodeFromString(json)
-
-        /** Reads an [AnimationLayout] from [path]. */
-        fun readFromFile(path: Path): AnimationLayout = fromJson(Files.readString(path))
-
-        /** Reads a layout from [path], picking the codec by extension: `.toml` -> TOML, else JSON. */
-        fun read(path: Path): AnimationLayout =
-            if (path.fileName.toString().endsWith(".toml", ignoreCase = true)) readTomlFromFile(path)
-            else readFromFile(path)
-
-        /** TOML codec for the layout (handles the sealed spatial-space hierarchy via its serial names). Tolerates
-         *  keys this version no longer models (e.g. the retired `dashboards`) so older files still load. */
-        val tomlFormat: net.peanuuutz.tomlkt.Toml = net.peanuuutz.tomlkt.Toml { ignoreUnknownKeys = true }
-
-        /** Parses a TOML layout string into an [AnimationLayout] (8E.2). */
-        fun fromToml(text: String): AnimationLayout = tomlFormat.decodeFromString(serializer(), text)
-
-        /** Reads an [AnimationLayout] from a `.lay.toml` [path]. */
-        fun readTomlFromFile(path: Path): AnimationLayout = fromToml(Files.readString(path))
     }
 }

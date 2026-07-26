@@ -5,6 +5,8 @@ import ksl.animation.SpatialSpaceDescriptor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import ksl.animation.toToml
+import ksl.animation.fromToml
 
 /** V7b: agent state colors and spatial spaces can be authored (edit transforms). */
 class AgentConfigTest {

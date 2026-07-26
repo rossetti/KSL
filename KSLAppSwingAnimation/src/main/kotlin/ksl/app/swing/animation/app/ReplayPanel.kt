@@ -19,6 +19,7 @@
 package ksl.app.swing.animation.app
 
 import ksl.animation.AnimationLayout
+import ksl.animation.read
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.AnimationEvent
 import ksl.animation.TraceFileReader
@@ -247,7 +248,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
             is LayoutChoice.Saved -> runCatching { AnimationLayout.read(choice.path) }
                 .getOrElse { showError("Failed to open layout: ${it.message}"); return }
         }
-        loadSource(AnimationSource(layout, header, cachedEvents, currentTraceFile?.toAbsolutePath()?.parent))
+        loadSource(AnimationSource(layout, header, cachedEvents, currentTraceFile?.toAbsolutePath()?.parent?.toString()))
         updateCompatibility(layout)
         updateLoadedLabel(choice)
     }
@@ -273,7 +274,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
         var model: ReplayModel = ReplayModel.build(source)
         if (source.layout == null) {
             val fallback = model.autoLayout(source.events, source.header.description)
-            model = ReplayModel.build(AnimationSource(fallback, source.header, source.events, source.baseDir))
+            model = ReplayModel.build(AnimationSource(fallback, source.header, source.events, source.assetBase))
         }
         canvas.replay = model
         playbackController.pause()

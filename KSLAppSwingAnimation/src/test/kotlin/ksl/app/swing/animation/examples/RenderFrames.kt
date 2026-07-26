@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 import kotlin.io.path.Path
+import ksl.app.animation.io.load
 
 /**
  * Doc-tooling helper: renders real frames of the SimulationCanvas from a captured `.atf` trace
@@ -30,7 +31,7 @@ fun main() {
     var replay = ReplayModel.build(source)
     if (replay.layout == null) {
         val auto = replay.autoLayout(source.events, source.header.description)
-        replay = ReplayModel.build(AnimationSource(auto, source.header, source.events, baseDir = source.baseDir))
+        replay = ReplayModel.build(AnimationSource(auto, source.header, source.events, assetBase = source.assetBase))
     }
 
     val canvas = SimulationCanvas()

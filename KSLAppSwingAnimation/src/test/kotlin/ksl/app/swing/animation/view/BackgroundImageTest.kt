@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 
 /**
  * Verifies 8A.1: a background image referenced by a *relative* path is resolved against the layout
- * directory ([ReplayModel.baseDir]) and drawn into its world rectangle beneath the other elements.
+ * directory ([ReplayModel.assetBase]) and drawn into its world rectangle beneath the other elements.
  */
 class BackgroundImageTest {
 
@@ -28,7 +28,7 @@ class BackgroundImageTest {
     lateinit var tempRoot: Path
 
     @Test
-    fun `relative background image is resolved against baseDir and drawn`() {
+    fun `relative background image is resolved against the asset base and drawn`() {
         val dir = Files.createTempDirectory(tempRoot, "ksl-bg")
         // A distinctly-colored background image (teal) written into the layout directory.
         val teal = Color(0x00, 0x80, 0x80)
@@ -43,13 +43,13 @@ class BackgroundImageTest {
                 BackgroundElement(
                     kind = BackgroundKind.IMAGE,
                     points = listOf(LayoutPoint(0.0, 0.0), LayoutPoint(200.0, 120.0)),
-                    imageRef = "floor.png" // relative -> resolved against baseDir
+                    imageRef = "floor.png" // relative -> resolved against the asset base
                 )
             ),
             resources = listOf(ResourceLayoutElement(resourceName = "Worker", position = LayoutPoint(100.0, 60.0), size = 24.0))
         )
-        // baseDir is the layout directory (what AnimationSource.load would set).
-        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), emptyList(), baseDir = dir))
+        // the asset base is the layout directory (what AnimationSource.load would set).
+        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), emptyList(), assetBase = dir.toString()))
 
         val canvas = SimulationCanvas()
         canvas.setSize(400, 240)

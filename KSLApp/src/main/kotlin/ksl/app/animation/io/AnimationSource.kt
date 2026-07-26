@@ -21,30 +21,27 @@ package ksl.app.animation.io
 import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
 import ksl.animation.AnimationTraceHeader
-import ksl.animation.TraceFileReader
-import java.nio.file.Path
 
 /**
  * The loaded inputs for a replay: the optional [layout] (`.lay.json`), the trace [header], and the
  * full list of [events] (`.atf`). This is the raw material the headless replay model is built from.
+ *
+ * [assetBase] is what relative image references in the layout resolve against. It is a string rather
+ * than a `java.nio.file.Path` so that a source can be assembled anywhere the replay layer runs — in a
+ * browser the base is a URL prefix, not a directory. A JVM caller that has a directory should use
+ * `AnimationSource.load`, which fills it in from the layout file's own location; a renderer converts it
+ * back to whatever it needs at its own boundary.
+ *
+ * @param layout the presentation document, or null to replay against the trace alone
+ * @param header the trace header (format version, base time unit)
+ * @param events the trace's events, in time order
+ * @param assetBase directory path or URL prefix that relative image references resolve against
  */
 class AnimationSource(
     val layout: AnimationLayout?,
     val header: AnimationTraceHeader,
     val events: List<AnimationEvent>,
-    /** Directory the layout was loaded from, used to resolve relative image references. */
-    val baseDir: Path? = null
+    val assetBase: String? = null
 ) {
-    companion object {
-        /**
-         * Loads a source from a trace file and an optional layout file. The trace is read fully into
-         * memory (suitable for a bounded replay/window); a renderer that needs to stream a huge trace
-         * could instead consume [TraceFileReader.events] lazily.
-         */
-        fun load(layoutFile: Path?, traceFile: Path): AnimationSource {
-            val layout = layoutFile?.let { AnimationLayout.read(it) } // .lay.json or .lay.toml
-            val (header, events) = TraceFileReader.readAll(traceFile)
-            return AnimationSource(layout, header, events, baseDir = layoutFile?.toAbsolutePath()?.parent)
-        }
-    }
+    companion object
 }

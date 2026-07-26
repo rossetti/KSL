@@ -19,6 +19,7 @@
 package ksl.app.swing.animation
 
 import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.io.load
 import ksl.app.swing.animation.playback.PlaybackController
 import ksl.app.swing.animation.playback.PlaybackPanel
 import ksl.app.animation.replay.ReplayModel

@@ -13,6 +13,7 @@ import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.imageio.ImageIO
+import ksl.app.animation.io.load
 
 /**
  * Test-tree helper for the replay/overlay tests, ported from the KSL-Private examples `AnimationDemo`

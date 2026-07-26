@@ -7,6 +7,7 @@ import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * G12: planned-route overlay. The warehouse AGVs report the routes they plan (A* on the grid); those are

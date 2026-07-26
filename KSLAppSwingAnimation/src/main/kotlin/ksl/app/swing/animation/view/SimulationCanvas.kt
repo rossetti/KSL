@@ -107,7 +107,7 @@ class SimulationCanvas : JPanel() {
         val w = replay?.layout?.width ?: 1000.0
         val h = replay?.layout?.height ?: 700.0
         val box = Rectangle2D.Double(0.0, 0.0, w, h)
-        replay?.coordinateBounds()?.let { box.add(it) }
+        replay?.coordinateBounds()?.let { box.add(Rectangle2D.Double(it.minX, it.minY, it.width, it.height)) }
         return box
     }
 
@@ -818,7 +818,7 @@ class SimulationCanvas : JPanel() {
             val direct = java.io.File(ref)
             val file = when {
                 direct.isAbsolute -> direct
-                replay?.baseDir != null -> replay!!.baseDir!!.resolve(ref).toFile()
+                replay?.assetBase != null -> java.nio.file.Path.of(replay!!.assetBase!!).resolve(ref).toFile()
                 else -> direct
             }
             if (file.exists()) javax.imageio.ImageIO.read(file) else null

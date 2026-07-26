@@ -5,6 +5,7 @@ import ksl.examples.general.animationbundle.Example15DroneDelivery
 import ksl.app.animation.io.AnimationSource
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * G-animated: transient marker-pulse overlay. The drone-delivery model reports a pulse at each drop-off point

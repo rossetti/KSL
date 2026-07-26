@@ -7,6 +7,7 @@ import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * G10: velocity/force vector overlay — the volume-sensitive one. Captured only when enabled (off by default

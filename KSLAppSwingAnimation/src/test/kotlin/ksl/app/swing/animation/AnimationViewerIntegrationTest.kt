@@ -28,6 +28,7 @@ import javax.imageio.ImageIO
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import ksl.app.animation.io.load
 
 /**
  * End-to-end pipeline test (no display required): a real process model emits a two-file animation
