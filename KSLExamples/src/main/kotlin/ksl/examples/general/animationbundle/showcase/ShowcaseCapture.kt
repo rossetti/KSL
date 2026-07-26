@@ -30,27 +30,49 @@ import java.nio.file.Path
  *
  * Usage (from the repo root):
  * ```
- * ./gradlew :KSLAppSwingAnimation:showcaseCapture -PmodelName=Example13MovableResources -Pout=build/showcase
+ * ./gradlew :KSLExamples:showcaseCapture -PmodelName=Example13MovableResources -Pout=build/showcase
+ * ./gradlew :KSLExamples:showcaseCapture -PmodelName=list          # what can be captured
  * ```
  * Re-running overwrites the trace but **never** the polished layout — see [capture].
  */
 object ShowcaseCapture {
 
-    /** The models eligible for showcasing, by the name passed on the command line. */
-    private val models: Map<String, () -> Model> = mapOf(
-        "Example01DriveThroughPharmacy" to { Example01DriveThroughPharmacy.buildModel() },
-        "Example02MovingParts" to { Example02MovingParts.buildModel() },
-        "Example03GridEpidemic" to { Example03GridEpidemic.buildModel() },
-        "Example04BuildingEvacuation" to { Example04BuildingEvacuation.buildModel() },
-        "Example05PedestrianCrowd" to { Example05PedestrianCrowd.buildModel() },
-        "Example06WarehouseAGV" to { Example06WarehouseAGV.buildModel() },
-        "Example08ConveyorTandem" to { Example08ConveyorTandem.buildModel() },
-        "Example09DistancesTandem" to { Example09DistancesTandem.buildModel() },
-        "Example11Flocking" to { Example11Flocking.buildModel() },
-        "Example12StemFairStorage" to { Example12StemFairStorage.buildModel() },
-        "Example13MovableResources" to { Example13MovableResources.buildModel() },
-        "Example15DroneDelivery" to { Example15DroneDelivery.buildModel() },
+    /**
+     * Every model in the animation bundle, by the name passed on the command line, with the example's own
+     * `AnimationBuilder` layout alongside its builder.
+     *
+     * All sixteen are listed rather than a curated subset. Which models are worth showcasing is a judgement
+     * that changes; which models *can* be captured is a fact about the bundle, and a tool that silently
+     * omits one sends whoever wants it off to edit Kotlin. The bundle's entry points are uniform
+     * (`buildModel()` / `buildLayout(model)`), so listing them all costs one line each.
+     */
+    private val models: Map<String, ModelEntry> = mapOf(
+        entry("Example01DriveThroughPharmacy", { Example01DriveThroughPharmacy.buildModel() }, { Example01DriveThroughPharmacy.buildLayout(it) }),
+        entry("Example02MovingParts", { Example02MovingParts.buildModel() }, { Example02MovingParts.buildLayout(it) }),
+        entry("Example03GridEpidemic", { Example03GridEpidemic.buildModel() }, { Example03GridEpidemic.buildLayout(it) }),
+        entry("Example04BuildingEvacuation", { Example04BuildingEvacuation.buildModel() }, { Example04BuildingEvacuation.buildLayout(it) }),
+        entry("Example05PedestrianCrowd", { Example05PedestrianCrowd.buildModel() }, { Example05PedestrianCrowd.buildLayout(it) }),
+        entry("Example06WarehouseAGV", { Example06WarehouseAGV.buildModel() }, { Example06WarehouseAGV.buildLayout(it) }),
+        entry("Example07StationTandem", { Example07StationTandem.buildModel() }, { Example07StationTandem.buildLayout(it) }),
+        entry("Example08ConveyorTandem", { Example08ConveyorTandem.buildModel() }, { Example08ConveyorTandem.buildLayout(it) }),
+        entry("Example09DistancesTandem", { Example09DistancesTandem.buildModel() }, { Example09DistancesTandem.buildLayout(it) }),
+        entry("Example10MultiClassStation", { Example10MultiClassStation.buildModel() }, { Example10MultiClassStation.buildLayout(it) }),
+        entry("Example11Flocking", { Example11Flocking.buildModel() }, { Example11Flocking.buildLayout(it) }),
+        entry("Example12StemFairStorage", { Example12StemFairStorage.buildModel() }, { Example12StemFairStorage.buildLayout(it) }),
+        entry("Example13MovableResources", { Example13MovableResources.buildModel() }, { Example13MovableResources.buildLayout(it) }),
+        entry("Example14AnnotatedClinic", { Example14AnnotatedClinic.buildModel() }, { Example14AnnotatedClinic.buildLayout(it) }),
+        entry("Example15DroneDelivery", { Example15DroneDelivery.buildModel() }, { Example15DroneDelivery.buildLayout(it) }),
+        entry("Example16NetworkRumor", { Example16NetworkRumor.buildModel() }, { Example16NetworkRumor.buildLayout(it) }),
     )
+
+    /** A capturable model: how to build it, and how to build the example's own hand-written layout. */
+    private class ModelEntry(val build: () -> Model, val dslLayout: (Model) -> AnimationLayout)
+
+    private fun entry(name: String, build: () -> Model, layout: (Model) -> AnimationLayout) =
+        name to ModelEntry(build, layout)
+
+    /** The capturable model names, for an error message or a `-PmodelName=list`. */
+    val modelNames: List<String> get() = models.keys.sorted()
 
     /**
      * Captures `<name>.atf` and, unless it already exists, `<name>.lay.json` into [outDir].
@@ -60,17 +82,17 @@ object ShowcaseCapture {
      * layout over.
      */
     fun capture(name: String, outDir: Path, overlays: OverlaySpec = EVERY_OVERLAY): Result {
-        val build = models[name] ?: error("unknown model '$name'; known: ${models.keys.sorted()}")
+        val model = models[name] ?: error(
+            "unknown model '$name'\nknown models:\n" + modelNames.joinToString("\n") { "  $it" }
+        )
+        val build = model.build
         Files.createDirectories(outDir)
         val traceFile = outDir.resolve("$name.atf")
         val layoutFile = outDir.resolve("$name.lay.json")
 
-        // A layout is required to capture, but which one is irrelevant to the trace -- the trace records
-        // what happened, not how to draw it. So capture against an empty one and derive the real layout
-        // from the trace afterwards.
-        // Drive the capture attachment's lifecycle directly -- the same hooks a run orchestrator calls.
-        // A layout is required to capture but is irrelevant to the trace, so an empty one is used and the
-        // real layout is derived from the trace afterwards.
+        // Drive the capture attachment's lifecycle directly -- the same hooks a run orchestrator calls. A
+        // layout is required to capture but is irrelevant to the trace (the trace records what happened, not
+        // how to draw it), so capture against an empty one and derive the real layout afterwards.
         val attachment = AnimationTraceAttachment.replay(
             traceFile = traceFile, layout = AnimationLayout(), layoutFile = outDir.resolve("$name.capture.lay.json"),
             overlays = overlays
@@ -84,16 +106,14 @@ object ShowcaseCapture {
         }
         Files.deleteIfExists(outDir.resolve("$name.capture.lay.json"))
 
-        // The example's own DSL layout, for comparison against the generated one. Written under a
-        // distinct name so it never competes with the layout being polished.
-        runCatching {
-            val m = build()
-            val dsl = Example13MovableResources::class.java // presence check only; per-model below
-            when (name) {
-                "Example13MovableResources" -> Example13MovableResources.buildLayout(m)
-                else -> null
-            }?.writeToFile(outDir.resolve("$name.dsl.lay.json"))
-        }
+        // The example's own DSL layout, written under a distinct name so it never competes with the layout
+        // being polished. It is worth having beside the generated one: the DSL layout carries the author's
+        // intent (which elements matter, what they are called), while the auto-layout carries what the run
+        // actually did. Polishing usually wants both.
+        val dslLayoutFile = outDir.resolve("$name.dsl.lay.json")
+        val dslLayoutWritten = runCatching {
+            model.dslLayout(build()).writeToFile(dslLayoutFile)
+        }.isSuccess
 
         val existed = Files.exists(layoutFile) && Files.size(layoutFile) > 200
         if (!existed) {
@@ -103,10 +123,16 @@ object ShowcaseCapture {
             val auto = build().buildAutoLayout(source, AutoLayoutSource.AUTO)
             auto.writeToFile(layoutFile)
         }
-        return Result(traceFile, layoutFile, layoutWasKept = existed)
+        return Result(traceFile, layoutFile, layoutWasKept = existed, dslLayoutFile.takeIf { dslLayoutWritten })
     }
 
-    data class Result(val traceFile: Path, val layoutFile: Path, val layoutWasKept: Boolean)
+    data class Result(
+        val traceFile: Path,
+        val layoutFile: Path,
+        val layoutWasKept: Boolean,
+        /** The example's own `AnimationBuilder` layout, or null if the example could not produce one. */
+        val dslLayoutFile: Path?
+    )
 
     /**
      * Every overlay on. A showcase should capture everything a model can express, because deciding which
@@ -119,7 +145,13 @@ object ShowcaseCapture {
 }
 
 fun main() {
-    val name = System.getProperty("modelName") ?: error("-PmodelName=<ExampleNN…> is required")
+    val name = System.getProperty("modelName") ?: error(
+        "-PmodelName=<ExampleNN…> is required (or -PmodelName=list to see what is available)"
+    )
+    if (name.equals("list", ignoreCase = true)) {
+        println(ShowcaseCapture.modelNames.joinToString("\n"))
+        return
+    }
     val outDir = Path.of(System.getProperty("out") ?: "build/showcase")
     val result = ShowcaseCapture.capture(name, outDir)
     val events = Files.readAllLines(result.traceFile).size - 1
@@ -128,4 +160,5 @@ fun main() {
         if (result.layoutWasKept) "layout  ${result.layoutFile}  (KEPT - polishing in progress)"
         else "layout  ${result.layoutFile}  (auto-generated starting point)"
     )
+    result.dslLayoutFile?.let { println("dsl     $it  (the example's own layout, for comparison)") }
 }
