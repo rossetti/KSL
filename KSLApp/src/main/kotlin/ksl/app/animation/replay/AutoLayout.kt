@@ -29,6 +29,8 @@ import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.StorageLayoutElement
+import ksl.animation.PathDefinition
+import ksl.animation.AnchorRef
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -59,8 +61,15 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val stationFlowAcc = StationFlow()
     val conveyorAcc = ConveyorAnchors()
     val storageAcc = DelayStorages()
-    StreamingTraceMiner(listOf(extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc, stationFlowAcc, conveyorAcc, storageAcc))
-        .run(events.asSequence())
+    val capacityAcc = ResourceCapacities()
+    val queuePeakAcc = QueuePeaks()
+    val routeAcc = EntityRoutes()
+    StreamingTraceMiner(
+        listOf(
+            extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc, stationFlowAcc, conveyorAcc,
+            storageAcc, capacityAcc, queuePeakAcc, routeAcc
+        )
+    ).run(events.asSequence())
 
     val observed = extentAcc.result()
     val location = locationAcc.result()
@@ -68,7 +77,28 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val flow = flowAcc.result()
     val stationFlow = stationFlowAcc.result()
     val conveyorAnchors = conveyorAcc.result()
+    val entityRoutes = routeAcc.result()
+
+    /** The routes entities travelled, as layout paths, for whichever of their endpoints got placed. */
+    fun pathsAmong(placedNames: Set<String>): List<PathDefinition> =
+        entityRoutes.filter { (a, b) -> a in placedNames && b in placedNames }
+            .map { (a, b) ->
+                PathDefinition(name = "$a->$b", points = emptyList(),
+                    from = AnchorRef.location(a), to = AnchorRef.location(b))
+            }
     val storageKeys = storageAcc.result()
+    val capacity = capacityAcc.result()
+    val queuePeak = queuePeakAcc.result()
+
+    // A resource draws as one cell per unit of capacity, centred on its position, so its half-width is
+    // capacity x size / 2. Reserving only size / 2 tucks a multi-server resource's queue head under its own
+    // block -- invisible on a single-server model, which is why it went unnoticed.
+    fun halfWidthOf(name: String, size: Double): Double = (capacity[name] ?: 1).coerceAtLeast(1) * size / 2
+
+    // A queue's extent line is spacing x maxShown, so a generous default draws the longest line on the screen
+    // advertising a length the queue never reaches. The observed peak is the honest bound; a little headroom
+    // keeps a queue from looking full whenever it hits its own record.
+    fun maxShownFor(name: String): Int = ((queuePeak[name] ?: 0) + 2).coerceIn(3, 30)
 
     // Agent-resources (MovableAgentResource/AgentResource) emit resource + queue events AND animate as agents, so
     // don't auto-place a static resource glyph + request queue for them (they'd double the moving-agent glyph). A
@@ -123,13 +153,17 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val queues = mutableListOf<QueueLayoutElement>()
         staticResources.sorted().forEach { r ->
             flow.queueOfResource[r]?.let { q ->
-                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(resourceRow.getValue(r))), growthDegrees = 180.0, spacing = unit * 0.7)
+                queues += QueueLayoutElement(
+                    queueName = q,
+                    position = LayoutPoint(resColX - halfWidthOf(r, unit) - unit * 0.6, rowY(resourceRow.getValue(r))),
+                    growthDegrees = 180.0, spacing = unit * 0.7, maxShown = maxShownFor(q)
+                )
                 placedQueues += q
             }
         }
         var extraRow = staticResources.size
         staticQueues.filter { it !in placedQueues }.sorted().forEach { q ->
-            queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(extraRow++)), growthDegrees = 180.0, spacing = unit * 0.7)
+            queues += QueueLayoutElement(queueName = q, position = LayoutPoint(qHeadX, rowY(extraRow++)), growthDegrees = 180.0, spacing = unit * 0.7, maxShown = maxShownFor(q))
         }
         // Named travel locations with a mined centroid become location anchors at their true positions (Phase 5:
         // these are locations, not network stations; the renderer interpolates movers between them).
@@ -146,6 +180,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
             resources = resources,
             queues = queues,
             locations = locations,
+            paths = pathsAmong(locations.map { it.locationName }.toSet()),
             movableResources = movers
         ).withSeededObjectClasses(objectTypes, glyphSize)
     }
@@ -154,6 +189,10 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // columns (left to right by observed seize order) with each queue beside its server, and any named travel
     // locations placed on a ring so name-resolved movement / conveyors animate.
     val originX = 80.0; val originY = 80.0; val rowGap = 70.0; val columnGap = 240.0
+    // Elements sized to the grid they sit in rather than left at the type default. The default was chosen
+    // against no particular canvas, so on this branch's 70-unit row pitch it drew servers a third the size
+    // they should be -- specks with acres between them.
+    val elementSize = rowGap * 0.42
     val firstColX = originX + 160.0
     // Group resources into flow-stage columns; resources never seized in the trace trail as a final column.
     val maxRank = flow.ranks.values.maxOrNull() ?: -1
@@ -166,10 +205,14 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val colX = firstColX + rank * columnGap
         names.sorted().forEachIndexed { i, name ->
             val y = originY + i * rowGap
-            resources += ResourceLayoutElement(resourceName = name, position = LayoutPoint(colX, y))
+            resources += ResourceLayoutElement(resourceName = name, position = LayoutPoint(colX, y), size = elementSize)
             // Place this resource's queue just to its left, growing back to the left so entities read queue -> server.
             flow.queueOfResource[name]?.let { q ->
-                queues += QueueLayoutElement(queueName = q, position = LayoutPoint(colX - 90.0, y), growthDegrees = 180.0)
+                queues += QueueLayoutElement(
+                    queueName = q,
+                    position = LayoutPoint(colX - halfWidthOf(name, elementSize) - elementSize * 0.6, y),
+                    growthDegrees = 180.0, spacing = elementSize * 0.7, maxShown = maxShownFor(q)
+                )
                 placedQueues += q
             }
         }
@@ -177,7 +220,10 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     }
     // Queues with no observed server (never seen in a SeizeQueued) fall back to a left column.
     staticQueues.filter { it !in placedQueues }.sorted().forEachIndexed { i, name ->
-        queues += QueueLayoutElement(queueName = name, position = LayoutPoint(originX, originY + i * rowGap), growthDegrees = 180.0)
+        queues += QueueLayoutElement(
+            queueName = name, position = LayoutPoint(originX, originY + i * rowGap),
+            growthDegrees = 180.0, spacing = elementSize * 0.7, maxShown = maxShownFor(name)
+        )
         maxRows = maxOf(maxRows, i + 1)
     }
     val lastRank = byRank.keys.maxOrNull() ?: 0
@@ -247,6 +293,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         queues = queues,
         stations = networkStations,
         locations = conveyorLocations + ringLocations,
+        paths = pathsAmong((conveyorLocations + ringLocations).map { it.locationName }.toSet()),
         conveyors = conveyorElements,
         storages = storages,
         movableResources = movers

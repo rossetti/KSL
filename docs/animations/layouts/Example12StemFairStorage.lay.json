@@ -45,7 +45,7 @@
     },
     {
      "x": 449.4,
-     "y": 470.0,
+     "y": 460.0,
      "z": 0.0
     }
    ],
@@ -118,7 +118,7 @@
      "z": 0.0
     }
    ],
-   "text": "A conversation runs ~18 minutes against a few seconds of walking, so the belt below is where the fair is.",
+   "text": "A conversation runs ~18 minutes against a few seconds of walking, so the room below is where the fair is.",
    "color": "#999999",
    "strokeWidth": 1.0,
    "imageRef": null,
@@ -325,7 +325,7 @@
     "y": 560.0,
     "z": 0.0
    },
-   "width": 300.0,
+   "width": 250.0,
    "height": 22.0,
    "maxValue": 40.0,
    "color": "#1f77b4",
@@ -338,7 +338,7 @@
     "y": 606.0,
     "z": 0.0
    },
-   "width": 300.0,
+   "width": 250.0,
    "height": 22.0,
    "maxValue": 10.0,
    "color": "#1f77b4",
@@ -384,13 +384,13 @@
   {
    "suspensionName": "ConversationArea",
    "position": {
-    "x": 449.4,
-    "y": 470.0,
+    "x": 334.4,
+    "y": 460.0,
     "z": 0.0
    },
-   "style": "PROGRESS_BELT",
-   "width": 280.0,
-   "height": 54.0,
+   "style": "PILE",
+   "width": 230.0,
+   "height": 142.6,
    "growthDegrees": 0.0,
    "spacing": 16.0,
    "capacity": 0,

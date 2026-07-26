@@ -62,7 +62,10 @@ out of the trace on their own.
 
 In fix order. Each entry is *symptom → cause → fix*.
 
-### 1. The process reads in the wrong direction
+Several of these are now handled by the generator itself, marked **auto**. They are still described, because
+they remain the things to check, and because a hand-written layout can reintroduce any of them.
+
+### 1. The process reads in the wrong direction — *auto*
 
 **Symptom.** The first step of the process is on the right, or the flow zig-zags.
 
@@ -70,7 +73,10 @@ In fix order. Each entry is *symptom → cause → fix*.
 MDS in particular fixes only the *shape*: a configuration is determined up to rotation, reflection and
 translation, so which end lands on the left is arbitrary.
 
-**Fix.** Re-orient the whole configuration. Because a rigid transform preserves every pairwise distance,
+**Fix.** Re-orient the whole configuration. The generator does this now — `LocationFlow` mines the reading
+order from how entities moved and `withReadableOrientation` turns the placement — so reach for this only when
+a hand-written layout has gone in backwards, or when the generator declined (it refuses rather than half-turn
+when the first and last of the process are not on the outside of the placement). Because a rigid transform preserves every pairwise distance,
 this costs nothing — a placement derived from a distance matrix stays a faithful placement. Search all
 360° and both reflections for the orientation that satisfies your reading constraints (first step
 leftmost, last step rightmost) and then optimise within the survivors — flattest is usually right, since
@@ -84,7 +90,7 @@ brings it in. Either keep the placement faithful and let scale and routes carry 
 abandon the distance-faithful placement and place by hand — but do not quietly distort the distances while
 still calling them a distance matrix.
 
-### 2. Stations do not read as "queue + resource"
+### 2. Stations do not read as "queue + resource" — *auto*
 
 **Symptom.** Long vertical stalks hanging off each station; the eye travels down when the process travels
 right.
@@ -110,7 +116,7 @@ Remember that **font sizes are world units too**, so chrome has to grow with the
 ends up shouting over them. Anything sized as a fraction of the world extent scales correctly; anything
 left at a constant does not.
 
-### 4. A multi-server station's queue is tucked under its own block
+### 4. A multi-server station's queue is tucked under its own block — *auto*
 
 **Symptom.** The queue head disappears behind the leftmost server cell.
 
@@ -120,7 +126,7 @@ its half-width is `capacity × size / 2` — not `size / 2`. Assuming a single c
 **Fix.** Offset the queue head by the real half-width. Capacity is a property of the *run*, not of the
 layout, so read it from the trace (`ResourceStateChanged` carries `capacity`).
 
-### 5. Movers are parked on top of the machines
+### 5. Movers are parked on top of the machines — *auto*
 
 **Symptom.** A worker glyph sits inside a server cell, hiding the entity being worked on.
 
@@ -131,13 +137,13 @@ machine placed exactly on its location has workers land on it.
 worker stands, and the machine sits beside it — both more legible and a truer picture. The location's own
 open-square marker becomes meaningful: an empty parking spot, covered when a worker is there.
 
-### 6. Stations float in white space
+### 6. Stations float in white space — *auto*
 
 **Symptom.** Correctly placed elements with nothing connecting them; large empty regions.
 
-**Fix.** Draw the routes. Read the station-to-station moves that **entities** actually made out of the
-trace (`MoveStarted` with `fromLocationName`/`toLocationName`) and emit a `paths` entry per distinct
-undirected pair. This costs no invention — every line is a move that happened — and it turns a scatter of
+**Fix.** Draw the routes. The generator emits these now, from `EntityRoutes`: the station-to-station moves
+that **entities** actually made (`MoveStarted` with `fromLocationName`/`toLocationName`), one `paths` entry
+per distinct undirected pair. This costs no invention — every line is a move that happened — and it turns a scatter of
 elements into a floor plan.
 
 **Exclude the movers' own repositioning.** A worker will travel anywhere to fetch its next job, so
@@ -172,7 +178,7 @@ green one looks like a state.
 
 **Fix.** Pick mover hues the state palette does not use.
 
-### 9. Internal elements clutter the picture
+### 9. Internal elements clutter the picture — *auto*
 
 **Symptom.** The longest line on screen belongs to something that is not part of the system being modelled.
 
@@ -246,3 +252,25 @@ python3 docs/animations/polish-Example13.py
 Note `-PlayoutFile`, not `-Playout`, and `-PmodelName`, not `-Pmodel`: Gradle's `Project` already owns
 `layout` and `model`, so `hasProperty` is always true and what arrives is the `Project` member, not your
 value. A task that reads them silently ignores what you passed.
+
+
+---
+
+## What the generator already does
+
+Worth knowing before polishing, so effort goes where it is needed. From the trace, `auto_layout` recovers:
+
+| From | Accumulator | Used for |
+|---|---|---|
+| Seize order | `FlowOrder` | resources in flow-ordered columns, and each queue paired to its server |
+| `StationEntered` order | `StationFlow` | network stations in a left-to-right lane |
+| Entity movement order | `LocationFlow` | which end of a venue the process starts at |
+| Entity moves between locations | `EntityRoutes` | the routes drawn between places |
+| Arrival-then-seize | `ResourceLocations` | which location each machine stands at |
+| `ResourceStateChanged` | `ResourceCapacities` | how wide a machine's block is, so its queue head clears it |
+| `QueueLengthChanged` | `QueuePeaks` | how long to draw a queue's extent line |
+| Named / bare delays | `DelayStorages` | which storages exist at all |
+
+What it does **not** do, and will not: retitle anything ("DiagnosticWorkers" → "Diagnostics"), decide which
+storage style suits a stage, choose colours against the resource-state palette, write a caption, or judge
+that one element is more important than another. Those are the polish.

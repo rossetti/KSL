@@ -286,3 +286,161 @@ class DelayStorages : TraceAccumulator<List<String>> {
     override fun result(): List<String> =
         (named + (if (hasAgents) emptySet() else bareTypes - seizedTypes)).toList()
 }
+
+/**
+ * Ranks named travel locations by the average position they hold in entities' movement sequences, so a layout
+ * can tell which end of a venue the process starts at.
+ *
+ * This is [FlowOrder] for locations. The two existing flow accumulators cover resources (by seize order) and
+ * network stations (by entry order), and neither answers the question a coordinate-free spatial model asks:
+ * MDS places its locations faithfully but only up to rotation and reflection, so *which* end is the entrance
+ * is not recoverable from the placement. It is recoverable from the trace, and this is where it comes from.
+ *
+ * Only entity movement counts. A mover's own travel would rank almost every location the same, because a
+ * transporter goes wherever its next job is rather than following the process.
+ *
+ * Cycle-safe and bounded on the same terms as [FlowOrder]: an average index blends a re-entrant flow, and the
+ * per-entity counter is evicted on `EntityDisposed`.
+ */
+class LocationFlow : TraceAccumulator<Map<String, Int>> {
+    private class Avg { var sum = 0.0; var n = 0 }
+
+    private val visits = HashMap<Long, Int>()         // entityId -> locations visited so far
+    private val index = LinkedHashMap<String, Avg>()  // location -> average visit index
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.MoveStarted -> {
+                val i = visits[event.entityId] ?: 0
+                // The origin of a first move is where the entity started, so it ranks ahead of the
+                // destination; afterwards only destinations advance the count.
+                if (i == 0) event.fromLocationName?.let { index.getOrPut(it) { Avg() }.let { a -> a.sum += 0.0; a.n++ } }
+                event.toLocationName?.let { index.getOrPut(it) { Avg() }.let { a -> a.sum += (i + 1); a.n++ } }
+                visits[event.entityId] = i + 1
+            }
+            is AnimationEvent.EntityDisposed -> visits.remove(event.entityId)
+            else -> {}
+        }
+    }
+
+    override fun result(): Map<String, Int> = index.mapValues { (_, a) -> kotlin.math.round(a.sum / a.n).toInt() }
+}
+
+/**
+ * The station-to-station routes **entities** actually travelled, as distinct undirected pairs in the order
+ * first seen, so a layout can draw the connections between the places it has placed.
+ *
+ * Without these a coordinate-free model draws as elements floating in white space with nothing to say how one
+ * is reached from another. Every pair here is a move that happened, so drawing them invents nothing.
+ *
+ * Movers are excluded for the same reason as in [LocationFlow]: a transporter travels wherever its next job
+ * is, so including `SpatialElementMoved` makes the route graph nearly complete and says nothing about how the
+ * system is routed.
+ */
+class EntityRoutes : TraceAccumulator<List<Pair<String, String>>> {
+    private val seen = LinkedHashSet<Pair<String, String>>()
+
+    override fun accept(event: AnimationEvent) {
+        if (event !is AnimationEvent.MoveStarted) return
+        val a = event.fromLocationName ?: return
+        val b = event.toLocationName ?: return
+        if (a == b) return
+        seen.add(if (a <= b) a to b else b to a)   // undirected: drawing both ways only doubles the line
+    }
+
+    override fun result(): List<Pair<String, String>> = seen.toList()
+}
+
+/**
+ * Each resource's capacity, as reported by the run.
+ *
+ * A resource draws as one cell per unit of capacity in a row centred on its position, so its half-width is
+ * `capacity * size / 2`. A layout that assumes a single cell tucks a multi-server resource's queue head under
+ * its own block. Capacity is a property of the run rather than of the model structure, so the trace is where
+ * it comes from.
+ */
+class ResourceCapacities : TraceAccumulator<Map<String, Int>> {
+    private val capacity = LinkedHashMap<String, Int>()
+
+    override fun accept(event: AnimationEvent) {
+        if (event is AnimationEvent.ResourceStateChanged) {
+            // A resource's capacity can be changed by a schedule; the widest it ever gets is what has to fit.
+            capacity[event.resourceName] = maxOf(capacity[event.resourceName] ?: 1, event.capacity.coerceAtLeast(1))
+        }
+    }
+
+    override fun result(): Map<String, Int> = capacity
+}
+
+/**
+ * The longest each queue ever got.
+ *
+ * A queue's extent line is `spacing * maxShown`, so a generous default advertises a capacity that is never
+ * reached and often draws the longest line on the screen. The observed peak is the honest bound.
+ */
+class QueuePeaks : TraceAccumulator<Map<String, Int>> {
+    private val peak = LinkedHashMap<String, Int>()
+
+    override fun accept(event: AnimationEvent) {
+        if (event is AnimationEvent.QueueLengthChanged) {
+            peak[event.queueName] = maxOf(peak[event.queueName] ?: 0, event.length)
+        }
+    }
+
+    override fun result(): Map<String, Int> = peak
+}
+
+/**
+ * Which named location each resource is seized at — the answer to "where on the floor is this machine".
+ *
+ * A model that both moves entities around a venue and makes them seize resources holds this relationship
+ * only implicitly: nothing in its structure says the resource `Test1` lives at the location `TestStation1`.
+ * A generated layout that does not recover it draws the machines in a column off to one side while the
+ * places they belong to sit somewhere else entirely, and the picture stops being a floor plan.
+ *
+ * The trace does know. An entity arrives somewhere and then seizes something, so the location it most
+ * recently reached when it seized a given resource is where that resource is. The most frequently observed
+ * location wins, which tolerates a stray seize by an entity that had wandered.
+ *
+ * Bounded: one location per entity in flight, evicted on `EntityDisposed`.
+ */
+class ResourceLocations : TraceAccumulator<Map<String, String>> {
+    private val at = HashMap<Long, String>()                          // entityId -> location last reached
+    private val pending = HashMap<Long, MutableList<String>>()        // seizes made before any move was seen
+    private val tally = LinkedHashMap<String, MutableMap<String, Int>>() // resource -> location -> count
+
+    private fun credit(resource: String, location: String) {
+        // Not Map.merge: this file is compiled for Kotlin/JS as well as the JVM, and merge is JVM-only.
+        val counts = tally.getOrPut(resource) { HashMap() }
+        counts[location] = (counts[location] ?: 0) + 1
+    }
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.MoveStarted -> {
+                // The first station of a process is never reached by a move -- an entity is created there and
+                // seizes before it goes anywhere -- so at seize time its whereabouts are not yet known. The
+                // origin of its first move says where it had been, which is what settles those seizes. Without
+                // this the first machine in every flow is the one left stranded off the floor plan.
+                if (event.entityId !in at) {
+                    event.fromLocationName?.let { origin ->
+                        pending.remove(event.entityId)?.forEach { credit(it, origin) }
+                    }
+                }
+                event.toLocationName?.let { at[event.entityId] = it }
+            }
+            is AnimationEvent.SeizeQueued -> {
+                val loc = at[event.entityId]
+                if (loc != null) credit(event.resourceName, loc)
+                else pending.getOrPut(event.entityId) { ArrayList() }.add(event.resourceName)
+            }
+            is AnimationEvent.EntityDisposed -> { at.remove(event.entityId); pending.remove(event.entityId) }
+            else -> {}
+        }
+    }
+
+    override fun result(): Map<String, String> =
+        tally.mapNotNull { (resource, counts) ->
+            counts.maxByOrNull { it.value }?.let { resource to it.key }
+        }.toMap()
+}

@@ -947,12 +947,16 @@ class SceneBuilder(
                 // Jittered by a hash of the entity id, so a pile looks like a pile and does not shimmer
                 // between frames the way a random offset would.
                 StorageStyle.PILE -> {
+                    // Scattered about the middle of the region, not about its corner. A storage's position is
+                    // its top-left, so scattering about the position put half of every pile outside its own box.
+                    val cx = st.position.x + st.width / 2
+                    val cy = st.position.y + st.height / 2
                     val radius = minOf(st.width, st.height) * 0.5
                     for (m in members) {
                         val h = (m.entityId * 1103515245L + 12345L) and 0x7fffffffL
                         val angle = (h % 360).toDouble() * PI / 180.0
                         val rr = ((h / 360) % 100).toDouble() / 100.0 * radius
-                        glyph(m, st.position.x + rr * cos(angle), st.position.y + rr * sin(angle))
+                        glyph(m, cx + rr * cos(angle), cy + rr * sin(angle))
                     }
                 }
                 else -> { // PACKED_REGION

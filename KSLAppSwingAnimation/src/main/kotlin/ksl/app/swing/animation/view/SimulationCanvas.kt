@@ -511,12 +511,15 @@ class SimulationCanvas : JPanel() {
                 members.forEachIndexed { i, m -> draw(m, anchor.x + i * step * dx, anchor.y + i * step * dy) }
             }
             StorageStyle.PILE -> {
+                // About the middle of the region, not its corner -- a storage's position is its top-left, so
+                // scattering about the position put half of every pile outside its own box.
+                val pcx = anchor.x + bw / 2; val pcy = anchor.y + bh / 2
                 val rpx = minOf(st.width, st.height) * 0.5 * scale
                 for (m in members) {
                     val hsh = (m.entityId * 1103515245L + 12345L) and 0x7fffffffL
                     val ang = (hsh % 360) * Math.PI / 180.0
                     val rr = ((hsh / 360) % 100) / 100.0 * rpx
-                    draw(m, anchor.x + rr * kotlin.math.cos(ang), anchor.y + rr * kotlin.math.sin(ang))
+                    draw(m, pcx + rr * kotlin.math.cos(ang), pcy + rr * kotlin.math.sin(ang))
                 }
             }
             else -> { // PACKED_REGION

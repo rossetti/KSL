@@ -31,6 +31,7 @@ import ksl.animation.SpatialSpaceDescriptor
 import ksl.animation.animationInventory
 import ksl.app.animation.io.AnimationSource
 import ksl.animation.scaffoldLayout
+import ksl.animation.PathDefinition
 import ksl.simulation.Model
 
 /**
@@ -64,16 +65,53 @@ fun Model.buildAutoLayout(
 ): AnimationLayout {
     val inventory = animationInventory()
     val fromTrace = if (source == AutoLayoutSource.AUTO && trace != null) traceAutoLayout(trace, inventory) else null
-    return fromTrace ?: scaffoldAutoLayout(inventory)
+    // The scaffold path gets the trace too. It is chosen for a coordinate-free spatial-mover model, whose
+    // MDS placement is faithful about distances but arbitrary about which way round it faces -- and which way
+    // round the process runs is a fact only the trace has. Passing it is what lets the placement be turned to
+    // read left to right instead of being emitted at whatever angle the arithmetic produced.
+    return fromTrace ?: scaffoldAutoLayout(inventory, trace)
+}
+
+/**
+ * Turns a placement to read left to right, and draws the routes entities travelled between the places in it.
+ *
+ * Both need the trace and both apply to whichever path produced the layout, so they are the last step rather
+ * than being duplicated into each. Without a trace neither is possible and the layout passes through.
+ */
+private fun AnimationLayout.withObservedFlow(trace: AnimationSource?): AnimationLayout {
+    if (trace == null) return this
+    val flowAcc = LocationFlow()
+    val routeAcc = EntityRoutes()
+    for (event in trace.events) { flowAcc.accept(event); routeAcc.accept(event) }
+
+    val ranks = flowAcc.result()
+    val readingOrder = ranks.entries.sortedWith(compareBy({ it.value }, { it.key })).map { it.key }
+    // Orient first: everything placed afterwards is placed relative to a location, so turning the venue
+    // before assembling the stations onto it saves having to turn them too.
+    val assembled = withReadableOrientation(readingOrder)
+        .withResourcesAtTheirLocations(trace)
+        .withoutMoverPoolQueues()
+
+    if (assembled.paths.isNotEmpty()) return assembled   // the trace path already drew them
+    val placed = assembled.locations.filter { it.position != null }.map { it.locationName }.toSet()
+    val routes = routeAcc.result().filter { (a, b) -> a in placed && b in placed }
+    if (routes.isEmpty()) return assembled
+    return assembled.copy(
+        paths = routes.map { (a, b) ->
+            PathDefinition(name = "$a->$b", points = emptyList(),
+                from = AnchorRef.location(a), to = AnchorRef.location(b))
+        }
+    )
 }
 
 /** The scaffold path: the static model scaffold, finished with the model-derived overlays (spaces + geometry,
  *  seeded object classes, located anchors, then mover homes last so movers anchor to the final positions). */
-private fun Model.scaffoldAutoLayout(inventory: AnimationInventory): AnimationLayout =
+private fun Model.scaffoldAutoLayout(inventory: AnimationInventory, trace: AnimationSource? = null): AnimationLayout =
     scaffoldLayout()
         .withScaffoldedSpaces(inventory)
         .withModelObjectClasses(inventory)
         .withModelLocations(inventory) // finalize location positions (MDS) first...
+        .withObservedFlow(trace) // ...turn them to read left to right and connect them, before anything anchors...
         .withModelConveyorRoutes(inventory) // ...route each conveyor's belt over its placed anchor locations...
         .withMoverPositionsAtHome(inventory) // ...so movers anchor to the final home-location position
 
@@ -98,6 +136,7 @@ private fun traceAutoLayout(trace: AnimationSource, inventory: AnimationInventor
     return ReplayModel.build(trace).autoLayout(trace.events, trace.header.description)
         .withModelGeometry(inventory)
         .withModelLocations(inventory)
+        .withObservedFlow(trace)
         .withModelConveyorRoutes(inventory)
 }
 

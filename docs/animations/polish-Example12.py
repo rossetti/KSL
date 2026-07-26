@@ -84,22 +84,25 @@ d["paths"] = [
 # off the corridor itself matters -- students walking are drawn ON the corridor, and a storage sitting on
 # it would have walkers crossing through a crowd they are not part of.
 #
-# A PACKED_REGION for the name-tag table and a PROGRESS_BELT for the conversation is not decoration. The
-# table is a place students are AT, so a packed crowd is the honest picture; the conversation is 18 minutes
-# long, and a belt draws each student at the fraction of it that has elapsed, so the wait itself is what
-# you see moving. Showing both styles at once is also the point of the example.
+# The style of each is a claim about what is happening there, so it has to match. A PACKED_REGION packs the
+# name-tag table into tidy rows, which is what a queue at a table looks like. The conversation area is a PILE:
+# people scattered about a room talking, each at a fixed spot of their own for as long as they are there.
+#
+# A PROGRESS_BELT was the first choice and was wrong. It draws each member at the fraction of their delay that
+# has elapsed, which is real information -- but the picture it makes is a conveyor, and it says students are
+# being carried across a distance when they are standing still talking. A pile gives that up and reads as what
+# it is. The count is not lost either way: the box prints it, and the "In conversation" bar tracks it.
 #
 # Sizes come from the observed peak, not from a guess: a box that could hold thirty when it never holds
 # more than two reads as an empty room.
-belt_w = 280.0
+room_w = 230.0
 stops = {
     "NameTags":         dict(x=X["NameTags"] - 40.0, y=CORRIDOR_Y - 100.0, w=80.0, h=52.0,
                              style="PACKED_REGION", label="Name tags"),
-    # The belt STARTS at the location rather than being centred on it: a member is drawn at the fraction
-    # of its delay that has elapsed, so the left end is "just started". Anchoring it under the spot on the
-    # corridor where students turn off makes the belt read as the conversation itself running its course.
-    "ConversationArea": dict(x=X["ConversationArea"], y=CORRIDOR_Y + 70.0, w=belt_w, h=54.0,
-                             style="PROGRESS_BELT", label="Conversing"),
+    # Centred under the spot on the corridor where students turn off, since a pile is a room rather than a
+    # run: people are somewhere inside it, not somewhere along it.
+    "ConversationArea": dict(x=X["ConversationArea"] - room_w / 2, y=CORRIDOR_Y + 60.0, w=room_w, h=room_w * 0.62,
+                             style="PILE", label="Conversing"),
 }
 by_name = {s["suspensionName"]: s for s in d["storages"]}
 assert set(by_name) == set(stops), f"trace stages {sorted(by_name)} != laid-out stops {sorted(stops)}"
@@ -156,11 +159,11 @@ def line(x1, y1, x2, y2, color="#c8c8c8"):
 d["background"] = [
     # Spurs joining each stop to the street it hangs off, so the venue reads as connected.
     line(X["NameTags"], CORRIDOR_Y - 48.0, X["NameTags"], CORRIDOR_Y),
-    line(X["ConversationArea"], CORRIDOR_Y, X["ConversationArea"], CORRIDOR_Y + 70.0),
+    line(X["ConversationArea"], CORRIDOR_Y, X["ConversationArea"], CORRIDOR_Y + 60.0),
     line(X["Recruiting"], RECRUITERS["MalWartR"][1] + SIZE / 2, X["Recruiting"], CORRIDOR_Y),
     text("Students walk a five-location venue; the line is the corridor and the dots on it are students in transit.", 32.0, 86.0),
     text("Where they stop is a bare delay() with no geometry — a storage bound to the delay's name is what draws it.", 32.0, 110.0),
-    text("A conversation runs ~18 minutes against a few seconds of walking, so the belt below is where the fair is.", 32.0, 148.0, 12.5, "#999999"),
+    text("A conversation runs ~18 minutes against a few seconds of walking, so the room below is where the fair is.", 32.0, 148.0, 12.5, "#999999"),
     text("Entrance", 34.0, CORRIDOR_Y + 5.0, 14.0, "#333333"),
     text("Exit", X["Exit"] + 16.0, CORRIDOR_Y + 5.0, 14.0, "#333333"),
     text("Recruiting", X["Recruiting"] - 34.0, CORRIDOR_Y + 24.0, 14.0, "#333333"),
@@ -172,7 +175,7 @@ d["clocks"] = [{"position": {"x": 32.0, "y": 44.0, "z": 0.0}, "format": "0.0", "
 BARS = {"NumInSystem": ("Students in the mixer", 560.0, 40.0),
         "NumInConversationArea": ("In conversation", 606.0, 10.0)}
 d["bars"] = [
-    {"responseName": name, "position": {"x": 32.0, "y": y, "z": 0.0}, "width": 300.0, "height": 22.0,
+    {"responseName": name, "position": {"x": 32.0, "y": y, "z": 0.0}, "width": 250.0, "height": 22.0,
      "maxValue": mx, "color": "#1f77b4", "label": label}
     for name, (label, y, mx) in BARS.items()
 ]

@@ -253,11 +253,28 @@ class AutoLayoutTest {
         assertContains(placed, "Server:Q", "a genuine request queue is still placed")
     }
 
+    /**
+     * A queue's extent line is `spacing x maxShown`, so the drawn run has to reflect the length the queue
+     * actually reaches -- a generous constant advertises a capacity that never occurs and often draws the
+     * longest line on the canvas. The bound now comes from the peak the trace observed rather than from the
+     * element default, so this asserts the relationship rather than a number.
+     */
     @Test
-    fun `auto-placed queues use a shorter default length than the element default (Ex01)`() {
+    fun autoPlacedQueuesAreBoundedByTheLengthTheTraceObserved() {
         val layout = model(null).autoLayout(events)
         assertTrue(layout.queues.isNotEmpty(), "a queue is placed")
-        assertTrue(layout.queues.all { it.maxShown == 10 }, "auto queues use the short default run (maxShown=10)")
+        val peaks = QueuePeaks().also { acc -> events.forEach(acc::accept) }.result()
+        for (q in layout.queues) {
+            val observed = peaks[q.queueName] ?: 0
+            assertTrue(
+                q.maxShown >= observed,
+                "${q.queueName}: the drawn run must be able to show the queue at its longest ($observed)"
+            )
+            assertTrue(
+                q.maxShown <= observed + 2,
+                "${q.queueName}: maxShown=${q.maxShown} advertises far more than the observed peak of $observed"
+            )
+        }
     }
 
     @Test

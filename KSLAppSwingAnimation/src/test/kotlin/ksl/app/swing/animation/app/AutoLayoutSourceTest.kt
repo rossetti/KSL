@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -81,14 +82,48 @@ class AutoLayoutSourceTest {
         )
     }
 
+    /**
+     * A coordinate-free trace carries no positions, so its locations would come out as a crude ring; the
+     * scaffold's MDS placement is the faithful one and must win.
+     *
+     * The assertion is on the *placement*, not on the whole layout. AUTO now also turns that placement to read
+     * left to right and assembles the machines onto it, all of which the trace is needed for -- so the AUTO
+     * layout is deliberately no longer equal to the bare scaffold. What must not change is how far apart the
+     * locations are, since that is the part MDS is faithful about, and a rigid turn preserves it exactly.
+     */
     @Test
-    fun `AUTO falls back to the scaffold for a coordinate-free (NaN) trace`() {
+    fun autoKeepsTheScaffoldsMdsPlacementForACoordinateFreeTrace() {
         val controller = controllerFor("nan")
         writeTrace(controller, nanTrace())
         assertTrue(controller.hasTrace())
+
+        val scaffold = assertNotNull(controller.buildScaffoldLayout())
+        val auto = assertNotNull(controller.buildAutoLayout(AutoLayoutSource.AUTO))
         assertEquals(
-            controller.buildScaffoldLayout(), controller.buildAutoLayout(AutoLayoutSource.AUTO),
-            "a coordinate-free trace should defer to the scaffold's MDS placement",
+            scaffold.locations.map { it.locationName }.toSet(),
+            auto.locations.map { it.locationName }.toSet(),
+            "the same places are laid out",
         )
+        val before = spacings(scaffold)
+        val after = spacings(auto)
+        assertTrue(before.isNotEmpty(), "the scaffold placed the locations")
+        for ((pair, distance) in before) {
+            assertEquals(
+                distance, assertNotNull(after[pair]), 1e-6,
+                "$pair: MDS distances must survive; a ring or a distorted turn would not preserve them",
+            )
+        }
+    }
+
+    /** Pairwise distances between placed locations, keyed by name pair. */
+    private fun spacings(layout: ksl.animation.AnimationLayout): Map<Pair<String, String>, Double> {
+        val placed = layout.locations.mapNotNull { l -> l.position?.let { l.locationName to it } }.sortedBy { it.first }
+        val out = HashMap<Pair<String, String>, Double>()
+        for (i in placed.indices) for (j in i + 1 until placed.size) {
+            val (an, a) = placed[i]
+            val (bn, b) = placed[j]
+            out[an to bn] = kotlin.math.hypot(a.x - b.x, a.y - b.y)
+        }
+        return out
     }
 }
