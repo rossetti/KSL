@@ -24,7 +24,6 @@ import ksl.animation.AnimationLayout
 import ksl.animation.AsyncAnimationSink
 import ksl.animation.CaptureSpec
 import ksl.animation.OverlaySpec
-import ksl.animation.writeToFile
 import ksl.simulation.Model
 import java.nio.file.Path
 

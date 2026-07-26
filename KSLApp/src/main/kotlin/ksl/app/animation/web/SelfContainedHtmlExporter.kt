@@ -19,7 +19,6 @@
 package ksl.app.animation.web
 
 import ksl.animation.AnimationLayout
-import ksl.animation.readFromFile
 import java.nio.file.Files
 import java.nio.file.Path
 

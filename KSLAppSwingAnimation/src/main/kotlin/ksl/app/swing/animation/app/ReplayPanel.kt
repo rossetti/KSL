@@ -19,7 +19,6 @@
 package ksl.app.swing.animation.app
 
 import ksl.animation.AnimationLayout
-import ksl.animation.read
 import ksl.animation.AnimationTraceHeader
 import ksl.animation.AnimationEvent
 import ksl.animation.TraceFileReader

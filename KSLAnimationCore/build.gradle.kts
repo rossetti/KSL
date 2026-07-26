@@ -58,18 +58,17 @@ repositories {
 
 /** Sources shared with the JVM build, relative to each module's `src/main/kotlin`. */
 val sharedSources = listOf(
-    // ── the wire format: trace events + the presentation document (KSLCore) ──
+    // ── the trace format, shared from KSLCore UNMODIFIED (these compile off-JVM as they stand) ──
+    //
+    // The layout document is deliberately NOT here. Sharing it would require lifting its file and TOML
+    // I/O out of the class -- a binary-breaking edit to a released library, made to serve a renderer.
+    // The web build declares its own reader for that format instead (AnimationLayoutReader.kt in
+    // jsMain), which is what treating the format as the seam actually means. See G28.
     "ksl/animation/AnimationEvent.kt",
     "ksl/animation/AnimationTraceHeader.kt",
-    "ksl/animation/AnimationLayout.kt",
-    "ksl/animation/AnimationInventoryTypes.kt",
     "ksl/animation/CaptureSpec.kt",
     "ksl/animation/OverlaySpec.kt",
     "ksl/animation/AnimationSink.kt",
-    // ── grid geometry carried inside a layout (KSLCore) ──
-    "ksl/modeling/agent/Cell.kt",
-    "ksl/modeling/agent/MovementRule.kt",
-    "ksl/modeling/agent/GridGeometrySpec.kt",
     // ── geometry, visual resolution and the drawing vocabulary (KSLApp) ──
     // These are replay/rendering concerns, so they live with the replay engine rather than in KSLCore:
     // R1.4 drew that line deliberately -- the capture side ships in KSLCore, the replay engine and the
@@ -84,7 +83,6 @@ val sharedSources = listOf(
     // ── the replay engine: index a trace, query state at a time (KSLApp) ──
     "ksl/app/animation/io/AnimationSource.kt",
     "ksl/app/animation/replay/AnchorResolver.kt",
-    "ksl/app/animation/replay/LayoutGeometry.kt",
     "ksl/app/animation/replay/ObjectClassSeeding.kt",
     "ksl/app/animation/replay/PositionInterpolator.kt",
     "ksl/app/animation/replay/ReplayCompatibility.kt",
@@ -97,8 +95,13 @@ val sharedSources = listOf(
     "ksl/app/swing/animation/playback/PlaybackController.kt",
 )
 
+/** This module's own sources, relative to `src/commonMain/kotlin`. */
+val ownSources = listOf(
+    "ksl/animation/AnimationLayoutReader.kt",
+)
+
 /*
- * Intentionally absent: AutoLayout.kt, AutoLayoutBuilder.kt and TraceAccumulators.kt. Those scaffold a
+ * Intentionally absent: AutoLayout.kt, AutoLayoutBuilder.kt, TraceAccumulators.kt and LayoutGeometry.kt. Those scaffold a
  * layout FROM a model, which is authoring, not replay — they reach for `Model` and the reflective
  * `AnimationInventory`, and a replay renderer never calls them. They stay JVM-only in KSLApp.
  */
@@ -127,9 +130,11 @@ kotlin {
                     "${rootDir.parent}/KSLCore/src/main/kotlin",
                     "${rootDir.parent}/KSLApp/src/main/kotlin",
                     "${rootDir.parent}/KSLAppSwingAnimation/src/main/kotlin",
+                    // This module's own sources: the layout reader that replaces KSLCore's declaration.
+                    "src/commonMain/kotlin",
                 )
             )
-            kotlin.setIncludes(sharedSources)
+            kotlin.setIncludes(sharedSources + ownSources)
             dependencies {
                 // The platform-agnostic artifact, NOT the `-jvm` one KSLCore declares.
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")

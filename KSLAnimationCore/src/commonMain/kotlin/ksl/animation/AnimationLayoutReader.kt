@@ -22,8 +22,36 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.nio.file.Files
-import java.nio.file.Path
+
+/*
+ * A READER for the `.lay.json` layout format, for the web player.
+ *
+ * WHY THIS IS A SEPARATE DECLARATION RATHER THAN THE SHARED ONE
+ *
+ * R1.4 drew a deliberate line: the capture side ships in KSLCore, the replay engine and the viewer do
+ * not. The layout document is written by the capture/authoring side, so it lives in KSLCore -- and the
+ * serialized format, not the source, is the seam between the two halves.
+ *
+ * Compiling KSLCore's own declaration for a browser would mean editing it: its file and TOML I/O are
+ * JVM-bound and would have to be lifted out of the class, which is a binary-breaking change to a
+ * released library made purely to serve a renderer. Declaring a reader here keeps KSLCore untouched and
+ * treats the format the way a format is meant to be treated -- as a published contract that anyone may
+ * implement against.
+ *
+ * WHAT IT OMITS, AND WHY THAT IS SAFE
+ *
+ *  - file and TOML I/O: there are no files in a browser.
+ *  - `spaceGeometry`: grid obstacle overlays, which the player does not draw yet. It reaches into
+ *    `ksl.modeling.agent`, and omitting it costs nothing because the layout codec sets
+ *    `ignoreUnknownKeys`, so the field is simply skipped when present.
+ *
+ * KEEPING IT HONEST
+ *
+ * This is a duplicate of a format declaration, and duplicates drift. Two things guard it: the format is
+ * versioned (`AnimationEvent.FORMAT_VERSION`, checked on load), and `LayoutReaderConformanceTest` parses
+ * real layouts produced by the desktop app and asserts the fields the player relies on. If the app starts
+ * writing something this reader needs and does not model, that test is what says so.
+ */
 
 /** A 2D/3D point used by layout elements (z defaults to 0 for 2D layouts). */
 @Serializable
@@ -427,18 +455,11 @@ data class AnimationLayout(
     /** Per-element text-label overrides (10.8/C3): retitle, reposition (dx,dy from the glyph), or hide a label.
      *  Appended last so positional `AnimationLayout(...)` callers are unaffected. */
     val labels: List<ElementLabel> = emptyList(),
-    /** Grid obstacle/cost overlays extracted from (or authored for) the model's geometry, keyed by space name
-     *  (P5a/G2). Appended last so positional `AnimationLayout(...)` callers are unaffected. */
-    val spaceGeometry: List<ksl.modeling.agent.GridGeometrySpec> = emptyList(),
     /** Named spatial locations (`LocationIfc`): move endpoints, conveyor anchors, agent landmarks — the
      *  animation counterpart of a NetworkStation. Appended last (defaulted) for positional-constructor and
      *  wire safety, so old layouts keep loading and old code keeps constructing. */
     val locations: List<LocationLayoutElement> = emptyList()
 ) {
-    /** The grid obstacle/cost overlay for the space named [spaceName], or null — the consume-side lookup (P5b/G2). */
-    fun gridGeometry(spaceName: String): ksl.modeling.agent.GridGeometrySpec? =
-        spaceGeometry.firstOrNull { it.spaceName == spaceName }
-
     /**
      * The placed position of anchor [ref] — the location (else the network station) of that name, falling back to
      * the other kind when the declared one isn't placed — or null if neither is placed.
@@ -466,18 +487,6 @@ data class AnimationLayout(
     /** Serializes this layout to pretty-printed JSON (the `.lay.json` content). */
     fun toJson(): String = format.encodeToString(this)
 
-    /** Writes this layout to [path] (typically a `.lay.json` file), UTF-8, pretty-printed. */
-    fun writeToFile(path: Path) {
-        Files.newBufferedWriter(path).use { it.write(toJson()) }
-    }
-
-    /** Serializes this layout to TOML (an alternate, human-friendly layout format, 8E.2). */
-    fun toToml(): String = tomlFormat.encodeToString(serializer(), this)
-
-    /** Writes this layout to [path] (typically a `.lay.toml` file) as TOML. */
-    fun writeTomlToFile(path: Path) {
-        Files.newBufferedWriter(path).use { it.write(toToml()) }
-    }
 
     companion object {
         /**
@@ -496,22 +505,5 @@ data class AnimationLayout(
         /** Parses a `.lay.json` string into an [AnimationLayout]. */
         fun fromJson(json: String): AnimationLayout = format.decodeFromString(json)
 
-        /** Reads an [AnimationLayout] from [path]. */
-        fun readFromFile(path: Path): AnimationLayout = fromJson(Files.readString(path))
-
-        /** Reads a layout from [path], picking the codec by extension: `.toml` -> TOML, else JSON. */
-        fun read(path: Path): AnimationLayout =
-            if (path.fileName.toString().endsWith(".toml", ignoreCase = true)) readTomlFromFile(path)
-            else readFromFile(path)
-
-        /** TOML codec for the layout (handles the sealed spatial-space hierarchy via its serial names). Tolerates
-         *  keys this version no longer models (e.g. the retired `dashboards`) so older files still load. */
-        val tomlFormat: net.peanuuutz.tomlkt.Toml = net.peanuuutz.tomlkt.Toml { ignoreUnknownKeys = true }
-
-        /** Parses a TOML layout string into an [AnimationLayout] (8E.2). */
-        fun fromToml(text: String): AnimationLayout = tomlFormat.decodeFromString(serializer(), text)
-
-        /** Reads an [AnimationLayout] from a `.lay.toml` [path]. */
-        fun readTomlFromFile(path: Path): AnimationLayout = fromToml(Files.readString(path))
     }
 }

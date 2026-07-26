@@ -21,6 +21,17 @@ package ksl.modeling.agent
 import kotlin.math.sqrt
 import kotlinx.serialization.Serializable
 
+/**
+ *  Movement rule for a [GridGraph]. Selects the allowed neighbors of
+ *  each cell:
+ *   - [MOORE] — the 8 surrounding cells (orthogonal + diagonal).
+ *     The standard for most grid pathfinding.
+ *   - [VON_NEUMANN] — the 4 orthogonal cells only (no diagonals).
+ *     Used when diagonals are not allowed (tile-aligned movement,
+ *     some board games).
+ */
+@Serializable
+enum class MovementRule { MOORE, VON_NEUMANN }
 
 /**
  *  Pre-built heuristic functions for A* pathfinding on a

@@ -20,7 +20,6 @@ package ksl.app.animation.io
 
 import ksl.animation.AnimationLayout
 import ksl.animation.TraceFileReader
-import ksl.animation.read
 import java.nio.file.Path
 
 /**

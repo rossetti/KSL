@@ -15,7 +15,6 @@ import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import ksl.animation.writeTomlToFile
 
 /**
  * P6b (C4/C5): a movable resource can be placed on the canvas with an editable position, and — when it has a

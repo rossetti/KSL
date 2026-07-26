@@ -18,8 +18,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import ksl.animation.toToml
-import ksl.animation.fromToml
 
 /**
  * P5a/G2: obstacles a modeler declares in a `GridGraph` (and links via `Context.attachGeometry`) are extracted
