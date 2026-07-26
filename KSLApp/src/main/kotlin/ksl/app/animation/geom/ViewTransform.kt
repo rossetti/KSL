@@ -89,7 +89,14 @@ data class ViewTransform(
 
         /**
          * Fits [world] into a [viewWidth] by [viewHeight] viewport, preserving aspect ratio, with [margin]
-         * on each side. A degenerate world box is clamped rather than producing an infinite scale.
+         * on each side, and **centres** whatever room is left over. A degenerate world box is clamped
+         * rather than producing an infinite scale.
+         *
+         * Centring matters whenever the world and the viewport disagree about shape. A scaffolded layout is
+         * typically wide and short, so without it the animation sits pinned to the top of a tall panel with
+         * a band of nothing beneath — which reads as a rendering fault rather than as spare room. For a
+         * layout whose content fills its declared canvas the leftover is zero and this changes nothing,
+         * which is why it went unnoticed until traces started being replayed without a layout.
          */
         fun fit(
             world: BoundingBox,
@@ -97,10 +104,14 @@ data class ViewTransform(
             viewHeight: Double,
             margin: Double = DEFAULT_MARGIN
         ): ViewTransform {
-            val sx = (viewWidth - 2 * margin) / world.width.coerceAtLeast(1e-6)
-            val sy = (viewHeight - 2 * margin) / world.height.coerceAtLeast(1e-6)
+            val usableWidth = (viewWidth - 2 * margin).coerceAtLeast(1e-6)
+            val usableHeight = (viewHeight - 2 * margin).coerceAtLeast(1e-6)
+            val sx = usableWidth / world.width.coerceAtLeast(1e-6)
+            val sy = usableHeight / world.height.coerceAtLeast(1e-6)
             val s = minOf(sx, sy).coerceAtLeast(1e-6)
-            return ViewTransform(world.minX, world.minY, s, margin)
+            val centreX = ((usableWidth - world.width * s) / 2.0).coerceAtLeast(0.0)
+            val centreY = ((usableHeight - world.height * s) / 2.0).coerceAtLeast(0.0)
+            return ViewTransform(world.minX, world.minY, s, margin, panX = centreX, panY = centreY)
         }
     }
 }

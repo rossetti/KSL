@@ -76,8 +76,14 @@ internal class KslAnimationPlayer(
     private var images: ImageCache? = null
 
     private var zoom = 1.0
-    private var panX = 0.0
-    private var panY = 0.0
+
+    // The user's pan is held as a DELTA from the fitted, centred position rather than as an absolute
+    // offset. Keeping it relative is what lets the animation stay centred when the window is resized:
+    // the centring is recomputed for the new viewport and whatever dragging the user did rides on top.
+    private var userPanX = 0.0
+    private var userPanY = 0.0
+    private var basePanX = 0.0
+    private var basePanY = 0.0
 
     init {
         canvas.style.width = "100%"
@@ -126,7 +132,7 @@ internal class KslAnimationPlayer(
         }
         transport?.bind(controller)
 
-        zoom = 1.0; panX = 0.0; panY = 0.0
+        zoom = 1.0; userPanX = 0.0; userPanY = 0.0
         resize()
         transport?.showStatus(describe(replay))
 
@@ -182,7 +188,10 @@ internal class KslAnimationPlayer(
         viewport = Viewport(cssWidth, cssHeight)
         surface = Canvas2dSurface(ctx, cssWidth, cssHeight, images ?: ImageCache(null))
         builder?.let { b ->
-            view = ViewTransform.fit(b.worldBounds(), cssWidth, cssHeight).withZoomPan(zoom, panX, panY)
+            val fitted = ViewTransform.fit(b.worldBounds(), cssWidth, cssHeight)
+            basePanX = fitted.panX
+            basePanY = fitted.panY
+            view = fitted.withZoomPan(zoom, basePanX + userPanX, basePanY + userPanY)
         }
         render(controller.currentTime)
     }
@@ -206,7 +215,11 @@ internal class KslAnimationPlayer(
             val factor = if (wheel.deltaY < 0) ZOOM_STEP else 1.0 / ZOOM_STEP
             val rect = canvas.getBoundingClientRect()
             view = view.zoomedAbout(factor, wheel.clientX - rect.left, wheel.clientY - rect.top)
-            zoom = view.zoom; panX = view.panX; panY = view.panY
+            // zoomedAbout solves for an absolute pan that keeps the cursor's world point fixed; store it
+            // back as a delta so the centring stays separable.
+            zoom = view.zoom
+            userPanX = view.panX - basePanX
+            userPanY = view.panY - basePanY
             render(controller.currentTime)
         })
         canvas.addEventListener("mousedown", { event ->
@@ -223,16 +236,16 @@ internal class KslAnimationPlayer(
             val e = event.asDynamic()
             val x = e.clientX as Double
             val y = e.clientY as Double
-            panX += x - lastX; panY += y - lastY
+            userPanX += x - lastX; userPanY += y - lastY
             lastX = x; lastY = y
-            view = view.withZoomPan(zoom, panX, panY)
+            view = view.withZoomPan(zoom, basePanX + userPanX, basePanY + userPanY)
             render(controller.currentTime)
         })
         canvas.addEventListener("dblclick", { resetView() })
     }
 
     fun resetView() {
-        zoom = 1.0; panX = 0.0; panY = 0.0
+        zoom = 1.0; userPanX = 0.0; userPanY = 0.0
         resize()
     }
 

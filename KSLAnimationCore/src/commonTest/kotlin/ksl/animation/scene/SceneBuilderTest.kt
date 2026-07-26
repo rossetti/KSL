@@ -24,6 +24,11 @@ import ksl.animation.AnimationTraceHeader
 import ksl.animation.LayoutPoint
 import ksl.animation.LayoutShape
 import ksl.animation.ObjectClassDefinition
+import ksl.animation.HistogramDisplayElement
+import ksl.animation.PlotDisplayElement
+import ksl.animation.StorageLayoutElement
+import ksl.animation.StorageStyle
+import ksl.animation.SummaryDisplayElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.SpatialSpaceDescriptor
@@ -420,5 +425,211 @@ class SceneBuilderTest {
         assertEquals(4.0, scene.simTime)
         assertEquals(BoundingBox(0.0, 0.0, 640.0, 380.0), scene.worldBounds)
         assertTrue(scene.commandCount > 0)
+    }
+}
+
+/**
+ * Pins the layers deferred out of the first renderer: the statistics displays, the storages, and the two
+ * agent overlays a model has to opt into emitting.
+ *
+ * These are separated from the main suite because they exercise different inputs — a response's sample
+ * history, a named delay's membership, and overlay events that an ordinary trace simply does not carry.
+ */
+class SceneBuilderDisplayTest {
+
+    private fun events(vararg lines: String): List<AnimationEvent> = lines.map { AnimationEvent.decodeFromLine(it) }
+
+    private fun sceneOf(layout: AnimationLayout?, events: List<AnimationEvent>, t: Double): Scene =
+        SceneBuilder(ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), events))).build(t)
+
+    private val responseEvents = events(
+        """{"event":"ResponseObserved","simTime":1.0,"responseName":"WaitTime","value":2.0,"count":1.0,"average":2.0,"min":2.0,"max":2.0}""",
+        """{"event":"ResponseObserved","simTime":2.0,"responseName":"WaitTime","value":6.0,"count":2.0,"average":4.0,"min":2.0,"max":6.0}""",
+        """{"event":"ResponseObserved","simTime":3.0,"responseName":"WaitTime","value":4.0,"count":3.0,"average":4.0,"min":2.0,"max":6.0}""",
+    )
+
+    @Test
+    fun aPlotDrawsItsFrameAndItsSeries() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            plots = listOf(PlotDisplayElement("WaitTime", LayoutPoint(50.0, 50.0), width = 200.0, height = 100.0))
+        )
+        val cmds = sceneOf(layout, responseEvents, 3.0).commandsOf("displays")
+        assertTrue(cmds.any { it is DrawCmd.Rect }, "the plot's frame")
+        val series = assertNotNull(cmds.filterIsInstance<DrawCmd.Polyline>().firstOrNull(), "the series")
+        assertEquals(3, series.points.size, "one point per observation in range")
+        // y is inverted: the largest value sits nearest the top of the box.
+        val highest = series.points.minByOrNull { it.second }!!
+        // With no declared window the x-axis spans the samples' own range, t = 1..3 -- not 0..3. So the
+        // peak at t = 2 sits at the midpoint of a 200-wide box starting at x = 50.
+        assertEquals(150.0, highest.first, 1e-6, "the peak is the t=2 sample")
+    }
+
+    @Test
+    fun aWindowedPlotShowsOnlyItsWindow() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            plots = listOf(
+                PlotDisplayElement("WaitTime", LayoutPoint(0.0, 0.0), width = 100.0, height = 50.0, windowDuration = 1.5)
+            )
+        )
+        val series = sceneOf(layout, responseEvents, 3.0).commandsOf("displays")
+            .filterIsInstance<DrawCmd.Polyline>().firstOrNull()
+        // Window [1.5, 3.0] excludes the t=1 sample.
+        assertEquals(2, assertNotNull(series).points.size)
+    }
+
+    @Test
+    fun aHistogramBinsTheObservedValues() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            histograms = listOf(
+                HistogramDisplayElement("WaitTime", LayoutPoint(10.0, 10.0), width = 100.0, height = 60.0, bins = 4)
+            )
+        )
+        val rects = sceneOf(layout, responseEvents, 3.0).commandsOf("displays").filterIsInstance<DrawCmd.Rect>()
+        // One frame plus one bar per non-empty bin.
+        assertTrue(rects.size > 1, "bars must be drawn, got ${rects.size} rect(s)")
+        assertTrue(rects.drop(1).all { it.fill != null }, "bars are filled")
+    }
+
+    @Test
+    fun aSummaryReportsTheWithinReplicationStatistics() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            summaries = listOf(SummaryDisplayElement("WaitTime", LayoutPoint(10.0, 10.0), decimals = 1))
+        )
+        val texts = sceneOf(layout, responseEvents, 3.0).commandsOf("displays").filterIsInstance<DrawCmd.Text>()
+        assertTrue(texts.any { "WaitTime" in it.text }, "the label")
+        val body = assertNotNull(texts.firstOrNull { "mean" in it.text }, "the statistics line")
+        assertTrue("n=3" in body.text, "count; got '${body.text}'")
+        assertTrue("mean=4.0" in body.text, "mean; got '${body.text}'")
+        // The second line is offset in pixels, so it stays one line below at any zoom.
+        assertTrue(body.screenOffsetY > 0.0, "the body sits below the label in screen space")
+    }
+
+    @Test
+    fun aStorageShowsItsMembersDriftingAlongTheBelt() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            storages = listOf(
+                StorageLayoutElement("Triage", LayoutPoint(100.0, 100.0), style = StorageStyle.PROGRESS_BELT, width = 100.0)
+            )
+        )
+        val cmds = sceneOf(
+            layout,
+            events(
+                """{"event":"EntityCreated","simTime":0.0,"entityId":1,"entityType":"Patient"}""",
+                """{"event":"DelayStarted","simTime":0.0,"entityId":1,"duration":10.0,"arrivalTime":10.0,"suspensionName":"Triage"}""",
+            ),
+            5.0 // halfway through the delay
+        ).commandsOf("storages")
+
+        assertTrue(cmds.any { it is DrawCmd.Rect }, "the storage footprint is always drawn")
+        val glyph = assertNotNull(cmds.filterIsInstance<DrawCmd.Glyph>().firstOrNull(), "the member")
+        assertEquals(150.0, glyph.cx, 1e-6, "halfway along a 100-wide belt from x=100")
+    }
+
+    @Test
+    fun anEmptyStorageStillDrawsItsFootprint() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            storages = listOf(StorageLayoutElement("Triage", LayoutPoint(10.0, 10.0)))
+        )
+        val cmds = sceneOf(layout, emptyList(), 0.0).commandsOf("storages")
+        assertTrue(cmds.any { it is DrawCmd.Rect }, "visible and selectable while authoring")
+        assertTrue(cmds.none { it is DrawCmd.Glyph }, "but no members")
+        assertTrue(cmds.filterIsInstance<DrawCmd.Text>().any { "(0)" in it.text }, "labelled with its count")
+    }
+
+    @Test
+    fun aFlowFieldShadesFromGoalToFarthest() {
+        val scene = sceneOf(
+            AnimationLayout(width = 100.0, height = 100.0),
+            events(
+                """{"event":"FlowFieldDefined","simTime":0.0,"spaceName":"grid","cols":2,"rows":1,"cellSize":10.0,"originX":0.0,"originY":0.0,"cells":[{"col":0,"row":0,"distance":0.0},{"col":1,"row":0,"distance":10.0}],"maxDistance":10.0}"""
+            ),
+            0.0
+        )
+        val cells = scene.commandsOf("flowField").filterIsInstance<DrawCmd.Rect>()
+        assertEquals(2, cells.size)
+        val atGoal = assertNotNull(cells[0].fill)
+        val farthest = assertNotNull(cells[1].fill)
+        assertTrue(atGoal.g > atGoal.r, "at the goal reads green; got $atGoal")
+        assertTrue(farthest.r > farthest.g, "farthest reads red; got $farthest")
+        assertTrue(atGoal.a < 255, "translucent, so agents show through")
+    }
+
+    @Test
+    fun agentVectorsDrawVelocityAndForceArrows() {
+        val scene = sceneOf(
+            AnimationLayout(width = 100.0, height = 100.0),
+            events(
+                """{"event":"AgentRegistered","simTime":0.0,"agentName":"b1","agentType":"Boid"}""",
+                """{"event":"AgentPositionChanged","simTime":0.0,"agentName":"b1","projectionName":"sky","x":50.0,"y":50.0,"z":0.0}""",
+                """{"event":"AgentVectorSampled","simTime":0.0,"agentName":"b1","projectionName":"sky","vx":3.0,"vy":0.0,"fx":0.0,"fy":2.0}""",
+            ),
+            0.0
+        )
+        val cmds = scene.commandsOf("vectors")
+        assertEquals(2, cmds.filterIsInstance<DrawCmd.Polyline>().size, "one shaft per vector")
+        assertEquals(2, cmds.filterIsInstance<DrawCmd.ArrowHead>().size, "each with a head")
+        // Velocity points along +x from the agent; force along +y.
+        val shafts = cmds.filterIsInstance<DrawCmd.Polyline>()
+        assertTrue(shafts.any { it.points[1].first > it.points[0].first }, "a horizontal arrow")
+        assertTrue(shafts.any { it.points[1].second > it.points[0].second }, "and a vertical one")
+    }
+
+    @Test
+    fun anArrowIsClampedSoAFastAgentDoesNotCoverTheModel() {
+        val scene = sceneOf(
+            AnimationLayout(width = 100.0, height = 100.0),
+            events(
+                """{"event":"AgentRegistered","simTime":0.0,"agentName":"b1","agentType":"Boid"}""",
+                """{"event":"AgentPositionChanged","simTime":0.0,"agentName":"b1","projectionName":"sky","x":10.0,"y":10.0,"z":0.0}""",
+                """{"event":"AgentVectorSampled","simTime":0.0,"agentName":"b1","projectionName":"sky","vx":500.0,"vy":0.0,"fx":NaN,"fy":NaN}""",
+            ),
+            0.0
+        )
+        val shaft = assertNotNull(scene.commandsOf("vectors").filterIsInstance<DrawCmd.Polyline>().firstOrNull())
+        val length = shaft.points[1].first - shaft.points[0].first
+        assertTrue(length <= 8.0 + 1e-9, "clamped to 8 world units; got $length")
+        // A NaN component means it was not captured, so no second arrow.
+        assertEquals(1, scene.commandsOf("vectors").filterIsInstance<DrawCmd.Polyline>().size)
+    }
+
+    @Test
+    fun overlaysAreAbsentFromAnOrdinaryTrace() {
+        // The overlays are opt-in at capture time, so a normal run pays nothing and shows nothing.
+        val scene = sceneOf(AnimationLayout(width = 100.0, height = 100.0), responseEvents, 3.0)
+        assertEquals(null, scene.layer("flowField"))
+        assertEquals(null, scene.layer("vectors"))
+    }
+}
+
+/** Pins the framing rule that a wide, short world should not be pinned to the top of a tall panel. */
+class ViewTransformCentringTest {
+
+    @Test
+    fun aWorldShorterThanItsViewportIsCentredVertically() {
+        val world = ksl.app.animation.geom.BoundingBox(0.0, 0.0, 200.0, 20.0) // wide and short
+        val view = ksl.app.animation.geom.ViewTransform.fit(world, viewWidth = 240.0, viewHeight = 240.0)
+        val drawnHeight = world.height * view.scale
+        val topGap = view.toScreenY(world.minY)
+        val bottomGap = 240.0 - view.toScreenY(world.maxY)
+        assertTrue(drawnHeight < 240.0, "the world is shorter than the viewport, or the test proves nothing")
+        assertTrue(
+            kotlin.math.abs(topGap - bottomGap) < 1.0,
+            "leftover room must be split evenly; top=$topGap bottom=$bottomGap"
+        )
+    }
+
+    @Test
+    fun aWorldMatchingItsViewportIsUnaffected() {
+        val world = ksl.app.animation.geom.BoundingBox(0.0, 0.0, 100.0, 100.0)
+        val view = ksl.app.animation.geom.ViewTransform.fit(world, viewWidth = 200.0, viewHeight = 200.0)
+        // Square world in a square viewport: nothing left over, so the corner sits at the margin.
+        assertEquals(ksl.app.animation.geom.ViewTransform.DEFAULT_MARGIN, view.toScreenX(0.0), 1e-9)
+        assertEquals(ksl.app.animation.geom.ViewTransform.DEFAULT_MARGIN, view.toScreenY(0.0), 1e-9)
     }
 }

@@ -26,13 +26,17 @@ import ksl.animation.LayoutPoint
 import ksl.animation.LayoutShape
 import ksl.animation.MoverMode
 import ksl.animation.MovableResourceLayoutElement
+import ksl.animation.HistogramDisplayElement
+import ksl.animation.PlotDisplayElement
 import ksl.animation.QueueLayoutElement
 import ksl.animation.ResourceLayoutElement
 import ksl.animation.SpatialSpaceDescriptor
+import ksl.animation.StorageStyle
 import ksl.app.animation.geom.BoundingBox
 import ksl.app.animation.style.RgbaColor
 import ksl.app.animation.style.VisualStyle
 import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.replay.StorageMember
 import ksl.app.animation.replay.WorldPoint
 import kotlin.math.PI
 import kotlin.math.abs
@@ -145,6 +149,7 @@ class SceneBuilder(
         }
 
         layer("spaces", DrawSpace.WORLD, spaceCommands())
+        if (options.showFlowField && !static) layer("flowField", DrawSpace.WORLD, flowFieldCommands())
         if (options.showPlannedPaths && !static) layer("plannedPaths", DrawSpace.WORLD, plannedPathCommands(t))
         layer("background", DrawSpace.WORLD, backgroundCommands())
         layer("paths", DrawSpace.WORLD, pathCommands())
@@ -152,12 +157,14 @@ class SceneBuilder(
         layer("stations", DrawSpace.WORLD, stationCommands())
         layer("locations", DrawSpace.WORLD, locationCommands())
         layer("queues", DrawSpace.WORLD, queueCommands(t, static))
+        layer("storages", DrawSpace.WORLD, storageCommands(t, static))
         layer("resources", DrawSpace.WORLD, resourceCommands(t, static))
         layer("displays", DrawSpace.WORLD, displayCommands(t, static))
         if (!static) {
             layer("entities", DrawSpace.WORLD, entityCommands(t))
             if (options.showStationContents) layer("stationContents", DrawSpace.WORLD, stationContentCommands(t))
             layer("agents", DrawSpace.WORLD, agentCommands(t))
+            if (options.showVectors) layer("vectors", DrawSpace.WORLD, vectorCommands(t))
         }
         layer("movers", DrawSpace.WORLD, moverCommands(t, static))
         if (options.showMarkerPulses && !static) layer("pulses", DrawSpace.WORLD, pulseCommands(t))
@@ -656,7 +663,7 @@ class SceneBuilder(
 
     // ── read-outs and text ──────────────────────────────────────────────────────────────────────────
 
-    /** Value read-outs and bars. Plots, histograms, summaries and storages are not yet ported. */
+    /** The layout's live read-outs: bars, plots, histograms, summaries and plain values. */
     private fun displayCommands(t: Double, static: Boolean): List<DrawCmd> {
         val l = layout ?: return emptyList()
         val cmds = ArrayList<DrawCmd>()
@@ -677,10 +684,275 @@ class SceneBuilder(
             }
             cmds.add(DrawCmd.Text(bar.position.x, bar.position.y - 3.0, bar.label ?: bar.responseName, RgbaColor.DARK_GRAY))
         }
+        for (plot in l.plots) {
+            cmds.addAll(plotCommands(plot, t, static))
+        }
+        for (h in l.histograms) {
+            cmds.addAll(histogramCommands(h, t, static))
+        }
+        for (sum in l.summaries) {
+            val stats = if (static) null else model.responseStatsAt(sum.responseName, t)
+            val d = sum.decimals.coerceIn(0, 6)
+            cmds.add(DrawCmd.Text(sum.position.x, sum.position.y, sum.label ?: sum.responseName, RgbaColor.BLACK))
+            val body = if (stats == null) "—" else
+                "n=${formatFixed(stats.count, 0)}  mean=${formatFixed(stats.average, d)}  " +
+                    "min=${formatFixed(stats.min, d)}  max=${formatFixed(stats.max, d)}"
+            // Offset in pixels, not world units: a second line of text must sit one line below the first
+            // whatever the zoom, or the two collide when zoomed out and separate when zoomed in.
+            cmds.add(DrawCmd.Text(sum.position.x, sum.position.y, body, RgbaColor.BLACK, screenOffsetY = TEXT_LINE))
+        }
         for (v in l.values) {
             val value = if (static) null else model.responseValueAt(v.responseName, t)
             val shown = value?.let { formatFixed(it, v.decimals.coerceIn(0, 6)) } ?: "—"
             cmds.add(DrawCmd.Text(v.position.x, v.position.y, "${v.label ?: v.responseName}: $shown", RgbaColor.BLACK))
+        }
+        return cmds
+    }
+
+    /**
+     * A response plotted against time inside its framed box.
+     *
+     * The x-axis spans the plot's own window ending at the current time when it declares one, else the
+     * samples' whole span — so a windowed plot scrolls while an unwindowed one accumulates. The y-axis
+     * auto-scales to what has been observed, because a response's range is rarely known in advance.
+     */
+    private fun plotCommands(plot: PlotDisplayElement, t: Double, static: Boolean): List<DrawCmd> {
+        val cmds = ArrayList<DrawCmd>()
+        val w = Extent.world(plot.width)
+        val h = Extent.world(plot.height)
+        cmds.add(DrawCmd.Rect(plot.position.x, plot.position.y, w, h, fill = RgbaColor.WHITE, stroke = RgbaColor.DARK_GRAY))
+        cmds.add(
+            DrawCmd.Text(plot.position.x, plot.position.y, plot.label ?: plot.responseName,
+                RgbaColor.DARK_GRAY, screenOffsetY = -3.0)
+        )
+        if (static) return cmds
+        val samples = model.responseSamplesUpTo(plot.responseName, t)
+        if (samples.isEmpty()) return cmds
+
+        val tMax = t
+        val tMin = plot.windowDuration?.let { t - it } ?: samples.first().first
+        val tSpan = (tMax - tMin).takeIf { it > 0.0 } ?: 1.0
+        val vMax = samples.maxOf { it.second }.takeIf { it > 0.0 } ?: 1.0
+        val visible = samples.filter { it.first >= tMin }
+        if (visible.size < 2) return cmds
+
+        val points = visible.map { (time, value) ->
+            val fx = ((time - tMin) / tSpan).coerceIn(0.0, 1.0)
+            val fy = (value / vMax).coerceIn(0.0, 1.0)
+            (plot.position.x + fx * plot.width) to (plot.position.y + plot.height - fy * plot.height)
+        }
+        cmds.add(DrawCmd.Polyline(points, RgbaColor.parse(plot.color), width = 1.5))
+        return cmds
+    }
+
+    /**
+     * A histogram of a response's observed values, binned here rather than carried in the trace.
+     *
+     * Binning in the viewer is deliberate: the trace records every observation, so a viewer can re-bin at
+     * will, and shipping pre-binned snapshots would have frozen a choice the reader should own. `discrete`
+     * tallies by integer value instead, for a response that counts things.
+     */
+    private fun histogramCommands(h: HistogramDisplayElement, t: Double, static: Boolean): List<DrawCmd> {
+        val cmds = ArrayList<DrawCmd>()
+        cmds.add(
+            DrawCmd.Rect(h.position.x, h.position.y, Extent.world(h.width), Extent.world(h.height),
+                fill = RgbaColor.WHITE, stroke = RgbaColor.DARK_GRAY)
+        )
+        cmds.add(
+            DrawCmd.Text(h.position.x, h.position.y, h.label ?: h.responseName,
+                RgbaColor.DARK_GRAY, screenOffsetY = -3.0)
+        )
+        if (static) return cmds
+        val values = model.responseSamplesUpTo(h.responseName, t).map { it.second }
+        if (values.isEmpty()) return cmds
+
+        val counts: List<Int> = if (h.discrete) {
+            val tally = HashMap<Int, Int>()
+            for (v in values) tally[round(v).toInt()] = (tally[round(v).toInt()] ?: 0) + 1
+            tally.keys.sorted().map { tally.getValue(it) }
+        } else {
+            val lo = values.min()
+            val hi = values.max()
+            val bins = h.bins.coerceAtLeast(1)
+            val span = (hi - lo).takeIf { it > 0.0 } ?: 1.0
+            val c = IntArray(bins)
+            for (v in values) c[(((v - lo) / span) * bins).toInt().coerceIn(0, bins - 1)]++
+            c.toList()
+        }
+        val maxCount = (counts.maxOrNull() ?: 1).coerceAtLeast(1)
+        val barWidth = h.width / counts.size
+        val color = RgbaColor.parse(h.color)
+        counts.forEachIndexed { i, count ->
+            val barHeight = h.height * count / maxCount
+            cmds.add(
+                DrawCmd.Rect(
+                    h.position.x + i * barWidth, h.position.y + h.height - barHeight,
+                    Extent.world((barWidth * 0.9).coerceAtLeast(0.0)), Extent.world(barHeight),
+                    fill = color
+                )
+            )
+        }
+        return cmds
+    }
+
+    /**
+     * A flow field as a gradient heatmap: green where an agent is close to its goal, red where it is far,
+     * translucent so the agents read on top.
+     *
+     * The teaching value is seeing the gradient the agents are descending — which is why this is drawn at
+     * all rather than left as an internal detail. It is a one-time snapshot the model opted into emitting,
+     * so an ordinary trace simply has none.
+     */
+    private fun flowFieldCommands(): List<DrawCmd> {
+        val cmds = ArrayList<DrawCmd>()
+        for (field in model.flowFieldOverlays) {
+            if (field.cells.isEmpty() || field.maxDistance <= 0.0) continue
+            for (cell in field.cells) {
+                val f = (cell.distance / field.maxDistance).coerceIn(0.0, 1.0)
+                cmds.add(
+                    DrawCmd.Rect(
+                        x = field.originX + cell.col * field.cellSize,
+                        y = field.originY + cell.row * field.cellSize,
+                        width = Extent.world(field.cellSize),
+                        height = Extent.world(field.cellSize),
+                        fill = gradientColor(f)
+                    )
+                )
+            }
+        }
+        return cmds
+    }
+
+    /** Green (at the goal) through to red (farthest), at the overlay's fixed translucency. */
+    private fun gradientColor(f: Double): RgbaColor = RgbaColor(
+        (0x2c + f * (0xd6 - 0x2c)).toInt().coerceIn(0, 255),
+        (0xa0 + f * (0x27 - 0xa0)).toInt().coerceIn(0, 255),
+        (0x2c + f * (0x28 - 0x2c)).toInt().coerceIn(0, 255),
+        FIELD_ALPHA
+    )
+
+    /**
+     * Per-agent velocity (blue) and net steering force (orange) arrows, anchored at each agent's glyph.
+     *
+     * Length is proportional to magnitude but clamped, because an unclamped arrow on a fast agent covers
+     * the model. Sampled at the capture's own rate, so this is only ever as dense as the run chose.
+     */
+    private fun vectorCommands(t: Double): List<DrawCmd> {
+        if (model.agentsWithVectors.isEmpty()) return emptyList()
+        val gridOffset = gridDrawOffset()
+        val cmds = ArrayList<DrawCmd>()
+        for (name in model.agentsWithVectors) {
+            if (!model.agentPresentAt(name, t)) continue
+            val sample = model.agentVectorAt(name, t) ?: continue
+            val p = model.agentPositionAt(name, t) ?: continue
+            val wrapped = model.torusBounds?.wrap(WorldPoint(p.x, p.y, p.z)) ?: p
+            val cx = wrapped.x + gridOffset
+            val cy = wrapped.y + gridOffset
+            if (sample.vx.isFinite() && sample.vy.isFinite()) arrow(cmds, cx, cy, sample.vx, sample.vy, VELOCITY)
+            if (sample.fx.isFinite() && sample.fy.isFinite()) arrow(cmds, cx, cy, sample.fx, sample.fy, FORCE)
+        }
+        return cmds
+    }
+
+    /** A shaft plus a head, the head in pixels so it stays legible at any zoom. */
+    private fun arrow(into: ArrayList<DrawCmd>, x: Double, y: Double, dx: Double, dy: Double, color: RgbaColor) {
+        val mag = hypot(dx, dy)
+        if (mag < 1e-9) return
+        val len = mag.coerceAtMost(MAX_ARROW_WORLD)
+        val ex = x + dx / mag * len
+        val ey = y + dy / mag * len
+        into.add(DrawCmd.Polyline(listOf(x to y, ex to ey), color, width = 2.0))
+        into.add(DrawCmd.ArrowHead(ex, ey, dx, dy, color, length = Extent.px(6.0), width = 2.0))
+    }
+
+    /**
+     * A storage: the entities currently inside a named delay, arranged by the element's style.
+     *
+     * The footprint and label are drawn even when it is empty, so the element stays visible and selectable
+     * while a layout is being authored rather than collapsing to a bare count. Past `maxShown` — or for the
+     * COUNT style — it degrades to a count and a capacity gauge, because a hundred glyphs in a small box
+     * conveys less than the number does.
+     */
+    private fun storageCommands(t: Double, static: Boolean): List<DrawCmd> {
+        val l = layout ?: return emptyList()
+        val cmds = ArrayList<DrawCmd>()
+        for (st in l.storages) {
+            val members = if (static) emptyList() else model.storageMembersAt(st.suspensionName, t)
+            cmds.add(
+                DrawCmd.Rect(
+                    st.position.x, st.position.y,
+                    Extent.world(st.width, minPx = 12.0), Extent.world(st.height, minPx = 10.0),
+                    fill = STORAGE_FILL, stroke = STORAGE_BORDER
+                )
+            )
+            cmds.add(
+                DrawCmd.Text(
+                    st.position.x, st.position.y, "${st.label ?: st.suspensionName} (${members.size})",
+                    RgbaColor.DARK_GRAY, screenOffsetY = -6.0
+                )
+            )
+            if (members.isEmpty()) continue
+
+            if (st.style == StorageStyle.COUNT || members.size > st.maxShown) {
+                // Degraded view: a proportional gauge instead of a crowd of glyphs.
+                val fraction = if (st.capacity > 0) (members.size.toDouble() / st.capacity).coerceIn(0.0, 1.0) else 1.0
+                cmds.add(
+                    DrawCmd.Rect(
+                        st.position.x, st.position.y,
+                        Extent.world(st.width * fraction), Extent.world(st.height * 0.35),
+                        fill = QUEUE_HEAD
+                    )
+                )
+                continue
+            }
+
+            val rad = st.growthDegrees.toRadians()
+            val dx = cos(rad)
+            val dy = sin(rad)
+            fun glyph(member: StorageMember, x: Double, y: Double) {
+                val key = model.entityTypeOf(member.entityId) ?: DEFAULT_TYPE
+                if (st.byType) cmds.add(glyphFor(key, x, y, STORAGE_GLYPH))
+                else cmds.add(DrawCmd.Circle(x, y, Extent.world(STORAGE_GLYPH / 2, minPx = 2.0), fill = QUEUE_HEAD))
+            }
+            when (st.style) {
+                // Each member drifts from entry to exit as its delay elapses, so progress is visible.
+                StorageStyle.PROGRESS_BELT -> {
+                    cmds.add(
+                        DrawCmd.Polyline(
+                            listOf(st.position.x to st.position.y,
+                                (st.position.x + st.width * dx) to (st.position.y + st.width * dy)),
+                            BELT_EMPTY
+                        )
+                    )
+                    for (m in members) {
+                        val span = m.arrivalTime - m.startTime
+                        val progress = if (span > 0.0) ((t - m.startTime) / span).coerceIn(0.0, 1.0) else 0.0
+                        glyph(m, st.position.x + progress * st.width * dx, st.position.y + progress * st.width * dy)
+                    }
+                }
+                StorageStyle.LINE ->
+                    members.forEachIndexed { i, m ->
+                        glyph(m, st.position.x + i * st.spacing * dx, st.position.y + i * st.spacing * dy)
+                    }
+                // Jittered by a hash of the entity id, so a pile looks like a pile and does not shimmer
+                // between frames the way a random offset would.
+                StorageStyle.PILE -> {
+                    val radius = minOf(st.width, st.height) * 0.5
+                    for (m in members) {
+                        val h = (m.entityId * 1103515245L + 12345L) and 0x7fffffffL
+                        val angle = (h % 360).toDouble() * PI / 180.0
+                        val rr = ((h / 360) % 100).toDouble() / 100.0 * radius
+                        glyph(m, st.position.x + rr * cos(angle), st.position.y + rr * sin(angle))
+                    }
+                }
+                else -> { // PACKED_REGION
+                    val cell = (STORAGE_GLYPH + st.spacing * 0.4).coerceAtLeast(STORAGE_GLYPH + 1.0)
+                    val cols = (st.width / cell).toInt().coerceAtLeast(1)
+                    members.forEachIndexed { i, m ->
+                        glyph(m, st.position.x + (i % cols + 0.5) * cell, st.position.y + (i / cols + 0.5) * cell)
+                    }
+                }
+            }
         }
         return cmds
     }
@@ -842,6 +1114,16 @@ class SceneBuilder(
         private const val STATIC_TIME = 0.0
         private const val DEFAULT_BELT_WIDTH = 8.0
         private const val QUEUE_DOT_SIZE = 8.0
+        private const val STORAGE_GLYPH = 10.0
+
+        /** One line of text, in pixels — a second line must sit a fixed gap below the first at any zoom. */
+        private const val TEXT_LINE = 13.0
+
+        /** Arrow length is proportional to magnitude but clamped, or a fast agent's arrow covers the model. */
+        private const val MAX_ARROW_WORLD = 8.0
+
+        /** The heatmap's fixed translucency, so agents stay readable on top of it. */
+        private const val FIELD_ALPHA = 0x66
         private const val QUEUE_HEAD_BAR = 12.0
         private const val DEFAULT_LABEL_DY = -12.0
         private const val DEFAULT_VALUE_DY = 14.0
@@ -877,6 +1159,10 @@ class SceneBuilder(
         private val MOVER_BUSY_RING = RgbaColor(0xd6, 0x27, 0x28)
         private val PLANNED_PATH = RgbaColor(0x15, 0x6e, 0xc8, 0x99)
         private val PULSE_DEFAULT = RgbaColor(0xff, 0x7f, 0x0e)
+        private val STORAGE_FILL = RgbaColor(0x42, 0x85, 0xf4, 0x12)
+        private val STORAGE_BORDER = RgbaColor(0xbb, 0xbb, 0xbb)
+        private val VELOCITY = RgbaColor(0x15, 0x6e, 0xc8)
+        private val FORCE = RgbaColor(0xff, 0x7f, 0x0e)
         private val LEGEND_FILL = RgbaColor(255, 255, 255, 220)
     }
 }

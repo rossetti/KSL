@@ -43,6 +43,8 @@ data class Viewport(val widthPx: Double, val heightPx: Double)
  * @property showStationContents draw station-network QObjects at their current station
  * @property showQueueExtents draw a queue's extent line and head bar even when it is empty
  * @property showHeadings draw a short tick in a continuous agent's direction of travel
+ * @property showVectors draw per-agent velocity and steering-force arrows carried by the trace
+ * @property showFlowField draw the flow-field gradient heatmap carried by the trace
  */
 data class SceneOptions(
     val showLegend: Boolean = true,
@@ -51,7 +53,9 @@ data class SceneOptions(
     val showMarkerPulses: Boolean = true,
     val showStationContents: Boolean = false,
     val showQueueExtents: Boolean = true,
-    val showHeadings: Boolean = true
+    val showHeadings: Boolean = true,
+    val showVectors: Boolean = true,
+    val showFlowField: Boolean = true
 ) {
     companion object {
         /** Everything off but the essentials — for a still image or a small embedded figure. */
@@ -60,7 +64,9 @@ data class SceneOptions(
             showGrid = false,
             showPlannedPaths = false,
             showMarkerPulses = false,
-            showHeadings = false
+            showHeadings = false,
+            showVectors = false,
+            showFlowField = false
         )
     }
 }
