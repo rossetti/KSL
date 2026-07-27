@@ -624,8 +624,20 @@ class SimulationCanvas : JPanel() {
         val label = v.label ?: v.responseName
         val shown = if (value == null) "—" else "%.${v.decimals.coerceIn(0, 6)}f".format(value)
         g2.color = Color.BLACK
-        g2.drawString("$label: $shown", s.x.toFloat(), s.y.toFloat())
+        withCaptionFont(g2, textOnlyPx(tx)) {
+            g2.drawString("$label: $shown", s.x.toFloat(), s.y.toFloat())
+        }
     }
+
+    /**
+     * The drawn size of a display element that is only text, in pixels.
+     *
+     * A bar or plot sizes its caption from its own height; these elements have no box to take one from, so
+     * the size comes from the declared canvas at the same share SceneBuilder uses. The two renderers must
+     * agree, and neither can read it off the element.
+     */
+    private fun textOnlyPx(tx: AffineTransform): Double =
+        (replay?.layout?.height ?: 0.0) * TEXT_ONLY_SHARE * scaleOf(tx)
 
     /** Draws a live histogram/frequency chart, binned in-viewer from the raw observed [values] (8D.1). */
     /**
@@ -685,11 +697,14 @@ class SimulationCanvas : JPanel() {
         val s = screen(tx, sum.position)
         val d = sum.decimals.coerceIn(0, 6)
         g2.color = Color.BLACK
-        val line = g2.fontMetrics.height
-        g2.drawString(sum.label ?: sum.responseName, s.x.toFloat(), s.y.toFloat())
         val body = if (stats == null) "—" else
             "n=%.0f  mean=%.${d}f  min=%.${d}f  max=%.${d}f".format(stats.count, stats.average, stats.min, stats.max)
-        g2.drawString(body, s.x.toFloat(), (s.y + line).toFloat())
+        withCaptionFont(g2, textOnlyPx(tx)) {
+            // Measured from the scaled font, so the two lines keep their spacing as the view zooms.
+            val line = g2.fontMetrics.height
+            g2.drawString(sum.label ?: sum.responseName, s.x.toFloat(), s.y.toFloat())
+            g2.drawString(body, s.x.toFloat(), (s.y + line).toFloat())
+        }
     }
 
     private fun drawBar(g2: Graphics2D, tx: AffineTransform, bar: BarDisplayElement, value: Double, scale: Double) {
@@ -1254,6 +1269,9 @@ class SimulationCanvas : JPanel() {
         // height, while a plot or histogram is a tall box and the same share would give it a headline.
         private const val BAR_CAPTION_SHARE = 0.5
         private const val BOX_CAPTION_SHARE = 0.12
+
+        /** A text-only element's size, as a share of the declared canvas height. Matches SceneBuilder. */
+        private const val TEXT_ONLY_SHARE = 0.021
 
         private const val MIN_ZOOM = 0.1
         private const val MAX_ZOOM = 20.0

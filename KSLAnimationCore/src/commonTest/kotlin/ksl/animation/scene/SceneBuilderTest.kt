@@ -573,6 +573,35 @@ class SceneBuilderDisplayTest {
         assertEquals(20.0 * 0.5, size.value, 1e-9, "a share of the bar's own height, so it fits the bar")
     }
 
+    /**
+     * A value read-out and a statistics summary scale too, though neither has a box to take a size from.
+     *
+     * They *are* their text — the layout gives them a position and nothing else — so the size comes from the
+     * declared canvas. Left fixed while everything beside them scaled, they would have been the one thing in
+     * a panel that changed size relative to the rest as a window moved.
+     */
+    @Test
+    fun textOnlyDisplaysScaleWithTheDrawingToo() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            values = listOf(ksl.animation.ValueDisplayElement("WaitTime", LayoutPoint(10.0, 10.0))),
+            summaries = listOf(SummaryDisplayElement("WaitTime", LayoutPoint(10.0, 100.0), decimals = 1))
+        )
+        val texts = sceneOf(layout, responseEvents, 3.0).commandsOf("displays").filterIsInstance<DrawCmd.Text>()
+        for (text in texts) {
+            assertNotNull(text.size as? Extent.World, "'${text.text}' must scale with the drawing")
+        }
+
+        // The summary's two lines are spaced in the same units the text is sized in. A fixed pixel gap was
+        // right while the text was a fixed size and wrong the moment it scaled: the lines would collide when
+        // zoomed in and drift apart when zoomed out.
+        val summaryLines = texts.filter { it.x == 10.0 && it.y >= 100.0 }.sortedBy { it.y }
+        assertEquals(2, summaryLines.size, "a summary is a heading and a body")
+        assertEquals(0.0, summaryLines[0].screenOffsetY, "neither line leans on a pixel offset")
+        assertEquals(0.0, summaryLines[1].screenOffsetY)
+        assertTrue(summaryLines[1].y > summaryLines[0].y, "the body sits below the heading, in world units")
+    }
+
     @Test
     fun aHistogramBinsTheObservedValues() {
         val layout = AnimationLayout(
@@ -598,8 +627,11 @@ class SceneBuilderDisplayTest {
         val body = assertNotNull(texts.firstOrNull { "mean" in it.text }, "the statistics line")
         assertTrue("n=3" in body.text, "count; got '${body.text}'")
         assertTrue("mean=4.0" in body.text, "mean; got '${body.text}'")
-        // The second line is offset in pixels, so it stays one line below at any zoom.
-        assertTrue(body.screenOffsetY > 0.0, "the body sits below the label in screen space")
+        // One line below the label, spaced in the units the text is sized in. That was a pixel offset while
+        // the text was a fixed size; now that it scales, a pixel gap would close as the view zoomed in.
+        val heading = assertNotNull(texts.firstOrNull { "mean" !in it.text }, "the label line")
+        assertTrue(body.y > heading.y, "the body sits below the label")
+        assertEquals(0.0, body.screenOffsetY, "and does so in world units, not a fixed pixel gap")
     }
 
     @Test

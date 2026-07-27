@@ -798,18 +798,30 @@ class SceneBuilder(
         for (sum in l.summaries) {
             val stats = if (static) null else model.responseStatsAt(sum.responseName, t)
             val d = sum.decimals.coerceIn(0, 6)
-            cmds.add(DrawCmd.Text(sum.position.x, sum.position.y, sum.label ?: sum.responseName, RgbaColor.BLACK))
+            val summarySize = textOnlySize()
+            cmds.add(
+                DrawCmd.Text(sum.position.x, sum.position.y, sum.label ?: sum.responseName,
+                    RgbaColor.BLACK, size = summarySize)
+            )
             val body = if (stats == null) "—" else
                 "n=${formatFixed(stats.count, 0)}  mean=${formatFixed(stats.average, d)}  " +
                     "min=${formatFixed(stats.min, d)}  max=${formatFixed(stats.max, d)}"
-            // Offset in pixels, not world units: a second line of text must sit one line below the first
-            // whatever the zoom, or the two collide when zoomed out and separate when zoomed in.
-            cmds.add(DrawCmd.Text(sum.position.x, sum.position.y, body, RgbaColor.BLACK, screenOffsetY = TEXT_LINE))
+            // One line below the first, measured in the same units the text is sized in. A fixed pixel
+            // offset was right while the text was a fixed size and wrong the moment it scaled: the two lines
+            // would have collided as the view zoomed in and drifted apart as it zoomed out.
+            val lineHeight = (summarySize as? Extent.World)?.value?.times(LINE_SPACING) ?: 0.0
+            cmds.add(
+                DrawCmd.Text(sum.position.x, sum.position.y + lineHeight, body,
+                    RgbaColor.BLACK, size = summarySize)
+            )
         }
         for (v in l.values) {
             val value = if (static) null else model.responseValueAt(v.responseName, t)
             val shown = value?.let { formatFixed(it, v.decimals.coerceIn(0, 6)) } ?: "—"
-            cmds.add(DrawCmd.Text(v.position.x, v.position.y, "${v.label ?: v.responseName}: $shown", RgbaColor.BLACK))
+            cmds.add(
+                DrawCmd.Text(v.position.x, v.position.y, "${v.label ?: v.responseName}: $shown",
+                    RgbaColor.BLACK, size = textOnlySize())
+            )
         }
         return cmds
     }
@@ -849,6 +861,18 @@ class SceneBuilder(
      */
     private fun captionSize(heightWorld: Double, share: Double): Extent =
         Extent.world((heightWorld * share).coerceAtLeast(1e-6), minPx = 8.0)
+
+    /**
+     * How large a display element that is only text — a value read-out, a statistics summary — is drawn.
+     *
+     * A bar or a plot sizes its caption from its own height, which is the honest basis because the caption
+     * belongs to that box. These elements have no box: they *are* their text, and the layout gives them a
+     * position and nothing else. So the size comes from the canvas the author declared, at a share chosen to
+     * land where a bar's caption lands on the same layout — which is what keeps a panel of mixed elements
+     * looking like one panel.
+     */
+    private fun textOnlySize(): Extent =
+        Extent.world(((layout?.height ?: DEFAULT_WORLD.height) * TEXT_ONLY_SHARE).coerceAtLeast(1e-6), minPx = 8.0)
 
     private fun plotCommands(plot: PlotDisplayElement, t: Double, static: Boolean): List<DrawCmd> {
         val cmds = ArrayList<DrawCmd>()
@@ -1291,7 +1315,6 @@ class SceneBuilder(
         private const val STORAGE_GLYPH = 10.0
 
         /** One line of text, in pixels — a second line must sit a fixed gap below the first at any zoom. */
-        private const val TEXT_LINE = 13.0
 
         /** Arrow length is proportional to magnitude but clamped, or a fast agent's arrow covers the model. */
         /** An arrow at full stretch spans this share of the world's larger side. */
@@ -1320,6 +1343,16 @@ class SceneBuilder(
 
         /** A plot or histogram is a tall box; the same share would give it a headline. */
         private const val BOX_CAPTION_SHARE = 0.12
+
+        /**
+         * A text-only element's size, as a share of the declared canvas height. Chosen to match where a
+         * bar's caption lands: an author sizes a bar to its layout, so half of a typical bar's height is
+         * about this much of the canvas.
+         */
+        private const val TEXT_ONLY_SHARE = 0.021
+
+        /** Baseline-to-baseline spacing, as a multiple of the text size. */
+        private const val LINE_SPACING = 1.25
 
         /** Costly ground: amber, so it is not mistaken for a wall or for the flow field's green-to-red. */
         private val TERRAIN = RgbaColor(0xd9, 0x8c, 0x1f)
