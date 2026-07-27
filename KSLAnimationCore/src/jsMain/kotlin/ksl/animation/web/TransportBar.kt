@@ -47,7 +47,6 @@ internal class TransportBar(private val container: HTMLElement) {
     private val progressFill = document.createElement("div") as HTMLDivElement
 
     private var controller: PlaybackController? = null
-    private var baseSpeed = 1.0
 
     /** The vertical space the bar occupies, so the canvas can be sized to what is left. */
     val heightPx: Double get() = HEIGHT
@@ -88,18 +87,14 @@ internal class TransportBar(private val container: HTMLElement) {
 
         speedSelect.setAttribute("aria-label", "Playback speed")
         speedSelect.setAttribute("style", "padding:2px 4px;border:1px solid #ccc;border-radius:4px;background:#fff;font:inherit;")
-        for (multiplier in SPEEDS) {
-            val option = document.createElement("option") as org.w3c.dom.HTMLOptionElement
-            option.value = multiplier.toString()
-            option.textContent = label(multiplier)
-            speedSelect.appendChild(option)
-        }
-        // Selected by index, not by value. Kotlin/JS prints an integral Double without its fractional
-        // part, so 1.0.toString() is "1" -- assigning value = "1.0" here matched no option at all and left
-        // the control blank.
-        speedSelect.selectedIndex = SPEEDS.indexOf(1.0)
+        // The speeds are ABSOLUTE — simulated time units per real second — and are the same list the
+        // desktop viewer offers, so "5x" means one thing wherever an animation is being watched. They used
+        // to be multipliers of whatever speed had been chosen to fit the run into twenty seconds, which
+        // made the label mean different rates for different models and put the slowest setting well above
+        // the desktop's: on a 480-unit run the browser could not go below six units a second where the
+        // desktop reached a quarter of one.
         speedSelect.addEventListener("change", {
-            controller?.speed = baseSpeed * (speedSelect.value.toDoubleOrNull() ?: 1.0)
+            speedSelect.value.toDoubleOrNull()?.let { controller?.speed = it }
         })
 
         timeLabel.setAttribute("style", "font-variant-numeric:tabular-nums;color:#555;min-width:96px;text-align:right;")
@@ -125,8 +120,20 @@ internal class TransportBar(private val container: HTMLElement) {
 
     fun bind(controller: PlaybackController) {
         this.controller = controller
-        baseSpeed = controller.speed
-        speedSelect.selectedIndex = SPEEDS.indexOf(1.0)
+        // The run's own auto-chosen speed joins the list when it is not already one of the presets, so the
+        // control opens showing the rate actually in use rather than the nearest thing to it.
+        val speeds = (PlaybackController.SPEEDS + controller.speed).distinct().sorted()
+        val selected = speeds.indexOf(controller.speed)
+        while (speedSelect.firstChild != null) speedSelect.removeChild(speedSelect.firstChild!!)
+        for (speed in speeds) {
+            val option = document.createElement("option") as org.w3c.dom.HTMLOptionElement
+            option.value = speed.toString()
+            option.textContent = label(speed)
+            speedSelect.appendChild(option)
+        }
+        // By index, not value: Kotlin/JS prints an integral Double without its fractional part, so
+        // `1.0.toString()` is "1" and assigning `value = "1.0"` matches no option and blanks the control.
+        speedSelect.selectedIndex = if (selected >= 0) selected else speeds.indexOf(1.0).coerceAtLeast(0)
         syncPlayLabel(controller)
         progressFill.style.width = "0"
     }
@@ -174,6 +181,6 @@ internal class TransportBar(private val container: HTMLElement) {
     private companion object {
         const val HEIGHT = 34.0
         const val SCRUB_STEPS = 1000.0
-        val SPEEDS = listOf(0.25, 0.5, 1.0, 2.0, 4.0, 8.0)
+        // The offered speeds live on PlaybackController, shared with the desktop viewer.
     }
 }

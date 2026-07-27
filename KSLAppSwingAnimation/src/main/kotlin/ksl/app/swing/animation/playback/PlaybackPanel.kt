@@ -43,7 +43,7 @@ class PlaybackPanel(private val controller: PlaybackController) : JPanel(FlowLay
     private val playButton = JButton("Play")
     private val stopButton = JButton("Stop")
     private val slider = JSlider(0, SLIDER_RESOLUTION, 0)
-    private val speedBox = JComboBox(arrayOf("0.25x", "0.5x", "1x", "2x", "5x", "10x", "25x", "50x", "100x")).apply {
+    private val speedBox = JComboBox(PlaybackController.SPEEDS.map { speedLabel(it) }.toTypedArray()).apply {
         isEditable = true // allow auto-scaled / custom speeds beyond the presets
     }
     private val loopBox = JCheckBox("Loop")
@@ -114,18 +114,11 @@ class PlaybackPanel(private val controller: PlaybackController) : JPanel(FlowLay
      * of wall-clock, and reflects it in the speed selector. Without this a long run plays at 1x — e.g. a
      * 480-unit run would take 8 minutes, appearing not to animate. A no-op for an empty/tiny span.
      */
-    fun applyAutoSpeed(span: Double, targetSeconds: Double = DEFAULT_TARGET_SECONDS) {
+    fun applyAutoSpeed(span: Double, targetSeconds: Double = PlaybackController.DEFAULT_TARGET_SECONDS) {
         if (span <= 0.0 || targetSeconds <= 0.0) return
-        val desired = span / targetSeconds
-        if (desired <= 0.0) return
-        // Round to a tidy 1/2/5 x 10^n so the read-out is clean.
-        val mag = Math.pow(10.0, Math.floor(Math.log10(desired)))
-        val norm = desired / mag
-        val nice = when { norm < 1.5 -> 1.0; norm < 3.5 -> 2.0; norm < 7.5 -> 5.0; else -> 10.0 } * mag
-        val speed = nice.coerceAtLeast(0.25)
-        val label = if (speed == Math.floor(speed)) "${speed.toInt()}x" else "${speed}x"
-        speedBox.selectedItem = label // its action listener applies the parsed speed to the controller
-        controller.speed = speed       // and set directly in case the label already matched the selection
+        val speed = PlaybackController.autoSpeedFor(span, targetSeconds)
+        speedBox.selectedItem = speedLabel(speed) // its action listener applies the parsed speed…
+        controller.speed = speed                  // …and set directly in case the label already matched
     }
 
     private fun syncPlayButton() {
@@ -147,6 +140,8 @@ class PlaybackPanel(private val controller: PlaybackController) : JPanel(FlowLay
     companion object {
         private const val SLIDER_RESOLUTION = 1000
         private const val FRAME_DELAY_MS = 33
-        private const val DEFAULT_TARGET_SECONDS = 25.0
+        /** "5x" / "0.25x" — a speed in simulated units per real second, as the box shows it. */
+        internal fun speedLabel(speed: Double): String =
+            if (speed == Math.floor(speed)) "${speed.toInt()}x" else "${speed}x"
     }
 }

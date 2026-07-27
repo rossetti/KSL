@@ -123,7 +123,10 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
         out: Path,
         title: String = trace.fileName.toString().removeSuffix(".gz").removeSuffix(".atf").trim('.'),
         autoPlay: Boolean = true,
-        fitSeconds: Double = 20.0
+        // How long the whole run should take to watch. Must stay equal to
+        // PlaybackController.DEFAULT_TARGET_SECONDS, so a run opens at the same speed wherever it is
+        // watched; written out because that constant lives in the Swing module, which this one is below.
+        fitSeconds: Double = 25.0
     ): ExportSizeReport {
         val traceText = readTraceText(trace)
         // Scaffold a layout when none was supplied. Without one a process-view model draws nothing at all:

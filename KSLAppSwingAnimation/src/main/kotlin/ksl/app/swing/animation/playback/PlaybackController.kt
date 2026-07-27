@@ -17,6 +17,7 @@
  */
 
 package ksl.app.swing.animation.playback
+import kotlin.math.pow
 
 /**
  * The headless playback state machine for the replay viewer: it owns the current replay time, the
@@ -144,5 +145,48 @@ class PlaybackController(timeRange: ClosedRange<Double> = 0.0..0.0) {
     fun seekFraction(f: Double) {
         val span = effectiveRange.endInclusive - effectiveRange.start
         seek(effectiveRange.start + f.coerceIn(0.0, 1.0) * span)
+    }
+
+    companion object {
+        /**
+         * The speeds a viewer offers, in **simulated time units per real second** — an absolute rate, not a
+         * multiplier. A run whose clock reaches 480 played at `5.0` takes 96 seconds to watch, whatever the
+         * model is and whichever viewer is showing it.
+         *
+         * Absolute rather than relative because the two are indistinguishable on screen and behave quite
+         * differently: a multiplier of a rate chosen to fit the run means "1x" is fast for a long run and
+         * slow for a short one, and its slowest setting is only ever a fraction of a speed somebody else
+         * picked. The browser player used to do that, and could not be slowed below a quarter of a fitted
+         * rate — six times the desktop's floor on a typical run, with both labelled "1x".
+         */
+        val SPEEDS: List<Double> = listOf(0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0)
+
+        /** How long a viewer aims to take playing a whole run when it picks a speed for you. */
+        const val DEFAULT_TARGET_SECONDS: Double = 25.0
+
+        /**
+         * A tidy speed that plays a run of [span] simulated units in about [targetSeconds] real ones.
+         *
+         * Rounded to a 1/2/5 x 10^n value so the read-out is something a person would have chosen, and
+         * floored at the slowest offered speed so a very short run does not select a rate below the list.
+         * Shared so the desktop and the browser cannot disagree about what a run should look like.
+         */
+        fun autoSpeedFor(span: Double, targetSeconds: Double = DEFAULT_TARGET_SECONDS): Double {
+            if (span <= 0.0 || targetSeconds <= 0.0) return 1.0
+            val desired = span / targetSeconds
+            if (desired <= 0.0) return 1.0
+            val magnitude = kotlin.math.floor(kotlin.math.log10(desired)).let { e -> tenTo(e) }
+            val normalized = desired / magnitude
+            val nice = when {
+                normalized < 1.5 -> 1.0
+                normalized < 3.5 -> 2.0
+                normalized < 7.5 -> 5.0
+                else -> 10.0
+            } * magnitude
+            return maxOf(nice, SPEEDS.first())
+        }
+
+        /** 10^[e]. Written as a receiver call because this file is compiled for Kotlin/JS as well. */
+        private fun tenTo(e: Double): Double = 10.0.pow(e)
     }
 }

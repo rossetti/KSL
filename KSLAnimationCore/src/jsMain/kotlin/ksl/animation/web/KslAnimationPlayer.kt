@@ -43,7 +43,8 @@ internal data class PlayerOptions(
     val loop: Boolean = true,
     /** Simulated time units per real second; null fits the whole run into [fitSeconds]. */
     val speed: Double? = null,
-    val fitSeconds: Double = 20.0,
+    /** How long the whole run should take to watch when no speed is given. Matches the desktop viewer. */
+    val fitSeconds: Double = PlaybackController.DEFAULT_TARGET_SECONDS,
     val assetBase: String? = null,
     val background: RgbaColor = RgbaColor.WHITE
 )
@@ -123,7 +124,9 @@ internal class KslAnimationPlayer(
 
         controller = PlaybackController(replay.timeRange).also { c ->
             val span = replay.timeRange.endInclusive - replay.timeRange.start
-            c.speed = options.speed ?: if (span > 0.0) span / options.fitSeconds else 1.0
+            // The same tidy rate the desktop would pick, so the two viewers open a run at one speed and the
+            // transport bar can show it as one of its listed values rather than an odd fraction.
+            c.speed = options.speed ?: PlaybackController.autoSpeedFor(span, options.fitSeconds)
             c.loop = options.loop
             c.addTimeListener { t ->
                 transport?.showTime(t, c)
