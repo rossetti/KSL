@@ -23,8 +23,12 @@ import kotlin.io.path.exists
 object AnimationsPackage {
 
     /**
-     * Models left out of the pack, with the reason. Kept as data rather than a filter buried in a loop,
+     * Models left out of **the pack**, with the reason. Kept as data rather than a filter buried in a loop,
      * because an exclusion that is not explained becomes an exclusion nobody dares remove.
+     *
+     * Their traces are still captured. Everything downstream of a trace — polishing the layout, rendering
+     * frames, exporting a single page by hand — needs one, and it would be a poor trade to make somebody
+     * capture a model separately just because the download omits it.
      */
     val excluded: Map<String, String> = mapOf(
         // 80 agents stepping at a small dt write 130,000 position events: 17 MB of trace, a third of the
@@ -56,21 +60,27 @@ object AnimationsPackage {
         val captured = ArrayList<String>()
         val skipped = ArrayList<String>()
         for (modelId in modelIds) {
-            if (modelId in excluded) continue
-            var trace = tracesDir.resolve("$modelId.atf")
             val layout = layoutsRoot.resolve(bundleId).resolve("$modelId.lay.toml")
 
-            // The layout is committed, so a missing one means the bundle gained a model that was never
-            // polished — a person has to fix that. A missing trace is only work nobody has done yet.
+            // Every model the bundle ships needs a layout, including the ones this download omits. The
+            // layouts are committed, so a missing one means the bundle gained a model nobody polished —
+            // a person has to fix that. A missing trace is only work nobody has done yet.
             if (!layout.exists()) {
                 skipped.add(modelId)
                 continue
             }
+
+            // Captured before the exclusion is applied, not after: leaving the pack out of a model is a
+            // decision about the download, and everything else anyone does with that model still starts
+            // from a trace.
+            var trace = tracesDir.resolve("$modelId.atf")
             if (!trace.exists() && captureMissing) {
                 println("  capturing $modelId …")
                 trace = ShowcaseCapture.capture(modelId, tracesDir).traceFile
                 captured.add(modelId)
             }
+
+            if (modelId in excluded) continue
             if (!trace.exists()) {
                 skipped.add(modelId)
                 continue

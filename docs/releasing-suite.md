@@ -166,9 +166,11 @@ under `docs/animations/layouts`, so it needs nothing that is not in the reposito
 If it reports a model with **no polished layout**, the bundle has gained a model nobody has polished. That
 is a person's job, not something the release should paper over.
 
-The flocking model is deliberately left out: eighty agents stepping at a small interval write 130,000
-position events, so its trace alone would be a third of the pack. It still ships in the suite — only the
-download omits it. The exclusion list is `AnimationsPackage.excluded`, with the reason beside it.
+The flocking model is deliberately left out of the **download**: eighty agents stepping at a small interval
+write 130,000 position events, so its trace alone would be a third of the pack. It still ships in the suite,
+and its trace is still captured — everything downstream of a trace needs one, so the polish workflow works
+straight after this task with nothing captured by hand. The exclusion list is `AnimationsPackage.excluded`,
+with the reason beside it.
 
 Upload `ksl-animations.zip` alongside `ksl-suite.zip` when publishing the release. Unlike the suite asset
 it is not referenced by `manifest.json`, so nothing needs stamping and nothing breaks if it is absent.
