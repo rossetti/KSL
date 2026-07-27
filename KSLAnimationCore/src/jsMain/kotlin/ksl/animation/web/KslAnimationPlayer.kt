@@ -28,6 +28,7 @@ import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.replay.autoLayout
 import ksl.app.animation.scene.SceneBuilder
 import ksl.app.swing.animation.playback.PlaybackController
+import kotlin.js.Date
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.CanvasRenderingContext2D
@@ -92,7 +93,7 @@ internal class KslAnimationPlayer(
         canvas.style.display = "block"
         container.appendChild(canvas)
         transport?.attachAfter(canvas)
-        installMouseControls()
+        installPointerControls()
         window.addEventListener("resize", { resize() })
     }
 
@@ -209,45 +210,87 @@ internal class KslAnimationPlayer(
 
     // ── view controls ───────────────────────────────────────────────────────────────────────────────
 
-    private fun installMouseControls() {
-        var dragging = false
-        var lastX = 0.0
-        var lastY = 0.0
+    /**
+     * Binds navigation to *pointer* events rather than to mouse events.
+     *
+     * One set of handlers then covers a mouse, a finger and a pen, which is what lets a page from the
+     * animation pack be navigated on a tablet: the transport bar is ordinary HTML and always worked by
+     * touch, but drag-to-pan and pinch-to-zoom silently did nothing while the canvas listened only for
+     * `mousedown`/`mousemove`. The gesture arithmetic itself is in [PointerGestures].
+     *
+     * Two details are load-bearing. `touch-action: none` stops the browser claiming a drag for page
+     * scrolling or its own double-tap zoom before the canvas ever sees it. Pointer capture keeps a drag
+     * alive when the finger or cursor leaves the canvas — the job the old window-level `mousemove` and
+     * `mouseup` listeners were doing by hand.
+     */
+    private fun installPointerControls() {
+        canvas.style.setProperty("touch-action", "none")
+        val gestures = PointerGestures()
 
         canvas.addEventListener("wheel", { event ->
             event.preventDefault()
             val wheel = event as WheelEvent
             val factor = if (wheel.deltaY < 0) ZOOM_STEP else 1.0 / ZOOM_STEP
             val rect = canvas.getBoundingClientRect()
-            view = view.zoomedAbout(factor, wheel.clientX - rect.left, wheel.clientY - rect.top)
-            // zoomedAbout solves for an absolute pan that keeps the cursor's world point fixed; store it
-            // back as a delta so the centring stays separable.
-            zoom = view.zoom
-            userPanX = view.panX - basePanX
-            userPanY = view.panY - basePanY
+            adopt(view.zoomedAbout(factor, wheel.clientX - rect.left, wheel.clientY - rect.top))
             render(controller.currentTime)
         })
-        canvas.addEventListener("mousedown", { event ->
+        canvas.addEventListener("pointerdown", { event ->
             val e = event.asDynamic()
-            dragging = true; lastX = e.clientX as Double; lastY = e.clientY as Double
+            gestures.down(e.pointerId as Int, e.clientX as Double, e.clientY as Double, now())
+            // Throws if the browser no longer considers the pointer active. Dragging still works without
+            // capture — it just stops at the canvas edge — so this must not abort the rest of the handler.
+            runCatching { canvas.asDynamic().setPointerCapture(e.pointerId) }
             canvas.style.cursor = "grabbing"
         })
-        window.addEventListener("mouseup", {
-            dragging = false
-            canvas.style.cursor = "default"
-        })
-        window.addEventListener("mousemove", { event ->
-            if (!dragging) return@addEventListener
+        canvas.addEventListener("pointermove", { event ->
             val e = event.asDynamic()
-            val x = e.clientX as Double
-            val y = e.clientY as Double
-            userPanX += x - lastX; userPanY += y - lastY
-            lastX = x; lastY = y
-            view = view.withZoomPan(zoom, basePanX + userPanX, basePanY + userPanY)
-            render(controller.currentTime)
+            val change = gestures.move(e.pointerId as Int, e.clientX as Double, e.clientY as Double)
+                ?: return@addEventListener
+            apply(change)
         })
+        canvas.addEventListener("pointerup", { event ->
+            val e = event.asDynamic()
+            val doubleTapped = gestures.up(e.pointerId as Int, e.clientX as Double, e.clientY as Double, now())
+            if (!gestures.isActive) canvas.style.cursor = "default"
+            if (doubleTapped) resetView()
+        })
+        canvas.addEventListener("pointercancel", { event ->
+            gestures.cancel(event.asDynamic().pointerId as Int)
+            if (!gestures.isActive) canvas.style.cursor = "default"
+        })
+        // A mouse still gets its double-click through the browser's own event; a finger gets the same
+        // reset from the double tap [PointerGestures] recognises. Resetting twice is harmless.
         canvas.addEventListener("dblclick", { resetView() })
     }
+
+    private fun apply(change: PointerGestures.Change) {
+        userPanX += change.panXPx
+        userPanY += change.panYPx
+        view = view.withZoomPan(zoom, basePanX + userPanX, basePanY + userPanY)
+        if (change.zoomFactor != 1.0) {
+            val rect = canvas.getBoundingClientRect()
+            adopt(view.zoomedAbout(change.zoomFactor, change.focusXPx - rect.left, change.focusYPx - rect.top))
+        }
+        render(controller.currentTime)
+    }
+
+    /**
+     * Takes [next] as the current view, storing its pan back as a delta from the fitted position.
+     *
+     * Zooming about a point solves for an *absolute* pan that holds that point still, so adopting the
+     * result verbatim would fold the fitted centring into the user's offset and a later resize would
+     * re-centre on top of it. Splitting it back out is what keeps the two separable.
+     */
+    private fun adopt(next: ViewTransform) {
+        view = next
+        zoom = next.zoom
+        userPanX = next.panX - basePanX
+        userPanY = next.panY - basePanY
+    }
+
+    /** Wall-clock milliseconds, for recognising a double tap. */
+    private fun now(): Double = Date.now()
 
     fun resetView() {
         zoom = 1.0; userPanX = 0.0; userPanY = 0.0
