@@ -43,7 +43,26 @@ tasks.test {
 // Doc tooling: render real animation frames from a captured `.atf` trace through the app's own
 // SimulationCanvas, headless — used to produce the canvas images in docs/guides/apps/animation.md.
 // Usage: ./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf> [-PlayoutFile=<run.lay.json>
-//          -Pframes=N -Pout=<dir> -Pw=1200 -Ph=820]
+//          -Pframes=N -Pout=<dir> -Pw=1200 -Ph=820 -Pcrop=false]
+// -Pcrop=false keeps every frame the same size, which a sequence destined for an animation needs.
+// Doc tooling: render a captured trace to a looping animated GIF -- the showcase animations in the README
+// and the animation guide. Uses javax.imageio, so it needs no encoder installed.
+// Usage: ./gradlew :KSLAppSwingAnimation:renderGif -Ptrace=<run.atf> -PlayoutFile=<run.lay.json>
+//          -Pout=<file.gif> [-Pframes=60 -Pw=900 -Ph=520 -Pdelay=8 -Pfrom=<t> -Pto=<t>]
+tasks.register<JavaExec>("renderGif") {
+    group = "documentation"
+    description = "Render a looping animated GIF from a captured .atf trace (README + guide showcase images)."
+    dependsOn("testClasses")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("ksl.app.swing.animation.examples.RenderAnimatedGifKt")
+    jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
+    listOf("trace", "frames", "out", "w", "h", "delay", "from", "to").forEach { p ->
+        if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
+    }
+    // -PlayoutFile, not -Playout: Project.layout shadows the latter. See renderFrames below.
+    if (project.hasProperty("layoutFile")) systemProperty("layout", project.property("layoutFile")!!)
+}
+
 tasks.register<JavaExec>("renderFrames") {
     group = "documentation"
     description = "Render animation frames from a captured .atf trace (docs/guides/apps/animation.md visuals)."
@@ -51,7 +70,7 @@ tasks.register<JavaExec>("renderFrames") {
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("ksl.app.swing.animation.examples.RenderFramesKt")
     jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
-    listOf("trace", "frames", "out", "w", "h").forEach { p ->
+    listOf("trace", "frames", "out", "w", "h", "crop").forEach { p ->
         if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
     }
     // The renderer accepts an authored layout, but it cannot be passed as -Playout: Gradle's Project

@@ -256,7 +256,72 @@ station contents, and fit/zoom.
 
 ---
 
-## 8. See also
+## 8. Gallery — what a polished layout looks like
+
+Everything above produces a layout **automatically**. Auto Layout mines the run for
+what it can — flow order, real positions, where each machine stands, the routes
+entities took — and that is usually enough to understand a model. Turning one into
+something worth *showing* is a further pass of deliberate work: renaming what a
+reader would not recognise, hiding the labels that only repeat their neighbours,
+sizing elements to the arrangement, and saying in a caption what the picture is of.
+
+These six are the KSL animation bundle's models after that pass. Each is a committed
+`.lay.json` in [`docs/animations/layouts`](../../animations/layouts), produced by a
+script that records why every change was made, and each plays against a trace you
+can capture yourself in one command.
+
+**Test & repair shop, with transport workers** — five stations placed from the
+model's own distance matrix, the routes parts actually travelled drawn between them,
+and three workers (triangles) carrying parts around the shop.
+
+![Test and repair shop: five stations placed by distance, grey route lines between them, coloured triangles for the transport workers, and parts queued at Diagnostics and Test 3](images/animation/showcase-test-repair-movers.png)
+
+**The same shop, with a loop conveyor** — the transport policy swapped. The belt is
+drawn as the loop it is, with each segment's length proportional to the cells the
+model declares, so a ride takes as long on screen as it does in the run.
+
+![The same test and repair shop with a 130-cell accumulating loop conveyor drawn as a rectangle, stations arranged around it, and parts riding the belt between them](images/animation/showcase-test-repair-conveyor.png)
+
+**STEM career fair** — students walk a five-location venue. Where they *stop* is a
+bare `delay()` with no geometry of its own; a **storage** bound to the delay's name
+is what draws it, as a crowd at the name-tag table and a room full of conversations.
+
+![A STEM fair venue drawn as a corridor with five locations, a name-tag table above it, a conversation room below holding four students, and two recruiter stations with waiting lines](images/animation/showcase-stem-fair.png)
+
+**Tandem queue with blocking** — a single buffer space between two stations. A
+blocked server and a busy server look identical in a report; here the queue at the
+buffer *is* the blockage, and the annotations say so.
+
+![Two stations either side of a single buffer, with captions under each queue explaining that the buffer queue holds parts that finished stage 1 and cannot leave it](images/animation/showcase-tandem-blocking.png)
+
+**SIR epidemic on a grid** — an agent model. The colours are the agents' own reported
+states, and the three bars share one scale, so their crossover is the epidemic
+peaking.
+
+![A 20 by 20 grid of coloured dots — blue susceptible, red infected, green recovered — beside three bars on a shared scale](images/animation/showcase-grid-epidemic.png)
+
+**Pedestrian crowd** — forty people leaving a room through a three-cell doorway under
+social-force dynamics. Blue is where each is going, orange is the force of the crowd
+pushing on it, and the wash behind them is the flow field they steer down.
+
+![Forty pedestrians crushed into an arch at a doorway in a wall, with velocity and force arrows on each and a green-to-red flow field behind them](images/animation/showcase-pedestrian-crowd.png)
+
+Reproducing any of them takes two commands — one to capture the trace, one to apply
+the polish:
+
+```bash
+./gradlew :KSLExamples:showcaseCapture -PmodelName=Example13MovableResources -Pout=build/showcase
+python3 docs/animations/polish-Example13.py
+```
+
+`-PmodelName=list` prints everything capturable. The reusable part — which defects to
+look for, and in what order to fix them — is written up in the
+[polishing playbook](../../animations/polishing-playbook.md), which also covers doing
+the same over the MCP server.
+
+---
+
+## 9. See also
 
 - [Common UI & concepts](common-ui.md) — models & bundles, the workspace, themes.
 - The modeling guides behind what you're watching — [`ksl-entity`](../ksl-entity.md)
