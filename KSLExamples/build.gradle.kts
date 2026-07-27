@@ -144,6 +144,17 @@ tasks.named<Test>("test") {
     val jar = tasks.named<Jar>("animationBuildersJar").flatMap { it.archiveFile }
     inputs.file(jar)
     doFirst { systemProperty("animationBundleJar", jar.get().asFile.absolutePath) }
+
+    // ShippedLayoutTest reads the ASSEMBLED bundle's manifest to learn which models ship, then asserts a
+    // layout exists for each. That jar is produced by kslpkg, not by a Jar task, so nothing about compiling
+    // or testing creates it: without this the test passes only on a machine where some earlier command
+    // happened to leave one in build/libs, and fails on a fresh clone or after `clean`. It did exactly that.
+    //
+    // A dependency rather than an assumeTrue skip, deliberately. The test exists to catch a bundle whose
+    // models and shipped layouts have drifted apart, which is a mistake made while editing the bundle — the
+    // moment it is most likely to be right is the moment it would silently skip.
+    dependsOn("animationExamplesBundleJar")
+    inputs.file(layout.buildDirectory.file("libs/animation-examples.jar"))
 }
 
 // Convert the polish scripts' output into the .lay.toml layouts that ship with the suite, keyed
