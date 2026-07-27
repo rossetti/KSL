@@ -129,7 +129,10 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
         // Scaffold a layout when none was supplied. Without one a process-view model draws nothing at all:
         // a trace records where things move, not where a queue or its server belongs. The desktop viewer
         // scaffolds in exactly this situation, and an exported page should not be worse than the app.
-        val layoutJson = (layout?.let { AnimationLayout.readFromFile(it) } ?: scaffoldFor(trace))?.toJson()
+        // `read`, not `readFromFile`: the latter parses JSON only, and the animation app SAVES layouts as
+        // .lay.toml by default -- so exporting a layout a user had just saved failed outright. Whatever the
+        // file is, the page carries JSON, because that is what the browser player reads.
+        val layoutJson = (layout?.let { AnimationLayout.read(it) } ?: scaffoldFor(trace))?.toJson()
 
         val html = buildString {
             append(pageHead(title))
@@ -171,6 +174,66 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
             traceBytes = traceText.length.toLong(),
             layoutBytes = (layoutJson?.length ?: 0).toLong(),
             totalBytes = Files.size(out)
+        )
+    }
+
+    /**
+     * Writes each run as its **own** self-contained page, plus an index that links to them.
+     *
+     * The third shape, and the one to hand somebody. [export] gives one page for one run; [exportGallery]
+     * gives many runs sharing a player, which is smallest but loads its traces with `fetch()` — and a
+     * browser blocks that on a `file://` URL, so a gallery that is downloaded and opened locally may show
+     * nothing. Pages written here have nothing to fetch, so each one plays by double-clicking it, and any
+     * single one can be sent to somebody on its own.
+     *
+     * The cost is a copy of the player per page. That is real on disk and nearly free in a zip, where the
+     * traces dominate: fourteen animations come to about 46 MB written out and under 6 MB compressed.
+     */
+    fun exportIndependent(
+        runs: List<AnimationRunRef>,
+        outDir: Path,
+        title: String = "KSL animations",
+        lede: String = "Each file below is a real KSL simulation run, replayed in your browser. " +
+            "Open one — there is nothing to install and nothing to connect to."
+    ): ExportSizeReport {
+        Files.createDirectories(outDir)
+        var traceBytes = 0L
+        var layoutBytes = 0L
+        var pageBytes = 0L
+        val entries = StringBuilder()
+
+        for (run in runs) {
+            val fileName = run.trace.fileName.toString().substringBefore(".atf") + ".html"
+            val page = outDir.resolve(fileName)
+            val report = export(trace = run.trace, layout = run.layout, out = page, title = run.title)
+            traceBytes += report.traceBytes
+            layoutBytes += report.layoutBytes
+            pageBytes += Files.size(page)
+            entries.append(
+                """
+                |  <h2><a href="${escapeHtml(fileName)}">${escapeHtml(run.title)}</a></h2>
+                |${run.notes?.let { "  <p class=\"note\">${escapeHtml(it)}</p>" } ?: ""}
+                |
+                """.trimMargin()
+            )
+        }
+
+        val html = buildString {
+            append(pageHead(title))
+            append("  <h1>${escapeHtml(title)}</h1>\n")
+            append("  <p class=\"lede\">${escapeHtml(lede)}</p>\n")
+            append(entries)
+            append("  <p class=\"foot\">Produced by the Kotlin Simulation Library (GPL v3).</p>\n")
+            append("</body>\n</html>\n")
+        }
+        val index = outDir.resolve("index.html")
+        Files.writeString(index, html)
+
+        return ExportSizeReport(
+            playerBytes = player.length.toLong() * runs.size,
+            traceBytes = traceBytes,
+            layoutBytes = layoutBytes,
+            totalBytes = pageBytes + Files.size(index)
         )
     }
 

@@ -139,3 +139,29 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   textbook unless it first renders `_book/` and guards on a non-zero chunk count. Until that's
   solved, the manual path here is the source of truth. (A separate `build.yml` CI verifies
   compilation + tests on every push / PR to `main`, but it does not publish.)
+
+## The animation pack (a second, optional asset)
+
+`ksl-animations.zip` is a **separate** release asset. It is not part of `ksl-suite.zip` and the installer
+never looks at it: most people installing the apps will never open these, and a download nobody asked for
+is the wrong place for 29 MB of simulation traces. Anyone who wants them takes the zip from the release
+page.
+
+Inside are fourteen self-contained pages — one per bundled animation model — plus an `index.html` that
+links them. Each page carries its player, its trace and its polished layout inside it, so it plays by
+double-clicking with nothing installed and nothing served, and a single page can be sent to a student on
+its own. Compressed, the set is about 4 MB.
+
+```bash
+# needs the browser player and a captured trace per model
+./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
+./gradlew :KSLExamples:showcaseCapture -PmodelName=<model> -Pout=build/showcase   # once per model
+./gradlew packageAnimations        # -> build/ksl-animations.zip
+```
+
+The flocking model is deliberately left out: eighty agents stepping at a small interval write 130,000
+position events, so its trace alone would be a third of the pack. It still ships in the suite — only the
+download omits it. The exclusion list is `AnimationsPackage.excluded`, with the reason beside it.
+
+Upload `ksl-animations.zip` alongside `ksl-suite.zip` when publishing the release. Unlike the suite asset
+it is not referenced by `manifest.json`, so nothing needs stamping and nothing breaks if it is absent.

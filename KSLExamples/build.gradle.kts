@@ -163,6 +163,26 @@ tasks.register<JavaExec>("publishAnimationLayouts") {
     systemProperty("out", rootDir.resolve("docs/animations/layouts").path)
 }
 
+// Build the downloadable animation pack: one playable page per bundled model, plus an index. Ships as
+// its own release asset, not inside the suite, so the install stays lean and the animations are opt-in.
+// Needs the browser player, which lives in the standalone KSLAnimationCore build:
+//   ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
+// and a captured trace per model in build/showcase (see showcaseCapture).
+// Usage: ./gradlew :KSLExamples:buildAnimationsPack
+tasks.register<JavaExec>("buildAnimationsPack") {
+    group = "distribution"
+    description = "Build the self-contained animation pages for the ksl-animations release asset."
+    dependsOn("animationExamplesBundleJar", "publishAnimationLayouts", "classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("ksl.examples.general.animationbundle.showcase.AnimationsPackageKt")
+    workingDir = rootDir
+    jvmArgs("-Xmx2g")
+    systemProperty("bundleJar", layout.buildDirectory.file("libs/animation-examples.jar").get().asFile.path)
+    systemProperty("traces", rootDir.resolve("build/showcase").path)
+    systemProperty("layouts", rootDir.resolve("docs/animations/layouts").path)
+    systemProperty("out", rootDir.resolve("build/ksl-animations").path)
+}
+
 tasks.register<JavaExec>("animationExamplesBundleJar") {
     group = "ksl bundle"
     description = "Assemble the KSL Animation Examples manifest bundle JAR (kslpkg assemble)."

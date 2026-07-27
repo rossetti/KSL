@@ -101,6 +101,10 @@ for r in d["resources"]:
     x, y = placed[RES_AT[r["resourceName"]]]
     r["position"] = {"x": x, "y": round(y - MACHINE_LIFT, 1), "z": 0.0}
 
+# The title is what a reader sees at the top of an exported page and in the gallery index, so it says what
+# the model is rather than carrying the plan references the DSL layout's title was written with.
+d["title"] = "Test & repair shop — workers carrying parts between stations"
+
 # ── 2. Scale ────────────────────────────────────────────────────────────────────────────────────────
 # The sizes carried over from the DSL layout were chosen against a small hand-placed canvas; against the MDS
 # arrangement, whose extent is set by real inter-station distances (~540 x 400 units), they left the stations

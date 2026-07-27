@@ -624,6 +624,19 @@ tasks.register<Zip>("packageKSLWork") {
 }
 tasks.named("assembleKSLWork") { finalizedBy("packageKSLWork") }
 
+// The animation pack: a SECOND release asset, beside ksl-suite.zip. Deliberately not part of the suite
+// payload -- most people installing the apps will never open these, and a download nobody asked for is
+// the wrong place for 40 MB. Anyone who wants them takes them from the release page; the installer never
+// looks at this file.
+tasks.register<Zip>("packageAnimations") {
+    group = "distribution"
+    description = "Zip the self-contained animation pages into build/ksl-animations.zip"
+    dependsOn(":KSLExamples:buildAnimationsPack")
+    from(layout.buildDirectory.dir("ksl-animations"))
+    archiveFileName.set("ksl-animations.zip")
+    destinationDirectory.set(layout.buildDirectory)
+}
+
 // Stamp manifest.json's `suite` block for a release: compute the SHA-256 of the built
 // ksl-suite.zip and write a ready-to-commit manifest to build/release/manifest.json with
 // the version, the suite-v<version> asset URL, and that hash (the items catalog is

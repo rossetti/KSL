@@ -66,9 +66,9 @@ d["clocks"] = [{"position": {"x": PANEL_X, "y": PANEL_TOP, "z": 0.0}, "format": 
 # Two halves of one number: everyone is either still in the room or already out, so a shared scale makes the
 # pair read as a single emptying process rather than as two unrelated meters.
 d["bars"] = [
-    {"responseName": "PopulationInRoom", "position": {"x": PANEL_X, "y": PANEL_TOP + 5.1, "z": 0.0},
+    {"responseName": "PopulationInRoom", "position": {"x": PANEL_X, "y": PANEL_TOP + 6.4, "z": 0.0},
      "width": PANEL_W, "height": 1.1, "maxValue": POPULATION, "color": "#1f77b4", "label": "Still in the room"},
-    {"responseName": "NumEvacuated", "position": {"x": PANEL_X, "y": PANEL_TOP + 7.8, "z": 0.0},
+    {"responseName": "NumEvacuated", "position": {"x": PANEL_X, "y": PANEL_TOP + 9.1, "z": 0.0},
      "width": PANEL_W, "height": 1.1, "maxValue": POPULATION, "color": "#2ca02c", "label": "Evacuated"},
 ]
 

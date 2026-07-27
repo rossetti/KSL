@@ -91,6 +91,26 @@ class SelfContainedHtmlExporterTest {
         assertTrue("Nurse" in html, "and the observed resource")
     }
 
+    /**
+     * The animation app saves layouts as `.lay.toml` by default, so a user's most likely layout file is TOML
+     * — and exporting one used to fail, because the exporter parsed JSON regardless of the extension. The
+     * page always carries JSON, since that is what the browser player reads; the *source* may be either.
+     */
+    @Test
+    @DisplayName("a layout saved as TOML exports as readily as one saved as JSON")
+    fun exportAcceptsATomlLayout(@TempDir dir: Path) {
+        val layout = ksl.animation.AnimationLayout(
+            width = 640.0, height = 380.0,
+            resources = listOf(ksl.animation.ResourceLayoutElement("Nurse", ksl.animation.LayoutPoint(430.0, 170.0)))
+        )
+        val toml = dir.resolve("clinic.lay.toml").also { layout.writeTomlToFile(it) }
+        val out = dir.resolve("from-toml.html")
+        SelfContainedHtmlExporter.using(player(dir)).export(trace = trace(dir), layout = toml, out = out)
+        val html = Files.readString(out)
+        assertTrue("ksl-layout" in html, "the layout must be embedded")
+        assertTrue("Nurse" in html, "and carry the elements the TOML declared")
+    }
+
     @Test
     @DisplayName("a gzipped trace is decompressed on the way in")
     fun exportAcceptsAGzippedTrace(@TempDir dir: Path) {
