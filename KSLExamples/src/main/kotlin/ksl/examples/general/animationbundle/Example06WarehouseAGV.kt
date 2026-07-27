@@ -24,20 +24,23 @@ import ksl.examples.general.agent.WarehouseAGVExample
 import ksl.simulation.Model
 
 /**
- * Example 6 — autonomous AGVs in a warehouse. Four AGVs travel a 30×30 grid with rack obstacles,
- * bidding on pallet tasks (Contract-Net) and recharging at stations. The richest agent demo, chosen
- * to surface:
- *  - **Statechart states unrendered (the big agent gap):** each AGV cycles Idle → Bidding →
- *    Working → Charging (emitted as `AgentStateEntered/Exited`), but the renderer can only draw a
- *    single color — you cannot see what an AGV is *doing*. This is the agent analog of resource
- *    busy/idle coloring.
- *  - **Continuous, cell-centered motion works well:** AGV bodies travel via `travelThrough` to cell
- *    centers, so they render cleanly (unlike grid hops at cell corners).
- *  - **Brain/body split:** the AGV bodies have positions and render; the controller/dispatcher/
- *    task-generator agents have no position and do not appear — which is correct, but means an
- *    agent's presence in the animation depends on whether it is ever placed in a projection.
- *  - **Obstacle authoring friction:** racks and chargers are hand-authored to match the model's
- *    `GridGraph` (no geometry import).
+ * Example 6 — autonomous AGVs in a warehouse, and the richest agent model here. Four AGVs travel a 30×30
+ * grid around rack obstacles, bidding for pallet tasks (Contract-Net) and going away to recharge.
+ *
+ * What it shows that no other example does:
+ *
+ *  - **What each AGV is *doing*, not just where it is.** Every AGV cycles Idle → Bidding → Working →
+ *    Charging, emitted as `AgentStateEntered`/`AgentStateExited`, and the layout maps those states to
+ *    colours — the agent counterpart of a resource's busy/idle colouring. Watching four of them negotiate,
+ *    fetch and peel off to charge is the model.
+ *  - **Agents that coordinate.** The bidding is between agents, so the interesting behaviour is in how the
+ *    four divide work rather than in any one of them.
+ *  - **Only agents with a position are drawn.** The AGV bodies appear; the controller, the dispatcher and
+ *    the task generator have no place in the warehouse and correctly do not. An agent shows up exactly when
+ *    it is placed in a projection.
+ *
+ * Motion is cell-centred via `travelThrough`, so bodies travel between cell centres rather than hopping
+ * corner to corner, and the racks come from the model's own `GridGraph` rather than being redrawn by hand.
  */
 object Example06WarehouseAGV {
 

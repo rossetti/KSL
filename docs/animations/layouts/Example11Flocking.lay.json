@@ -1,0 +1,181 @@
+{
+ "title": "Flocking on a torus",
+ "baseTimeUnit": null,
+ "width": 166.0,
+ "height": 108.0,
+ "objectClasses": [
+  {
+   "typeName": "Boid",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 1.9,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 108.0,
+     "y": 27.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Eighty boids, three local rules: keep apart,",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 2.7,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 108.0,
+     "y": 31.0,
+     "z": 0.0
+    }
+   ],
+   "text": "match your neighbours, steer toward them.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 2.7,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 108.0,
+     "y": 60.0,
+     "z": 0.0
+    }
+   ],
+   "text": "The space is a torus, so the edges join. Watch",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 2.3,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 108.0,
+     "y": 63.5,
+     "z": 0.0
+    }
+   ],
+   "text": "a boid leave one side and arrive on the other:",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 2.3,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 108.0,
+     "y": 67.0,
+     "z": 0.0
+    }
+   ],
+   "text": "it is drawn taking the short way across the",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 2.3,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 108.0,
+     "y": 70.5,
+     "z": 0.0
+    }
+   ],
+   "text": "seam, not streaking back over the whole world.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 2.3,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [],
+ "resources": [],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "Polarization",
+   "position": {
+    "x": 108.0,
+    "y": 38.0,
+    "z": 0.0
+   },
+   "width": 52.0,
+   "height": 4.6,
+   "maxValue": 1.0,
+   "color": "#1f77b4",
+   "label": "Alignment (0 to 1)"
+  },
+  {
+   "responseName": "AvgNeighborCount",
+   "position": {
+    "x": 108.0,
+    "y": 47.0,
+    "z": 0.0
+   },
+   "width": 52.0,
+   "height": 4.6,
+   "maxValue": 12,
+   "color": "#2ca02c",
+   "label": "Neighbours in view"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 108.0,
+    "y": 20.0,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 5.0
+  }
+ ],
+ "spaces": [
+  {
+   "type": "Continuous",
+   "name": "continuous",
+   "xMin": 0.0,
+   "xMax": 100.0,
+   "yMin": 0.0,
+   "yMax": 100.0,
+   "torus": true
+  }
+ ],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [],
+ "spaceGeometry": [],
+ "locations": []
+}

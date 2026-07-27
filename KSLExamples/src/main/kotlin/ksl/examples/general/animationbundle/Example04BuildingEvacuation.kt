@@ -25,12 +25,20 @@ import ksl.examples.general.agent.BuildingEvacuationExample
 import ksl.simulation.Model
 
 /**
- * Example 4 — grid evacuation. Pedestrians on a 15×15 grid descend a distance field to one of two
- * exits (top-left, bottom-right) and **leave the building**. Chosen to surface the **agent-removal**
- * gap: the model calls `pedestrians.remove(...)` on evacuation, but there is no `AgentRemoved`
- * event, so the renderer has no way to know an agent left — evacuated pedestrians **ghost forever**
- * at the exit cells. Also exercises hand-authored **walls** (the layout duplicates geometry the
- * model holds in its `GridGraph`, since there's no geometry import).
+ * Example 4 — grid evacuation. Pedestrians on a 15×15 grid descend a distance field to one of two exits
+ * (top-left, bottom-right) and leave the building.
+ *
+ * The grid counterpart to [Example05PedestrianCrowd]: the same situation — a room emptying through exits —
+ * with people stepping between cells under a distance field rather than moving continuously under social
+ * forces. Watching the two together is the point of having both, because the difference between them is the
+ * difference between the two spatial paradigms rather than between two models.
+ *
+ * Agents leave properly: `pedestrians.remove(...)` emits `AgentRemoved`, so an evacuated pedestrian stops
+ * being drawn instead of ghosting at an exit cell. (This example was originally written to surface the
+ * absence of that event.)
+ *
+ * The walls are the model's own: its `GridGraph` blocked cells are exported into the layout's space
+ * geometry and drawn from there, so the picture cannot drift from what the model actually blocks.
  */
 object Example04BuildingEvacuation {
 
@@ -40,7 +48,9 @@ object Example04BuildingEvacuation {
         val m = Model("BuildingEvacuationModel")
         BuildingEvacuationExample(m, "evacuation").apply { population = 40 }
         m.numberOfReplications = 1
-        m.lengthOfReplication = 90.0
+        // The building is empty by t = 14, so a 90-unit replication spent most of the animation on an
+        // evacuated building. Twenty leaves a short tail for the count to settle on.
+        m.lengthOfReplication = 20.0
         return m
     }
 

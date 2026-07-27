@@ -1,0 +1,1064 @@
+{
+ "title": "Warehouse AGVs \u2014 bidding, fetching, charging",
+ "baseTimeUnit": null,
+ "width": 51.4,
+ "height": 32.4,
+ "objectClasses": [
+  {
+   "typeName": "AGV",
+   "shape": "CIRCLE",
+   "color": "#9aa5b1",
+   "size": 1.15,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 8.4,
+     "z": 0.0
+    }
+   ],
+   "text": "Four AGVs share one floor. A task is announced,",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.82,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 9.600000000000001,
+     "z": 0.0
+    }
+   ],
+   "text": "they bid, and the winner fetches the pallet.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.82,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 11.8,
+     "z": 0.0
+    }
+   ],
+   "text": "\u25a0  Idle",
+   "color": "#9aa5b1",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.78,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 12.950000000000001,
+     "z": 0.0
+    }
+   ],
+   "text": "\u25a0  Bidding",
+   "color": "#1f77b4",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.78,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 14.100000000000001,
+     "z": 0.0
+    }
+   ],
+   "text": "\u25a0  Working",
+   "color": "#ff7f0e",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.78,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 15.25,
+     "z": 0.0
+    }
+   ],
+   "text": "\u25a0  Charging",
+   "color": "#d62728",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.78,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 22.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Colour is what a vehicle is doing, not which",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.7,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 23.0,
+     "z": 0.0
+    }
+   ],
+   "text": "one it is \u2014 the agent counterpart of a",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.7,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 24.0,
+     "z": 0.0
+    }
+   ],
+   "text": "resource going busy and idle. The blue trails",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.7,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 25.0,
+     "z": 0.0
+    }
+   ],
+   "text": "are planned routes around the racks, which",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.7,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 32.4,
+     "y": 26.0,
+     "z": 0.0
+    }
+   ],
+   "text": "come from the model's own grid graph.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.7,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [],
+ "resources": [],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "NumTasksCompleted",
+   "position": {
+    "x": 32.4,
+    "y": 17.4,
+    "z": 0.0
+   },
+   "width": 17.0,
+   "height": 1.4,
+   "maxValue": 36,
+   "color": "#ff7f0e",
+   "label": "Pallets delivered"
+  },
+  {
+   "responseName": "NumChargingEvents",
+   "position": {
+    "x": 32.4,
+    "y": 19.8,
+    "z": 0.0
+   },
+   "width": 17.0,
+   "height": 1.4,
+   "maxValue": 11,
+   "color": "#d62728",
+   "label": "Charging stops"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 32.4,
+    "y": 6.4,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 1.5
+  }
+ ],
+ "spaces": [
+  {
+   "type": "Continuous",
+   "name": "continuous",
+   "xMin": 0.0,
+   "xMax": 30.0,
+   "yMin": 0.0,
+   "yMax": 30.0,
+   "torus": false
+  }
+ ],
+ "values": [],
+ "agentStateColors": {
+  "Idle": "#9aa5b1",
+  "Bidding": "#1f77b4",
+  "Working": "#ff7f0e",
+  "Charging": "#d62728"
+ },
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [
+  {
+   "kind": "LOCATION",
+   "name": "Charger 1",
+   "text": "Charger 1",
+   "dy": -10.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Charger 2",
+   "text": "Charger 2",
+   "dy": -10.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Charger 3",
+   "text": "Charger 3",
+   "dy": -10.0
+  }
+ ],
+ "spaceGeometry": [
+  {
+   "spaceName": "continuous",
+   "cols": 30,
+   "rows": 30,
+   "torus": false,
+   "movementRule": "MOORE",
+   "allowCornerCutting": false,
+   "blockedCells": [
+    {
+     "col": 1,
+     "row": 5
+    },
+    {
+     "col": 1,
+     "row": 6
+    },
+    {
+     "col": 1,
+     "row": 10
+    },
+    {
+     "col": 1,
+     "row": 11
+    },
+    {
+     "col": 1,
+     "row": 15
+    },
+    {
+     "col": 1,
+     "row": 16
+    },
+    {
+     "col": 1,
+     "row": 20
+    },
+    {
+     "col": 1,
+     "row": 21
+    },
+    {
+     "col": 2,
+     "row": 5
+    },
+    {
+     "col": 2,
+     "row": 6
+    },
+    {
+     "col": 2,
+     "row": 10
+    },
+    {
+     "col": 2,
+     "row": 11
+    },
+    {
+     "col": 2,
+     "row": 15
+    },
+    {
+     "col": 2,
+     "row": 16
+    },
+    {
+     "col": 2,
+     "row": 20
+    },
+    {
+     "col": 2,
+     "row": 21
+    },
+    {
+     "col": 3,
+     "row": 5
+    },
+    {
+     "col": 3,
+     "row": 6
+    },
+    {
+     "col": 3,
+     "row": 10
+    },
+    {
+     "col": 3,
+     "row": 11
+    },
+    {
+     "col": 3,
+     "row": 15
+    },
+    {
+     "col": 3,
+     "row": 16
+    },
+    {
+     "col": 3,
+     "row": 20
+    },
+    {
+     "col": 3,
+     "row": 21
+    },
+    {
+     "col": 4,
+     "row": 5
+    },
+    {
+     "col": 4,
+     "row": 6
+    },
+    {
+     "col": 4,
+     "row": 10
+    },
+    {
+     "col": 4,
+     "row": 11
+    },
+    {
+     "col": 4,
+     "row": 15
+    },
+    {
+     "col": 4,
+     "row": 16
+    },
+    {
+     "col": 4,
+     "row": 20
+    },
+    {
+     "col": 4,
+     "row": 21
+    },
+    {
+     "col": 5,
+     "row": 5
+    },
+    {
+     "col": 5,
+     "row": 6
+    },
+    {
+     "col": 5,
+     "row": 10
+    },
+    {
+     "col": 5,
+     "row": 11
+    },
+    {
+     "col": 5,
+     "row": 15
+    },
+    {
+     "col": 5,
+     "row": 16
+    },
+    {
+     "col": 5,
+     "row": 20
+    },
+    {
+     "col": 5,
+     "row": 21
+    },
+    {
+     "col": 6,
+     "row": 5
+    },
+    {
+     "col": 6,
+     "row": 6
+    },
+    {
+     "col": 6,
+     "row": 10
+    },
+    {
+     "col": 6,
+     "row": 11
+    },
+    {
+     "col": 6,
+     "row": 15
+    },
+    {
+     "col": 6,
+     "row": 16
+    },
+    {
+     "col": 6,
+     "row": 20
+    },
+    {
+     "col": 6,
+     "row": 21
+    },
+    {
+     "col": 7,
+     "row": 5
+    },
+    {
+     "col": 7,
+     "row": 6
+    },
+    {
+     "col": 7,
+     "row": 10
+    },
+    {
+     "col": 7,
+     "row": 11
+    },
+    {
+     "col": 7,
+     "row": 15
+    },
+    {
+     "col": 7,
+     "row": 16
+    },
+    {
+     "col": 7,
+     "row": 20
+    },
+    {
+     "col": 7,
+     "row": 21
+    },
+    {
+     "col": 8,
+     "row": 5
+    },
+    {
+     "col": 8,
+     "row": 6
+    },
+    {
+     "col": 8,
+     "row": 10
+    },
+    {
+     "col": 8,
+     "row": 11
+    },
+    {
+     "col": 8,
+     "row": 15
+    },
+    {
+     "col": 8,
+     "row": 16
+    },
+    {
+     "col": 8,
+     "row": 20
+    },
+    {
+     "col": 8,
+     "row": 21
+    },
+    {
+     "col": 12,
+     "row": 5
+    },
+    {
+     "col": 12,
+     "row": 6
+    },
+    {
+     "col": 12,
+     "row": 10
+    },
+    {
+     "col": 12,
+     "row": 11
+    },
+    {
+     "col": 12,
+     "row": 15
+    },
+    {
+     "col": 12,
+     "row": 16
+    },
+    {
+     "col": 12,
+     "row": 20
+    },
+    {
+     "col": 12,
+     "row": 21
+    },
+    {
+     "col": 13,
+     "row": 5
+    },
+    {
+     "col": 13,
+     "row": 6
+    },
+    {
+     "col": 13,
+     "row": 10
+    },
+    {
+     "col": 13,
+     "row": 11
+    },
+    {
+     "col": 13,
+     "row": 15
+    },
+    {
+     "col": 13,
+     "row": 16
+    },
+    {
+     "col": 13,
+     "row": 20
+    },
+    {
+     "col": 13,
+     "row": 21
+    },
+    {
+     "col": 14,
+     "row": 5
+    },
+    {
+     "col": 14,
+     "row": 6
+    },
+    {
+     "col": 14,
+     "row": 10
+    },
+    {
+     "col": 14,
+     "row": 11
+    },
+    {
+     "col": 14,
+     "row": 15
+    },
+    {
+     "col": 14,
+     "row": 16
+    },
+    {
+     "col": 14,
+     "row": 20
+    },
+    {
+     "col": 14,
+     "row": 21
+    },
+    {
+     "col": 15,
+     "row": 5
+    },
+    {
+     "col": 15,
+     "row": 6
+    },
+    {
+     "col": 15,
+     "row": 10
+    },
+    {
+     "col": 15,
+     "row": 11
+    },
+    {
+     "col": 15,
+     "row": 15
+    },
+    {
+     "col": 15,
+     "row": 16
+    },
+    {
+     "col": 15,
+     "row": 20
+    },
+    {
+     "col": 15,
+     "row": 21
+    },
+    {
+     "col": 16,
+     "row": 5
+    },
+    {
+     "col": 16,
+     "row": 6
+    },
+    {
+     "col": 16,
+     "row": 10
+    },
+    {
+     "col": 16,
+     "row": 11
+    },
+    {
+     "col": 16,
+     "row": 15
+    },
+    {
+     "col": 16,
+     "row": 16
+    },
+    {
+     "col": 16,
+     "row": 20
+    },
+    {
+     "col": 16,
+     "row": 21
+    },
+    {
+     "col": 17,
+     "row": 5
+    },
+    {
+     "col": 17,
+     "row": 6
+    },
+    {
+     "col": 17,
+     "row": 10
+    },
+    {
+     "col": 17,
+     "row": 11
+    },
+    {
+     "col": 17,
+     "row": 15
+    },
+    {
+     "col": 17,
+     "row": 16
+    },
+    {
+     "col": 17,
+     "row": 20
+    },
+    {
+     "col": 17,
+     "row": 21
+    },
+    {
+     "col": 18,
+     "row": 5
+    },
+    {
+     "col": 18,
+     "row": 6
+    },
+    {
+     "col": 18,
+     "row": 10
+    },
+    {
+     "col": 18,
+     "row": 11
+    },
+    {
+     "col": 18,
+     "row": 15
+    },
+    {
+     "col": 18,
+     "row": 16
+    },
+    {
+     "col": 18,
+     "row": 20
+    },
+    {
+     "col": 18,
+     "row": 21
+    },
+    {
+     "col": 22,
+     "row": 5
+    },
+    {
+     "col": 22,
+     "row": 6
+    },
+    {
+     "col": 22,
+     "row": 10
+    },
+    {
+     "col": 22,
+     "row": 11
+    },
+    {
+     "col": 22,
+     "row": 15
+    },
+    {
+     "col": 22,
+     "row": 16
+    },
+    {
+     "col": 22,
+     "row": 20
+    },
+    {
+     "col": 22,
+     "row": 21
+    },
+    {
+     "col": 23,
+     "row": 5
+    },
+    {
+     "col": 23,
+     "row": 6
+    },
+    {
+     "col": 23,
+     "row": 10
+    },
+    {
+     "col": 23,
+     "row": 11
+    },
+    {
+     "col": 23,
+     "row": 15
+    },
+    {
+     "col": 23,
+     "row": 16
+    },
+    {
+     "col": 23,
+     "row": 20
+    },
+    {
+     "col": 23,
+     "row": 21
+    },
+    {
+     "col": 24,
+     "row": 5
+    },
+    {
+     "col": 24,
+     "row": 6
+    },
+    {
+     "col": 24,
+     "row": 10
+    },
+    {
+     "col": 24,
+     "row": 11
+    },
+    {
+     "col": 24,
+     "row": 15
+    },
+    {
+     "col": 24,
+     "row": 16
+    },
+    {
+     "col": 24,
+     "row": 20
+    },
+    {
+     "col": 24,
+     "row": 21
+    },
+    {
+     "col": 25,
+     "row": 5
+    },
+    {
+     "col": 25,
+     "row": 6
+    },
+    {
+     "col": 25,
+     "row": 10
+    },
+    {
+     "col": 25,
+     "row": 11
+    },
+    {
+     "col": 25,
+     "row": 15
+    },
+    {
+     "col": 25,
+     "row": 16
+    },
+    {
+     "col": 25,
+     "row": 20
+    },
+    {
+     "col": 25,
+     "row": 21
+    },
+    {
+     "col": 26,
+     "row": 5
+    },
+    {
+     "col": 26,
+     "row": 6
+    },
+    {
+     "col": 26,
+     "row": 10
+    },
+    {
+     "col": 26,
+     "row": 11
+    },
+    {
+     "col": 26,
+     "row": 15
+    },
+    {
+     "col": 26,
+     "row": 16
+    },
+    {
+     "col": 26,
+     "row": 20
+    },
+    {
+     "col": 26,
+     "row": 21
+    },
+    {
+     "col": 27,
+     "row": 5
+    },
+    {
+     "col": 27,
+     "row": 6
+    },
+    {
+     "col": 27,
+     "row": 10
+    },
+    {
+     "col": 27,
+     "row": 11
+    },
+    {
+     "col": 27,
+     "row": 15
+    },
+    {
+     "col": 27,
+     "row": 16
+    },
+    {
+     "col": 27,
+     "row": 20
+    },
+    {
+     "col": 27,
+     "row": 21
+    },
+    {
+     "col": 28,
+     "row": 5
+    },
+    {
+     "col": 28,
+     "row": 6
+    },
+    {
+     "col": 28,
+     "row": 10
+    },
+    {
+     "col": 28,
+     "row": 11
+    },
+    {
+     "col": 28,
+     "row": 15
+    },
+    {
+     "col": 28,
+     "row": 16
+    },
+    {
+     "col": 28,
+     "row": 20
+    },
+    {
+     "col": 28,
+     "row": 21
+    },
+    {
+     "col": 29,
+     "row": 5
+    },
+    {
+     "col": 29,
+     "row": 6
+    },
+    {
+     "col": 29,
+     "row": 10
+    },
+    {
+     "col": 29,
+     "row": 11
+    },
+    {
+     "col": 29,
+     "row": 15
+    },
+    {
+     "col": 29,
+     "row": 16
+    },
+    {
+     "col": 29,
+     "row": 20
+    },
+    {
+     "col": 29,
+     "row": 21
+    }
+   ],
+   "cellCosts": [],
+   "originX": null,
+   "originY": null,
+   "cellSize": null
+  }
+ ],
+ "locations": [
+  {
+   "locationName": "Charger 1",
+   "position": {
+    "x": 0.5,
+    "y": 4.5,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Charger 2",
+   "position": {
+    "x": 0.5,
+    "y": 14.5,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Charger 3",
+   "position": {
+    "x": 0.5,
+    "y": 24.5,
+    "z": 0.0
+   },
+   "label": null
+  }
+ ]
+}

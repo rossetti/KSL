@@ -1,0 +1,170 @@
+{
+ "title": "Drive-through pharmacy \u2014 one queue, one server",
+ "baseTimeUnit": null,
+ "width": 900.0,
+ "height": 470.0,
+ "objectClasses": [
+  {
+   "typeName": "Customer",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 21.8,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 36.0,
+     "y": 96.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Cars arrive, wait in one line, and are served by whichever pharmacist is free.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 15.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 36.0,
+     "y": 120.0,
+     "z": 0.0
+    }
+   ],
+   "text": "A dot is a car; a red cell is a pharmacist serving one; green is free.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 15.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 36.0,
+     "y": 268.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Nothing moves here \u2014 position carries no meaning, only occupancy.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 13.0,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [
+  {
+   "queueName": "Pharmacists:Q",
+   "position": {
+    "x": 542.0,
+    "y": 200.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 32.2,
+   "maxShown": 4
+  }
+ ],
+ "resources": [
+  {
+   "resourceName": "Pharmacists",
+   "position": {
+    "x": 620.0,
+    "y": 200.0,
+    "z": 0.0
+   },
+   "size": 52.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  }
+ ],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "DriveThrough:NumInSystem",
+   "position": {
+    "x": 36.0,
+    "y": 330.0,
+    "z": 0.0
+   },
+   "width": 330.0,
+   "height": 24.0,
+   "maxValue": 4,
+   "color": "#1f77b4",
+   "label": "Cars in the system"
+  }
+ ],
+ "plots": [
+  {
+   "responseName": "DriveThrough:NumInSystem",
+   "position": {
+    "x": 470.0,
+    "y": 300.0,
+    "z": 0.0
+   },
+   "width": 390.0,
+   "height": 92.0,
+   "windowDuration": null,
+   "color": "#1f77b4",
+   "label": "Cars in the system over time"
+  }
+ ],
+ "clocks": [
+  {
+   "position": {
+    "x": 36.0,
+    "y": 52.0,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 22.0
+  }
+ ],
+ "spaces": [],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [
+  {
+   "kind": "RESOURCE",
+   "name": "Pharmacists",
+   "text": "Pharmacists (2)",
+   "dy": -40.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Pharmacists:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 32.24
+  }
+ ],
+ "spaceGeometry": [],
+ "locations": []
+}

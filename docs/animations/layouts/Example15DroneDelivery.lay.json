@@ -1,0 +1,414 @@
+{
+ "title": "Drone delivery \u2014 a 3D airspace in plan view",
+ "baseTimeUnit": null,
+ "width": 492.0,
+ "height": 324.0,
+ "objectClasses": [
+  {
+   "typeName": "Drone",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 6.5,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 324.0,
+     "y": 80.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Drones fly between a depot and delivery",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 8.2,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 324.0,
+     "y": 91.0,
+     "z": 0.0
+    }
+   ],
+   "text": "points, routing around no-fly zones.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 8.2,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 324.0,
+     "y": 186.0,
+     "z": 0.0
+    }
+   ],
+   "text": "This is the plan view of a 300 x 300 x 100 m",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 6.8,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 324.0,
+     "y": 196.0,
+     "z": 0.0
+    }
+   ],
+   "text": "airspace. Altitude is carried in the trace and",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 6.8,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 324.0,
+     "y": 206.0,
+     "z": 0.0
+    }
+   ],
+   "text": "is not drawn, so two drones crossing here are",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 6.8,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 324.0,
+     "y": 216.0,
+     "z": 0.0
+    }
+   ],
+   "text": "not necessarily near one another.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 6.8,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [],
+ "resources": [],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "NumDeliveries",
+   "position": {
+    "x": 324.0,
+    "y": 114.0,
+    "z": 0.0
+   },
+   "width": 150.0,
+   "height": 13.0,
+   "maxValue": 12,
+   "color": "#2ca02c",
+   "label": "Deliveries made"
+  },
+  {
+   "responseName": "NumIdleDrones",
+   "position": {
+    "x": 324.0,
+    "y": 140.0,
+    "z": 0.0
+   },
+   "width": 150.0,
+   "height": 13.0,
+   "maxValue": 3,
+   "color": "#1f77b4",
+   "label": "Drones idle"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 324.0,
+    "y": 58.0,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 15.0
+  }
+ ],
+ "spaces": [
+  {
+   "type": "Continuous",
+   "name": "continuousVolume",
+   "xMin": 0.0,
+   "xMax": 300.0,
+   "yMin": 0.0,
+   "yMax": 300.0,
+   "torus": false
+  }
+ ],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [
+  {
+   "kind": "LOCATION",
+   "name": "Depot",
+   "text": "Depot",
+   "dx": 0.0,
+   "dy": -10.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Drop 1",
+   "text": "Drop 1",
+   "dx": -56.0,
+   "dy": -10.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Drop 2",
+   "text": "Drop 2",
+   "dx": 0.0,
+   "dy": -10.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Drop 3",
+   "text": "Drop 3",
+   "dx": -56.0,
+   "dy": -10.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Drop 4",
+   "text": "Drop 4",
+   "dx": 0.0,
+   "dy": -10.0
+  }
+ ],
+ "spaceGeometry": [
+  {
+   "spaceName": "continuousVolume",
+   "cols": 30,
+   "rows": 30,
+   "torus": false,
+   "movementRule": "MOORE",
+   "allowCornerCutting": false,
+   "blockedCells": [
+    {
+     "col": 8,
+     "row": 8
+    },
+    {
+     "col": 8,
+     "row": 9
+    },
+    {
+     "col": 8,
+     "row": 10
+    },
+    {
+     "col": 8,
+     "row": 11
+    },
+    {
+     "col": 8,
+     "row": 12
+    },
+    {
+     "col": 9,
+     "row": 8
+    },
+    {
+     "col": 9,
+     "row": 9
+    },
+    {
+     "col": 9,
+     "row": 10
+    },
+    {
+     "col": 9,
+     "row": 11
+    },
+    {
+     "col": 9,
+     "row": 12
+    },
+    {
+     "col": 10,
+     "row": 8
+    },
+    {
+     "col": 10,
+     "row": 9
+    },
+    {
+     "col": 10,
+     "row": 10
+    },
+    {
+     "col": 10,
+     "row": 11
+    },
+    {
+     "col": 10,
+     "row": 12
+    },
+    {
+     "col": 11,
+     "row": 8
+    },
+    {
+     "col": 11,
+     "row": 9
+    },
+    {
+     "col": 11,
+     "row": 10
+    },
+    {
+     "col": 11,
+     "row": 11
+    },
+    {
+     "col": 11,
+     "row": 12
+    },
+    {
+     "col": 12,
+     "row": 8
+    },
+    {
+     "col": 12,
+     "row": 9
+    },
+    {
+     "col": 12,
+     "row": 10
+    },
+    {
+     "col": 12,
+     "row": 11
+    },
+    {
+     "col": 12,
+     "row": 12
+    },
+    {
+     "col": 18,
+     "row": 18
+    },
+    {
+     "col": 18,
+     "row": 19
+    },
+    {
+     "col": 18,
+     "row": 20
+    },
+    {
+     "col": 19,
+     "row": 18
+    },
+    {
+     "col": 19,
+     "row": 19
+    },
+    {
+     "col": 19,
+     "row": 20
+    },
+    {
+     "col": 20,
+     "row": 18
+    },
+    {
+     "col": 20,
+     "row": 19
+    },
+    {
+     "col": 20,
+     "row": 20
+    }
+   ],
+   "cellCosts": [],
+   "originX": null,
+   "originY": null,
+   "cellSize": null
+  }
+ ],
+ "locations": [
+  {
+   "locationName": "Depot",
+   "position": {
+    "x": 15.0,
+    "y": 15.0,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Drop 1",
+   "position": {
+    "x": 255.0,
+    "y": 55.0,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Drop 2",
+   "position": {
+    "x": 55.0,
+    "y": 255.0,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Drop 3",
+   "position": {
+    "x": 285.0,
+    "y": 285.0,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Drop 4",
+   "position": {
+    "x": 155.0,
+    "y": 285.0,
+    "z": 0.0
+   },
+   "label": null
+  }
+ ]
+}

@@ -20,6 +20,7 @@ class ExampleLayoutValidationTest {
         Example("01 DriveThroughPharmacy", Example01DriveThroughPharmacy::buildModel, Example01DriveThroughPharmacy::buildLayout),
         Example("02 MovingParts", Example02MovingParts::buildModel, Example02MovingParts::buildLayout),
         Example("03 GridEpidemic", Example03GridEpidemic::buildModel, Example03GridEpidemic::buildLayout),
+        Example("04 BuildingEvacuation", Example04BuildingEvacuation::buildModel, Example04BuildingEvacuation::buildLayout),
         Example("05 PedestrianCrowd", Example05PedestrianCrowd::buildModel, Example05PedestrianCrowd::buildLayout),
         Example("06 WarehouseAGV", Example06WarehouseAGV::buildModel, Example06WarehouseAGV::buildLayout),
         Example("08 ConveyorTandem", Example08ConveyorTandem::buildModel, Example08ConveyorTandem::buildLayout),

@@ -400,7 +400,9 @@ class QueuePeaks : TraceAccumulator<Map<String, Int>> {
  *
  * The trace does know. An entity arrives somewhere and then seizes something, so the location it most
  * recently reached when it seized a given resource is where that resource is. The most frequently observed
- * location wins, which tolerates a stray seize by an entity that had wandered.
+ * location wins, which tolerates a stray seize by an entity that had wandered. Arrival means either walking
+ * there or riding a conveyor to it -- the two report themselves quite differently, and a station fed by a
+ * belt is still a station.
  *
  * Bounded: one location per entity in flight, evicted on `EntityDisposed`.
  */
@@ -429,6 +431,10 @@ class ResourceLocations : TraceAccumulator<Map<String, String>> {
                 }
                 event.toLocationName?.let { at[event.entityId] = it }
             }
+            // Getting off a conveyor is an arrival too. A part riding a belt never emits MoveStarted, so
+            // without this every station a conveyor feeds looks like a station nobody ever arrived at, and
+            // the machines stay in a column beside the belt they serve.
+            is AnimationEvent.ConveyorDestinationReached -> at[event.entityId] = event.location
             is AnimationEvent.SeizeQueued -> {
                 val loc = at[event.entityId]
                 if (loc != null) credit(event.resourceName, loc)

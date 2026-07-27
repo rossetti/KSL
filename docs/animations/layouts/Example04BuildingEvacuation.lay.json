@@ -1,0 +1,282 @@
+{
+ "title": "Building evacuation on a grid",
+ "baseTimeUnit": null,
+ "width": 28.1,
+ "height": 16.6,
+ "objectClasses": [
+  {
+   "typeName": "Pedestrian",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 0.62,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 4.949999999999999,
+     "z": 0.0
+    }
+   ],
+   "text": "People step from cell to cell down a distance",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.46,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 5.65,
+     "z": 0.0
+    }
+   ],
+   "text": "field toward whichever exit is nearer.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.46,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 10.2,
+     "z": 0.0
+    }
+   ],
+   "text": "The grey cells are walls, taken from the",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.42,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 10.8,
+     "z": 0.0
+    }
+   ],
+   "text": "model's own grid graph rather than drawn",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.42,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 11.399999999999999,
+     "z": 0.0
+    }
+   ],
+   "text": "to match it.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.42,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 12.399999999999999,
+     "z": 0.0
+    }
+   ],
+   "text": "Compare Example 05: the same emptying room",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.42,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 16.6,
+     "y": 13.0,
+     "z": 0.0
+    }
+   ],
+   "text": "under continuous social forces instead.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.42,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [],
+ "resources": [],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "PopulationInBuilding",
+   "position": {
+    "x": 16.6,
+    "y": 7.199999999999999,
+    "z": 0.0
+   },
+   "width": 10.5,
+   "height": 0.9,
+   "maxValue": 40,
+   "color": "#1f77b4",
+   "label": "Still inside"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 16.6,
+    "y": 3.8,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 0.82
+  }
+ ],
+ "spaces": [
+  {
+   "type": "Grid",
+   "name": "grid",
+   "cols": 15,
+   "rows": 15,
+   "cellSize": 1.0,
+   "originX": 0.0,
+   "originY": 0.0,
+   "torus": false
+  }
+ ],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [
+  {
+   "kind": "LOCATION",
+   "name": "Exit 1",
+   "text": "Exit 1",
+   "dx": 12.0,
+   "dy": 18.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Exit 2",
+   "text": "Exit 2",
+   "dx": -48.0,
+   "dy": -12.0
+  }
+ ],
+ "spaceGeometry": [
+  {
+   "spaceName": "grid",
+   "cols": 15,
+   "rows": 15,
+   "torus": false,
+   "movementRule": "MOORE",
+   "allowCornerCutting": false,
+   "blockedCells": [
+    {
+     "col": 4,
+     "row": 5
+    },
+    {
+     "col": 4,
+     "row": 6
+    },
+    {
+     "col": 4,
+     "row": 8
+    },
+    {
+     "col": 4,
+     "row": 9
+    },
+    {
+     "col": 4,
+     "row": 10
+    },
+    {
+     "col": 4,
+     "row": 11
+    },
+    {
+     "col": 5,
+     "row": 5
+    },
+    {
+     "col": 5,
+     "row": 6
+    },
+    {
+     "col": 5,
+     "row": 8
+    },
+    {
+     "col": 5,
+     "row": 9
+    },
+    {
+     "col": 5,
+     "row": 10
+    },
+    {
+     "col": 5,
+     "row": 11
+    }
+   ],
+   "cellCosts": [],
+   "originX": null,
+   "originY": null,
+   "cellSize": null
+  }
+ ],
+ "locations": [
+  {
+   "locationName": "Exit 1",
+   "position": {
+    "x": 0.5,
+    "y": 0.5,
+    "z": 0.0
+   },
+   "label": null
+  },
+  {
+   "locationName": "Exit 2",
+   "position": {
+    "x": 14.5,
+    "y": 14.5,
+    "z": 0.0
+   },
+   "label": null
+  }
+ ]
+}

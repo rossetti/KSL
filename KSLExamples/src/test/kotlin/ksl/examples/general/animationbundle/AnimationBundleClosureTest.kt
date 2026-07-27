@@ -35,6 +35,7 @@ class AnimationBundleClosureTest {
         "Example01DriveThroughPharmacyBuilder",
         "Example02MovingPartsBuilder",
         "Example03GridEpidemicBuilder",
+        "Example04BuildingEvacuationBuilder",
         "Example05PedestrianCrowdBuilder",
         "Example06WarehouseAGVBuilder",
         "Example08ConveyorTandemBuilder",

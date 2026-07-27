@@ -32,7 +32,8 @@ import ksl.simulation.ModelBuilderIfc
  * view and build up: one queue, then movement, then distances, conveyors, transporters, storages, and
  * finally the agent models. Where two models covered the same ground, the simpler one stayed as the
  * introduction and the richer one as the payoff -- Example 08's conveyor line before Example 18's loop,
- * Example 09's named locations before Example 13's transporters over the same kind of distance model.
+ * Example 09's named locations before Example 13's transporters over the same kind of distance model, and
+ * Example 04's pedestrians stepping between grid cells before Example 05's crowd under continuous forces.
  *
  * Models that existed only to find out whether a paradigm COULD be animated are not here. The
  * station-network pair and the rumor-on-a-graph model were answers to that question, not examples worth
@@ -75,6 +76,16 @@ class Example02MovingPartsBuilder : ModelBuilderIfc {
 class Example03GridEpidemicBuilder : ModelBuilderIfc {
     override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
         Example03GridEpidemic.buildModel()
+}
+
+/**
+ * Bundle [ModelBuilderIfc] for the Example 4 building-evacuation animation model — pedestrians descending a
+ * distance field on a grid, the grid counterpart to Example 5's continuous-space crowd; delegates to its
+ * `buildModel()` for packaging into the animation-examples bundle.
+ */
+class Example04BuildingEvacuationBuilder : ModelBuilderIfc {
+    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+        Example04BuildingEvacuation.buildModel()
 }
 
 /**
