@@ -5,13 +5,13 @@ Kept as a script rather than as a hand-edited JSON blob so that every change car
 the layout can be regenerated if the model's own geometry changes.
 
 Input:  build/showcase/Example13MovableResources.dsl.lay.json  (the example's own layout, via showcaseCapture)
-Output: docs/animations/layouts/Example13MovableResources.lay.json
+Output: build/showcase/polished/Example13MovableResources.lay.json
 """
 import json, math, pathlib
 
 SRC = pathlib.Path("build/showcase/Example13MovableResources.dsl.lay.json")
 ATF = pathlib.Path("build/showcase/Example13MovableResources.atf")
-OUT = pathlib.Path("docs/animations/layouts/Example13MovableResources.lay.json")
+OUT = pathlib.Path("build/showcase/polished/Example13MovableResources.lay.json")
 
 d = json.loads(SRC.read_text())
 

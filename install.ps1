@@ -16,6 +16,9 @@
 #   Documents\KSLWork             YOUR WORK (the apps own it) - bundles, configs, output.
 #                                 The installer only ever creates bundles\ here.
 #
+# The shipped examples (model bundles + polished animation layouts) are unpacked out of the
+# hidden support folder into KSL\examples so a student can find them.
+#
 # Testing / offline: install from a locally-built payload instead of downloading:
 #   powershell -ExecutionPolicy Bypass -File install.ps1 -From build\ksl-suite.zip
 #
@@ -108,6 +111,17 @@ try {
         if (Test-Path $srcF) { Move-Item -Force $srcF (Join-Path $kslHome "bin\$f") }
     }
     Remove-Item -Recurse -Force (Join-Path $support "bin") -ErrorAction SilentlyContinue
+
+    # The shipped examples are content, not plumbing -- model bundles to open and polished animation
+    # layouts to look at -- so they come out of the hidden support folder and sit beside the apps.
+    # Still software: this installer owns them and an update replaces them, which is why they are here
+    # and not in the workspace, where a student's own edits must never be overwritten.
+    $examplesSrc = Join-Path $support "examples"
+    $examplesDst = Join-Path $kslHome "examples"
+    if (Test-Path $examplesSrc) {
+        Remove-Item -Recurse -Force $examplesDst -ErrorAction SilentlyContinue
+        Move-Item -Force $examplesSrc $examplesDst
+    }
     # Dot-folders are not hidden on Windows; set the attribute so students don't see it.
     if ($IsWin) { attrib +h $support 2>$null }
 
@@ -157,7 +171,7 @@ function CleanupLegacy([string]$wk) {
     if (-not (Test-Path $mf)) { return }
     if (-not (Select-String -Path $mf -Pattern '"kslWorkLayout"' -Quiet -ErrorAction SilentlyContinue)) { return }
     $removed = 0
-    foreach ($p in @("Apps", "lib", "Servers", "Tools", "bin", "Applications", "manifest.json", "VERSIONS.txt")) {
+    foreach ($p in @("Apps", "lib", "Servers", "Tools", "bin", "examples", "Applications", "manifest.json", "VERSIONS.txt")) {
         $t = Join-Path $wk $p
         if (Test-Path $t) { Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue; $removed++ }
     }
@@ -170,6 +184,7 @@ Say ""
 Say "Done."
 Say '  Apps       Start Menu -> KSL -> "KSL <Name>"    e.g. KSL Single'
 Say "  Software   $kslHome        (delete this folder to uninstall)"
+Say "  Examples   $kslHome\examples  (model bundles + animation layouts - replaced on update)"
 Say "  Your work  $work           (bundles, configs, output - never touched by updates)"
 Say "             drop model bundle JARs into $work\bundles"
 Say "  Servers    $support\Servers\<name>\   (point your MCP client's config here)"

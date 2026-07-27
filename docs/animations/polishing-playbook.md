@@ -233,19 +233,21 @@ Two things an agent should know:
 ./gradlew :KSLExamples:showcaseCapture -PmodelName=Example13MovableResources -Pout=build/showcase
 ./gradlew :KSLExamples:showcaseCapture -PmodelName=list      # everything capturable
 
-# 2. apply the polish
+# 2. apply the polish; publish converts build/showcase/polished/*.lay.json into the .lay.toml
+#    files that ship, keyed <bundleId>/<modelId>
 python3 docs/animations/polish-Example13.py
+./gradlew :KSLExamples:publishAnimationLayouts
 
 # 3. a contact sheet of frames across the run
 ./gradlew :KSLAppSwingAnimation:renderFrames \
   -Ptrace=build/showcase/Example13MovableResources.atf \
-  -PlayoutFile=docs/animations/layouts/Example13MovableResources.lay.json \
+  -PlayoutFile=build/showcase/polished/Example13MovableResources.lay.json \
   -Pframes=6 -Pout=build/showcase/sheet -Pw=1000 -Ph=850
 
 # 4. the same layout in the browser, for the parity check
 ./gradlew :KSLApp:exportAnimationHtml \
   -Ptrace=build/showcase/Example13MovableResources.atf \
-  -PlayoutFile=docs/animations/layouts/Example13MovableResources.lay.json \
+  -PlayoutFile=build/showcase/polished/Example13MovableResources.lay.json \
   -Pout=build/showcase/Example13.html
 ```
 

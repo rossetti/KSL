@@ -1,0 +1,157 @@
+title = "Flocking on a torus"
+baseTimeUnit = null
+width = 166.0
+height = 108.0
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+locations = [  ]
+
+[[objectClasses]]
+typeName = "Boid"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 1.9
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Eighty boids, three local rules: keep apart,"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 2.7
+fontFamily = null
+
+[[background.points]]
+x = 108.0
+y = 27.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "match your neighbours, steer toward them."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 2.7
+fontFamily = null
+
+[[background.points]]
+x = 108.0
+y = 31.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "The space is a torus, so the edges join. Watch"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 2.3
+fontFamily = null
+
+[[background.points]]
+x = 108.0
+y = 60.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "a boid leave one side and arrive on the other:"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 2.3
+fontFamily = null
+
+[[background.points]]
+x = 108.0
+y = 63.5
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "it is drawn taking the short way across the"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 2.3
+fontFamily = null
+
+[[background.points]]
+x = 108.0
+y = 67.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "seam, not streaking back over the whole world."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 2.3
+fontFamily = null
+
+[[background.points]]
+x = 108.0
+y = 70.5
+z = 0.0
+
+[[bars]]
+responseName = "Polarization"
+width = 52.0
+height = 4.6
+maxValue = 1.0
+color = "#1f77b4"
+label = "Alignment (0 to 1)"
+
+[bars.position]
+x = 108.0
+y = 38.0
+z = 0.0
+
+[[bars]]
+responseName = "AvgNeighborCount"
+width = 52.0
+height = 4.6
+maxValue = 12.0
+color = "#2ca02c"
+label = "Neighbours in view"
+
+[bars.position]
+x = 108.0
+y = 47.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 5.0
+
+[clocks.position]
+x = 108.0
+y = 20.0
+z = 0.0
+
+[[spaces]]
+type = "Continuous"
+name = "continuous"
+xMin = 0.0
+xMax = 100.0
+yMin = 0.0
+yMax = 100.0
+torus = true

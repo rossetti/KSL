@@ -1,0 +1,328 @@
+title = "Crowd evacuating a room through a three-cell doorway"
+baseTimeUnit = null
+width = 40.2
+height = 26.4
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+
+[[objectClasses]]
+typeName = "Pedestrian"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 0.62
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "40 pedestrians under Helbing social-force"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.66
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 7.1000000000000005
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "dynamics. Blue is where one is going; orange"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.66
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 8.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "is the force of the crowd pushing on it."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.66
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 8.9
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "The wash behind them is the flow field: green"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.58
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 16.1
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "is near the exit, red is far. It is the gradient"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.58
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 16.9
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "they steer down, and the reason the crowd"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.58
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 17.700000000000003
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "funnels rather than spreads out."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.58
+fontFamily = null
+
+[[background.points]]
+x = 26.8
+y = 18.5
+z = 0.0
+
+[[bars]]
+responseName = "PopulationInRoom"
+width = 12.0
+height = 1.1
+maxValue = 40.0
+color = "#1f77b4"
+label = "Still in the room"
+
+[bars.position]
+x = 26.8
+y = 10.5
+z = 0.0
+
+[[bars]]
+responseName = "NumEvacuated"
+width = 12.0
+height = 1.1
+maxValue = 40.0
+color = "#2ca02c"
+label = "Evacuated"
+
+[bars.position]
+x = 26.8
+y = 13.2
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 1.15
+
+[clocks.position]
+x = 26.8
+y = 5.4
+z = 0.0
+
+[[spaces]]
+type = "Continuous"
+name = "continuous"
+xMin = 0.0
+xMax = 25.0
+yMin = 0.0
+yMax = 25.0
+torus = false
+
+[[labels]]
+kind = "LOCATION"
+name = "Door 1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Door 2"
+text = "Exit"
+dx = 14.0
+dy = 0.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Door 3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[spaceGeometry]]
+spaceName = "continuous"
+cols = 25
+rows = 25
+torus = false
+movementRule = "MOORE"
+allowCornerCutting = false
+cellCosts = [  ]
+originX = null
+originY = null
+cellSize = null
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 0
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 1
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 2
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 3
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 4
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 7
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 14
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 17
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 18
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 19
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 22
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 23
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 24
+
+[[locations]]
+locationName = "Door 1"
+label = null
+
+[locations.position]
+x = 16.5
+y = 11.5
+z = 0.0
+
+[[locations]]
+locationName = "Door 2"
+label = null
+
+[locations.position]
+x = 16.5
+y = 12.5
+z = 0.0
+
+[[locations]]
+locationName = "Door 3"
+label = null
+
+[locations.position]
+x = 16.5
+y = 13.5
+z = 0.0

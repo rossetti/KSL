@@ -1,0 +1,516 @@
+title = "Test & repair shop — parts riding a loop conveyor"
+baseTimeUnit = null
+width = 1185.0
+height = 710.0
+paths = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Part"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 15.0
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "The same job shop as the movable-resource version, with the transport replaced by an"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 255.0
+y = 315.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "accumulating loop belt. Each part rides to whichever station its test plan calls for next."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 255.0
+y = 340.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "The belt runs one way, so a part that wants the station it just left rides 130 cells"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 255.0
+y = 385.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "round to reach it. Segment lengths here are drawn to the cell counts the model"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 255.0
+y = 406.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "declares, so a ride takes as long on screen as it does in the run."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 255.0
+y = 427.0
+z = 0.0
+
+[[queues]]
+queueName = "Diagnostics:Q"
+growthDegrees = 180.0
+spacing = 20.0
+maxShown = 6
+
+[queues.position]
+x = 100.0
+y = 100.0
+z = 0.0
+
+[[queues]]
+queueName = "Test1:Q"
+growthDegrees = 180.0
+spacing = 20.0
+maxShown = 3
+
+[queues.position]
+x = 449.3
+y = 100.0
+z = 0.0
+
+[[queues]]
+queueName = "Test2:Q"
+growthDegrees = 180.0
+spacing = 20.0
+maxShown = 6
+
+[queues.position]
+x = 781.6
+y = 100.0
+z = 0.0
+
+[[queues]]
+queueName = "Test3:Q"
+growthDegrees = 180.0
+spacing = 20.0
+maxShown = 4
+
+[queues.position]
+x = 235.5
+y = 622.0
+z = 0.0
+
+[[queues]]
+queueName = "Repair:Q"
+growthDegrees = 180.0
+spacing = 20.0
+maxShown = 3
+
+[queues.position]
+x = 968.0
+y = 383.8
+z = 0.0
+
+[[resources]]
+resourceName = "Diagnostics"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 150.0
+y = 100.0
+z = 0.0
+
+[[resources]]
+resourceName = "Test1"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 482.3
+y = 100.0
+z = 0.0
+
+[[resources]]
+resourceName = "Test2"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 814.6
+y = 100.0
+z = 0.0
+
+[[resources]]
+resourceName = "Test3"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 268.5
+y = 622.0
+z = 0.0
+
+[[resources]]
+resourceName = "Repair"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 1035.0
+y = 383.8
+z = 0.0
+
+[[bars]]
+responseName = "ConveyorTestRepair:NumInSystem"
+width = 380.0
+height = 24.0
+maxValue = 24.0
+color = "#1f77b4"
+label = "Number in system"
+
+[bars.position]
+x = 255.0
+y = 465.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 24.0
+
+[clocks.position]
+x = 255.0
+y = 265.0
+z = 0.0
+
+[[conveyors]]
+conveyorName = "LoopConveyor"
+width = 29.1
+color = "#5b6470"
+showDirection = true
+label = null
+
+[[conveyors.segments]]
+entryLocation = "Diagnostics"
+exitLocation = "Test1"
+waypoints = [  ]
+
+[[conveyors.segments]]
+entryLocation = "Test1"
+exitLocation = "Test2"
+waypoints = [  ]
+
+[[conveyors.segments]]
+entryLocation = "Test2"
+exitLocation = "Repair"
+
+[[conveyors.segments.waypoints]]
+x = 850.0
+y = 170.0
+z = 0.0
+
+[[conveyors.segments]]
+entryLocation = "Repair"
+exitLocation = "Test3"
+
+[[conveyors.segments.waypoints]]
+x = 850.0
+y = 550.0
+z = 0.0
+
+[[conveyors.segments]]
+entryLocation = "Test3"
+exitLocation = "Diagnostics"
+
+[[conveyors.segments.waypoints]]
+x = 150.0
+y = 550.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "Diagnostics"
+text = "Diagnostics"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test1"
+text = "Test 1"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test2"
+text = "Test 2"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test3"
+text = "Test 3"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Repair"
+text = "Repair"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Diagnostics:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test1:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test2:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test3:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Repair:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Diagnostics"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Test1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Test2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Test3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Repair"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "Diagnostics"
+label = "Diagnostics"
+
+[locations.position]
+x = 150.0
+y = 170.0
+z = 0.0
+
+[[locations]]
+locationName = "Test1"
+label = "Test1"
+
+[locations.position]
+x = 482.3
+y = 170.0
+z = 0.0
+
+[[locations]]
+locationName = "Test2"
+label = "Test2"
+
+[locations.position]
+x = 814.6
+y = 170.0
+z = 0.0
+
+[[locations]]
+locationName = "Repair"
+label = "Repair"
+
+[locations.position]
+x = 850.0
+y = 383.8
+z = 0.0
+
+[[locations]]
+locationName = "Test3"
+label = "Test3"
+
+[locations.position]
+x = 268.5
+y = 550.0
+z = 0.0

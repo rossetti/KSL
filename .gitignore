@@ -280,3 +280,7 @@ _book/
 
 # Kotlin/JS build scratch (KSLAnimationCore web target)
 kotlin-js-store/
+
+# Python bytecode from the animation polish scripts
+__pycache__/
+*.pyc

@@ -224,11 +224,17 @@ val kslBridge = evaluationDependsOn(":KSLBridge")
 // Curated example bundles shipped with the suite, so a fresh install can run a real model
 // immediately instead of opening an empty model picker. They are slim MANIFEST bundles
 // (~730 KB for both) — the models' dependencies are already in the shared lib/, so this is
-// 0.5% of the payload. They ship as SOFTWARE (bundles/ -> .support/bundles/ once installed),
-// never into the user's workspace: updates refresh them, uninstall removes them, and a user's
-// own copy of the same bundleId shadows them because the apps discover this directory LAST
-// (see WorkspaceLayout.builtinBundlesDir). The launchers point the apps at it with
-// -Dksl.builtinBundles.
+// 0.5% of the payload. They ship as SOFTWARE -- updates refresh them, uninstall removes them, and
+// a user's own copy of the same bundleId shadows them because the apps discover this directory
+// LAST (see WorkspaceLayout.builtinBundlesDir) -- but they land in a VISIBLE examples/ folder
+// rather than inside .support, alongside the polished layouts for the animation models.
+//
+// Visible because they are content, not plumbing: a student told "open the animation examples"
+// has to be able to find them. .support keeps what a student never needs to see -- the shared
+// lib/, the app jars, the servers. The folder is named examples/ rather than bundles/ so it does
+// not read as a second copy of the workspace's own bundles/ folder, which is the student's.
+//
+// The launchers point the apps at both with -Dksl.builtinBundles and -Dksl.builtinLayouts.
 val kslExamples = evaluationDependsOn(":KSLExamples")
 val exampleBundles: List<Pair<String, String>> = listOf(
     "bookExamplesBundleJar" to "book-examples.jar",
@@ -243,10 +249,11 @@ val macLauncherTemplate = """
     # KSL @NAME@ desktop app — suite launcher (runs on your system Java 21).
     set -e
     DIR="DOLLAR(cd "DOLLAR(dirname "DOLLAR0")" && pwd)"
-    # The suite's support root (<KSL_HOME>/.support once installed): holds the shared lib/
-    # and the shipped example bundles. NOT the user's KSLWork workspace -- the app resolves
-    # that itself from ~/.ksl/settings.toml.
+    # The suite's support root (<KSL_HOME>/.support once installed): the shared lib/ and the app
+    # jars. NOT the user's KSLWork workspace -- the app resolves that itself from
+    # ~/.ksl/settings.toml. The shipped examples sit beside it, in a visible <KSL_HOME>/examples.
     KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
+    KSL_EXAMPLES="DOLLAR(cd "DOLLARKSL_SUPPORT/.." && pwd)/examples"
     JAVA=java
     [ -n "DOLLARJAVA_HOME" ] && [ -x "DOLLARJAVA_HOME/bin/java" ] && JAVA="DOLLARJAVA_HOME/bin/java"
     VER="DOLLAR("DOLLARJAVA" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')"
@@ -266,7 +273,7 @@ val macLauncherTemplate = """
       DOCKNAME="-Xdock:name=KSL @NAME@"
       DOCKICON="-Xdock:icon=DOLLARDIR/@NAME@.icns"
     fi
-    exec "DOLLARJAVA" DOLLAR{DOCKNAME:+"DOLLARDOCKNAME"} DOLLAR{DOCKICON:+"DOLLARDOCKICON"} "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles"@JVMARGS@ -cp "DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA" DOLLAR{DOCKNAME:+"DOLLARDOCKNAME"} DOLLAR{DOCKICON:+"DOLLARDOCKICON"} "-Dksl.builtinBundles=DOLLARKSL_EXAMPLES/bundles" "-Dksl.builtinLayouts=DOLLARKSL_EXAMPLES/layouts"@JVMARGS@ -cp "DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@NAME@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 val cliLauncherTemplate = """
@@ -291,7 +298,7 @@ val serverLauncherTemplate = """
     set -e
     DIR="DOLLAR(cd "DOLLAR(dirname "DOLLAR0")" && pwd)"
     # The suite's support root (<KSL_HOME>/.support once installed): the shared lib/ and the
-    # shipped example bundles. NOT the user's workspace.
+    # server jars. The shipped examples sit beside it in a visible <KSL_HOME>/examples.
     KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
     # Pin cwd to our own dir: an agent may spawn us with an arbitrary/stale working directory.
     cd "DOLLARDIR"
@@ -303,7 +310,7 @@ val serverLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_SUPPORT/bundles"@SELFD@ -cp "DOLLARDIR/server-lib/*:DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_EXAMPLES/bundles" "-Dksl.builtinLayouts=DOLLARKSL_EXAMPLES/layouts"@SELFD@ -cp "DOLLARDIR/server-lib/*:DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 fun macLauncher(name: String, mainClass: String, jvmArgs: String): String =
@@ -349,7 +356,7 @@ val winAppTemplate = """
       pause
       exit /b 1
     )
-    start "" "%JAVAW%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\bundles" -cp "%~dp0..\..\lib\*;%~dp0@NAME@.jar" @MAIN@ %*
+    start "" "%JAVAW%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\..\examples\bundles" "-Dksl.builtinLayouts=%~dp0..\..\..\examples\layouts" -cp "%~dp0..\..\lib\*;%~dp0@NAME@.jar" @MAIN@ %*
 """.trimIndent()
 
 val winServerTemplate = """
@@ -363,7 +370,7 @@ val winServerTemplate = """
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
       exit /b 1
     )
-    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\bundles"@SELFD@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
+    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\..\examples\bundles" "-Dksl.builtinLayouts=%~dp0..\..\..\examples\layouts"@SELFD@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
 """.trimIndent()
 
 val winCliTemplate = """
@@ -566,12 +573,27 @@ tasks.register("assembleKSLWork") {
         // The shipped example bundles (see `exampleBundles` above). Without these a fresh
         // install opens an empty model picker and the student can do nothing until they
         // build a bundle from source — which would defeat a no-build distribution.
-        val bundlesDir = root.resolve("bundles").apply { mkdirs() }
+        val examplesDir = root.resolve("examples").apply { mkdirs() }
+        val bundlesDir = examplesDir.resolve("bundles").apply { mkdirs() }
         exampleBundles.forEach { (_, jar) ->
             val src = kslExamples.layout.buildDirectory.file("libs/$jar").get().asFile
             require(src.isFile) { "expected example bundle ${src.path} (its task should have produced it)" }
             src.copyTo(bundlesDir.resolve(jar), overwrite = true)
-            logger.lifecycle("assembleKSLWork: bundles/$jar (${src.length() / 1024} KB)")
+            logger.lifecycle("assembleKSLWork: examples/bundles/$jar (${src.length() / 1024} KB)")
+        }
+
+        // The polished animation layouts, keyed <bundleId>/<modelId> so the animation app can offer the
+        // one belonging to the model a student has open. Produced by :KSLExamples:publishAnimationLayouts;
+        // absent in a source tree that has never run it, which is not fatal -- the apps simply have none
+        // to offer -- but a release must have them, so say so loudly.
+        val layoutSource = file("docs/animations/layouts")
+        val layoutsDir = examplesDir.resolve("layouts").apply { mkdirs() }
+        if (layoutSource.isDirectory) {
+            layoutSource.copyRecursively(layoutsDir, overwrite = true)
+            val count = layoutsDir.walkTopDown().count { it.isFile && it.name.endsWith(".lay.toml") }
+            logger.lifecycle("assembleKSLWork: examples/layouts/ ($count layouts)")
+        } else {
+            logger.warn("assembleKSLWork: no docs/animations/layouts -- shipping without polished layouts")
         }
 
         // the ksl helper (manage what's installed). Its sources live in distribution/bin/ —

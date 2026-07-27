@@ -44,6 +44,7 @@ import ksl.app.animation.replay.ObservedExtent
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.replay.autoLayout
 import ksl.app.animation.replay.buildAutoLayout
+import ksl.app.settings.WorkspaceLayout
 import ksl.app.animation.replay.withModelLocations
 import ksl.animation.CaptureMode
 import ksl.animation.CaptureSpec
@@ -126,6 +127,20 @@ class AnimationAppController(
 
     /** The model's id within its bundle, or null in embedded/builder mode. */
     val modelId: String? get() = (sourceRef as? ModelReference.ByBundleAndModelId)?.modelId
+
+    /**
+     * The polished layout that ships with the suite for this model, or null when there is none.
+     *
+     * Null in every ordinary case other than an installed suite opening a model whose bundle ships one: a
+     * development run, a model loaded outside a bundle, a bundle without layouts. Callers offer it when it
+     * is there and say nothing when it is not — a layout is meaningless except for the model it names, so
+     * there is nothing useful to offer in its absence.
+     */
+    fun shippedLayout(): Path? {
+        val bundle = bundleId ?: return null
+        val model = modelId ?: return null
+        return WorkspaceLayout.builtinLayoutFor(bundle, model)
+    }
 
     /** Scope for EDT-confined coroutine work (panel collectors wire here later). */
     override val edtScope: CoroutineScope = CoroutineScope(Dispatchers.Swing + SupervisorJob())
@@ -499,6 +514,24 @@ class AnimationAppController(
     }
 
     // ── Layout editing (9F.2): granular mutators over the active layout ──────
+
+    /**
+     * Adopt the polished layout that ships with the suite for this model, as an **unbound** document.
+     *
+     * Deliberately not [loadLayout]: that binds the document to the file it came from, and this file lives
+     * in the installed software, which an update replaces and an uninstall deletes. Binding it would point
+     * *Save* at a file the student does not own and will lose. Unbound, the shipped copy stays pristine and
+     * the first *Save* asks where to put it — defaulting, like every other layout, to their workspace.
+     *
+     * Returns false when this model ships no layout, which callers use to decide whether to offer it at all.
+     */
+    fun useShippedLayout(): Boolean {
+        val path = shippedLayout() ?: return false
+        myLayout.value = withMoverHomeBases(withStationsMigratedToLocations(AnimationLayout.read(path)))
+        layoutLifecycle.reset()     // it is the suite's file, not this document's…
+        layoutLifecycle.markDirty() // …so this is unsaved content the student owns
+        return true
+    }
 
     /** Start a new, empty layout (default canvas, no elements); becomes the active, unsaved, unbound document. */
     fun newBlankLayout() {

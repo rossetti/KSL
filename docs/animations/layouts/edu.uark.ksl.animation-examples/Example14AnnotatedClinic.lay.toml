@@ -1,0 +1,164 @@
+title = "Annotated clinic — declared entity types, styled apart"
+baseTimeUnit = null
+width = 900.0
+height = 450.0
+paths = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+locations = [  ]
+
+[[objectClasses]]
+typeName = "Patient"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 21.8
+imageRef = null
+label = null
+
+[[objectClasses]]
+typeName = "VipPatient"
+shape = "TRIANGLE"
+color = "#d62728"
+size = 21.8
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Blue circles are ordinary patients, red triangles are VIPs, and they queue together."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 96.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "The app knew both classes existed before the model was ever run: they are declared with"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 132.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "entityType<T>() and the processes carry @KSLAnimatedProcess, so they appear in the"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 153.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Object Styles list ready to be given a look, rather than being discovered from a trace."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 174.0
+z = 0.0
+
+[[queues]]
+queueName = "Nurse:Q"
+growthDegrees = 180.0
+spacing = 32.2
+maxShown = 5
+
+[queues.position]
+x = 568.0
+y = 210.0
+z = 0.0
+
+[[resources]]
+resourceName = "Nurse"
+size = 52.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 620.0
+y = 210.0
+z = 0.0
+
+[[bars]]
+responseName = "Nurse:WIP"
+width = 330.0
+height = 24.0
+maxValue = 4.0
+color = "#1f77b4"
+label = "Patients in the clinic"
+
+[bars.position]
+x = 36.0
+y = 330.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 22.0
+
+[clocks.position]
+x = 36.0
+y = 52.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "Nurse"
+text = "Nurse"
+dx = 0.0
+dy = -40.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Nurse:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 32.24
+valueVisible = true

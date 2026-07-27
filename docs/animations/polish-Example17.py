@@ -3,7 +3,7 @@
 
 Input:  build/showcase/Example17TandemBlocking.lay.json  (the auto-layout, via showcaseCapture)
         build/showcase/Example17TandemBlocking.atf       (capacities, queue peaks)
-Output: docs/animations/layouts/Example17TandemBlocking.lay.json
+Output: build/showcase/polished/Example17TandemBlocking.lay.json
 
 The generator gets the arrangement right on its own here -- three stations left to right in flow order,
 each queue's head clear of its block -- because it mines the flow from the trace and the buffer genuinely
@@ -18,7 +18,7 @@ import json, pathlib, collections
 
 SRC = pathlib.Path("build/showcase/Example17TandemBlocking.lay.json")
 ATF = pathlib.Path("build/showcase/Example17TandemBlocking.atf")
-OUT = pathlib.Path("docs/animations/layouts/Example17TandemBlocking.lay.json")
+OUT = pathlib.Path("build/showcase/polished/Example17TandemBlocking.lay.json")
 
 d = json.loads(SRC.read_text())
 

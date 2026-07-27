@@ -1,0 +1,154 @@
+title = "Drive-through pharmacy — one queue, one server"
+baseTimeUnit = null
+width = 900.0
+height = 470.0
+paths = [  ]
+stations = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+locations = [  ]
+
+[[objectClasses]]
+typeName = "Customer"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 21.8
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Cars arrive, wait in one line, and are served by whichever pharmacist is free."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 96.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A dot is a car; a red cell is a pharmacist serving one; green is free."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 120.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Nothing moves here — position carries no meaning, only occupancy."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 268.0
+z = 0.0
+
+[[queues]]
+queueName = "Pharmacists:Q"
+growthDegrees = 180.0
+spacing = 32.2
+maxShown = 4
+
+[queues.position]
+x = 542.0
+y = 200.0
+z = 0.0
+
+[[resources]]
+resourceName = "Pharmacists"
+size = 52.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 620.0
+y = 200.0
+z = 0.0
+
+[[bars]]
+responseName = "DriveThrough:NumInSystem"
+width = 330.0
+height = 24.0
+maxValue = 4.0
+color = "#1f77b4"
+label = "Cars in the system"
+
+[bars.position]
+x = 36.0
+y = 330.0
+z = 0.0
+
+[[plots]]
+responseName = "DriveThrough:NumInSystem"
+width = 390.0
+height = 92.0
+windowDuration = null
+color = "#1f77b4"
+label = "Cars in the system over time"
+
+[plots.position]
+x = 470.0
+y = 300.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 22.0
+
+[clocks.position]
+x = 36.0
+y = 52.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "Pharmacists"
+text = "Pharmacists (2)"
+dx = 0.0
+dy = -40.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Pharmacists:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 32.24
+valueVisible = true

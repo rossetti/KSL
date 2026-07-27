@@ -3,7 +3,7 @@
 
 Input:  build/showcase/Example03GridEpidemic.lay.json  (the auto-layout, via showcaseCapture)
         build/showcase/Example03GridEpidemic.atf       (state names and response ranges)
-Output: docs/animations/layouts/Example03GridEpidemic.lay.json
+Output: build/showcase/polished/Example03GridEpidemic.lay.json
 
 An agent model needs almost none of the placement work a process model does: the grid comes from the model,
 the agents carry their own cell coordinates, and the generator already frames both. What it does need is
@@ -15,7 +15,7 @@ import json, pathlib, collections
 
 SRC = pathlib.Path("build/showcase/Example03GridEpidemic.lay.json")
 ATF = pathlib.Path("build/showcase/Example03GridEpidemic.atf")
-OUT = pathlib.Path("docs/animations/layouts/Example03GridEpidemic.lay.json")
+OUT = pathlib.Path("build/showcase/polished/Example03GridEpidemic.lay.json")
 
 d = json.loads(SRC.read_text())
 

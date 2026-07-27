@@ -1,0 +1,256 @@
+title = "Building evacuation on a grid"
+baseTimeUnit = null
+width = 28.1
+height = 16.6
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+
+[[objectClasses]]
+typeName = "Pedestrian"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 0.62
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "People step from cell to cell down a distance"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.46
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 4.949999999999999
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "field toward whichever exit is nearer."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.46
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 5.65
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "The grey cells are walls, taken from the"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.42
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 10.2
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "model's own grid graph rather than drawn"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.42
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 10.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "to match it."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.42
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 11.399999999999999
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Compare Example 05: the same emptying room"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.42
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 12.399999999999999
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "under continuous social forces instead."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.42
+fontFamily = null
+
+[[background.points]]
+x = 16.6
+y = 13.0
+z = 0.0
+
+[[bars]]
+responseName = "PopulationInBuilding"
+width = 10.5
+height = 0.9
+maxValue = 40.0
+color = "#1f77b4"
+label = "Still inside"
+
+[bars.position]
+x = 16.6
+y = 7.199999999999999
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 0.82
+
+[clocks.position]
+x = 16.6
+y = 3.8
+z = 0.0
+
+[[spaces]]
+type = "Grid"
+name = "grid"
+cols = 15
+rows = 15
+cellSize = 1.0
+originX = 0.0
+originY = 0.0
+torus = false
+
+[[labels]]
+kind = "LOCATION"
+name = "Exit 1"
+text = "Exit 1"
+dx = 12.0
+dy = 18.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Exit 2"
+text = "Exit 2"
+dx = -48.0
+dy = -12.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[spaceGeometry]]
+spaceName = "grid"
+cols = 15
+rows = 15
+torus = false
+movementRule = "MOORE"
+allowCornerCutting = false
+cellCosts = [  ]
+originX = null
+originY = null
+cellSize = null
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 11
+
+[[locations]]
+locationName = "Exit 1"
+label = null
+
+[locations.position]
+x = 0.5
+y = 0.5
+z = 0.0
+
+[[locations]]
+locationName = "Exit 2"
+label = null
+
+[locations.position]
+x = 14.5
+y = 14.5
+z = 0.0

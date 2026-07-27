@@ -1,0 +1,402 @@
+title = "Drone delivery — a 3D airspace in plan view"
+baseTimeUnit = null
+width = 492.0
+height = 324.0
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+
+[[objectClasses]]
+typeName = "Drone"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 6.5
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Drones fly between a depot and delivery"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 8.2
+fontFamily = null
+
+[[background.points]]
+x = 324.0
+y = 80.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "points, routing around no-fly zones."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 8.2
+fontFamily = null
+
+[[background.points]]
+x = 324.0
+y = 91.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "This is the plan view of a 300 x 300 x 100 m"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 6.8
+fontFamily = null
+
+[[background.points]]
+x = 324.0
+y = 186.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "airspace. Altitude is carried in the trace and"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 6.8
+fontFamily = null
+
+[[background.points]]
+x = 324.0
+y = 196.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "is not drawn, so two drones crossing here are"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 6.8
+fontFamily = null
+
+[[background.points]]
+x = 324.0
+y = 206.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "not necessarily near one another."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 6.8
+fontFamily = null
+
+[[background.points]]
+x = 324.0
+y = 216.0
+z = 0.0
+
+[[bars]]
+responseName = "NumDeliveries"
+width = 150.0
+height = 13.0
+maxValue = 12.0
+color = "#2ca02c"
+label = "Deliveries made"
+
+[bars.position]
+x = 324.0
+y = 114.0
+z = 0.0
+
+[[bars]]
+responseName = "NumIdleDrones"
+width = 150.0
+height = 13.0
+maxValue = 3.0
+color = "#1f77b4"
+label = "Drones idle"
+
+[bars.position]
+x = 324.0
+y = 140.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 15.0
+
+[clocks.position]
+x = 324.0
+y = 58.0
+z = 0.0
+
+[[spaces]]
+type = "Continuous"
+name = "continuousVolume"
+xMin = 0.0
+xMax = 300.0
+yMin = 0.0
+yMax = 300.0
+torus = false
+
+[[labels]]
+kind = "LOCATION"
+name = "Depot"
+text = "Depot"
+dx = 0.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Drop 1"
+text = "Drop 1"
+dx = -56.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Drop 2"
+text = "Drop 2"
+dx = 0.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Drop 3"
+text = "Drop 3"
+dx = -56.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Drop 4"
+text = "Drop 4"
+dx = 0.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[spaceGeometry]]
+spaceName = "continuousVolume"
+cols = 30
+rows = 30
+torus = false
+movementRule = "MOORE"
+allowCornerCutting = false
+cellCosts = [  ]
+originX = null
+originY = null
+cellSize = null
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 12
+
+[[spaceGeometry.blockedCells]]
+col = 9
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 9
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 9
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 9
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 9
+row = 12
+
+[[spaceGeometry.blockedCells]]
+col = 10
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 10
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 10
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 10
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 10
+row = 12
+
+[[spaceGeometry.blockedCells]]
+col = 11
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 11
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 11
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 11
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 11
+row = 12
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 8
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 9
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 12
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 18
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 19
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 19
+row = 18
+
+[[spaceGeometry.blockedCells]]
+col = 19
+row = 19
+
+[[spaceGeometry.blockedCells]]
+col = 19
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 20
+row = 18
+
+[[spaceGeometry.blockedCells]]
+col = 20
+row = 19
+
+[[spaceGeometry.blockedCells]]
+col = 20
+row = 20
+
+[[locations]]
+locationName = "Depot"
+label = null
+
+[locations.position]
+x = 15.0
+y = 15.0
+z = 0.0
+
+[[locations]]
+locationName = "Drop 1"
+label = null
+
+[locations.position]
+x = 255.0
+y = 55.0
+z = 0.0
+
+[[locations]]
+locationName = "Drop 2"
+label = null
+
+[locations.position]
+x = 55.0
+y = 255.0
+z = 0.0
+
+[[locations]]
+locationName = "Drop 3"
+label = null
+
+[locations.position]
+x = 285.0
+y = 285.0
+z = 0.0
+
+[[locations]]
+locationName = "Drop 4"
+label = null
+
+[locations.position]
+x = 155.0
+y = 285.0
+z = 0.0

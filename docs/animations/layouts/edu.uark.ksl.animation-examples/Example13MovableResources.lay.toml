@@ -1,0 +1,605 @@
+title = "Test & Repair — movable workers + MDS-placed stations (8K.5 + 8K.6b)"
+baseTimeUnit = "MILLISECOND"
+width = 796.0
+height = 696.0
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Part"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 19.8
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Parts flow left to right: Diagnostics → tests → Repair."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.9
+fontFamily = null
+
+[[background.points]]
+x = 30.0
+y = 82.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Station spacing is the model's own distance matrix; triangles are the 3 transport workers."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.9
+fontFamily = null
+
+[[background.points]]
+x = 30.0
+y = 106.0
+z = 0.0
+
+[[paths]]
+name = "DiagnosticStation->TestStation3"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "DiagnosticStation"
+
+[paths.to]
+kind = "LOCATION"
+name = "TestStation3"
+
+[[paths]]
+name = "TestStation3->TestStation1"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "TestStation3"
+
+[paths.to]
+kind = "LOCATION"
+name = "TestStation1"
+
+[[paths]]
+name = "DiagnosticStation->TestStation1"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "DiagnosticStation"
+
+[paths.to]
+kind = "LOCATION"
+name = "TestStation1"
+
+[[paths]]
+name = "DiagnosticStation->TestStation2"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "DiagnosticStation"
+
+[paths.to]
+kind = "LOCATION"
+name = "TestStation2"
+
+[[paths]]
+name = "TestStation1->RepairStation"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "TestStation1"
+
+[paths.to]
+kind = "LOCATION"
+name = "RepairStation"
+
+[[paths]]
+name = "TestStation2->TestStation3"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "TestStation2"
+
+[paths.to]
+kind = "LOCATION"
+name = "TestStation3"
+
+[[paths]]
+name = "TestStation3->RepairStation"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "TestStation3"
+
+[paths.to]
+kind = "LOCATION"
+name = "RepairStation"
+
+[[paths]]
+name = "TestStation2->TestStation1"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "TestStation2"
+
+[paths.to]
+kind = "LOCATION"
+name = "TestStation1"
+
+[[queues]]
+queueName = "DiagnosticWorkers:Q"
+growthDegrees = 180.0
+spacing = 25.7
+maxShown = 3
+
+[queues.position]
+x = 121.0
+y = 550.0
+z = 0.0
+
+[[queues]]
+queueName = "Test1:Q"
+growthDegrees = 180.0
+spacing = 25.7
+maxShown = 3
+
+[queues.position]
+x = 451.3
+y = 561.8
+z = 0.0
+
+[[queues]]
+queueName = "Test2:Q"
+growthDegrees = 180.0
+spacing = 25.7
+maxShown = 3
+
+[queues.position]
+x = 530.7
+y = 498.4
+z = 0.0
+
+[[queues]]
+queueName = "Test3:Q"
+growthDegrees = 180.0
+spacing = 25.7
+maxShown = 3
+
+[queues.position]
+x = 670.6
+y = 160.0
+z = 0.0
+
+[[queues]]
+queueName = "RepairWorkers:Q"
+growthDegrees = 180.0
+spacing = 25.7
+maxShown = 3
+
+[queues.position]
+x = 640.6
+y = 384.2
+z = 0.0
+
+[[resources]]
+resourceName = "DiagnosticWorkers"
+size = 33.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 170.0
+y = 550.0
+z = 0.0
+
+[[resources]]
+resourceName = "Test1"
+size = 33.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 483.8
+y = 561.8
+z = 0.0
+
+[[resources]]
+resourceName = "Test2"
+size = 33.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 563.2
+y = 498.4
+z = 0.0
+
+[[resources]]
+resourceName = "Test3"
+size = 33.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 703.1
+y = 160.0
+z = 0.0
+
+[[resources]]
+resourceName = "RepairWorkers"
+size = 33.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 706.1
+y = 384.2
+z = 0.0
+
+[[bars]]
+responseName = "NumInSystem"
+width = 340.0
+height = 20.0
+maxValue = 20.0
+color = "#1f77b4"
+label = "Number in system"
+
+[bars.position]
+x = 40.0
+y = 320.2
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 19.1
+
+[clocks.position]
+x = 30.0
+y = 44.0
+z = 0.0
+
+[[movableResources]]
+name = "TransportWorkerPool:R1"
+shape = "TRIANGLE"
+color = "#ff7f0e"
+size = 25.1
+imageRef = null
+label = null
+position = null
+busyColor = null
+idleImage = null
+busyImage = null
+homeBase = null
+
+[[movableResources]]
+name = "TransportWorkerPool:R2"
+shape = "TRIANGLE"
+color = "#9467bd"
+size = 25.1
+imageRef = null
+label = null
+position = null
+busyColor = null
+idleImage = null
+busyImage = null
+homeBase = null
+
+[[movableResources]]
+name = "TransportWorkerPool:R3"
+shape = "TRIANGLE"
+color = "#17becf"
+size = 25.1
+imageRef = null
+label = null
+position = null
+busyColor = null
+idleImage = null
+busyImage = null
+homeBase = null
+
+[[labels]]
+kind = "LOCATION"
+name = "DiagnosticStation"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "TestStation1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "TestStation2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "RepairStation"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "TestStation3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "DiagnosticWorkers"
+text = "Diagnostics"
+dx = 0.0
+dy = -27.5
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "RepairWorkers"
+text = "Repair"
+dx = 0.0
+dy = -27.5
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test1"
+text = "Test 1"
+dx = 0.0
+dy = -27.5
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test2"
+text = "Test 2"
+dx = 0.0
+dy = -27.5
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test3"
+text = "Test 3"
+dx = 0.0
+dy = -27.5
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "DiagnosticWorkers:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 20.5
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test1:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 20.5
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test2:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 20.5
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test3:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 20.5
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "RepairWorkers:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 20.5
+valueVisible = true
+
+[[labels]]
+kind = "MOVABLE_RESOURCE"
+name = "TransportWorkerPool:R1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "MOVABLE_RESOURCE"
+name = "TransportWorkerPool:R2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "MOVABLE_RESOURCE"
+name = "TransportWorkerPool:R3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "DiagnosticStation"
+label = "DiagnosticStation"
+
+[locations.position]
+x = 170.0
+y = 580.0
+z = 0.0
+
+[[locations]]
+locationName = "TestStation1"
+label = "TestStation1"
+
+[locations.position]
+x = 483.8
+y = 591.8
+z = 0.0
+
+[[locations]]
+locationName = "TestStation2"
+label = "TestStation2"
+
+[locations.position]
+x = 563.2
+y = 528.4
+z = 0.0
+
+[[locations]]
+locationName = "RepairStation"
+label = "RepairStation"
+
+[locations.position]
+x = 706.1
+y = 414.2
+z = 0.0
+
+[[locations]]
+locationName = "TestStation3"
+label = "TestStation3"
+
+[locations.position]
+x = 703.1
+y = 190.0
+z = 0.0

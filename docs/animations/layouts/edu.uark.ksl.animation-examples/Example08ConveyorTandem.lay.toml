@@ -1,0 +1,298 @@
+title = "Tandem queue with a conveyor — parts ride between stations"
+baseTimeUnit = null
+width = 1160.0
+height = 560.0
+paths = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Part"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 16.8
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Parts ride a belt between an entrance, two work stations and an exit."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 96.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Each square is one cell of the conveyor and fills when a part occupies it, so the belt shows"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 130.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "its own load. Cells are a resource in their own right: a part that cannot get on waits at the"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 151.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "entry, and the queue at station 2 is what happens when the far end cannot keep up."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 172.0
+z = 0.0
+
+[[queues]]
+queueName = "worker1:Q"
+growthDegrees = 180.0
+spacing = 24.8
+maxShown = 9
+
+[queues.position]
+x = 448.5
+y = 276.0
+z = 0.0
+
+[[queues]]
+queueName = "worker2:Q"
+growthDegrees = 180.0
+spacing = 24.8
+maxShown = 23
+
+[queues.position]
+x = 590.5
+y = 276.0
+z = 0.0
+
+[[resources]]
+resourceName = "worker1"
+size = 40.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 488.5
+y = 276.0
+z = 0.0
+
+[[resources]]
+resourceName = "worker2"
+size = 40.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 630.5
+y = 276.0
+z = 0.0
+
+[[bars]]
+responseName = "ConveyorTQ:NumInSystem"
+width = 340.0
+height = 24.0
+maxValue = 32.0
+color = "#1f77b4"
+label = "Parts in the system"
+
+[bars.position]
+x = 36.0
+y = 470.0
+z = 0.0
+
+[[bars]]
+responseName = "Conveyor:NumOccupiedCells"
+width = 340.0
+height = 24.0
+maxValue = 13.0
+color = "#5b6470"
+label = "Belt cells occupied"
+
+[bars.position]
+x = 470.0
+y = 470.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 22.0
+
+[clocks.position]
+x = 36.0
+y = 52.0
+z = 0.0
+
+[[conveyors]]
+conveyorName = "Conveyor"
+width = 6.2
+color = "#5b6470"
+showDirection = true
+label = null
+
+[[conveyors.segments]]
+entryLocation = "Enter"
+exitLocation = "Station1"
+waypoints = [  ]
+
+[[conveyors.segments]]
+entryLocation = "Station1"
+exitLocation = "Station2"
+waypoints = [  ]
+
+[[conveyors.segments]]
+entryLocation = "Station2"
+exitLocation = "Exit"
+waypoints = [  ]
+
+[[labels]]
+kind = "RESOURCE"
+name = "worker1"
+text = "Station 1"
+dx = 0.0
+dy = -33.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "worker2"
+text = "Station 2"
+dx = 0.0
+dy = -33.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "worker1:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 24.8
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "worker2:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 24.8
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Station1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Station2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "Enter"
+label = "Enter"
+
+[locations.position]
+x = 240.0
+y = 306.0
+z = 0.0
+
+[[locations]]
+locationName = "Station1"
+label = "Station1"
+
+[locations.position]
+x = 488.5
+y = 306.0
+z = 0.0
+
+[[locations]]
+locationName = "Station2"
+label = "Station2"
+
+[locations.position]
+x = 630.5
+y = 306.0
+z = 0.0
+
+[[locations]]
+locationName = "Exit"
+label = "Exit"
+
+[locations.position]
+x = 840.0
+y = 306.0
+z = 0.0

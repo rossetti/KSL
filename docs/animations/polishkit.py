@@ -13,7 +13,10 @@ import pathlib
 from collections import Counter, defaultdict
 
 SHOWCASE = pathlib.Path("build/showcase")
-LAYOUTS = pathlib.Path("docs/animations/layouts")
+# The scripts' own output, in JSON because that is what Python writes naturally. It is an intermediate:
+# `./gradlew :KSLExamples:publishAnimationLayouts` converts these into the .lay.toml files that ship, using
+# the same codec the animation app reads, so the shipped form cannot drift from what the app understands.
+POLISHED = pathlib.Path("build/showcase/polished")
 
 
 def load(name):
@@ -28,8 +31,8 @@ def load(name):
 
 
 def save(layout, name):
-    LAYOUTS.mkdir(parents=True, exist_ok=True)
-    out = LAYOUTS / f"{name}.lay.json"
+    POLISHED.mkdir(parents=True, exist_ok=True)
+    out = POLISHED / f"{name}.lay.json"
     out.write_text(json.dumps(layout, indent=1))
     print(f"wrote {out}  ({layout['width']:g}x{layout['height']:g})")
     return out

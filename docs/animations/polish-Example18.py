@@ -3,7 +3,7 @@
 
 Input:  build/showcase/Example18ConveyorTestRepair.lay.json  (the auto-layout, via showcaseCapture)
         build/showcase/Example18ConveyorTestRepair.atf       (belt geometry, capacities, queue peaks)
-Output: docs/animations/layouts/Example18ConveyorTestRepair.lay.json
+Output: build/showcase/polished/Example18ConveyorTestRepair.lay.json
 
 The generator gets the belt's *topology* right on its own -- five anchors chained in the order the conveyor
 visits them, and now the stations assembled onto them -- but it lays the chain out as a straight line,
@@ -18,7 +18,7 @@ import json, pathlib, collections
 
 SRC = pathlib.Path("build/showcase/Example18ConveyorTestRepair.lay.json")
 ATF = pathlib.Path("build/showcase/Example18ConveyorTestRepair.atf")
-OUT = pathlib.Path("docs/animations/layouts/Example18ConveyorTestRepair.lay.json")
+OUT = pathlib.Path("build/showcase/polished/Example18ConveyorTestRepair.lay.json")
 
 d = json.loads(SRC.read_text())
 

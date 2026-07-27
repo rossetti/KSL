@@ -9,7 +9,8 @@
 # bundled runtime). Two roots, kept apart on purpose:
 #
 #   ~/Applications/KSL      the SOFTWARE (this installer owns it). Double-clickable apps,
-#                           bin/ksl, and a hidden .support/ with the shared lib/ and jars.
+#                           bin/ksl, examples/ (model bundles + animation layouts to learn
+#                           from), and a hidden .support/ with the shared lib/ and jars.
 #   ~/Documents/KSLWork     YOUR WORK (the apps own it) — bundles, configs, output. The
 #                           installer only ever creates bundles/ here; nothing else.
 #
@@ -89,6 +90,14 @@ if [ -f "$SUPPORT/bin/ksl" ]; then
 fi
 rm -rf "$SUPPORT/bin"
 
+# The shipped examples are content, not plumbing: model bundles to open and polished animation
+# layouts to look at. A student told "open the animation examples" must be able to find them, so
+# they come out of the hidden support folder and sit beside the apps. Still software -- this
+# installer owns them and an update replaces them -- which is why they are here and not in the
+# workspace, where a student's edits must never be overwritten.
+rm -rf "$KSL_HOME/examples"
+[ -d "$SUPPORT/examples" ] && mv -f "$SUPPORT/examples" "$KSL_HOME/examples"
+
 # --- 5. record what's installed (inside .support: it's plumbing, not for students) ---
 VER=""
 if [ -n "$MANIFEST" ]; then
@@ -128,7 +137,7 @@ cleanup_legacy() {
   local wk="$1" removed=0 p
   [ -n "$wk" ] && [ -d "$wk" ] || return 0
   grep -q '"kslWorkLayout"' "$wk/manifest.json" 2>/dev/null || return 0
-  for p in Apps lib Servers Tools bin Applications manifest.json VERSIONS.txt; do
+  for p in Apps lib Servers Tools bin examples Applications manifest.json VERSIONS.txt; do
     if [ -e "$wk/$p" ]; then rm -rf "${wk:?}/$p"; removed=$((removed + 1)); fi
   done
   [ "$removed" -gt 0 ] && say "* Cleaned $removed stale software item(s) out of $wk (your bundles and work are untouched)"
@@ -145,6 +154,7 @@ else
   say "  Apps       \"KSL <Name>\" in your applications menu"
 fi
 say "  Software   $KSL_HOME        (delete this folder to uninstall)"
+say "  Examples   $KSL_HOME/examples   (model bundles + animation layouts — replaced on update)"
 say "  Your work  $WORK            (bundles, configs, output — never touched by updates)"
 say "             drop model bundle JARs into $WORK/bundles"
 say "  Servers    $SUPPORT/Servers/<name>/   (point your MCP client's config here)"

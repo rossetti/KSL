@@ -1,0 +1,514 @@
+title = "STEM Fair Mixer — students walking a venue, and the delays that hold them"
+baseTimeUnit = null
+width = 1294.0
+height = 660.0
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Student"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 13.0
+imageRef = null
+label = null
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#c8c8c8"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 251.8
+y = 352.0
+z = 0.0
+
+[[background.points]]
+x = 251.8
+y = 400.0
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#c8c8c8"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 449.4
+y = 400.0
+z = 0.0
+
+[[background.points]]
+x = 449.4
+y = 460.0
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#c8c8c8"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 778.8
+y = 339.0
+z = 0.0
+
+[[background.points]]
+x = 778.8
+y = 400.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Students walk a five-location venue; the line is the corridor and the dots on it are students in transit."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 32.0
+y = 86.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Where they stop is a bare delay() with no geometry — a storage bound to the delay's name is what draws it."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 32.0
+y = 110.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A conversation runs ~18 minutes against a few seconds of walking, so the room below is where the fair is."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.5
+fontFamily = null
+
+[[background.points]]
+x = 32.0
+y = 148.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Entrance"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 34.0
+y = 405.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Exit"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 1190.0
+y = 405.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Recruiting"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 744.8
+y = 424.0
+z = 0.0
+
+[[paths]]
+name = "Entrance->NameTags"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "Entrance"
+
+[paths.to]
+kind = "LOCATION"
+name = "NameTags"
+
+[[paths]]
+name = "NameTags->Recruiting"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "NameTags"
+
+[paths.to]
+kind = "LOCATION"
+name = "Recruiting"
+
+[[paths]]
+name = "NameTags->ConversationArea"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "NameTags"
+
+[paths.to]
+kind = "LOCATION"
+name = "ConversationArea"
+
+[[paths]]
+name = "Recruiting->Exit"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "Recruiting"
+
+[paths.to]
+kind = "LOCATION"
+name = "Exit"
+
+[[paths]]
+name = "ConversationArea->Recruiting"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "ConversationArea"
+
+[paths.to]
+kind = "LOCATION"
+name = "Recruiting"
+
+[[paths]]
+name = "ConversationArea->Exit"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "ConversationArea"
+
+[paths.to]
+kind = "LOCATION"
+name = "Exit"
+
+[[queues]]
+queueName = "MalWartR:Q"
+growthDegrees = 180.0
+spacing = 16.0
+maxShown = 8
+
+[queues.position]
+x = 728.8
+y = 322.0
+z = 0.0
+
+[[queues]]
+queueName = "JHBuntR:Q"
+growthDegrees = 180.0
+spacing = 16.0
+maxShown = 8
+
+[queues.position]
+x = 711.8
+y = 232.0
+z = 0.0
+
+[[resources]]
+resourceName = "MalWartR"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 778.8
+y = 322.0
+z = 0.0
+
+[[resources]]
+resourceName = "JHBuntR"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 778.8
+y = 232.0
+z = 0.0
+
+[[bars]]
+responseName = "NumInSystem"
+width = 250.0
+height = 22.0
+maxValue = 40.0
+color = "#1f77b4"
+label = "Students in the mixer"
+
+[bars.position]
+x = 32.0
+y = 560.0
+z = 0.0
+
+[[bars]]
+responseName = "NumInConversationArea"
+width = 250.0
+height = 22.0
+maxValue = 10.0
+color = "#1f77b4"
+label = "In conversation"
+
+[bars.position]
+x = 32.0
+y = 606.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 20.0
+
+[clocks.position]
+x = 32.0
+y = 44.0
+z = 0.0
+
+[[storages]]
+suspensionName = "NameTags"
+style = "PACKED_REGION"
+width = 80.0
+height = 52.0
+growthDegrees = 0.0
+spacing = 16.0
+capacity = 0
+maxShown = 12
+byType = true
+label = "Name tags"
+
+[storages.position]
+x = 211.8
+y = 300.0
+z = 0.0
+
+[[storages]]
+suspensionName = "ConversationArea"
+style = "PILE"
+width = 230.0
+height = 142.6
+growthDegrees = 0.0
+spacing = 16.0
+capacity = 0
+maxShown = 16
+byType = true
+label = "Conversing"
+
+[storages.position]
+x = 334.4
+y = 460.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "JHBuntR"
+text = "J.H. Bunt"
+dx = 0.0
+dy = -29.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "MalWartR"
+text = "Mal-Wart"
+dx = 0.0
+dy = -29.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "JHBuntR:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "MalWartR:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Entrance"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "NameTags"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "ConversationArea"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Recruiting"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Exit"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "ConversationArea"
+label = "ConversationArea"
+
+[locations.position]
+x = 449.4
+y = 400.0
+z = 0.0
+
+[[locations]]
+locationName = "Entrance"
+label = "Entrance"
+
+[locations.position]
+x = 120.0
+y = 400.0
+z = 0.0
+
+[[locations]]
+locationName = "Exit"
+label = "Exit"
+
+[locations.position]
+x = 1174.0
+y = 400.0
+z = 0.0
+
+[[locations]]
+locationName = "NameTags"
+label = "NameTags"
+
+[locations.position]
+x = 251.8
+y = 400.0
+z = 0.0
+
+[[locations]]
+locationName = "Recruiting"
+label = "Recruiting"
+
+[locations.position]
+x = 778.8
+y = 400.0
+z = 0.0

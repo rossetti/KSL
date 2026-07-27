@@ -265,10 +265,11 @@ something worth *showing* is a further pass of deliberate work: renaming what a
 reader would not recognise, hiding the labels that only repeat their neighbours,
 sizing elements to the arrangement, and saying in a caption what the picture is of.
 
-These six are the KSL animation bundle's models after that pass. Each is a committed
-`.lay.json` in [`docs/animations/layouts`](../../animations/layouts), produced by a
-script that records why every change was made, and each plays against a trace you
-can capture yourself in one command.
+These six are among the fifteen models the KSL animation bundle ships, each after that pass. Every one is
+a committed `.lay.toml` in [`docs/animations/layouts`](../../animations/layouts), produced by a script that
+records why every change was made, and every one **installs with the suite** — with a model open, use
+**Layout ▸ Use Shipped Layout** to load the polished layout for it. It opens as a new unsaved document, so
+the shipped copy stays as it is and your first *Save* goes to your own workspace.
 
 **Test & repair shop, with transport workers** — five stations placed from the
 model's own distance matrix, the routes parts actually travelled drawn between them,
@@ -312,6 +313,7 @@ the polish:
 ```bash
 ./gradlew :KSLExamples:showcaseCapture -PmodelName=Example13MovableResources -Pout=build/showcase
 python3 docs/animations/polish-Example13.py
+./gradlew :KSLExamples:publishAnimationLayouts
 ```
 
 `-PmodelName=list` prints everything capturable. The reusable part — which defects to

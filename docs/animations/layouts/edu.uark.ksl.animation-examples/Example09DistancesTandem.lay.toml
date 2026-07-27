@@ -1,0 +1,314 @@
+title = "Tandem queue on a distance model — named places, no coordinates"
+baseTimeUnit = null
+width = 1000.0
+height = 470.0
+stations = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Customer"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 15.0
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "The same walk as the moving-parts example, on a model with no coordinates at all."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 34.0
+y = 94.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Its moves report NaN positions and the names of the places they run between. The layout"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 34.0
+y = 128.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "supplies a position for each name — here from the model's distance matrix, turned so the"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 34.0
+y = 149.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "process reads left to right — and every move resolves against them."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 34.0
+y = 170.0
+z = 0.0
+
+[[paths]]
+name = "Enter->Station1"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "Enter"
+
+[paths.to]
+kind = "LOCATION"
+name = "Station1"
+
+[[paths]]
+name = "Station1->Station2"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "Station1"
+
+[paths.to]
+kind = "LOCATION"
+name = "Station2"
+
+[[paths]]
+name = "Exit->Station2"
+points = [  ]
+bidirectional = true
+
+[paths.from]
+kind = "LOCATION"
+name = "Exit"
+
+[paths.to]
+kind = "LOCATION"
+name = "Station2"
+
+[[queues]]
+queueName = "worker1:Q"
+growthDegrees = 180.0
+spacing = 21.1
+maxShown = 8
+
+[queues.position]
+x = 298.0
+y = 276.0
+z = 0.0
+
+[[queues]]
+queueName = "worker2:Q"
+growthDegrees = 180.0
+spacing = 21.1
+maxShown = 16
+
+[queues.position]
+x = 434.0
+y = 276.0
+z = 0.0
+
+[[resources]]
+resourceName = "worker1"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 332.0
+y = 276.0
+z = 0.0
+
+[[resources]]
+resourceName = "worker2"
+size = 34.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 468.0
+y = 276.0
+z = 0.0
+
+[[bars]]
+responseName = "WalkTQ:NumInSystem"
+width = 340.0
+height = 24.0
+maxValue = 20.0
+color = "#1f77b4"
+label = "Customers in the system"
+
+[bars.position]
+x = 34.0
+y = 380.0
+z = 0.0
+
+[[plots]]
+responseName = "WalkTQ:NumInSystem"
+width = 400.0
+height = 86.0
+windowDuration = null
+color = "#1f77b4"
+label = "Customers in the system over time"
+
+[plots.position]
+x = 520.0
+y = 350.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 22.0
+
+[clocks.position]
+x = 34.0
+y = 50.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "worker1"
+text = "Station 1"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "worker2"
+text = "Station 2"
+dx = 0.0
+dy = -30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "worker1:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.44
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "worker2:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 22.44
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Station1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Station2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "Enter"
+label = "Enter"
+
+[locations.position]
+x = 60.0
+y = 310.0
+z = 0.0
+
+[[locations]]
+locationName = "Exit"
+label = "Exit"
+
+[locations.position]
+x = 740.0
+y = 310.0
+z = 0.0
+
+[[locations]]
+locationName = "Station1"
+label = "Station1"
+
+[locations.position]
+x = 332.0
+y = 310.0
+z = 0.0
+
+[[locations]]
+locationName = "Station2"
+label = "Station2"
+
+[locations.position]
+x = 468.0
+y = 310.0
+z = 0.0

@@ -324,6 +324,21 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
         add(JMenu("Layout").apply {
             add(JMenuItem("Auto Layout").apply { addActionListener { controller.autoLayout() } })
             add(JMenuItem("Layout from Model").apply { addActionListener { controller.scaffoldLayout() } })
+            // Offered only for a model whose bundle ships one, because a layout means nothing except for the
+            // model it names. Enabled state is settled when the menu opens rather than at construction: the
+            // model can change under a long-lived window.
+            val shipped = JMenuItem("Use Shipped Layout").apply {
+                toolTipText = "Open the polished layout that ships with this model, as a new unsaved document"
+                addActionListener { controller.useShippedLayout() }
+            }
+            add(shipped)
+            addMenuListener(object : javax.swing.event.MenuListener {
+                override fun menuSelected(e: javax.swing.event.MenuEvent?) {
+                    shipped.isEnabled = controller.shippedLayout() != null
+                }
+                override fun menuDeselected(e: javax.swing.event.MenuEvent?) {}
+                override fun menuCanceled(e: javax.swing.event.MenuEvent?) {}
+            })
             add(JMenuItem("Open…").apply { addActionListener { handleOpenLayout() } })
             addSeparator()
             add(JMenuItem("Save").apply { addActionListener { handleSaveLayout() } })

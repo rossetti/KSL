@@ -3,7 +3,7 @@
 
 Input:  build/showcase/Example12StemFairStorage.lay.json  (the auto-layout, via showcaseCapture)
         build/showcase/Example12StemFairStorage.atf       (routes, capacities, stage occupancy)
-Output: docs/animations/layouts/Example12StemFairStorage.lay.json
+Output: build/showcase/polished/Example12StemFairStorage.lay.json
 
 The model is a DistancesModel: five named locations that students walk between. Two things have to be
 drawn and they come from opposite ends of the trace.
@@ -17,7 +17,7 @@ import json, pathlib, collections
 
 SRC = pathlib.Path("build/showcase/Example12StemFairStorage.lay.json")
 ATF = pathlib.Path("build/showcase/Example12StemFairStorage.atf")
-OUT = pathlib.Path("docs/animations/layouts/Example12StemFairStorage.lay.json")
+OUT = pathlib.Path("build/showcase/polished/Example12StemFairStorage.lay.json")
 
 d = json.loads(SRC.read_text())
 

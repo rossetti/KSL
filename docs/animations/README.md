@@ -1,6 +1,7 @@
 # Showcase animation layouts
 
-Polished `.lay.json` layouts for the animations used in the repository README and in the
+The polished animation layouts that **ship with the KSL suite** — one for every model the animation bundle
+carries — and the scripts that produce them. Also the source of the gallery in the
 [Animation app guide](../guides/apps/animation.md).
 
 **[How to polish one →](polishing-playbook.md)** — the defect catalogue, in fix order, for both the
@@ -10,10 +11,22 @@ desktop app and the MCP server.
 
 | File | What it is |
 |---|---|
-| `layouts/*.lay.json` | The polished layouts. Committed artifacts. |
-| | `Example03GridEpidemic` · `Example05PedestrianCrowd` · `Example12StemFairStorage` · `Example13MovableResources` · `Example17TandemBlocking` · `Example18ConveyorTestRepair` |
+| `layouts/<bundleId>/<modelId>.lay.toml` | The polished layouts, as they ship. Committed artifacts, one per model the bundle carries. |
 | `polish-<model>.py` | The script that produces one, from the auto-layout starting point. |
+| `polishkit.py` | The mechanics the scripts share — loading, trace facts, the JSON shapes for chrome. |
 | `polishing-playbook.md` | The reusable knowledge: what goes wrong, in what order to fix it. |
+
+A layout names one model's queues, resources and locations, so it means nothing for any other model. The
+shipped ones are keyed by the pair that identifies a model exactly — its **bundle id** and its **model id**
+— which is also the pair the animation app holds when a model is open, so *Layout ▸ Use Shipped Layout*
+is a path lookup rather than a search.
+
+They ship as **TOML**, because `.lay.toml` is what the app writes when a student saves a layout: ours and
+theirs should be the same kind of file, and it is the one worth opening in an editor. The polish scripts
+write JSON into `build/showcase/polished/` and
+`./gradlew :KSLExamples:publishAnimationLayouts` converts it through the app's own codec, so the shipped
+form cannot drift from what the app reads. The bundle's manifest decides which models need one, so a model
+added to the bundle fails that step until it has a layout.
 
 These are **documents, not code**. A layout is deliberately not expressed in the `AnimationBuilder` DSL,
 because the DSL cannot express three of the things polishing depends on most:
@@ -34,7 +47,7 @@ blob, so every change carries its reason and the layout can be regenerated if th
 
 ```bash
 ./gradlew :KSLAppSwingAnimation:renderFrames \
-  -Ptrace=build/showcase/<name>.atf -PlayoutFile=docs/animations/layouts/<name>.lay.json \
+  -Ptrace=build/showcase/<name>.atf -PlayoutFile=build/showcase/polished/<name>.lay.json \
   -Pframes=6 -Pout=build/showcase/sheet -Pw=1000 -Ph=700
 ```
 

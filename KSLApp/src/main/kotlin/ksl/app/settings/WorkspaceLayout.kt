@@ -26,6 +26,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.isDirectory
 
 /**
@@ -57,6 +58,9 @@ object WorkspaceLayout {
     /** System property naming the shipped bundle directory; set by the installed launcher. */
     const val BUILTIN_BUNDLES_PROPERTY: String = "ksl.builtinBundles"
 
+    /** Where the suite's shipped animation layouts live; set by the generated launcher. */
+    const val BUILTIN_LAYOUTS_PROPERTY: String = "ksl.builtinLayouts"
+
     /**
      *  The read-only bundle directory that ships with an installed KSL suite: the curated
      *  example bundles (KSL Book Examples, KSL Animation Examples), so a fresh install can
@@ -77,6 +81,24 @@ object WorkspaceLayout {
             ?.takeIf { it.isNotBlank() }
             ?.let { Path.of(it) }
             ?.takeIf { it.exists() && it.isDirectory() }
+
+    /**
+     *  The polished animation layout that ships with the suite for ([bundleId], [modelId]), or null.
+     *
+     *  A layout only means anything for one model in one bundle — it names that model's queues, resources
+     *  and locations — so the shipped ones are keyed by exactly the pair an app holds when a model is open,
+     *  and finding the right one is a path lookup rather than a search. Two bundles may then each carry a
+     *  model of the same name without colliding.
+     *
+     *  Null covers every ordinary case: an IDE run or a test (no property), a model with no shipped layout,
+     *  and a bundle that ships none at all. Callers offer the layout when there is one and say nothing when
+     *  there is not.
+     */
+    fun builtinLayoutFor(bundleId: String, modelId: String): Path? =
+        System.getProperty(BUILTIN_LAYOUTS_PROPERTY)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { Path.of(it).resolve(bundleId).resolve("$modelId.lay.toml") }
+            ?.takeIf { it.exists() && it.isRegularFile() }
 
     /**
      *  The full bundle search path for a desktop app, in precedence order: the app's own

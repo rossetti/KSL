@@ -1,0 +1,312 @@
+title = "Tandem queue with blocking — one buffer space between two stations"
+baseTimeUnit = null
+width = 1080.0
+height = 470.0
+paths = [  ]
+stations = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+locations = [  ]
+
+[[objectClasses]]
+typeName = "Customer"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 24.2
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "A part must take the buffer before it can let go of stage 1, and take stage 2 before it can let go of the buffer."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 92.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "So when the buffer is full, stage 1 finishes its work and then just stands there holding the part: blocked, not busy."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 36.0
+y = 116.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "waiting to start"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 100.0
+y = 302.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "finished stage 1 —"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 410.0
+y = 302.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "stage 1 is blocked"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 410.0
+y = 322.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "in the buffer,"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 720.0
+y = 302.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "waiting for stage 2"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.5
+fontFamily = null
+
+[[background.points]]
+x = 720.0
+y = 322.0
+z = 0.0
+
+[[queues]]
+queueName = "worker1:Q"
+growthDegrees = 180.0
+spacing = 22.0
+maxShown = 7
+
+[queues.position]
+x = 210.0
+y = 210.0
+z = 0.0
+
+[[queues]]
+queueName = "buffer:Q"
+growthDegrees = 180.0
+spacing = 22.0
+maxShown = 2
+
+[queues.position]
+x = 520.0
+y = 210.0
+z = 0.0
+
+[[queues]]
+queueName = "worker2:Q"
+growthDegrees = 180.0
+spacing = 22.0
+maxShown = 2
+
+[queues.position]
+x = 830.0
+y = 210.0
+z = 0.0
+
+[[resources]]
+resourceName = "worker1"
+size = 44.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 250.0
+y = 210.0
+z = 0.0
+
+[[resources]]
+resourceName = "buffer"
+size = 44.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 560.0
+y = 210.0
+z = 0.0
+
+[[resources]]
+resourceName = "worker2"
+size = 44.0
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 870.0
+y = 210.0
+z = 0.0
+
+[[bars]]
+responseName = "TandemBlocking:NumInSystem"
+width = 380.0
+height = 24.0
+maxValue = 16.0
+color = "#1f77b4"
+label = "Number in system"
+
+[bars.position]
+x = 36.0
+y = 400.0
+z = 0.0
+
+[[plots]]
+responseName = "TandemBlocking:NumInSystem"
+width = 420.0
+height = 84.0
+windowDuration = null
+color = "#1f77b4"
+label = "Number in system over time"
+
+[plots.position]
+x = 620.0
+y = 356.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 22.0
+
+[clocks.position]
+x = 36.0
+y = 50.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "worker1"
+text = "Stage 1"
+dx = 0.0
+dy = -36.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "buffer"
+text = "Buffer"
+dx = 0.0
+dy = -36.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "worker2"
+text = "Stage 2"
+dx = 0.0
+dy = -36.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "worker1:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 26.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "buffer:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 26.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "worker2:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -6.0
+valueDy = 26.0
+valueVisible = true

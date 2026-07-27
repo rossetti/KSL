@@ -3,7 +3,7 @@
 
 Input:  build/showcase/Example05PedestrianCrowd.lay.json  (the auto-layout, via showcaseCapture)
         build/showcase/Example05PedestrianCrowd.atf       (population, evacuation window)
-Output: docs/animations/layouts/Example05PedestrianCrowd.lay.json
+Output: build/showcase/polished/Example05PedestrianCrowd.lay.json
 
 The generator gets more right here than anywhere else: the room, the wall (from the model's own obstacle
 map), the doorway locations, the pedestrians with heading indicators, and the flow field they are steering
@@ -14,7 +14,7 @@ import json, pathlib
 
 SRC = pathlib.Path("build/showcase/Example05PedestrianCrowd.lay.json")
 ATF = pathlib.Path("build/showcase/Example05PedestrianCrowd.atf")
-OUT = pathlib.Path("docs/animations/layouts/Example05PedestrianCrowd.lay.json")
+OUT = pathlib.Path("build/showcase/polished/Example05PedestrianCrowd.lay.json")
 
 d = json.loads(SRC.read_text())
 

@@ -146,6 +146,23 @@ tasks.named<Test>("test") {
     doFirst { systemProperty("animationBundleJar", jar.get().asFile.absolutePath) }
 }
 
+// Convert the polish scripts' output into the .lay.toml layouts that ship with the suite, keyed
+// <bundleId>/<modelId> so the animation app can find the one for the model a student has open.
+// The bundle manifest is the authority for which models need one, so a model added without a layout
+// fails here rather than shipping without.
+// Usage: ./gradlew :KSLExamples:publishAnimationLayouts
+tasks.register<JavaExec>("publishAnimationLayouts") {
+    group = "documentation"
+    description = "Publish the polished animation layouts as .lay.toml, keyed by bundle and model id."
+    dependsOn("animationExamplesBundleJar", "classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("ksl.examples.general.animationbundle.showcase.LayoutPublisherKt")
+    workingDir = rootDir
+    systemProperty("bundleJar", layout.buildDirectory.file("libs/animation-examples.jar").get().asFile.path)
+    systemProperty("polished", rootDir.resolve("build/showcase/polished").path)
+    systemProperty("out", rootDir.resolve("docs/animations/layouts").path)
+}
+
 tasks.register<JavaExec>("animationExamplesBundleJar") {
     group = "ksl bundle"
     description = "Assemble the KSL Animation Examples manifest bundle JAR (kslpkg assemble)."

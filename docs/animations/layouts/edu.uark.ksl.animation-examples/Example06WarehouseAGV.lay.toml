@@ -1,0 +1,1037 @@
+title = "Warehouse AGVs — bidding, fetching, charging"
+baseTimeUnit = null
+width = 51.4
+height = 32.4
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+values = [  ]
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+
+[agentStateColors]
+Idle = "#9aa5b1"
+Bidding = "#1f77b4"
+Working = "#ff7f0e"
+Charging = "#d62728"
+
+[[objectClasses]]
+typeName = "AGV"
+shape = "CIRCLE"
+color = "#9aa5b1"
+size = 1.15
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Four AGVs share one floor. A task is announced,"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.82
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 8.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "they bid, and the winner fetches the pallet."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.82
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 9.600000000000001
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■  Idle"
+color = "#9aa5b1"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.78
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 11.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■  Bidding"
+color = "#1f77b4"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.78
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 12.950000000000001
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■  Working"
+color = "#ff7f0e"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.78
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 14.100000000000001
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■  Charging"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.78
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 15.25
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Colour is what a vehicle is doing, not which"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 22.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "one it is — the agent counterpart of a"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 23.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "resource going busy and idle. The blue trails"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 24.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "are planned routes around the racks, which"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 25.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "come from the model's own grid graph."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 26.0
+z = 0.0
+
+[[bars]]
+responseName = "NumTasksCompleted"
+width = 17.0
+height = 1.4
+maxValue = 36.0
+color = "#ff7f0e"
+label = "Pallets delivered"
+
+[bars.position]
+x = 32.4
+y = 17.4
+z = 0.0
+
+[[bars]]
+responseName = "NumChargingEvents"
+width = 17.0
+height = 1.4
+maxValue = 11.0
+color = "#d62728"
+label = "Charging stops"
+
+[bars.position]
+x = 32.4
+y = 19.8
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time"
+fontSize = 1.5
+
+[clocks.position]
+x = 32.4
+y = 6.4
+z = 0.0
+
+[[spaces]]
+type = "Continuous"
+name = "continuous"
+xMin = 0.0
+xMax = 30.0
+yMin = 0.0
+yMax = 30.0
+torus = false
+
+[[labels]]
+kind = "LOCATION"
+name = "Charger 1"
+text = "Charger 1"
+dx = 0.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Charger 2"
+text = "Charger 2"
+dx = 0.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Charger 3"
+text = "Charger 3"
+dx = 0.0
+dy = -10.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[spaceGeometry]]
+spaceName = "continuous"
+cols = 30
+rows = 30
+torus = false
+movementRule = "MOORE"
+allowCornerCutting = false
+cellCosts = [  ]
+originX = null
+originY = null
+cellSize = null
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 1
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 2
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 3
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 4
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 5
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 6
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 7
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 8
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 12
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 13
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 14
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 15
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 16
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 17
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 18
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 22
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 23
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 24
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 25
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 26
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 27
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 28
+row = 21
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 5
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 6
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 10
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 11
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 15
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 16
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 20
+
+[[spaceGeometry.blockedCells]]
+col = 29
+row = 21
+
+[[locations]]
+locationName = "Charger 1"
+label = null
+
+[locations.position]
+x = 0.5
+y = 4.5
+z = 0.0
+
+[[locations]]
+locationName = "Charger 2"
+label = null
+
+[locations.position]
+x = 0.5
+y = 14.5
+z = 0.0
+
+[[locations]]
+locationName = "Charger 3"
+label = null
+
+[locations.position]
+x = 0.5
+y = 24.5
+z = 0.0
