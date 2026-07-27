@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test logging defaults for KSLApp. Same purpose and shape as KSLCore's.
+
+  Without this file the tests inherit KSLCore's src/main/resources/logback.xml -- the config meant for
+  someone USING the library, whose root level is DEBUG and which also opens the rolling logs/*.log
+  appenders. Under a test run that produced 77,000 DEBUG lines and 13 MB of captured output for this
+  module alone. Gradle's console hides test output, so it was invisible from the command line and
+  obvious the moment anyone ran the suite from an IDE.
+
+  To see detailed diagnostics for a focused debugging session, temporarily raise a specific logger:
+
+      <logger name="ksl.simulation.Model" level="TRACE"/>
+
+  or set the root level to DEBUG. Revert before committing.
+-->
+<configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <Pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="consoleAppender"/>
+    </root>
+</configuration>

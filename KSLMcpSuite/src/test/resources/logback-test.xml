@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test logging defaults for KSLMcpSuite.
+
+  Without this file the tests inherit KSLCore's src/main/resources/logback.xml, which is the config for
+  someone USING the library: root level DEBUG, plus the rolling logs/*.log appenders. See the equivalent
+  file in KSLApp for the full rationale and for how to turn a specific logger back up while debugging.
+-->
+<configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <Pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="consoleAppender"/>
+    </root>
+</configuration>
