@@ -54,8 +54,11 @@ class ResponseDisplayTest {
     fun `chart styling can be authored without changing the display form (P6)`() {
         var layout = AnimationLayout().withElementAdded(ElementKind.RESPONSE, "WIP", 700.0, 80.0)
             .withResponseDisplay("WIP", ResponseDisplay.BAR, 700.0, 80.0)
-        // Default bar styling.
-        assertEquals(100.0, layout.bars.single().maxValue)
+        // A new bar carries no authored maximum, which the renderer reads as "fit this run" and scales to
+        // the largest value the response reached. The element's own default of 100 is a number chosen
+        // against no particular response, and a bar dropped on a canvas with it is usually either barely
+        // moving or pinned full.
+        assertEquals(0.0, layout.bars.single().maxValue, "a new bar is scaled to its run, not to a constant")
         // Restyle in place: max/color/size change, position and form are preserved.
         layout = layout.withBarStyle("WIP", maxValue = 50.0, color = "#2ca02c", width = 6.0, height = 0.7)
         val bar = layout.bars.single { it.responseName == "WIP" }

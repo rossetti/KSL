@@ -519,6 +519,30 @@ class SceneBuilderDisplayTest {
         assertTrue("4.0" in text, "and its value at t=3 is shown; got '$text'")
     }
 
+    /**
+     * A bar with no authored maximum fits the run instead of never filling.
+     *
+     * The element's default maximum is 100 — a number chosen against no particular response — so a bar
+     * dropped on a canvas is usually either barely moving or pinned full, and nothing says which. Scaling to
+     * the largest value the run reached makes the common case right, and the previous meaning of a
+     * non-positive maximum was "never fills", which nobody wanted.
+     */
+    @Test
+    fun aBarWithNoAuthoredMaximumFitsTheRun() {
+        fun fillWidth(maxValue: Double): Double {
+            val layout = AnimationLayout(
+                width = 400.0, height = 300.0,
+                bars = listOf(BarDisplayElement("WaitTime", LayoutPoint(10.0, 10.0), width = 100.0, maxValue = maxValue))
+            )
+            // The frame rect is drawn first; the fill follows it.
+            val rects = sceneOf(layout, responseEvents, 3.0).commandsOf("displays").filterIsInstance<DrawCmd.Rect>()
+            return rects.drop(1).firstOrNull()?.width?.let { (it as Extent.World).value } ?: 0.0
+        }
+        // WaitTime peaks at 6 and reads 4 at t = 3, so fitting the run fills two thirds of the bar.
+        assertEquals(100.0 * 4.0 / 6.0, fillWidth(0.0), 1e-9, "no authored maximum must fit the run")
+        assertEquals(100.0 * 4.0 / 8.0, fillWidth(8.0), 1e-9, "an authored maximum is still honoured")
+    }
+
     @Test
     fun aHistogramBinsTheObservedValues() {
         val layout = AnimationLayout(

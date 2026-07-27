@@ -450,3 +450,45 @@ class ResourceLocations : TraceAccumulator<Map<String, String>> {
             counts.maxByOrNull { it.value }?.let { resource to it.key }
         }.toMap()
 }
+
+/**
+ * The most members each storage ever held at once.
+ *
+ * A storage's box has to be big enough to show its crowd and no bigger: sized for thirty when it never
+ * holds more than two, it reads as an empty room, and the renderer degrades to a bare gauge the moment a
+ * crowd exceeds what the box was told to show. Both are decided by a number only the run knows.
+ *
+ * Counted from starts and ends rather than from delay durations, so it needs no lookahead and stays exact.
+ * A delay that never ends leaves its member counted, which is correct: it was still there when the run
+ * stopped.
+ */
+class StoragePeaks : TraceAccumulator<Map<String, Int>> {
+    private val entityType = HashMap<Long, String>()
+    private val keyOf = HashMap<Long, String>()      // entityId -> the storage it is currently in
+    private val current = HashMap<String, Int>()
+    private val peak = LinkedHashMap<String, Int>()
+
+    override fun accept(event: AnimationEvent) {
+        when (event) {
+            is AnimationEvent.EntityCreated -> entityType[event.entityId] = event.entityType
+            is AnimationEvent.DelayStarted -> {
+                // The same rule the storages themselves are keyed by: a named delay is its own storage, an
+                // unnamed one belongs to its entity's type.
+                val key = event.suspensionName ?: entityType[event.entityId] ?: return
+                keyOf[event.entityId] = key
+                val now = (current[key] ?: 0) + 1
+                current[key] = now
+                peak[key] = maxOf(peak[key] ?: 0, now)
+            }
+            is AnimationEvent.DelayEnded -> keyOf.remove(event.entityId)?.let { key ->
+                current[key] = (current[key] ?: 1) - 1
+            }
+            is AnimationEvent.EntityDisposed -> keyOf.remove(event.entityId)?.let { key ->
+                current[key] = (current[key] ?: 1) - 1
+            }
+            else -> {}
+        }
+    }
+
+    override fun result(): Map<String, Int> = peak
+}

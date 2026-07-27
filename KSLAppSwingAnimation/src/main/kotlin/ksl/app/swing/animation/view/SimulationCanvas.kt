@@ -159,7 +159,11 @@ class SimulationCanvas : JPanel() {
         layout?.queues?.forEach { drawQueue(g2, tx, it, r, t) }
         layout?.storages?.forEach { drawStorage(g2, tx, it, r, t) } // entities in named delays (8K.4)
         layout?.resources?.forEach { drawResource(g2, tx, it, r, t) }
-        layout?.bars?.forEach { drawBar(g2, tx, it, r.responseValueAt(it.responseName, t) ?: 0.0) }
+        // A bar with no authored maximum is scaled to the largest value the run reached; see SceneBuilder.
+        layout?.bars?.forEach {
+            drawBar(g2, tx, it, r.responseValueAt(it.responseName, t) ?: 0.0,
+                if (it.maxValue > 0.0) it.maxValue else r.responseMax(it.responseName) ?: 0.0)
+        }
         layout?.plots?.forEach { drawPlot(g2, tx, it, r.responseSamplesUpTo(it.responseName, t), t) }
         layout?.values?.forEach { drawValue(g2, tx, it, r.responseValueAt(it.responseName, t)) }
         layout?.summaries?.forEach { drawSummary(g2, tx, it, r.responseStatsAt(it.responseName, t)) }
@@ -672,11 +676,11 @@ class SimulationCanvas : JPanel() {
         g2.drawString(body, s.x.toFloat(), (s.y + line).toFloat())
     }
 
-    private fun drawBar(g2: Graphics2D, tx: AffineTransform, bar: BarDisplayElement, value: Double) {
+    private fun drawBar(g2: Graphics2D, tx: AffineTransform, bar: BarDisplayElement, value: Double, scale: Double) {
         val s = screen(tx, bar.position)
         val sc = scaleOf(tx)
         val rect = Rectangle2D.Double(s.x, s.y, bar.width * sc, bar.height * sc)
-        ChartRenderer.bar(g2, rect, value, bar.maxValue, VisualStyle.parseColor(bar.color), bar.label ?: bar.responseName)
+        ChartRenderer.bar(g2, rect, value, scale, VisualStyle.parseColor(bar.color), bar.label ?: bar.responseName)
     }
 
     private fun drawPlot(g2: Graphics2D, tx: AffineTransform, plot: PlotDisplayElement, samples: List<Pair<Double, Double>>, t: Double) {

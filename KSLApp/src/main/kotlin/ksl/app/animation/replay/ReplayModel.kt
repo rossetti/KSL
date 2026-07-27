@@ -242,6 +242,16 @@ class ReplayModel(
     fun responseSamplesUpTo(name: String, t: Double): List<Pair<Double, Double>> =
         responses[name]?.samplesUpTo(t) ?: emptyList()
 
+    /**
+     * The largest value [name] reached anywhere in the run, or null if it was never observed.
+     *
+     * Over the whole run rather than up to the current time, because it exists to give a bar a *fixed*
+     * scale. A scale that grew as the animation played would redraw the same value at a different length
+     * from one frame to the next, which is worse than a wrong constant.
+     */
+    fun responseMax(name: String): Double? =
+        responses[name]?.samplesUpTo(Double.MAX_VALUE)?.maxOfOrNull { it.second }
+
     /** The response's within-replication statistics at [t] (D11), or null if none observed yet (8A.4). */
     fun responseStatsAt(name: String, t: Double): ResponseStats? = responseStats[name]?.valueAt(t)
 

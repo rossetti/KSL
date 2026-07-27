@@ -61,13 +61,14 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val stationFlowAcc = StationFlow()
     val conveyorAcc = ConveyorAnchors()
     val storageAcc = DelayStorages()
+    val storagePeakAcc = StoragePeaks()
     val capacityAcc = ResourceCapacities()
     val queuePeakAcc = QueuePeaks()
     val routeAcc = EntityRoutes()
     StreamingTraceMiner(
         listOf(
             extentAcc, locationAcc, moverAcc, stateAcc, flowAcc, typeAcc, stationFlowAcc, conveyorAcc,
-            storageAcc, capacityAcc, queuePeakAcc, routeAcc
+            storageAcc, storagePeakAcc, capacityAcc, queuePeakAcc, routeAcc
         )
     ).run(events.asSequence())
 
@@ -265,7 +266,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     ) + 320.0).coerceAtLeast(800.0)
 
     // D1: storages for named delays + entity-types with bare-delay activity, as a wrapping row below the lanes.
-    val (storages, storageBottom) = layoutStorages(storageKeys, originX, laneY + 30.0, width)
+    val (storages, storageBottom) = layoutStorages(storageKeys, storagePeakAcc.result(), originX, laneY + 30.0, width)
 
     val height = (maxOf(storageBottom, laneY, originY + maxRows * rowGap) + 80.0).coerceAtLeast(400.0)
 
@@ -321,13 +322,21 @@ private fun spaceBounds(s: ksl.animation.SpatialSpaceDescriptor): BoundingBox? =
  * Lays storages out as a wrapping row of boxes from ([x0], [y0]) within [maxX]; returns the placed elements and
  * the bottom y they reach, so the caller can grow the canvas to fit them (D1).
  */
-private fun layoutStorages(keys: List<String>, x0: Double, y0: Double, maxX: Double): Pair<List<StorageLayoutElement>, Double> {
+private fun layoutStorages(
+    keys: List<String>, peaks: Map<String, Int>, x0: Double, y0: Double, maxX: Double
+): Pair<List<StorageLayoutElement>, Double> {
     if (keys.isEmpty()) return emptyList<StorageLayoutElement>() to y0
     val w = 160.0; val h = 48.0; val gap = 24.0
     var x = x0; var y = y0
     val out = keys.map { key ->
         if (x + w > maxX && x > x0) { x = x0; y += h + gap } // wrap to the next row
-        val e = StorageLayoutElement(suspensionName = key, position = LayoutPoint(x, y), width = w, height = h, label = key)
+        val e = StorageLayoutElement(
+            suspensionName = key, position = LayoutPoint(x, y), width = w, height = h, label = key,
+            // Big enough for the crowd this storage actually held, with a little headroom. Past maxShown
+            // the renderer stops drawing members and falls back to a gauge, so a default well under the
+            // observed peak silently turns a crowd into a bar.
+            maxShown = ((peaks[key] ?: 0) + 2).coerceIn(4, 60)
+        )
         x += w + gap
         e
     }

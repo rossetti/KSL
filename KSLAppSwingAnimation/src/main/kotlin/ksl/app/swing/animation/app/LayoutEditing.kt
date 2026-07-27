@@ -167,7 +167,11 @@ fun AnimationLayout.withResponseDisplay(name: String, display: ResponseDisplay, 
     val p = LayoutPoint(x, y)
     return when (display) {
         ResponseDisplay.VALUE -> cleared.copy(values = cleared.values + ValueDisplayElement(responseName = name, position = p))
-        ResponseDisplay.BAR -> cleared.copy(bars = cleared.bars + BarDisplayElement(responseName = name, position = p))
+        // maxValue = 0 means "fit this run": the renderer scales the bar to the largest value the response
+        // reached. The element's own default is 100, which is a number chosen against no particular
+        // response and leaves most new bars either barely moving or pinned full.
+        ResponseDisplay.BAR ->
+            cleared.copy(bars = cleared.bars + BarDisplayElement(responseName = name, position = p, maxValue = 0.0))
         ResponseDisplay.PLOT -> cleared.copy(plots = cleared.plots + PlotDisplayElement(responseName = name, position = p))
         ResponseDisplay.SUMMARY -> cleared.copy(summaries = cleared.summaries + SummaryDisplayElement(responseName = name, position = p))
         // discrete = an integer-frequency histogram (the "frequency" display) vs a continuous histogram.

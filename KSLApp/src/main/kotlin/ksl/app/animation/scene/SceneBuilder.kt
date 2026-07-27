@@ -721,10 +721,11 @@ class SceneBuilder(
         val cmds = ArrayList<DrawCmd>()
         for (bar in l.bars) {
             val value = if (static) 0.0 else model.responseValueAt(bar.responseName, t) ?: 0.0
+            val barScale = scaleOf(bar)
             val w = Extent.world(bar.width)
             val h = Extent.world(bar.height)
             cmds.add(DrawCmd.Rect(bar.position.x, bar.position.y, w, h, fill = RgbaColor.WHITE, stroke = RgbaColor.DARK_GRAY))
-            val fraction = if (bar.maxValue > 0.0) (value / bar.maxValue).coerceIn(0.0, 1.0) else 0.0
+            val fraction = if (barScale > 0.0) (value / barScale).coerceIn(0.0, 1.0) else 0.0
             if (fraction > 0.0) {
                 cmds.add(
                     DrawCmd.Rect(
@@ -778,6 +779,20 @@ class SceneBuilder(
      * samples' whole span — so a windowed plot scrolls while an unwindowed one accumulates. The y-axis
      * auto-scales to what has been observed, because a response's range is rarely known in advance.
      */
+    /**
+     * The value a bar's fill is measured against: the authored maximum, or — when none was authored — the
+     * largest value the run produced.
+     *
+     * A bar's scale is the one number about it that cannot be chosen without seeing the data, and the
+     * consequences of getting it wrong are silent: a bar scaled far above what a response reaches barely
+     * moves, and one scaled below it sits pinned full and looks broken. The element's default of 100 is a
+     * number picked against no particular response, so a bar dropped on a canvas is wrong more often than
+     * not. A non-positive maximum therefore means "fit this run" rather than the "never fills" it used to,
+     * which was not a state anyone wanted.
+     */
+    private fun scaleOf(bar: ksl.animation.BarDisplayElement): Double =
+        if (bar.maxValue > 0.0) bar.maxValue else model.responseMax(bar.responseName) ?: 0.0
+
     private fun plotCommands(plot: PlotDisplayElement, t: Double, static: Boolean): List<DrawCmd> {
         val cmds = ArrayList<DrawCmd>()
         val w = Extent.world(plot.width)
