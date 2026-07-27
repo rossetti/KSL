@@ -25,14 +25,26 @@ import ksl.simulation.Model
 
 /**
  * Example 8 — conveyors. A tandem line where parts **ride a conveyor** between an entry, two work
- * stations, and an exit (segments Enter→Station1→Station2→Exit). Validates the conveyor paradigm.
+ * stations, and an exit (segments Enter→Station1→Station2→Exit).
  *
- * Conveyor parts ARE `ProcessModel.Entity`s, so they get `EntityCreated` (+type "Part") — better
- * than station QObjects. But the conveyor **rides do not render** today: `ConveyorRideStarted`
- * carries only `fromLocation`/`toLocation` **names** (no coordinates, no duration), there is no
- * conveyor layout element (belt geometry), and the renderer consumes no `Conveyor*` events (plan
- * 8G). So what renders here is the worker resources, their queues (waiting parts as dots), and the
- * WIP responses; the belt itself is drawn only as a static authored path.
+ * The ride is what this one is for, and all of it renders:
+ *
+ *  - **The belt.** `ConveyorDefined` reports every anchor and the cell it sits at, so the belt is drawn as
+ *    one square per cell running between the placed anchors, with travel arrows along it.
+ *  - **The parts on it.** Each `ConveyorItemMoved` puts a part at its cell, so a part is watched moving
+ *    along the belt rather than teleporting between stations, and the cells it occupies fill in behind it.
+ *  - **Blockage.** A part that cannot get on because the entry is full draws at the entry with a red ring
+ *    (`ConveyorEntryBlocked`), which is the thing an accumulating conveyor exists to demonstrate.
+ *
+ * Anchors are placed here as `station(...)` markers; a layout may instead supply a `ConveyorLayoutElement`
+ * to route the belt through waypoints, which is what turns a loop conveyor into a loop rather than a line —
+ * see the polished layout for [Example18ConveyorTestRepair].
+ *
+ * Conveyor parts ARE `ProcessModel.Entity`s, so they get `EntityCreated` (+type "Part") — better than
+ * station QObjects.
+ *
+ * Note the trace size: a part moves one cell at a time, so a short run of a modest line produces tens of
+ * thousands of `ConveyorItemMoved` events. This is the paradigm that writes the largest traces.
  */
 object Example08ConveyorTandem {
 
@@ -51,9 +63,9 @@ object Example08ConveyorTandem {
 
         objectClass("Part") { color = "#1f77b4"; size = 12.0 }
 
-        // The conveyor belt path; the named locations are placed as stations so the renderer can map
-        // a riding item's cell index to a position along the belt (8G.6).
-        path("Conveyor", 100.0 to 120.0, 320.0 to 120.0, 520.0 to 120.0, 680.0 to 120.0)
+        // The belt's anchors. Placing them is all that is needed: the renderer maps a riding item's cell
+        // index to a position between them and draws the belt itself. (A hand-drawn path used to be needed
+        // here to stand in for a belt that did not render; it would now be a second line under the real one.)
         station("Enter", 100.0, 120.0, label = "Enter")
         station("Station1", 320.0, 120.0)
         station("Station2", 520.0, 120.0)
