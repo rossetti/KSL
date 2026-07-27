@@ -37,6 +37,19 @@ kotlin {
 allprojects {
     tasks.withType<Test>().configureEach {
         systemProperty("ksl.outputDir", layout.buildDirectory.dir("kslOutput").get().asFile.path)
+        // Keep test JVMs out of the Dock and out of the developer's way. Any test that touches AWT or
+        // Swing otherwise registers its JVM as a regular macOS application: a Java tile appears in the
+        // Dock and the process activates, taking focus from whatever the developer is actually working
+        // in. A full run forks one JVM per module, so that happens twenty-odd times.
+        //
+        // apple.awt.UIElement makes the process an accessory instead -- no Dock tile, no activation --
+        // the same flag KSLServerTray uses to be a menu-bar agent. Ignored off macOS.
+        //
+        // This is deliberately NOT java.awt.headless. A headless JVM cannot render a lets-plot figure
+        // (it throws, and poisons the class for the rest of the fork), which is why those tests carry
+        // @DisabledIfHeadless: forcing headless here would make them skip instead of run. An accessory
+        // process still has a full display connection, so they keep running -- just invisibly.
+        systemProperty("apple.awt.UIElement", "true")
     }
 }
 
