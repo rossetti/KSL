@@ -33,29 +33,15 @@ blob, so every change carries its reason and the layout can be regenerated if th
 ## Turning a layout into an image
 
 ```bash
-# stills — one PNG per frame, spread across the run; each is cropped to its own content
 ./gradlew :KSLAppSwingAnimation:renderFrames \
   -Ptrace=build/showcase/<name>.atf -PlayoutFile=docs/animations/layouts/<name>.lay.json \
   -Pframes=6 -Pout=build/showcase/sheet -Pw=1000 -Ph=700
-
-# a looping animation
-./gradlew :KSLAppSwingAnimation:renderGif \
-  -Ptrace=build/showcase/<name>.atf -PlayoutFile=docs/animations/layouts/<name>.lay.json \
-  -Pout=build/showcase/<name>.gif -Pframes=45 -Pw=720 -Ph=460 -Pdelay=7
 ```
 
-The gallery in the [Animation app guide](../guides/apps/animation.md) uses stills. The GIF writer is
-there for when motion is wanted: it goes through `javax.imageio`, so it needs no encoder installed, and
-it writes only the rectangle of each frame that changed. Two things to know before using it —
-
-- **GIF is 256 colours per frame**, so a smooth gradient (a flow-field heatmap) bands. Flat-filled models
-  are unaffected.
-- **Frame differencing only helps when change is localised.** A model whose glyphs move all over its space
-  has a per-frame dirty rectangle covering nearly the whole canvas, and a full-size animation of one runs
-  to megabytes. Shrink the dimensions and the frame count rather than expecting the encoder to save you.
-
-Pass `-Pcrop=false` to `renderFrames` for a sequence: by default each frame is cropped to its own content,
-which is right for a single still and makes an assembled animation jitter.
+One PNG per frame, spread across the run, each cropped to its own content. Render several and look at
+them together: a layout that reads well at `t = 0`, with everything idle and every queue empty, can be
+unreadable at steady state. The gallery in the [Animation app guide](../guides/apps/animation.md) is
+built from frames chosen this way.
 
 ## Getting the starting material
 

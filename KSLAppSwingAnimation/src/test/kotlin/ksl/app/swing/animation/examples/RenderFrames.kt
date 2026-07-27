@@ -16,11 +16,7 @@ import ksl.app.animation.io.load
  * `docs/guides/apps/animation.md` guide. Not part of the app.
  *
  * System properties: -Dtrace=<path.atf> [-Dlayout=<path.lay.json|.toml>] [-Dframes=N]
- *   [-Dout=<dir>] [-Dw=<px>] [-Dh=<px>] [-Dcrop=false]
- *
- * `crop` defaults to true, trimming each frame to its own content — which is what a single still wants and
- * exactly what a *sequence* must not have. Cropping each frame independently gives them different sizes and
- * origins, so an animation assembled from them jitters. Pass `-Dcrop=false` for frames meant to be played.
+ *   [-Dout=<dir>] [-Dw=<px>] [-Dh=<px>]
  */
 fun main() {
     System.setProperty("java.awt.headless", "true")
@@ -29,7 +25,6 @@ fun main() {
     val n = System.getProperty("frames")?.toIntOrNull() ?: 12
     val w = System.getProperty("w")?.toIntOrNull() ?: 1100
     val h = System.getProperty("h")?.toIntOrNull() ?: 760
-    val crop = System.getProperty("crop")?.toBooleanStrictOrNull() ?: true
     val outDir = File(System.getProperty("out") ?: "frames").apply { mkdirs() }
 
     val source = AnimationSource.load(layoutFile, traceFile)
@@ -55,7 +50,7 @@ fun main() {
         canvas.paint(g)
         g.dispose()
         val out = File(outDir, "frame_%03d.png".format(i))
-        ImageIO.write(if (crop) autoCrop(image, margin = 24) else image, "png", out)
+        ImageIO.write(autoCrop(image, margin = 24), "png", out)
         println("wrote ${out.name}  t=%.1f".format(t))
     }
 }
