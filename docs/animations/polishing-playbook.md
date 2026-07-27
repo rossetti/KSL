@@ -112,9 +112,10 @@ extent comes from real distances.
 should be about a fifth of the arrangement's width. That reads as a machine; a twentieth reads as a dot,
 and a half reads as a wall.
 
-Remember that **font sizes are world units too**, so chrome has to grow with the elements or the caption
-ends up shouting over them. Anything sized as a fraction of the world extent scales correctly; anything
-left at a constant does not.
+Remember that **font sizes are world units**, so chrome grows with the elements. Anything sized as a
+fraction of the world extent scales correctly; anything left at a constant does not. That now includes a
+chart's caption, which takes a share of its own chart's height — so a panel of captions and bars holds
+together at any window size instead of the text growing relative to the bars as the window shrinks.
 
 ### 4. A multi-server station's queue is tucked under its own block — *auto*
 

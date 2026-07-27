@@ -628,6 +628,20 @@ class SimulationCanvas : JPanel() {
     }
 
     /** Draws a live histogram/frequency chart, binned in-viewer from the raw observed [values] (8D.1). */
+    /**
+     * Runs [draw] with the caption font sized to [px], then puts the font back.
+     *
+     * A chart's caption scales with the drawing, like every other piece of text in a layout. Left at the
+     * toolkit's fixed size it grew relative to the elements around it as a window shrank and shrank as the
+     * window grew, so a panel that read well at one size did not at another. The share of the chart's height
+     * is the same one the scene builder uses, because the two renderers must not disagree about this.
+     */
+    private inline fun withCaptionFont(g2: Graphics2D, px: Double, draw: () -> Unit) {
+        val previous = g2.font
+        g2.font = previous.deriveFont(px.coerceAtLeast(8.0).toFloat())
+        try { draw() } finally { g2.font = previous }
+    }
+
     private fun drawHistogram(g2: Graphics2D, tx: AffineTransform, h: HistogramDisplayElement, values: List<Double>) {
         val s = screen(tx, h.position)
         val sc = scaleOf(tx)
@@ -636,7 +650,9 @@ class SimulationCanvas : JPanel() {
         val rect = Rectangle2D.Double(s.x, s.y, w, ht)
         g2.color = Color.WHITE; g2.fill(rect)
         g2.color = Color.DARK_GRAY; g2.stroke = BasicStroke(1.0f); g2.draw(rect)
-        if (h.label != null) g2.drawString(h.label, s.x.toFloat(), (s.y - 2).toFloat())
+        if (h.label != null) withCaptionFont(g2, h.height * BOX_CAPTION_SHARE * sc) {
+            g2.drawString(h.label, s.x.toFloat(), (s.y - 2).toFloat())
+        }
         if (values.isEmpty()) return
 
         // Bin the values: by integer value when discrete, else into equal-width bins over [min,max].
@@ -680,17 +696,21 @@ class SimulationCanvas : JPanel() {
         val s = screen(tx, bar.position)
         val sc = scaleOf(tx)
         val rect = Rectangle2D.Double(s.x, s.y, bar.width * sc, bar.height * sc)
-        ChartRenderer.bar(g2, rect, value, scale, VisualStyle.parseColor(bar.color), bar.label ?: bar.responseName)
+        withCaptionFont(g2, bar.height * BAR_CAPTION_SHARE * sc) {
+            ChartRenderer.bar(g2, rect, value, scale, VisualStyle.parseColor(bar.color), bar.label ?: bar.responseName)
+        }
     }
 
     private fun drawPlot(g2: Graphics2D, tx: AffineTransform, plot: PlotDisplayElement, samples: List<Pair<Double, Double>>, t: Double) {
         val s = screen(tx, plot.position)
         val sc = scaleOf(tx)
         val rect = Rectangle2D.Double(s.x, s.y, plot.width * sc, plot.height * sc)
-        ChartRenderer.timeSeries(
-            g2, rect, samples, currentTime = t, window = plot.windowDuration,
-            yMax = null, color = VisualStyle.parseColor(plot.color), label = plot.label ?: plot.responseName
-        )
+        withCaptionFont(g2, plot.height * BOX_CAPTION_SHARE * sc) {
+            ChartRenderer.timeSeries(
+                g2, rect, samples, currentTime = t, window = plot.windowDuration,
+                yMax = null, color = VisualStyle.parseColor(plot.color), label = plot.label ?: plot.responseName
+            )
+        }
     }
 
     /**
@@ -1230,6 +1250,11 @@ class SimulationCanvas : JPanel() {
     private fun trimGrid(v: Double): String = if (v == Math.floor(v)) v.toInt().toString() else "%.1f".format(v)
 
     companion object {
+        // The same shares SceneBuilder uses: a bar is a thin strip so its caption is a large part of its
+        // height, while a plot or histogram is a tall box and the same share would give it a headline.
+        private const val BAR_CAPTION_SHARE = 0.5
+        private const val BOX_CAPTION_SHARE = 0.12
+
         private const val MIN_ZOOM = 0.1
         private const val MAX_ZOOM = 20.0
 

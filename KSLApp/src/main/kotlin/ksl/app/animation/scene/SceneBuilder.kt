@@ -784,7 +784,8 @@ class SceneBuilder(
                 DrawCmd.Text(
                     bar.position.x, bar.position.y,
                     "${bar.label ?: bar.responseName}: ${formatFixed(value, 1)}",
-                    RgbaColor.DARK_GRAY, screenOffsetY = CHART_LABEL_OFFSET
+                    RgbaColor.DARK_GRAY, size = captionSize(bar.height, BAR_CAPTION_SHARE),
+                    screenOffsetY = CHART_LABEL_OFFSET
                 )
             )
         }
@@ -834,6 +835,21 @@ class SceneBuilder(
     private fun scaleOf(bar: ksl.animation.BarDisplayElement): Double =
         if (bar.maxValue > 0.0) bar.maxValue else model.responseMax(bar.responseName) ?: 0.0
 
+    /**
+     * How large a chart's caption is drawn, in **world** units taken from the chart's own height.
+     *
+     * Scaled with the drawing rather than fixed in pixels, so a panel holds together at any zoom: fixed text
+     * beside world-sized elements grows relative to them as a window shrinks and shrinks as it grows, which
+     * is what made a caption legible in one window and dominant in the next.
+     *
+     * Derived from the element rather than from the canvas because a caption belongs to the thing it labels.
+     * Taking a share of the chart's own height keeps it proportionate to that chart whatever the model's
+     * units are — and since an author sizes a chart to its layout, the apparent size comes out much the same
+     * across models measured in tens of units and in hundreds.
+     */
+    private fun captionSize(heightWorld: Double, share: Double): Extent =
+        Extent.world((heightWorld * share).coerceAtLeast(1e-6), minPx = 8.0)
+
     private fun plotCommands(plot: PlotDisplayElement, t: Double, static: Boolean): List<DrawCmd> {
         val cmds = ArrayList<DrawCmd>()
         val w = Extent.world(plot.width)
@@ -841,7 +857,8 @@ class SceneBuilder(
         cmds.add(DrawCmd.Rect(plot.position.x, plot.position.y, w, h, fill = RgbaColor.WHITE, stroke = RgbaColor.DARK_GRAY))
         cmds.add(
             DrawCmd.Text(plot.position.x, plot.position.y, plot.label ?: plot.responseName,
-                RgbaColor.DARK_GRAY, screenOffsetY = CHART_LABEL_OFFSET)
+                RgbaColor.DARK_GRAY, size = captionSize(plot.height, BOX_CAPTION_SHARE),
+                screenOffsetY = CHART_LABEL_OFFSET)
         )
         if (static) return cmds
         val samples = model.responseSamplesUpTo(plot.responseName, t)
@@ -878,7 +895,8 @@ class SceneBuilder(
         )
         cmds.add(
             DrawCmd.Text(h.position.x, h.position.y, h.label ?: h.responseName,
-                RgbaColor.DARK_GRAY, screenOffsetY = CHART_LABEL_OFFSET)
+                RgbaColor.DARK_GRAY, size = captionSize(h.height, BOX_CAPTION_SHARE),
+                screenOffsetY = CHART_LABEL_OFFSET)
         )
         if (static) return cmds
         val values = model.responseSamplesUpTo(h.responseName, t).map { it.second }
@@ -1296,6 +1314,12 @@ class SceneBuilder(
          * The plot and histogram captions were always offset this way; the bar was the one that was not.
          */
         private const val CHART_LABEL_OFFSET = -3.0
+
+        /** A bar is a thin strip, so its caption is a large share of its height. */
+        private const val BAR_CAPTION_SHARE = 0.5
+
+        /** A plot or histogram is a tall box; the same share would give it a headline. */
+        private const val BOX_CAPTION_SHARE = 0.12
 
         /** Costly ground: amber, so it is not mistaken for a wall or for the flow field's green-to-red. */
         private val TERRAIN = RgbaColor(0xd9, 0x8c, 0x1f)

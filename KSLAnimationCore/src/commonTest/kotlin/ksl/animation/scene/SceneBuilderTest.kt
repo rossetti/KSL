@@ -555,13 +555,22 @@ class SceneBuilderDisplayTest {
     fun aChartsCaptionIsOffsetInPixelsNotWorldUnits() {
         val layout = AnimationLayout(
             width = 400.0, height = 300.0,
-            bars = listOf(BarDisplayElement("WaitTime", LayoutPoint(10.0, 40.0), width = 100.0, maxValue = 8.0))
+            bars = listOf(
+                BarDisplayElement("WaitTime", LayoutPoint(10.0, 40.0), width = 100.0, height = 20.0, maxValue = 8.0)
+            )
         )
         val caption = sceneOf(layout, responseEvents, 3.0).commandsOf("displays")
             .filterIsInstance<DrawCmd.Text>().first()
         assertEquals(40.0, caption.y, "anchored at the bar itself, wherever that is in the world")
         assertTrue(caption.screenOffsetY < 0.0, "and lifted above it by a screen offset")
         assertTrue(caption.screenOffsetY > -12.0, "of a few pixels, not a line of text")
+
+        // The offset is in pixels but the SIZE is in world units, and the two are not in tension: a caption
+        // sits a fixed few pixels off its box while scaling with everything around it. Fixed-size text beside
+        // world-sized elements grows relative to them as a window shrinks, which is what made a panel legible
+        // at one size and crowded at another.
+        val size = assertNotNull(caption.size as? Extent.World, "a caption scales with the drawing")
+        assertEquals(20.0 * 0.5, size.value, 1e-9, "a share of the bar's own height, so it fits the bar")
     }
 
     @Test
