@@ -163,3 +163,21 @@ class Example15DroneDeliveryBuilder : ModelBuilderIfc {
 //    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
 //        Example16NetworkRumor.buildModel()
 //}
+
+/**
+ * Bundle [ModelBuilderIfc] for the Example 17 tandem-queue-with-blocking animation model; delegates to its
+ * `buildModel()` for packaging into the animation-examples bundle.
+ */
+class Example17TandemBlockingBuilder : ModelBuilderIfc {
+    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+        Example17TandemBlocking.buildModel()
+}
+
+/**
+ * Bundle [ModelBuilderIfc] for the Example 18 loop-conveyor test-and-repair animation model; delegates to
+ * its `buildModel()` for packaging into the animation-examples bundle.
+ */
+class Example18ConveyorTestRepairBuilder : ModelBuilderIfc {
+    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+        Example18ConveyorTestRepair.buildModel()
+}

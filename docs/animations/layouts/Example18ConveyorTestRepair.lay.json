@@ -1,0 +1,484 @@
+{
+ "title": "Test & repair shop \u2014 parts riding a loop conveyor",
+ "baseTimeUnit": null,
+ "width": 1185,
+ "height": 710,
+ "objectClasses": [
+  {
+   "typeName": "Part",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 15.0,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 255.0,
+     "y": 315.0,
+     "z": 0.0
+    }
+   ],
+   "text": "The same job shop as the movable-resource version, with the transport replaced by an",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 15.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 255.0,
+     "y": 340.0,
+     "z": 0.0
+    }
+   ],
+   "text": "accumulating loop belt. Each part rides to whichever station its test plan calls for next.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 15.0,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 255.0,
+     "y": 385.0,
+     "z": 0.0
+    }
+   ],
+   "text": "The belt runs one way, so a part that wants the station it just left rides 130 cells",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 13.5,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 255.0,
+     "y": 406.0,
+     "z": 0.0
+    }
+   ],
+   "text": "round to reach it. Segment lengths here are drawn to the cell counts the model",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 13.5,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 255.0,
+     "y": 427.0,
+     "z": 0.0
+    }
+   ],
+   "text": "declares, so a ride takes as long on screen as it does in the run.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 13.5,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [
+  {
+   "queueName": "Diagnostics:Q",
+   "position": {
+    "x": 100.0,
+    "y": 100.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 20.0,
+   "maxShown": 6
+  },
+  {
+   "queueName": "Test1:Q",
+   "position": {
+    "x": 449.3,
+    "y": 100.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 20.0,
+   "maxShown": 3
+  },
+  {
+   "queueName": "Test2:Q",
+   "position": {
+    "x": 781.6,
+    "y": 100.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 20.0,
+   "maxShown": 6
+  },
+  {
+   "queueName": "Test3:Q",
+   "position": {
+    "x": 235.5,
+    "y": 622.0,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 20.0,
+   "maxShown": 4
+  },
+  {
+   "queueName": "Repair:Q",
+   "position": {
+    "x": 968.0,
+    "y": 383.8,
+    "z": 0.0
+   },
+   "growthDegrees": 180.0,
+   "spacing": 20.0,
+   "maxShown": 3
+  }
+ ],
+ "resources": [
+  {
+   "resourceName": "Diagnostics",
+   "position": {
+    "x": 150.0,
+    "y": 100.0,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Test1",
+   "position": {
+    "x": 482.3,
+    "y": 100.0,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Test2",
+   "position": {
+    "x": 814.6,
+    "y": 100.0,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Test3",
+   "position": {
+    "x": 268.5,
+    "y": 622.0,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  },
+  {
+   "resourceName": "Repair",
+   "position": {
+    "x": 1035.0,
+    "y": 383.8,
+    "z": 0.0
+   },
+   "size": 34.0,
+   "idleColor": "#2ca02c",
+   "busyColor": "#d62728",
+   "failedColor": "#7f7f7f",
+   "inactiveColor": "#cccccc",
+   "idleImage": null,
+   "busyImage": null,
+   "failedImage": null,
+   "inactiveImage": null,
+   "showValue": false
+  }
+ ],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "ConveyorTestRepair:NumInSystem",
+   "position": {
+    "x": 255.0,
+    "y": 465.0,
+    "z": 0.0
+   },
+   "width": 380.0,
+   "height": 24.0,
+   "maxValue": 24.0,
+   "color": "#1f77b4",
+   "label": "Number in system"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 255.0,
+    "y": 265.0,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Time",
+   "fontSize": 24.0
+  }
+ ],
+ "spaces": [],
+ "values": [],
+ "agentStateColors": {},
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [
+  {
+   "conveyorName": "LoopConveyor",
+   "segments": [
+    {
+     "entryLocation": "Diagnostics",
+     "exitLocation": "Test1",
+     "waypoints": []
+    },
+    {
+     "entryLocation": "Test1",
+     "exitLocation": "Test2",
+     "waypoints": []
+    },
+    {
+     "entryLocation": "Test2",
+     "exitLocation": "Repair",
+     "waypoints": [
+      {
+       "x": 850.0,
+       "y": 170.0,
+       "z": 0.0
+      }
+     ]
+    },
+    {
+     "entryLocation": "Repair",
+     "exitLocation": "Test3",
+     "waypoints": [
+      {
+       "x": 850.0,
+       "y": 550.0,
+       "z": 0.0
+      }
+     ]
+    },
+    {
+     "entryLocation": "Test3",
+     "exitLocation": "Diagnostics",
+     "waypoints": [
+      {
+       "x": 150.0,
+       "y": 550.0,
+       "z": 0.0
+      }
+     ]
+    }
+   ],
+   "width": 29.1,
+   "color": "#5b6470",
+   "showDirection": true,
+   "label": null
+  }
+ ],
+ "labels": [
+  {
+   "kind": "RESOURCE",
+   "name": "Diagnostics",
+   "text": "Diagnostics",
+   "dy": -30.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Test1",
+   "text": "Test 1",
+   "dy": -30.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Test2",
+   "text": "Test 2",
+   "dy": -30.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Test3",
+   "text": "Test 3",
+   "dy": -30.0
+  },
+  {
+   "kind": "RESOURCE",
+   "name": "Repair",
+   "text": "Repair",
+   "dy": -30.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Diagnostics:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Test1:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Test2:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Test3:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "QUEUE",
+   "name": "Repair:Q",
+   "visible": false,
+   "valueVisible": true,
+   "valueDx": -6.0,
+   "valueDy": 22.0
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Diagnostics",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Test1",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Test2",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Test3",
+   "visible": false
+  },
+  {
+   "kind": "LOCATION",
+   "name": "Repair",
+   "visible": false
+  }
+ ],
+ "spaceGeometry": [],
+ "locations": [
+  {
+   "locationName": "Diagnostics",
+   "position": {
+    "x": 150.0,
+    "y": 170.0,
+    "z": 0.0
+   },
+   "label": "Diagnostics"
+  },
+  {
+   "locationName": "Test1",
+   "position": {
+    "x": 482.3,
+    "y": 170.0,
+    "z": 0.0
+   },
+   "label": "Test1"
+  },
+  {
+   "locationName": "Test2",
+   "position": {
+    "x": 814.6,
+    "y": 170.0,
+    "z": 0.0
+   },
+   "label": "Test2"
+  },
+  {
+   "locationName": "Repair",
+   "position": {
+    "x": 850.0,
+    "y": 383.8,
+    "z": 0.0
+   },
+   "label": "Repair"
+  },
+  {
+   "locationName": "Test3",
+   "position": {
+    "x": 268.5,
+    "y": 550.0,
+    "z": 0.0
+   },
+   "label": "Test3"
+  }
+ ]
+}

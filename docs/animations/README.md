@@ -11,7 +11,7 @@ desktop app and the MCP server.
 | File | What it is |
 |---|---|
 | `layouts/*.lay.json` | The polished layouts. Committed artifacts. |
-| | `Example03GridEpidemic` · `Example05PedestrianCrowd` · `Example12StemFairStorage` · `Example13MovableResources` |
+| | `Example03GridEpidemic` · `Example05PedestrianCrowd` · `Example12StemFairStorage` · `Example13MovableResources` · `Example17TandemBlocking` · `Example18ConveyorTestRepair` |
 | `polish-<model>.py` | The script that produces one, from the auto-layout starting point. |
 | `polishing-playbook.md` | The reusable knowledge: what goes wrong, in what order to fix it. |
 
@@ -45,6 +45,6 @@ This writes three files into `-Pout`:
 | `<name>.lay.json` | An auto-layout starting point — **written only when absent**. Once polishing has started, that file is the work; a re-capture must not silently discard it. Delete it deliberately to start over. |
 | `<name>.dsl.lay.json` | The example's own `AnimationBuilder` layout, for comparison. It carries the author's intent (which elements matter, what they are called) where the auto-layout carries what the run actually did. |
 
-All sixteen bundle models can be captured. The tool lists them all rather than a curated subset: which
+All eighteen bundle models can be captured. The tool lists them all rather than a curated subset: which
 models are worth showcasing is a judgement that changes, but which ones *can* be captured is a fact about
 the bundle.

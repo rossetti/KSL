@@ -32,6 +32,8 @@ class ExampleLayoutValidationTest {
         Example("13 MovableResources", Example13MovableResources::buildModel, Example13MovableResources::buildLayout),
         Example("15 DroneDelivery", Example15DroneDelivery::buildModel, Example15DroneDelivery::buildLayout),
         Example("16 NetworkRumor", Example16NetworkRumor::buildModel, Example16NetworkRumor::buildLayout),
+        Example("17 TandemBlocking", Example17TandemBlocking::buildModel, Example17TandemBlocking::buildLayout),
+        Example("18 ConveyorTestRepair", Example18ConveyorTestRepair::buildModel, Example18ConveyorTestRepair::buildLayout),
     )
 
     @Test

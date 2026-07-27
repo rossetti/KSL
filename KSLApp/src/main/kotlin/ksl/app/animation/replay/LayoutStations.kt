@@ -56,10 +56,19 @@ fun AnimationLayout.withResourcesAtTheirLocations(trace: AnimationSource?): Anim
     for (event in trace.events) {
         placeAcc.accept(event); capacityAcc.accept(event); peakAcc.accept(event); flowAcc.accept(event)
     }
-    val placedAt = placeAcc.result()
-    if (placedAt.isEmpty()) return this
-
     val locationAt = locations.mapNotNull { l -> l.position?.let { l.locationName to it } }.toMap()
+
+    // Observation first, then the name. A conveyor model never produces the observation: a part riding a belt
+    // emits ConveyorItemMoved rather than MoveStarted, so no arrival is ever seen before a seize. But a
+    // conveyor's anchors are named for the stations they serve -- that is how a process asks to get on at one
+    // -- so a resource and a location sharing a name are the same place, and matching them is what puts the
+    // machines on a belt instead of in a column beside it.
+    val placedAt = resources.mapNotNull { res ->
+        val at = placeAcc.result()[res.resourceName]?.takeIf { it in locationAt }
+            ?: res.resourceName.takeIf { it in locationAt }
+        at?.let { res.resourceName to it }
+    }.toMap()
+    if (placedAt.isEmpty()) return this
     val moved = resources.filter { locationAt.containsKey(placedAt[it.resourceName]) }
     if (moved.isEmpty()) return this
 

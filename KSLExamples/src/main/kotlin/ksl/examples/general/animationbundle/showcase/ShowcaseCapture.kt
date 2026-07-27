@@ -41,7 +41,7 @@ object ShowcaseCapture {
      * Every model in the animation bundle, by the name passed on the command line, with the example's own
      * `AnimationBuilder` layout alongside its builder.
      *
-     * All sixteen are listed rather than a curated subset. Which models are worth showcasing is a judgement
+     * All eighteen are listed rather than a curated subset. Which models are worth showcasing is a judgement
      * that changes; which models *can* be captured is a fact about the bundle, and a tool that silently
      * omits one sends whoever wants it off to edit Kotlin. The bundle's entry points are uniform
      * (`buildModel()` / `buildLayout(model)`), so listing them all costs one line each.
@@ -63,6 +63,8 @@ object ShowcaseCapture {
         entry("Example14AnnotatedClinic", { Example14AnnotatedClinic.buildModel() }, { Example14AnnotatedClinic.buildLayout(it) }),
         entry("Example15DroneDelivery", { Example15DroneDelivery.buildModel() }, { Example15DroneDelivery.buildLayout(it) }),
         entry("Example16NetworkRumor", { Example16NetworkRumor.buildModel() }, { Example16NetworkRumor.buildLayout(it) }),
+        entry("Example17TandemBlocking", { Example17TandemBlocking.buildModel() }, { Example17TandemBlocking.buildLayout(it) }),
+        entry("Example18ConveyorTestRepair", { Example18ConveyorTestRepair.buildModel() }, { Example18ConveyorTestRepair.buildLayout(it) }),
     )
 
     /** A capturable model: how to build it, and how to build the example's own hand-written layout. */
