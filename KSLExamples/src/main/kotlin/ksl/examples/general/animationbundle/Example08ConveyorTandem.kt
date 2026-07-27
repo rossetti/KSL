@@ -71,13 +71,28 @@ object Example08ConveyorTandem {
         station("Station2", 520.0, 120.0)
         station("Exit", 680.0, 120.0, label = "Exit")
 
-        // Workers (process-view resources) with their queues.
-        queue("worker1:Q", 300.0, 200.0)
+        // Workers (process-view resources) with their queues. Each queue's head sits to the LEFT of its
+        // server and its members grow further left, so a row reads "waiting -> head -> server", the same
+        // direction as the flow along the belt above. Left at the default the members grow rightward, out
+        // of the server they are waiting for.
+        //
+        // The gap between head and server is wider than it needs to be for clearance, and that is the only
+        // lever available: an element's name label is drawn from its own position rightward, so "worker1:Q"
+        // runs straight into "worker1" when the two sit close together. The layout document can hide the
+        // redundant one -- a queue's name only repeats its server's, and its *count* is the informative part
+        // -- but the `AnimationBuilder` DSL cannot express a label override. That is one of the reasons the
+        // showcase layouts under docs/animations are documents rather than DSL.
+        //
+        // maxShown caps the drawn line, not the truth: worker 2's queue reaches 21 in this run, which drawn
+        // in full would stretch back past worker 1. The count beside the head still reads 21.
+        queue("worker1:Q", 250.0, 200.0) { growthDegrees = 180.0; spacing = 12.0; maxShown = 6 }
         resource("worker1", 320.0, 200.0) { size = 30.0 }
-        queue("worker2:Q", 500.0, 200.0)
+        queue("worker2:Q", 450.0, 200.0) { growthDegrees = 180.0; spacing = 12.0; maxShown = 6 }
         resource("worker2", 520.0, 200.0) { size = 30.0 }
 
-        bar("ConveyorTQ:NumInSystem", 80.0, 300.0) { width = 280.0; height = 20.0; maxValue = 12.0; label = "Number in system" }
+        // Scaled to what the run reaches (29), not to a guess: at the old maximum of 12 the bar sat pinned
+        // full for most of the animation, which reads as a broken display rather than as a busy system.
+        bar("ConveyorTQ:NumInSystem", 80.0, 300.0) { width = 280.0; height = 20.0; maxValue = 30.0; label = "Number in system" }
         plot("ConveyorTQ:NumInSystem", 420.0, 260.0) { width = 280.0; height = 80.0; label = "WIP over time" }
     }
 
