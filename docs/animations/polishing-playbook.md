@@ -256,6 +256,31 @@ value. A task that reads them silently ignores what you passed.
 
 ---
 
+## Agent models are a different job
+
+Almost none of the placement work above applies. The space comes from the model, the agents carry their own
+coordinates, the generator frames both, and obstacle walls come out of the model's own geometry. Three
+things do need doing, and they are the whole job:
+
+- **Colour has to mean something.** State colours are assigned from a categorical palette in sorted-name
+  order, which is deterministic and arbitrary. On an SIR model that produced blue *Infected* and green
+  *Susceptible* — worse than no colouring, because red already reads as "bad" and a reader will trust it.
+  Set them, and key every other coloured thing in the frame to the same assignments.
+- **A field of dots needs a panel.** No clock, no counts, no scale. Put the chrome in a column beside the
+  space rather than a strip beneath it: agent spaces are usually square, and a side panel makes the frame
+  landscape. Start it *below* the top-right corner, which the screen-space legend owns and no layout can
+  move. Give related counts one shared scale so their lengths can be compared — that is what makes an SIR
+  crossover or a room emptying legible at a glance.
+- **Check how much of the run is dead.** An agent model often finishes long before its replication does. The
+  epidemic here cleared at t=38 of 120 and the evacuation at t=14.7 of 60, so most of both animations was a
+  finished simulation. That is a model setting, and for a showcase it is worth fixing at the source.
+
+Note that the grid space's origin is **not** where its agents are drawn: an agent's position is its cell
+coordinate plus a fixed half-cell centring offset. Moving the space to make room for chrome slides every
+agent off the grid it is standing on.
+
+---
+
 ## What the generator already does
 
 Worth knowing before polishing, so effort goes where it is needed. From the trace, `auto_layout` recovers:

@@ -1,0 +1,167 @@
+{
+ "title": "SIR epidemic on a 20x20 grid torus",
+ "baseTimeUnit": null,
+ "width": 33.0,
+ "height": 21.4,
+ "objectClasses": [
+  {
+   "typeName": "Person",
+   "shape": "CIRCLE",
+   "color": "#1f77b4",
+   "size": 0.62,
+   "imageRef": null,
+   "label": null
+  }
+ ],
+ "background": [
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 21.4,
+     "y": 6.0,
+     "z": 0.0
+    }
+   ],
+   "text": "Each dot is a person wandering a torus",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.56,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 21.4,
+     "y": 6.8999999999999995,
+     "z": 0.0
+    }
+   ],
+   "text": "grid, infecting the neighbours they meet.",
+   "color": "#666666",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.56,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 21.4,
+     "y": 14.799999999999999,
+     "z": 0.0
+    }
+   ],
+   "text": "One scale, all three bars: 50 people.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.52,
+   "fontFamily": null
+  },
+  {
+   "kind": "TEXT",
+   "points": [
+    {
+     "x": 21.4,
+     "y": 15.6,
+     "z": 0.0
+    }
+   ],
+   "text": "Their crossover is the epidemic peaking.",
+   "color": "#999999",
+   "strokeWidth": 1.0,
+   "imageRef": null,
+   "fontSize": 0.52,
+   "fontFamily": null
+  }
+ ],
+ "paths": [],
+ "queues": [],
+ "resources": [],
+ "stations": [],
+ "bars": [
+  {
+   "responseName": "NumSusceptible",
+   "position": {
+    "x": 21.4,
+    "y": 8.2,
+    "z": 0.0
+   },
+   "width": 10.4,
+   "height": 0.95,
+   "maxValue": 50.0,
+   "color": "#1f77b4",
+   "label": "Susceptible"
+  },
+  {
+   "responseName": "NumInfected",
+   "position": {
+    "x": 21.4,
+    "y": 10.5,
+    "z": 0.0
+   },
+   "width": 10.4,
+   "height": 0.95,
+   "maxValue": 50.0,
+   "color": "#d62728",
+   "label": "Infected"
+  },
+  {
+   "responseName": "NumRecovered",
+   "position": {
+    "x": 21.4,
+    "y": 12.799999999999999,
+    "z": 0.0
+   },
+   "width": 10.4,
+   "height": 0.95,
+   "maxValue": 50.0,
+   "color": "#2ca02c",
+   "label": "Recovered"
+  }
+ ],
+ "plots": [],
+ "clocks": [
+  {
+   "position": {
+    "x": 21.4,
+    "y": 4.6,
+    "z": 0.0
+   },
+   "format": "0.0",
+   "label": "Day",
+   "fontSize": 1.0
+  }
+ ],
+ "spaces": [
+  {
+   "type": "Grid",
+   "name": "grid",
+   "cols": 20,
+   "rows": 20,
+   "cellSize": 1.0,
+   "originX": 0.0,
+   "originY": 0.0,
+   "torus": true
+  }
+ ],
+ "values": [],
+ "agentStateColors": {
+  "Susceptible": "#1f77b4",
+  "Infected": "#d62728",
+  "Recovered": "#2ca02c"
+ },
+ "summaries": [],
+ "histograms": [],
+ "storages": [],
+ "movableResources": [],
+ "processColors": {},
+ "conveyors": [],
+ "labels": [],
+ "spaceGeometry": [],
+ "locations": []
+}

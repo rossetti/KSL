@@ -104,6 +104,11 @@ val sharedSources = listOf(
 /** This module's own sources, relative to `src/commonMain/kotlin`. */
 val ownSources = listOf(
     "ksl/animation/AnimationLayoutReader.kt",
+    // The drawing subset of the obstacle overlay. KSLCore declares the full thing next to the pathfinding it
+    // serves; the player needs only the blocked cells, and declaring them here keeps the agent-modelling
+    // machinery out of the web build. Same package and member names, because SceneBuilder is one file
+    // compiled against KSLCore on the JVM and against this on Kotlin/JS.
+    "ksl/modeling/agent/GridGeometryReader.kt",
 )
 
 /*

@@ -51,7 +51,9 @@ object Example03GridEpidemic {
             initialInfected = 4
         }
         m.numberOfReplications = 1
-        m.lengthOfReplication = 120.0
+                // The last infection clears at t = 38, after which the survivors wander a picture that no
+        // longer changes. Fifty shows the whole epidemic with a tail, rather than eighty units of nothing.
+        m.lengthOfReplication = 50.0
         return m
     }
 

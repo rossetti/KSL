@@ -133,6 +133,57 @@ class SceneBuilder(
         is SpatialSpaceDescriptor.Network -> BoundingBox.of(space.nodes.asSequence().map { it.position.x to it.position.y })
     }
 
+    /**
+     * A grid obstacle overlay's blocked cells, filled behind everything that moves.
+     *
+     * The wall in an evacuation model is not decoration — it is the constraint the whole run is about, and
+     * without it a crowd funnelling towards nothing is unreadable. The cells come from the model's own
+     * geometry, extracted into the layout, so this draws what the model actually blocks.
+     *
+     * Resolving a cell to the world takes three tries, in the order that respects what the author declared: a
+     * grid space the overlay names owns the mapping; failing that an explicit cell size on the overlay itself;
+     * failing that a continuous space's own bounds divided into the overlay's columns. Matching by name is
+     * loose on purpose — the projection a model exports is often named differently from the space it is drawn
+     * on ("grid" against "floor") — so a sole space, or the only grid, will do.
+     */
+    private fun obstacleCommands(): List<DrawCmd> {
+        val l = layout ?: return emptyList()
+        val cmds = ArrayList<DrawCmd>()
+        for (spec in l.spaceGeometry) {
+            if (spec.blockedCells.isEmpty()) continue
+            val space = model.effectiveSpaces.firstOrNull { it.name == spec.spaceName }
+                ?: model.effectiveSpaces.singleOrNull()
+                ?: model.effectiveSpaces.firstOrNull { it is SpatialSpaceDescriptor.Grid }
+            val originX: Double
+            val originY: Double
+            val cell: Double
+            when {
+                space is SpatialSpaceDescriptor.Grid -> {
+                    originX = space.originX; originY = space.originY; cell = space.cellSize
+                }
+                spec.cellSize != null -> {
+                    originX = spec.originX ?: 0.0; originY = spec.originY ?: 0.0; cell = spec.cellSize!!
+                }
+                space is SpatialSpaceDescriptor.Continuous -> {
+                    originX = space.xMin; originY = space.yMin
+                    cell = (space.xMax - space.xMin) / spec.cols.coerceAtLeast(1)
+                }
+                else -> {
+                    originX = spec.originX ?: 0.0; originY = spec.originY ?: 0.0; cell = spec.cellSize ?: 1.0
+                }
+            }
+            for (blocked in spec.blockedCells) {
+                cmds.add(
+                    DrawCmd.Rect(
+                        originX + blocked.col * cell, originY + blocked.row * cell,
+                        Extent.world(cell), Extent.world(cell), fill = OBSTACLE
+                    )
+                )
+            }
+        }
+        return cmds
+    }
+
     /** The static skeleton only — every element at rest, with no replay state. */
     fun buildStatic(viewport: Viewport? = null): Scene = build(STATIC_TIME, static = true, viewport = viewport)
 
@@ -149,6 +200,7 @@ class SceneBuilder(
         }
 
         layer("spaces", DrawSpace.WORLD, spaceCommands())
+        layer("obstacles", DrawSpace.WORLD, obstacleCommands())
         if (options.showFlowField && !static) layer("flowField", DrawSpace.WORLD, flowFieldCommands())
         if (options.showPlannedPaths && !static) layer("plannedPaths", DrawSpace.WORLD, plannedPathCommands(t))
         layer("background", DrawSpace.WORLD, backgroundCommands())
@@ -865,10 +917,23 @@ class SceneBuilder(
     }
 
     /** A shaft plus a head, the head in pixels so it stays legible at any zoom. */
+    /**
+     * The longest an overlay arrow may be drawn, as a share of the world rather than as an absolute length.
+     *
+     * A fixed clamp cannot work across models: eight world units is a reasonable arrow in a hundred-unit
+     * flock and a third of the way across a twenty-five-metre room. In the crowd model, where forty jammed
+     * pedestrians all push hard at once, that produced forty arrows longer than the crowd itself and the
+     * model disappeared underneath them.
+     */
+    private val maxArrowWorld: Double by lazy {
+        val world = worldBounds()
+        (maxOf(world.width, world.height) * ARROW_SHARE_OF_WORLD).coerceAtLeast(1e-6)
+    }
+
     private fun arrow(into: ArrayList<DrawCmd>, x: Double, y: Double, dx: Double, dy: Double, color: RgbaColor) {
         val mag = hypot(dx, dy)
         if (mag < 1e-9) return
-        val len = mag.coerceAtMost(MAX_ARROW_WORLD)
+        val len = mag.coerceAtMost(maxArrowWorld)
         val ex = x + dx / mag * len
         val ey = y + dy / mag * len
         into.add(DrawCmd.Polyline(listOf(x to y, ex to ey), color, width = 2.0))
@@ -1155,10 +1220,14 @@ class SceneBuilder(
         private const val TEXT_LINE = 13.0
 
         /** Arrow length is proportional to magnitude but clamped, or a fast agent's arrow covers the model. */
-        private const val MAX_ARROW_WORLD = 8.0
+        /** An arrow at full stretch spans this share of the world's larger side. */
+        private const val ARROW_SHARE_OF_WORLD = 0.06
 
         /** The heatmap's fixed translucency, so agents stay readable on top of it. */
-        private const val FIELD_ALPHA = 0x66
+        private const val FIELD_ALPHA = 0x44
+
+        /** Blocked cells: dark and semi-opaque, so the grid beneath still reads and agents draw on top. */
+        private val OBSTACLE = RgbaColor(0x44, 0x44, 0x44, 0x99)
         private const val QUEUE_HEAD_BAR = 12.0
         private const val DEFAULT_LABEL_DY = -12.0
         private const val DEFAULT_VALUE_DY = 14.0

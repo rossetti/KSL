@@ -133,20 +133,30 @@ class LayoutReaderConformanceTest {
     }
 
     /**
-     * The reader does not model `spaceGeometry`, and must not start failing because a layout carries it.
-     * This is the guarantee that lets the reader model only what the player draws.
+     * An obstacle overlay is read for the cells a wall is drawn from, and the pathfinding half of the same
+     * document — movement rule, corner cutting, per-cell costs — is skipped rather than fatal. That split is
+     * the whole reason the player can draw a wall without pulling in the agent-modelling machinery, so both
+     * halves of it are asserted here.
      */
     @Test
-    fun toleratesFieldsTheReaderDoesNotModel() {
+    fun readsAnObstacleOverlayAndSkipsThePathfindingHalfOfIt() {
         val withGeometry = """
             { "width": 100.0, "height": 100.0,
               "spaceGeometry": [ { "spaceName": "grid", "cols": 4, "rows": 4, "torus": false,
                                    "movementRule": "MOORE", "allowCornerCutting": false,
-                                   "blockedCells": [ { "col": 1, "row": 1 } ], "cellCosts": [] } ],
+                                   "blockedCells": [ { "col": 1, "row": 1 }, { "col": 1, "row": 2 } ],
+                                   "cellCosts": [ { "col": 0, "row": 0, "cost": 3.0 } ] } ],
               "someFutureField": { "nested": true } }
         """.trimIndent()
         val layout = AnimationLayout.fromJson(withGeometry)
         assertEquals(100.0, layout.width, "unmodelled fields must be skipped, not fatal")
+        val geometry = assertNotNull(layout.spaceGeometry.singleOrNull())
+        assertEquals("grid", geometry.spaceName)
+        assertEquals(4, geometry.cols)
+        assertEquals(
+            listOf(1 to 1, 1 to 2), geometry.blockedCells.map { it.col to it.row },
+            "the blocked cells are what a wall is drawn from",
+        )
     }
 
     /** An empty document must produce a usable layout rather than throwing, so a bare trace still plays. */

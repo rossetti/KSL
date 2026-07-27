@@ -11,6 +11,7 @@ desktop app and the MCP server.
 | File | What it is |
 |---|---|
 | `layouts/*.lay.json` | The polished layouts. Committed artifacts. |
+| | `Example03GridEpidemic` · `Example05PedestrianCrowd` · `Example12StemFairStorage` · `Example13MovableResources` |
 | `polish-<model>.py` | The script that produces one, from the auto-layout starting point. |
 | `polishing-playbook.md` | The reusable knowledge: what goes wrong, in what order to fix it. |
 

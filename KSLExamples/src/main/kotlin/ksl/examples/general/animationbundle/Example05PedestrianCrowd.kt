@@ -39,7 +39,10 @@ object Example05PedestrianCrowd {
         val m = Model("PedestrianCrowdModel")
         PedestrianCrowdExample(m, "crowd").apply { population = 40 }
         m.numberOfReplications = 1
-        m.lengthOfReplication = 60.0
+                // The room is empty by t = 14.7 -- the last pedestrian is removed at the door -- so a 60-unit
+        // replication spent three quarters of the animation on an empty room, and carried the trace size
+        // to match. Twenty leaves a short tail for the counts to settle on.
+        m.lengthOfReplication = 20.0
         return m
     }
 

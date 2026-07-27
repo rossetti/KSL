@@ -867,7 +867,7 @@ class SimulationCanvas : JPanel() {
             val rr = (0x2c + f * (0xd6 - 0x2c)).toInt()
             val gg = (0xa0 + f * (0x27 - 0xa0)).toInt()
             val bb = (0x2c + f * (0x28 - 0x2c)).toInt()
-            g2.color = Color(rr.coerceIn(0, 255), gg.coerceIn(0, 255), bb.coerceIn(0, 255), 0x66)
+            g2.color = Color(rr.coerceIn(0, 255), gg.coerceIn(0, 255), bb.coerceIn(0, 255), 0x44)
             val a = screen(tx, LayoutPoint(ff.originX + c.col * ff.cellSize, ff.originY + c.row * ff.cellSize))
             val b = screen(tx, LayoutPoint(ff.originX + (c.col + 1) * ff.cellSize, ff.originY + (c.row + 1) * ff.cellSize))
             g2.fill(Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)))
@@ -889,10 +889,18 @@ class SimulationCanvas : JPanel() {
         }
     }
 
+    /** The longest an overlay arrow may be drawn: a share of the world's larger side, not a fixed length. */
+    private fun maxArrowWorld(): Double {
+        val b = worldBounds()
+        return (maxOf(b.width, b.height) * 0.06).coerceAtLeast(1e-6)
+    }
+
     private fun drawArrow(g2: Graphics2D, tx: AffineTransform, from: WorldPoint, dx: Double, dy: Double, color: Color) {
         val mag = kotlin.math.hypot(dx, dy)
         if (mag < 1e-9) return
-        val len = (mag * 1.0).coerceAtMost(8.0) // proportional, clamped to 8 world units
+        // Proportional, clamped to a share of the world rather than to a fixed length: eight world units is
+        // a reasonable arrow in a hundred-unit flock and a third of the way across a 25-metre room.
+        val len = mag.coerceAtMost(maxArrowWorld())
         val a = screen(tx, LayoutPoint(from.x, from.y))
         val b = screen(tx, LayoutPoint(from.x + dx / mag * len, from.y + dy / mag * len))
         g2.color = color; g2.stroke = BasicStroke(2f)

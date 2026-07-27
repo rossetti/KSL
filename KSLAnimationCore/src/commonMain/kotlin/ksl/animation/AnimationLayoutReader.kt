@@ -41,9 +41,9 @@ import kotlinx.serialization.json.Json
  * WHAT IT OMITS, AND WHY THAT IS SAFE
  *
  *  - file and TOML I/O: there are no files in a browser.
- *  - `spaceGeometry`: grid obstacle overlays, which the player does not draw yet. It reaches into
- *    `ksl.modeling.agent`, and omitting it costs nothing because the layout codec sets
- *    `ignoreUnknownKeys`, so the field is simply skipped when present.
+ *  - the pathfinding half of `spaceGeometry`: movement rules, corner cutting, per-cell costs and the grid
+ *    graph. The obstacle overlay itself IS read, because a wall is often the point of the picture, but only
+ *    the fields a wall is drawn from; `ignoreUnknownKeys` skips the rest.
  *
  * KEEPING IT HONEST
  *
@@ -458,7 +458,10 @@ data class AnimationLayout(
     /** Named spatial locations (`LocationIfc`): move endpoints, conveyor anchors, agent landmarks — the
      *  animation counterpart of a NetworkStation. Appended last (defaulted) for positional-constructor and
      *  wire safety, so old layouts keep loading and old code keeps constructing. */
-    val locations: List<LocationLayoutElement> = emptyList()
+    val locations: List<LocationLayoutElement> = emptyList(),
+    /** Grid obstacle overlays extracted from the model — the blocked cells a wall is drawn from. Only the
+     *  drawing subset is declared; see `ksl.modeling.agent.GridGeometrySpec` in this module. */
+    val spaceGeometry: List<ksl.modeling.agent.GridGeometrySpec> = emptyList()
 ) {
     /**
      * The placed position of anchor [ref] — the location (else the network station) of that name, falling back to
