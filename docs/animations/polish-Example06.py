@@ -2,8 +2,8 @@
 """Polished showcase layout for Example06WarehouseAGV — the richest agent model here.
 
 Four AGVs bid against each other for pallet tasks, route around racks, and peel off to charge. The
-generator already draws all of it: the racks from the model's grid graph, the planned routes, the heading
-of each vehicle, and a colour per statechart state. What it cannot know is which colour should mean what,
+generator already draws all of it: the racks from the model's grid graph, the congested aisle beside them,
+the planned routes, the heading of each vehicle, and a colour per statechart state. What it cannot know is which colour should mean what,
 or that a reader needs to be told the colours are states rather than identities.
 """
 import polishkit as kit
@@ -44,6 +44,10 @@ d["background"] = [
     kit.text("resource going busy and idle. The blue trails", PANEL_X, PANEL_TOP + 17.6, 0.7, "#999999"),
     kit.text("are planned routes around the racks, which", PANEL_X, PANEL_TOP + 18.6, 0.7, "#999999"),
     kit.text("come from the model's own grid graph.", PANEL_X, PANEL_TOP + 19.6, 0.7, "#999999"),
+    kit.text("The amber aisle is congested — passable, but", PANEL_X, PANEL_TOP + 21.0, 0.7, "#999999"),
+    kit.text("four times the cost to cross. Watch the routes", PANEL_X, PANEL_TOP + 22.0, 0.7, "#999999"),
+    kit.text("prefer the western cross-aisle: that is the", PANEL_X, PANEL_TOP + 23.0, 0.7, "#999999"),
+    kit.text("grid's cell costs deciding, not the drawing.", PANEL_X, PANEL_TOP + 24.0, 0.7, "#999999"),
 ]
 d["bars"] = [
     kit.bar("NumTasksCompleted", PANEL_X, PANEL_TOP + 11.0, PANEL_W, 1.4,

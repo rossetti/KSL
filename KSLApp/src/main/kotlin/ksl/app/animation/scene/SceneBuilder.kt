@@ -151,37 +151,77 @@ class SceneBuilder(
         val cmds = ArrayList<DrawCmd>()
         for (spec in l.spaceGeometry) {
             if (spec.blockedCells.isEmpty()) continue
-            val space = model.effectiveSpaces.firstOrNull { it.name == spec.spaceName }
-                ?: model.effectiveSpaces.singleOrNull()
-                ?: model.effectiveSpaces.firstOrNull { it is SpatialSpaceDescriptor.Grid }
-            val originX: Double
-            val originY: Double
-            val cell: Double
-            when {
-                space is SpatialSpaceDescriptor.Grid -> {
-                    originX = space.originX; originY = space.originY; cell = space.cellSize
-                }
-                spec.cellSize != null -> {
-                    originX = spec.originX ?: 0.0; originY = spec.originY ?: 0.0; cell = spec.cellSize!!
-                }
-                space is SpatialSpaceDescriptor.Continuous -> {
-                    originX = space.xMin; originY = space.yMin
-                    cell = (space.xMax - space.xMin) / spec.cols.coerceAtLeast(1)
-                }
-                else -> {
-                    originX = spec.originX ?: 0.0; originY = spec.originY ?: 0.0; cell = spec.cellSize ?: 1.0
-                }
-            }
+            val grid = cellFrame(spec) ?: continue
             for (blocked in spec.blockedCells) {
                 cmds.add(
                     DrawCmd.Rect(
-                        originX + blocked.col * cell, originY + blocked.row * cell,
-                        Extent.world(cell), Extent.world(cell), fill = OBSTACLE
+                        grid.originX + blocked.col * grid.cell, grid.originY + blocked.row * grid.cell,
+                        Extent.world(grid.cell), Extent.world(grid.cell), fill = OBSTACLE
                     )
                 )
             }
         }
         return cmds
+    }
+
+    /**
+     * Ground that is passable but costly, shaded in proportion to what it costs.
+     *
+     * A grid can say more than "wall" or "floor": a cell carries a traversal cost, and a route weighs that
+     * cost against distance. Undrawn, an agent taking the long way round looks like a bug — the reason is
+     * real and is in the model, just invisible. Shading it is what turns "why did it go that way" into
+     * something a reader can see.
+     *
+     * Only cells above the default cost of 1.0 are drawn, so ordinary floor stays clean, and the shade is
+     * relative to the costliest cell present rather than absolute: what matters is which ground an agent is
+     * avoiding, not the arithmetic.
+     */
+    private fun terrainCommands(): List<DrawCmd> {
+        val l = layout ?: return emptyList()
+        val cmds = ArrayList<DrawCmd>()
+        for (spec in l.spaceGeometry) {
+            val costly = spec.cellCosts.filter { it.cost > 1.0 }
+            if (costly.isEmpty()) continue
+            val grid = cellFrame(spec) ?: continue
+            val dearest = costly.maxOf { it.cost }
+            for (c in costly) {
+                // Across the range present, so a floor with one slow patch still shows it.
+                val share = if (dearest > 1.0) (c.cost - 1.0) / (dearest - 1.0) else 1.0
+                val alpha = (TERRAIN_MIN_ALPHA + share * (TERRAIN_MAX_ALPHA - TERRAIN_MIN_ALPHA)).toInt()
+                cmds.add(
+                    DrawCmd.Rect(
+                        grid.originX + c.col * grid.cell, grid.originY + c.row * grid.cell,
+                        Extent.world(grid.cell), Extent.world(grid.cell),
+                        fill = TERRAIN.copy(a = alpha)
+                    )
+                )
+            }
+        }
+        return cmds
+    }
+
+    private class CellFrame(val originX: Double, val originY: Double, val cell: Double)
+
+    /**
+     * Where a grid overlay's cell (0,0) sits and how big a cell is.
+     *
+     * Three tries, in the order that respects what the author declared: a grid space the overlay names owns
+     * the mapping; failing that an explicit cell size on the overlay itself; failing that a continuous
+     * space's bounds divided into the overlay's columns. Matching by name is loose on purpose — the
+     * projection a model exports is often named differently from the space it is drawn on ("grid" against
+     * "floor") — so a sole space, or the only grid, will do.
+     */
+    private fun cellFrame(spec: ksl.modeling.agent.GridGeometrySpec): CellFrame? {
+        val space = model.effectiveSpaces.firstOrNull { it.name == spec.spaceName }
+            ?: model.effectiveSpaces.singleOrNull()
+            ?: model.effectiveSpaces.firstOrNull { it is SpatialSpaceDescriptor.Grid }
+        return when {
+            space is SpatialSpaceDescriptor.Grid -> CellFrame(space.originX, space.originY, space.cellSize)
+            spec.cellSize != null -> CellFrame(spec.originX ?: 0.0, spec.originY ?: 0.0, spec.cellSize!!)
+            space is SpatialSpaceDescriptor.Continuous ->
+                CellFrame(space.xMin, space.yMin, (space.xMax - space.xMin) / spec.cols.coerceAtLeast(1))
+            else -> CellFrame(spec.originX ?: 0.0, spec.originY ?: 0.0, spec.cellSize ?: 1.0)
+        }
     }
 
     /** The static skeleton only — every element at rest, with no replay state. */
@@ -200,6 +240,7 @@ class SceneBuilder(
         }
 
         layer("spaces", DrawSpace.WORLD, spaceCommands())
+        layer("terrain", DrawSpace.WORLD, terrainCommands())
         layer("obstacles", DrawSpace.WORLD, obstacleCommands())
         if (options.showFlowField && !static) layer("flowField", DrawSpace.WORLD, flowFieldCommands())
         if (options.showPlannedPaths && !static) layer("plannedPaths", DrawSpace.WORLD, plannedPathCommands(t))
@@ -1243,6 +1284,11 @@ class SceneBuilder(
 
         /** Blocked cells: dark and semi-opaque, so the grid beneath still reads and agents draw on top. */
         private val OBSTACLE = RgbaColor(0x44, 0x44, 0x44, 0x99)
+
+        /** Costly ground: amber, so it is not mistaken for a wall or for the flow field's green-to-red. */
+        private val TERRAIN = RgbaColor(0xd9, 0x8c, 0x1f)
+        private const val TERRAIN_MIN_ALPHA = 36.0
+        private const val TERRAIN_MAX_ALPHA = 130.0
         private const val QUEUE_HEAD_BAR = 12.0
         private const val DEFAULT_LABEL_DY = -12.0
         private const val DEFAULT_VALUE_DY = 14.0

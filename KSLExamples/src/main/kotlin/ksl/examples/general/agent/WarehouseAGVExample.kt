@@ -138,6 +138,9 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
      */
     val graph: GridGraph = GridGraph(gridSize, gridSize, movementRule = MovementRule.MOORE)
 
+    /** What crossing the congested aisle costs, relative to ordinary floor at 1.0. */
+    private val CONGESTED_AISLE_COST: Double = 4.0
+
     /** Charging stations on the left wall, evenly spaced. */
     val chargers: List<Cell> = listOf(Cell(0, 4), Cell(0, 14), Cell(0, 24))
 
@@ -154,6 +157,18 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
                 graph.block(Cell(col, r1))
                 graph.block(Cell(col, r2))
             }
+        }
+
+        // Congestion in the eastern cross-aisle. A cell's cost multiplies the distance of crossing it, so
+        // these are passable but expensive, and routing weighs them against going round. There are two
+        // cross-aisles through the racks; making one of them slow is the difference between a floor plan
+        // where every route is equivalent and one where the traffic has a reason to favour a side.
+        //
+        // This is the counterpart of a blocked cell -- the other half of what a grid can say about ground --
+        // and it exists here to be *seen*: costly ground draws shaded in the animation, so an AGV taking
+        // the long way round reads as a decision rather than a fault.
+        for (col in 19..21) {
+            for (row in 0 until gridSize) graph.setCellCost(Cell(col, row), CONGESTED_AISLE_COST)
         }
     }
 

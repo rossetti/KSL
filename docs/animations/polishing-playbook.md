@@ -297,6 +297,8 @@ Worth knowing before polishing, so effort goes where it is needed. From the trac
 | `ResourceStateChanged` | `ResourceCapacities` | how wide a machine's block is, so its queue head clears it |
 | `QueueLengthChanged` | `QueuePeaks` | how long to draw a queue's extent line |
 | Named / bare delays | `DelayStorages` | which storages exist at all |
+| A grid's blocked cells | model geometry | walls, drawn from what the model actually blocks |
+| A grid's cell costs | model geometry | ground that is passable but slow, shaded by what it costs |
 
 What it does **not** do, and will not: retitle anything ("DiagnosticWorkers" → "Diagnostics"), decide which
 storage style suits a stage, choose colours against the resource-state palette, write a caption, or judge

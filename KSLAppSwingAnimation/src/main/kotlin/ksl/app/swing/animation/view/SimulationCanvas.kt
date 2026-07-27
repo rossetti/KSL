@@ -838,7 +838,7 @@ class SimulationCanvas : JPanel() {
      * cellSize on the spec wins next; otherwise a Continuous space's cell size is derived from its bounds.
      */
     private fun drawObstacles(g2: Graphics2D, tx: AffineTransform, spec: ksl.modeling.agent.GridGeometrySpec, r: ReplayModel) {
-        if (spec.blockedCells.isEmpty()) return
+        if (spec.blockedCells.isEmpty() && spec.cellCosts.none { it.cost > 1.0 }) return
         // Match by name; else fall back to the sole space, else the first grid (the projection a model exports an
         // overlay for is often named differently from the authored space it's drawn on — e.g. "grid" vs "floor").
         val space = r.effectiveSpaces.firstOrNull { it.name == spec.spaceName }
@@ -851,12 +851,29 @@ class SimulationCanvas : JPanel() {
             space is SpatialSpaceDescriptor.Continuous -> { ox = space.xMin; oy = space.yMin; cell = (space.xMax - space.xMin) / spec.cols.coerceAtLeast(1) }
             else -> { ox = spec.originX ?: 0.0; oy = spec.originY ?: 0.0; cell = spec.cellSize ?: 1.0 }
         }
-        g2.color = Color(0x44, 0x44, 0x44, 0x99) // semi-opaque dark, drawn behind the agents
-        for (bc in spec.blockedCells) {
-            val a = screen(tx, LayoutPoint(ox + bc.col * cell, oy + bc.row * cell))
-            val b = screen(tx, LayoutPoint(ox + (bc.col + 1) * cell, oy + (bc.row + 1) * cell))
+        fun fillCell(col: Int, row: Int) {
+            val a = screen(tx, LayoutPoint(ox + col * cell, oy + row * cell))
+            val b = screen(tx, LayoutPoint(ox + (col + 1) * cell, oy + (row + 1) * cell))
             g2.fill(Rectangle2D.Double(minOf(a.x, b.x), minOf(a.y, b.y), kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)))
         }
+
+        // Ground that is passable but costly, under the walls and under everything that moves. A grid can
+        // say more than "wall" or "floor": a cell carries a traversal cost that a route weighs against
+        // distance, and undrawn it makes an agent taking the long way round look like a bug. Amber, so it
+        // is not read as a wall or as the flow field. Matches SceneBuilder.terrainCommands exactly -- the
+        // two renderers must not disagree about what a model looks like.
+        val costly = spec.cellCosts.filter { it.cost > 1.0 }
+        if (costly.isNotEmpty()) {
+            val dearest = costly.maxOf { it.cost }
+            for (cc in costly) {
+                val share = if (dearest > 1.0) (cc.cost - 1.0) / (dearest - 1.0) else 1.0
+                g2.color = Color(0xd9, 0x8c, 0x1f, (36.0 + share * (130.0 - 36.0)).toInt())
+                fillCell(cc.col, cc.row)
+            }
+        }
+
+        g2.color = Color(0x44, 0x44, 0x44, 0x99) // semi-opaque dark, drawn behind the agents
+        for (bc in spec.blockedCells) fillCell(bc.col, bc.row)
     }
 
     /**

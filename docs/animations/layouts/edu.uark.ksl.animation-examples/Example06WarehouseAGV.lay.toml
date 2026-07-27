@@ -183,11 +183,67 @@ x = 32.4
 y = 26.0
 z = 0.0
 
+[[background]]
+kind = "TEXT"
+text = "The amber aisle is congested — passable, but"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 27.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "four times the cost to cross. Watch the routes"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 28.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "prefer the western cross-aisle: that is the"
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 29.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "grid's cell costs deciding, not the drawing."
+color = "#999999"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 0.7
+fontFamily = null
+
+[[background.points]]
+x = 32.4
+y = 30.4
+z = 0.0
+
 [[bars]]
 responseName = "NumTasksCompleted"
 width = 17.0
 height = 1.4
-maxValue = 36.0
+maxValue = 35.0
 color = "#ff7f0e"
 label = "Pallets delivered"
 
@@ -200,7 +256,7 @@ z = 0.0
 responseName = "NumChargingEvents"
 width = 17.0
 height = 1.4
-maxValue = 11.0
+maxValue = 12.0
 color = "#d62728"
 label = "Charging stops"
 
@@ -268,7 +324,6 @@ rows = 30
 torus = false
 movementRule = "MOORE"
 allowCornerCutting = false
-cellCosts = [  ]
 originX = null
 originY = null
 cellSize = null
@@ -1008,6 +1063,456 @@ row = 20
 [[spaceGeometry.blockedCells]]
 col = 29
 row = 21
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 0
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 1
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 2
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 3
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 4
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 5
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 6
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 7
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 8
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 9
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 10
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 11
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 12
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 13
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 14
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 15
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 16
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 17
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 18
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 19
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 20
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 21
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 22
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 23
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 24
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 25
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 26
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 27
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 28
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 19
+row = 29
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 0
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 1
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 2
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 3
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 4
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 5
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 6
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 7
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 8
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 9
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 10
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 11
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 12
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 13
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 14
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 15
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 16
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 17
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 18
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 19
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 20
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 21
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 22
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 23
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 24
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 25
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 26
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 27
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 28
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 20
+row = 29
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 0
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 1
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 2
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 3
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 4
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 5
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 6
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 7
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 8
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 9
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 10
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 11
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 12
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 13
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 14
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 15
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 16
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 17
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 18
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 19
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 20
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 21
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 22
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 23
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 24
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 25
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 26
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 27
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 28
+cost = 4.0
+
+[[spaceGeometry.cellCosts]]
+col = 21
+row = 29
+cost = 4.0
 
 [[locations]]
 locationName = "Charger 1"
