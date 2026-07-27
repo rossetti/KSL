@@ -782,9 +782,9 @@ class SceneBuilder(
             // renderer exists to avoid.
             cmds.add(
                 DrawCmd.Text(
-                    bar.position.x, bar.position.y - 3.0,
+                    bar.position.x, bar.position.y,
                     "${bar.label ?: bar.responseName}: ${formatFixed(value, 1)}",
-                    RgbaColor.DARK_GRAY
+                    RgbaColor.DARK_GRAY, screenOffsetY = CHART_LABEL_OFFSET
                 )
             )
         }
@@ -841,7 +841,7 @@ class SceneBuilder(
         cmds.add(DrawCmd.Rect(plot.position.x, plot.position.y, w, h, fill = RgbaColor.WHITE, stroke = RgbaColor.DARK_GRAY))
         cmds.add(
             DrawCmd.Text(plot.position.x, plot.position.y, plot.label ?: plot.responseName,
-                RgbaColor.DARK_GRAY, screenOffsetY = -3.0)
+                RgbaColor.DARK_GRAY, screenOffsetY = CHART_LABEL_OFFSET)
         )
         if (static) return cmds
         val samples = model.responseSamplesUpTo(plot.responseName, t)
@@ -878,7 +878,7 @@ class SceneBuilder(
         )
         cmds.add(
             DrawCmd.Text(h.position.x, h.position.y, h.label ?: h.responseName,
-                RgbaColor.DARK_GRAY, screenOffsetY = -3.0)
+                RgbaColor.DARK_GRAY, screenOffsetY = CHART_LABEL_OFFSET)
         )
         if (static) return cmds
         val values = model.responseSamplesUpTo(h.responseName, t).map { it.second }
@@ -1284,6 +1284,18 @@ class SceneBuilder(
 
         /** Blocked cells: dark and semi-opaque, so the grid beneath still reads and agents draw on top. */
         private val OBSTACLE = RgbaColor(0x44, 0x44, 0x44, 0x99)
+
+        /**
+         * How far a chart's caption sits above its box, in **screen pixels**.
+         *
+         * Pixels because the caption is drawn at a fixed size: an offset in world units holds it a constant
+         * distance in the model's own scale, which is a few pixels on a layout measured in hundreds of units
+         * and forty on one measured in tens. A bar's label used to be offset by three world units and floated
+         * clear of its bar on every agent model, landing on whatever was above it. The desktop canvas offsets
+         * by two pixels from the drawn rectangle, and this is the same thing said in the scene's vocabulary.
+         * The plot and histogram captions were always offset this way; the bar was the one that was not.
+         */
+        private const val CHART_LABEL_OFFSET = -3.0
 
         /** Costly ground: amber, so it is not mistaken for a wall or for the flow field's green-to-red. */
         private val TERRAIN = RgbaColor(0xd9, 0x8c, 0x1f)

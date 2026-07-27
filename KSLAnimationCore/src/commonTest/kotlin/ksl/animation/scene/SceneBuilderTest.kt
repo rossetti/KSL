@@ -543,6 +543,27 @@ class SceneBuilderDisplayTest {
         assertEquals(100.0 * 4.0 / 8.0, fillWidth(8.0), 1e-9, "an authored maximum is still honoured")
     }
 
+    /**
+     * A chart's caption sits a few **pixels** above its box, not a few world units.
+     *
+     * The distinction is invisible on a layout measured in hundreds of units and glaring on one measured in
+     * tens: three world units is three pixels on the first and forty on the second. The bar's caption was
+     * offset in world units and floated clear of its bar on every agent model, landing on whatever was
+     * above it — the state key, in the warehouse.
+     */
+    @Test
+    fun aChartsCaptionIsOffsetInPixelsNotWorldUnits() {
+        val layout = AnimationLayout(
+            width = 400.0, height = 300.0,
+            bars = listOf(BarDisplayElement("WaitTime", LayoutPoint(10.0, 40.0), width = 100.0, maxValue = 8.0))
+        )
+        val caption = sceneOf(layout, responseEvents, 3.0).commandsOf("displays")
+            .filterIsInstance<DrawCmd.Text>().first()
+        assertEquals(40.0, caption.y, "anchored at the bar itself, wherever that is in the world")
+        assertTrue(caption.screenOffsetY < 0.0, "and lifted above it by a screen offset")
+        assertTrue(caption.screenOffsetY > -12.0, "of a few pixels, not a line of text")
+    }
+
     @Test
     fun aHistogramBinsTheObservedValues() {
         val layout = AnimationLayout(

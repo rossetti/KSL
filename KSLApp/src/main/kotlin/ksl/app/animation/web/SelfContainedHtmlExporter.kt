@@ -121,7 +121,13 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
         trace: Path,
         layout: Path? = null,
         out: Path,
-        title: String = trace.fileName.toString().removeSuffix(".gz").removeSuffix(".atf").trim('.'),
+        // The layout's own title when it has one, since that is what a person wrote to describe the
+        // picture; the trace's file name only says which model produced it. Without this an exported page
+        // is headed with a model id while the animation under it is a polished one, and there is no way to
+        // tell from the page which layout it was built with.
+        title: String = layout?.let { runCatching { AnimationLayout.read(it).title }.getOrNull() }
+            ?.takeIf { it.isNotBlank() }
+            ?: trace.fileName.toString().removeSuffix(".gz").removeSuffix(".atf").trim('.'),
         autoPlay: Boolean = true,
         // How long the whole run should take to watch. Must stay equal to
         // PlaybackController.DEFAULT_TARGET_SECONDS, so a run opens at the same speed wherever it is
