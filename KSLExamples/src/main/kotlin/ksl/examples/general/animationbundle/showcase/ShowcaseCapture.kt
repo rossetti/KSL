@@ -38,12 +38,12 @@ import java.nio.file.Path
 object ShowcaseCapture {
 
     /**
-     * Every model in the animation bundle, by the name passed on the command line, with the example's own
-     * `AnimationBuilder` layout alongside its builder.
+     * Every animation example in the repository, by the name passed on the command line, with the example's
+     * own `AnimationBuilder` layout alongside its builder.
      *
-     * All eighteen are listed rather than a curated subset. Which models are worth showcasing is a judgement
-     * that changes; which models *can* be captured is a fact about the bundle, and a tool that silently
-     * omits one sends whoever wants it off to edit Kotlin. The bundle's entry points are uniform
+     * All eighteen are listed, including the four the bundle no longer ships. Which models are worth
+     * shipping is a judgement that changes; which models *can* be captured is a fact about the code, and a
+     * tool that silently omits one sends whoever wants it off to edit Kotlin. The entry points are uniform
      * (`buildModel()` / `buildLayout(model)`), so listing them all costs one line each.
      */
     private val models: Map<String, ModelEntry> = mapOf(

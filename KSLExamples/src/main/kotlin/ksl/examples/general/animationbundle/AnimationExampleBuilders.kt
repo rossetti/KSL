@@ -23,13 +23,31 @@ import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
 /*
- * ModelBuilderIfc wrappers for the 16 animation gallery models, so `kslpkg assemble`
+ * The animation examples that SHIP. ModelBuilderIfc wrappers, one per model, so `kslpkg assemble`
  * (the animationExamplesBundleJar task) can package them into the discoverable
- * `edu.uark.ksl.animation-examples` bundle. Each delegates to its example's buildModel().
- * Layouts are NOT bundled: the user authors a layout in the animation app's Layout tab and
- * saves it to their workspace. (Each example's buildLayout() is a standalone teaching example
- * of the layout DSL, not consumed at runtime.) The released bundle is dropped into the user's
- * KSLWork/bundles folder and discovered at runtime.
+ * `edu.uark.ksl.animation-examples` bundle, dropped into the user's KSLWork/bundles folder.
+ *
+ * This is a curated teaching set, not a test matrix. Every model here earns its place by being the
+ * clearest example of one thing, and the set is ordered so a reader can start at the simplest process
+ * view and build up: one queue, then movement, then distances, conveyors, transporters, storages, and
+ * finally the agent models. Where two models covered the same ground, the simpler one stayed as the
+ * introduction and the richer one as the payoff -- Example 08's conveyor line before Example 18's loop,
+ * Example 09's named locations before Example 13's transporters over the same kind of distance model.
+ *
+ * Models that existed only to find out whether a paradigm COULD be animated are not here. The
+ * station-network pair and the rumor-on-a-graph model were answers to that question, not examples worth
+ * shipping; they remain in KSLExamples as code, without a builder.
+ *
+ * Layouts are not bundled -- a bundle is about the model. The polished layout for each of these ships
+ * separately, in the install's layouts folder, and is offered by the animation app's layout picker.
+ * Each example's buildLayout() is the DSL-expressible part of that layout and a teaching example in its
+ * own right; the shipped one can go further, because the DSL cannot express label overrides or an
+ * authored conveyor route.
+ *
+ * ADDING ONE: the bundle jar is assembled from path patterns in KSLExamples/build.gradle.kts, not from
+ * the call graph, so a builder whose model class lives somewhere not on that include list ships as an
+ * entry that cannot be built -- and nothing at compile time says so. Add the include, and
+ * AnimationBundleClosureTest will confirm it.
  */
 
 /**
@@ -60,15 +78,6 @@ class Example03GridEpidemicBuilder : ModelBuilderIfc {
 }
 
 /**
- * Bundle [ModelBuilderIfc] for the Example 4 building-evacuation animation model; delegates to its
- * `buildModel()` for packaging into the animation-examples bundle.
- */
-class Example04BuildingEvacuationBuilder : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-        Example04BuildingEvacuation.buildModel()
-}
-
-/**
  * Bundle [ModelBuilderIfc] for the Example 5 pedestrian-crowd animation model; delegates to its
  * `buildModel()` for packaging into the animation-examples bundle.
  */
@@ -84,15 +93,6 @@ class Example05PedestrianCrowdBuilder : ModelBuilderIfc {
 class Example06WarehouseAGVBuilder : ModelBuilderIfc {
     override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
         Example06WarehouseAGV.buildModel()
-}
-
-/**
- * Bundle [ModelBuilderIfc] for the Example 7 station-based tandem-queue animation model; delegates to its
- * `buildModel()` for packaging into the animation-examples bundle.
- */
-class Example07StationTandemBuilder : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-        Example07StationTandem.buildModel()
 }
 
 /**
@@ -112,11 +112,6 @@ class Example09DistancesTandemBuilder : ModelBuilderIfc {
     override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
         Example09DistancesTandem.buildModel()
 }
-
-//class Example10MultiClassStationBuilder : ModelBuilderIfc {
-//    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-//        Example10MultiClassStation.buildModel()
-//}
 
 /**
  * Bundle [ModelBuilderIfc] for the Example 11 flocking (boids) animation model; delegates to its
@@ -145,10 +140,15 @@ class Example13MovableResourcesBuilder : ModelBuilderIfc {
         Example13MovableResources.buildModel()
 }
 
-//class Example14AnnotatedClinicBuilder : ModelBuilderIfc {
-//    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-//        Example14AnnotatedClinic.buildModel()
-//}
+/**
+ * Bundle [ModelBuilderIfc] for the Example 14 annotated-clinic animation model — the one that teaches how
+ * to make *your own* model animate well, by declaring its entity types and annotating its processes;
+ * delegates to its `buildModel()` for packaging into the animation-examples bundle.
+ */
+class Example14AnnotatedClinicBuilder : ModelBuilderIfc {
+    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
+        Example14AnnotatedClinic.buildModel()
+}
 
 /**
  * Bundle [ModelBuilderIfc] for the Example 15 drone-delivery animation model; delegates to its
@@ -158,11 +158,6 @@ class Example15DroneDeliveryBuilder : ModelBuilderIfc {
     override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
         Example15DroneDelivery.buildModel()
 }
-
-//class Example16NetworkRumorBuilder : ModelBuilderIfc {
-//    override fun build(modelConfiguration: Map<String, String>?, experimentRunParameters: ExperimentRunParametersIfc?): Model =
-//        Example16NetworkRumor.buildModel()
-//}
 
 /**
  * Bundle [ModelBuilderIfc] for the Example 17 tandem-queue-with-blocking animation model; delegates to its

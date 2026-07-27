@@ -118,15 +118,32 @@ tasks.register<Jar>("animationBuildersJar") {
     archiveVersion.set("")
     dependsOn(tasks.named("classes"))
     from(sourceSets["main"].output) {
-        include("ksl/examples/general/animationbundle/**")          // the builders + example objects (incl. inline AnnotatedClinic)
-        include("ksl/examples/general/agent/**")                    // duplicated agent models (epidemic, flocking, AGV, drone, …)
-        include("ksl/examples/book/chapter6/DriveThroughPharmacy*")
-        include("ksl/examples/book/chapter7/StemFairMixerEnhanced*")
-        include("ksl/examples/book/chapter8/TandemQueueWithConveyors*")
-        include("ksl/examples/book/chapter8/TandemQueueWithUnconstrainedMovement*")
-        include("ksl/examples/book/chapter8/TestAndRepairShopWithMovableResources*")
-        include("ksl/examples/general/models/station/**")           // StationNetworkTandemQueue / MultiClass + their closure
+        // One include per model class the builders reach. A builder whose model is missing here ships as a
+        // bundle entry that cannot be built, and nothing at compile time says so -- the jar is assembled from
+        // paths, not from the call graph. AnimationBundleClosureTest is what catches it.
+        include("ksl/examples/general/animationbundle/**")          // the builders, the example objects, the inline
+                                                                    // AnnotatedClinic model, and the animation copies
+                                                                    // under animationbundle/models
+        include("ksl/examples/general/agent/**")                    // agent models (epidemic, crowd, flocking, AGV, drone)
+        include("ksl/examples/book/chapter6/DriveThroughPharmacy*")             // Example 01
+        // Named for the CLASS, not the file that declares it: Ch7Example2.kt compiles to
+        // TandemQueueWithBlocking.class. An include matching the file name packages nothing.
+        include("ksl/examples/book/chapter7/TandemQueueWithBlocking*")           // Example 17
+        include("ksl/examples/book/chapter8/TandemQueueWithConveyors*")         // Example 08
+        include("ksl/examples/book/chapter8/TandemQueueWithUnconstrainedMovement*") // Example 09
+        include("ksl/examples/book/chapter8/TestAndRepairShopWithMovableResources*") // Example 13
+        include("ksl/examples/book/chapter8/TestAndRepairShopWithConveyor*")    // Example 18
     }
+}
+
+// The bundle jar is assembled from path patterns, so a model class that no pattern matches is packaged
+// missing and nothing says so until a user opens it. AnimationBundleClosureTest loads every builder out of
+// this jar to prove otherwise, which means the jar has to exist when tests run.
+tasks.named<Test>("test") {
+    dependsOn("animationBuildersJar")
+    val jar = tasks.named<Jar>("animationBuildersJar").flatMap { it.archiveFile }
+    inputs.file(jar)
+    doFirst { systemProperty("animationBundleJar", jar.get().asFile.absolutePath) }
 }
 
 tasks.register<JavaExec>("animationExamplesBundleJar") {
