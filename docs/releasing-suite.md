@@ -153,11 +153,18 @@ double-clicking with nothing installed and nothing served, and a single page can
 its own. Compressed, the set is about 4 MB.
 
 ```bash
-# needs the browser player and a captured trace per model
-./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
-./gradlew :KSLExamples:showcaseCapture -PmodelName=<model> -Pout=build/showcase   # once per model
-./gradlew packageAnimations        # -> build/ksl-animations.zip
+./gradlew -p KSLAnimationCore jsBrowserProductionWebpack   # the browser player
+./gradlew packageAnimations                                # -> build/ksl-animations.zip
 ```
+
+Two commands, from a fresh clone. `packageAnimations` runs any model whose trace is not already in
+`build/showcase` — fourteen captures take about fifteen seconds — and uses the `.lay.toml` layouts committed
+under `docs/animations/layouts`, so it needs nothing that is not in the repository. It deliberately does
+**not** regenerate those layouts: that is the polish workflow (`polish-<model>.py` then
+`publishAnimationLayouts`), and it depends on script output that is not committed.
+
+If it reports a model with **no polished layout**, the bundle has gained a model nobody has polished. That
+is a person's job, not something the release should paper over.
 
 The flocking model is deliberately left out: eighty agents stepping at a small interval write 130,000
 position events, so its trace alone would be a third of the pack. It still ships in the suite — only the

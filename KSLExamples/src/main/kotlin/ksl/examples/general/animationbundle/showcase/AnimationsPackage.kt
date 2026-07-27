@@ -16,8 +16,9 @@ import kotlin.io.path.exists
  * polished layout inside it, so it plays by double-clicking with nothing installed and nothing served —
  * which also means one of them can be sent to a student on its own.
  *
- * What goes in comes from the bundle's own manifest, paired with the layouts published beside it, so the
- * pack cannot quietly fall out of step with what the suite ships.
+ * What goes in comes from the bundle's own manifest, paired with the committed layouts, so the pack cannot
+ * quietly fall out of step with what the suite ships. Traces are captured on demand: a release should not
+ * depend on someone having remembered to run fourteen models by hand.
  */
 object AnimationsPackage {
 
@@ -32,7 +33,18 @@ object AnimationsPackage {
         "Example11Flocking" to "its trace alone is a third of the pack",
     )
 
-    fun build(bundleJar: Path, tracesDir: Path, layoutsRoot: Path, outDir: Path): Result {
+    /**
+     * @param captureMissing run the model to produce a trace when one is not already in [tracesDir]. A
+     *   release should not depend on someone having remembered to capture fourteen models by hand, and a
+     *   trace is reproducible — the same model and streams give the same run.
+     */
+    fun build(
+        bundleJar: Path,
+        tracesDir: Path,
+        layoutsRoot: Path,
+        outDir: Path,
+        captureMissing: Boolean = true
+    ): Result {
         val (bundleId, modelIds) = readManifest(bundleJar)
         val exporter = SelfContainedHtmlExporter.bundled()
             ?: error(
@@ -41,12 +53,25 @@ object AnimationsPackage {
             )
 
         val runs = ArrayList<AnimationRunRef>()
+        val captured = ArrayList<String>()
         val skipped = ArrayList<String>()
         for (modelId in modelIds) {
             if (modelId in excluded) continue
-            val trace = tracesDir.resolve("$modelId.atf")
+            var trace = tracesDir.resolve("$modelId.atf")
             val layout = layoutsRoot.resolve(bundleId).resolve("$modelId.lay.toml")
-            if (!trace.exists() || !layout.exists()) {
+
+            // The layout is committed, so a missing one means the bundle gained a model that was never
+            // polished — a person has to fix that. A missing trace is only work nobody has done yet.
+            if (!layout.exists()) {
+                skipped.add(modelId)
+                continue
+            }
+            if (!trace.exists() && captureMissing) {
+                println("  capturing $modelId …")
+                trace = ShowcaseCapture.capture(modelId, tracesDir).traceFile
+                captured.add(modelId)
+            }
+            if (!trace.exists()) {
                 skipped.add(modelId)
                 continue
             }
@@ -55,10 +80,17 @@ object AnimationsPackage {
 
         if (outDir.exists()) Files.walk(outDir).sorted(Comparator.reverseOrder()).forEach(Files::delete)
         val report = exporter.exportIndependent(runs, outDir, title = "KSL animations")
-        return Result(runs.map { it.title }, skipped, report.totalBytes)
+        return Result(runs.map { it.title }, captured, skipped, report.totalBytes)
     }
 
-    data class Result(val titles: List<String>, val skipped: List<String>, val totalBytes: Long)
+    data class Result(
+        val titles: List<String>,
+        /** Models whose trace this run produced, because none was on disk. */
+        val captured: List<String>,
+        /** Models left out because they have no polished layout — a person has to fix that. */
+        val skipped: List<String>,
+        val totalBytes: Long
+    )
 
     /** A layout's own title makes a better heading than a model id; fall back to the id when it has none. */
     private fun titleOf(layout: Path, modelId: String): String =
@@ -88,12 +120,13 @@ fun main() {
     )
     result.titles.forEach { println("  $it") }
     AnimationsPackage.excluded.forEach { (modelId, why) -> println("  (left out: $modelId — $why)") }
+    if (result.captured.isNotEmpty()) println("  captured ${result.captured.size} missing trace(s)")
     println("built ${result.titles.size} animation(s), ${result.totalBytes / 1048576} MB before compression")
     if (result.skipped.isNotEmpty()) {
         System.err.println(
-            "\nNo trace or layout for: ${result.skipped.joinToString(", ")}\n" +
-                "Capture what is missing, then publish the layouts:\n" +
-                "  ./gradlew :KSLExamples:showcaseCapture -PmodelName=<model> -Pout=build/showcase\n" +
+            "\nNo polished layout for: ${result.skipped.joinToString(", ")}\n" +
+                "Every model the bundle ships needs one. Produce and publish it with:\n" +
+                "  python3 docs/animations/polish-<model>.py\n" +
                 "  ./gradlew :KSLExamples:publishAnimationLayouts"
         )
         kotlin.system.exitProcess(1)

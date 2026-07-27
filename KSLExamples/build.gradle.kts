@@ -167,12 +167,14 @@ tasks.register<JavaExec>("publishAnimationLayouts") {
 // its own release asset, not inside the suite, so the install stays lean and the animations are opt-in.
 // Needs the browser player, which lives in the standalone KSLAnimationCore build:
 //   ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
-// and a captured trace per model in build/showcase (see showcaseCapture).
+// Traces are captured automatically for any model that has none.
 // Usage: ./gradlew :KSLExamples:buildAnimationsPack
 tasks.register<JavaExec>("buildAnimationsPack") {
     group = "distribution"
     description = "Build the self-contained animation pages for the ksl-animations release asset."
-    dependsOn("animationExamplesBundleJar", "publishAnimationLayouts", "classes")
+    // Not publishAnimationLayouts: that regenerates the layouts from the polish scripts' output, which is
+    // not in the repository. The pack uses the committed .lay.toml files, so a fresh clone can build it.
+    dependsOn("animationExamplesBundleJar", "classes")
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("ksl.examples.general.animationbundle.showcase.AnimationsPackageKt")
     workingDir = rootDir
