@@ -11,18 +11,34 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
 - **Java 21**, and the `gh` CLI authenticated to `rossetti/KSL`.
 - Run every command below **from the repo root** (not from this file's directory).
-- **The distribution work must already be on `main`.** The one-liner fetches `install.sh` /
-  `install.ps1`, and those in turn fetch `manifest.json`, from
-  `raw.githubusercontent.com/rossetti/KSL/main`. If those files aren't on `main` the install
-  404s before it ever reads the manifest — so this is a real gate for the *first* release,
-  since the work was developed on a feature branch. Check with:
+- **Build and test wherever you work; `main` is needed only at the end.** Nothing about producing or
+  checking a release requires `main`. The zip is built from whatever is checked out, and
+  `./install.sh --from build/ksl-suite.zip` installs that file directly — no network, nothing
+  published — so the whole install can be exercised, upgrade included, on a development branch.
+
+  Exactly three things need `main`, and all three come after you are satisfied:
+
+  1. **The tag.** `gh release create` tags a commit; it should be one on `main` so the release is
+     reproducible from there.
+  2. **`manifest.json`.** The installers read it from `main`, not from the release, so a new version
+     is not live until it is committed there.
+  3. **The `curl … | bash` smoke test.** It fetches `install.sh` from `main`, so it can only run
+     afterwards — which is the point of it.
+
+  So: merge to `main` when the thing is proven, then run steps 4–5 **from `main`** so the tag points
+  at the merged commit and the manifest lands where the installers actually look.
+
+- **`install.sh`, `install.ps1` and `manifest.json` must exist on `main`.** The one-liner fetches the
+  installers, and those in turn fetch the manifest, from `raw.githubusercontent.com/rossetti/KSL/main`.
+  If they aren't there the install 404s before it ever reads the manifest. That was a real gate for the
+  *first* release, when the distribution work was still on a feature branch; afterwards it is a check
+  rather than an obstacle:
 
   ```
   git ls-tree --name-only origin/main -- install.sh install.ps1 manifest.json
   ```
 
-  All three must be listed. Steps 4–5 then run **from `main`**, so the tag points at the
-  merged commit and the manifest lands where the installers actually read it.
+  All three must be listed.
 - If book content changed, the repo-root **`_book/`** must be freshly rendered before
   building — the **KSL Server** (`Servers/suite`, whose `book` capability backs
   `search_textbook`) bakes in that content and degrades *silently* to empty search if it was
@@ -48,8 +64,10 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 1. **Set the version.** `kslSuiteVersion` in `gradle.properties` is the **single source of
    truth** — the shipped jars stamp their `Implementation-Version` from it, so `/version`,
    `/health`, the console, and the MCP `serverInfo` all report exactly this. Bump it to
-   `X.Y.Z` and commit it (on `main`, per the prerequisite) so the release tag names the
-   version the binaries actually carry.
+   `X.Y.Z` and commit it **wherever the work lives** — bumping it before the merge means the
+   commit that reaches `main` already carries the right version, so the tag names what the
+   binaries report. Build and install from that branch to check the release before merging;
+   the merge is then a fast-forward and step 2 rebuilds the same tree.
 
 2. **Build + stamp.** From `main`, build `build/ksl-suite.zip` and write a stamped manifest to
    `build/release/manifest.json` — the version, the `suite-vX.Y.Z` asset URL, and the zip's
