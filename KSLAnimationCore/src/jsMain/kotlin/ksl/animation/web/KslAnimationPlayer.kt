@@ -87,6 +87,11 @@ internal class KslAnimationPlayer(
     private var basePanX = 0.0
     private var basePanY = 0.0
 
+    // What the container measured when the canvas was last sized, so the observer can ignore the
+    // notifications that do not actually change anything.
+    private var lastContainerWidth = -1
+    private var lastContainerHeight = -1
+
     init {
         canvas.style.width = "100%"
         canvas.style.height = "100%"
@@ -94,7 +99,7 @@ internal class KslAnimationPlayer(
         container.appendChild(canvas)
         transport?.attachAfter(canvas)
         installPointerControls()
-        window.addEventListener("resize", { resize() })
+        observeContainerSize()
     }
 
     // ── loading ─────────────────────────────────────────────────────────────────────────────────────
@@ -187,6 +192,41 @@ internal class KslAnimationPlayer(
      * Sizes the backing store to the device's pixel ratio rather than to CSS pixels, so the animation is
      * not soft on a high-density display, and re-fits the view to the world.
      */
+    /**
+     * Re-fits whenever the *container* changes size, by any route.
+     *
+     * A `window` resize listener only catches one of the ways that happens. A page can grow or shrink the
+     * box with a class change, a collapsing sidebar, a font that arrives late, a details element opening —
+     * and the canvas is sized in pixels at fit time, so it simply kept its old dimensions while the box
+     * around it moved. `ResizeObserver` watches the element rather than the window and covers all of it,
+     * the window included.
+     *
+     * The guard is not an optimisation. `resize` draws, drawing can change layout in principle, and an
+     * observer that reacts to its own effects is the classic way to get a loop the browser then reports as
+     * "ResizeObserver loop completed with undelivered notifications".
+     */
+    private fun observeContainerSize() {
+        val onChange: () -> Unit = {
+            val w = container.clientWidth
+            val h = container.clientHeight
+            if (w != lastContainerWidth || h != lastContainerHeight) {
+                lastContainerWidth = w
+                lastContainerHeight = h
+                resize()
+            }
+        }
+        // Written as a self-contained JS factory taking the element and the callback, rather than naming
+        // Kotlin locals inside a js() string: what a local is called after compilation is not this file's
+        // business, and a captured name that survives today can stop surviving.
+        val attach = js(
+            """(function (el, fn) {
+                   if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', fn); return; }
+                   new ResizeObserver(function () { fn(); }).observe(el);
+               })"""
+        )
+        attach(container, onChange)
+    }
+
     fun resize() {
         val cssWidth = container.clientWidth.toDouble().coerceAtLeast(1.0)
         val cssHeight = (container.clientHeight.toDouble() - (transport?.heightPx ?: 0.0)).coerceAtLeast(1.0)
@@ -199,15 +239,50 @@ internal class KslAnimationPlayer(
         viewport = Viewport(cssWidth, cssHeight)
         surface = Canvas2dSurface(ctx, cssWidth, cssHeight, images ?: ImageCache(null))
         builder?.let { b ->
-            // Reserve the legend's column so it cannot land on the layout's rightmost element.
-            val reserved = if (options.showLegend) b.legendFootprint()?.widthPx ?: 0.0 else 0.0
+            // Reserve the legend's column so it cannot land on the layout's rightmost element — but never
+            // more than a modest share of the canvas. The legend's width is in pixels and does not shrink
+            // with the viewport, so on a narrow canvas it was eating half the space and the animation fitted
+            // into what was left: a 470px-wide box gave a 240px animation with a 230px legend beside it,
+            // drawn tiny in the middle of a tall empty frame. Past this cap the legend simply overlays the
+            // top-right corner, which is the convention the desktop viewer already uses.
+            val legend = if (options.showLegend) b.legendFootprint()?.widthPx ?: 0.0 else 0.0
+            val reserved = legend.coerceAtMost(cssWidth * MAX_LEGEND_SHARE)
             val fitted = ViewTransform.fit(b.worldBounds(), (cssWidth - reserved).coerceAtLeast(1.0), cssHeight)
             basePanX = fitted.panX
             basePanY = fitted.panY
             view = fitted.withZoomPan(zoom, basePanX + userPanX, basePanY + userPanY)
+            publishAspect(b)
         }
         render(controller.currentTime)
     }
+
+    /**
+     * Tells the page what shape this animation wants, as a `--ksl-aspect` custom property on the container.
+     *
+     * A box of a fixed height — `70vh`, say — has no idea what is going into it, so a wide model in a tall
+     * window fitted to the width and left a third of the frame empty below it. The player cannot simply
+     * take the height it wants: the container belongs to the page, which drew the border and chose the
+     * spacing. So it publishes the ratio and lets the page decide, which a stylesheet can act on with
+     * `aspect-ratio: var(--ksl-aspect)` and a `max-height` to keep it from dominating a large screen.
+     *
+     * It is the **world's** ratio, deliberately, not an exact ratio for the whole control. The legend and
+     * the transport bar are fixed pixel sizes, so the control's true aspect depends on how large it is —
+     * there is no single number, and solving for one produced arithmetic nobody could check. The world's
+     * ratio leaves a modest, honest margin instead of a third of an empty frame, and the page's
+     * `max-height` still governs how big the thing gets.
+     *
+     * Stable by construction: world bounds do not change with the container, so re-fitting cannot make the
+     * ratio drift and set the observer oscillating.
+     */
+    private fun publishAspect(b: SceneBuilder) {
+        val world = b.worldBounds()
+        val width = world.maxX - world.minX
+        val height = world.maxY - world.minY
+        if (width <= 0.0 || height <= 0.0) return
+        container.style.setProperty("--ksl-aspect", "${round2(width)} / ${round2(height)}")
+    }
+
+    private fun round2(v: Double): Double = kotlin.math.round(v * 100.0) / 100.0
 
     private fun render(t: Double) {
         val b = builder ?: return
@@ -334,8 +409,17 @@ internal class KslAnimationPlayer(
         resize()
     }
 
-    private companion object {
+    internal companion object {
         const val ZOOM_STEP = 1.15
+
+        /**
+         * The most of the canvas width the legend may claim before the animation is fitted beside it.
+         *
+         * The legend is drawn at a fixed pixel width, so on a narrow canvas reserving all of it left the
+         * animation a sliver: a 470px box gave a 240px animation and a 230px legend. Past this share the
+         * legend overlays the corner instead, which is what the desktop viewer does anyway.
+         */
+        const val MAX_LEGEND_SHARE = 0.28
     }
 }
 
