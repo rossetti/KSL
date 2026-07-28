@@ -78,6 +78,17 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
         private const val ESCAPED_TITLE_MARK = "@@TITLE@@"
 
         /**
+         * How long the whole run should take to watch when no speed is given.
+         *
+         * Must stay equal to `PlaybackController.DEFAULT_TARGET_SECONDS`, so a run opens at the same speed
+         * wherever it is watched. It is restated rather than referenced because that constant lives in the
+         * Swing module, which sits above this one — but it is stated *once*, here, so the callers in this
+         * module cannot each pick their own. One of them had, and exported pages ran at a different speed
+         * from the app's.
+         */
+        const val DEFAULT_FIT_SECONDS: Double = 25.0
+
+        /**
          * What to tell a user when the player is missing. It is only ever missing in a development build:
          * the released suite always carries it, because the release wires the web build in.
          */
@@ -128,11 +139,15 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
         title: String = layout?.let { runCatching { AnimationLayout.read(it).title }.getOrNull() }
             ?.takeIf { it.isNotBlank() }
             ?: trace.fileName.toString().removeSuffix(".gz").removeSuffix(".atf").trim('.'),
-        autoPlay: Boolean = true,
-        // How long the whole run should take to watch. Must stay equal to
-        // PlaybackController.DEFAULT_TARGET_SECONDS, so a run opens at the same speed wherever it is
-        // watched; written out because that constant lives in the Swing module, which this one is below.
-        fitSeconds: Double = 25.0
+        // Paused, like the desktop viewer. A page that starts running has already spent some of the run
+        // before the reader has looked at it, and for anything the animation only builds up over time --
+        // an agent's planned route, a queue growing -- it hides the beginning, which is usually the part
+        // worth seeing. Pass true for a page meant to play by itself, e.g. on a slide.
+        autoPlay: Boolean = false,
+        // Whether the run restarts when it reaches the end. The desktop offers this as a checkbox and the
+        // web player now does too; this sets where that control starts.
+        loop: Boolean = true,
+        fitSeconds: Double = DEFAULT_FIT_SECONDS
     ): ExportSizeReport {
         val traceText = readTraceText(trace)
         // Scaffold a layout when none was supplied. Without one a process-view model draws nothing at all:
@@ -153,6 +168,7 @@ class SelfContainedHtmlExporter private constructor(private val player: String) 
                 |       data-ksl-inline="ksl-trace"
                 |       ${if (layoutJson != null) """data-ksl-inline-layout="ksl-layout"""" else ""}
                 |       data-ksl-autoplay="$autoPlay"
+                |       data-ksl-loop="$loop"
                 |       data-ksl-fit="$fitSeconds"
                 |       style="height:70vh;min-height:420px"></div>
                 |  <p class="foot">

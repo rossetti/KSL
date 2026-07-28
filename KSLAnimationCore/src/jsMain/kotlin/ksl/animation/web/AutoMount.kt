@@ -44,7 +44,8 @@ import org.w3c.dom.get
  *  - `data-ksl-autoplay`  `true` to start immediately
  *  - `data-ksl-loop`      `false` to stop at the end instead of repeating
  *  - `data-ksl-speed`     simulated time units per real second
- *  - `data-ksl-fit`       seconds of real time the whole run should take (default 20)
+ *  - `data-ksl-fit`       seconds of real time the whole run should take (default 25, matching the
+ *                         desktop viewer, so a run opens at the same speed wherever it is watched)
  *  - `data-ksl-transport` `false` to hide the controls (a decorative, autoplaying loop)
  *  - `data-ksl-legend`    `false` to hide the legend
  *  - `data-ksl-assets`    URL prefix for the layout's relative image references
@@ -86,7 +87,10 @@ private fun mount(element: HTMLElement) {
         showLegend = element.flag("data-ksl-legend", default = true),
         loop = element.flag("data-ksl-loop", default = true),
         speed = element.getAttribute("data-ksl-speed")?.toDoubleOrNull(),
-        fitSeconds = element.getAttribute("data-ksl-fit")?.toDoubleOrNull() ?: 20.0,
+        // Not a literal: PlayerOptions already carries this default, and a second copy here quietly gave a
+        // hand-authored page a different opening speed from an exported one, which always writes the
+        // attribute. The same constant had grown three homes before anyone noticed.
+        fitSeconds = element.getAttribute("data-ksl-fit")?.toDoubleOrNull() ?: PlayerOptions().fitSeconds,
         assetBase = element.getAttribute("data-ksl-assets"),
         background = element.getAttribute("data-ksl-background")?.let { RgbaColor.parse(it) } ?: RgbaColor.WHITE
     )

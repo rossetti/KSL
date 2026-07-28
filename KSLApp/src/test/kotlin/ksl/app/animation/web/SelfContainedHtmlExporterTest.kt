@@ -57,6 +57,32 @@ class SelfContainedHtmlExporterTest {
         dir.resolve("ksl-animation.js").also { Files.writeString(it, "/* stand-in player */\nconsole.log('ksl');\n") }
 
     @Test
+    @DisplayName("an exported page opens paused, like the desktop viewer")
+    fun exportOpensPaused(@TempDir dir: Path) {
+        val out = dir.resolve("out/paused.html")
+        SelfContainedHtmlExporter.using(player(dir)).export(trace = trace(dir), out = out)
+        val html = Files.readString(out)
+
+        // A page that starts running has spent part of the run before the reader looked at it, and hides
+        // whatever the animation builds up over time -- a planned route, a queue growing. That is how a
+        // model's routes came to look missing to someone comparing a page against the app.
+        assertTrue("""data-ksl-autoplay="false"""" in html, "must open paused: $html")
+        // Emitted at all, which it was not: the player looped for ever with nothing saying so.
+        assertTrue("""data-ksl-loop="true"""" in html, "the page must state its loop setting")
+    }
+
+    @Test
+    @DisplayName("a page meant to play by itself can still ask to")
+    fun exportCanAutoPlayWhenAsked(@TempDir dir: Path) {
+        val out = dir.resolve("out/kiosk.html")
+        SelfContainedHtmlExporter.using(player(dir))
+            .export(trace = trace(dir), out = out, autoPlay = true, loop = false)
+        val html = Files.readString(out)
+        assertTrue("""data-ksl-autoplay="true"""" in html, "the default is not a restriction")
+        assertTrue("""data-ksl-loop="false"""" in html, "and loop is settable in both directions")
+    }
+
+    @Test
     @DisplayName("the exported page carries the trace and the player inside it")
     fun exportIsSelfContained(@TempDir dir: Path) {
         val out = dir.resolve("out/clinic.html")

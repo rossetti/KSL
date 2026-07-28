@@ -969,6 +969,16 @@ class AnimationAppController(
     /** `<modelWorkspace>/layouts/` — authored layouts (`.lay.json`), many per model. */
     val layoutsDir: Path get() = modelWorkspace.resolve("layouts")
 
+    /**
+     * `<modelWorkspace>/output/` — what a run and the app *produce* for a person to keep: KSL's own
+     * runtime output (db, csv, reports) and exported animations.
+     *
+     * Named here beside the other three rather than resolved privately inside [submit], because it is the
+     * natural home for anything the app hands back, and a caller that has to re-derive the path is a
+     * caller that will pick somewhere else instead.
+     */
+    val outputDir: Path get() = modelWorkspace.resolve("output")
+
     /** Existing trace files under [tracesDir], most-recently-modified first; empty when none. */
     fun listTraces(): List<Path> = listArtifacts(tracesDir, ".atf")
 
@@ -1072,8 +1082,7 @@ class AnimationAppController(
      */
     fun submit() {
         if (myRunning.value || !hasModel) return // no model selected yet — nothing to run
-        val outputDir = modelWorkspace.resolve("output") // KSL runtime output (db/csv/reports)
-        Files.createDirectories(outputDir)
+        Files.createDirectories(outputDir) // KSL runtime output (db/csv/reports)
         Files.createDirectories(tracesDir)
         val traceFile = tracesDir.resolve(traceFileName())
         Files.deleteIfExists(traceFile) // the attachment creates the file itself

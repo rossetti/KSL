@@ -9,6 +9,7 @@ import java.nio.file.Path
 import javax.swing.SwingUtilities
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
+import org.junit.jupiter.api.DisplayName
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -57,6 +58,19 @@ class ChooserDirectoryTest {
             assertEquals(c.tracesDir, dirs.first)
             assertEquals(c.layoutsDir, dirs.second)
             assertTrue(Files.isDirectory(dirs.first) && Files.isDirectory(dirs.second))
+        } finally { onEdt { c.close() }; ws.toFile().deleteRecursively() }
+    }
+
+    @Test
+    @DisplayName("exporting HTML starts in output, not among the traces it was made from")
+    fun exportChooserStartsInOutput() {
+        val ws = Files.createTempDirectory(tempRoot, "anim-export-dir")
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
+        try {
+            val dir = onEdt { ReplayPanel(c).exportChooserDirForTest() }
+            assertEquals(c.outputDir, dir, "an export is a product, so it belongs with the products")
+            assertTrue(dir != c.tracesDir, "and specifically not in with its own input")
+            assertTrue(Files.isDirectory(dir), "created, so the chooser actually opens there")
         } finally { onEdt { c.close() }; ws.toFile().deleteRecursively() }
     }
 }

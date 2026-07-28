@@ -419,9 +419,12 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
         }
         val suggested = (currentTraceFile?.fileName?.toString() ?: "animation")
             .removeSuffix(".gz").removeSuffix(".atf").trim('.')
-        val chooser = JFileChooser(ensuredDir(app.tracesDir)).apply {
+        // output/, not traces/: an export is something the app produces for the user to keep, and aiming
+        // the Save dialog at the folder holding its own input invites the page to be written in among the
+        // .atf files it was made from.
+        val chooser = JFileChooser(ensuredDir(app.outputDir)).apply {
             dialogTitle = "Export animation to HTML"
-            selectedFile = java.io.File(ensuredDir(app.tracesDir), "$suggested.html")
+            selectedFile = java.io.File(ensuredDir(app.outputDir), "$suggested.html")
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
         val out = chooser.selectedFile.toPath()
@@ -520,6 +523,8 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     /** Each overlay toggle as the user sees it: label, and whether it can be clicked. */
     internal fun overlayTogglesForTest(): List<Triple<String, Boolean, String>> =
         overlayToggles.map { Triple(it.box.text, it.box.isEnabled, it.box.toolTipText ?: "") }
+
+    internal fun exportChooserDirForTest(): Path = ensuredDir(app.outputDir).toPath()
 
     internal fun traceChooserDirForTest(): Path = ensuredDir(app.tracesDir).toPath()
     internal fun layoutChooserDirForTest(): Path = ensuredDir(app.layoutsDir).toPath()

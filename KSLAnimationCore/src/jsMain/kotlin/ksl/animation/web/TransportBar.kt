@@ -40,6 +40,9 @@ internal class TransportBar(private val container: HTMLElement) {
 
     private val root = document.createElement("div") as HTMLDivElement
     private val playButton = document.createElement("button") as HTMLButtonElement
+    private val stopButton = document.createElement("button") as HTMLButtonElement
+    private val loopBox = document.createElement("input") as HTMLInputElement
+    private val loopLabel = document.createElement("label") as HTMLElement
     private val scrubber = document.createElement("input") as HTMLInputElement
     private val speedSelect = document.createElement("select") as HTMLSelectElement
     private val timeLabel = document.createElement("span") as HTMLElement
@@ -70,6 +73,31 @@ internal class TransportBar(private val container: HTMLElement) {
                 syncPlayLabel(c)
             }
         })
+
+        // Stop, not just Pause: it returns to the beginning, which is the only way back to the start of a
+        // run without dragging the scrubber to exactly zero. PlaybackController.stop() is the same call the
+        // desktop's Stop makes, so the two transports cannot drift apart on what the word means.
+        stopButton.textContent = "Stop"
+        stopButton.setAttribute("aria-label", "Stop and return to the start of the run")
+        stopButton.setAttribute(
+            "style",
+            "padding:3px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font:inherit;"
+        )
+        stopButton.addEventListener("click", {
+            controller?.let { c ->
+                c.stop()
+                syncPlayLabel(c)
+            }
+        })
+
+        // Looping was previously on, permanently and invisibly: an exported page restarted for ever with
+        // nothing to say so and no way to stop it short of closing the tab.
+        loopBox.type = "checkbox"
+        loopBox.setAttribute("aria-label", "Repeat the run when it reaches the end")
+        loopBox.addEventListener("change", { controller?.loop = loopBox.checked })
+        loopLabel.setAttribute("style", "display:flex;align-items:center;gap:3px;color:#555;cursor:pointer;")
+        loopLabel.appendChild(loopBox)
+        loopLabel.appendChild(document.createTextNode("Loop"))
 
         scrubber.type = "range"
         scrubber.min = "0"
@@ -107,7 +135,9 @@ internal class TransportBar(private val container: HTMLElement) {
         )
 
         root.appendChild(playButton)
+        root.appendChild(stopButton)
         root.appendChild(scrubber)
+        root.appendChild(loopLabel)
         root.appendChild(timeLabel)
         root.appendChild(speedSelect)
         root.appendChild(statusLabel)
@@ -134,6 +164,9 @@ internal class TransportBar(private val container: HTMLElement) {
         // By index, not value: Kotlin/JS prints an integral Double without its fractional part, so
         // `1.0.toString()` is "1" and assigning `value = "1.0"` matches no option and blanks the control.
         speedSelect.selectedIndex = if (selected >= 0) selected else speeds.indexOf(1.0).coerceAtLeast(0)
+        // The checkbox reports the controller rather than setting it: the page author chose this through
+        // data-ksl-loop, and the control's job is to show that choice and let a reader change it.
+        loopBox.checked = controller.loop
         syncPlayLabel(controller)
         progressFill.style.width = "0"
     }

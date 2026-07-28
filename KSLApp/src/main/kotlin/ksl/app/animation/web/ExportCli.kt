@@ -66,8 +66,12 @@ fun main() {
             trace = trace,
             layout = layout,
             out = out,
-            autoPlay = property("autoplay")?.toBoolean() ?: true,
-            fitSeconds = property("fit")?.toDoubleOrNull() ?: 20.0
+            // Defer to the exporter for both, rather than restating them here. A second set of defaults in
+            // the command line is how an exported page came to open playing and at a different speed than
+            // one the app produced, from the same exporter.
+            autoPlay = property("autoplay")?.toBoolean() ?: false,
+            loop = property("loop")?.toBoolean() ?: true,
+            fitSeconds = property("fit")?.toDoubleOrNull() ?: SelfContainedHtmlExporter.DEFAULT_FIT_SECONDS
         )
         println("Wrote ${out.toAbsolutePath()}")
         println(report.summary())
