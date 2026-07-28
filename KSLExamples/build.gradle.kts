@@ -196,6 +196,35 @@ tasks.register<JavaExec>("buildAnimationsPack") {
     systemProperty("out", rootDir.resolve("build/ksl-animations").path)
 }
 
+// Generate the published gallery -- the rossetti/KSL-Animations Pages site. Writes only the generated half
+// of that repository (traces, layouts as JSON, per-animation pages, animations.json, the player); the
+// landing page, gallery, stylesheet and catalog.toml belong to whoever writes them and are left alone.
+// Needs the browser player:  ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
+// Usage: ./gradlew :KSLExamples:buildAnimationSite -Pout=../KSL-Animations
+tasks.register<JavaExec>("buildAnimationSite") {
+    group = "documentation"
+    description = "Generate the KSL-Animations GitHub Pages site into an existing checkout."
+    dependsOn("animationExamplesBundleJar", "classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("ksl.examples.general.animationbundle.showcase.AnimationSiteKt")
+    workingDir = rootDir
+    jvmArgs("-Xmx2g", "-Djava.awt.headless=true")
+    systemProperty("bundleJar", layout.buildDirectory.file("libs/animation-examples.jar").get().asFile.path)
+    systemProperty("traces", rootDir.resolve("build/showcase").path)
+    systemProperty("layouts", rootDir.resolve("docs/animations/layouts").path)
+    systemProperty(
+        "player",
+        rootDir.resolve("KSLAnimationCore/build/kotlin-webpack/js/productionExecutable/ksl-animation.js").path
+    )
+    // No default: the task writes into a checkout of another repository, so it must be told which one.
+    doFirst {
+        val out = project.findProperty("out")?.toString()
+            ?: throw GradleException("-Pout=<path to the KSL-Animations checkout> is required")
+        systemProperty("out", rootDir.resolve(out).normalize().path)
+        systemProperty("catalog", rootDir.resolve(out).resolve("catalog.toml").normalize().path)
+    }
+}
+
 tasks.register<JavaExec>("animationExamplesBundleJar") {
     group = "ksl bundle"
     description = "Assemble the KSL Animation Examples manifest bundle JAR (kslpkg assemble)."

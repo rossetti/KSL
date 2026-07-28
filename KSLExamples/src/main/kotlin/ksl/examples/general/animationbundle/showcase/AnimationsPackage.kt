@@ -107,7 +107,12 @@ object AnimationsPackage {
         runCatching { ksl.animation.AnimationLayout.read(layout).title }.getOrNull()
             ?.takeIf { it.isNotBlank() } ?: modelId
 
-    private fun readManifest(bundleJar: Path): Pair<String, List<String>> {
+    /**
+     * The bundle's id and the model ids it declares. `internal` so [AnimationSite] reads the manifest
+     * through the same code: the download and the website must agree on what "the animation examples" are,
+     * and two readers of one file is how they would come to disagree.
+     */
+    internal fun readManifest(bundleJar: Path): Pair<String, List<String>> {
         require(Files.isRegularFile(bundleJar)) { "no bundle jar at $bundleJar — assemble it first" }
         val text = ZipFile(bundleJar.toFile()).use { zip ->
             val entry = zip.getEntry("META-INF/ksl/bundle.toml") ?: error("$bundleJar has no bundle manifest")
