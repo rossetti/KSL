@@ -1,5 +1,67 @@
 # KSL Release Notes
 
+Two things are released from this repository, on separate cadences and with separate
+numbering, so they are kept apart here:
+
+- **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.4`, `R1.3`, … The
+  simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
+- **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
+  `0.3.0`, `0.2.0`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
+  [Suite releases](#suite-releases).
+
+A suite release does not imply a library release, or the reverse. The suite can gain an
+application while KSLCore is untouched, which is exactly what 0.3.0 did.
+
+---
+
+# Suite releases
+
+The installable applications, servers and `kslpkg`. Install or update with the one-liner
+in the [README](../README.md#installing-the-ksl-applications); an existing install
+updates in place with `ksl update`.
+
+## 0.3.0 — animations in a browser
+
+*28 July 2026.* KSLCore is untouched by this release.
+
+**Animations play in a browser.** A captured trace now replays through the same renderer
+the desktop application uses, compiled for Kotlin/JS. Nothing is a recording: the page
+reads the trace and draws it, so what a browser shows and what the app shows cannot drift.
+
+**Export to HTML…** in the Animation app writes a *single self-contained file* — the
+player, the trace and the layout all inside it. It opens by double-clicking, needs no
+server and no KSL install, survives being emailed, and can be handed to a student the way
+a PDF can.
+
+**Fifteen polished layouts ship with the suite.** Every model in the animation examples
+bundle now has a layout worth looking at, offered in the app by *Layout ▸ Use Shipped
+Layout* when you open one of those models. Choosing it leaves the document unbound, so
+saving writes to your workspace and never back into the install.
+
+**A visible `KSL/examples/` folder.** The shipped example bundles moved out of the hidden
+`.support/` directory and now sit beside the applications, together with those layouts. A
+student told "open the animation examples" can find them. Upgrading from 0.2.0 relocates
+them and removes the old copy.
+
+**A published gallery.** Every polished animation is playable at
+**https://rossetti.github.io/KSL-Animations/** — no install, no download.
+
+**Also:** the desktop viewer's replay controls report what a trace actually contains
+rather than offering overlays it has none of; playback speed means the same thing in both
+viewers; and the browser player gained Stop, Loop, and zoom controls with a Fit that
+recovers a lost view.
+
+## 0.2.0 — the suite as one installable thing
+
+*20 July 2026.* The applications, servers and `kslpkg` began shipping as a single
+`ksl-suite.zip` on the student's own Java, installed by `install.sh` / `install.ps1` and
+managed with `ksl list` / `ksl update`. This replaced the per-application `jpackage`
+pipeline.
+
+---
+
+# Library releases (KSLCore)
+
 Release history for **KSLCore** (`io.github.rossetti:KSLCore`), newest first.
 These notes cover the published library — the simulation engine. As of R1.4 the
 `ksl.app.*` model-packaging / run infrastructure lives in a separate `KSLApp` module

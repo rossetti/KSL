@@ -111,6 +111,24 @@ delay(), and release(). In addition, it collects statistics on the processing of
     }
 ```
 
+## KSL Animations
+
+https://rossetti.github.io/KSL-Animations/
+
+Simulation models can be **watched**, not just summarized. The
+[animation gallery](https://rossetti.github.io/KSL-Animations/) plays fifteen worked
+examples in your browser — queues forming and clearing, parts riding conveyors, vehicles
+routing around a congested aisle, crowds through a doorway — with nothing to install.
+
+Animating your own model is not a second implementation of it. Capture is a flag on a run:
+the model executes exactly as it always did and writes a trace, and everything is drawn
+from that afterwards. The **KSL Animation** application captures, lays out and replays;
+its *Export to HTML…* action writes a single self-contained page — player, trace and
+layout in one file — that opens by double-clicking and can be emailed to a student.
+
+The [animation guide](docs/guides/apps/animation.md) walks through capturing a trace from
+a model you have already written.
+
 ## KSL Video Series
 
 There is also a [video series](https://video.uark.edu/playlist/dedicated/1_0q40d3tg/) that provides an overview of getting started with the KSL and some of the associated material from the textbook.
@@ -181,7 +199,17 @@ To your build for the latest release.
 
 ## Release Notes
 
-The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**.
+The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**, which
+covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.4, R1.3, …)
+and the installable **suite** of applications and servers (versioned 0.3.0, 0.2.0, …). A
+suite release does not imply a library release, or the reverse.
+
+**Suite 0.3.0** — animations replay in a browser through the same renderer the desktop
+application uses; *Export to HTML…* writes a single self-contained page that needs no
+install; fifteen polished layouts ship with the suite and are offered in the app; and the
+shipped examples moved into a visible `KSL/examples/` folder. See the
+[gallery](https://rossetti.github.io/KSL-Animations/). Update an existing install with
+`ksl update`, or re-run the installer.
 
 **R1.4:** a reorganization and packaging release. The `ksl.app.*` model-packaging /
 run infrastructure moved out of the published KSLCore into a new internal `KSLApp`
