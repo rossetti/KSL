@@ -98,6 +98,13 @@ rm -rf "$SUPPORT/bin"
 rm -rf "$KSL_HOME/examples"
 [ -d "$SUPPORT/examples" ] && mv -f "$SUPPORT/examples" "$KSL_HOME/examples"
 
+# Up to 0.2.0 the shipped bundles lived at .support/bundles, and every launcher pointed there. They now
+# live in examples/, launchers are regenerated to match, and nothing reads the old path -- so an upgrade
+# left 736 KB of the PREVIOUS release's bundles sitting there, silently out of date. Harmless to run, but
+# a student who goes looking finds the shipped examples in two places and one of them is a year old. The
+# payload never writes here, so anything present can only be a leftover.
+rm -rf "$SUPPORT/bundles"
+
 # --- 5. record what's installed (inside .support: it's plumbing, not for students) ---
 VER=""
 if [ -n "$MANIFEST" ]; then

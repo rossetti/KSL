@@ -122,6 +122,11 @@ try {
         Remove-Item -Recurse -Force $examplesDst -ErrorAction SilentlyContinue
         Move-Item -Force $examplesSrc $examplesDst
     }
+    # Up to 0.2.0 the shipped bundles lived at .support\bundles, and every launcher pointed there. They
+    # now live in examples\, launchers are regenerated to match, and nothing reads the old path -- so an
+    # upgrade left the PREVIOUS release's bundles sitting there, silently out of date. The payload never
+    # writes here, so anything present can only be a leftover.
+    Remove-Item -Recurse -Force (Join-Path $support "bundles") -ErrorAction SilentlyContinue
     # Dot-folders are not hidden on Windows; set the attribute so students don't see it.
     if ($IsWin) { attrib +h $support 2>$null }
 
