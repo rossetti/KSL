@@ -135,6 +135,13 @@ internal class KslAnimationPlayer(
             }
         }
         transport?.bind(controller)
+        // The view controls are the discoverable way back from a lost zoom, and the only way at all for a
+        // reader with no wheel and no wish to pinch.
+        transport?.bindView(
+            zoomIn = { zoomBy(ZOOM_STEP) },
+            zoomOut = { zoomBy(1.0 / ZOOM_STEP) },
+            fit = { resetView() }
+        )
 
         zoom = 1.0; userPanX = 0.0; userPanY = 0.0
         resize()
@@ -218,18 +225,35 @@ internal class KslAnimationPlayer(
      * touch, but drag-to-pan and pinch-to-zoom silently did nothing while the canvas listened only for
      * `mousedown`/`mousemove`. The gesture arithmetic itself is in [PointerGestures].
      *
-     * Two details are load-bearing. `touch-action: none` stops the browser claiming a drag for page
-     * scrolling or its own double-tap zoom before the canvas ever sees it. Pointer capture keeps a drag
-     * alive when the finger or cursor leaves the canvas — the job the old window-level `mousemove` and
-     * `mouseup` listeners were doing by hand.
+     * **The page's scroll wins by default.** This canvas lives inside a document a reader scrolls, not in
+     * an application window it owns, and an earlier version of this method got that backwards: it set
+     * `touch-action: none` and cancelled every wheel event, so a finger swipe or a trackpad scroll over the
+     * animation zoomed it instead of moving the page. There was no way past the animation and, since the
+     * only reset was an undiscoverable double-click, no way back to a sensible view either. A canvas
+     * embedded in a page must ask for gestures, not take them.
+     *
+     * So: `touch-action: pan-y` leaves vertical scrolling to the browser and keeps the rest; the wheel
+     * zooms only while ctrl or ⌘ is held, which is also how browsers report a trackpad pinch, so pinching
+     * still zooms on a laptop. Two fingers pinch and pan on a touchscreen. Nothing that a reader would do
+     * by accident changes the view, and [TransportBar]'s **−**, **+** and **Fit** are there for anyone who
+     * would rather not gesture at all.
+     *
+     * Pointer capture keeps a drag alive when the finger or cursor leaves the canvas — the job the old
+     * window-level `mousemove` and `mouseup` listeners were doing by hand.
      */
     private fun installPointerControls() {
-        canvas.style.setProperty("touch-action", "none")
+        // pan-y, not none: a one-finger vertical swipe is how a reader scrolls the page, and it must keep
+        // working over the animation. Everything else -- horizontal drags, two-finger pinch -- still
+        // reaches the handlers below.
+        canvas.style.setProperty("touch-action", "pan-y")
         val gestures = PointerGestures()
 
         canvas.addEventListener("wheel", { event ->
-            event.preventDefault()
             val wheel = event as WheelEvent
+            // Only an explicit zoom gesture. A bare wheel or two-finger scroll is left to the browser, so
+            // the page scrolls; browsers deliver a trackpad pinch as ctrl+wheel, so that still zooms.
+            if (!wheel.ctrlKey && !wheel.metaKey) return@addEventListener
+            event.preventDefault()
             val factor = if (wheel.deltaY < 0) ZOOM_STEP else 1.0 / ZOOM_STEP
             val rect = canvas.getBoundingClientRect()
             adopt(view.zoomedAbout(factor, wheel.clientX - rect.left, wheel.clientY - rect.top))
@@ -291,6 +315,19 @@ internal class KslAnimationPlayer(
 
     /** Wall-clock milliseconds, for recognising a double tap. */
     private fun now(): Double = Date.now()
+
+    /**
+     * Zooms about the middle of the canvas by [factor].
+     *
+     * About the centre rather than a cursor, because these back the transport bar's **−** and **+**, which
+     * are pressed from somewhere else entirely — and on a touchscreen there is no cursor to zoom about at
+     * all. The wheel keeps zooming about the pointer, where a focus point genuinely exists.
+     */
+    fun zoomBy(factor: Double) {
+        val rect = canvas.getBoundingClientRect()
+        adopt(view.zoomedAbout(factor, rect.width / 2.0, rect.height / 2.0))
+        render(controller.currentTime)
+    }
 
     fun resetView() {
         zoom = 1.0; userPanX = 0.0; userPanY = 0.0

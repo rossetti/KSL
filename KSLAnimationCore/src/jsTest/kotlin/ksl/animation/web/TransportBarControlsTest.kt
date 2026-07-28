@@ -98,6 +98,36 @@ class TransportBarControlsTest {
     }
 
     @Test
+    fun theViewControlsAreThereAndDoWhatTheySay() = withBar { f ->
+        // The reset that matters: a reader who has zoomed somewhere unhelpful needs a visible way back.
+        // Double-click was the only route before, which nobody guesses at, and on a touchscreen there is
+        // no wheel to undo with at all.
+        var zoomedIn = 0
+        var zoomedOut = 0
+        var fitted = 0
+        f.bar.bindView(zoomIn = { zoomedIn++ }, zoomOut = { zoomedOut++ }, fit = { fitted++ })
+
+        f.button("+").click()
+        f.button("\u2212").click()
+        f.button("Fit").click()
+
+        assertEquals(1, zoomedIn, "+ must zoom in")
+        assertEquals(1, zoomedOut, "\u2212 must zoom out")
+        assertEquals(1, fitted, "Fit must reset the view")
+    }
+
+    @Test
+    fun theViewControlsAreLabelledForSomeoneWhoCannotSeeThem() = withBar { f ->
+        for (label in listOf("+", "\u2212", "Fit")) {
+            val b = f.button(label)
+            assertTrue(
+                (b.getAttribute("aria-label") ?: "").isNotBlank(),
+                "\"$label\" is a glyph; without an aria-label it is unreadable to a screen reader"
+            )
+        }
+    }
+
+    @Test
     fun theBarStillOffersPlayAndASpeedControl() = withBar { f ->
         assertNotNull(f.button("Play"), "Play is the control everything else is arranged around")
         assertTrue(f.container.querySelectorAll("select").length > 0, "the speed control survives the additions")

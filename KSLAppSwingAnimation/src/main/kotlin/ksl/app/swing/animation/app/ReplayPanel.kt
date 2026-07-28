@@ -128,8 +128,17 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
         }, BorderLayout.SOUTH)
     }
 
-    /** View options for the replay canvas: grid toggle, zoom, fit, pan, and a live coordinate read-out (10.9). */
-    private fun buildViewBar(): JComponent = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+    /**
+     * View options for the replay canvas: grid toggle, zoom, fit, pan, and a live coordinate read-out (10.9).
+     *
+     * `WrapLayout`, not `FlowLayout`, for the same reason the toolbar above uses it. A plain `FlowLayout`
+     * does wrap its children into rows when the width is squeezed, but it reports a *single row* as its
+     * preferred size; inside a `BorderLayout` region the parent then allots one row's height and the
+     * wrapped rows are drawn outside it. The trailing controls do not move down — they disappear. Here
+     * that meant **Zoom +, Zoom − and Fit**, the three that get a lost view back, silently vanishing on a
+     * narrow window.
+     */
+    private fun buildViewBar(): JComponent = JPanel(WrapLayout(FlowLayout.LEFT)).apply {
         canvas.panEnabled = panToggle.isSelected // pan-by-drag on by default (no element editing in replay)
         add(gridToggle.apply { addActionListener { canvas.showGrid = isSelected; canvas.repaint() } })
         // Labels and tooltips for these four come from syncOverlayToggles, which owns them because it

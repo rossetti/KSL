@@ -45,11 +45,19 @@ internal class TransportBar(private val container: HTMLElement) {
     private val loopLabel = document.createElement("label") as HTMLElement
     private val scrubber = document.createElement("input") as HTMLInputElement
     private val speedSelect = document.createElement("select") as HTMLSelectElement
+    private val zoomOutButton = document.createElement("button") as HTMLButtonElement
+    private val zoomInButton = document.createElement("button") as HTMLButtonElement
+    private val fitButton = document.createElement("button") as HTMLButtonElement
     private val timeLabel = document.createElement("span") as HTMLElement
     private val statusLabel = document.createElement("span") as HTMLElement
     private val progressFill = document.createElement("div") as HTMLDivElement
 
     private var controller: PlaybackController? = null
+
+    /** What the view controls do. Held as callbacks so the bar needs to know nothing about the player. */
+    private class ViewActions(val zoomIn: () -> Unit, val zoomOut: () -> Unit, val fit: () -> Unit)
+
+    private var view: ViewActions? = null
 
     /** The vertical space the bar occupies, so the canvas can be sized to what is left. */
     val heightPx: Double get() = HEIGHT
@@ -125,6 +133,29 @@ internal class TransportBar(private val container: HTMLElement) {
             speedSelect.value.toDoubleOrNull()?.let { controller?.speed = it }
         })
 
+        // Visible view controls, mirroring the desktop viewer's Zoom −, Zoom + and Fit.
+        //
+        // These are the answer to a reader who has zoomed somewhere unhelpful and cannot get back. Before
+        // them the only reset was a double-click, which nobody guesses at, and on a touchscreen the wheel
+        // does not exist at all — so the view could be lost with no route out but reloading the page.
+        for ((button, label, hint) in listOf(
+            Triple(zoomOutButton, "−", "Zoom out"),
+            Triple(zoomInButton, "+", "Zoom in"),
+            Triple(fitButton, "Fit", "Fit the whole animation back into view")
+        )) {
+            button.textContent = label
+            button.title = hint
+            button.setAttribute("aria-label", hint)
+            button.setAttribute(
+                "style",
+                "min-width:30px;padding:3px 8px;border:1px solid #ccc;border-radius:4px;" +
+                    "background:#fff;cursor:pointer;font:inherit;"
+            )
+        }
+        zoomOutButton.addEventListener("click", { view?.zoomOut?.invoke() })
+        zoomInButton.addEventListener("click", { view?.zoomIn?.invoke() })
+        fitButton.addEventListener("click", { view?.fit?.invoke() })
+
         timeLabel.setAttribute("style", "font-variant-numeric:tabular-nums;color:#555;min-width:96px;text-align:right;")
         statusLabel.setAttribute("style", "color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;")
 
@@ -138,10 +169,18 @@ internal class TransportBar(private val container: HTMLElement) {
         root.appendChild(stopButton)
         root.appendChild(scrubber)
         root.appendChild(loopLabel)
+        root.appendChild(zoomOutButton)
+        root.appendChild(zoomInButton)
+        root.appendChild(fitButton)
         root.appendChild(timeLabel)
         root.appendChild(speedSelect)
         root.appendChild(statusLabel)
         root.appendChild(progressFill)
+    }
+
+    /** Supplies what −, + and Fit should do. Until this is called they are inert. */
+    fun bindView(zoomIn: () -> Unit, zoomOut: () -> Unit, fit: () -> Unit) {
+        view = ViewActions(zoomIn, zoomOut, fit)
     }
 
     fun attachAfter(sibling: HTMLElement) {
