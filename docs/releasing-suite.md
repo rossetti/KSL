@@ -174,3 +174,41 @@ with the reason beside it.
 
 Upload `ksl-animations.zip` alongside `ksl-suite.zip` when publishing the release. Unlike the suite asset
 it is not referenced by `manifest.json`, so nothing needs stamping and nothing breaks if it is absent.
+
+## The published gallery (a separate repository)
+
+[`rossetti/KSL-Animations`](https://github.com/rossetti/KSL-Animations) is the GitHub Pages site at
+**https://rossetti.github.io/KSL-Animations/** — a landing page, a gallery, and one playable page per
+bundled animation. It is a *generated* site living in its own repository, so nothing about it is part of
+`ksl-suite.zip` and it is published by pushing, not by `gh release`.
+
+**Regenerate it whenever the shipped models change**, which a release is exactly the occasion for. The
+pages, traces, layouts and posters are all derived from the animation bundle's manifest and the committed
+`.lay.toml` layouts, so a release that adds, removes or re-polishes a model leaves the site describing the
+previous one — and a stale generated site looks precisely like a current one.
+
+From a KSL checkout, with `KSL-Animations` cloned beside it:
+
+```
+./gradlew -p KSLAnimationCore jsBrowserProductionWebpack
+./gradlew buildAnimationSite -Pout=../KSL-Animations
+```
+
+The same player build the suite needs (see Prerequisites), so in a release you have already run it. The
+second command writes the generated half — per-animation pages, gzipped traces, layouts as JSON,
+`animations.json`, the poster images and the player — and leaves the hand-written half alone:
+`index.html`, `gallery.html`, `assets/site.css` and `catalog.toml` belong to whoever writes them.
+
+`-Pout` has no default, so the task cannot write into a checkout by accident. It refuses to run at all if a
+shipped model has no polished layout or no entry in `catalog.toml`, rather than publishing an animation
+with nothing said about it.
+
+Then review the diff in that repository, commit and push; Pages serves from the root of `main`. Two things
+worth knowing when you check the result:
+
+- Pages sets `cache-control: max-age=600`, so a page you load straight after pushing may be the old one.
+  Force a fresh load — and the stylesheet has its own cache, which a page reload does not clear.
+- Traces are served gzipped and decompressed in the browser, which is what keeps all fifteen animations to
+  about 4 MB. If GitHub ever began sending `Content-Encoding: gzip` for `.gz` files, the player would
+  receive already-decompressed text and fail; the fallback is uncompressed traces at 39 MB, still well
+  inside Pages' limits.
