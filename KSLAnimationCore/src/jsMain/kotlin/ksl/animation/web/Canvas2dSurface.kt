@@ -51,11 +51,21 @@ internal class Canvas2dSurface(
     private var space: DrawSpace = DrawSpace.SCREEN
     private var view: ViewTransform = ViewTransform(0.0, 0.0, 1.0)
 
+    /**
+     * Wipes the frame.
+     *
+     * The rectangle is the canvas's **backing store**, not [widthPx] × [heightPx]. Resetting the transform
+     * to the identity puts this in device pixels, while `widthPx`/`heightPx` are CSS pixels — equal only on
+     * an ordinary display. On a high-density one the backing store is `devicePixelRatio` times larger, so
+     * filling the CSS-sized rectangle covered the top-left quarter and left the right and bottom halves
+     * holding whatever earlier frames had drawn there. Agents trailed smears along the bottom of the
+     * animation while the top looked perfect, on every Retina Mac and no other machine.
+     */
     override fun clear(color: RgbaColor) {
         ctx.save()
         ctx.setTransform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
         ctx.fillStyle = color.toCssRgba()
-        ctx.fillRect(0.0, 0.0, widthPx, heightPx)
+        ctx.fillRect(0.0, 0.0, ctx.canvas.width.toDouble(), ctx.canvas.height.toDouble())
         ctx.restore()
     }
 
