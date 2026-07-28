@@ -56,7 +56,7 @@ fun main() {
 }
 
 /** Trim uniform white borders so the drawn content fills the frame (keeps a [margin] of padding). */
-private fun autoCrop(img: BufferedImage, margin: Int): BufferedImage {
+internal fun autoCrop(img: BufferedImage, margin: Int): BufferedImage {
     val white = -0x1  // 0xFFFFFFFF (opaque white)
     var minX = img.width; var minY = img.height; var maxX = -1; var maxY = -1
     for (y in 0 until img.height) for (x in 0 until img.width) {

@@ -44,6 +44,26 @@ tasks.test {
 // SimulationCanvas, headless — used to produce the canvas images in docs/guides/apps/animation.md.
 // Usage: ./gradlew :KSLAppSwingAnimation:renderFrames -Ptrace=<run.atf> [-PlayoutFile=<run.lay.json>
 //          -Pframes=N -Pout=<dir> -Pw=1200 -Ph=820]
+// One still per animation for the published gallery's cards, taken from the middle of each run.
+// Usage: ./gradlew :KSLAppSwingAnimation:renderAnimationPosters -Pout=../KSL-Animations
+tasks.register<JavaExec>("renderAnimationPosters") {
+    group = "documentation"
+    description = "Render a poster image per bundled animation into a KSL-Animations checkout."
+    dependsOn("testClasses")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("ksl.app.swing.animation.examples.RenderPostersKt")
+    workingDir = rootDir
+    jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
+    systemProperty("traces", rootDir.resolve("build/showcase").path)
+    systemProperty("layouts", rootDir.resolve("docs/animations/layouts/edu.uark.ksl.animation-examples").path)
+    listOf("w", "h").forEach { p -> if (project.hasProperty(p)) systemProperty(p, project.property(p)!!) }
+    doFirst {
+        val out = project.findProperty("out")?.toString()
+            ?: throw GradleException("-Pout=<path to the KSL-Animations checkout> is required")
+        systemProperty("out", rootDir.resolve(out).resolve("assets/posters").normalize().path)
+    }
+}
+
 tasks.register<JavaExec>("renderFrames") {
     group = "documentation"
     description = "Render animation frames from a captured .atf trace (docs/guides/apps/animation.md visuals)."
