@@ -117,7 +117,7 @@ class TransportBarControlsTest {
     }
 
     @Test
-    fun theViewControlsAreLabelledForSomeoneWhoCannotSeeThem() = withBar { f ->
+    fun theViewControlsAreLabeledForSomeoneWhoCannotSeeThem() = withBar { f ->
         for (label in listOf("+", "\u2212", "Fit")) {
             val b = f.button(label)
             assertTrue(

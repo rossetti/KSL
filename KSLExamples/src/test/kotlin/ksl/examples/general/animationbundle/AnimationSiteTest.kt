@@ -42,7 +42,7 @@ class AnimationSiteTest {
      * A site checkout carrying the hand-written half a real one has.
      *
      * Every file here is one the *generated* pages link to but do not create — the stylesheet, the brand
-     * marks, the gallery, the licence. Listing them is the point rather than a convenience: it is the
+     * marks, the gallery, the license. Listing them is the point rather than a convenience: it is the
      * contract between the two halves, and the first run of this test found a link to `gallery.html` that
      * nothing had written, which would have been a dead "All animations" on all fifteen pages.
      */
@@ -129,8 +129,8 @@ class AnimationSiteTest {
     }
 
     @Test
-    @DisplayName("the catalogue lists every shipped model exactly once")
-    fun catalogueMatchesTheBundle(@TempDir root: Path) {
+    @DisplayName("the catalog lists every shipped model exactly once")
+    fun catalogMatchesTheBundle(@TempDir root: Path) {
         val ids = modelIds()
         val (out, _) = generate(root, ids)
         val json = Files.readString(out.resolve("animations.json"))
@@ -168,7 +168,7 @@ class AnimationSiteTest {
                 bundleJar = bundleJar,
                 tracesDir = stubTraces(root, ids),
                 layoutsRoot = layoutRoot,
-                catalogFile = catalog(root, ids.drop(1)), // one model left out of the catalogue
+                catalogFile = catalog(root, ids.drop(1)), // one model left out of the catalog
                 player = player(root),
                 outDir = out,
                 captureMissing = false

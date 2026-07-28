@@ -329,7 +329,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
 
     // Computed rather than stored: the first sync happens while the view bar is being built, during
     // construction, and a stored (or lazily-delegated) property declared below that point is not yet
-    // initialised when it runs. Four items built on demand costs nothing and cannot be broken by moving
+    // initialized when it runs. Four items built on demand costs nothing and cannot be broken by moving
     // this declaration around later.
     private val overlayToggles: List<OverlayToggle>
         get() = listOf(

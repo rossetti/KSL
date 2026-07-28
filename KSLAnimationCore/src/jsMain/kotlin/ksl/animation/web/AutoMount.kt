@@ -49,7 +49,7 @@ import org.w3c.dom.get
  *  - `data-ksl-transport` `false` to hide the controls (a decorative, autoplaying loop)
  *  - `data-ksl-legend`    `false` to hide the legend
  *  - `data-ksl-assets`    URL prefix for the layout's relative image references
- *  - `data-ksl-background` a hex page colour behind the animation
+ *  - `data-ksl-background` a hex page color behind the animation
  */
 fun main() {
     if (document.readyState.toString() == "loading") {

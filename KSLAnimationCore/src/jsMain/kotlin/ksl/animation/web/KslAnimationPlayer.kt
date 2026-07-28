@@ -79,9 +79,9 @@ internal class KslAnimationPlayer(
 
     private var zoom = 1.0
 
-    // The user's pan is held as a DELTA from the fitted, centred position rather than as an absolute
-    // offset. Keeping it relative is what lets the animation stay centred when the window is resized:
-    // the centring is recomputed for the new viewport and whatever dragging the user did rides on top.
+    // The user's pan is held as a DELTA from the fitted, centered position rather than as an absolute
+    // offset. Keeping it relative is what lets the animation stay centered when the window is resized:
+    // the centering is recomputed for the new viewport and whatever dragging the user did rides on top.
     private var userPanX = 0.0
     private var userPanY = 0.0
     private var basePanX = 0.0
@@ -156,14 +156,14 @@ internal class KslAnimationPlayer(
     /**
      * Scaffolds a layout when the trace arrived without one, and rebuilds the replay against it.
      *
-     * A layout is what says where a queue is drawn, where its server sits, which colour an entity class
+     * A layout is what says where a queue is drawn, where its server sits, which color an entity class
      * takes. A trace carries none of that for a process-view model — positions only exist for things that
      * physically move — so replaying a queueing model with no layout draws an empty canvas. The desktop
      * viewer has always scaffolded one in this situation; doing the same here is what lets someone drop a
      * bare `.atf` into a page and see their model rather than nothing.
      *
      * A spatial model would render either way, since its coordinates ride in the trace, but it still
-     * benefits: the scaffold declares object classes, so agents get stable colours and sensible sizes.
+     * benefits: the scaffold declares object classes, so agents get stable colors and sensible sizes.
      */
     private fun scaffoldIfNeeded(replay: ReplayModel, source: AnimationSource): ReplayModel {
         if (replay.layout != null) return replay
@@ -227,7 +227,7 @@ internal class KslAnimationPlayer(
      *
      * **The page's scroll wins by default.** This canvas lives inside a document a reader scrolls, not in
      * an application window it owns, and an earlier version of this method got that backwards: it set
-     * `touch-action: none` and cancelled every wheel event, so a finger swipe or a trackpad scroll over the
+     * `touch-action: none` and canceled every wheel event, so a finger swipe or a trackpad scroll over the
      * animation zoomed it instead of moving the page. There was no way past the animation and, since the
      * only reset was an undiscoverable double-click, no way back to a sensible view either. A canvas
      * embedded in a page must ask for gestures, not take them.
@@ -284,7 +284,7 @@ internal class KslAnimationPlayer(
             if (!gestures.isActive) canvas.style.cursor = "default"
         })
         // A mouse still gets its double-click through the browser's own event; a finger gets the same
-        // reset from the double tap [PointerGestures] recognises. Resetting twice is harmless.
+        // reset from the double tap [PointerGestures] recognizes. Resetting twice is harmless.
         canvas.addEventListener("dblclick", { resetView() })
     }
 
@@ -303,8 +303,8 @@ internal class KslAnimationPlayer(
      * Takes [next] as the current view, storing its pan back as a delta from the fitted position.
      *
      * Zooming about a point solves for an *absolute* pan that holds that point still, so adopting the
-     * result verbatim would fold the fitted centring into the user's offset and a later resize would
-     * re-centre on top of it. Splitting it back out is what keeps the two separable.
+     * result verbatim would fold the fitted centering into the user's offset and a later resize would
+     * re-center on top of it. Splitting it back out is what keeps the two separable.
      */
     private fun adopt(next: ViewTransform) {
         view = next
@@ -313,13 +313,13 @@ internal class KslAnimationPlayer(
         userPanY = next.panY - basePanY
     }
 
-    /** Wall-clock milliseconds, for recognising a double tap. */
+    /** Wall-clock milliseconds, for recognizing a double tap. */
     private fun now(): Double = Date.now()
 
     /**
      * Zooms about the middle of the canvas by [factor].
      *
-     * About the centre rather than a cursor, because these back the transport bar's **−** and **+**, which
+     * About the center rather than a cursor, because these back the transport bar's **−** and **+**, which
      * are pressed from somewhere else entirely — and on a touchscreen there is no cursor to zoom about at
      * all. The wheel keeps zooming about the pointer, where a focus point genuinely exists.
      */
