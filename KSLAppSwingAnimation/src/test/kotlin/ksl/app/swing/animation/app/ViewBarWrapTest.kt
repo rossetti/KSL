@@ -128,6 +128,37 @@ class ViewBarWrapTest {
         )
     }
 
+    @Test
+    @DisplayName("navigating the view is a separate row from choosing what is drawn")
+    fun navigationAndOverlaysAreNotMixed() {
+        val ws = Files.createTempDirectory(tempRoot, "anim-rows")
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
+        try {
+            val rows = onEdt {
+                val panel = ReplayPanel(c)
+                // The row a control sits in, identified by its parent container.
+                val zoom = buttons(panel).first { it.text == "Zoom +" }.parent
+                val shows = ArrayList<java.awt.Container>()
+                fun walk(x: java.awt.Container) {
+                    for (child in x.components) {
+                        if (child is javax.swing.JCheckBox && child.text.startsWith("Show")) shows.add(child.parent)
+                        if (child is java.awt.Container) walk(child)
+                    }
+                }
+                walk(panel)
+                zoom to shows.distinct()
+            }
+            val (zoomRow, showRows) = rows
+            assertTrue(showRows.isNotEmpty(), "the Show toggles must exist to be separated from anything")
+            assertTrue(
+                showRows.none { it === zoomRow },
+                "Zoom/Fit/Pan share a row with the Show toggles. They answer different questions — what is " +
+                    "drawn versus where you are looking — and mixed together the controls that recover a " +
+                    "lost view are the hardest to find in the strip."
+            )
+        } finally { onEdt { c.close() }; ws.toFile().deleteRecursively() }
+    }
+
     private companion object {
         /** The controls that get a lost view back — the ones whose disappearance is unrecoverable. */
         val VIEW_CONTROLS = setOf("Zoom +", "Zoom −", "Fit")

@@ -138,8 +138,27 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
      * that meant **Zoom +, Zoom − and Fit**, the three that get a lost view back, silently vanishing on a
      * narrow window.
      */
-    private fun buildViewBar(): JComponent = JPanel(WrapLayout(FlowLayout.LEFT)).apply {
+    private fun buildViewBar(): JComponent = JPanel(BorderLayout()).apply {
         canvas.panEnabled = panToggle.isSelected // pan-by-drag on by default (no element editing in replay)
+        // Two rows, because they answer two different questions: "what is drawn" and "where am I looking".
+        // Mixed on one line they read as one undifferentiated strip of controls, and the navigation buttons
+        // — the ones that recover a view you have lost — are the hardest to pick out of it.
+        //
+        // BorderLayout NORTH/SOUTH rather than a Box: each row is handed the full width, which is what
+        // WrapLayout measures against, and keeps its own preferred height so a row that wraps does not
+        // pad the one that did not.
+        add(buildOverlayRow(), BorderLayout.NORTH)
+        add(buildNavigationRow(), BorderLayout.SOUTH)
+        canvas.addMouseMotionListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseMoved(e: java.awt.event.MouseEvent) {
+                val w = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble())
+                coordLabel.text = "x = ${fmt(w.x)}, y = ${fmt(w.y)}"
+            }
+        })
+    }
+
+    /** What is drawn on top of the animation — every one of these is about the picture's *content*. */
+    private fun buildOverlayRow(): JComponent = JPanel(WrapLayout(FlowLayout.LEFT)).apply {
         add(gridToggle.apply { addActionListener { canvas.showGrid = isSelected; canvas.repaint() } })
         // Labels and tooltips for these four come from syncOverlayToggles, which owns them because it
         // rewrites both once a trace is loaded to say what that trace actually contains.
@@ -152,6 +171,10 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
             toolTipText = "Show the items currently at each network station (off by default — the per-station glyphs are noisy)"
             addActionListener { canvas.showStationContents = isSelected }
         })
+    }
+
+    /** Where the view is pointed — zoom, fit, pan, and the coordinate read-out that tells you where. */
+    private fun buildNavigationRow(): JComponent = JPanel(WrapLayout(FlowLayout.LEFT)).apply {
         add(JButton("Zoom +").apply { addActionListener { canvas.zoomIn() } })
         add(JButton("Zoom −").apply { addActionListener { canvas.zoomOut() } })
         add(JButton("Fit").apply { toolTipText = "Reset zoom & pan to fit"; addActionListener { canvas.resetView() } })
@@ -160,12 +183,6 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
             addActionListener { canvas.panEnabled = isSelected }
         })
         add(coordLabel)
-        canvas.addMouseMotionListener(object : java.awt.event.MouseAdapter() {
-            override fun mouseMoved(e: java.awt.event.MouseEvent) {
-                val w = canvas.screenToWorld(e.x.toDouble(), e.y.toDouble())
-                coordLabel.text = "x = ${fmt(w.x)}, y = ${fmt(w.y)}"
-            }
-        })
     }
 
     /** Compact coordinate formatter (drops trailing ".0"). */
