@@ -42,9 +42,16 @@ fun main() {
     val w = System.getProperty("w")?.toIntOrNull() ?: 900
     val h = System.getProperty("h")?.toIntOrNull() ?: 620
 
+    // Posters are drawn from traces someone else produced. Say who, because an empty folder here is the
+    // normal state after a `clean` and the fix is a different task, not a missing flag.
+    val missing = "no .atf traces in $tracesDir.\n" +
+        "They are captured by the site generator, which this task runs after:\n" +
+        "  ./gradlew buildAnimationSite -Pout=<path to the KSL-Animations checkout>\n" +
+        "or on their own with:\n" +
+        "  ./gradlew :KSLExamples:showcaseCapture -PmodelName=<Model> -Pout=build/showcase"
     val traces = tracesDir.listFiles { f: File -> f.name.endsWith(".atf") }?.sortedBy { it.name }
-        ?: error("no traces in $tracesDir")
-    require(traces.isNotEmpty()) { "no .atf traces in $tracesDir — capture them first" }
+        ?: error(missing)
+    require(traces.isNotEmpty()) { missing }
 
     for (trace in traces) {
         val modelId = trace.name.removeSuffix(".atf")

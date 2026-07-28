@@ -652,7 +652,11 @@ tasks.named("assembleKSLWork") { finalizedBy("packageKSLWork") }
  * would look exactly like current ones.
  */
 project(":KSLExamples").tasks.named("buildAnimationSite") {
-    dependsOn(":KSLAppSwingAnimation:renderAnimationPosters")
+    // finalizedBy, not dependsOn: the posters are drawn FROM the traces, and it is the site generator that
+    // captures any trace missing from build/showcase. Wired as a dependency the posters ran first, against
+    // a directory nothing had filled yet -- which is exactly what happens after a `clean`, i.e. on the one
+    // run that matters, a release.
+    finalizedBy(":KSLAppSwingAnimation:renderAnimationPosters")
 }
 
 tasks.register<Zip>("packageAnimations") {
