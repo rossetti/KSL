@@ -132,22 +132,13 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     private fun buildViewBar(): JComponent = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
         canvas.panEnabled = panToggle.isSelected // pan-by-drag on by default (no element editing in replay)
         add(gridToggle.apply { addActionListener { canvas.showGrid = isSelected; canvas.repaint() } })
-        add(flowFieldToggle.apply {
-            toolTipText = "Show the flow-field gradient heatmap, when the trace carries one (G11)"
-            addActionListener { canvas.showFlowField = isSelected }
-        })
-        add(pathsToggle.apply {
-            toolTipText = "Show agents' planned routes, when the trace carries them (G12)"
-            addActionListener { canvas.showPlannedPaths = isSelected }
-        })
-        add(vectorsToggle.apply {
-            toolTipText = "Show agents' velocity (blue) and force (orange) arrows, when the trace carries them (G10)"
-            addActionListener { canvas.showVectors = isSelected }
-        })
-        add(pulsesToggle.apply {
-            toolTipText = "Show transient event highlights (e.g. completed deliveries), when the trace carries them"
-            addActionListener { canvas.showMarkerPulses = isSelected }
-        })
+        // Labels and tooltips for these four come from syncOverlayToggles, which owns them because it
+        // rewrites both once a trace is loaded to say what that trace actually contains.
+        add(flowFieldToggle.apply { addActionListener { canvas.showFlowField = isSelected } })
+        add(pathsToggle.apply { addActionListener { canvas.showPlannedPaths = isSelected } })
+        add(vectorsToggle.apply { addActionListener { canvas.showVectors = isSelected } })
+        add(pulsesToggle.apply { addActionListener { canvas.showMarkerPulses = isSelected } })
+        syncOverlayToggles() // nothing loaded yet: inert, but described normally
         add(stationItemsToggle.apply {
             toolTipText = "Show the items currently at each network station (off by default — the per-station glyphs are noisy)"
             addActionListener { canvas.showStationContents = isSelected }
@@ -286,6 +277,7 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
             model = ReplayModel.build(AnimationSource(fallback, source.header, source.events, source.assetBase))
         }
         canvas.replay = model
+        syncOverlayToggles()
         playbackController.pause()
         playbackController.timeRange = model.timeRange
         playbackController.seek(model.timeRange.start)
@@ -293,6 +285,76 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     }
 
     // ── Browse ──────────────────────────────────────────────────────────────────
+
+    /**
+     * One "Show …" toggle, paired with the trace content it draws and the capture switch that records it.
+     *
+     * @property present whether the loaded trace carries anything for this overlay
+     * @property captureBox the checkbox on the run bar that has to be ticked *before* the run for it to
+     *   carry any — the missing half of the story when the view looks empty
+     */
+    private class OverlayToggle(
+        val box: JCheckBox,
+        val label: String,
+        val tip: String,
+        val captureBox: String,
+        val present: (ReplayModel) -> Boolean
+    )
+
+    // Computed rather than stored: the first sync happens while the view bar is being built, during
+    // construction, and a stored (or lazily-delegated) property declared below that point is not yet
+    // initialised when it runs. Four items built on demand costs nothing and cannot be broken by moving
+    // this declaration around later.
+    private val overlayToggles: List<OverlayToggle>
+        get() = listOf(
+            OverlayToggle(
+                flowFieldToggle, "Show flow field",
+                "Show the flow-field gradient heatmap, when the trace carries one (G11)",
+                "Capture flow field"
+            ) { it.flowFieldOverlays.isNotEmpty() },
+            OverlayToggle(
+                pathsToggle, "Show paths",
+                "Show agents' planned routes, when the trace carries them (G12)",
+                "Capture paths"
+            ) { it.agentsWithPaths.isNotEmpty() },
+            OverlayToggle(
+                vectorsToggle, "Show vectors",
+                "Show agents' velocity (blue) and force (orange) arrows, when the trace carries them (G10)",
+                "Capture velocity\" or \"Capture force"
+            ) { it.agentsWithVectors.isNotEmpty() },
+            OverlayToggle(
+                pulsesToggle, "Show pulses",
+                "Show transient event highlights (e.g. completed deliveries), when the trace carries them",
+                "Capture pulses"
+            ) { it.hasMarkerPulses }
+        )
+
+    /**
+     * Makes each overlay toggle say what the loaded trace actually contains.
+     *
+     * These toggles only decide whether to *draw* something; whether it was ever *recorded* is a separate
+     * choice made before the run, on the run bar, and every one of those is off by default so an ordinary
+     * run pays no capture cost. The two halves were never connected in the interface, so a trace captured
+     * without routes met a ticked "Show paths" and drew nothing — indistinguishable from a broken renderer,
+     * and it cost a reader of this app an afternoon deciding which it was.
+     *
+     * The checked state is deliberately left alone. It is the user's standing preference for when a trace
+     * *does* carry the overlay, and a trace that lacks one should not silently rewrite it; the label and the
+     * disabled control are what carry the news.
+     */
+    private fun syncOverlayToggles() {
+        val replay = canvas.replay
+        for (t in overlayToggles) {
+            val present = replay != null && t.present(replay)
+            t.box.isEnabled = present
+            t.box.text = if (replay == null || present) t.label else "${t.label} (not captured)"
+            // Before anything is loaded there is no trace to make a claim about, so the toggle keeps its
+            // ordinary description and is merely inert. "(not captured)" is reserved for the case that
+            // actually misleads: a loaded trace that carries nothing for this overlay.
+            t.box.toolTipText = if (replay == null || present) t.tip else
+                "This trace carries none. Tick \"${t.captureBox}\" on the run bar before simulating."
+        }
+    }
 
     /** A directory created if missing, so the chooser opens *there* (not the user home). */
     private fun ensuredDir(p: Path): java.io.File {
@@ -455,6 +517,10 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
     }
 
     /** Start directories the Browse choosers open in (created if missing) — should be the model's folders. */
+    /** Each overlay toggle as the user sees it: label, and whether it can be clicked. */
+    internal fun overlayTogglesForTest(): List<Triple<String, Boolean, String>> =
+        overlayToggles.map { Triple(it.box.text, it.box.isEnabled, it.box.toolTipText ?: "") }
+
     internal fun traceChooserDirForTest(): Path = ensuredDir(app.tracesDir).toPath()
     internal fun layoutChooserDirForTest(): Path = ensuredDir(app.layoutsDir).toPath()
 }
