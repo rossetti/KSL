@@ -56,6 +56,7 @@ sections — if the right view isn't obvious from the table, start with
 
 | Guide | What it covers |
 |---|---|
+| [`ksl-simopt-tutorial`](ksl-simopt-tutorial.md) | **Start here.** A hands-on, step-by-step tutorial for undergraduates new to the KSL: three worked simulation-optimization problems (a noisy math function, a constrained discrete-event inventory model, and a maximizing newsvendor) taken all the way from mathematical statement through a running solver to a benchmark study, with runnable companion code |
 | [`ksl-simopt`](ksl-simopt.md) | `ksl.simopt` and all of its sub-packages: problems, the evaluator/oracle, every solver (full parameter reference), trackers, caches, and an orientation to the benchmark harness |
 | [`ksl-simopt-benchmark`](ksl-simopt-benchmark.md) | Benchmarking simopt solvers in depth: the `ksl.simopt.benchmark` harness (problems × solver cases × macro-reps under equal budgets), the synthetic problem ladder, the results database and analysis feeds, and the pilot-study walkthrough |
 
