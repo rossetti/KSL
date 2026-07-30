@@ -31,6 +31,7 @@ import ksl.animation.NetworkStationLayoutElement
 import ksl.animation.StorageLayoutElement
 import ksl.animation.PathDefinition
 import ksl.animation.AnchorRef
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -241,16 +242,56 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         }
     }
 
-    // B2: conveyors (from ConveyorDefined) — each belt a straight horizontal line, anchors spaced by cell index
-    // (not a meaningless ring), so the belt resolves and draws; a synthesized route adds color + direction arrows (08).
+    // B2: conveyors (from ConveyorDefined). A straight horizontal line by default, anchors spaced by cell
+    // index, so the belt resolves and draws; a synthesized route adds color + direction arrows (08).
+    //
+    // A *circular* belt is placed on a ring instead. The original note here said "not a meaningless ring",
+    // which is true of a linear belt and was applied to every belt: a loop then drew as a line that stopped
+    // at its last station, asserting an end the model does not have. The closing anchor was discarded
+    // outright, since a loop's anchor list repeats its first location at the end and `getOrPut` keeps the
+    // first placement.
+    //
+    // The loop is *stated* in the trace rather than guessed -- first anchor name == last -- and needs no new
+    // drawing: the renderer already walks the anchors in cell order, so a ring closes itself.
+    //
+    // Honest about what it is: a ring is the truth about the belt's TOPOLOGY and a guess about its geometry.
+    // A real floor is rarely a circle, so polishing still moves stations to where they physically are. What
+    // changes is that the starting point no longer says something false.
     val beltSpan = 600.0
+    // The widest horizontal extent any belt claimed, so the canvas fits a ring as well as a line.
+    var conveyorSpan = 0.0
     val conveyorAnchorPos = LinkedHashMap<String, LayoutPoint>()
     val conveyorElements = mutableListOf<ConveyorLayoutElement>()
     conveyorAnchors.forEach { (conveyorName, anchors) ->
-        val y = laneY; laneY += 80.0
         val maxCell = (anchors.maxOfOrNull { it.second } ?: 0).coerceAtLeast(1)
-        anchors.forEach { (loc, cell) ->
-            conveyorAnchorPos.getOrPut(loc) { LayoutPoint(firstColX + beltSpan * cell / maxCell, y) }
+        val distinctNames = anchors.map { it.first }.distinct()
+        // Three or more distinct stations: a ring of two is a line drawn the long way round.
+        val isLoop = anchors.size >= 2 &&
+            anchors.first().first == anchors.last().first &&
+            distinctNames.size >= 3
+        if (isLoop) {
+            // Circumference carries the cell count, so a long belt is a wider loop and cells stay legible --
+            // bounded, because a 130-cell belt should not dictate the size of the canvas.
+            val radius = (maxCell * CONVEYOR_CELL_PITCH / (2.0 * PI)).coerceIn(140.0, 320.0)
+            val cx = firstColX + radius
+            val cy = laneY + radius
+            anchors.forEach { (loc, cell) ->
+                conveyorAnchorPos.getOrPut(loc) {
+                    // cell 0 at the left, then clockwise on screen: left -> top -> right -> bottom. Puts the
+                    // belt's start where a reader begins and sends flow rightwards along the top, which is
+                    // how the process views in this app already read.
+                    val t = cell.toDouble() / maxCell
+                    LayoutPoint(cx - radius * cos(2.0 * PI * t), cy - radius * sin(2.0 * PI * t))
+                }
+            }
+            laneY += 2.0 * radius + 60.0
+            conveyorSpan = maxOf(conveyorSpan, 2.0 * radius)
+        } else {
+            val y = laneY; laneY += 80.0
+            anchors.forEach { (loc, cell) ->
+                conveyorAnchorPos.getOrPut(loc) { LayoutPoint(firstColX + beltSpan * cell / maxCell, y) }
+            }
+            conveyorSpan = maxOf(conveyorSpan, beltSpan)
         }
         conveyorElements += ConveyorLayoutElement(conveyorName = conveyorName, showDirection = true)
     }
@@ -261,7 +302,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
 
     val width = (maxOf(
         firstColX + lastRank * columnGap,
-        firstColX + beltSpan,
+        firstColX + conveyorSpan,
         firstColX + (stationOrder.size - 1).coerceAtLeast(0) * stationGap
     ) + 320.0).coerceAtLeast(800.0)
 
@@ -302,6 +343,15 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
 }
 
 /** A standard categorical palette for assigning colors to agent states discovered in a trace (P5). */
+/**
+ * World units of belt per conveyor cell, used to size a circular belt's ring.
+ *
+ * Only the ring's radius depends on it: circumference is taken as cells x pitch, so a longer belt becomes a
+ * wider loop and its cells stay individually legible instead of crowding. The straight-belt path spaces
+ * anchors across a fixed span and does not need it.
+ */
+private const val CONVEYOR_CELL_PITCH = 14.0
+
 private val PALETTE = listOf(
     "#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
 )
