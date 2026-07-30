@@ -45,7 +45,13 @@ import ksl.utilities.statistic.StatisticIfc
  *  chosen boundedness needs one, is profiled from the data unless supplied, by fitting at each
  *  candidate and keeping whichever fits the observations best.
  *
- *  No shift of the data is performed, because a metalog represents a lower bound natively.
+ *  No shift of the data is performed, because a metalog represents a lower bound natively. That
+ *  is what `checkRange` being false means here, and it has a consequence worth knowing when
+ *  fitting only this family: `PDFModeler.estimateParameters` bootstraps a confidence interval for
+ *  the minimum of the data on every call in order to decide whether a shift is needed, and on a
+ *  large sample that costs more than all twenty metalog fits together. None of these estimators
+ *  can consume the result. Pass `automaticShifting = false` for a metalog-only run; leave it on
+ *  when the classical families are in the same set, since they do use it.
  *
  *  @param numTerms how many metalog terms to fit, between two and six
  *  @param boundedness which member of the family to fit
