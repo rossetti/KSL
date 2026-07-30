@@ -19,17 +19,22 @@
 package ksl.app.dist.catalog
 
 import ksl.app.dist.config.DistributionKind
+import ksl.utilities.distributions.MetalogBoundedness
+import ksl.utilities.distributions.fitting.estimators.MetalogParameterEstimator
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class FittingCatalogTest {
 
     @Test
-    fun `catalog registers eighteen estimators`() {
-        assertEquals(18, FittingCatalog.estimators.size)
+    fun `catalog registers eighteen classical estimators plus twenty metalog estimators`() {
+        assertEquals(38, FittingCatalog.estimators.size)
+        assertEquals(20, FittingCatalog.estimators.count { it.id.startsWith("metalog") })
     }
 
     @Test
@@ -123,5 +128,100 @@ class FittingCatalogTest {
     fun `gamma family is reached by both MLE and MOM estimators`() {
         val gammaEstimators = FittingCatalog.estimators.filter { it.familyId == "gamma" }
         assertEquals(setOf("gamma-mle", "gamma-mom"), gammaEstimators.map { it.id }.toSet())
+    }
+
+    // ----- metalog -----------------------------------------------------------
+
+    @Test
+    fun `every metalog arity and boundedness pair is registered under a stable id`() {
+        val expected = (2..6).flatMap { n ->
+            listOf(
+                "metalog${n}p-unbounded",
+                "metalog${n}p-lower-bounded",
+                "metalog${n}p-upper-bounded",
+                "metalog${n}p-bounded",
+            )
+        }.toSet()
+        val registered = FittingCatalog.estimators
+            .filter { it.id.startsWith("metalog") }
+            .map { it.id }
+            .toSet()
+        assertEquals(expected, registered)
+    }
+
+    @Test
+    fun `the four boundedness variants of one arity share a single family`() {
+        // Boundedness is carried by the fitted lowerBound and upperBound parameters, not
+        // by the distribution class, so all four collapse to the arity's family.
+        for (n in 2..6) {
+            val familyIds = FittingCatalog.estimators
+                .filter { it.id.startsWith("metalog${n}p-") }
+                .map { it.familyId }
+                .toSet()
+            assertEquals(setOf("metalog${n}p"), familyIds, "arity $n did not collapse to one family")
+        }
+    }
+
+    @Test
+    fun `metalog families resolve by id and carry a readable display name`() {
+        for (n in 2..6) {
+            val family = FittingCatalog.familyOrNull("metalog${n}p")
+            assertNotNull(family, "metalog${n}p family is not registered")
+            assertEquals(DistributionKind.CONTINUOUS, family.kind)
+            assertEquals("Metalog $n-term", family.displayName)
+        }
+    }
+
+    @Test
+    fun `metalog estimators are continuous, skip the range check, and instantiate freshly`() {
+        val metalog = FittingCatalog.estimators.filter { it.id.startsWith("metalog") }
+        for (descriptor in metalog) {
+            assertEquals(DistributionKind.CONTINUOUS, descriptor.kind, descriptor.id)
+            // A metalog represents a lower bound natively, so PDFModeler must not shift the data.
+            assertFalse(descriptor.checksRange, "${descriptor.id} should not request a range check")
+            val first = descriptor.factory()
+            val second = descriptor.factory()
+            assertTrue(first !== second, "${descriptor.id} factory returned a shared instance")
+            assertEquals(descriptor.rvType, first.rvType)
+        }
+    }
+
+    @Test
+    fun `metalog estimators resolve to the arity's distribution type`() {
+        for (n in 2..6) {
+            val expected = MetalogParameterEstimator.typeFor(n)
+            val types = FittingCatalog.estimators
+                .filter { it.id.startsWith("metalog${n}p-") }
+                .map { it.rvType }
+                .toSet()
+            assertEquals(setOf<RVParametersTypeIfc>(expected), types)
+        }
+    }
+
+    @Test
+    fun `metalog estimators are opted into rather than defaulted`() {
+        // PDFModeler deliberately keeps the family out of allEstimators; the catalog must
+        // mirror that, or every existing caller's recommended distribution could change.
+        val defaults = FittingCatalog.defaultEstimatorIds(DistributionKind.CONTINUOUS)
+        assertTrue(
+            defaults.none { it.startsWith("metalog") },
+            "metalog leaked into the continuous defaults: $defaults"
+        )
+    }
+
+    @Test
+    fun `metalog ids instantiate estimators matching their arity and boundedness`() {
+        val cases = mapOf(
+            "metalog2p-unbounded" to Pair(2, MetalogBoundedness.Unbounded),
+            "metalog4p-lower-bounded" to Pair(4, MetalogBoundedness.LowerBounded),
+            "metalog5p-upper-bounded" to Pair(5, MetalogBoundedness.UpperBounded),
+            "metalog6p-bounded" to Pair(6, MetalogBoundedness.Bounded),
+        )
+        for ((id, expected) in cases) {
+            val estimator = FittingCatalog.estimator(id).factory()
+            assertTrue(estimator is MetalogParameterEstimator, "$id did not produce a metalog estimator")
+            assertEquals(expected.first, estimator.numTerms, id)
+            assertEquals(expected.second, estimator.boundedness, id)
+        }
     }
 }

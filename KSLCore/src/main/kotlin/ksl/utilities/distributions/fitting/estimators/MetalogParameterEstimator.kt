@@ -135,7 +135,10 @@ class MetalogParameterEstimator(
         if (data.any { !it.isFinite() }) {
             return failure(data, statistics, "Every observation must be finite")
         }
-        if (data.distinct().size < 2) {
+        // Scanned rather than run through distinct(), which boxes every observation into a set.
+        // Only the existence of a second distinct value matters, and the scan leaves as soon as
+        // it finds one.
+        if (data.all { it == data[0] }) {
             return failure(data, statistics, "The observations must not all be identical")
         }
         val (values, probabilities) = MetalogPlottingPositions.cdfData(data)

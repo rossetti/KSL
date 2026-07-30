@@ -47,6 +47,18 @@ import kotlin.math.sqrt
  *  possess the moments one might assume, because they exponentiate the quantile function; the
  *  mean and variance report a non-finite value rather than a fabricated one in that case.
  *
+ *  Because an absent bound is carried as an infinity rather than as a null, the parameters of a
+ *  metalog can include a non-finite value. Everything in the KSL that transports random variable
+ *  parameters accepts one: the parameter setter, the simulation database, and the JSON codecs
+ *  behind the model descriptor, the fitting documents, and the servers all handle infinities,
+ *  the last because they already had to for control bounds. Two places do not, and neither is
+ *  reachable from a running model. A configuration file cannot author an infinite bound through
+ *  `RVParameterOverride`, which requires a finite value — no matter, since the bound comes from
+ *  the random variable itself and an override need only name what is changing. And the general
+ *  purpose `RVData.toJson` builds its own encoder without the special floating point option, so
+ *  it rejects an unbounded metalog; write such a specification as TOML, whose format admits
+ *  infinities natively.
+ *
  *  @param coefficients the metalog scaling constants, of which there must be at least two
  *  @param lowerBound the lower bound, or negative infinity when unbounded below
  *  @param upperBound the upper bound, or positive infinity when unbounded above

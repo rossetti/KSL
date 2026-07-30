@@ -19,6 +19,7 @@
 package ksl.app.dist.catalog
 
 import ksl.app.dist.config.DistributionKind
+import ksl.utilities.distributions.MetalogBoundedness
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.estimators.BetaMOMParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.BinomialMOMParameterEstimator
@@ -30,6 +31,7 @@ import ksl.utilities.distributions.fitting.estimators.GeneralizedBetaMOMParamete
 import ksl.utilities.distributions.fitting.estimators.LaplaceMLEParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.LogisticMOMParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.LognormalMLEParameterEstimator
+import ksl.utilities.distributions.fitting.estimators.MetalogParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.NegBinomialMOMParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.NormalMLEParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.ParameterEstimatorIfc
@@ -76,6 +78,11 @@ import ksl.utilities.random.rvariable.RVParametersTypeIfc
  * The discrete entries are listed for catalog completeness; the
  * continuous-only fitting runner will reject them via the validator
  * until the discrete (PMF) path lands.
+ *
+ * The metalog entries follow the same opt-in rule as `PDFModeler`: they are
+ * registered and resolvable by ID, but absent from `defaultEstimatorIds`,
+ * because adding twenty estimators to the default set would change the
+ * recommended distribution for data that existing callers already fit.
  */
 object FittingCatalog {
 
@@ -176,13 +183,57 @@ object FittingCatalog {
             disc("binomial-mom", "Binomial (MOM)", BinomialMOMParameterEstimator) { BinomialMOMParameterEstimator },
             disc("binomial-max", "Binomial (max)", BinomialMaxParameterEstimator) { BinomialMaxParameterEstimator },
             disc("negbinomial-mom", "Negative Binomial (MOM)", NegBinomialMOMParameterEstimator) { NegBinomialMOMParameterEstimator },
-        )
+        ) + metalogEstimators()
         val map = LinkedHashMap<String, EstimatorDescriptor>(list.size)
         for (d in list) {
             require(d.id !in map) { "duplicate estimator id '${d.id}' in catalog" }
             map[d.id] = d
         }
         return map
+    }
+
+    /**
+     * The metalog entries, one per (term count, boundedness) pair, enumerated rather
+     * than listed because the family is a grid: five arities times the four members of
+     * the family. Each pair is a genuinely distinct estimator — a four-term unbounded
+     * fit and a four-term lower-bounded fit solve different least squares problems and
+     * can rank differently against the same data — so each earns its own catalog ID.
+     *
+     * All four boundedness variants of one arity share an `rvType`, since boundedness is
+     * carried by the fitted bound values rather than by the distribution class. So these
+     * twenty estimators collapse to the five families `metalog2p` through `metalog6p`,
+     * exactly as the two Gamma estimators collapse to `gamma`.
+     *
+     * These are absent from `PDFModeler.allEstimators` by design, so they never enter
+     * `defaultEstimatorIds`; a caller opts into them by naming their IDs.
+     */
+    private fun metalogEstimators(): List<EstimatorDescriptor> = buildList {
+        val terms = MetalogParameterEstimator.MIN_TERM_COUNT..MetalogParameterEstimator.MAX_TERM_COUNT
+        for (numTerms in terms) {
+            for (boundedness in MetalogBoundedness.entries) {
+                add(
+                    cont(
+                        metalogId(numTerms, boundedness),
+                        "Metalog $numTerms-term (${metalogBoundednessLabel(boundedness)})",
+                        MetalogParameterEstimator(numTerms, boundedness)
+                    ) { MetalogParameterEstimator(numTerms, boundedness) }
+                )
+            }
+        }
+    }
+
+    private fun metalogId(numTerms: Int, boundedness: MetalogBoundedness): String = when (boundedness) {
+        MetalogBoundedness.Unbounded -> "metalog${numTerms}p-unbounded"
+        MetalogBoundedness.LowerBounded -> "metalog${numTerms}p-lower-bounded"
+        MetalogBoundedness.UpperBounded -> "metalog${numTerms}p-upper-bounded"
+        MetalogBoundedness.Bounded -> "metalog${numTerms}p-bounded"
+    }
+
+    private fun metalogBoundednessLabel(boundedness: MetalogBoundedness): String = when (boundedness) {
+        MetalogBoundedness.Unbounded -> "unbounded"
+        MetalogBoundedness.LowerBounded -> "lower bounded"
+        MetalogBoundedness.UpperBounded -> "upper bounded"
+        MetalogBoundedness.Bounded -> "bounded"
     }
 
     private fun cont(
@@ -273,8 +324,19 @@ object FittingCatalog {
         return raw.lowercase()
     }
 
-    private fun familyDisplayName(familyId: String): String =
-        familyId.replaceFirstChar { it.uppercase() }
+    private fun familyDisplayName(familyId: String): String {
+        // The metalog families are named by arity rather than by shape, so the generic
+        // rule would render them as "Metalog2p". Spell the term count out instead.
+        // Parsed rather than matched against a stored Regex: this runs from the object's
+        // initializer, before any property declared below it has been assigned.
+        if (familyId.startsWith("metalog") && familyId.endsWith("p")) {
+            val terms = familyId.substring("metalog".length, familyId.length - 1)
+            if (terms.isNotEmpty() && terms.all { it.isDigit() }) {
+                return "Metalog $terms-term"
+            }
+        }
+        return familyId.replaceFirstChar { it.uppercase() }
+    }
 
     // ----- default sets (resolved against the registry) ---------------------
 
