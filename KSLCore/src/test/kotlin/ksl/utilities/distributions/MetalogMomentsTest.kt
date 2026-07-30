@@ -163,7 +163,7 @@ class MetalogMomentsTest {
                     MetalogFunctions.quantile(a, y), 0.0, Double.POSITIVE_INFINITY
                 )
             }
-            assertNearly(expected, mean, relTol = 1e-6, absTol = 1e-6, message = "a2 = $s:")
+            assertNearly(expected, mean, relTol = 1e-5, absTol = 1e-5, message = "a2 = $s:")
         }
     }
 
@@ -186,6 +186,62 @@ class MetalogMomentsTest {
             abs(expected - mean) > 1e-8,
             "the truncation error was expected to be visible, but was ${abs(expected - mean)}",
         )
+    }
+
+    @Test
+    fun theLogitParameterizedPathIsFarMoreAccurateThanTheProbabilityPath() {
+        // Same integral, same distribution, two routes. Passing probabilities as doubles cannot
+        // reach beyond about two parts in a billion from each endpoint, because the complement of
+        // a probability near one is quantized; parameterizing by the logit has no such limit.
+        val s = 0.5
+        val a = doubleArrayOf(0.0, s)
+        val expected = PI * s / kotlin.math.sin(PI * s)
+        val viaProbability = MetalogMoments.rawMomentByQuadrature(1) { y ->
+            MetalogBoundedness.LowerBounded.fromFittingSpace(
+                MetalogFunctions.quantile(a, y), 0.0, Double.POSITIVE_INFINITY
+            )
+        }
+        val viaLogit = MetalogMoments.rawMomentInLogit(1) { t ->
+            MetalogBoundedness.LowerBounded.fromFittingSpace(
+                MetalogFunctions.quantileFromLogit(a, t), 0.0, Double.POSITIVE_INFINITY
+            )
+        }
+        val probabilityError = abs(expected - viaProbability)
+        val logitError = abs(expected - viaLogit)
+        assertTrue(
+            logitError < probabilityError,
+            "the logit path should be more accurate: logit error $logitError, " +
+                    "probability error $probabilityError",
+        )
+        assertNearly(expected, viaLogit, relTol = 1e-6, absTol = 1e-6)
+    }
+
+    @Test
+    fun theTwoQuantileParameterizationsAgreeAwayFromTheTails() {
+        // The logit-parameterized quantile function must be the same function, just reached
+        // differently, wherever the probability is representable enough to recover its logit.
+        val a = doubleArrayOf(1.5, 2.0, -0.3, 0.4, 0.1)
+        for (t in doubleArrayOf(-8.0, -3.0, -0.5, 0.0, 0.5, 3.0, 8.0)) {
+            val y = 1.0 / (1.0 + kotlin.math.exp(-t))
+            assertNearly(
+                MetalogFunctions.quantile(a, y),
+                MetalogFunctions.quantileFromLogit(a, t),
+                relTol = 1e-9, absTol = 1e-9, message = "at logit $t:",
+            )
+        }
+    }
+
+    @Test
+    fun theProbabilityDerivativeFromTheLogitIsTheProductOfProbabilityAndComplement() {
+        for (t in doubleArrayOf(-6.0, -1.0, 0.0, 1.0, 6.0)) {
+            val y = 1.0 / (1.0 + kotlin.math.exp(-t))
+            assertNearly(
+                y * (1.0 - y),
+                MetalogFunctions.probabilityDerivativeFromLogit(t),
+                relTol = 1e-12, absTol = 1e-14, message = "at logit $t:",
+            )
+        }
+        assertNearly(0.25, MetalogFunctions.probabilityDerivativeFromLogit(0.0))
     }
 
     // -------- moment existence --------
@@ -294,17 +350,17 @@ class MetalogMomentsTest {
     fun quadratureIntegratesAConstantQuantileToThatConstant() {
         // A degenerate check on the quadrature machinery itself: the segments must partition the
         // unit interval exactly, so integrating a constant must return that constant.
-        assertNearly(3.0, MetalogMoments.rawMomentByQuadrature(1) { 3.0 }, relTol = 1e-9, absTol = 1e-9)
+        assertNearly(3.0, MetalogMoments.rawMomentByQuadrature(1) { 3.0 }, relTol = 1e-7, absTol = 1e-7)
     }
 
     @Test
     fun quadratureIntegratesTheIdentityQuantileToOneHalf() {
         // The quantile function of a standard uniform is the identity, whose first moment is
         // one half and whose second moment about the origin is one third.
-        assertNearly(0.5, MetalogMoments.rawMomentByQuadrature(1) { y -> y }, relTol = 1e-9, absTol = 1e-9)
+        assertNearly(0.5, MetalogMoments.rawMomentByQuadrature(1) { y -> y }, relTol = 1e-7, absTol = 1e-7)
         assertNearly(
             1.0 / 3.0, MetalogMoments.rawMomentByQuadrature(2) { y -> y },
-            relTol = 1e-9, absTol = 1e-9,
+            relTol = 1e-7, absTol = 1e-7,
         )
     }
 

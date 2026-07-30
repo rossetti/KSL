@@ -18,8 +18,11 @@
 
 package ksl.utilities.distributions
 
+import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.pow
+import kotlin.math.tanh
 
 /**
  *  The basis functions underlying the metalog quantile function of Keelin (2016).
@@ -140,6 +143,58 @@ object MetalogFunctions {
     }
 
     /**
+     *  The metalog quantile function evaluated in fitting space, parameterized by the logit of
+     *  the cumulative probability rather than by the probability itself.
+     *
+     *  This reaches much further into the tails than the probability-based overload can. Near one,
+     *  consecutive doubles are about a tenth of a quadrillionth apart, so a probability handed in
+     *  as a double has already lost the information needed to recover its own logit: at a logit of
+     *  thirty the round trip is wrong in the third decimal place. Parameterizing by the logit
+     *  avoids the loss entirely, since the logit is then exact and the centered probability is
+     *  obtained from the hyperbolic tangent of half of it, which does not cancel.
+     *
+     *  Use this wherever the far tail matters, such as integrating a moment of a semi-bounded
+     *  metalog whose quantile function grows like a power law.
+     */
+    fun quantileFromLogit(coefficients: DoubleArray, logit: Double): Double {
+        requireEnoughTerms(coefficients)
+        require(!logit.isNaN()) { "The logit must not be NaN" }
+        val c = 0.5 * tanh(0.5 * logit)
+        val n = coefficients.size
+        var sum = coefficients[0]
+        sum += coefficients[1] * logit
+        if (n > 2) {
+            sum += coefficients[2] * c * logit
+        }
+        if (n > 3) {
+            sum += coefficients[3] * c
+        }
+        var cPower = c * c
+        for (i in 5..n) {
+            sum += if (i % 2 == 1) {
+                coefficients[i - 1] * cPower
+            } else {
+                coefficients[i - 1] * cPower * logit
+            }
+            if (i % 2 == 0) {
+                cPower *= c
+            }
+        }
+        return sum
+    }
+
+    /**
+     *  The derivative of the cumulative probability with respect to its logit, which is the
+     *  product of the probability and its complement. Written through the hyperbolic secant so
+     *  that neither tail cancels.
+     */
+    fun probabilityDerivativeFromLogit(logit: Double): Double {
+        val e = exp(-abs(logit))
+        val onePlusE = 1.0 + e
+        return e / (onePlusE * onePlusE)
+    }
+
+    /**
      *  The derivative with respect to y of the metalog quantile function. This is strictly
      *  positive throughout the open interval from zero to one exactly when the coefficients
      *  define a valid distribution, which is what `MetalogFeasibilityChecker` verifies.
@@ -192,6 +247,84 @@ object MetalogFunctions {
     fun logit(y: Double): Double {
         requireValidProbability(y)
         return ln(y / (1.0 - y))
+    }
+
+    /**
+     *  The combined weight on the logit at the supplied centered probability, formed by summing
+     *  every coefficient whose basis term carries the logit, each scaled by the matching power of
+     *  that centered probability. Terms two and three carry the logit, as does every
+     *  even-numbered term from six onward.
+     *
+     *  Evaluated at plus or minus one half, this governs the behavior of the quantile function in
+     *  the corresponding tail. A strictly positive weight means the quantile function diverges
+     *  logarithmically there; a weight of exactly zero means it approaches a finite limit.
+     */
+    fun logitWeightAt(coefficients: DoubleArray, c: Double): Double {
+        requireEnoughTerms(coefficients)
+        var sum = coefficients[1]
+        if (coefficients.size > 2) {
+            sum += coefficients[2] * c
+        }
+        var i = 6
+        while (i <= coefficients.size) {
+            sum += coefficients[i - 1] * c.pow(i / 2 - 1)
+            i += 2
+        }
+        return sum
+    }
+
+    /**
+     *  The part of the quantile function that does not carry the logit, evaluated at the supplied
+     *  centered probability. The first term contributes a constant, the fourth contributes the
+     *  centered probability itself, and every odd-numbered term from five onward contributes a
+     *  power of it.
+     */
+    fun nonLogitPartAt(coefficients: DoubleArray, c: Double): Double {
+        requireEnoughTerms(coefficients)
+        var sum = coefficients[0]
+        if (coefficients.size > 3) {
+            sum += coefficients[3] * c
+        }
+        var i = 5
+        while (i <= coefficients.size) {
+            sum += coefficients[i - 1] * c.pow((i - 1) / 2)
+            i += 2
+        }
+        return sum
+    }
+
+    /**
+     *  The limit of the quantile function in fitting space as the cumulative probability
+     *  approaches zero.
+     *
+     *  A metalog whose declared bounds are infinite is not necessarily unbounded. Keelin notes
+     *  that the quantile function is bounded whenever every coefficient carrying the logit is
+     *  zero, the four-term uniform being the familiar example. In that case the logit weight
+     *  vanishes and the limit is finite, because the logit diverges only logarithmically while
+     *  its weight approaches zero linearly. Otherwise the limit is negative infinity.
+     *
+     *  The test for a vanishing weight is exact, so a fitted metalog whose weight is merely small
+     *  is correctly reported as diverging.
+     */
+    fun limitAsProbabilityApproachesZero(coefficients: DoubleArray): Double {
+        return if (logitWeightAt(coefficients, -0.5) == 0.0) {
+            nonLogitPartAt(coefficients, -0.5)
+        } else {
+            Double.NEGATIVE_INFINITY
+        }
+    }
+
+    /**
+     *  The limit of the quantile function in fitting space as the cumulative probability
+     *  approaches one. See the companion function for why this can be finite even when the
+     *  declared bounds are infinite.
+     */
+    fun limitAsProbabilityApproachesOne(coefficients: DoubleArray): Double {
+        return if (logitWeightAt(coefficients, 0.5) == 0.0) {
+            nonLogitPartAt(coefficients, 0.5)
+        } else {
+            Double.POSITIVE_INFINITY
+        }
     }
 
     /**
