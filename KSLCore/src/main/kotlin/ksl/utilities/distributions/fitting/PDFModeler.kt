@@ -1258,6 +1258,51 @@ class PDFModeler(
                     return Laplace(location, scale)
                 }
 
+                RVType.Metalog2P -> {
+                    val parameterValues = DoubleArray(2) { parameters.doubleParameter("a${it + 1}") }
+                    return Metalog2P(
+                        parameterValues[0], parameterValues[1],
+                        parameters.doubleParameter("lowerBound"),
+                        parameters.doubleParameter("upperBound")
+                    )
+                }
+
+                RVType.Metalog3P -> {
+                    val parameterValues = DoubleArray(3) { parameters.doubleParameter("a${it + 1}") }
+                    return Metalog3P(
+                        parameterValues[0], parameterValues[1], parameterValues[2],
+                        parameters.doubleParameter("lowerBound"),
+                        parameters.doubleParameter("upperBound")
+                    )
+                }
+
+                RVType.Metalog4P -> {
+                    val parameterValues = DoubleArray(4) { parameters.doubleParameter("a${it + 1}") }
+                    return Metalog4P(
+                        parameterValues[0], parameterValues[1], parameterValues[2], parameterValues[3],
+                        parameters.doubleParameter("lowerBound"),
+                        parameters.doubleParameter("upperBound")
+                    )
+                }
+
+                RVType.Metalog5P -> {
+                    val parameterValues = DoubleArray(5) { parameters.doubleParameter("a${it + 1}") }
+                    return Metalog5P(
+                        parameterValues[0], parameterValues[1], parameterValues[2], parameterValues[3], parameterValues[4],
+                        parameters.doubleParameter("lowerBound"),
+                        parameters.doubleParameter("upperBound")
+                    )
+                }
+
+                RVType.Metalog6P -> {
+                    val parameterValues = DoubleArray(6) { parameters.doubleParameter("a${it + 1}") }
+                    return Metalog6P(
+                        parameterValues[0], parameterValues[1], parameterValues[2], parameterValues[3], parameterValues[4], parameterValues[5],
+                        parameters.doubleParameter("lowerBound"),
+                        parameters.doubleParameter("upperBound")
+                    )
+                }
+
 //                RVType.JohnsonB -> TODO("No distribution implemented yet")
 
                 else -> null

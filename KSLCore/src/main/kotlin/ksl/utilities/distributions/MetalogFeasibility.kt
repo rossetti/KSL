@@ -201,5 +201,27 @@ class MetalogFeasibilityChecker(
          *  mutable state.
          */
         val defaultChecker: MetalogFeasibilityChecker by lazy { MetalogFeasibilityChecker() }
+
+        /**
+         *  Rejects coefficients that do not define a valid quantile function, with a message
+         *  naming where the quantile function failed to increase.
+         *
+         *  The cheap test runs first, so two- and three-term coefficient vectors are decided in
+         *  constant time; the grid is only scanned to build the diagnostic when the cheap test
+         *  has already failed. Both the distributions and the random variables validate through
+         *  here, so the two report a rejection identically.
+         */
+        fun requireFeasible(coefficients: DoubleArray) {
+            if (defaultChecker.isFeasible(coefficients)) {
+                return
+            }
+            val result = defaultChecker.check(coefficients)
+            throw IllegalArgumentException(
+                "The coefficients ${coefficients.joinToString()} do not define a valid metalog: " +
+                        "the quantile function is not strictly increasing, with a derivative of " +
+                        "${result.minimumDerivative} at a cumulative probability of " +
+                        "${result.worstProbability}"
+            )
+        }
     }
 }

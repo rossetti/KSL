@@ -19,11 +19,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.InverseCDFRV
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.pow
@@ -490,27 +486,7 @@ abstract class MetalogDistribution(
     }
 
     private fun requireFeasible(coefficients: DoubleArray) {
-        val result = MetalogFeasibilityChecker.defaultChecker.check(coefficients)
-        require(result.feasible) {
-            "The coefficients ${coefficients.joinToString()} do not define a valid metalog: " +
-                    "the quantile function is not strictly increasing, with a derivative of " +
-                    "${result.minimumDerivative} at a cumulative probability of " +
-                    "${result.worstProbability}"
-        }
-    }
-
-    // -------- random variate generation --------
-
-    /**
-     *  A random variable that samples this distribution by inverse transform. Each variate
-     *  costs one evaluation of the closed-form quantile function, with no root finding and no
-     *  rejection.
-     */
-    override fun randomVariable(
-        streamNumber: Int,
-        streamProvider: RNStreamProviderIfc
-    ): RVariableIfc {
-        return InverseCDFRV(this, streamNumber, streamProvider)
+        MetalogFeasibilityChecker.requireFeasible(coefficients)
     }
 
     companion object {

@@ -107,6 +107,26 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
         override val rvParameters: RVParameters
             get() = LognormalRVParameters()
     },
+    Metalog2P(Metalog2PRV::class) {
+        override val rvParameters: RVParameters
+            get() = Metalog2PRVParameters()
+    },
+    Metalog3P(Metalog3PRV::class) {
+        override val rvParameters: RVParameters
+            get() = Metalog3PRVParameters()
+    },
+    Metalog4P(Metalog4PRV::class) {
+        override val rvParameters: RVParameters
+            get() = Metalog4PRVParameters()
+    },
+    Metalog5P(Metalog5PRV::class) {
+        override val rvParameters: RVParameters
+            get() = Metalog5PRVParameters()
+    },
+    Metalog6P(Metalog6PRV::class) {
+        override val rvParameters: RVParameters
+            get() = Metalog6PRVParameters()
+    },
     NegativeBinomial(NegativeBinomialRV::class) {
         override val rvParameters: RVParameters
             get() = NegativeBinomialRVParameters()
@@ -194,6 +214,11 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
             LogisticRV::class to Logistic,
             LogLogisticRV::class to LogLogistic,
             LognormalRV::class to Lognormal,
+            Metalog2PRV::class to Metalog2P,
+            Metalog3PRV::class to Metalog3P,
+            Metalog4PRV::class to Metalog4P,
+            Metalog5PRV::class to Metalog5P,
+            Metalog6PRV::class to Metalog6P,
             NegativeBinomialRV::class to NegativeBinomial,
             NormalRV::class to Normal,
             PearsonType5RV::class to PearsonType5,

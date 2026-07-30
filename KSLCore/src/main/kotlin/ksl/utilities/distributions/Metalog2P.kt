@@ -18,6 +18,11 @@
 
 package ksl.utilities.distributions
 
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.Metalog2PRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
+
 /**
  *  A two-term metalog distribution.
  *
@@ -41,7 +46,8 @@ class Metalog2P(
     lowerBound: Double = Double.NEGATIVE_INFINITY,
     upperBound: Double = Double.POSITIVE_INFINITY,
     name: String? = null
-) : MetalogDistribution(doubleArrayOf(a1, a2), lowerBound, upperBound, name) {
+) : MetalogDistribution(doubleArrayOf(a1, a2), lowerBound, upperBound, name),
+    RVParametersTypeIfc by RVType.Metalog2P {
 
     /**
      *  The location coefficient.
@@ -59,5 +65,12 @@ class Metalog2P(
 
     override fun instance(): Metalog2P {
         return Metalog2P(a1, a2, lowerBound, upperBound, name)
+    }
+
+    override fun randomVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): Metalog2PRV {
+        return Metalog2PRV(a1, a2, lowerBound, upperBound, streamNumber, streamProvider)
     }
 }

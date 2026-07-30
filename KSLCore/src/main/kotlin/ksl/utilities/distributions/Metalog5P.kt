@@ -18,6 +18,11 @@
 
 package ksl.utilities.distributions
 
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.Metalog5PRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
+
 /**
  *  A five-term metalog distribution.
  *
@@ -44,7 +49,8 @@ class Metalog5P(
     lowerBound: Double = Double.NEGATIVE_INFINITY,
     upperBound: Double = Double.POSITIVE_INFINITY,
     name: String? = null
-) : MetalogDistribution(doubleArrayOf(a1, a2, a3, a4, a5), lowerBound, upperBound, name) {
+) : MetalogDistribution(doubleArrayOf(a1, a2, a3, a4, a5), lowerBound, upperBound, name),
+    RVParametersTypeIfc by RVType.Metalog5P {
 
     /**
      *  The location coefficient.
@@ -83,5 +89,12 @@ class Metalog5P(
 
     override fun instance(): Metalog5P {
         return Metalog5P(a1, a2, a3, a4, a5, lowerBound, upperBound, name)
+    }
+
+    override fun randomVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): Metalog5PRV {
+        return Metalog5PRV(a1, a2, a3, a4, a5, lowerBound, upperBound, streamNumber, streamProvider)
     }
 }
