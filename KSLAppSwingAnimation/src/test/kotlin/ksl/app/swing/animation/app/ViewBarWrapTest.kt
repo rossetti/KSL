@@ -129,6 +129,39 @@ class ViewBarWrapTest {
     }
 
     @Test
+    @DisplayName("the Layout tab's document toolbar stays reachable when the window is narrow")
+    fun layoutToolbarSurvivesANarrowWindow() {
+        val ws = Files.createTempDirectory(tempRoot, "anim-layout-wrap")
+        val c = AnimationAppController("Anim", builder).apply { workspaceOverride = ws }
+        try {
+            val lost = onEdt {
+                val panel = LayoutPanel(c)
+                val host = JPanel(java.awt.BorderLayout()).apply {
+                    add(panel, java.awt.BorderLayout.CENTER)
+                    size = Dimension(620, 800)
+                    preferredSize = size
+                }
+                host.doLayout()
+                repeat(2) { layOutDeeply(host) }
+                buttons(panel)
+                    .filter { it.text in LAYOUT_DOCUMENT_ACTIONS }
+                    .filterNot { b ->
+                        val parent = b.parent
+                        parent != null && b.width > 0 && b.height > 0 && b.x >= 0 && b.y >= 0 &&
+                            b.x + b.width <= parent.width && b.y + b.height <= parent.height
+                    }
+                    .map { it.text }
+            }
+            assertTrue(
+                lost.isEmpty(),
+                "these Layout-tab actions fall outside their row at 620px wide and cannot be clicked: $lost.\n" +
+                    "This row gained an eighth button (Shipped); a FlowLayout in a BorderLayout region " +
+                    "reports one row and draws the rest out of bounds."
+            )
+        } finally { onEdt { c.close() }; ws.toFile().deleteRecursively() }
+    }
+
+    @Test
     @DisplayName("navigating the view is a separate row from choosing what is drawn")
     fun navigationAndOverlaysAreNotMixed() {
         val ws = Files.createTempDirectory(tempRoot, "anim-rows")
@@ -162,5 +195,17 @@ class ViewBarWrapTest {
     private companion object {
         /** The controls that get a lost view back — the ones whose disappearance is unrecoverable. */
         val VIEW_CONTROLS = setOf("Zoom +", "Zoom −", "Fit")
+
+        /**
+         * The Layout tab's document row, in full — the one the shipped-layout button joined, making it
+         * eight wide.
+         *
+         * Every button, not a chosen few. The first version of this listed the five leftmost, which are the
+         * five that stay on row one; the three that actually get pushed off — Save, Save As… and Elements —
+         * were the ones omitted, so the test passed over the bug it was written for.
+         */
+        val LAYOUT_DOCUMENT_ACTIONS = setOf(
+            "New (blank)", "Auto Layout", "from Model", "Shipped", "Open…", "Save", "Save As…", "⊞ Elements…"
+        )
     }
 }

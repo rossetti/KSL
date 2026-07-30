@@ -101,6 +101,17 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     private val armedButtonBorder = BorderFactory.createLineBorder(java.awt.Color(0x1A73E8), 2)
 
     /** The per-kind element tables + styling tabs (populates [editors]); hosted in the Elements dialog (10.3). */
+    /**
+     * Held as a field, not built inline, because its enabled state depends on the open model rather than on
+     * anything constant: a layout only ships for a model opened from a bundle that has one.
+     *
+     * Declared **here**, above the init block, and not next to buildToolbar where it is used. Kotlin
+     * initialises properties in declaration order, so a field declared further down the file is still null
+     * when the constructor calls buildToolbar -- which is exactly how the first attempt at this failed, with
+     * an NPE on setToolTipText and no hint that ordering was the cause.
+     */
+    private val shippedButton = JButton("Shipped")
+
     private val editorTabs: JComponent = buildEditorTabs()
     private var elementsDialog: javax.swing.JDialog? = null
 
@@ -1682,7 +1693,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     // ── Document toolbar ────────────────────────────────────────────────────────
 
-    private fun buildToolbar(): JComponent = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+    private fun buildToolbar(): JComponent = JPanel(WrapLayout(FlowLayout.LEFT)).apply {
         border = BorderFactory.createTitledBorder("Layout")
         add(JButton("New (blank)").apply {
             toolTipText = "Start an empty layout and place elements yourself"
@@ -1696,6 +1707,20 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         add(JButton("from Model").apply {
             toolTipText = "Generate a layout from the static model only (ignore any run)"
             addActionListener { controller.scaffoldLayout(); afterEdit() }
+        })
+        // The polished layout that ships with this model, when its bundle has one.
+        //
+        // This existed only in the window's Layout MENU, which on macOS is the screen menu bar. The same
+        // seven actions sit here as buttons, so a reader looking at the Layout tab reasonably concluded the
+        // feature had not shipped: it was reachable, and unfindable. Enabled state is synced in refreshAll,
+        // which already runs whenever the open layout changes.
+        add(shippedButton.apply {
+            toolTipText = "Open the polished layout that ships with this model, as a new unsaved document"
+            // Settled here as well as in refreshAll: that runs from a StateFlow collect on the EDT scope,
+            // so it is asynchronous, and a button defaults to enabled. Without this the control is briefly
+            // clickable and inert on every open.
+            isEnabled = controller.shippedLayout() != null
+            addActionListener { controller.useShippedLayout(); afterEdit() }
         })
         add(JButton("Open…").apply { toolTipText = "Open a saved layout (.lay.toml / .lay.json)"; addActionListener { onOpen() } })
         add(JButton("Save").apply { toolTipText = "Save to the current layout file (or prompt if none yet)"; addActionListener { onSave() } })
@@ -2478,6 +2503,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
 
     /** Repaints lists, the canvas-size fields, the validation strip, and the preview from the active layout. */
     private fun refreshAll() {
+        // Offered only when this model's bundle ships a layout, for the same reason the menu item is: a
+        // layout names one model's queues and resources and is meaningless for any other.
+        shippedButton.isEnabled = controller.shippedLayout() != null
         val layout = controller.layout.value
         editors.forEach { it.refresh() }
         if (layout != null) {
@@ -2543,6 +2571,11 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     // ── Test hooks (headless smoke test) ──────────────────────────────────────────
 
     /** Inventory names offered for [kind] across its tab(s). */
+    /** The Shipped-layout button as a user meets it: label and whether it can be clicked. */
+    internal fun shippedButtonForTest(): Pair<String, Boolean> = shippedButton.text to shippedButton.isEnabled
+
+    internal fun clickShippedForTest() = shippedButton.doClick()
+
     internal fun namesShownForTest(kind: ElementKind): List<String> =
         editors.filter { it.kind == kind }.flatMap { it.names }
 
