@@ -762,6 +762,11 @@ class PDFModeler(
          *  These are deliberately not part of allEstimators. Adding twenty estimators to the
          *  default set would change the recommended distribution for data that existing callers
          *  already fit, so the family is opted into explicitly until it has seen more use.
+         *
+         *  When scoring this set, read the winning *distribution* rather than the winning arity.
+         *  The twenty candidates overlap heavily, so several of them typically fit any given
+         *  sample equally well and which one is ranked first is largely arbitrary. See the
+         *  discussion under [MetalogParameterEstimator].
          */
         val metalogEstimators: Set<ParameterEstimatorIfc>
             get() = MetalogParameterEstimator.allEstimators()

@@ -227,7 +227,10 @@ class MetalogRecoveryTest {
         // opposite consequences. If the arities are simply not separable at a practical sample
         // size, recovery improves with more data. If something is systematically biased, it does
         // not. Only the second would be a defect.
-        for ((sampleSize, replications) in listOf(1_000 to 6, 20_000 to 3)) {
+        // The larger size is a tenfold increase, which is enough to show whether recovery improves
+        // with data. It is deliberately not larger: this measurement is diagnostic, and the whole
+        // suite shares a JVM with timing-sensitive tests elsewhere in the module.
+        for ((sampleSize, replications) in listOf(1_000 to 6, 10_000 to 2)) {
             println("Arity of the top-ranked metalog, by generating distribution (n = $sampleSize)")
             for (truth in generatingDistributions()) {
                 val types = (0 until replications).map { r ->

@@ -93,7 +93,11 @@ class MetalogRVTest {
 
     @Test
     fun resettingTheStreamRepeatsTheSequence() {
-        val rv = Metalog3PRV(1.0, 2.0, 0.3, streamNum = 13)
+        // On its own provider deliberately. This test compares a sequence against itself after a
+        // reset, so it is sensitive to where the stream started. Drawn from the shared default
+        // provider it would depend on whether any earlier test in the same JVM had advanced that
+        // stream, which several do indirectly through bootstrapping inside the fitting code.
+        val rv = Metalog3PRV(1.0, 2.0, 0.3, streamNum = 13, streamProvider = RNStreamProvider())
         val first = DoubleArray(30) { rv.value }
         rv.resetStartStream()
         val second = DoubleArray(30) { rv.value }
@@ -102,7 +106,8 @@ class MetalogRVTest {
 
     @Test
     fun antitheticSamplingMirrorsTheStream() {
-        val rv = Metalog3PRV(1.0, 2.0, 0.3, streamNum = 17)
+        // Its own provider, for the same reason as the reset test above.
+        val rv = Metalog3PRV(1.0, 2.0, 0.3, streamNum = 17, streamProvider = RNStreamProvider())
         val direct = DoubleArray(25) { rv.value }
         rv.resetStartStream()
         rv.antithetic = true
@@ -170,11 +175,22 @@ class MetalogRVTest {
 
     @Test
     fun theDistributionHandsBackTheMatchingRandomVariableType() {
-        assertTrue(Metalog2P(0.0, 1.0).randomVariable(1) is Metalog2PRV)
-        assertTrue(Metalog3P(0.0, 1.0, 0.1).randomVariable(1) is Metalog3PRV)
-        assertTrue(Metalog4P(0.0, 1.0, 0.1, 0.2).randomVariable(1) is Metalog4PRV)
-        assertTrue(Metalog5P(0.0, 1.0, 0.1, 0.2, 0.0).randomVariable(1) is Metalog5PRV)
-        assertTrue(Metalog6P(0.0, 1.0, 0.1, 0.2, 0.0, 0.0).randomVariable(1) is Metalog6PRV)
+        // Reached through the interface deliberately. Each concrete distribution narrows the
+        // return type of randomVariable to its own random variable class, so calling it on the
+        // concrete type makes these checks true at compile time and they would prove nothing.
+        // A caller holding the interface is the case that matters, and there the type is only
+        // known at run time.
+        val cases = listOf<Pair<GetRVariableIfc, kotlin.reflect.KClass<*>>>(
+            Metalog2P(0.0, 1.0) to Metalog2PRV::class,
+            Metalog3P(0.0, 1.0, 0.1) to Metalog3PRV::class,
+            Metalog4P(0.0, 1.0, 0.1, 0.2) to Metalog4PRV::class,
+            Metalog5P(0.0, 1.0, 0.1, 0.2, 0.0) to Metalog5PRV::class,
+            Metalog6P(0.0, 1.0, 0.1, 0.2, 0.0, 0.0) to Metalog6PRV::class,
+        )
+        for ((distribution, expected) in cases) {
+            val rv = distribution.randomVariable(1)
+            assertEquals(expected, rv::class, "$distribution handed back a ${rv::class.simpleName}")
+        }
     }
 
     @Test

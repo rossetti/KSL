@@ -19,8 +19,10 @@
 package ksl.examples.general.utilities.fitting
 
 import ksl.app.dist.catalog.FittingCatalog
+import ksl.utilities.distributions.Metalog4P
 import ksl.utilities.distributions.MetalogBoundedness
 import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.ScoringResult
 import ksl.utilities.distributions.fitting.estimators.MetalogParameterEstimator
@@ -53,6 +55,8 @@ fun main() {
     compareAgainstTheClassicalFamilies(data)
     println()
     sampleFromTheFittedDistribution(data)
+    println()
+    whatTheWinningArityDoesAndDoesNotTellYou()
 }
 
 /**
@@ -202,6 +206,85 @@ private fun sampleFromTheFittedDistribution(data: DoubleArray) {
     println("Moments up to order 2 are reliable: ${fitted.momentsAreReliable(order = 2)}")
     println("  mean     = ${fitted.mean()}")
     println("  variance = ${fitted.variance()}")
+}
+
+/**
+ *  What a metalog fit does and does not establish.
+ *
+ *  This one is worth running before trusting a metalog fitting report. Data is generated from a
+ *  metalog whose parameters are known exactly, the whole family is fitted to it, and the result is
+ *  compared against the truth in two different ways: how close the fitted *distribution* is, and
+ *  whether the fitted *arity and boundedness* are the ones that generated the data.
+ *
+ *  The two answers are very different, and knowing which is which keeps a report from being
+ *  over-read.
+ */
+private fun whatTheWinningArityDoesAndDoesNotTellYou() {
+    println("Fitting data whose true distribution is known")
+    println("=".repeat(70))
+
+    // The generating distribution. Nothing about it is hidden from the fit; the point is to see
+    // what the fit can and cannot tell us about it.
+    val truth = Metalog4P(a1 = 10.0, a2 = 2.0, a3 = 0.6, a4 = 1.5)
+    println("generating distribution: $truth")
+    println()
+
+    val provider = RNStreamProvider()
+    println("       n   KS distance   terms  boundedness    fitted coefficients")
+    for ((index, size) in listOf(200, 1_000, 5_000, 25_000).withIndex()) {
+        val rv = truth.randomVariable(streamNumber = 11 + index, streamProvider = provider)
+        val data = DoubleArray(size) { rv.value }
+        val results = PDFModeler(data)
+            .estimateAndEvaluateScores(PDFModeler.metalogEstimators, automaticShifting = false)
+        val fitted = results.topResultByScore.distribution as MetalogDistribution
+        val distance = kolmogorovDistance(fitted, truth)
+        println("  %6d %10.4f %7d  %-13s  %s".format(
+            size, distance, fitted.numTerms, fitted.boundedness,
+            fitted.coefficients().joinToString { "%.3f".format(it) }))
+    }
+
+    println()
+    println(
+        """
+        Two different things are happening in those columns.
+
+        The Kolmogorov distance shrinks as the sample grows. That is the fit recovering the
+        distribution, and it is the part to rely on. At a thousand observations a distance of
+        roughly 0.02 is already inside the sampling noise of the data itself, meaning the fitted
+        distribution is not distinguishable from the true one by the data that produced it.
+
+        The last two columns are not converging on 4 and Unbounded, and they will not. The arities
+        nest: a four-term metalog whose fourth coefficient is small is nearly a three-term metalog,
+        and no amount of data separates them. An unbounded metalog and a lower-bounded one whose
+        bound sits far from the data agree everywhere the data lives. So several candidates fit any
+        given sample equally well, and which of them is ranked first is close to arbitrary.
+
+        The coefficients make the same point from the other direction. One of the rows above
+        happened to be won by an unbounded four-term fit, and its coefficients came back close to
+        the generating ones. That is not a result to count on, and the rows around it show why: a
+        larger sample produced a closer fit whose coefficients resemble the truth not at all.
+        Coefficients are only comparable between fits of the same boundedness, because each member
+        of the family works in its own fitting space. An unbounded metalog's coefficients are in
+        the units of the data; a lower-bounded one's are in the units of the logarithm of the data
+        above its bound. Comparing the two directly is meaningless.
+
+        The practical rule: read the fitted distribution, not the label it arrives under. A report
+        saying a six-term lower-bounded metalog won is not evidence that the data came from one. If
+        the number of terms itself matters to you, fix it rather than letting the ranking choose,
+        by fitting a single estimator of the arity you want.
+        """.trimIndent()
+    )
+}
+
+/** The largest gap in probability between two distributions, on a grid of the second one's quantiles. */
+private fun kolmogorovDistance(fitted: MetalogDistribution, truth: MetalogDistribution): Double {
+    var largest = 0.0
+    var p = 0.005
+    while (p < 1.0) {
+        largest = maxOf(largest, kotlin.math.abs(fitted.cdf(truth.invCDF(p)) - p))
+        p += 0.005
+    }
+    return largest
 }
 
 private fun printRanking(results: List<ScoringResult>) {

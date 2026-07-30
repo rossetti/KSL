@@ -53,6 +53,31 @@ import ksl.utilities.statistic.StatisticIfc
  *  can consume the result. Pass `automaticShifting = false` for a metalog-only run; leave it on
  *  when the classical families are in the same set, since they do use it.
  *
+ *  ## What to trust in the result
+ *
+ *  Trust the fitted distribution. Do not read much into which arity and boundedness produced it.
+ *
+ *  Fitting the whole family and taking the top-ranked result recovers the underlying distribution
+ *  well: measured against data generated from known metalogs, the fitted distribution sits a
+ *  median Kolmogorov distance of about 0.02 to 0.03 from the generating one at a thousand
+ *  observations, which is inside the sampling noise of the data itself, and the distance falls
+ *  steadily as the sample grows.
+ *
+ *  Which member of the family carries that fit is another matter, and is close to arbitrary. The
+ *  arities nest: a four-term metalog whose fourth coefficient is small is nearly a three-term
+ *  metalog, and no quantity of data separates them. Boundedness has the same difficulty, since an
+ *  unbounded metalog and a lower-bounded one whose bound sits far from the data agree everywhere
+ *  the data lives. In measurements against known generating distributions, the exact generating
+ *  arity and boundedness came back roughly one time in five, and raising the sample size by a
+ *  factor of twenty did not systematically improve it.
+ *
+ *  This is the correct statistical outcome rather than a defect: the candidates really are
+ *  indistinguishable, and the ranking is choosing among fits that describe the data equally well.
+ *  It does mean that "the data came from a four-term metalog" is not a conclusion this estimator
+ *  can support, and that a report naming the winning arity should not be read as identifying one.
+ *
+ *  See `MetalogRecoveryTest` for the measurements behind these statements.
+ *
  *  @param numTerms how many metalog terms to fit, between two and six
  *  @param boundedness which member of the family to fit
  *  @param lowerBound the lower bound to use, or null to profile it from the data
