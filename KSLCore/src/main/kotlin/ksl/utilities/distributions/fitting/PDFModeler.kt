@@ -756,6 +756,17 @@ class PDFModeler(
             )
 
         /**
+         *  Estimators for the metalog family, covering two through six terms across the unbounded,
+         *  semi-bounded and bounded members.
+         *
+         *  These are deliberately not part of allEstimators. Adding twenty estimators to the
+         *  default set would change the recommended distribution for data that existing callers
+         *  already fit, so the family is opted into explicitly until it has seen more use.
+         */
+        val metalogEstimators: Set<ParameterEstimatorIfc>
+            get() = MetalogParameterEstimator.allEstimators()
+
+        /**
          *  This set holds predefined scoring models for evaluating
          *  the distribution goodness of fit.
          */
