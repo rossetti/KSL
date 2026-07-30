@@ -6,7 +6,7 @@ numbering, so they are kept apart here:
 - **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.4`, `R1.3`, … The
   simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
 - **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
-  `0.3.1`, `0.3.0`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
+  `0.3.2`, `0.3.1`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
   [Suite releases](#suite-releases).
 
 A suite release does not imply a library release, or the reverse. The suite can gain an
@@ -17,8 +17,39 @@ application while KSLCore is untouched, which is exactly what 0.3.0 did.
 # Suite releases
 
 The installable applications, servers and `kslpkg`. Install or update with the one-liner
-in the [README](../README.md#installing-the-ksl-applications); an existing install
-updates in place with `ksl update`.
+in the [README](../README.md#installing-the-ksl-applications).
+
+`ksl update` is broken in 0.3.1 and earlier: it re-reads the manifest cached at install
+time, so it re-downloads the version you already have and reports success. Until 0.3.2,
+updating means re-running the installer — and because the broken updater is the thing that
+would have to run, existing installs need that one re-run to reach the fix.
+
+## 0.3.2 — `ksl update` actually updates
+
+*30 July 2026.* KSLCore is untouched by this release.
+
+**`ksl update` had never been able to change your version.** It read the copy of
+`manifest.json` cached when you installed, which names the release you already have — so it
+dutifully re-downloaded that, reinstalled it, printed *updated the whole suite*, and exited
+successfully. It now reads the published manifest, and falls back to the cached copy only
+when the network is unreachable, saying so rather than pretending.
+
+**Getting this fix needs one installer re-run.** The broken updater is the thing that would
+have to run, so it cannot deliver its own replacement. Re-run the one-liner in the
+[README](../README.md#installing-the-ksl-applications) once; `ksl update` works from then
+on.
+
+**Updates refresh the shipped examples again.** The updater extracted a hardcoded list of
+directories that still named `bundles/` — which stopped existing when the examples moved to
+`examples/` in 0.3.0 — and never mentioned `examples/` at all. So model bundles and polished
+layouts were never refreshed by an update, and `unzip`'s `caution: filename not matched`
+was the only sign. It now unpacks the whole payload the way the installer does, and a
+build-time check refuses to package a suite whose updater does not cover every directory it
+ships.
+
+**Also:** an update verifies the download's `sha256` against the manifest, which the
+installer always did and the updater never did; and `ksl list` reports the version you are
+actually on, rather than the one you first installed.
 
 ## 0.3.1 — two things 0.3.0 shipped broken
 

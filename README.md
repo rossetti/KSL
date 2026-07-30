@@ -204,12 +204,21 @@ covers two things on separate cadences: the **library** (`KSLCore`, versioned R1
 and the installable **suite** of applications and servers (versioned 0.3.0, 0.2.0, …). A
 suite release does not imply a library release, or the reverse.
 
+**Suite 0.3.1** — fixes two things 0.3.0 shipped broken: the KSL Server could not find the
+shipped example bundles, and the polished layouts were reachable only from the menu bar.
+Auto Layout also lays a circular conveyor out as a loop rather than a straight line.
+
 **Suite 0.3.0** — animations replay in a browser through the same renderer the desktop
 application uses; *Export to HTML…* writes a single self-contained page that needs no
 install; fifteen polished layouts ship with the suite and are offered in the app; and the
 shipped examples moved into a visible `KSL/examples/` folder. See the
-[gallery](https://rossetti.github.io/KSL-Animations/). Update an existing install with
-`ksl update`, or re-run the installer.
+[gallery](https://rossetti.github.io/KSL-Animations/).
+
+**Updating an existing install:** re-run the installer one-liner above. `ksl update` is
+broken in 0.3.1 and earlier — it re-reads the manifest cached when you installed, so it
+re-downloads the version you already have and reports success. Suite 0.3.2 fixes it, but
+the fix cannot deliver itself: getting it needs one installer re-run, after which
+`ksl update` works normally.
 
 **R1.4:** a reorganization and packaging release. The `ksl.app.*` model-packaging /
 run infrastructure moved out of the published KSLCore into a new internal `KSLApp`
