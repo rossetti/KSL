@@ -28,11 +28,41 @@ SUPPORT="$KSL_HOME/.support"
 MANIFEST="$SUPPORT/manifest.json"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
+# Where the CURRENT release is described. $MANIFEST is the copy the installer cached, so it
+# describes the release you have — `list` wants that. `update` wants the release that exists
+# NOW, which only the published manifest knows. Reading $MANIFEST for both is why `ksl update`
+# re-downloaded the version you already had, every time, and reported success.
+# Same URL install.sh uses; keep them together.
+OWNER_REPO="rossetti/KSL"
+MANIFEST_URL="https://raw.githubusercontent.com/${OWNER_REPO}/main/manifest.json"
+
 say() { printf '%s\n' "$*"; }
 die() { printf 'ksl: %s\n' "$*" >&2; exit 1; }
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+sha256() { if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+           else sha256sum "$1" | awk '{print $1}'; fi; }
+suite_version_of() { sed -n 's/^[[:space:]]*"suite":.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -1; }
 
 [ -f "$MANIFEST" ] || die "no manifest at $MANIFEST — run this as an installed <KSL_HOME>/bin/ksl"
+
+# The manifest `update` acts on: the published one, or the cached one if we cannot reach the
+# network. Falling back is right -- --from installs from a local zip and must work offline --
+# but it is announced, because a silent fallback is indistinguishable from an up-to-date install.
+UPDATE_MANIFEST=""
+update_manifest() {
+  if [ -z "$UPDATE_MANIFEST" ]; then
+    if [ -n "${FROM:-}" ]; then
+      UPDATE_MANIFEST="$MANIFEST"
+    elif curl -fsSL "$MANIFEST_URL" -o "$TMP/manifest.json" 2>/dev/null && [ -s "$TMP/manifest.json" ]; then
+      UPDATE_MANIFEST="$TMP/manifest.json"
+    else
+      say "could not reach $MANIFEST_URL — falling back to the manifest cached at install time," >&2
+      say "so this can only reinstall $(suite_version_of "$MANIFEST"). Check your connection to get anything newer." >&2
+      UPDATE_MANIFEST="$MANIFEST"
+    fi
+  fi
+  printf '%s\n' "$UPDATE_MANIFEST"
+}
 
 # catalog: one "id<TAB>kind<TAB>path<TAB>entry<TAB>launcher<TAB>display" line per item
 # object in manifest.json. Paths (Apps/Single, Servers/mcp, …) are relative to $SUPPORT.
@@ -77,13 +107,40 @@ entry_args_for() {
 FROM=""
 suite_zip() {
   if [ -n "$FROM" ]; then [ -f "$FROM" ] || die "--from: no such file: $FROM"; printf '%s\n' "$FROM"; return; fi
-  local url; url="$(sed -n 's/.*"asset"[^"]*"\([^"]*ksl-suite\.zip\)".*/\1/p' "$MANIFEST" | head -1)"
+  local mf; mf="$(update_manifest)"
+  local url sha
+  url="$(sed -n 's/.*"asset"[^"]*"\([^"]*ksl-suite\.zip\)".*/\1/p' "$mf" | head -1)"
+  sha="$(sed -n 's/.*"sha256"[^"]*"\([0-9a-f]\{64\}\)".*/\1/p' "$mf" | head -1)"
   [ -n "$url" ] || die "no suite URL in manifest and no --from given (publish a release first)"
   printf 'downloading %s ...\n' "$url" >&2
   curl -fSL "$url" -o "$TMP/ksl-suite.zip" >&2 || die "download failed"
+  # The installer verifies this and the updater did not, so a truncated or tampered 151 MB
+  # download installed silently. Same check, same message.
+  if [ -n "$sha" ]; then
+    local got; got="$(sha256 "$TMP/ksl-suite.zip")"
+    [ "$got" = "$sha" ] || die "sha256 mismatch (expected $sha, got $got)"
+    printf 'sha256 verified\n' >&2
+  fi
   printf '%s\n' "$TMP/ksl-suite.zip"
 }
 dequarantine() { [ "$(uname)" = "Darwin" ] && xattr -dr com.apple.quarantine "$@" >/dev/null 2>&1 || true; }
+
+# What `ksl list` reports. install.sh writes this at install time and nothing rewrote it
+# afterwards, so the version shown was whatever you FIRST installed. Same fields the installer
+# writes, so the two agree whichever one last ran.
+write_versions_file() {
+  local java="java"
+  [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ] && java="$JAVA_HOME/bin/java"
+  {
+    printf 'KSL suite updated %s\n' "$(date)"
+    printf 'software: %s\n' "$KSL_HOME"
+    local v; v="$(suite_version_of "$MANIFEST")"
+    [ -n "$v" ] && printf 'version: %s\n' "$v"
+    printf 'java:    %s\n' "$("$java" -version 2>&1 | head -1)"
+    printf 'apps:    %s\n' "$(ls "$SUPPORT/Apps" 2>/dev/null | tr '\n' ' ')"
+    printf 'servers: %s\n' "$(ls "$SUPPORT/Servers" 2>/dev/null | tr '\n' ' ')"
+  } > "$SUPPORT/VERSIONS.txt"
+}
 
 set_plist_string() {
   local plist="$1" key="$2" value="$3"
@@ -346,17 +403,40 @@ cmd_install() {
 cmd_update() {
   local zip; zip="$(suite_zip)"
   if [ -z "${1:-}" ]; then
-    unzip -q -o "$zip" 'lib/*' 'Apps/*' 'Servers/*' 'Tools/*' 'bundles/*' -d "$SUPPORT"
+    # Extract EVERYTHING, exactly as install.sh does, then relocate the two things that do not
+    # live under .support. The old code named the top-level directories one by one -- and named
+    # 'bundles/*', which stopped existing when the shipped examples moved to examples/ in 0.3.0.
+    # So an update extracted a directory that was not there and skipped the one that was: the
+    # bundles and polished layouts were never refreshed, and unzip's "filename not matched"
+    # caution was the only sign. A list that must be kept in step with the payload will drift
+    # again; not having one cannot.
+    unzip -q -o "$zip" -d "$SUPPORT"
     # Replace this very script by rename, never by overwrite: bash reads a script
     # incrementally, so truncating it mid-run corrupts execution. `mv` swaps the
     # directory entry and leaves the running process on the old inode.
-    if unzip -q -o "$zip" 'bin/ksl' -d "$TMP" 2>/dev/null && [ -f "$TMP/bin/ksl" ]; then
-      chmod +x "$TMP/bin/ksl"
-      mv -f "$TMP/bin/ksl" "$KSL_HOME/bin/ksl"
+    if [ -f "$SUPPORT/bin/ksl" ]; then
+      chmod +x "$SUPPORT/bin/ksl"
+      mv -f "$SUPPORT/bin/ksl" "$KSL_HOME/bin/ksl"
     fi
+    [ -f "$SUPPORT/bin/ksl.ps1" ] && mv -f "$SUPPORT/bin/ksl.ps1" "$KSL_HOME/bin/ksl.ps1"
+    [ -f "$SUPPORT/bin/ksl.cmd" ] && mv -f "$SUPPORT/bin/ksl.cmd" "$KSL_HOME/bin/ksl.cmd"
+    rm -rf "$SUPPORT/bin"
+    # Content, not plumbing -- and owned by the installer, so an update replaces it wholesale.
+    # Same placement install.sh gives it.
+    if [ -d "$SUPPORT/examples" ]; then
+      rm -rf "$KSL_HOME/examples"
+      mv -f "$SUPPORT/examples" "$KSL_HOME/examples"
+    fi
+    # Adopt the manifest we just updated to, BEFORE refreshing: cmd_refresh reads the catalog,
+    # and a release that adds an app must have it appear here.
+    local mf; mf="$(update_manifest)"
+    [ "$mf" = "$MANIFEST" ] || cp -f "$mf" "$MANIFEST"
     dequarantine "$SUPPORT"
     cmd_refresh
-    say "updated the whole suite (your workspace was not touched)"
+    # Nothing rewrote this after install, so `ksl list` reported the version you first installed
+    # no matter how many times you updated.
+    write_versions_file
+    say "updated the whole suite to $(suite_version_of "$MANIFEST") (your workspace was not touched)"
   else
     local path; path="$(path_of "$1")"; [ -n "$path" ] || die "unknown id: $1"
     unzip -q -o "$zip" "$path/*" -d "$SUPPORT"; dequarantine "$SUPPORT/$path"

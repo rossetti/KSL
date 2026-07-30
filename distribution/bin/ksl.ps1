@@ -28,9 +28,37 @@ $kslHome  = Split-Path -Parent $PSScriptRoot        # bin\ksl.ps1 -> KSL_HOME
 $support  = Join-Path $kslHome ".support"
 $manifest = Join-Path $support "manifest.json"
 
+# Where the CURRENT release is described. $manifest is the copy the installer cached, so it
+# describes the release you have - `list` wants that. `update` wants the release that exists
+# NOW, which only the published manifest knows. Reading $manifest for both is why `ksl update`
+# re-downloaded the version you already had, every time, and reported success.
+# Same URL install.ps1 uses; keep them together.
+$ownerRepo   = "rossetti/KSL"
+$manifestUrl = "https://raw.githubusercontent.com/$ownerRepo/main/manifest.json"
+
 function Say([string]$m) { Write-Host $m }
 function Die([string]$m) { Write-Host "ksl: $m"; exit 1 }
 if (-not (Test-Path $manifest)) { Die "no manifest at $manifest - run this as an installed <KSL_HOME>\bin\ksl" }
+
+# The manifest `update` acts on: the published one, or the cached one if we cannot reach the
+# network. Falling back is right -- --from installs from a local zip and must work offline --
+# but it is announced, because a silent fallback is indistinguishable from an up-to-date install.
+$script:updateManifest = ""
+function UpdateManifest {
+    if ($script:updateManifest) { return $script:updateManifest }
+    if ($From) { $script:updateManifest = $manifest; return $script:updateManifest }
+    $dest = Join-Path ([System.IO.Path]::GetTempPath()) ("ksl-manifest-" + [System.IO.Path]::GetRandomFileName() + ".json")
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri $manifestUrl -OutFile $dest -ErrorAction Stop
+        $script:updateManifest = $dest
+    } catch {
+        $have = (Get-Content $manifest -Raw | ConvertFrom-Json).suite.version
+        Say "could not reach $manifestUrl - falling back to the manifest cached at install time,"
+        Say "so this can only reinstall $have. Check your connection to get anything newer."
+        $script:updateManifest = $manifest
+    }
+    return $script:updateManifest
+}
 
 # catalog straight from the manifest - paths are relative to .support\
 $items = @((Get-Content $manifest -Raw | ConvertFrom-Json).items)
@@ -71,21 +99,32 @@ function SuiteZip {
         if (-not (Test-Path $From)) { Die "--from: no such file: $From" }
         return (Resolve-Path $From).Path
     }
-    $url = (Get-Content $manifest -Raw | ConvertFrom-Json).suite.asset
+    $suite = (Get-Content (UpdateManifest) -Raw | ConvertFrom-Json).suite
+    $url = $suite.asset
     if (-not $url) { Die "no suite URL in manifest and no --from given (publish a release first)" }
     $dl = Join-Path ([System.IO.Path]::GetTempPath()) ("ksl-suite-" + [System.IO.Path]::GetRandomFileName() + ".zip")
     Write-Host "downloading $url ..."
     Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $dl
+    # The installer verifies this and the updater did not, so a truncated or tampered 151 MB
+    # download installed silently. Same check, same message.
+    if ($suite.sha256) {
+        $got = (Get-FileHash -Algorithm SHA256 -Path $dl).Hash.ToLower()
+        if ($got -ne $suite.sha256.ToLower()) { Die "sha256 mismatch (expected $($suite.sha256), got $got)" }
+        Write-Host "sha256 verified"
+    }
     return $dl
 }
-# extract only this item's entries into .support -- the analog of `unzip "<path>/*"`
-function ExtractItem([string]$zip, [string]$path) {
+# extract only this item's entries -- the analog of `unzip "<path>/*"`. $root defaults to
+# .support, where nearly everything lives; examples\ passes $kslHome because it sits beside
+# the apps where a student can find it.
+function ExtractItem([string]$zip, [string]$path, [string]$root = $null) {
+    if (-not $root) { $root = $support }
     $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
     try {
         foreach ($e in $za.Entries) {
             if ($e.FullName -notlike "$path/*") { continue }
             if ([string]::IsNullOrEmpty($e.Name)) { continue }   # skip directory entries
-            $dest = Join-Path $support ($e.FullName -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+            $dest = Join-Path $root ($e.FullName -replace '/', [System.IO.Path]::DirectorySeparatorChar)
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
             try {
                 [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
@@ -196,6 +235,26 @@ function CmdRefresh {
     else { Say "refreshed $n entry point(s)" }
 }
 
+# What `ksl list` reports. install.ps1 writes this at install time and nothing rewrote it
+# afterwards, so the version shown was whatever you FIRST installed. Same fields the installer
+# writes, so the two agree whichever one last ran.
+function WriteVersionsFile {
+    $ver = ""
+    try { $ver = (Get-Content $manifest -Raw | ConvertFrom-Json).suite.version } catch {}
+    $vline = ""
+    try { $vline = (& java -version 2>&1 | Select-Object -First 1) } catch {}
+    $apps    = (Get-ChildItem -Directory (Join-Path $support "Apps")    -ErrorAction SilentlyContinue | ForEach-Object Name) -join " "
+    $servers = (Get-ChildItem -Directory (Join-Path $support "Servers") -ErrorAction SilentlyContinue | ForEach-Object Name) -join " "
+    @(
+        "KSL suite updated $(Get-Date)"
+        "software: $kslHome"
+        $(if ($ver) { "version: $ver" })
+        "java:    $vline"
+        "apps:    $apps"
+        "servers: $servers"
+    ) | Where-Object { $_ } | Set-Content -Path (Join-Path $support "VERSIONS.txt")
+}
+
 function CmdList {
     Say "KSL software: $kslHome"
     $v = Join-Path $support "VERSIONS.txt"
@@ -293,7 +352,14 @@ function CmdInstall([string]$id) {
 function CmdUpdate([string]$id) {
     $zip = SuiteZip
     if (-not $id) {
-        foreach ($top in @("lib", "Apps", "Servers", "Tools", "bundles")) { ExtractItem $zip $top }
+        # 'bundles' stopped existing when the shipped examples moved to examples\ in 0.3.0, so an
+        # update extracted a directory that was not there and skipped the one that was: the model
+        # bundles and polished layouts were never refreshed. examples\ goes to $kslHome, not
+        # .support -- it is content a student opens, not plumbing.
+        foreach ($top in @("lib", "Apps", "Servers", "Tools")) { ExtractItem $zip $top }
+        $exDir = Join-Path $kslHome "examples"
+        if (Test-Path $exDir) { Remove-Item -Recurse -Force $exDir -ErrorAction SilentlyContinue }
+        ExtractItem $zip "examples" $kslHome
         # Replace this very script by rename, never by overwrite -- PowerShell may still
         # be reading it. Move-Item swaps the entry and leaves the running process alone.
         $t = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
@@ -309,9 +375,17 @@ function CmdUpdate([string]$id) {
                 }
             } finally { $za.Dispose() }
         } finally { Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue }
+        # Adopt the manifest we just updated to, BEFORE refreshing: the catalog drives which entry
+        # points get made, and a release that adds an app must have it appear here. $items was read
+        # at start-up from the old manifest, so it is re-read too.
+        $mf = UpdateManifest
+        if ($mf -ne $manifest) { Copy-Item -Force $mf $manifest }
+        $script:items = @((Get-Content $manifest -Raw | ConvertFrom-Json).items)
         Dequarantine $support
         CmdRefresh
-        Say "updated the whole suite (your workspace was not touched)"
+        WriteVersionsFile
+        $now = (Get-Content $manifest -Raw | ConvertFrom-Json).suite.version
+        Say "updated the whole suite to $now (your workspace was not touched)"
     } else {
         $p = PathOf $id
         if (-not $p) { Die "unknown id: $id" }

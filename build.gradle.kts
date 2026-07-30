@@ -493,6 +493,65 @@ val checkLauncherVariables by tasks.registering {
     }
 }
 
+val checkUpdaterCoverage by tasks.registering {
+    group = "verification"
+    description = "Assert `ksl update` accounts for every top-level directory the payload ships."
+    // The sibling of checkLauncherVariables, and it exists for the same reason: install.sh and bin/ksl
+    // are two implementations of "put the payload on disk", and only one of them gets updated when the
+    // payload changes. When the shipped examples moved out of .support/ in 0.3.0 the installer learned
+    // about examples/ and the updater did not, so `ksl update` refreshed neither the model bundles nor
+    // the polished layouts -- and said "updated the whole suite" regardless. A silent no-op is the worst
+    // failure mode there is, so it gets a build-time check rather than a comment.
+    dependsOn("assembleKSLWork")
+    val root = kslWorkDir
+    val ps1 = layout.projectDirectory.file("distribution/bin/ksl.ps1")
+    val sh = layout.projectDirectory.file("distribution/bin/ksl")
+    inputs.file(ps1)
+    inputs.file(sh)
+    doLast {
+        val dir = root.get().asFile
+        require(dir.isDirectory) { "no assembled payload at $dir — run assembleKSLWork first" }
+        val shipped = dir.listFiles()?.filter { it.isDirectory }?.map { it.name }?.sorted().orEmpty()
+        require(shipped.isNotEmpty()) { "assembled payload at $dir has no directories — assembly is broken" }
+
+        val problems = mutableListOf<String>()
+        // The bash updater extracts the whole zip and relocates, so it has no list to fall out of step
+        // with. Assert that stays true: a reintroduced allow-list is the bug, not a style choice.
+        val shText = sh.asFile.readText()
+        if (!Regex("""unzip\s+-q\s+-o\s+"\${'$'}zip"\s+-d""").containsMatchIn(shText)) {
+            problems += "distribution/bin/ksl: the whole-suite update no longer extracts the entire zip. " +
+                "If it has gone back to naming directories, every future payload change must remember to " +
+                "update that list."
+        }
+        // The PowerShell twin does need a list, because examples/ goes to a different root.
+        val ps1Text = ps1.asFile.readText()
+        // Deliberately not a bare `contains("name")`: the first version of this check was, and a
+        // stray mention of "examples" in an unrelated line was enough to satisfy it while the
+        // extraction had been removed. Look only at where extraction is actually decided --
+        // the foreach list, an explicit ExtractItem call, or a zip-entry glob like "bin/*".
+        val extractedNames = buildSet {
+            Regex("""foreach\s*\(\s*\$\w+\s+in\s+@\(([^)]*)\)\s*\)""").findAll(ps1Text).forEach { m ->
+                Regex("\"([^\"]+)\"").findAll(m.groupValues[1]).forEach { add(it.groupValues[1]) }
+            }
+            Regex("""ExtractItem\s+\$\w+\s+"([^"]+)"""").findAll(ps1Text).forEach { add(it.groupValues[1]) }
+            Regex(""""([A-Za-z0-9_.-]+)/\*"""").findAll(ps1Text).forEach { add(it.groupValues[1]) }
+        }
+        for (name in shipped) {
+            if (name !in extractedNames) {
+                problems += "distribution/bin/ksl.ps1: the payload ships $name/ but the updater never " +
+                    "mentions it, so `ksl update` will silently leave it stale"
+            }
+        }
+        if (problems.isNotEmpty()) {
+            throw GradleException(
+                "`ksl update` does not cover the payload it ships. The payload's top-level directories " +
+                    "are ${shipped.joinToString(", ")}:\n" + problems.joinToString("\n") { "  $it" }
+            )
+        }
+        logger.lifecycle("ksl update covers all ${shipped.size} shipped directories (${shipped.joinToString(", ")})")
+    }
+}
+
 tasks.register("assembleKSLWork") {
     group = "distribution"
     description = "Assemble the KSLWork payload (shared lib/ + thin app JARs + kslpkg + launchers) under build/kslwork"
@@ -685,6 +744,7 @@ tasks.register("assembleKSLWork") {
 // (harmless for the jars). Runs after assembleKSLWork and finalizes it, so one command emits both.
 tasks.register<Zip>("packageKSLWork") {
     dependsOn(checkLauncherVariables)
+    dependsOn(checkUpdaterCoverage)
     group = "distribution"
     description = "Zip the assembled KSLWork payload into build/ksl-suite.zip"
     dependsOn("assembleKSLWork")
