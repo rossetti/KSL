@@ -313,6 +313,11 @@ val serverLauncherTemplate = """
     # The suite's support root (<KSL_HOME>/.support once installed): the shared lib/ and the
     # server jars. The shipped examples sit beside it in a visible <KSL_HOME>/examples.
     KSL_SUPPORT="DOLLAR(cd "DOLLARDIR/../.." && pwd)"
+    # Same expression as the app launcher, and it must stay so: a server launcher sits at
+    # .support/Servers/<name>/, an app at .support/Apps/<Name>/, so both are two levels under the
+    # support root. This line was missing while the exec below already read DOLLARKSL_EXAMPLES, so
+    # every server resolved -Dksl.builtinBundles=/bundles and found no shipped bundles at all.
+    KSL_EXAMPLES="DOLLAR(cd "DOLLARKSL_SUPPORT/.." && pwd)/examples"
     # Pin cwd to our own dir: an agent may spawn us with an arbitrary/stale working directory.
     cd "DOLLARDIR"
     JAVA=java
@@ -434,6 +439,59 @@ val winServerGuiTemplate = """
 fun winServerGuiLauncher(name: String, exec: String, jvmArgs: String, dFlags: String = "") =
     (winServerGuiTemplate.replace("@NAME@", name).replace("@EXEC@", exec)
         .replace("@JVMARGS@", jvmArgs).replace("@DFLAGS@", dFlags)).replace("\n", "\r\n") + "\r\n"
+
+/*
+ * Fails the build if any generated launcher reads a shell variable it never sets.
+ *
+ * This exists because of a specific escape. When the shipped bundles moved from .support/bundles to a
+ * visible examples/, the app launcher template gained a KSL_EXAMPLES assignment and the SERVER template did
+ * not -- while both templates' exec lines already read it. Every server therefore ran with
+ * -Dksl.builtinBundles=/bundles, looked in the filesystem root, and reported no shipped bundles. Nothing
+ * failed: shell expands an unset variable to the empty string, the launcher started, and only a user
+ * wondering where the examples went would ever notice. The server template's own comment even described
+ * the examples folder correctly -- the intent was recorded and the code was not.
+ *
+ * Checks the ASSEMBLED launchers rather than the templates, because the launchers are what ship and the
+ * templates are three substitutions away from them.
+ */
+val checkLauncherVariables by tasks.registering {
+    group = "verification"
+    description = "Assert no generated launcher reads a KSL_* shell variable it never assigns."
+    // Reads the staged payload, so it must follow assembly. Wired into packageKSLWork below rather than
+    // into `check`: the payload is ~150 MB to stage and no ordinary check should pay for that, but no zip
+    // should ever be built without it.
+    dependsOn("assembleKSLWork")
+    val root = kslWorkDir
+    doLast {
+        val dir = root.get().asFile
+        require(dir.isDirectory) { "no assembled payload at $dir — run assembleKSLWork first" }
+        val referenced = Regex("""\$\{?(KSL_[A-Z_]+)""")
+        val problems = mutableListOf<String>()
+        dir.walkTopDown()
+            // The unix launchers: no extension, executable, and a shell shebang. The .cmd twins use
+            // literal relative paths and have no variables of this kind to get wrong.
+            .filter { it.isFile && it.extension.isEmpty() && it.canExecute() }
+            .forEach { script ->
+                val text = script.readText()
+                if (!text.startsWith("#!")) return@forEach
+                val used = referenced.findAll(text).map { it.groupValues[1] }.toSet()
+                for (name in used.sorted()) {
+                    // An assignment is `NAME=` at the start of a line, allowing leading whitespace.
+                    if (!Regex("""(?m)^\s*$name=""").containsMatchIn(text)) {
+                        problems += "${script.relativeTo(dir)}: reads \$$name but never assigns it"
+                    }
+                }
+            }
+        if (problems.isNotEmpty()) {
+            throw GradleException(
+                "Generated launcher(s) read a shell variable that is never set. Shell expands it to the " +
+                    "empty string, so the launcher runs and silently resolves the wrong path:\n" +
+                    problems.joinToString("\n") { "  $it" }
+            )
+        }
+        logger.lifecycle("launcher variables are all assigned where they are used")
+    }
+}
 
 tasks.register("assembleKSLWork") {
     group = "distribution"
@@ -626,6 +684,7 @@ tasks.register("assembleKSLWork") {
 // extension-less files) must survive as executable, so the archive entries are marked 0755
 // (harmless for the jars). Runs after assembleKSLWork and finalizes it, so one command emits both.
 tasks.register<Zip>("packageKSLWork") {
+    dependsOn(checkLauncherVariables)
     group = "distribution"
     description = "Zip the assembled KSLWork payload into build/ksl-suite.zip"
     dependsOn("assembleKSLWork")
