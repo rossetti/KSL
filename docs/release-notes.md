@@ -6,7 +6,7 @@ numbering, so they are kept apart here:
 - **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.4`, `R1.3`, … The
   simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
 - **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
-  `0.3.0`, `0.2.0`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
+  `0.3.1`, `0.3.0`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
   [Suite releases](#suite-releases).
 
 A suite release does not imply a library release, or the reverse. The suite can gain an
@@ -19,6 +19,31 @@ application while KSLCore is untouched, which is exactly what 0.3.0 did.
 The installable applications, servers and `kslpkg`. Install or update with the one-liner
 in the [README](../README.md#installing-the-ksl-applications); an existing install
 updates in place with `ksl update`.
+
+## 0.3.1 — two things 0.3.0 shipped broken
+
+*30 July 2026.* KSLCore is untouched by this release. Everyone on 0.3.0 should update; both
+fixes are for things 0.3.0 claimed to do and did not.
+
+**The KSL Server finds the shipped example bundles again.** Its generated launcher never
+set the variable it used to locate them, so it pointed at the filesystem root and the
+server started with no examples loaded. The application launchers were unaffected, which is
+why this survived testing. A build-time check now refuses to package a launcher that reads
+a variable nobody assigns.
+
+**The shipped layouts are reachable from the Layout tab.** *Use Shipped Layout* existed
+only in the window's Layout menu — on macOS, at the top of the screen rather than beside
+the work. The Layout tab now carries a **Shipped** button next to *from Model*, disabled
+when the open model's bundle ships no layout. The row also wraps when the window is narrow,
+which it previously did not: the last three actions were drawn outside their toolbar and
+could not be clicked.
+
+**Auto Layout draws a circular conveyor as a loop.** It used to place every belt on a
+straight line, so a closed circuit appeared to end at its last station and the segment
+completing the circuit was dropped entirely. On a loop the stations are now placed round a
+ring in cell order, which is a claim about the belt's topology and only a guess about your
+floor — polishing still moves things to where they physically are. Straight belts are
+unchanged.
 
 ## 0.3.0 — animations in a browser
 
