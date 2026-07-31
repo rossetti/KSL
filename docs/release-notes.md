@@ -124,6 +124,16 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+Cancelling a single design point or scenario is unreliable in R1.4 and earlier.
+`ParallelDesignedExperiment.cancelDesignPoint` reports success for a point that has
+already finished, and both it and `ConcurrentScenarioRunner.cancelScenario` discard a
+unit's results if the request arrives after that unit's replications complete — the run
+reports the unit as cancelled and commits nothing for it. Sweeps that never cancel are
+unaffected, which is why this went unnoticed: it needs a cancel to race a finish, so it
+shows up far more readily on a CPU-constrained machine than on a development one. Both
+defects are fixed in source. The applications get the fix in suite 0.3.3; the published
+library gets it in the next library release.
+
 ## R1.4
 
 A reorganization and optimization-hardening release: 100+ commits to KSLCore since R1.3.
