@@ -57,6 +57,58 @@ class ScenarioAppControllerTest {
     private fun fresh(appName: String = "TestApp"): ScenarioAppController =
         ScenarioAppController(appName).also { controller = it }
 
+    /**
+     *  Minimal [ksl.app.session.RunHandle] whose per-scenario cancel
+     *  answers with [accepts].  Everything else is unused by the
+     *  cancel path under test.
+     */
+    private class FakeRunHandle(private val accepts: Boolean) : ksl.app.session.RunHandle {
+        override val runId: String = "fake-run"
+        override val events: kotlinx.coroutines.flow.SharedFlow<ksl.app.session.RunEvent> =
+            kotlinx.coroutines.flow.MutableSharedFlow()
+        override val result: kotlinx.coroutines.Deferred<RunResult> =
+            kotlinx.coroutines.CompletableDeferred()
+        override fun cancel(reason: String) {}
+        override fun cancelScenario(scenarioName: String): Boolean = accepts
+    }
+
+    @Test
+    fun cancelScenarioRecordsIntentOnlyWhenTheSubstrateAcceptsIt() {
+        // A refused cancel — the scenario already finished its
+        // replications — must leave no trace.  A name left behind in
+        // explicitlyCancelled would make a later genuine failure of that
+        // same scenario report as CANCELLED instead of FAILED.
+        val refusing = fresh("RefusingApp")
+        refusing.seedRunStateForTesting(running = true, handle = FakeRunHandle(accepts = false))
+        assertFalse(
+            refusing.cancelScenario("AlreadyFinished"),
+            "controller must pass through the substrate's refusal"
+        )
+        assertTrue(
+            refusing.explicitlyCancelledForTesting().isEmpty(),
+            "a refused cancel must not record intent; got " +
+                "${refusing.explicitlyCancelledForTesting()}"
+        )
+        refusing.close()
+
+        val accepting = fresh("AcceptingApp")
+        accepting.seedRunStateForTesting(running = true, handle = FakeRunHandle(accepts = true))
+        assertTrue(accepting.cancelScenario("StillRunning"))
+        assertEquals(
+            setOf("StillRunning"),
+            accepting.explicitlyCancelledForTesting(),
+            "an accepted cancel must record intent so the null-snapshot " +
+                "completion is read as CANCELLED rather than FAILED"
+        )
+    }
+
+    @Test
+    fun cancelScenarioWithNoRunInFlightReturnsFalse() {
+        val c = fresh("NoRunApp")
+        assertFalse(c.cancelScenario("Anything"))
+        assertTrue(c.explicitlyCancelledForTesting().isEmpty())
+    }
+
     private fun spec(name: String, modelName: String = "MM1") = ScenarioSpec(
         name = name,
         modelReference = ModelReference.Embedded(modelName)

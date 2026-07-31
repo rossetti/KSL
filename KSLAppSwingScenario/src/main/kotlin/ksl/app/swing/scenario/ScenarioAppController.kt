@@ -524,16 +524,25 @@ class ScenarioAppController(
 
     /**
      *  Cancel a single scenario by name without stopping the rest of
-     *  the run.  No-op when no run is in flight or [name] doesn't
-     *  match a currently-running scenario.  Records the intent in
-     *  [explicitlyCancelled] so the resulting `ScenarioCompleted`
-     *  event with a null snapshot is interpreted as CANCELLED rather
-     *  than FAILED.
+     *  the run.  Returns `false` — changing nothing — when no run is in
+     *  flight, when [name] doesn't match a currently-running scenario,
+     *  or when that scenario's replications have already finished, in
+     *  which case its results are committed normally rather than
+     *  discarded.
+     *
+     *  Records the intent in [explicitlyCancelled] only once the
+     *  substrate confirms the cancel took effect, so the resulting
+     *  `ScenarioCompleted` event with a null snapshot is interpreted as
+     *  CANCELLED rather than FAILED.  Recording it unconditionally, as
+     *  this once did, left the name behind after a refused request — and
+     *  a later genuine failure of that same scenario would then have been
+     *  mislabelled CANCELLED for the rest of the run.
      */
     fun cancelScenario(name: String): Boolean {
         val handle = currentHandle ?: return false
-        explicitlyCancelled.add(name)
-        return handle.cancelScenario(name)
+        val cancelled = handle.cancelScenario(name)
+        if (cancelled) explicitlyCancelled.add(name)
+        return cancelled
     }
 
     /** `true` when in-memory state has been edited since the most
@@ -958,7 +967,8 @@ class ScenarioAppController(
         scenarioStatuses: Map<String, ScenarioStatus> = emptyMap(),
         replicationProgress: Map<String, Pair<Int, Int>> = emptyMap(),
         editedSinceLastSim: Boolean = false,
-        running: Boolean = false
+        running: Boolean = false,
+        handle: RunHandle? = null
     ) {
         runLifecycle.setLastResult(lastResult)
         myScenarioStatuses.value = scenarioStatuses
@@ -966,7 +976,14 @@ class ScenarioAppController(
         if (editedSinceLastSim) runLifecycle.markEdited()
         else runLifecycle.clearEditedSinceLastRun()
         myRunning.value = running
+        if (handle != null) currentHandle = handle
     }
+
+    /** Test seam — the names recorded by [cancelScenario].  Exposed so a
+     *  refused cancel can be shown not to pollute the CANCELLED-vs-FAILED
+     *  reconciliation.  Production code should not call this. */
+    internal fun explicitlyCancelledForTesting(): Set<String> =
+        explicitlyCancelled.toSet()
 
     /**
      *  Record that the current state has been persisted to [path].

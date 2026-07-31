@@ -938,15 +938,22 @@ class ExperimentAppController(
 
     /**
      *  Request cancellation of a single in-flight design point.  Has
-     *  no effect when no run is in progress, when the targeted point
-     *  has already completed, or when the current experiment isn't a
+     *  no effect — and leaves the point's status untouched — when no run
+     *  is in progress, when the current experiment isn't a
      *  [ParallelDesignedExperiment] (sequential designs don't support
-     *  per-point cancellation).
+     *  per-point cancellation), when the point has not been picked up by
+     *  the dispatcher yet, or when its replications have already
+     *  finished, in which case its results are committed normally rather
+     *  than discarded.
      *
-     *  Returns `true` when the request was forwarded to a matching
-     *  active per-point job; `false` otherwise.  Safe to call from
-     *  the EDT (or any thread); the underlying coroutine cancellation
-     *  is thread-safe.
+     *  Returns `true` only when the cancellation actually took effect.
+     *  Until the substrate's per-point state machine landed this could
+     *  return `true` for a point that had already finished, which flipped
+     *  a successful row to CANCELLING and then delivered its completion
+     *  anyway; the status write below relies on the answer being honest.
+     *
+     *  Safe to call from the EDT (or any thread); the underlying
+     *  coroutine cancellation is thread-safe.
      */
     fun cancelDesignPoint(pointId: Int): Boolean {
         val experiment = myExperimentInstance.value as? ParallelDesignedExperiment

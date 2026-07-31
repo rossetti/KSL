@@ -99,10 +99,12 @@ interface RunHandle {
      *  @param scenarioName matches the `ScenarioSpec.name` of the
      *    scenario to cancel.  Names that aren't currently running
      *    are silently ignored.
-     *  @return `true` when a running scenario was found and a
-     *    cancellation request was issued; `false` when the name was
-     *    unknown, not running, or this handle doesn't support
-     *    per-scenario cancellation.
+     *  @return `true` only when the cancellation actually took effect;
+     *    `false` when the name was unknown, not running, this handle
+     *    doesn't support per-scenario cancellation, or the scenario's
+     *    replications had already finished — a completed scenario is not
+     *    cancellable, and its results are committed rather than
+     *    discarded.
      */
     fun cancelScenario(scenarioName: String): Boolean = false
 
