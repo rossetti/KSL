@@ -44,6 +44,14 @@ data class DistributionFitDTO(
     val rvTypeName: String,
     val displayName: String,
     val parameters: Map<String, Double>,
+    /**
+     * How many parameters the estimator estimated from the data, which is not always the size of
+     * [parameters]. A distribution type carries a fixed parameter schema, so a family whose
+     * members fit different numbers of parameters under one type reports slots a given fit did not
+     * estimate — an unbounded metalog lists both bounds and estimated neither. This is the count
+     * the goodness-of-fit degrees of freedom use. On a failed fit it falls back to the type's
+     * declared size, since nothing was estimated.
+     */
     val numberOfParameters: Int,
     val success: Boolean,
     val message: String? = null,

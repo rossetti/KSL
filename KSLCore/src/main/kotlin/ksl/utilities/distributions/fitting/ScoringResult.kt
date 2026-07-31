@@ -35,8 +35,27 @@ data class ScoringResult(
 
     val metrics: List<MetricIfc> = MODAModel.extractMetrics(scores)
 
+    /**
+     *  How many parameters the estimator actually estimated from the data.
+     *
+     *  This is the estimator's own count rather than the size of the distribution type's declared
+     *  parameter set, and the two can differ. A distribution type has a fixed parameter schema, so
+     *  a family whose members vary in how many parameters they fit will declare slots that a
+     *  particular fit did not estimate. The metalog is the case in the library: boundedness is
+     *  derived from the bound values rather than being part of the type, so every metalog type
+     *  declares both bounds, and an unbounded fit estimated two fewer parameters than the schema
+     *  lists.
+     *
+     *  This count is the one goodness-of-fit tests need, since it is subtracted from the degrees
+     *  of freedom. It is not what the information criteria use: the AIC and BIC scoring models
+     *  take their parameter count from the distribution itself, so changing this does not affect
+     *  any score or ranking.
+     *
+     *  One imprecision remains. An estimator that is handed a parameter rather than estimating it
+     *  still declares a name for it, so a metalog fitted with a supplied bound counts that bound.
+     */
     val numberOfParameters: Int
-        get() = rvType.rvParameters.numberOfParameters
+        get() = estimationResult.estimator.names.size
 
     /**
      *  This holds the metric and its value based on the transformed

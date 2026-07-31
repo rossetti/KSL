@@ -169,7 +169,11 @@ object FitResultExtractor {
             val estimatorId = resultToId[er] ?: er.estimator.name
             val descriptor = catalog.estimatorOrNull(estimatorId)
             val rvType = descriptor?.rvType
-            val numParams = rvType?.rvParameters?.numberOfParameters ?: 1
+            // The estimator's own count, not the type's declared parameter set. These differ for a
+            // family whose members estimate different numbers of parameters under one type, and it
+            // is the estimated count that the goodness-of-fit degrees of freedom need. Matches
+            // ScoringResult.numberOfParameters, which the continuous path uses.
+            val numParams = er.estimator.names.size
             val gof = runCatching {
                 DiscretePMFGoodnessOfFit(doubleData, dist, numEstimatedParameters = numParams)
             }.getOrNull()
