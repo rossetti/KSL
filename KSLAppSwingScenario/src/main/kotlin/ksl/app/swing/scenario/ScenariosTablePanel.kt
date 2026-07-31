@@ -171,8 +171,20 @@ class ScenariosTablePanel(
 
     private fun wireRunningCollector() {
         controller.edtScope.launch {
-            controller.runningFlow.collect { running ->
-                table.isEnabled = !running
+            controller.runningFlow.collect { _ ->
+                // Deliberately does NOT disable the table while a run is in
+                // flight.  Swing withholds mouse events from a disabled
+                // component, so disabling it made the red ✕ cancel glyph in
+                // the Status column unclickable during exactly the window it
+                // exists for — the affordance was painted, given a tooltip
+                // inviting the click, and inert.
+                //
+                // Nothing is lost by leaving it enabled: every mutating path
+                // is guarded on `running` on its own — the toolbar buttons in
+                // [refreshActionEnablement], inline editing in the table
+                // model's `isCellEditable`, and the double-click editor in
+                // [wireDoubleClick].  Selection itself mutates nothing; it
+                // only feeds button enablement, which is already gated.
                 refreshActionEnablement()
             }
         }
@@ -234,6 +246,11 @@ class ScenariosTablePanel(
     private fun wireDoubleClick() {
         table.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
+                // Editing a scenario mid-run would change a spec the
+                // substrate is already executing.  This was previously
+                // covered by disabling the whole table, which also swallowed
+                // the per-scenario cancel clicks; the guard belongs here.
+                if (controller.runningFlow.value) return
                 if (e.clickCount == 2 && table.selectedRow >= 0) {
                     // Don't open the editor when the user is double-clicking
                     // to start an inline edit on Reps/Run? — that's a normal
