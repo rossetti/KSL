@@ -37,6 +37,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.supervisorScope
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.nio.file.Path
@@ -131,9 +133,34 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         }
     }
 
+    /**
+     *  Lifecycle of one scenario as far as cancellation is concerned.  The
+     *  transition out of `CANCELLABLE` is a compare-and-set, so exactly one
+     *  of "the user cancelled it" and "it produced a result" can win.
+     */
+    private enum class ScenarioState {
+        /** Running; a cancel request can still take it. */
+        CANCELLABLE,
+
+        /**
+         *  Every replication finished, so the result belongs to the caller.
+         *  A cancel arriving now is refused — the work is already done and
+         *  discarding it would lose data.
+         */
+        RESULT_OWED,
+
+        /** A cancel request won the race; no result will be committed. */
+        CANCELLED
+    }
+
+    /** Per-scenario coroutine handle plus its cancellation state. */
+    private class ScenarioHandle(val job: Job) {
+        val state: AtomicReference<ScenarioState> = AtomicReference(ScenarioState.CANCELLABLE)
+    }
+
     /** Per-scenario job handles, populated during [simulate] so callers can
      *  cancel one running scenario without stopping the rest of the sweep. */
-    private val jobsByName: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
+    private val jobsByName: ConcurrentHashMap<String, ScenarioHandle> = ConcurrentHashMap()
 
     /**
      *  Cancel a single scenario by name without stopping the rest of the
@@ -147,11 +174,26 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
      *  `snapshot == null`.  Sibling scenarios continue to run because
      *  [simulate] wraps each scenario's `async` in a `supervisorScope`,
      *  preventing one child's cancellation from propagating to the others.
+     *
+     *  A scenario whose replications have all finished is **not**
+     *  cancellable: its result is already computed and owed to the caller,
+     *  so the request is refused and the result is committed normally. The
+     *  hand-off is a compare-and-set, so a cancel and a result can never
+     *  both win.
+     *
+     *  Cancellation is cooperative and a running replication does not poll
+     *  for it, so an accepted request does not interrupt work already under
+     *  way — it discards the scenario's result once the replication in
+     *  progress returns.
      */
     fun cancelScenario(scenarioName: String): Boolean {
-        val job = jobsByName[scenarioName] ?: return false
-        if (!job.isActive) return false
-        job.cancel(ScenarioCancellation(scenarioName))
+        val handle = jobsByName[scenarioName] ?: return false
+        val taken = handle.state.compareAndSet(
+            ScenarioState.CANCELLABLE,
+            ScenarioState.CANCELLED
+        )
+        if (!taken) return false
+        handle.job.cancel(ScenarioCancellation(scenarioName))
         return true
     }
 
@@ -317,10 +359,11 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         // CONCURRENT execution rather than waiting for the
         // awaitOrCancelled loop to reach this scenario.
         suspend fun runOne(scenario: Scenario, i: Int): ScenarioRunOutcome {
-            jobsByName[scenario.name] = kotlin.coroutines.coroutineContext[Job]!!
+            val handle = ScenarioHandle(kotlin.coroutines.coroutineContext[Job]!!)
+            jobsByName[scenario.name] = handle
             try {
                 onScenarioStart?.invoke(scenario.name, i + 1, total)
-                val outcome = runScenario(scenario, onReplicationStart, onReplicationEnd)
+                val outcome = runScenario(scenario, handle, onReplicationStart, onReplicationEnd)
                 // runScenario returns a non-null collector only on the
                 // clean-success path; failure paths return collector = null
                 // (caught RuntimeException) and cancellation rethrows
@@ -330,7 +373,10 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                 }
                 return outcome
             } finally {
-                jobsByName.remove(scenario.name)
+                // Two-argument remove: only retract OUR registration, so a
+                // handle belonging to a later simulate(...) run is never
+                // dropped.
+                jobsByName.remove(scenario.name, handle)
             }
         }
 
@@ -419,6 +465,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
 
     private suspend fun runScenario(
         scenario: Scenario,
+        handle: ScenarioHandle,
         onReplicationStart: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
         onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null
     ): ScenarioRunOutcome {
@@ -478,6 +525,28 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             // Attach collector before the simulation lifecycle starts so the
             // completed-experiment snapshot is available for the ordered DB commit.
             collector = InMemorySnapshotCollector(model.lifeCycleEmitters)
+            // The point of no return: once this scenario's last replication
+            // has finished, its result belongs to the caller and a late
+            // cancel must not discard it.  Cancelling part-way through the
+            // replications stays useful and stays allowed.  Counting against
+            // the scenario's own replication target keeps this independent
+            // of when Model updates its internal counters.
+            val replicationsSeen = AtomicInteger(0)
+            val replicationsExpected = scenario.numberOfReplications
+            model.lifeCycleEmitters.replicationCompleted.attach {
+                if (replicationsSeen.incrementAndGet() >= replicationsExpected) {
+                    handle.state.compareAndSet(
+                        ScenarioState.CANCELLABLE,
+                        ScenarioState.RESULT_OWED
+                    )
+                }
+            }
+            model.lifeCycleEmitters.experimentCompleted.attach {
+                handle.state.compareAndSet(
+                    ScenarioState.CANCELLABLE,
+                    ScenarioState.RESULT_OWED
+                )
+            }
             // Forward per-replication progress to the caller's callbacks (if any)
             // tagged with this scenario's name so multi-scenario consumers can
             // attribute progress to the right row.
