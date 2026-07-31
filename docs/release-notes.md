@@ -24,6 +24,40 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.3.3 — cancelling one design point or scenario
+
+*31 July 2026.* This release changes KSLCore.
+
+**Cancelling a single design point or scenario could throw away results that were already
+finished.** If the request landed after that unit's replications completed — a matter of
+milliseconds, but a window that widens sharply on a machine with fewer cores than the sweep
+has units — the run discarded a complete set of results, wrote nothing to the database, and
+reported the unit as cancelled. In the Experiment app the point's row went to *Cancelling…*
+and its results never arrived; in the Scenario app the row was marked completed and then
+flipped to cancelled.
+
+**The Experiment app also reported success for cancels that did nothing.**
+`cancelDesignPoint` searched a table of running points that was never pruned until the whole
+sweep finished, so it always found the point and always said yes — including for points that
+had finished long before, and for points the dispatcher had not started yet.
+
+A unit's result and a cancel request now settle atomically: whichever arrives first wins, and
+once a unit's replications are done its results are committed rather than discarded.
+Cancelling a unit that is still working is unaffected — it stops at the next replication
+boundary, so the replication in progress finishes and no more start.
+
+**The Scenario app's per-scenario cancel had stopped working entirely.** Each running
+scenario's Status cell shows a red ✕ that cancels just that scenario, but the table was
+disabled for the duration of a run — and a disabled Swing table receives no mouse clicks, so
+the glyph was inert during exactly the window it exists for. The only working control was the
+global *Cancel*, which stops everything, making per-scenario cancellation look like a
+batch-level feature rather than a broken one. It is clickable again, and a cancelled scenario
+now reads *Cancelling…* immediately instead of claiming it is still running until the rest of
+the sweep finishes.
+
+**Upgrading.** `ksl update` from 0.3.2 works normally. Sweeps that never cancel are
+unaffected by any of this.
+
 ## 0.3.2 — `ksl update` actually updates
 
 *30 July 2026.* KSLCore is untouched by this release.
