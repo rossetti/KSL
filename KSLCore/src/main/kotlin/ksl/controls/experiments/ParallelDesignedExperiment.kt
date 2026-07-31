@@ -762,10 +762,13 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
      *  hand-off is a compare-and-set, so a cancel and a result can never
      *  both win.
      *
-     *  Cancellation is cooperative and a running replication does not
-     *  poll for it, so an accepted request does not interrupt work
-     *  already under way — it discards that point's result once the
-     *  replication in progress returns.
+     *  Cancellation is cooperative and takes effect between
+     *  replications: `ConcurrentSimulationRunner` checks for it before
+     *  starting each one, so the replication already in progress runs to
+     *  completion and none of the remaining replications start.  The
+     *  point's partial work is then discarded rather than committed —
+     *  cancelling buys back the rest of the run, not the current
+     *  replication.
      */
     @Suppress("unused")
     fun cancelDesignPoint(pointId: Int): Boolean {
