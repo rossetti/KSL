@@ -133,24 +133,60 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     )
 
     /**
-     *  Per-design-point coroutine handles for the currently-running
-     *  `simulate(...)` call.  Populated as each point launches and
-     *  cleared after the commit phase for that point.  Keyed by
-     *  `designPoint.number` (1-based) so [cancelDesignPoint] can
-     *  target a specific point.  Concurrent because [cancelDesignPoint]
-     *  may be invoked from any thread while the launch coroutine
-     *  populates the map on another.
+     *  Lifecycle of one design point as far as cancellation is
+     *  concerned.  The transition out of `CANCELLABLE` is a
+     *  compare-and-set, so exactly one of "the user cancelled it" and
+     *  "it produced a result" can win — never both.
      */
-    private val activeJobs: java.util.concurrent.ConcurrentHashMap<Int, kotlinx.coroutines.Job> =
+    private enum class DesignPointState {
+        /** Running (or about to run); a cancel request can still take it. */
+        CANCELLABLE,
+
+        /**
+         *  Every replication finished, so the result belongs to the
+         *  caller.  Entered from the model's `experimentCompleted`
+         *  emission.  A cancel arriving now is refused: the work is
+         *  already done and discarding it would lose data.
+         */
+        RESULT_OWED,
+
+        /** A cancel request won the race; no result will be committed. */
+        CANCELLED
+    }
+
+    /**
+     *  Per-design-point coroutine handle plus its cancellation state.
+     */
+    private class DesignPointHandle(val job: kotlinx.coroutines.Job) {
+        val state: java.util.concurrent.atomic.AtomicReference<DesignPointState> =
+            java.util.concurrent.atomic.AtomicReference(DesignPointState.CANCELLABLE)
+    }
+
+    /**
+     *  Per-design-point handles for the currently-running `simulate(...)`
+     *  call.  A point registers itself when its coroutine body starts and
+     *  removes itself when that body finishes, so the map holds only
+     *  genuinely in-flight points — a completed point is absent, and
+     *  [cancelDesignPoint] can therefore report honestly.  Keyed by
+     *  `designPoint.number` (1-based).  Concurrent because
+     *  [cancelDesignPoint] may be invoked from any thread.
+     */
+    private val activeJobs: java.util.concurrent.ConcurrentHashMap<Int, DesignPointHandle> =
         java.util.concurrent.ConcurrentHashMap()
 
     /**
-     *  IDs of design points whose cancellation was requested via
-     *  [cancelDesignPoint].  Consulted by the per-point coroutine
-     *  to distinguish "user cancelled THIS point" from "parent
-     *  scope was cancelled" — the former returns a cancelled
-     *  outcome to the commit phase; the latter re-throws so
-     *  whole-run cancellation propagates as expected.
+     *  IDs of design points whose cancellation actually took effect —
+     *  written **only** after the compare-and-set in [cancelDesignPoint]
+     *  succeeds, never on a refused request.  Consulted by the per-point
+     *  coroutine and by the await loop to distinguish "the user cancelled
+     *  THIS point" from "the parent scope was cancelled": the former
+     *  yields a cancelled outcome, the latter re-throws so whole-run
+     *  cancellation still propagates.
+     *
+     *  This is the authority rather than the cancellation exception's
+     *  identity, because a design point's work is non-suspending — the
+     *  cancel usually surfaces when the commit loop awaits the deferred,
+     *  not as a throw from the body.
      */
     private val cancelledPointIds: MutableSet<Int> =
         java.util.Collections.synchronizedSet(mutableSetOf<Int>())
@@ -578,21 +614,32 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             val plans = applyStreamPolicy(designPoints.map { planFor(it) })
 
             // Phase 1: launch all design points concurrently on the
-            // simulation dispatcher.  Each launch invokes
-            // [onDesignPointStart] just before starting the coroutine
-            // and registers its Deferred in [activeJobs] so a later
-            // [cancelDesignPoint] call can target it.
+            // simulation dispatcher.
+            //
+            // Each point registers itself in [activeJobs] from INSIDE its
+            // coroutine body and removes itself in a `finally`, so the map
+            // describes what is actually in flight.  Registering at
+            // scheduling time instead (as this once did) left completed
+            // points in the map for the rest of the run, because the only
+            // removal happened in the commit loop — which cannot start
+            // until every point has been awaited.  [cancelDesignPoint]
+            // then always found a job and always answered "yes, cancelled",
+            // even for a point that had long since finished.
+            //
+            // Consequence, accepted deliberately: [onDesignPointStart]
+            // still fires at scheduling time, so a cancel issued from that
+            // callback for a point the dispatcher has not picked up yet now
+            // returns `false`.  That is the honest answer — there is
+            // nothing running to cancel.
             val planDeferreds: List<Pair<DesignPointRunPlan, kotlinx.coroutines.Deferred<DesignPointRunOutcome>>> =
                 plans.map { plan ->
-                    // async() returns immediately; the coroutine body
-                    // doesn't run until the dispatcher picks it up.
-                    // Registering the Deferred in [activeJobs] before
-                    // invoking [onDesignPointStart] closes the cancel
-                    // race window — callers reacting to the start
-                    // callback can find the Job.
                     val deferred = async(SimulationDispatcher.default) {
+                        val handle = DesignPointHandle(
+                            kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]!!
+                        )
+                        activeJobs[plan.designPoint.number] = handle
                         try {
-                            runDesignPoint(plan)
+                            runDesignPoint(plan, handle)
                         } catch (ex: CancellationException) {
                             // Per-point cancel: return a cancelled
                             // outcome to the commit phase.  The outer
@@ -605,9 +652,13 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
                             } else {
                                 throw ex
                             }
+                        } finally {
+                            // Two-argument remove: only retract OUR
+                            // registration, so a handle belonging to a
+                            // later simulate(...) run is never dropped.
+                            activeJobs.remove(plan.designPoint.number, handle)
                         }
                     }
-                    activeJobs[plan.designPoint.number] = deferred
                     onDesignPointStart?.invoke(plan.designPoint)
                     plan to deferred
                 }
@@ -685,33 +736,49 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
                         mySimulationRuns[designPoint] = simulationRun
                     }
                 }
-                activeJobs.remove(designPoint.number)
             }
         }
     }
 
     /**
-     *  Request cancellation of the design point with the given
-     *  1-based [pointId].  If that point's coroutine is currently
-     *  running (or queued) it will be cancelled; the resulting
-     *  outcome carries `wasCancelled = true` so the commit phase
-     *  fires `onDesignPointCancelled` instead of treating it as a
-     *  failure, and skips the database write entirely.
+     *  Request cancellation of the design point with the given 1-based
+     *  [pointId].  When the request is accepted the point's outcome
+     *  carries `wasCancelled = true`, so the commit phase fires
+     *  `onDesignPointCancelled` instead of treating it as a failure and
+     *  skips the database write entirely.
      *
-     *  Safe to call from any thread.  Returns `true` if a matching
-     *  active job was found and cancellation was requested; `false`
-     *  if the point was unknown, already completed, or no
-     *  `simulate(...)` is currently in flight.
+     *  Safe to call from any thread.  Returns `true` only when the
+     *  request actually took effect.  It returns `false` when
      *
-     *  No-op when the point has already completed — there's nothing
-     *  to cancel, and the recorded outcome (success / failure) is
-     *  preserved.
+     *  - no `simulate(...)` is in flight, or the id is unknown;
+     *  - the point has not been picked up by the dispatcher yet;
+     *  - the point already finished, or was already cancelled;
+     *  - every replication of the point has completed, so its result is
+     *    owed to the caller (see below).
+     *
+     *  Once a point's replications have all finished, cancelling it
+     *  would throw away a result that has already been computed, so the
+     *  request is refused and the result is committed normally.  The
+     *  hand-off is a compare-and-set, so a cancel and a result can never
+     *  both win.
+     *
+     *  Cancellation is cooperative and a running replication does not
+     *  poll for it, so an accepted request does not interrupt work
+     *  already under way — it discards that point's result once the
+     *  replication in progress returns.
      */
     @Suppress("unused")
     fun cancelDesignPoint(pointId: Int): Boolean {
-        val job = activeJobs[pointId] ?: return false
+        val handle = activeJobs[pointId] ?: return false
+        val taken = handle.state.compareAndSet(
+            DesignPointState.CANCELLABLE,
+            DesignPointState.CANCELLED
+        )
+        if (!taken) return false
+        // Recorded only now, after the CAS was won, so a refused request
+        // never leaves a stale id behind for the classification checks.
         cancelledPointIds.add(pointId)
-        job.cancel()
+        handle.job.cancel()
         return true
     }
 
@@ -774,8 +841,16 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     /**
      * Runs one native design-point plan and returns its in-memory snapshot
      * collector for the ordered commit phase.
+     *
+     * [handle] carries the point's cancellation state.  The moment the
+     * model reports that every replication finished, this flips the state
+     * out of `CANCELLABLE`, which is what makes a late cancel refuse
+     * rather than discard a result that already exists.
      */
-    private suspend fun runDesignPoint(plan: DesignPointRunPlan): DesignPointRunOutcome {
+    private suspend fun runDesignPoint(
+        plan: DesignPointRunPlan,
+        handle: DesignPointHandle
+    ): DesignPointRunOutcome {
         // Per-point dir layout — two modes (see class KDoc for the
         // `useDesignPointOutputDirs` parameter):
         //
@@ -824,6 +899,34 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             )
 
             collector = InMemorySnapshotCollector(model.lifeCycleEmitters)
+            // The point of no return: the moment this point's last
+            // replication finishes, its result stops being cancellable
+            // work and becomes the caller's data.  Cancelling a point
+            // part-way through its replications stays useful and stays
+            // allowed; cancelling one whose work is already done would
+            // only throw that work away, so the CAS refuses it.
+            //
+            // Both hooks are attached because the count is the earlier
+            // and stricter signal while `experimentCompleted` is the
+            // unconditional backstop.  Whichever fires first wins; the
+            // CAS only ever moves out of CANCELLABLE, so the second is
+            // harmless.
+            val replicationsSeen = java.util.concurrent.atomic.AtomicInteger(0)
+            val replicationsExpected = plan.runParameters.numberOfReplications
+            model.lifeCycleEmitters.replicationCompleted.attach {
+                if (replicationsSeen.incrementAndGet() >= replicationsExpected) {
+                    handle.state.compareAndSet(
+                        DesignPointState.CANCELLABLE,
+                        DesignPointState.RESULT_OWED
+                    )
+                }
+            }
+            model.lifeCycleEmitters.experimentCompleted.attach {
+                handle.state.compareAndSet(
+                    DesignPointState.CANCELLABLE,
+                    DesignPointState.RESULT_OWED
+                )
+            }
             ConcurrentSimulationRunner(model).simulate(simulationRun)
             return DesignPointRunOutcome(plan, simulationRun, collector)
 
