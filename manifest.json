@@ -1,7 +1,7 @@
 {
   "kslWorkLayout": 1,
   "_comment": "What install.sh / bin/ksl operate on. The suite asset URL + sha256 are filled in when a release is cut; until then use --from <local ksl-suite.zip>. 'items' is the catalog `ksl list/install/uninstall <id>` acts on: id -> a directory under the software's hidden .support/. It lists what can be added or removed INDEPENDENTLY, which is why lib/ (every app needs it) and bin/ (the manager itself) are deliberately absent. Per-item release URLs can be added later for independent per-app updates.",
-  "suite": { "version": "0.3.2", "asset": "https://github.com/rossetti/KSL/releases/download/suite-v0.3.2/ksl-suite.zip", "sha256": "3e604a59f33d7bbe37a2d8394933adaf16fe7905919ce09105f1bc234e15afd3" },
+  "suite": { "version": "0.3.3", "asset": "https://github.com/rossetti/KSL/releases/download/suite-v0.3.3/ksl-suite.zip", "sha256": "c249c419611d6673ab5763ba1da6a3f9291295d771c4454dc17c0e831d24fef7" },
   "items": [
     { "id": "single",       "kind": "app",     "path": "Apps/Single" },
     { "id": "scenario",     "kind": "app",     "path": "Apps/Scenario" },
