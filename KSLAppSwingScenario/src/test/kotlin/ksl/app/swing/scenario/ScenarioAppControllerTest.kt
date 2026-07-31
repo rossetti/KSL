@@ -103,6 +103,51 @@ class ScenarioAppControllerTest {
     }
 
     @Test
+    fun acceptedCancelMovesTheScenarioToCancellingImmediately() {
+        // The final CANCELLED can only come from the commit phase, which
+        // waits for every sibling to finish.  Without this transition the
+        // row would keep reading "Running k / N" — with a frozen count —
+        // for as long as the slowest remaining scenario takes.
+        val c = fresh("CancellingApp")
+        c.seedRunStateForTesting(
+            running = true,
+            scenarioStatuses = mapOf(
+                "Target" to ScenarioAppController.ScenarioStatus.RUNNING,
+                "Sibling" to ScenarioAppController.ScenarioStatus.RUNNING
+            ),
+            handle = FakeRunHandle(accepts = true)
+        )
+        assertTrue(c.cancelScenario("Target"))
+        assertEquals(
+            ScenarioAppController.ScenarioStatus.CANCELLING,
+            c.scenarioStatuses.value["Target"],
+            "an accepted cancel must show immediately rather than waiting " +
+                "for the commit phase"
+        )
+        assertEquals(
+            ScenarioAppController.ScenarioStatus.RUNNING,
+            c.scenarioStatuses.value["Sibling"],
+            "cancelling one scenario must not disturb the others"
+        )
+    }
+
+    @Test
+    fun refusedCancelLeavesTheScenarioStatusAlone() {
+        val c = fresh("RefusedStatusApp")
+        c.seedRunStateForTesting(
+            running = true,
+            scenarioStatuses = mapOf("Target" to ScenarioAppController.ScenarioStatus.RUNNING),
+            handle = FakeRunHandle(accepts = false)
+        )
+        assertFalse(c.cancelScenario("Target"))
+        assertEquals(
+            ScenarioAppController.ScenarioStatus.RUNNING,
+            c.scenarioStatuses.value["Target"],
+            "a refused cancel must not make the row look cancelled"
+        )
+    }
+
+    @Test
     fun cancelScenarioWithNoRunInFlightReturnsFalse() {
         val c = fresh("NoRunApp")
         assertFalse(c.cancelScenario("Anything"))

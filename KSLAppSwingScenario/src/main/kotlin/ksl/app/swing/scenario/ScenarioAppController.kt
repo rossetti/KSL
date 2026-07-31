@@ -244,6 +244,15 @@ class ScenarioAppController(
         IDLE,
         PENDING,
         RUNNING,
+
+        /** A per-scenario cancel was accepted, but the run has not yet
+         *  reported the scenario's final outcome.  That report arrives from
+         *  the commit phase, which cannot begin until *every* scenario's
+         *  coroutine has been awaited — so without this state the row would
+         *  keep claiming "Running k / N" until the slowest sibling finished,
+         *  long after this scenario stopped.  The eventual
+         *  `ScenarioCompleted` event overwrites it with CANCELLED. */
+        CANCELLING,
         COMPLETED,
         FAILED,
         /** User-initiated stop — distinct from FAILED, which represents
@@ -505,6 +514,13 @@ class ScenarioAppController(
                             else -> ScenarioStatus.FAILED
                         }
                     }
+                    // An accepted per-scenario cancel that never received its
+                    // commit-phase outcome, because the run ended by this
+                    // path instead.  Without this branch the row would stay
+                    // "Cancelling…" for good.  No reps-done check: a scenario
+                    // whose replications had finished would have had its
+                    // cancel refused, so it could never be CANCELLING.
+                    ScenarioStatus.CANCELLING -> ScenarioStatus.CANCELLED
                     else -> s
                 }
             }
@@ -537,11 +553,25 @@ class ScenarioAppController(
      *  this once did, left the name behind after a refused request — and
      *  a later genuine failure of that same scenario would then have been
      *  mislabelled CANCELLED for the rest of the run.
+     *
+     *  On success the scenario's status moves to
+     *  [ScenarioStatus.CANCELLING] straight away.  Its final
+     *  [ScenarioStatus.CANCELLED] can only come from the commit phase,
+     *  which waits for every sibling to finish, so without this the row
+     *  would go on showing "Running k / N" for as long as the slowest
+     *  remaining scenario takes — with its progress frozen, since
+     *  cancellation stops the scenario at its next replication boundary.
      */
     fun cancelScenario(name: String): Boolean {
         val handle = currentHandle ?: return false
         val cancelled = handle.cancelScenario(name)
-        if (cancelled) explicitlyCancelled.add(name)
+        if (cancelled) {
+            explicitlyCancelled.add(name)
+            val current = myScenarioStatuses.value
+            if (current[name] == ScenarioStatus.RUNNING) {
+                myScenarioStatuses.value = current + (name to ScenarioStatus.CANCELLING)
+            }
+        }
         return cancelled
     }
 

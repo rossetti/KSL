@@ -409,6 +409,10 @@ class ScenariosTablePanel(
             // can tell at a glance "you stopped this on purpose, nothing
             // went wrong."  Also distinct from the lighter SKIPPED grey.
             ScenarioAppController.ScenarioStatus.CANCELLED -> Color(0x55, 0x60, 0x6E)
+            // Same slate-grey as CANCELLED: the scenario has already
+            // stopped, so it should stop looking active the moment the
+            // cancel is accepted rather than when the commit phase says so.
+            ScenarioAppController.ScenarioStatus.CANCELLING -> Color(0x55, 0x60, 0x6E)
             else -> table.foreground
         }
     }
@@ -552,6 +556,10 @@ private fun statusText(
     ScenarioAppController.ScenarioStatus.PENDING -> "Queued…"
     ScenarioAppController.ScenarioStatus.RUNNING ->
         progress?.let { (cur, total) -> "Running $cur / $total" } ?: "Running…"
+    // Shows where the scenario stopped, so a frozen replication count
+    // reads as "it halted here" rather than "it is still working".
+    ScenarioAppController.ScenarioStatus.CANCELLING ->
+        progress?.let { (cur, total) -> "Cancelling… ($cur / $total)" } ?: "Cancelling…"
     ScenarioAppController.ScenarioStatus.COMPLETED -> "Completed"
     ScenarioAppController.ScenarioStatus.FAILED -> "Failed"
     ScenarioAppController.ScenarioStatus.CANCELLED -> "Cancelled"
