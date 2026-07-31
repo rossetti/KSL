@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -414,42 +415,76 @@ class ParallelDesignedExperimentTest {
             "Every started point should also complete (none missing)")
     }
 
+    /**
+     *  Parks point 1 inside its own experiment so the test can cancel a
+     *  point that is provably running and provably unfinished. Reaching
+     *  `beforeExperiment` proves the coroutine body started (and so has
+     *  registered itself); blocking there proves no replication has
+     *  completed, so the cancel cannot be racing a finished result.
+     */
+    private class ParkPointOne(
+        parent: ModelElement,
+        private val reached: kotlinx.coroutines.CompletableDeferred<Unit>,
+        private val release: CountDownLatch
+    ) : ModelElement(parent, "ParkPointOne") {
+
+        override fun beforeExperiment() {
+            if (!model.experimentName.endsWith("_DP_1")) return
+            // Must be a CompletableDeferred, not a latch: the test awaits
+            // this from the runBlocking coroutine, which shares its single
+            // thread with the launched simulateAll. A blocking wait there
+            // would stall the event loop and the run would never start.
+            reached.complete(Unit)
+            // Deadlock safety valve only; no assertion depends on it.
+            release.await(60, java.util.concurrent.TimeUnit.SECONDS)
+        }
+    }
+
     @Test
     fun cancelDesignPointSkipsTargetedPointAndContinuesOthers() = runBlocking {
         val setup = buildDoeSetup("PDE_CancelOne_${System.nanoTime()}")
         val outDir = java.nio.file.Files.createTempDirectory("pde-cancel-")
-        // Long-ish replication so we have time to observe point 1
-        // start and cancel it before the model finishes naturally.
+        // Point 1 is parked inside its experiment rather than given a
+        // "long-ish" replication and a prayer. The previous version bet
+        // that a length-2000 run would outlast the round trip from the
+        // start callback to cancelDesignPoint. That held on a developer
+        // machine with a core per design point and failed under a
+        // container CPU quota, where siblings queue and the test thread
+        // waits for a timeslice — the cancel then landed after point 1
+        // had already finished, and the run reported nothing cancelled.
+        val reached = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = CountDownLatch(1)
         val parallel = ParallelDesignedExperiment(
             name = "PDE_${System.nanoTime()}",
-            modelBuilder = modelBuilder(setup.modelName, length = 2000.0, warmUp = 0.0),
+            modelBuilder = object : ModelBuilderIfc {
+                override fun build(
+                    modelConfiguration: Map<String, String>?,
+                    experimentRunParameters: ExperimentRunParametersIfc?
+                ): Model {
+                    val model = buildModel(setup.modelName, length = 2000.0, warmUp = 0.0)
+                    ParkPointOne(model, reached, release)
+                    return model
+                }
+            },
             factorSettings = setup.factorSettings,
             design = setup.design,
             pathToOutputDirectory = outDir
         )
 
         val cancelled = java.util.Collections.synchronizedList(mutableListOf<Int>())
-        // Signal fired the moment point 1's coroutine has started; a
-        // sibling coroutine awaits it and then calls cancelDesignPoint.
-        // Cross-coroutine cancellation (vs. cancelling from inside the
-        // start callback on the supervisor coroutine) avoids the
-        // supervisorScope edge case where cancelling a child synchronously
-        // from the supervisor body fails the parent.
-        val pointOneStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
         val simJob = launch {
             parallel.simulateAll(
                 numRepsPerDesignPoint = 1,
-                onDesignPointStart = { dp ->
-                    if (dp.number == 1) pointOneStarted.complete(Unit)
-                },
                 onDesignPointCancelled = { dp -> cancelled += dp.number }
             )
         }
-        pointOneStarted.await()
+        // Point 1 is now inside its experiment and cannot finish until released.
+        reached.await()
         assertTrue(
             parallel.cancelDesignPoint(1),
-            "cancelDesignPoint should find the Job for the in-flight point"
+            "cancelDesignPoint should accept a point that is parked mid-experiment"
         )
+        release.countDown()
         simJob.join()
 
         assertTrue(
