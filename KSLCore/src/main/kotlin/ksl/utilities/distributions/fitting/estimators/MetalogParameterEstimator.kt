@@ -45,13 +45,27 @@ import ksl.utilities.statistic.StatisticIfc
  *  chosen boundedness needs one, is profiled from the data unless supplied, by fitting at each
  *  candidate and keeping whichever fits the observations best.
  *
- *  No shift of the data is performed, because a metalog represents a lower bound natively. That
- *  is what `checkRange` being false means here, and it has a consequence worth knowing when
- *  fitting only this family: `PDFModeler.estimateParameters` bootstraps a confidence interval for
- *  the minimum of the data on every call in order to decide whether a shift is needed, and on a
- *  large sample that costs more than all twenty metalog fits together. None of these estimators
- *  can consume the result. Pass `automaticShifting = false` for a metalog-only run; leave it on
- *  when the classical families are in the same set, since they do use it.
+ *  No shift of the data is performed, which is what `checkRange` being false means here. A metalog
+ *  represents a lower bound natively: the lower-bounded member is `bl + exp(M(y))`, so its bound
+ *  already *is* the threshold parameter a shift would estimate, and the two are not jointly
+ *  identifiable. The unbounded member is supported on the whole real line and has no origin to
+ *  anchor. This is the same treatment the normal, uniform, triangular, and generalized beta
+ *  estimators receive, and for the same reason — each of those carries its own location or limits.
+ *
+ *  Nothing about automatic shifting changes what these estimators produce. When the shift applies,
+ *  `PDFModeler.estimateParameters` hands the shifted data only to estimators whose `checkRange` is
+ *  true, so a metalog fit is identical either way.
+ *
+ *  The remaining consideration is only wasted work, and it is not specific to this family: the
+ *  bootstrap for the minimum runs once per call whenever `automaticShifting` is true, whether or
+ *  not any estimator in the set can use the result. Fitting only estimators that decline the shift
+ *  therefore pays for a bootstrap nobody reads. Whether that is worth avoiding depends on the
+ *  sample size — measured against the twenty metalog fits, the bootstrap is roughly a sixth of
+ *  their cost at a thousand observations, comparable at ten thousand, and several times their cost
+ *  beyond about a hundred thousand, since the fits work from a fixed-size resampling grid while the
+ *  bootstrap grows with the sample. Passing `automaticShifting = false` is worth it for a
+ *  metalog-only run on a large sample and is close to irrelevant on a small one. Leave it on when
+ *  the classical families are in the same set, since they do use it.
  *
  *  ## What to trust in the result
  *
