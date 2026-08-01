@@ -25,7 +25,6 @@ import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  *  `ScoringResult.numberOfParameters` reports what the estimator estimated, not the size of the
@@ -50,7 +49,11 @@ class ScoringResultParameterCountTest {
         val observations = data()
         val estimators = PDFModeler.allEstimators + PDFModeler.metalogEstimators
         val results = PDFModeler(observations).estimateAndEvaluateScores(estimators)
-        assertTrue(results.resultsSortedByScoring.isNotEmpty(), "nothing was scored")
+        assertEquals(
+            estimators.size, results.resultsSortedByScoring.size,
+            "not every estimator in the library produced a scored result, so this test checked " +
+                    "fewer than the whole library"
+        )
         for (result in results.resultsSortedByScoring) {
             val declared = (result.estimationResult.estimator as MVBSEstimatorIfc).names.size
             assertEquals(
@@ -107,6 +110,15 @@ class ScoringResultParameterCountTest {
         // must be invisible to them. If this fails, the switch moved more than intended.
         val observations = data()
         val results = PDFModeler(observations).estimateAndEvaluateScores(PDFModeler.allEstimators)
+        // Pin the coverage before asserting anything about it. The loop below only inspects
+        // estimators that produced a scored result, so an estimator that quietly stopped fitting
+        // this data would shrink the loop rather than fail it, and the test would keep passing
+        // while checking less. A legitimate drop-out should be an edit here, not a silent one.
+        assertEquals(
+            PDFModeler.allEstimators.size, results.resultsSortedByScoring.size,
+            "not every classical estimator produced a scored result, so this test checked fewer " +
+                    "families than it claims to"
+        )
         for (result in results.resultsSortedByScoring) {
             assertEquals(
                 result.rvType.rvParameters.numberOfParameters, result.numberOfParameters,
