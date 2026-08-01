@@ -147,13 +147,15 @@ private fun plotTheRecommendedDistribution(data: DoubleArray) {
     println(gof)
     println(
         """
-        One caution on the degrees of freedom above. The estimated-parameter count comes from the
-        distribution type's declared parameter set, which for a metalog is always the number of
-        terms plus both bounds, since boundedness is derived from the bound values rather than
-        being part of the type. An unbounded fit therefore reports two more parameters than were
-        actually estimated, which costs two degrees of freedom and makes the chi-squared test
-        slightly harsher than it should be. The effect is the same constant for every metalog, so
-        it cannot reorder them among themselves.
+        A note on the degrees of freedom above. The estimated-parameter count is the estimator's
+        own, not the size of the distribution type's declared parameter set, and for a metalog the
+        two differ. Boundedness is derived from the bound values rather than being part of the
+        type, so every metalog type declares both bounds: a four-term unbounded fit reports four
+        parameters against a declared six. The count subtracted here is therefore the number
+        actually estimated, which is what the chi-squared degrees of freedom need.
+
+        One imprecision remains. An estimator handed a bound rather than fitting it still names
+        that bound, so a metalog fitted with a supplied bound counts it as estimated.
         """.trimIndent()
     )
 }
