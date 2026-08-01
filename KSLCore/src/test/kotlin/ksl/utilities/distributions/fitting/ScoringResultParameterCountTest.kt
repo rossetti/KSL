@@ -21,6 +21,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.distributions.MetalogBoundedness
 import ksl.utilities.distributions.MetalogDistribution
 import ksl.utilities.distributions.fitting.estimators.MetalogParameterEstimator
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import kotlin.test.Test
@@ -41,8 +42,17 @@ import kotlin.test.assertEquals
  */
 class ScoringResultParameterCountTest {
 
+    /**
+     *  The same observations on every call, in every suite ordering.
+     *
+     *  A stream number alone does not give that. Streams come from a shared provider, so a stream
+     *  identified by number carries whatever position earlier tests in the same JVM left it at, and
+     *  the sample changes with the order the suite happens to run in. The coverage assertions below
+     *  need data that does not move, since whether a fit succeeds at all can depend on it.
+     */
     private fun data(size: Int = 400): DoubleArray =
-        LognormalRV(mean = 10.0, variance = 25.0, streamNum = 1).sample(size)
+        LognormalRV(mean = 10.0, variance = 25.0, streamNum = 1, streamProvider = RNStreamProvider())
+            .sample(size)
 
     @Test
     fun theCountComesFromTheEstimatorForEveryEstimatorInTheLibrary() {
