@@ -19,9 +19,9 @@
 package ksl.examples.general.utilities.fitting
 
 import ksl.app.dist.catalog.FittingCatalog
-import ksl.utilities.distributions.Metalog4P
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.Metalog4P
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.ScoringResult

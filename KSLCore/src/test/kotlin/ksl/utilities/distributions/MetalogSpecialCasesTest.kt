@@ -1,5 +1,7 @@
 package ksl.utilities.distributions
 
+import ksl.utilities.distributions.metalog.Metalog2P
+import ksl.utilities.distributions.metalog.Metalog4P
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.test.Test

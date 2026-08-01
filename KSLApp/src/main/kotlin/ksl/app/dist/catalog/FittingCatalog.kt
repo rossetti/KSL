@@ -19,7 +19,7 @@
 package ksl.app.dist.catalog
 
 import ksl.app.dist.config.DistributionKind
-import ksl.utilities.distributions.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogBoundedness
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.estimators.BetaMOMParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.BinomialMOMParameterEstimator

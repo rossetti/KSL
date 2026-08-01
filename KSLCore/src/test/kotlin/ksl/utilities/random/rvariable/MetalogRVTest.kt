@@ -1,14 +1,19 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamProvider
-import ksl.utilities.distributions.Metalog2P
-import ksl.utilities.distributions.Metalog3P
-import ksl.utilities.distributions.Metalog4P
-import ksl.utilities.distributions.Metalog5P
-import ksl.utilities.distributions.Metalog6P
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.Metalog2P
+import ksl.utilities.distributions.metalog.Metalog3P
+import ksl.utilities.distributions.metalog.Metalog4P
+import ksl.utilities.distributions.metalog.Metalog5P
+import ksl.utilities.distributions.metalog.Metalog6P
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.random.rvariable.metalog.Metalog2PRV
+import ksl.utilities.random.rvariable.metalog.Metalog3PRV
+import ksl.utilities.random.rvariable.metalog.Metalog4PRV
+import ksl.utilities.random.rvariable.metalog.Metalog5PRV
+import ksl.utilities.random.rvariable.metalog.Metalog6PRV
 import ksl.utilities.random.rvariable.parameters.CreateDistributionIfc
 import ksl.utilities.random.rvariable.parameters.Metalog2PRVParameters
 import ksl.utilities.random.rvariable.parameters.Metalog3PRVParameters

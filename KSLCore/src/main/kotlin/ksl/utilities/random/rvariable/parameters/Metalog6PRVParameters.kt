@@ -17,9 +17,9 @@
  */
 package ksl.utilities.random.rvariable.parameters
 
-import ksl.utilities.distributions.Metalog6P
+import ksl.utilities.distributions.metalog.Metalog6P
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.Metalog6PRV
+import ksl.utilities.random.rvariable.metalog.Metalog6PRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 

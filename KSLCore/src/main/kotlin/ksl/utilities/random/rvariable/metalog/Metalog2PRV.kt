@@ -15,12 +15,14 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.utilities.random.rvariable
+package ksl.utilities.random.rvariable.metalog
 
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogFeasibilityChecker
-import ksl.utilities.distributions.MetalogFunctions
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.ParameterizedRV
 import ksl.utilities.random.rvariable.parameters.Metalog2PRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 

@@ -18,8 +18,8 @@
 
 package ksl.examples.general.utilities.fitting
 
-import ksl.utilities.distributions.Metalog3P
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.Metalog3P
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.statistic.Statistic
 
 /**

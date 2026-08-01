@@ -3,10 +3,10 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.distributions.Exponential
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.Lognormal
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogDistribution
-import ksl.utilities.distributions.MetalogFeasibilityChecker
-import ksl.utilities.distributions.MetalogFunctions
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogDistribution
+import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import ksl.utilities.distributions.Weibull
 import ksl.utilities.distributions.fitting.estimators.MetalogBoundProfiler
 import ksl.utilities.distributions.fitting.estimators.MetalogLPSolver

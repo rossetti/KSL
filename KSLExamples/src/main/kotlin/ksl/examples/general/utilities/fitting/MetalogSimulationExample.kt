@@ -20,13 +20,13 @@ package ksl.examples.general.utilities.fitting
 
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.simulation.Model
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.estimators.MetalogParameterEstimator
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
-import ksl.utilities.random.rvariable.Metalog4PRV
+import ksl.utilities.random.rvariable.metalog.Metalog4PRV
 
 /**
  *  Driving a simulation model with a fitted metalog, and changing its parameters afterwards.

@@ -16,38 +16,41 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.Metalog2PRV
+import ksl.utilities.random.rvariable.metalog.Metalog5PRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 
 /**
- *  A two-term metalog distribution.
+ *  A five-term metalog distribution.
  *
- *  With both bounds infinite this is exactly a logistic distribution whose location is the first
- *  coefficient and whose scale is the second. With a finite lower bound it is the log-logistic,
- *  known in economics as the Fisk distribution. With both bounds finite it is the logit-logistic,
- *  also called the Tadikamalla and Johnson bounded distribution.
+ *  Five terms is the point at which the family can represent multimodal shapes and match moments
+ *  beyond the fourth. It is also the largest arity for which Keelin (2016) gives closed-form
+ *  central moments, so the mean and variance of the unbounded member are computed exactly here
+ *  rather than by numerical integration.
  *
- *  Two terms is the smallest metalog. It has no shape flexibility beyond location and scale, so
- *  it is chiefly useful as a baseline against which the higher-term members are compared.
- *
- *  @param a1 the location, which is the median in fitting space
- *  @param a2 the scale, which must be strictly positive
+ *  @param a1 the location coefficient
+ *  @param a2 the scale coefficient, which must remain strictly positive
+ *  @param a3 the skewness coefficient
+ *  @param a4 the kurtosis coefficient
+ *  @param a5 the fifth coefficient, refining the location series of the quantile function
  *  @param lowerBound the lower bound, or negative infinity when unbounded below
  *  @param upperBound the upper bound, or positive infinity when unbounded above
  *  @param name an optional name
  */
-class Metalog2P(
+class Metalog5P(
     a1: Double = 0.0,
     a2: Double = 1.0,
+    a3: Double = 0.0,
+    a4: Double = 0.0,
+    a5: Double = 0.0,
     lowerBound: Double = Double.NEGATIVE_INFINITY,
     upperBound: Double = Double.POSITIVE_INFINITY,
     name: String? = null
-) : MetalogDistribution(doubleArrayOf(a1, a2), lowerBound, upperBound, name),
-    RVParametersTypeIfc by RVType.Metalog2P {
+) : MetalogDistribution(doubleArrayOf(a1, a2, a3, a4, a5), lowerBound, upperBound, name),
+    RVParametersTypeIfc by RVType.Metalog5P {
 
     /**
      *  The location coefficient.
@@ -63,14 +66,35 @@ class Metalog2P(
         get() = myCoefficients[1]
         set(value) = changeCoefficient(1, value)
 
-    override fun instance(): Metalog2P {
-        return Metalog2P(a1, a2, lowerBound, upperBound, name)
+    /**
+     *  The skewness coefficient.
+     */
+    var a3: Double
+        get() = myCoefficients[2]
+        set(value) = changeCoefficient(2, value)
+
+    /**
+     *  The kurtosis coefficient.
+     */
+    var a4: Double
+        get() = myCoefficients[3]
+        set(value) = changeCoefficient(3, value)
+
+    /**
+     *  The fifth coefficient, refining the location series of the quantile function.
+     */
+    var a5: Double
+        get() = myCoefficients[4]
+        set(value) = changeCoefficient(4, value)
+
+    override fun instance(): Metalog5P {
+        return Metalog5P(a1, a2, a3, a4, a5, lowerBound, upperBound, name)
     }
 
     override fun randomVariable(
         streamNumber: Int,
         streamProvider: RNStreamProviderIfc
-    ): Metalog2PRV {
-        return Metalog2PRV(a1, a2, lowerBound, upperBound, streamNumber, streamProvider)
+    ): Metalog5PRV {
+        return Metalog5PRV(a1, a2, a3, a4, a5, lowerBound, upperBound, streamNumber, streamProvider)
     }
 }

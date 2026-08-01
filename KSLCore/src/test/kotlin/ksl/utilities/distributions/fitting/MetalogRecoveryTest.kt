@@ -18,12 +18,12 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.distributions.Metalog2P
-import ksl.utilities.distributions.Metalog3P
-import ksl.utilities.distributions.Metalog4P
-import ksl.utilities.distributions.Metalog5P
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.Metalog2P
+import ksl.utilities.distributions.metalog.Metalog3P
+import ksl.utilities.distributions.metalog.Metalog4P
+import ksl.utilities.distributions.metalog.Metalog5P
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import kotlin.math.abs

@@ -19,7 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.Lognormal
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.distributions.fitting.estimators.MetalogPlottingPositions
 import ksl.utilities.random.rng.RNStreamProvider
 import kotlin.test.Test

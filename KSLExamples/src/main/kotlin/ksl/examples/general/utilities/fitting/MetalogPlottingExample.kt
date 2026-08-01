@@ -18,7 +18,7 @@
 
 package ksl.examples.general.utilities.fitting
 
-import ksl.utilities.distributions.MetalogDistribution
+import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.random.rvariable.LognormalRV

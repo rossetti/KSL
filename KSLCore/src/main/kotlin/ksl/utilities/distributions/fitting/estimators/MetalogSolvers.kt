@@ -18,8 +18,8 @@
 
 package ksl.utilities.distributions.fitting.estimators
 
-import ksl.utilities.distributions.MetalogFeasibilityChecker
-import ksl.utilities.distributions.MetalogFunctions
+import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import org.hipparchus.linear.MatrixUtils
 import org.hipparchus.linear.QRDecomposition
 import org.hipparchus.optim.MaxIter

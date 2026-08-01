@@ -16,9 +16,13 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.Distribution
+import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.distributions.MomentsIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import kotlin.math.abs
 import kotlin.math.max

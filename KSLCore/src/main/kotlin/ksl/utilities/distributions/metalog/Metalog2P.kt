@@ -16,44 +16,38 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.Metalog4PRV
+import ksl.utilities.random.rvariable.metalog.Metalog2PRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 
 /**
- *  A four-term metalog distribution.
+ *  A two-term metalog distribution.
  *
- *  The fourth coefficient primarily controls kurtosis. Raising it from zero makes the
- *  distribution fatter through its midrange with correspondingly lighter tails, closer to a
- *  normal or a symmetric beta than to a logistic; lowering it below zero narrows the midrange
- *  and thickens the tails, closer to a Student t with few degrees of freedom.
+ *  With both bounds infinite this is exactly a logistic distribution whose location is the first
+ *  coefficient and whose scale is the second. With a finite lower bound it is the log-logistic,
+ *  known in economics as the Fisk distribution. With both bounds finite it is the logit-logistic,
+ *  also called the Tadikamalla and Johnson bounded distribution.
  *
- *  Two special cases are exact rather than approximate. With the second and third coefficients
- *  zero and the fourth positive, the distribution is uniform on the interval of width equal to
- *  the fourth coefficient centered on the first. With the third coefficient zero and both the
- *  second and fourth positive, it is a mixture of a logistic and a uniform sharing that mean.
+ *  Two terms is the smallest metalog. It has no shape flexibility beyond location and scale, so
+ *  it is chiefly useful as a baseline against which the higher-term members are compared.
  *
- *  @param a1 the location coefficient
- *  @param a2 the scale coefficient, which must remain strictly positive
- *  @param a3 the skewness coefficient
- *  @param a4 the kurtosis coefficient
+ *  @param a1 the location, which is the median in fitting space
+ *  @param a2 the scale, which must be strictly positive
  *  @param lowerBound the lower bound, or negative infinity when unbounded below
  *  @param upperBound the upper bound, or positive infinity when unbounded above
  *  @param name an optional name
  */
-class Metalog4P(
+class Metalog2P(
     a1: Double = 0.0,
     a2: Double = 1.0,
-    a3: Double = 0.0,
-    a4: Double = 0.0,
     lowerBound: Double = Double.NEGATIVE_INFINITY,
     upperBound: Double = Double.POSITIVE_INFINITY,
     name: String? = null
-) : MetalogDistribution(doubleArrayOf(a1, a2, a3, a4), lowerBound, upperBound, name),
-    RVParametersTypeIfc by RVType.Metalog4P {
+) : MetalogDistribution(doubleArrayOf(a1, a2), lowerBound, upperBound, name),
+    RVParametersTypeIfc by RVType.Metalog2P {
 
     /**
      *  The location coefficient.
@@ -69,28 +63,14 @@ class Metalog4P(
         get() = myCoefficients[1]
         set(value) = changeCoefficient(1, value)
 
-    /**
-     *  The skewness coefficient.
-     */
-    var a3: Double
-        get() = myCoefficients[2]
-        set(value) = changeCoefficient(2, value)
-
-    /**
-     *  The kurtosis coefficient.
-     */
-    var a4: Double
-        get() = myCoefficients[3]
-        set(value) = changeCoefficient(3, value)
-
-    override fun instance(): Metalog4P {
-        return Metalog4P(a1, a2, a3, a4, lowerBound, upperBound, name)
+    override fun instance(): Metalog2P {
+        return Metalog2P(a1, a2, lowerBound, upperBound, name)
     }
 
     override fun randomVariable(
         streamNumber: Int,
         streamProvider: RNStreamProviderIfc
-    ): Metalog4PRV {
-        return Metalog4PRV(a1, a2, a3, a4, lowerBound, upperBound, streamNumber, streamProvider)
+    ): Metalog2PRV {
+        return Metalog2PRV(a1, a2, lowerBound, upperBound, streamNumber, streamProvider)
     }
 }

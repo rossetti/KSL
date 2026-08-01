@@ -18,6 +18,11 @@
 
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rvariable.metalog.Metalog2PRV
+import ksl.utilities.random.rvariable.metalog.Metalog3PRV
+import ksl.utilities.random.rvariable.metalog.Metalog4PRV
+import ksl.utilities.random.rvariable.metalog.Metalog5PRV
+import ksl.utilities.random.rvariable.metalog.Metalog6PRV
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.random.rvariable.parameters.AR1NormalRVParameters
 import ksl.utilities.random.rvariable.parameters.BernoulliRVParameters

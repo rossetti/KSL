@@ -1,5 +1,6 @@
 package ksl.utilities.distributions
 
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
 import org.hipparchus.analysis.UnivariateFunction
 import org.hipparchus.analysis.integration.IterativeLegendreGaussIntegrator

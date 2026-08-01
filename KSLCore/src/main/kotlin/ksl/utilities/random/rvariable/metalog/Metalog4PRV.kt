@@ -15,19 +15,21 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.utilities.random.rvariable
+package ksl.utilities.random.rvariable.metalog
 
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogFeasibilityChecker
-import ksl.utilities.distributions.MetalogFunctions
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.parameters.Metalog3PRVParameters
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.ParameterizedRV
+import ksl.utilities.random.rvariable.parameters.Metalog4PRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
- * A three-term metalog random variable.
+ * A four-term metalog random variable.
  *
- * The third coefficient controls skewness, positive skewing right and negative skewing left.
+ * The fourth coefficient controls kurtosis. With the second and third zero and the fourth positive, this generates uniform variates.
  *
  * Because the metalog quantile function is closed form, each variate costs one evaluation of it,
  * with no root finding and no rejection. Which member of the family this represents follows from
@@ -43,16 +45,18 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param a1 the location, which is the median in fitting space
  * @param a2 the scale, which must be strictly positive
  * @param a3 the skewness coefficient
+ * @param a4 the kurtosis coefficient
  * @param lowerBound the lower bound, or negative infinity when unbounded below
  * @param upperBound the upper bound, or positive infinity when unbounded above
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams
  * @param name an optional name
  */
-class Metalog3PRV @JvmOverloads constructor(
+class Metalog4PRV @JvmOverloads constructor(
     val a1: Double = 0.0,
     val a2: Double = 1.0,
     val a3: Double = 0.0,
+    val a4: Double = 0.0,
     val lowerBound: Double = Double.NEGATIVE_INFINITY,
     val upperBound: Double = Double.POSITIVE_INFINITY,
     streamNum: Int = 0,
@@ -60,7 +64,7 @@ class Metalog3PRV @JvmOverloads constructor(
     name: String? = null
 ) : ParameterizedRV(streamNum, streamProvider, name) {
 
-    private val myCoefficients: DoubleArray = doubleArrayOf(a1, a2, a3)
+    private val myCoefficients: DoubleArray = doubleArrayOf(a1, a2, a3, a4)
     private val myBoundedness: MetalogBoundedness = MetalogBoundedness.of(lowerBound, upperBound)
 
     init {
@@ -83,22 +87,23 @@ class Metalog3PRV @JvmOverloads constructor(
         return myBoundedness.fromFittingSpace(z, lowerBound, upperBound)
     }
 
-    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): Metalog3PRV {
-        return Metalog3PRV(
-            a1, a2, a3, lowerBound, upperBound, streamNum, rnStreamProvider, name
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): Metalog4PRV {
+        return Metalog4PRV(
+            a1, a2, a3, a4, lowerBound, upperBound, streamNum, rnStreamProvider, name
         )
     }
 
     override fun toString(): String {
-        return "Metalog3PRV(a1=${a1}, a2=${a2}, a3=${a3}, lowerBound=$lowerBound, upperBound=$upperBound)"
+        return "Metalog4PRV(a1=${a1}, a2=${a2}, a3=${a3}, a4=${a4}, lowerBound=$lowerBound, upperBound=$upperBound)"
     }
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = Metalog3PRVParameters()
+            val parameters: RVParameters = Metalog4PRVParameters()
             parameters.changeDoubleParameter("a1", a1)
             parameters.changeDoubleParameter("a2", a2)
             parameters.changeDoubleParameter("a3", a3)
+            parameters.changeDoubleParameter("a4", a4)
             parameters.changeDoubleParameter("lowerBound", lowerBound)
             parameters.changeDoubleParameter("upperBound", upperBound)
             return parameters

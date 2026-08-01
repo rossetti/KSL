@@ -15,19 +15,21 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.utilities.random.rvariable
+package ksl.utilities.random.rvariable.metalog
 
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogFeasibilityChecker
-import ksl.utilities.distributions.MetalogFunctions
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.parameters.Metalog6PRVParameters
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.ParameterizedRV
+import ksl.utilities.random.rvariable.parameters.Metalog5PRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
- * A six-term metalog random variable.
+ * A five-term metalog random variable.
  *
- * Six terms is the largest arity with a registered random variable type.
+ * Five terms can represent multimodal shapes.
  *
  * Because the metalog quantile function is closed form, each variate costs one evaluation of it,
  * with no root finding and no rejection. Which member of the family this represents follows from
@@ -45,20 +47,18 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param a3 the skewness coefficient
  * @param a4 the kurtosis coefficient
  * @param a5 the fifth coefficient, refining the location series of the quantile function
- * @param a6 the sixth coefficient, refining the scale series of the quantile function
  * @param lowerBound the lower bound, or negative infinity when unbounded below
  * @param upperBound the upper bound, or positive infinity when unbounded above
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams
  * @param name an optional name
  */
-class Metalog6PRV @JvmOverloads constructor(
+class Metalog5PRV @JvmOverloads constructor(
     val a1: Double = 0.0,
     val a2: Double = 1.0,
     val a3: Double = 0.0,
     val a4: Double = 0.0,
     val a5: Double = 0.0,
-    val a6: Double = 0.0,
     val lowerBound: Double = Double.NEGATIVE_INFINITY,
     val upperBound: Double = Double.POSITIVE_INFINITY,
     streamNum: Int = 0,
@@ -66,7 +66,7 @@ class Metalog6PRV @JvmOverloads constructor(
     name: String? = null
 ) : ParameterizedRV(streamNum, streamProvider, name) {
 
-    private val myCoefficients: DoubleArray = doubleArrayOf(a1, a2, a3, a4, a5, a6)
+    private val myCoefficients: DoubleArray = doubleArrayOf(a1, a2, a3, a4, a5)
     private val myBoundedness: MetalogBoundedness = MetalogBoundedness.of(lowerBound, upperBound)
 
     init {
@@ -89,25 +89,24 @@ class Metalog6PRV @JvmOverloads constructor(
         return myBoundedness.fromFittingSpace(z, lowerBound, upperBound)
     }
 
-    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): Metalog6PRV {
-        return Metalog6PRV(
-            a1, a2, a3, a4, a5, a6, lowerBound, upperBound, streamNum, rnStreamProvider, name
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): Metalog5PRV {
+        return Metalog5PRV(
+            a1, a2, a3, a4, a5, lowerBound, upperBound, streamNum, rnStreamProvider, name
         )
     }
 
     override fun toString(): String {
-        return "Metalog6PRV(a1=${a1}, a2=${a2}, a3=${a3}, a4=${a4}, a5=${a5}, a6=${a6}, lowerBound=$lowerBound, upperBound=$upperBound)"
+        return "Metalog5PRV(a1=${a1}, a2=${a2}, a3=${a3}, a4=${a4}, a5=${a5}, lowerBound=$lowerBound, upperBound=$upperBound)"
     }
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = Metalog6PRVParameters()
+            val parameters: RVParameters = Metalog5PRVParameters()
             parameters.changeDoubleParameter("a1", a1)
             parameters.changeDoubleParameter("a2", a2)
             parameters.changeDoubleParameter("a3", a3)
             parameters.changeDoubleParameter("a4", a4)
             parameters.changeDoubleParameter("a5", a5)
-            parameters.changeDoubleParameter("a6", a6)
             parameters.changeDoubleParameter("lowerBound", lowerBound)
             parameters.changeDoubleParameter("upperBound", upperBound)
             return parameters

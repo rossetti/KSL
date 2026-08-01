@@ -16,41 +16,44 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.Metalog5PRV
+import ksl.utilities.random.rvariable.metalog.Metalog4PRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 
 /**
- *  A five-term metalog distribution.
+ *  A four-term metalog distribution.
  *
- *  Five terms is the point at which the family can represent multimodal shapes and match moments
- *  beyond the fourth. It is also the largest arity for which Keelin (2016) gives closed-form
- *  central moments, so the mean and variance of the unbounded member are computed exactly here
- *  rather than by numerical integration.
+ *  The fourth coefficient primarily controls kurtosis. Raising it from zero makes the
+ *  distribution fatter through its midrange with correspondingly lighter tails, closer to a
+ *  normal or a symmetric beta than to a logistic; lowering it below zero narrows the midrange
+ *  and thickens the tails, closer to a Student t with few degrees of freedom.
+ *
+ *  Two special cases are exact rather than approximate. With the second and third coefficients
+ *  zero and the fourth positive, the distribution is uniform on the interval of width equal to
+ *  the fourth coefficient centered on the first. With the third coefficient zero and both the
+ *  second and fourth positive, it is a mixture of a logistic and a uniform sharing that mean.
  *
  *  @param a1 the location coefficient
  *  @param a2 the scale coefficient, which must remain strictly positive
  *  @param a3 the skewness coefficient
  *  @param a4 the kurtosis coefficient
- *  @param a5 the fifth coefficient, refining the location series of the quantile function
  *  @param lowerBound the lower bound, or negative infinity when unbounded below
  *  @param upperBound the upper bound, or positive infinity when unbounded above
  *  @param name an optional name
  */
-class Metalog5P(
+class Metalog4P(
     a1: Double = 0.0,
     a2: Double = 1.0,
     a3: Double = 0.0,
     a4: Double = 0.0,
-    a5: Double = 0.0,
     lowerBound: Double = Double.NEGATIVE_INFINITY,
     upperBound: Double = Double.POSITIVE_INFINITY,
     name: String? = null
-) : MetalogDistribution(doubleArrayOf(a1, a2, a3, a4, a5), lowerBound, upperBound, name),
-    RVParametersTypeIfc by RVType.Metalog5P {
+) : MetalogDistribution(doubleArrayOf(a1, a2, a3, a4), lowerBound, upperBound, name),
+    RVParametersTypeIfc by RVType.Metalog4P {
 
     /**
      *  The location coefficient.
@@ -80,21 +83,14 @@ class Metalog5P(
         get() = myCoefficients[3]
         set(value) = changeCoefficient(3, value)
 
-    /**
-     *  The fifth coefficient, refining the location series of the quantile function.
-     */
-    var a5: Double
-        get() = myCoefficients[4]
-        set(value) = changeCoefficient(4, value)
-
-    override fun instance(): Metalog5P {
-        return Metalog5P(a1, a2, a3, a4, a5, lowerBound, upperBound, name)
+    override fun instance(): Metalog4P {
+        return Metalog4P(a1, a2, a3, a4, lowerBound, upperBound, name)
     }
 
     override fun randomVariable(
         streamNumber: Int,
         streamProvider: RNStreamProviderIfc
-    ): Metalog5PRV {
-        return Metalog5PRV(a1, a2, a3, a4, a5, lowerBound, upperBound, streamNumber, streamProvider)
+    ): Metalog4PRV {
+        return Metalog4PRV(a1, a2, a3, a4, lowerBound, upperBound, streamNumber, streamProvider)
     }
 }

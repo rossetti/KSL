@@ -24,6 +24,11 @@ import ksl.utilities.collections.MutableBiMap
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.estimators.*
 import ksl.utilities.distributions.fitting.scoring.*
+import ksl.utilities.distributions.metalog.Metalog2P
+import ksl.utilities.distributions.metalog.Metalog3P
+import ksl.utilities.distributions.metalog.Metalog4P
+import ksl.utilities.distributions.metalog.Metalog5P
+import ksl.utilities.distributions.metalog.Metalog6P
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.BoxPlot
@@ -1304,7 +1309,11 @@ class PDFModeler(
                 RVType.Metalog5P -> {
                     val parameterValues = DoubleArray(5) { parameters.doubleParameter("a${it + 1}") }
                     return Metalog5P(
-                        parameterValues[0], parameterValues[1], parameterValues[2], parameterValues[3], parameterValues[4],
+                        parameterValues[0],
+                        parameterValues[1],
+                        parameterValues[2],
+                        parameterValues[3],
+                        parameterValues[4],
                         parameters.doubleParameter("lowerBound"),
                         parameters.doubleParameter("upperBound")
                     )
@@ -1313,7 +1322,12 @@ class PDFModeler(
                 RVType.Metalog6P -> {
                     val parameterValues = DoubleArray(6) { parameters.doubleParameter("a${it + 1}") }
                     return Metalog6P(
-                        parameterValues[0], parameterValues[1], parameterValues[2], parameterValues[3], parameterValues[4], parameterValues[5],
+                        parameterValues[0],
+                        parameterValues[1],
+                        parameterValues[2],
+                        parameterValues[3],
+                        parameterValues[4],
+                        parameterValues[5],
                         parameters.doubleParameter("lowerBound"),
                         parameters.doubleParameter("upperBound")
                     )

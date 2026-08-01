@@ -16,10 +16,10 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.Metalog3PRV
+import ksl.utilities.random.rvariable.metalog.Metalog3PRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 import kotlin.math.ln

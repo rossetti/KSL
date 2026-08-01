@@ -20,9 +20,9 @@ package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.distributions.MetalogBoundedness
-import ksl.utilities.distributions.MetalogFeasibilityChecker
-import ksl.utilities.distributions.MetalogFunctions
+import ksl.utilities.distributions.metalog.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
+import ksl.utilities.distributions.metalog.MetalogFunctions
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType

@@ -19,7 +19,7 @@
 package ksl.app.dist.catalog
 
 import ksl.app.dist.config.DistributionKind
-import ksl.utilities.distributions.MetalogBoundedness
+import ksl.utilities.distributions.metalog.MetalogBoundedness
 import ksl.utilities.distributions.fitting.estimators.MetalogParameterEstimator
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import org.junit.jupiter.api.Test
