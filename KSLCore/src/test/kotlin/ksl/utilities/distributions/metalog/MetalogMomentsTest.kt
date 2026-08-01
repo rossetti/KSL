@@ -1,9 +1,7 @@
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
-import ksl.utilities.distributions.metalog.MetalogBoundedness
-import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
-import ksl.utilities.distributions.metalog.MetalogFunctions
-import ksl.utilities.distributions.metalog.MetalogMoments
+import ksl.utilities.distributions.Logistic
+import ksl.utilities.distributions.Uniform
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp

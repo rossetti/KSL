@@ -1,8 +1,6 @@
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
-import ksl.utilities.distributions.metalog.Metalog3P
-import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
-import ksl.utilities.distributions.metalog.MetalogFunctions
+import ksl.utilities.distributions.Logistic
 import org.hipparchus.linear.MatrixUtils
 import org.hipparchus.linear.QRDecomposition
 import kotlin.math.abs

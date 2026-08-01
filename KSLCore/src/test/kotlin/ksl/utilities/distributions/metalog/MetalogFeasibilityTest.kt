@@ -1,7 +1,5 @@
-package ksl.utilities.distributions
+package ksl.utilities.distributions.metalog
 
-import ksl.utilities.distributions.metalog.MetalogFeasibilityChecker
-import ksl.utilities.distributions.metalog.MetalogFunctions
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.random.Random

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.random.rvariable
+package ksl.utilities.random.rvariable.metalog
 
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.LogLogistic
@@ -29,8 +29,8 @@ import ksl.utilities.distributions.metalog.Metalog6P
 import ksl.utilities.distributions.metalog.MetalogBoundedness
 import ksl.utilities.distributions.metalog.MetalogDistribution
 import ksl.utilities.random.rng.RNStreamProvider
-import ksl.utilities.random.rvariable.metalog.Metalog2PRV
-import ksl.utilities.random.rvariable.metalog.Metalog4PRV
+import ksl.utilities.random.rvariable.LogLogisticRV
+import ksl.utilities.random.rvariable.LogisticRV
 import ksl.utilities.statistic.Statistic
 import kotlin.math.abs
 import kotlin.math.exp
