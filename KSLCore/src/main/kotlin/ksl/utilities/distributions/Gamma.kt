@@ -253,11 +253,22 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         get() = 2.0 / sqrt(shape)
 
     /**
-     * the maximum number of iterations for the gamma functions
+     * The maximum number of terms permitted when evaluating the incomplete gamma function for this
+     * distribution.
+     *
+     * The value is stored as supplied. A number smaller than the default is a genuine instruction to
+     * spend less work, and a computation that cannot finish within it throws rather than quietly
+     * taking more: the caller asked for a bound and gets one. Setting this below what the shape
+     * requires is a way to make a working call start failing, which is the only reason to lower it.
+     *
+     * Previously any value below `DEFAULT_MAX_ITERATIONS` was silently replaced by that default, so
+     * the property could be raised but never lowered. Callers who depended on that -- assigning zero
+     * or a negative number and receiving the default -- now get an exception at the assignment.
      */
     var maxNumIterations: Int = DEFAULT_MAX_ITERATIONS
         set(iterations) {
-            field = max(iterations, DEFAULT_MAX_ITERATIONS)
+            require(iterations > 0) { "The maximum number of iterations must be > 0" }
+            field = iterations
         }
 
     /**
@@ -320,7 +331,24 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     }
 
     companion object {
-        const val DEFAULT_MAX_ITERATIONS : Int = 5000
+        /**
+         * The maximum number of terms permitted when summing the incomplete gamma series.
+         *
+         * This is a runaway guard, not the thing that decides accuracy. The series' own convergence
+         * test terminates the loop, normally after a few dozen terms; this bound exists only so that
+         * an input which cannot converge fails instead of running forever.
+         *
+         * The term count the series genuinely needs grows like the square root of the shape, so no
+         * constant is correct for every shape. It does not have to be. A million terms covers shapes
+         * up to roughly 1.0E10, while a gamma fitted to real data reaches a shape near 1.0E6 only
+         * when the sample's standard deviation is about a thousandth of its mean. Beyond the bound
+         * the routine throws, which is the intended behaviour for an input that far outside the
+         * range the library is meant to serve.
+         *
+         * The previous value of 5000 was low enough to be reached by ordinary fitted distributions:
+         * a shape above about 1.1E6 evaluated near its mean exhausted it and threw.
+         */
+        const val DEFAULT_MAX_ITERATIONS : Int = 1_000_000
 
         /**
          * Below this probability, [invCDF] uses the closed-form lower-tail
@@ -333,9 +361,16 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
 
         /**
          * The maximum number of iterations permitted for the incomplete gamma function
-         * evaluation process
+         * evaluation process.
+         *
+         * Defined as `DEFAULT_MAX_ITERATIONS` rather than as its own number. The two govern the same
+         * series reached by different routes -- this one through the static entry points, the other
+         * through an instance's `maxNumIterations` -- so allowing them to differ means a direct call
+         * to `incompleteGammaFunction` can throw on a shape that an instance of this class evaluates
+         * without complaint. They were independently set to 5000 and are now tied together so they
+         * cannot drift apart again.
          */
-        const val INC_GAMMA_MAX_ITERATIONS : Int = 5000
+        const val INC_GAMMA_MAX_ITERATIONS : Int = DEFAULT_MAX_ITERATIONS
 
         /**
          *  The maximum number of iterations permitted in the chi-square cdf computation

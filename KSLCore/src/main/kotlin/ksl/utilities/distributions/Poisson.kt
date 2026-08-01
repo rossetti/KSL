@@ -222,8 +222,12 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
     companion object {
         /** Used in the calculation of the incomplete gamma function
          *
+         * Defined as `Gamma.DEFAULT_MAX_ITERATIONS` rather than as its own number. The
+         * non-recursive cdf path hands this straight to `Gamma.incompleteGammaFunction`, so a value
+         * of its own would only create a way for the Poisson route to fail on a mean that the same
+         * computation reached through `Gamma` handles. Both were independently set to 5000.
          */
-        const val DEFAULT_MAX_ITERATIONS : Int = 5000
+        const val DEFAULT_MAX_ITERATIONS : Int = Gamma.DEFAULT_MAX_ITERATIONS
 
         /**
          *  @param moments the moments to check
