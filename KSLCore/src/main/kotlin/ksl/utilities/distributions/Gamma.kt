@@ -722,8 +722,28 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
                     ap = ap + 1.0
                     del = del * x / ap
                     sum = sum + del
-                    if (abs(del) / abs(sum) < eps) {
-                        return sum * exp(-x + alpha * ln(x) - logGammaFunction(alpha))
+                    // Stop on a bound for everything still to come, not on the size of the term just
+                    // added. Every term is positive and the ratio between successive terms shrinks,
+                    // so the ratio to the next term bounds all the later ones and the remainder is
+                    // below a geometric series with that ratio. Testing the last term alone assumes
+                    // the remainder is comparable to it, which holds only while terms fall away
+                    // quickly. They do not near x = alpha: the ratio sits just under one, the terms
+                    // form a long slowly-decaying plateau, and the untested remainder is larger than
+                    // the last term by roughly alpha/n -- a factor of hundreds for the shapes a
+                    // fitted gamma produces. That is the difference between a result good to the
+                    // requested precision and one that merely looks converged.
+                    val ratio = x / (ap + 1.0)
+                    if (ratio < 1.0) {
+                        val tailBound = del * ratio / (1.0 - ratio)
+                        // The ratio is below one for every term in this branch, which is entered
+                        // only when x < alpha + 1. It can still round to exactly one when x sits
+                        // within an ulp of that boundary, and the subtraction would then be zero, so
+                        // the guard above is arithmetic rather than mathematical. A non-finite bound
+                        // or sum means the same thing: nothing has been established yet, so keep
+                        // going and let the iteration limit end it.
+                        if (tailBound.isFinite() && sum.isFinite() && abs(tailBound) / abs(sum) < eps) {
+                            return sum * exp(-x + alpha * ln(x) - logGammaFunction(alpha))
+                        }
                     }
                     n++
                 }
