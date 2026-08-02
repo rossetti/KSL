@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import ksl.app.dist.session.FitEvent
 import ksl.app.dist.session.FitHandle
 import ksl.app.dist.session.FitResult
+import ksl.app.moda.ModaEvent
+import ksl.app.moda.ModaHandle
+import ksl.app.moda.ModaStudyOutcome
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
@@ -56,6 +59,23 @@ fun FitHandle.asJobView(): JobHandleView<FitEvent, FitResult> {
         override val jobId: String get() = handle.fitId
         override val events: SharedFlow<FitEvent> get() = handle.events
         override val result: Deferred<FitResult> get() = handle.result
+        override fun cancel(reason: String) = handle.cancel(reason)
+    }
+}
+
+/**
+ * Views a multi-objective decision study [ModaHandle] as a capability-agnostic
+ * [JobHandleView]. Deciding between alternatives is then a job like any other:
+ * it queues under the same capacity limit, is journalled, cancelled, and
+ * retained the same way, and reaches a caller over the same transport as a
+ * model run or a distribution fit.
+ */
+fun ModaHandle.asJobView(): JobHandleView<ModaEvent, ModaStudyOutcome> {
+    val handle = this
+    return object : JobHandleView<ModaEvent, ModaStudyOutcome> {
+        override val jobId: String get() = handle.studyId
+        override val events: SharedFlow<ModaEvent> get() = handle.events
+        override val result: Deferred<ModaStudyOutcome> get() = handle.result
         override fun cancel(reason: String) = handle.cancel(reason)
     }
 }
