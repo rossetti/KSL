@@ -40,7 +40,13 @@ data class ModaMetricRecordDTO(
     val hadTiedScores: Boolean,
     val valueFunctionId: String,
     val unitsOfMeasure: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    /**
+     *  Where the alternatives actually fell on this metric. Added after the first version, optional
+     *  with a default, so a reader of either version makes sense of a result written by the other.
+     */
+    val realizedLowestScore: Double? = null,
+    val realizedHighestScore: Double? = null
 )
 
 /**
@@ -117,7 +123,9 @@ fun MetricRecord.toDTO(): ModaMetricRecordDTO = ModaMetricRecordDTO(
     hadTiedScores = hadTiedScores,
     valueFunctionId = valueFunctionId,
     unitsOfMeasure = unitsOfMeasure,
-    description = description
+    description = description,
+    realizedLowestScore = realizedLowestScore,
+    realizedHighestScore = realizedHighestScore
 )
 
 /** Converts a metric record back from its wire form. */
@@ -133,7 +141,9 @@ fun ModaMetricRecordDTO.toRecord(): MetricRecord = MetricRecord(
     hadTiedScores = hadTiedScores,
     valueFunctionId = valueFunctionId,
     unitsOfMeasure = unitsOfMeasure,
-    description = description
+    description = description,
+    realizedLowestScore = realizedLowestScore,
+    realizedHighestScore = realizedHighestScore
 )
 
 /** Converts a completed study to its wire form. */

@@ -7,8 +7,8 @@
 
 [averageMODA]
 [metrics]
-  Cost: direction=SmallerIsBetter, declared=[0.000000000, 15.000000000], effective=[0.000000000, 15.000000000], weight=0.500000000, adjustLower=false, adjustUpper=false
-  Delay: direction=SmallerIsBetter, declared=[0.000000000, 10.000000000], effective=[0.000000000, 10.000000000], weight=0.500000000, adjustLower=false, adjustUpper=false
+  Cost: direction=SmallerIsBetter, declared=[0.000000000, 15.000000000], realized=[10.300000000, 14.300000000], effective=[0.000000000, 15.000000000], weight=0.500000000, adjustLower=false, adjustUpper=false
+  Delay: direction=SmallerIsBetter, declared=[0.000000000, 10.000000000], realized=[6.300000000, 9.300000000], effective=[0.000000000, 10.000000000], weight=0.500000000, adjustLower=false, adjustUpper=false
 
 [raw scores and values by alternative]
   Alpha -> Cost: value=0.313333333, Delay: value=0.070000000

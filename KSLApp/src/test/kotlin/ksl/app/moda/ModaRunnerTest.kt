@@ -129,11 +129,20 @@ class ModaRunnerTest {
      */
     @Test
     fun `fitting the limits moves them to sit around the scores`() {
-        val completed = assertIs<ModaRunResult.Completed>(ModaRunner().run(inlineDocument()))
+        // Declared wider than the scores reach. Where the declared limits are tight enough that the
+        // fitting would reach past them, they hold it back instead, which is covered where the
+        // fitting itself is tested.
+        val roomy = inlineDocument().copy(
+            metrics = listOf(
+                MetricSpec("Cost", weight = 2.0, upperLimit = 1000.0),
+                MetricSpec("Delay", weight = 1.0, upperLimit = 1000.0)
+            )
+        )
+        val completed = assertIs<ModaRunResult.Completed>(ModaRunner().run(roomy))
         val cost = completed.snapshot.metric("Cost")!!
         assertTrue(cost.domainWasRescaled, "the limits were not fitted under the fitting policy")
         assertTrue(
-            cost.effectiveLowerLimit != 0.0 || cost.effectiveUpperLimit != 100.0,
+            cost.effectiveLowerLimit != 0.0 || cost.effectiveUpperLimit != 1000.0,
             "the fitted limits are the declared ones"
         )
         val realized = completed.snapshot.alternatives.map { completed.snapshot.scores[it]!!["Cost"]!! }

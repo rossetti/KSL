@@ -1,10 +1,10 @@
 # PDFModeler default evaluation, Exponential(10.0) stream 2, n=500
 
 [metrics]
-  BIC: direction=SmallerIsBetter, declared=[-10000000.000000000, 10000000.000000000], effective=[3135.256079479, 5537.389240338], weight=0.250000000, adjustLower=true, adjustUpper=true
-  AD: direction=SmallerIsBetter, declared=[0.000000000, MAX_VALUE], effective=[0.000000000, 456.526909677], weight=0.250000000, adjustLower=false, adjustUpper=true
-  CVM: direction=SmallerIsBetter, declared=[0.000000000, MAX_VALUE], effective=[0.000000000, 82.612578031], weight=0.250000000, adjustLower=false, adjustUpper=true
-  QQC: direction=BiggerIsBetter, declared=[-1.000000000, 1.000000000], effective=[-1.000000000, 1.000000000], weight=0.250000000, adjustLower=false, adjustUpper=false
+  BIC: direction=SmallerIsBetter, declared=[-10000000.000000000, 10000000.000000000], realized=[3375.469395565, 5297.175924252], effective=[3135.256079479, 5537.389240338], weight=0.250000000, adjustLower=true, adjustUpper=true
+  AD: direction=SmallerIsBetter, declared=[0.000000000, MAX_VALUE], realized=[0.368930710, 405.842689792], effective=[0.000000000, 456.526909677], weight=0.250000000, adjustLower=false, adjustUpper=true
+  CVM: direction=SmallerIsBetter, declared=[0.000000000, MAX_VALUE], realized=[0.050209543, 73.438981532], effective=[0.000000000, 82.612578031], weight=0.250000000, adjustLower=false, adjustUpper=true
+  QQC: direction=BiggerIsBetter, declared=[-1.000000000, 1.000000000], realized=[0.253811970, 0.997059483], effective=[-1.000000000, 1.000000000], weight=0.250000000, adjustLower=false, adjustUpper=false
 
 [raw scores and values by alternative]
   0.02129594262929879 + Exponential(mean=10.68942342291781) -> BIC: value=0.900000000, AD: value=0.999132657, CVM: value=0.999352019, QQC: value=0.998447945

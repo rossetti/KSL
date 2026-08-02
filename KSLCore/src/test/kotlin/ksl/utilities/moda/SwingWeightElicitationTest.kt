@@ -173,11 +173,13 @@ class SwingWeightElicitationTest {
         val definitions: Map<MetricIfc, ValueFunctionIfc> =
             metricList.associate { metric -> metric as MetricIfc to LinearValueFunction() }
         val model = AdditiveMODAModel(definitions, name = "Study")
+        // Scores clustered around the middle, so that fitting genuinely narrows each range rather
+        // than proposing one so wide it is trimmed straight back to the declared limits.
         model.defineAlternatives(
             mapOf(
-                "A" to metricList.map { Score(it, it.domain.upperLimit * 0.2) },
+                "A" to metricList.map { Score(it, it.domain.upperLimit * 0.4) },
                 "B" to metricList.map { Score(it, it.domain.upperLimit * 0.5) },
-                "C" to metricList.map { Score(it, it.domain.upperLimit * 0.8) }
+                "C" to metricList.map { Score(it, it.domain.upperLimit * 0.6) }
             ),
             allowRescalingByMetrics = rescale
         )

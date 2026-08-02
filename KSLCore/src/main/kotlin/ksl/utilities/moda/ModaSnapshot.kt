@@ -60,6 +60,20 @@ data class MetricRecord(
     val effectiveUpperLimit: Double,
     /** Indicates the domain was fitted to the realized scores rather than used as declared. */
     val domainWasRescaled: Boolean,
+    /**
+     *  The smallest and largest score any alternative actually achieved on this metric.
+     *
+     *  Recorded because it is the third thing needed to read the other two. The declared limits say
+     *  what was thought possible, the effective limits say what the values were computed over, and
+     *  these say where the alternatives really fell. Without them a reader cannot tell a domain
+     *  fitted tightly around a cluster of alternatives from one left wide because they were spread,
+     *  and those mean quite different things about the decision.
+     *
+     *  Null only where the metric had no scores, which cannot happen for a metric of a study that
+     *  ran.
+     */
+    val realizedLowestScore: Double? = null,
+    val realizedHighestScore: Double? = null,
     /** Indicates every alternative scored the same here, so this metric separated nothing. */
     val hadTiedScores: Boolean,
     val valueFunctionId: String,
@@ -165,8 +179,10 @@ data class ModaSnapshot(
             val alternatives = model.alternatives
             val warnings = model.warnings
 
+            val realizedScores = model.scoresByMetric()
             val metricRecords = metrics.map { metric ->
                 val effective = model.effectiveDomainOf(metric)
+                val realized = realizedScores[metric].orEmpty()
                 MetricRecord(
                     name = metric.name,
                     direction = metric.direction.name,
@@ -176,6 +192,8 @@ data class ModaSnapshot(
                     effectiveLowerLimit = effective.lowerLimit,
                     effectiveUpperLimit = effective.upperLimit,
                     domainWasRescaled = model.wasRescaled(metric),
+                    realizedLowestScore = realized.minOrNull(),
+                    realizedHighestScore = realized.maxOrNull(),
                     hadTiedScores = warnings.any { it is ModaWarning.TiedScores && it.metric == metric.name },
                     valueFunctionId = model.valueFunctionIdOf(metric),
                     unitsOfMeasure = metric.unitsOfMeasure,

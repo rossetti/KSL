@@ -203,13 +203,23 @@ class ModaEngineBaselineTest {
      */
     private fun StringBuilder.appendModel(model: AdditiveMODAModel) {
         appendLine("[metrics]")
+        val realizedScores = model.scoresByMetric()
         for (metric in model.metrics) {
-            // Both domains are recorded. 'declared' is what the caller supplied and must never be
-            // modified by evaluating a model; 'effective' is what the value functions were applied
-            // over and is what explains the values below.
+            // All three ranges are recorded, because each answers a different question and none of
+            // them can be read without the others. 'declared' is what the caller supplied and must
+            // never be modified by evaluating a model; 'realized' is where the alternatives
+            // actually fell; 'effective' is what the value functions were applied over, and is what
+            // explains the values below.
+            val realized = realizedScores[metric].orEmpty()
+            val realizedRange = if (realized.isEmpty()) {
+                "[none]"
+            } else {
+                "[${num(realized.min())}, ${num(realized.max())}]"
+            }
             appendLine(
                 "  ${metric.name}: direction=${metric.direction}" +
                         ", declared=${interval(metric.domain)}" +
+                        ", realized=$realizedRange" +
                         ", effective=${interval(model.effectiveDomainOf(metric))}" +
                         ", weight=${num(model.weights[metric] ?: Double.NaN)}" +
                         ", adjustLower=${metric.allowLowerLimitAdjustment}" +

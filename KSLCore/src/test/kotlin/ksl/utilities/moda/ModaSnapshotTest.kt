@@ -37,8 +37,10 @@ import kotlin.test.assertTrue
 class ModaSnapshotTest {
 
     private fun studyModel(): Triple<AdditiveMODAModel, Metric, Metric> {
-        val cost = Metric("Cost", Interval(0.0, 100.0))
-        val delay = Metric("Delay", Interval(0.0, 100.0))
+        // Declared wider than the scores reach, so fitting genuinely narrows rather than arriving
+        // back at the declared limits, which is what makes the fitted-domain assertions meaningful.
+        val cost = Metric("Cost", Interval(0.0, 1000.0))
+        val delay = Metric("Delay", Interval(0.0, 1000.0))
         val model = AdditiveMODAModel(
             mapOf(cost to LinearValueFunction(), delay to LinearValueFunction()),
             name = "Study"
@@ -120,7 +122,7 @@ class ModaSnapshotTest {
         val snapshot = ModaSnapshot.of(model)
         val record = snapshot.metric("Cost")!!
         assertEquals(0.0, record.declaredLowerLimit)
-        assertEquals(100.0, record.declaredUpperLimit)
+        assertEquals(1000.0, record.declaredUpperLimit)
         assertTrue(record.domainWasRescaled, "the domain was fitted but not recorded as such")
         assertEquals(model.effectiveDomainOf(cost).lowerLimit, record.effectiveLowerLimit)
         assertEquals(model.effectiveDomainOf(cost).upperLimit, record.effectiveUpperLimit)

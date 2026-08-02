@@ -22,6 +22,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -283,6 +284,28 @@ abstract class MODAModel(
      *  value functions discriminate over the range that matters rather than over a declared range
      *  no alternative approaches.
      *
+     *  The fitted domain deliberately leaves room beyond the realized scores at both ends. A score
+     *  is an uncertain quantity rather than an exact one — a goodness-of-fit statistic and an
+     *  average over replications both are — and the extremes that turned up understate the extremes
+     *  achievable. Leaving the room also stops the best alternative in the set from scoring exactly
+     *  one merely for being the best of those compared, which would be a claim about the comparison
+     *  rather than about the alternative, and would stop being true the moment another alternative
+     *  was added.
+     *
+     *  The room left is a fraction `1/(n-1)` of the realized range at each end, for `n` alternatives.
+     *  Two consequences are worth knowing. It is proportional to each metric's own range, so every
+     *  metric is stretched by the same factor and the fitting cannot by itself reorder anything. And
+     *  it is large when there are few alternatives: with three of them the values can only occupy
+     *  `[0.25, 0.75]`, and with four `[0.2, 0.8]`, so a value well short of one does not mean an
+     *  alternative fell short of what was achievable.
+     *
+     *  Fitting moves a limit inwards to where the alternatives are, and never outwards past what
+     *  was declared possible. A declared limit is a statement about the metric — a utilization
+     *  cannot exceed one — and a domain reaching beyond it would describe scores the metric could
+     *  never take, spending part of the value range on them and blunting the discrimination the
+     *  fitting is for. Note that the domain a metric takes when nothing is said about it is open
+     *  above but floored at zero, so it declares the metric non-negative and that floor holds too.
+     *
      *  The adjustment is recorded against the model rather than written into the caller's metrics,
      *  which are left exactly as supplied. A metric is adjusted only if the resulting domain
      *  contains every one of its realized scores, so a metric is never evaluated against two
@@ -302,6 +325,10 @@ abstract class MODAModel(
                 myWarnings.add(ModaWarning.DomainNotApplied(metric.name, combined.toString()))
                 continue
             }
+            // Nothing to record when the fitting arrived back at the declared domain. Saying a
+            // metric was fitted when it is evaluated against exactly what was declared would be
+            // reporting a difference that does not exist.
+            if (combined == metric.domain) continue
             myEffectiveMetrics[metric] = RescaledMetric(metric, combined)
         }
     }
@@ -327,7 +354,7 @@ abstract class MODAModel(
      *  Scores count as tied when their spread is within a small fraction of their own magnitude, so
      *  values differing only by floating point noise are treated as the ties they are.
      */
-    private fun proposeInterval(metric: MetricIfc, stat: Statistic): Interval? {
+    private fun proposeInterval(metric: MetricIfc, stat: Statistic): ProposedDomain? {
         if (!metric.allowLowerLimitAdjustment && !metric.allowUpperLimitAdjustment) return null
         if (stat.count < 1.0) return null
         val spread = stat.max - stat.min
@@ -336,10 +363,10 @@ abstract class MODAModel(
             val score = stat.min
             val halfWidth = max(tiedScoreHalfWidth, abs(score) * tiedScoreRelativeTolerance)
             myWarnings.add(ModaWarning.TiedScores(metric.name, score))
-            return Interval(score - halfWidth, score + halfWidth)
+            return ProposedDomain(Interval(score - halfWidth, score + halfWidth), fromTiedScores = true)
         }
         if (stat.count > 2.0) {
-            return PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
+            return ProposedDomain(PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt()))
         }
         // Two observations that differ. Rounding outward normally widens the interval, but it
         // leaves it unchanged when both values already sit on whole numbers, so guard the width
@@ -347,19 +374,57 @@ abstract class MODAModel(
         val lower = floor(stat.min)
         val upper = ceil(stat.max)
         return if (upper > lower) {
-            Interval(lower, upper)
+            ProposedDomain(Interval(lower, upper))
         } else {
-            Interval(lower - tiedScoreHalfWidth, upper + tiedScoreHalfWidth)
+            ProposedDomain(Interval(lower - tiedScoreHalfWidth, upper + tiedScoreHalfWidth))
         }
     }
 
     /**
-     *  Applies the metric's own limits to a proposed domain, keeping the declared limit wherever the
-     *  metric does not permit that limit to be adjusted.
+     *  A domain suggested by the realized scores, and whether it came from every alternative scoring
+     *  the same.
+     *
+     *  The two are told apart because they are claims of different kinds. A domain fitted to scores
+     *  that differ is a claim about the range the metric can take, and is held within whatever range
+     *  was declared for it. The interval placed around tied scores claims nothing about the metric;
+     *  it exists only so that every alternative lands at the middle of the value range, and holding
+     *  it within the declared limits would move the scores off that middle and destroy the one
+     *  property it was built to have.
      */
-    private fun combineWithDeclared(metric: MetricIfc, proposed: Interval): Interval {
-        val lower = if (metric.allowLowerLimitAdjustment) proposed.lowerLimit else metric.domain.lowerLimit
-        val upper = if (metric.allowUpperLimitAdjustment) proposed.upperLimit else metric.domain.upperLimit
+    private data class ProposedDomain(
+        val interval: Interval,
+        val fromTiedScores: Boolean = false
+    )
+
+    /**
+     *  Applies the metric's own limits to a proposed domain: the declared limit stands wherever the
+     *  metric does not permit that limit to be adjusted, and bounds the fitting wherever it does.
+     *
+     *  A declared limit is a statement about the metric — a utilization cannot exceed one, a
+     *  percentage cannot exceed a hundred — so fitting is allowed to move a limit inwards to where
+     *  the alternatives actually are, and not outwards past what was said to be possible. Fitting
+     *  beyond a real limit would also spend part of the value range on scores no alternative could
+     *  ever achieve, which blunts the very discrimination the fitting is for.
+     *
+     *  This does nothing at all where nobody stated a limit, since a domain left open has nothing to
+     *  hold the fitting within. It takes effect only where a limit was deliberately given.
+     */
+    private fun combineWithDeclared(metric: MetricIfc, proposed: ProposedDomain): Interval {
+        if (proposed.fromTiedScores) {
+            // Not a claim about the metric's range, so not held within it. See [ProposedDomain].
+            return proposed.interval
+        }
+        val declared = metric.domain
+        val lower = if (metric.allowLowerLimitAdjustment) {
+            max(proposed.interval.lowerLimit, declared.lowerLimit)
+        } else {
+            declared.lowerLimit
+        }
+        val upper = if (metric.allowUpperLimitAdjustment) {
+            min(proposed.interval.upperLimit, declared.upperLimit)
+        } else {
+            declared.upperLimit
+        }
         if (lower > upper) {
             // A one-sided adjustment can cross the limit it was not allowed to move. Report it as
             // the degenerate case rather than failing to construct the interval.
