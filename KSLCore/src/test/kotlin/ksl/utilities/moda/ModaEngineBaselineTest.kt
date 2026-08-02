@@ -43,9 +43,11 @@ import kotlin.test.fail
  *     represented must not move them.
  *  2. `MODAAnalyzer` — which never rescales, so it should be bit-identical throughout. It is
  *     recorded precisely so that "should be inert" is checked rather than assumed.
- *  3. The tied-score defect, recorded as it behaves *today*: a crash for three or more tied
- *     alternatives and a silent NaN for one or two tied at an integral score. This is the one
- *     block expected to change, and changing it is the point of the work.
+ *  3. Tied scores. This block was first recorded as the defect behaved before the engine work — a
+ *     crash for three or more tied alternatives, and a silent not-a-number for one or two tied at a
+ *     whole number — and was re-recorded once that was fixed. It now shows every tied alternative
+ *     taking the midpoint of the value range with a `TiedScores` warning naming the metric, which is
+ *     the behaviour to hold onto. It is the one block that was ever expected to move.
  *
  *  Canonicalization follows the rules the plan sets out. Surrogate database ids and database
  *  metadata are excluded, since they are counters rather than results. Ordering is made stable by
