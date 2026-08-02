@@ -100,6 +100,22 @@ abstract class MODAModel(
     }
 
     /**
+     *  Identifies the kind of value function applied to the supplied [metric], for recording
+     *  alongside results so that a reader can tell how scores were turned into values.
+     *
+     *  This names the kind of function and not how it was set up: two logistic functions with
+     *  different locations and scales share an identifier. Where the settings matter they belong
+     *  with whatever supplied them, since a value function is not required to describe itself. A
+     *  function supplied as a lambda has no name of its own and is identified by its generated
+     *  class, which is stable within a build but not meaningful to a reader.
+     */
+    fun valueFunctionIdOf(metric: MetricIfc): String {
+        require(metricFunctionMap.containsKey(metric)) { "The metric (${metric.name}) is not part of the model" }
+        val valueFunction = metricFunctionMap[metric]!!
+        return valueFunction::class.simpleName ?: valueFunction::class.java.name
+    }
+
+    /**
      *  The single place a value function is applied to a score.
      *
      *  When a metric's domain has been adjusted, the value function has to see the adjusted domain,
