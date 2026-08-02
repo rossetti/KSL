@@ -17,6 +17,7 @@ import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -144,6 +145,15 @@ abstract class MODAModel(
      *   the defined metrics.
      */
     fun defineMetrics(definitions: Map<MetricIfc, ValueFunctionIfc>) {
+        // Metrics are held by identity, so two distinct metrics sharing a name are two separate
+        // metrics in the model while being indistinguishable in every report, data frame and
+        // database row it produces. Refusing them here turns a set of results that cannot be read
+        // into an error at the point the mistake was made.
+        val duplicate = definitions.keys.groupBy { it.name }.entries.firstOrNull { it.value.size > 1 }
+        require(duplicate == null) {
+            "Metric names must be unique within a model. The name '${duplicate!!.key}' was supplied " +
+                    "${duplicate.value.size} times, by that many separately created metrics."
+        }
         if (metricFunctionMap.isNotEmpty()) {
             metricFunctionMap.clear()
             myAlternatives.clear()
@@ -190,6 +200,27 @@ abstract class MODAModel(
         alternatives: Map<String, List<Score>>,
         allowRescalingByMetrics: Boolean = true
     ) {
+        defineAlternativesReporting(alternatives, allowRescalingByMetrics)
+    }
+
+    /**
+     *  Defines the [alternatives] exactly as [defineAlternatives] does, and additionally reports
+     *  which of them were taken into the model and why any were left out.
+     *
+     *  An alternative that is left out is simply absent from the results, which looks the same as
+     *  never having been offered. The usual cause is a metric built a second time somewhere rather
+     *  than the model's own metric being reused, since metrics are matched by identity and not by
+     *  name, and that is hard to see precisely because the name looks right. Prefer this function
+     *  wherever the caller can act on, or report, alternatives that did not make it in.
+     *
+     *  @param allowRescalingByMetrics indicates if rescaling is permitted by metrics or not.
+     *  True is the default.
+     *  @return which alternatives were taken in, and the reason for each one that was not
+     */
+    fun defineAlternativesReporting(
+        alternatives: Map<String, List<Score>>,
+        allowRescalingByMetrics: Boolean = true
+    ): AlternativeDefinitionResult {
         if (metricFunctionMap.isEmpty()) {
             throw IllegalStateException("There were no metrics defined for the model")
         }
@@ -199,10 +230,28 @@ abstract class MODAModel(
         // rather than narrowing the domain a little further on each call.
         myEffectiveMetrics.clear()
         myWarnings.clear()
+        val accepted = mutableListOf<String>()
+        val rejected = mutableListOf<AlternativeRejection>()
         for ((name, list) in alternatives) {
-            if (hasValidScores(list)) {
-                myAlternatives[name] = makeMetricScoreMap(list)
+            val unknown = list.firstOrNull { !metricFunctionMap.containsKey(it.metric) }
+            if (list.size != metricFunctionMap.size) {
+                rejected.add(AlternativeRejection.WrongScoreCount(name, metricFunctionMap.size, list.size))
+                continue
             }
+            if (unknown != null) {
+                rejected.add(AlternativeRejection.UnknownMetric(name, unknown.metric.name))
+                continue
+            }
+            val scoreMap = makeMetricScoreMap(list)
+            // The right number of known metrics can still leave one unscored, if another was
+            // scored twice. Catching it here keeps the model's contents complete.
+            val missing = metricFunctionMap.keys.firstOrNull { !scoreMap.containsKey(it) }
+            if (missing != null) {
+                rejected.add(AlternativeRejection.MissingScore(name, missing.name))
+                continue
+            }
+            myAlternatives[name] = scoreMap
+            accepted.add(name)
         }
         // actual scores may not encompass entire domain of metric
         // it may be useful to adjust domain limits based on realized scores
@@ -210,6 +259,7 @@ abstract class MODAModel(
         if (allowRescalingByMetrics) {
             rescaleMetricDomains()
         }
+        return AlternativeDefinitionResult(accepted, rejected)
     }
 
     /**
@@ -668,22 +718,6 @@ abstract class MODAModel(
     }
 
     /**
-     *  Checks if there are sufficient metrics and if the metrics associated with
-     *  each score are related to the defined metrics.
-     */
-    private fun hasValidScores(list: List<Score>): Boolean {
-        if (metrics.size != list.size) {
-            return false
-        }
-        for (score in list) {
-            if (!metrics.contains(score.metric)) {
-                return false
-            }
-        }
-        return true
-    }
-
-    /**
      *  Computes the multi-objective (overall) value for the specified
      *  [alternative]. The supplied alternative (name) must be within
      *  the model.
@@ -1105,7 +1139,7 @@ abstract class MODAModel(
 //TODO make id fields
 
 data class MetricData(
-    var id: Int = metricDataCounter++,
+    var id: Int = nextId(),
     var modaName: String = "",
     var metricName: String = "",
     var direction: String = "",
@@ -1119,12 +1153,20 @@ data class MetricData(
 ) : DbTableData("tblMetrics", listOf("id")) {
 
     companion object {
-        var metricDataCounter = 0
+        private val counter = AtomicInteger(0)
+
+        /**
+         *  Hands out a distinct surrogate key for each record. Counting atomically keeps the keys
+         *  distinct when records are built from more than one thread, which they can be when
+         *  independent studies run at the same time. The keys are distinct but not repeatable
+         *  between runs, so they identify a row and are not results to be compared.
+         */
+        internal fun nextId(): Int = counter.incrementAndGet()
     }
 }
 
 data class ScoreData(
-    var id: Int = scoreDataCounter++,
+    var id: Int = nextId(),
     var modaName: String = "",
     var alternative: String = "",
     var scoreName: String = "",
@@ -1132,12 +1174,15 @@ data class ScoreData(
 ) : DbTableData("tblScores", listOf("id")) {
 
     companion object {
-        var scoreDataCounter : Int = 0
+        private val counter = AtomicInteger(0)
+
+        /** A distinct surrogate key per record, counted atomically. See [MetricData.nextId]. */
+        internal fun nextId(): Int = counter.incrementAndGet()
     }
 }
 
 data class ValueData(
-    var id: Int = valueDataCounter++,
+    var id: Int = nextId(),
     var modaName: String = "",
     var alternative: String = "",
     var metricName: String = "",
@@ -1146,12 +1191,15 @@ data class ValueData(
 ) : DbTableData("tblValues", listOf("id")) {
 
     companion object {
-        var valueDataCounter : Int = 0
+        private val counter = AtomicInteger(0)
+
+        /** A distinct surrogate key per record, counted atomically. See [MetricData.nextId]. */
+        internal fun nextId(): Int = counter.incrementAndGet()
     }
 }
 
 data class OverallValueData(
-    var id: Int = overallValueDataCounter++,
+    var id: Int = nextId(),
     var modaName: String = "",
     var alternative: String = "",
     var weightedValue: Double = 0.0,
@@ -1160,12 +1208,15 @@ data class OverallValueData(
 ) : DbTableData("tblOverall", listOf("id")) {
 
     companion object {
-        var overallValueDataCounter : Int = 0
+        private val counter = AtomicInteger(0)
+
+        /** A distinct surrogate key per record, counted atomically. See [MetricData.nextId]. */
+        internal fun nextId(): Int = counter.incrementAndGet()
     }
 }
 
 data class AlternativeRankFrequencyData(
-    var id: Int = altRankFreqDataCounter++,
+    var id: Int = nextId(),
     var modaName: String = "",
     var alternative: String = "",
     var value: Int = 0,
@@ -1175,6 +1226,9 @@ data class AlternativeRankFrequencyData(
 ) : DbTableData("tblRankFrequency", listOf("id")) {
 
     companion object {
-        var altRankFreqDataCounter : Int = 0
+        private val counter = AtomicInteger(0)
+
+        /** A distinct surrogate key per record, counted atomically. See [MetricData.nextId]. */
+        internal fun nextId(): Int = counter.incrementAndGet()
     }
 }
