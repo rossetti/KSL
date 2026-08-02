@@ -17,8 +17,10 @@ import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import java.nio.file.Path
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.max
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -31,8 +33,84 @@ abstract class MODAModel(
     protected val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
     protected val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
 
+    /**
+     *  Maps a metric supplied by the caller to the metric this model evaluates it against.
+     *
+     *  An entry appears only where the metric's domain has been adjusted to the realized scores;
+     *  no entry means the caller's metric is used exactly as supplied. Holding the adjustment here
+     *  rather than writing it into the caller's metric means evaluating a model no longer alters
+     *  an object the caller owns.
+     *
+     *  The scores, keys, data frames, ranks, and database records all continue to be held against
+     *  the caller's metric. Only the application of a value function consults a domain, so only
+     *  that consults this map.
+     */
+    private val myEffectiveMetrics: MutableMap<MetricIfc, MetricIfc> = mutableMapOf()
+
+    /**
+     *  Warnings raised while defining metrics or alternatives, or while adjusting metric domains.
+     *  Cleared whenever metrics or alternatives are redefined, so they always describe the current
+     *  contents of the model.
+     */
+    private val myWarnings: MutableList<ModaWarning> = mutableListOf()
+
+    /**
+     *  Anything worth reporting that came up while the model was being set up or its metric domains
+     *  adjusted. These are not errors; the model has a defined result in every case. See
+     *  [ModaWarning].
+     */
+    val warnings: List<ModaWarning>
+        get() = myWarnings.toList()
+
     init {
         defineMetrics(metricDefinitions)
+    }
+
+    /**
+     *  The metric this model evaluates the supplied [metric] against. This is the caller's metric
+     *  unless its domain was adjusted to the realized scores, in which case it is a decoration
+     *  presenting the adjusted domain.
+     */
+    protected fun effectiveMetricFor(metric: MetricIfc): MetricIfc =
+        myEffectiveMetrics[metric] ?: metric
+
+    /**
+     *  The domain the supplied [metric] is actually evaluated against, which is its declared domain
+     *  unless it was adjusted to fit the realized scores.
+     *
+     *  Use this rather than reading the metric's own domain when reporting how a model was
+     *  evaluated. The metric's own domain is what the caller declared and is never modified by the
+     *  model, so on its own it does not tell you what the value functions were applied over.
+     *
+     *  The returned interval is a copy, so changing it has no effect on the model.
+     */
+    fun effectiveDomainOf(metric: MetricIfc): Interval {
+        require(metricFunctionMap.containsKey(metric)) { "The metric (${metric.name}) is not part of the model" }
+        return effectiveMetricFor(metric).domain.instance()
+    }
+
+    /**
+     *  Indicates whether the supplied [metric] is evaluated against a domain other than the one it
+     *  declares.
+     */
+    fun wasRescaled(metric: MetricIfc): Boolean {
+        require(metricFunctionMap.containsKey(metric)) { "The metric (${metric.name}) is not part of the model" }
+        return myEffectiveMetrics.containsKey(metric)
+    }
+
+    /**
+     *  The single place a value function is applied to a score.
+     *
+     *  When a metric's domain has been adjusted, the value function has to see the adjusted domain,
+     *  and it reads that domain from the score's metric. A transient score against the effective
+     *  metric is therefore constructed to carry it. That allocation happens only where an
+     *  adjustment is actually in force; otherwise the caller's own score is passed straight through.
+     */
+    private fun valueOf(metric: MetricIfc, score: Score): Double {
+        val valueFunction = metricFunctionMap[metric]!!
+        val effective = effectiveMetricFor(metric)
+        val evaluated = if (effective === metric) score else Score(effective, score.value, score.valid)
+        return valueFunction.value(evaluated)
     }
 
     /**
@@ -70,6 +148,10 @@ abstract class MODAModel(
             metricFunctionMap.clear()
             myAlternatives.clear()
         }
+        // Any domain adjustment was derived from metrics and alternatives that are now gone, so it
+        // must not be left behind to be applied to the new ones.
+        myEffectiveMetrics.clear()
+        myWarnings.clear()
         for ((metric, valFunc) in definitions) {
             metricFunctionMap[metric] = valFunc
         }
@@ -82,6 +164,9 @@ abstract class MODAModel(
      */
     fun clearAlternatives() {
         myAlternatives.clear()
+        // The domain adjustments were fitted to these alternatives' scores, so they go with them.
+        myEffectiveMetrics.clear()
+        myWarnings.clear()
     }
 
     /**
@@ -108,6 +193,12 @@ abstract class MODAModel(
         if (metricFunctionMap.isEmpty()) {
             throw IllegalStateException("There were no metrics defined for the model")
         }
+        // Any previous adjustment was fitted to a different set of alternatives. Discarding it here
+        // means the domains are always refitted from the metrics as declared, so adding
+        // alternatives a few at a time ends up in the same place as supplying them all at once,
+        // rather than narrowing the domain a little further on each call.
+        myEffectiveMetrics.clear()
+        myWarnings.clear()
         for ((name, list) in alternatives) {
             if (hasValidScores(list)) {
                 myAlternatives[name] = makeMetricScoreMap(list)
@@ -117,32 +208,114 @@ abstract class MODAModel(
         // it may be useful to adjust domain limits based on realized scores
         // to improve scalability. Only rescale if requested.
         if (allowRescalingByMetrics) {
-            //TODO this causes the side-effect that the domain of the metrics for the scores are changed.
             rescaleMetricDomains()
         }
     }
 
+    /**
+     *  Fits each metric's domain to the scores the alternatives actually realized, so that the
+     *  value functions discriminate over the range that matters rather than over a declared range
+     *  no alternative approaches.
+     *
+     *  The adjustment is recorded against the model rather than written into the caller's metrics,
+     *  which are left exactly as supplied. A metric is adjusted only if the resulting domain
+     *  contains every one of its realized scores, so a metric is never evaluated against two
+     *  different domains within a study. Where an adjustment is not made, the declared domain
+     *  stands and the reason is recorded in [warnings].
+     */
     private fun rescaleMetricDomains() {
-        // this needs to be done by metric. That is the metric should indicate if it should be rescaled.
-        // need statistics for each alternative's metrics
         val statisticsByMetric = scoreStatisticsByMetric()
         for ((metric, stat) in statisticsByMetric) {
-            val interval = if (stat.count > 2) {//TODO >= 2 does not seem to be good, but what should it be?
-                PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
-            } else {
-                Interval(floor(stat.min), ceil(stat.max))
+            val proposed = proposeInterval(metric, stat) ?: continue
+            val combined = combineWithDeclared(metric, proposed)
+            if (combined.width <= 0.0) {
+                myWarnings.add(ModaWarning.DegenerateDomain(metric.name, combined.toString()))
+                continue
             }
-            if (!metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment) {
-                // no lower limit but yes on upper limit
-                metric.domain.setInterval(metric.domain.lowerLimit, interval.upperLimit)
-            } else if (metric.allowLowerLimitAdjustment && !metric.allowUpperLimitAdjustment) {
-                // yes on lower limit, no on upper limit
-                metric.domain.setInterval(interval.lowerLimit, metric.domain.upperLimit)
-            } else if (metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment) {
-                // adjust both
-                metric.domain.setInterval(interval.lowerLimit, interval.upperLimit)
-            } // else no adjustment
+            if (!containsAllScores(metric, combined)) {
+                myWarnings.add(ModaWarning.DomainNotApplied(metric.name, combined.toString()))
+                continue
+            }
+            myEffectiveMetrics[metric] = RescaledMetric(metric, combined)
         }
+    }
+
+    /**
+     *  The domain suggested by the realized scores for a metric, before the metric's own limits are
+     *  taken into account, or null when the metric permits no adjustment at all or has no scores.
+     *
+     *  The realized scores can all be the same, which is ordinary rather than exceptional: every
+     *  alternative may score zero on a metric, or a simulated response may not vary across the
+     *  scenarios being compared. That case cannot be fitted the usual way, which needs a minimum
+     *  strictly below the maximum, and it cannot be rounded outward either, because a whole-numbered
+     *  common score rounds to a domain of zero width and a value function then divides by that
+     *  width.
+     *
+     *  Tied scores are therefore given a small interval centred on the common value. Every
+     *  alternative then takes the midpoint of the value range, which is the meaningful answer: a
+     *  metric on which everything ties holds nothing that could separate the alternatives, so it
+     *  contributes equally to each and leaves the decision to the metrics that do discriminate. The
+     *  width chosen does not affect any value, since the scores sit at the centre whatever the
+     *  width; it only affects what the domain is reported as.
+     *
+     *  Scores count as tied when their spread is within a small fraction of their own magnitude, so
+     *  values differing only by floating point noise are treated as the ties they are.
+     */
+    private fun proposeInterval(metric: MetricIfc, stat: Statistic): Interval? {
+        if (!metric.allowLowerLimitAdjustment && !metric.allowUpperLimitAdjustment) return null
+        if (stat.count < 1.0) return null
+        val spread = stat.max - stat.min
+        val scale = max(1.0, abs(stat.average))
+        if (spread <= tiedScoreRelativeTolerance * scale) {
+            val score = stat.min
+            val halfWidth = max(tiedScoreHalfWidth, abs(score) * tiedScoreRelativeTolerance)
+            myWarnings.add(ModaWarning.TiedScores(metric.name, score))
+            return Interval(score - halfWidth, score + halfWidth)
+        }
+        if (stat.count > 2.0) {
+            return PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
+        }
+        // Two observations that differ. Rounding outward normally widens the interval, but it
+        // leaves it unchanged when both values already sit on whole numbers, so guard the width
+        // rather than assume it.
+        val lower = floor(stat.min)
+        val upper = ceil(stat.max)
+        return if (upper > lower) {
+            Interval(lower, upper)
+        } else {
+            Interval(lower - tiedScoreHalfWidth, upper + tiedScoreHalfWidth)
+        }
+    }
+
+    /**
+     *  Applies the metric's own limits to a proposed domain, keeping the declared limit wherever the
+     *  metric does not permit that limit to be adjusted.
+     */
+    private fun combineWithDeclared(metric: MetricIfc, proposed: Interval): Interval {
+        val lower = if (metric.allowLowerLimitAdjustment) proposed.lowerLimit else metric.domain.lowerLimit
+        val upper = if (metric.allowUpperLimitAdjustment) proposed.upperLimit else metric.domain.upperLimit
+        if (lower > upper) {
+            // A one-sided adjustment can cross the limit it was not allowed to move. Report it as
+            // the degenerate case rather than failing to construct the interval.
+            return Interval(lower, lower)
+        }
+        return Interval(lower, upper)
+    }
+
+    /**
+     *  Indicates whether every realized score for the supplied metric falls inside the candidate
+     *  domain.
+     *
+     *  A domain that does not contain all of them is not applied at all. Applying it to just the
+     *  alternatives it fits would evaluate one metric against two different domains within a single
+     *  study, and the resulting values would not be comparable with each other.
+     */
+    private fun containsAllScores(metric: MetricIfc, candidate: Interval): Boolean {
+        for ((_, map) in myAlternatives) {
+            val score = map[metric] ?: continue
+            if (!candidate.contains(score.value)) return false
+        }
+        return true
     }
 
     /**
@@ -244,11 +417,7 @@ abstract class MODAModel(
         require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
         val list = mutableListOf<Double>()
         for ((_, map) in myAlternatives) {
-            val score = map[metric]!!
-            val vf = metricFunctionMap[metric]!!
-            // apply the value function to the score
-            val v = vf.value(score)
-            list.add(v)
+            list.add(valueOf(metric, map[metric]!!))
         }
         return list
     }
@@ -282,12 +451,7 @@ abstract class MODAModel(
             val valMap = mutableMapOf<MetricIfc, Double>()
             // process the scores for the alternative
             for ((metric, score) in metricMap) {
-                // get the value function for the metric
-                val vf = metricFunctionMap[metric]!!
-                // apply the value function to the score
-                val v = vf.value(score)
-                // now store it in the map
-                valMap[metric] = v
+                valMap[metric] = valueOf(metric, score)
             }
             // save the created map for the alternative
             map[alternative] = valMap
@@ -304,10 +468,7 @@ abstract class MODAModel(
         val map = mutableMapOf<MetricIfc, Double>()
         val metricMap = myAlternatives[alternative]!!
         for ((metric, score) in metricMap) {
-            // get the value function for the metric
-            val vf = metricFunctionMap[metric]!!
-            // apply the value function to the score
-            map[metric] = vf.value(score)
+            map[metric] = valueOf(metric, score)
         }
         return map
     }
@@ -316,11 +477,7 @@ abstract class MODAModel(
         require(myAlternatives.contains(alternative)) { "The supplied alternative = $alternative is not part of the model." }
         require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
         val metricMap = myAlternatives[alternative]!!
-        val score = metricMap[metric]!!
-        // get the value function for the metric
-        val vf = metricFunctionMap[metric]!!
-        // apply the value function to the score
-        return vf.value(score)
+        return valueOf(metric, metricMap[metric]!!)
     }
 
     /**
@@ -408,7 +565,8 @@ abstract class MODAModel(
             appendLine("Metrics")
             for (metric in metrics) {
                 append("\t ${metric.name}")
-                append("\t domain = ${metric.domain}")
+                // The domain the model evaluated against, which is what explains the values below.
+                append("\t domain = ${effectiveDomainOf(metric)}")
                 append("\t direction = ${metric.direction}")
                 if (metric.unitsOfMeasure != null) {
                     append("\t units = ${metric.unitsOfMeasure}")
@@ -800,6 +958,35 @@ abstract class MODAModel(
     }
 
     companion object {
+
+        /**
+         *  How close together the realized scores for a metric have to be, as a fraction of their
+         *  own magnitude, before they are treated as all being the same.
+         *
+         *  Expressed relative to magnitude rather than as an absolute amount so that it means the
+         *  same thing for a metric measured in fractions of a second as for one measured in
+         *  millions. The default is small enough that only differences at the level of floating
+         *  point noise are absorbed.
+         */
+        var tiedScoreRelativeTolerance: Double = 1.0e-12
+            set(value) {
+                require(value >= 0.0) { "The tied score relative tolerance must be >= 0.0" }
+                field = value
+            }
+
+        /**
+         *  Half the width of the domain given to a metric on which every alternative scored the
+         *  same.
+         *
+         *  This does not affect any computed value: the tied scores sit at the centre of whatever
+         *  domain is chosen, so every alternative takes the midpoint of the value range regardless.
+         *  It only determines what such a metric's domain is reported as.
+         */
+        var tiedScoreHalfWidth: Double = 0.5
+            set(value) {
+                require(value > 0.0) { "The tied score half-width must be > 0.0" }
+                field = value
+            }
 
         /**
          *  Ranks the array elements from the largest as 1 and smallest as the size of the data array.

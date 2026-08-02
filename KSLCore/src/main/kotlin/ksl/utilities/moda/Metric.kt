@@ -73,18 +73,25 @@ interface MetricIfc {
     /**
      *  Returns an instance of MetricData
      *  based on (modaName, weight)
+     *
+     *  The [reportedDomain] is the domain to record. It defaults to this metric's own domain, which
+     *  is what a metric considered on its own should report. A model that fitted the domain to the
+     *  scores it saw supplies the fitted domain instead, since that is the domain its recorded
+     *  values were computed over and reporting the declared one alongside them would not explain
+     *  them.
      */
     fun metricData(
         modaName: String,
-        weight: Double
+        weight: Double,
+        reportedDomain: Interval = domain
     ) : MetricData {
         val md = MetricData(
             modaName = modaName,
             metricName = name,
             direction = direction.name,
             weight = weight,
-            domainLowerLimit = domain.lowerLimit,
-            domainUpperLimit = domain.upperLimit,
+            domainLowerLimit = reportedDomain.lowerLimit,
+            domainUpperLimit = reportedDomain.upperLimit,
             unitsOfMeasure = unitsOfMeasure,
             description = description,
             allowLowerLimitAdjustment = allowLowerLimitAdjustment,

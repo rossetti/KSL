@@ -76,7 +76,8 @@ class AdditiveMODAModel(
             appendLine("Metrics")
             for ((metric, weight) in weights) {
                 append("\t ${metric.name}")
-                append("\t domain = ${metric.domain}")
+                // The domain the model evaluated against, which is what explains the values below.
+                append("\t domain = ${effectiveDomainOf(metric)}")
                 append("\t direction = ${metric.direction}")
                 append("\t weight = $weight")
                 if (metric.unitsOfMeasure != null) {
@@ -102,7 +103,8 @@ class AdditiveMODAModel(
     fun metricData(): List<MetricData> {
         val list = mutableListOf<MetricData>()
         for ((m, w) in weights) {
-            val md = m.metricData(this.name, w)
+            // Record the domain the values were actually computed over, not the declared one.
+            val md = m.metricData(this.name, w, effectiveDomainOf(m))
             list.add(md)
         }
         return list

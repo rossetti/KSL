@@ -1,0 +1,19 @@
+# Tied scores on a single metric with domain [0, 100], rescaling enabled
+
+[1 alternative(s) all scoring 7.000000000]
+  declared=[0.000000000, 100.000000000], effective=[6.500000000, 7.500000000]; overall value: Alt1=0.500000000; warnings: TiedScores
+
+[2 alternative(s) all scoring 7.000000000]
+  declared=[0.000000000, 100.000000000], effective=[6.500000000, 7.500000000]; overall value: Alt1=0.500000000, Alt2=0.500000000; warnings: TiedScores
+
+[2 alternative(s) all scoring 7.500000000]
+  declared=[0.000000000, 100.000000000], effective=[7.000000000, 8.000000000]; overall value: Alt1=0.500000000, Alt2=0.500000000; warnings: TiedScores
+
+[3 alternative(s) all scoring 7.000000000]
+  declared=[0.000000000, 100.000000000], effective=[6.500000000, 7.500000000]; overall value: Alt1=0.500000000, Alt2=0.500000000, Alt3=0.500000000; warnings: TiedScores
+
+[5 alternative(s) all scoring 7.000000000]
+  declared=[0.000000000, 100.000000000], effective=[6.500000000, 7.500000000]; overall value: Alt1=0.500000000, Alt2=0.500000000, Alt3=0.500000000, Alt4=0.500000000, Alt5=0.500000000; warnings: TiedScores
+
+[3 alternative(s) all scoring 0.000000000]
+  declared=[0.000000000, 100.000000000], effective=[-0.500000000, 0.500000000]; overall value: Alt1=0.500000000, Alt2=0.500000000, Alt3=0.500000000; warnings: TiedScores

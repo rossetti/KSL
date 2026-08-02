@@ -114,6 +114,10 @@ tasks.jar {
 
 tasks.test {
     useJUnitPlatform()
+    // Forward the MODA baseline recording switch to the test JVM. The canonical MODA fixtures are
+    // compared on every run and re-recorded only when a behaviour change has been approved, which
+    // requires the switch to reach the test worker rather than stopping at the Gradle JVM.
+    System.getProperty("moda.baseline.record")?.let { systemProperty("moda.baseline.record", it) }
 }
 
 kotlin {
