@@ -28,6 +28,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for asking how much a recommendation depends on the weights behind it.
@@ -125,7 +126,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `the weight where two alternatives change places agrees with searching for it`() {
+    @DisplayName("the weight where two alternatives change places agrees with searching for it")
+    fun theWeightWhereTwoAlternativesChangePlacesAgreesWithSearchingForIt() {
         // Its own provider, so the studies generated here do not depend on what else has run.
         val rng = RNStreamProvider().rnStream(1)
         var crossingsFound = 0
@@ -165,7 +167,8 @@ class ModaSensitivityTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study with one metric has no weight that could be varied`() {
+    @DisplayName("a study with one metric has no weight that could be varied")
+    fun aStudyWithOneMetricHasNoWeightThatCouldBeVaried() {
         val snapshot = studyOf(
             mapOf(
                 "Alpha" to mapOf("Only" to 20.0),
@@ -179,7 +182,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `a metric already carrying all the weight leaves nothing to redistribute`() {
+    @DisplayName("a metric already carrying all the weight leaves nothing to redistribute")
+    fun aMetricAlreadyCarryingAllTheWeightLeavesNothingToRedistribute() {
         val snapshot = studyOf(
             mapOf(
                 "Alpha" to mapOf("Cost" to 20.0, "Delay" to 80.0),
@@ -197,7 +201,8 @@ class ModaSensitivityTest {
      *  the weight is shared out, so there is no weight at which they change places.
      */
     @Test
-    fun `alternatives separated equally on every metric never change places`() {
+    @DisplayName("alternatives separated equally on every metric never change places")
+    fun alternativesSeparatedEquallyOnEveryMetricNeverChangePlaces() {
         val snapshot = studyOf(
             mapOf(
                 "Alpha" to mapOf("Cost" to 20.0, "Delay" to 20.0),
@@ -219,7 +224,8 @@ class ModaSensitivityTest {
      *  as an ordinary zero rather than as a negative one.
      */
     @Test
-    fun `alternatives differing on only one metric change places where that metric stops counting`() {
+    @DisplayName("alternatives differing on only one metric change places where that metric stops counting")
+    fun alternativesDifferingOnOnlyOneMetricChangePlacesWhereThatMetricStopsCounting() {
         val snapshot = studyOf(
             mapOf(
                 "Alpha" to mapOf("Cost" to 50.0, "Delay" to 20.0),
@@ -240,7 +246,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `a crossing outside the range a weight can take is not reported`() {
+    @DisplayName("a crossing outside the range a weight can take is not reported")
+    fun aCrossingOutsideTheRangeAWeightCanTakeIsNotReported() {
         // Alpha beats Beta on both metrics, so no redistribution of weight can displace it.
         val snapshot = studyOf(
             mapOf(
@@ -255,7 +262,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `asking about something that is not in the study is refused`() {
+    @DisplayName("asking about something that is not in the study is refused")
+    fun askingAboutSomethingThatIsNotInTheStudyIsRefused() {
         val sensitivity = ModaSensitivity(threeByTwo())
         assertFailsWith<IllegalArgumentException> { sensitivity.criticalWeight("Nope", "Alpha", "Beta") }
         assertFailsWith<IllegalArgumentException> { sensitivity.criticalWeight("Cost", "Nope", "Beta") }
@@ -267,7 +275,8 @@ class ModaSensitivityTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `at its existing weight a metric reproduces the study's own values`() {
+    @DisplayName("at its existing weight a metric reproduces the study's own values")
+    fun atItsExistingWeightAMetricReproducesTheStudySOwnValues() {
         val snapshot = threeByTwo()
         val sensitivity = ModaSensitivity(snapshot)
         for (metric in sensitivity.metricNames) {
@@ -283,7 +292,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `the winner at a metric's existing weight is the study's own recommendation`() {
+    @DisplayName("the winner at a metric's existing weight is the study's own recommendation")
+    fun theWinnerAtAMetricSExistingWeightIsTheStudySOwnRecommendation() {
         val snapshot = threeByTwo()
         val sensitivity = ModaSensitivity(snapshot)
         for (metric in sensitivity.metricNames) {
@@ -299,7 +309,8 @@ class ModaSensitivityTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `flip points are reported nearest first`() {
+    @DisplayName("flip points are reported nearest first")
+    fun flipPointsAreReportedNearestFirst() {
         val snapshot = threeByTwo()
         val sensitivity = ModaSensitivity(snapshot)
         for (metric in sensitivity.metricNames) {
@@ -315,7 +326,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `the most critical weight is the nearest of all of them`() {
+    @DisplayName("the most critical weight is the nearest of all of them")
+    fun theMostCriticalWeightIsTheNearestOfAllOfThem() {
         val sensitivity = ModaSensitivity(threeByTwo())
         val all = sensitivity.metricNames.flatMap { sensitivity.flipPointsForWinner(it) }
         val most = sensitivity.mostCriticalMetric()
@@ -332,7 +344,8 @@ class ModaSensitivityTest {
      *  is arithmetic rather than a fact about the decision.
      */
     @Test
-    fun `the recommendation really does change either side of a flip point`() {
+    @DisplayName("the recommendation really does change either side of a flip point")
+    fun theRecommendationReallyDoesChangeEitherSideOfAFlipPoint() {
         val snapshot = threeByTwo()
         val sensitivity = ModaSensitivity(snapshot)
         val points = sensitivity.metricNames.flatMap { sensitivity.flipPointsForWinner(it) }
@@ -353,7 +366,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `a sweep covers the whole range including both ends`() {
+    @DisplayName("a sweep covers the whole range including both ends")
+    fun aSweepCoversTheWholeRangeIncludingBothEnds() {
         val sensitivity = ModaSensitivity(threeByTwo())
         val sweep = sensitivity.weightSweep("Cost", steps = 10)
         assertEquals(11, sweep.size, "a sweep of n steps should return n + 1 points")
@@ -367,7 +381,8 @@ class ModaSensitivityTest {
     }
 
     @Test
-    fun `a sweep changes hands exactly where the flip points say it will`() {
+    @DisplayName("a sweep changes hands exactly where the flip points say it will")
+    fun aSweepChangesHandsExactlyWhereTheFlipPointsSayItWill() {
         val snapshot = threeByTwo()
         val sensitivity = ModaSensitivity(snapshot)
         for (metric in sensitivity.metricNames) {

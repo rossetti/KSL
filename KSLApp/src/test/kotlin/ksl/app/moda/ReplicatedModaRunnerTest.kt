@@ -24,6 +24,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for running a study once per replication rather than once over the averages.
@@ -78,7 +79,8 @@ class ReplicatedModaRunnerTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study is run once for each replication the alternatives share`() {
+    @DisplayName("a study is run once for each replication the alternatives share")
+    fun aStudyIsRunOnceForEachReplicationTheAlternativesShare() {
         val data = splitData()
         val result = ReplicatedModaRunner().runPerReplication(
             documentFor(data), SimulationModaSource(data)
@@ -97,7 +99,8 @@ class ReplicatedModaRunnerTest {
      *  should be able to show the difference rather than hide it.
      */
     @Test
-    fun `how often an alternative comes first is counted`() {
+    @DisplayName("how often an alternative comes first is counted")
+    fun howOftenAnAlternativeComesFirstIsCounted() {
         val data = splitData()
         val completed = assertIs<PerReplicationResult.Completed>(
             ReplicatedModaRunner().runPerReplication(documentFor(data), SimulationModaSource(data))
@@ -115,7 +118,8 @@ class ReplicatedModaRunnerTest {
      *  in pairs, which is the whole point of running them under the same conditions, is invalid.
      */
     @Test
-    fun `the values for one replication line up across alternatives`() {
+    @DisplayName("the values for one replication line up across alternatives")
+    fun theValuesForOneReplicationLineUpAcrossAlternatives() {
         val data = splitData()
         val completed = assertIs<PerReplicationResult.Completed>(
             ReplicatedModaRunner().runPerReplication(documentFor(data), SimulationModaSource(data))
@@ -134,7 +138,8 @@ class ReplicatedModaRunnerTest {
     }
 
     @Test
-    fun `each replication is recorded as its own study`() {
+    @DisplayName("each replication is recorded as its own study")
+    fun eachReplicationIsRecordedAsItsOwnStudy() {
         val data = splitData()
         val completed = assertIs<PerReplicationResult.Completed>(
             ReplicatedModaRunner().runPerReplication(documentFor(data), SimulationModaSource(data))
@@ -155,7 +160,8 @@ class ReplicatedModaRunnerTest {
      *  under the same conditions and there is no such pairing.
      */
     @Test
-    fun `alternatives observed different numbers of times are refused`() {
+    @DisplayName("alternatives observed different numbers of times are refused")
+    fun alternativesObservedDifferentNumbersOfTimesAreRefused() {
         val data = splitData() + record("Alpha", "Cost", 6, 12.0, 6)
         val result = ReplicatedModaRunner().runPerReplication(
             documentFor(splitData()), SimulationModaSource(data)
@@ -172,7 +178,8 @@ class ReplicatedModaRunnerTest {
     }
 
     @Test
-    fun `the same data is still fine to aggregate`() {
+    @DisplayName("the same data is still fine to aggregate")
+    fun theSameDataIsStillFineToAggregate() {
         val data = splitData() + record("Alpha", "Cost", 6, 12.0, 6)
         val source = SimulationModaSource(data)
         val runner = ModaRunner(
@@ -193,7 +200,8 @@ class ReplicatedModaRunnerTest {
      *  have nothing to compare even where they have the same count.
      */
     @Test
-    fun `alternatives run over different replication numbers are refused`() {
+    @DisplayName("alternatives run over different replication numbers are refused")
+    fun alternativesRunOverDifferentReplicationNumbersAreRefused() {
         val data = listOf(
             record("Alpha", "Cost", 1, 10.0), record("Alpha", "Cost", 2, 11.0),
             record("Beta", "Cost", 8, 20.0), record("Beta", "Cost", 9, 21.0)
@@ -209,7 +217,8 @@ class ReplicatedModaRunnerTest {
     }
 
     @Test
-    fun `an alternative with no replications at all is refused by name`() {
+    @DisplayName("an alternative with no replications at all is refused by name")
+    fun anAlternativeWithNoReplicationsAtAllIsRefusedByName() {
         val data = splitData().filterNot { it.exp_name == "Beta" }
         val result = ReplicatedModaRunner().runPerReplication(
             documentFor(splitData()), SimulationModaSource(data)
@@ -219,7 +228,8 @@ class ReplicatedModaRunnerTest {
     }
 
     @Test
-    fun `a study that is wrong in itself is refused before any replication is run`() {
+    @DisplayName("a study that is wrong in itself is refused before any replication is run")
+    fun aStudyThatIsWrongInItselfIsRefusedBeforeAnyReplicationIsRun() {
         val data = splitData()
         val broken = documentFor(data).copy(alternatives = listOf("Alpha"))
         val result = ReplicatedModaRunner().runPerReplication(broken, SimulationModaSource(data))
@@ -231,7 +241,8 @@ class ReplicatedModaRunnerTest {
     }
 
     @Test
-    fun `too few shared replications to compare is refused`() {
+    @DisplayName("too few shared replications to compare is refused")
+    fun tooFewSharedReplicationsToCompareIsRefused() {
         val data = listOf(
             record("Alpha", "Cost", 1, 10.0, 1),
             record("Beta", "Cost", 1, 20.0, 1)

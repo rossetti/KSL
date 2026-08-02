@@ -25,6 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for the recorded result of a study.
@@ -65,7 +66,8 @@ class ModaSnapshotTest {
      *  may reach a snapshot already taken.
      */
     @Test
-    fun `a snapshot does not change when the model it came from does`() {
+    @DisplayName("a snapshot does not change when the model it came from does")
+    fun aSnapshotDoesNotChangeWhenTheModelItCameFromDoes() {
         val (model, cost, delay) = studyModel()
         val snapshot = ModaSnapshot.of(model)
         val before = snapshot.copy()
@@ -81,7 +83,8 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `a snapshot survives the alternatives being cleared`() {
+    @DisplayName("a snapshot survives the alternatives being cleared")
+    fun aSnapshotSurvivesTheAlternativesBeingCleared() {
         val (model, _, _) = studyModel()
         val snapshot = ModaSnapshot.of(model)
         model.clearAlternatives()
@@ -94,7 +97,8 @@ class ModaSnapshotTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `metrics and alternatives keep the order the study declared them in`() {
+    @DisplayName("metrics and alternatives keep the order the study declared them in")
+    fun metricsAndAlternativesKeepTheOrderTheStudyDeclaredThemIn() {
         val (model, _, _) = studyModel()
         val snapshot = ModaSnapshot.of(model)
         assertContentEquals(listOf("Cost", "Delay"), snapshot.metrics.map { it.name })
@@ -102,7 +106,8 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `every recorded value is a real number`() {
+    @DisplayName("every recorded value is a real number")
+    fun everyRecordedValueIsARealNumber() {
         val (model, _, _) = studyModel()
         val snapshot = ModaSnapshot.of(model)
         for (alternative in snapshot.alternatives) {
@@ -117,7 +122,8 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `both domains are recorded so the values can be explained`() {
+    @DisplayName("both domains are recorded so the values can be explained")
+    fun bothDomainsAreRecordedSoTheValuesCanBeExplained() {
         val (model, cost, _) = studyModel()
         val snapshot = ModaSnapshot.of(model)
         val record = snapshot.metric("Cost")!!
@@ -131,7 +137,8 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `a metric everything ties on is recorded as such along with the reason`() {
+    @DisplayName("a metric everything ties on is recorded as such along with the reason")
+    fun aMetricEverythingTiesOnIsRecordedAsSuchAlongWithTheReason() {
         val tied = Metric("Tied", Interval(0.0, 100.0))
         val deciding = Metric("Deciding", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(
@@ -154,7 +161,8 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `the weights are recorded against the metrics they belong to`() {
+    @DisplayName("the weights are recorded against the metrics they belong to")
+    fun theWeightsAreRecordedAgainstTheMetricsTheyBelongTo() {
         val cost = Metric("Cost", Interval(0.0, 100.0))
         val delay = Metric("Delay", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(
@@ -177,7 +185,8 @@ class ModaSnapshotTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `the recommendation is the best alternative by weighted value`() {
+    @DisplayName("the recommendation is the best alternative by weighted value")
+    fun theRecommendationIsTheBestAlternativeByWeightedValue() {
         val (model, _, _) = studyModel()
         val snapshot = ModaSnapshot.of(model)
         val best = snapshot.overallValues.maxByOrNull { it.value }!!.key
@@ -186,7 +195,8 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `counting first ranks can point somewhere else than the weighted value does`() {
+    @DisplayName("counting first ranks can point somewhere else than the weighted value does")
+    fun countingFirstRanksCanPointSomewhereElseThanTheWeightedValueDoes() {
         val (model, _, _) = studyModel()
         val byValue = ModaSnapshot.of(model, aggregation = AggregationMethod.WEIGHTED_VALUE)
         val byRank = ModaSnapshot.of(model, aggregation = AggregationMethod.FIRST_RANK_COUNT)
@@ -207,7 +217,8 @@ class ModaSnapshotTest {
      *  depending on the order a map happened to yield.
      */
     @Test
-    fun `alternatives that tie exactly are resolved the same way every time`() {
+    @DisplayName("alternatives that tie exactly are resolved the same way every time")
+    fun alternativesThatTieExactlyAreResolvedTheSameWayEveryTime() {
         val metric = Metric("Only", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()), name = "Ties")
         model.defineAlternatives(
@@ -225,13 +236,15 @@ class ModaSnapshotTest {
     }
 
     @Test
-    fun `taking the same snapshot twice gives the same result`() {
+    @DisplayName("taking the same snapshot twice gives the same result")
+    fun takingTheSameSnapshotTwiceGivesTheSameResult() {
         val (model, _, _) = studyModel()
         assertEquals(ModaSnapshot.of(model), ModaSnapshot.of(model))
     }
 
     @Test
-    fun `a model with no alternatives cannot be recorded and says why`() {
+    @DisplayName("a model with no alternatives cannot be recorded and says why")
+    fun aModelWithNoAlternativesCannotBeRecordedAndSaysWhy() {
         val metric = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         val error = assertFailsWith<IllegalArgumentException> { ModaSnapshot.of(model) }

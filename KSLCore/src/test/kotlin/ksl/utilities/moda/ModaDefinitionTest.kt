@@ -28,6 +28,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for how a model reports what it accepted when metrics and alternatives are defined.
@@ -53,7 +54,8 @@ class ModaDefinitionTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `an alternative scored on a separately created metric is reported by name`() {
+    @DisplayName("an alternative scored on a separately created metric is reported by name")
+    fun anAlternativeScoredOnASeparatelyCreatedMetricIsReportedByName() {
         val (model, cost, delay) = modelWithTwoMetrics()
         // The same name, built separately. This is the mistake that used to pass unnoticed.
         val impostor = Metric("Cost", Interval(0.0, 100.0))
@@ -72,7 +74,8 @@ class ModaDefinitionTest {
     }
 
     @Test
-    fun `an alternative with the wrong number of scores is reported with both counts`() {
+    @DisplayName("an alternative with the wrong number of scores is reported with both counts")
+    fun anAlternativeWithTheWrongNumberOfScoresIsReportedWithBothCounts() {
         val (model, cost, _) = modelWithTwoMetrics()
         val result = model.defineAlternativesReporting(
             mapOf("Short" to listOf(Score(cost, 20.0)))
@@ -90,7 +93,8 @@ class ModaDefinitionTest {
      *  score for one of its metrics, which failed later and away from the cause.
      */
     @Test
-    fun `an alternative that scores one metric twice and another not at all is reported`() {
+    @DisplayName("an alternative that scores one metric twice and another not at all is reported")
+    fun anAlternativeThatScoresOneMetricTwiceAndAnotherNotAtAllIsReported() {
         val (model, cost, _) = modelWithTwoMetrics()
         val result = model.defineAlternativesReporting(
             mapOf("Doubled" to listOf(Score(cost, 20.0), Score(cost, 40.0)))
@@ -102,7 +106,8 @@ class ModaDefinitionTest {
     }
 
     @Test
-    fun `taking in every alternative is reported as such`() {
+    @DisplayName("taking in every alternative is reported as such")
+    fun takingInEveryAlternativeIsReportedAsSuch() {
         val (model, cost, delay) = modelWithTwoMetrics()
         val result = model.defineAlternativesReporting(
             mapOf(
@@ -120,7 +125,8 @@ class ModaDefinitionTest {
      *  unaffected by the reporting one being added.
      */
     @Test
-    fun `defining alternatives without asking for a report still skips the ones it cannot take`() {
+    @DisplayName("defining alternatives without asking for a report still skips the ones it cannot take")
+    fun definingAlternativesWithoutAskingForAReportStillSkipsTheOnesItCannotTake() {
         val (model, cost, delay) = modelWithTwoMetrics()
         val impostor = Metric("Cost", Interval(0.0, 100.0))
         model.defineAlternatives(
@@ -133,7 +139,8 @@ class ModaDefinitionTest {
     }
 
     @Test
-    fun `defining alternatives before any metric is an error`() {
+    @DisplayName("defining alternatives before any metric is an error")
+    fun definingAlternativesBeforeAnyMetricIsAnError() {
         val cost = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(cost to LinearValueFunction()))
         model.defineMetrics(emptyMap())
@@ -152,7 +159,8 @@ class ModaDefinitionTest {
      *  used to be accepted silently.
      */
     @Test
-    fun `two metrics with the same name are refused`() {
+    @DisplayName("two metrics with the same name are refused")
+    fun twoMetricsWithTheSameNameAreRefused() {
         val first = Metric("Cost", Interval(0.0, 100.0))
         val second = Metric("Cost", Interval(0.0, 50.0))
         val error = assertFailsWith<IllegalArgumentException> {
@@ -162,7 +170,8 @@ class ModaDefinitionTest {
     }
 
     @Test
-    fun `metrics with distinct names are accepted`() {
+    @DisplayName("metrics with distinct names are accepted")
+    fun metricsWithDistinctNamesAreAccepted() {
         val (model, _, _) = modelWithTwoMetrics()
         assertEquals(listOf("Cost", "Delay"), model.metrics.map { it.name })
     }
@@ -177,7 +186,8 @@ class ModaDefinitionTest {
      *  same value before either had written the next one.
      */
     @Test
-    fun `records built from many threads at once get distinct keys`() {
+    @DisplayName("records built from many threads at once get distinct keys")
+    fun recordsBuiltFromManyThreadsAtOnceGetDistinctKeys() {
         val threads = 8
         val perThread = 500
         val pool = Executors.newFixedThreadPool(threads)
@@ -195,7 +205,8 @@ class ModaDefinitionTest {
     }
 
     @Test
-    fun `each kind of record counts its keys separately`() {
+    @DisplayName("each kind of record counts its keys separately")
+    fun eachKindOfRecordCountsItsKeysSeparately() {
         // Distinctness is per table, since each is keyed independently.
         val scores = List(3) { ScoreData().id }
         val values = List(3) { ValueData().id }

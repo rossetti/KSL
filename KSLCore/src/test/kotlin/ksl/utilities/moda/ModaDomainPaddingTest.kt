@@ -25,6 +25,7 @@ import ksl.utilities.random.rng.RNStreamProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests what the padding around a fitted domain does, and does not, do to a study's conclusions.
@@ -134,7 +135,8 @@ class ModaDomainPaddingTest {
      *  concludes.
      */
     @Test
-    fun `leaving room around the realized range changes no ranking`() {
+    @DisplayName("leaving room around the realized range changes no ranking")
+    fun leavingRoomAroundTheRealizedRangeChangesNoRanking() {
         val rng = RNStreamProvider().rnStream(11)
         repeat(80) {
             val alternatives = 3 + (rng.randU01() * 5).toInt()   // 3..7, above the rounding path
@@ -149,7 +151,8 @@ class ModaDomainPaddingTest {
     }
 
     @Test
-    fun `it changes no ranking when metrics are read in different directions`() {
+    @DisplayName("it changes no ranking when metrics are read in different directions")
+    fun itChangesNoRankingWhenMetricsAreReadInDifferentDirections() {
         val rng = RNStreamProvider().rnStream(12)
         repeat(60) {
             val alternatives = 3 + (rng.randU01() * 5).toInt()
@@ -191,7 +194,8 @@ class ModaDomainPaddingTest {
      *  misread.
      */
     @Test
-    fun `the padding compresses the values by a known and predictable amount`() {
+    @DisplayName("the padding compresses the values by a known and predictable amount")
+    fun thePaddingCompressesTheValuesByAKnownAndPredictableAmount() {
         for (alternatives in listOf(3, 4, 5, 9, 17)) {
             val scores = (1..alternatives).associate { index ->
                 "Alt$index" to mapOf("M1" to 100.0 * index)
@@ -213,7 +217,8 @@ class ModaDomainPaddingTest {
      *  observations. The cap holds that back, and the values spread further as a result.
      */
     @Test
-    fun `the margin is capped so a handful of alternatives are not spread on a handful of observations`() {
+    @DisplayName("the margin is capped so a handful of alternatives are not spread on a handful of observations")
+    fun theMarginIsCappedSoAHandfulOfAlternativesAreNotSpreadOnAHandfulOfObservations() {
         val scores = mapOf(
             "A" to mapOf("M1" to 100.0),
             "B" to mapOf("M1" to 300.0),
@@ -232,7 +237,8 @@ class ModaDomainPaddingTest {
      *  large enough to speak for itself is fitted exactly as the estimate says.
      */
     @Test
-    fun `with enough alternatives the cap does nothing and the estimate stands`() {
+    @DisplayName("with enough alternatives the cap does nothing and the estimate stands")
+    fun withEnoughAlternativesTheCapDoesNothingAndTheEstimateStands() {
         for (alternatives in listOf(5, 9, 17, 33)) {
             val scores = (1..alternatives).associate { index ->
                 "Alt$index" to mapOf("M1" to 100.0 * index)
@@ -254,7 +260,8 @@ class ModaDomainPaddingTest {
      *  establish this for both.
      */
     @Test
-    fun `raising the cap beyond a half turns it off`() {
+    @DisplayName("raising the cap beyond a half turns it off")
+    fun raisingTheCapBeyondAHalfTurnsItOff() {
         val scores = mapOf(
             "A" to mapOf("M1" to 100.0),
             "B" to mapOf("M1" to 300.0),
@@ -279,7 +286,8 @@ class ModaDomainPaddingTest {
      *  or worthless, merely for being the extreme of the set that happened to be compared.
      */
     @Test
-    fun `no alternative is scored perfect or worthless for being the extreme of the set`() {
+    @DisplayName("no alternative is scored perfect or worthless for being the extreme of the set")
+    fun noAlternativeIsScoredPerfectOrWorthlessForBeingTheExtremeOfTheSet() {
         val rng = RNStreamProvider().rnStream(13)
         repeat(40) {
             val alternatives = 3 + (rng.randU01() * 5).toInt()
@@ -305,7 +313,8 @@ class ModaDomainPaddingTest {
      *  change what is recommended, so such a study is not covered by the property above.
      */
     @Test
-    fun `holding a limit on one side stretches metrics by different factors`() {
+    @DisplayName("holding a limit on one side stretches metrics by different factors")
+    fun holdingALimitOnOneSideStretchesMetricsByDifferentFactors() {
         // Both metrics keep a declared lower limit of zero, but their realized ranges sit at very
         // different distances from it, so holding that limit stretches them unequally.
         val scores = mapOf(
@@ -341,7 +350,8 @@ class ModaDomainPaddingTest {
      *  very different scales are then stretched by very different factors.
      */
     @Test
-    fun `with two alternatives the rounding is absolute rather than proportional`() {
+    @DisplayName("with two alternatives the rounding is absolute rather than proportional")
+    fun withTwoAlternativesTheRoundingIsAbsoluteRatherThanProportional() {
         val scores = mapOf(
             "A" to mapOf("Small" to 1.2, "Large" to 500.4),
             "B" to mapOf("Small" to 1.8, "Large" to 900.6)
@@ -371,7 +381,8 @@ class ModaDomainPaddingTest {
      *  refinement, and studies with declared bounds should be expected to move.
      */
     @Test
-    fun `holding the fitting within declared limits can change what a study recommends`() {
+    @DisplayName("holding the fitting within declared limits can change what a study recommends")
+    fun holdingTheFittingWithinDeclaredLimitsCanChangeWhatAStudyRecommends() {
         // Both metrics run 0 to 100 and are nearly balanced, but their realized scores sit at
         // different distances from the limits, so the trimming falls unevenly between them.
         val scores = mapOf(
@@ -402,7 +413,8 @@ class ModaDomainPaddingTest {
      *  is spent on scores the metric could never take.
      */
     @Test
-    fun `holding the fitting within declared limits sharpens the separation`() {
+    @DisplayName("holding the fitting within declared limits sharpens the separation")
+    fun holdingTheFittingWithinDeclaredLimitsSharpensTheSeparation() {
         // A utilization, which cannot exceed one however the fitting is done.
         val scores = mapOf(
             "A" to mapOf("Utilization" to 0.60),
@@ -432,7 +444,8 @@ class ModaDomainPaddingTest {
      *  unlike an endpoint earned by being the extreme of whoever happened to be compared.
      */
     @Test
-    fun `an alternative on a natural limit takes the endpoint, and keeps it as others are added`() {
+    @DisplayName("an alternative on a natural limit takes the endpoint, and keeps it as others are added")
+    fun anAlternativeOnANaturalLimitTakesTheEndpointAndKeepsItAsOthersAreAdded() {
         val metric = Metric("Utilization", Interval(0.0, 1.0))
         metric.direction = MetricIfc.Direction.BiggerIsBetter
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
@@ -470,7 +483,8 @@ class ModaDomainPaddingTest {
      *  always had to declare a domain admitting them.
      */
     @Test
-    fun `the default domain floors the fitting at zero, because it declares the metric non-negative`() {
+    @DisplayName("the default domain floors the fitting at zero, because it declares the metric non-negative")
+    fun theDefaultDomainFloorsTheFittingAtZeroBecauseItDeclaresTheMetricNonNegative() {
         val metric = Metric("Cost")
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
         model.defineAlternatives(
@@ -491,7 +505,8 @@ class ModaDomainPaddingTest {
      *  of what the default says rather than a rule imposed on every metric.
      */
     @Test
-    fun `a metric declared able to go negative is fitted without a floor`() {
+    @DisplayName("a metric declared able to go negative is fitted without a floor")
+    fun aMetricDeclaredAbleToGoNegativeIsFittedWithoutAFloor() {
         val metric = Metric("Profit", Interval(-1.0e6, 1.0e6))
         metric.direction = MetricIfc.Direction.BiggerIsBetter
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
@@ -512,7 +527,8 @@ class ModaDomainPaddingTest {
      *  destroy the only property it was built to have.
      */
     @Test
-    fun `tied scores keep their centred interval even against a limit`() {
+    @DisplayName("tied scores keep their centred interval even against a limit")
+    fun tiedScoresKeepTheirCentredIntervalEvenAgainstALimit() {
         val metric = Metric("Utilization", Interval(0.0, 1.0))
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
         model.defineAlternatives(
@@ -539,7 +555,8 @@ class ModaDomainPaddingTest {
      *  linear metric therefore has only some of its metrics moved by the padding.
      */
     @Test
-    fun `a logistic value function ignores the fitted domain entirely`() {
+    @DisplayName("a logistic value function ignores the fitted domain entirely")
+    fun aLogisticValueFunctionIgnoresTheFittedDomainEntirely() {
         val scores = mapOf(
             "A" to mapOf("M1" to 100.0),
             "B" to mapOf("M1" to 300.0),

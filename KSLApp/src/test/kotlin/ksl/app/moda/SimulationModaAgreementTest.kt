@@ -27,6 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Requires a study run over simulated responses to reach the same numbers as the analyzer that
@@ -114,7 +115,8 @@ class SimulationModaAgreementTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study over the averages reaches the same overall values as the analyzer`() {
+    @DisplayName("a study over the averages reaches the same overall values as the analyzer")
+    fun aStudyOverTheAveragesReachesTheSameOverallValuesAsTheAnalyzer() {
         val data = noisyData()
         val fromAnalyzer = analyzerOver(data).averageMODA().multiObjectiveValuesByAlternative()
         val completed = assertIs<ModaRunResult.Completed>(studyOver(data), "the study did not run")
@@ -129,7 +131,8 @@ class SimulationModaAgreementTest {
     }
 
     @Test
-    fun `a study over the averages reaches the same recommendation as the analyzer`() {
+    @DisplayName("a study over the averages reaches the same recommendation as the analyzer")
+    fun aStudyOverTheAveragesReachesTheSameRecommendationAsTheAnalyzer() {
         val data = noisyData()
         val fromAnalyzer = analyzerOver(data).averageMODA().multiObjectiveValuesByAlternative()
         val completed = assertIs<ModaRunResult.Completed>(studyOver(data))
@@ -140,7 +143,8 @@ class SimulationModaAgreementTest {
     }
 
     @Test
-    fun `the two paths score each response over the same range`() {
+    @DisplayName("the two paths score each response over the same range")
+    fun theTwoPathsScoreEachResponseOverTheSameRange() {
         val data = noisyData()
         val analyzerModel = analyzerOver(data).averageMODA()
         val completed = assertIs<ModaRunResult.Completed>(studyOver(data))
@@ -160,7 +164,8 @@ class SimulationModaAgreementTest {
     }
 
     @Test
-    fun `the two paths agree on each individual value, not only on the totals`() {
+    @DisplayName("the two paths agree on each individual value, not only on the totals")
+    fun theTwoPathsAgreeOnEachIndividualValueNotOnlyOnTheTotals() {
         val data = noisyData()
         val analyzerValues = analyzerOver(data).averageMODA().alternativeValuesByMetric()
         val completed = assertIs<ModaRunResult.Completed>(studyOver(data))
@@ -175,7 +180,8 @@ class SimulationModaAgreementTest {
     }
 
     @Test
-    fun `the two paths agree when a response is read the other way round`() {
+    @DisplayName("the two paths agree when a response is read the other way round")
+    fun theTwoPathsAgreeWhenAResponseIsReadTheOtherWayRound() {
         val data = noisyData()
         val directions = mapOf("Throughput" to MetricIfc.Direction.BiggerIsBetter.name)
         val analyzer = MODAAnalyzer(
@@ -211,7 +217,8 @@ class SimulationModaAgreementTest {
     }
 
     @Test
-    fun `the two paths agree when the responses are weighted unevenly`() {
+    @DisplayName("the two paths agree when the responses are weighted unevenly")
+    fun theTwoPathsAgreeWhenTheResponsesAreWeightedUnevenly() {
         val data = noisyData()
         val weights = mapOf("Cost" to 3.0, "Delay" to 2.0, "Throughput" to 1.0)
         val analyzer = analyzerOver(data)
@@ -252,7 +259,8 @@ class SimulationModaAgreementTest {
      *  decision rather than a surprise.
      */
     @Test
-    fun `where the replication counts differ the source keeps the alternative and the analyzer drops it`() {
+    @DisplayName("where the replication counts differ the source keeps the alternative and the analyzer drops it")
+    fun whereTheReplicationCountsDifferTheSourceKeepsTheAlternativeAndTheAnalyzerDropsIt() {
         val base = noisyData(replications = 6)
         // Alpha gets two more replications than the others, and says so on its records.
         val extended = base.map {

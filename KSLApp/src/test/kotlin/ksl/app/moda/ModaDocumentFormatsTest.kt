@@ -25,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for keeping a study in a file.
@@ -94,26 +95,30 @@ class ModaDocumentFormatsTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study written as TOML reads back as the same study`() {
+    @DisplayName("a study written as TOML reads back as the same study")
+    fun aStudyWrittenAsTOMLReadsBackAsTheSameStudy() {
         val original = inlineDocument()
         assertEquals(original, ModaDocumentFormats.fromToml(ModaDocumentFormats.toToml(original)))
     }
 
     @Test
-    fun `a study written as JSON reads back as the same study`() {
+    @DisplayName("a study written as JSON reads back as the same study")
+    fun aStudyWrittenAsJSONReadsBackAsTheSameStudy() {
         val original = inlineDocument()
         assertEquals(original, ModaDocumentFormats.fromJson(ModaDocumentFormats.toJson(original)))
     }
 
     @Test
-    fun `a study reading from a file round-trips in both formats`() {
+    @DisplayName("a study reading from a file round-trips in both formats")
+    fun aStudyReadingFromAFileRoundTripsInBothFormats() {
         val original = fileDocument()
         assertEquals(original, ModaDocumentFormats.fromToml(ModaDocumentFormats.toToml(original)))
         assertEquals(original, ModaDocumentFormats.fromJson(ModaDocumentFormats.toJson(original)))
     }
 
     @Test
-    fun `a study carrying elicited weights round-trips in both formats`() {
+    @DisplayName("a study carrying elicited weights round-trips in both formats")
+    fun aStudyCarryingElicitedWeightsRoundTripsInBothFormats() {
         val original = inlineDocument().copy(
             rescalePolicy = RescalePolicy.FIXED,
             elicitation = ElicitationSpec(
@@ -135,7 +140,8 @@ class ModaDocumentFormatsTest {
      *  decides how the study finds its data.
      */
     @Test
-    fun `every kind of source survives both formats as the kind it was`() {
+    @DisplayName("every kind of source survives both formats as the kind it was")
+    fun everyKindOfSourceSurvivesBothFormatsAsTheKindItWas() {
         val sources = listOf(
             ModaSourceReference.InlineScores(mapOf("A" to mapOf("Cost" to 1.0))),
             ModaSourceReference.DelimitedFile("data/scores.tsv", "name", listOf("Cost"), Delimiter.TAB),
@@ -161,7 +167,8 @@ class ModaDocumentFormatsTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a written study says which version wrote it`() {
+    @DisplayName("a written study says which version wrote it")
+    fun aWrittenStudySaysWhichVersionWroteIt() {
         val json = ModaDocumentFormats.toJson(inlineDocument())
         assertTrue(
             json.contains("\"schemaVersion\": ${ModaDocument.SCHEMA_VERSION}"),
@@ -174,7 +181,8 @@ class ModaDocumentFormatsTest {
      *  chose, so optional things they left out stay out.
      */
     @Test
-    fun `settings nobody chose are left out of the hand-editable form`() {
+    @DisplayName("settings nobody chose are left out of the hand-editable form")
+    fun settingsNobodyChoseAreLeftOutOfTheHandEditableForm() {
         val plain = ModaDocument(
             name = "Plain",
             metrics = listOf(MetricSpec("Cost", upperLimit = 10.0), MetricSpec("Delay", upperLimit = 10.0)),
@@ -191,7 +199,8 @@ class ModaDocumentFormatsTest {
     }
 
     @Test
-    fun `a reader ignores settings it does not know about`() {
+    @DisplayName("a reader ignores settings it does not know about")
+    fun aReaderIgnoresSettingsItDoesNotKnowAbout() {
         val json = ModaDocumentFormats.toJson(inlineDocument())
             .replaceFirst("{", "{\"someLaterSetting\": 42,")
         assertEquals(inlineDocument(), ModaDocumentFormats.fromJson(json))
@@ -202,7 +211,8 @@ class ModaDocumentFormatsTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study written to a file reads back from it in either format`() {
+    @DisplayName("a study written to a file reads back from it in either format")
+    fun aStudyWrittenToAFileReadsBackFromItInEitherFormat() {
         val directory: Path = createTempDirectory("moda-doc")
         try {
             for (extension in listOf("toml", "json")) {
@@ -217,7 +227,8 @@ class ModaDocumentFormatsTest {
     }
 
     @Test
-    fun `a file that is not in a format studies are kept in is refused by name`() {
+    @DisplayName("a file that is not in a format studies are kept in is refused by name")
+    fun aFileThatIsNotInAFormatStudiesAreKeptInIsRefusedByName() {
         val directory: Path = createTempDirectory("moda-doc")
         try {
             val path = directory.resolve("study.yaml")

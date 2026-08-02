@@ -26,6 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for how a MODA model represents a metric whose domain it has fitted to the realized
@@ -45,7 +46,8 @@ class ModaRescaleRepresentationTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `evaluating a model does not modify the metric the caller supplied`() {
+    @DisplayName("evaluating a model does not modify the metric the caller supplied")
+    fun evaluatingAModelDoesNotModifyTheMetricTheCallerSupplied() {
         for (adjustLower in listOf(true, false)) {
             for (adjustUpper in listOf(true, false)) {
                 val metric = Metric("Cost", Interval(0.0, 100.0), adjustLower, adjustUpper)
@@ -65,7 +67,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `a metric that permits no adjustment is evaluated against its declared domain`() {
+    @DisplayName("a metric that permits no adjustment is evaluated against its declared domain")
+    fun aMetricThatPermitsNoAdjustmentIsEvaluatedAgainstItsDeclaredDomain() {
         val metric = Metric("Cost", Interval(0.0, 100.0), allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false)
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         model.defineAlternatives(
@@ -88,7 +91,8 @@ class ModaRescaleRepresentationTest {
      *  implementation.
      */
     @Test
-    fun `a fitted domain leaves the intended margin around the realized range`() {
+    @DisplayName("a fitted domain leaves the intended margin around the realized range")
+    fun aFittedDomainLeavesTheIntendedMarginAroundTheRealizedRange() {
         val metric = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         val scores = listOf(20.0, 35.0, 60.0, 75.0)
@@ -104,7 +108,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `fitting only the upper limit keeps the declared lower limit and the fitted upper limit`() {
+    @DisplayName("fitting only the upper limit keeps the declared lower limit and the fitted upper limit")
+    fun fittingOnlyTheUpperLimitKeepsTheDeclaredLowerLimitAndTheFittedUpperLimit() {
         val metric = Metric("Cost", Interval(0.0, 100.0), allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true)
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         val scores = listOf(20.0, 35.0, 60.0, 75.0)
@@ -123,7 +128,8 @@ class ModaRescaleRepresentationTest {
      *  instead. That path is kept as it was.
      */
     @Test
-    fun `two differing scores round the domain outward as before`() {
+    @DisplayName("two differing scores round the domain outward as before")
+    fun twoDifferingScoresRoundTheDomainOutwardAsBefore() {
         val metric = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         model.defineAlternatives(
@@ -137,7 +143,8 @@ class ModaRescaleRepresentationTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `adjusting one limit keeps the other at its declared value`() {
+    @DisplayName("adjusting one limit keeps the other at its declared value")
+    fun adjustingOneLimitKeepsTheOtherAtItsDeclaredValue() {
         val lowerFixed = Metric("Cost", Interval(0.0, 100.0), allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true)
         val model = AdditiveMODAModel(mapOf(lowerFixed to LinearValueFunction()))
         model.defineAlternatives(
@@ -163,7 +170,8 @@ class ModaRescaleRepresentationTest {
      *  whose domain never changes cannot get here, which is why the case is built explicitly.
      */
     @Test
-    fun `a domain that excludes a realized score is not applied at all`() {
+    @DisplayName("a domain that excludes a realized score is not applied at all")
+    fun aDomainThatExcludesARealizedScoreIsNotAppliedAtAll() {
         val metric = MutableDomainMetric("Cost", Interval(0.0, 100.0), adjustLower = true, adjustUpper = false)
         val scores = mapOf(
             "A" to listOf(Score(metric, 10.0)),
@@ -193,7 +201,8 @@ class ModaRescaleRepresentationTest {
      *  value that was not a number, depending only on how many alternatives there were.
      */
     @Test
-    fun `tied scores always produce a finite value whatever the metric permits`() {
+    @DisplayName("tied scores always produce a finite value whatever the metric permits")
+    fun tiedScoresAlwaysProduceAFiniteValueWhateverTheMetricPermits() {
         for (count in listOf(1, 2, 3, 5)) {
             for (score in listOf(0.0, 7.0, 7.5, 42.0)) {
                 for (adjustLower in listOf(true, false)) {
@@ -215,7 +224,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `tied scores leave every alternative equal so the ranking is decided elsewhere`() {
+    @DisplayName("tied scores leave every alternative equal so the ranking is decided elsewhere")
+    fun tiedScoresLeaveEveryAlternativeEqualSoTheRankingIsDecidedElsewhere() {
         val tied = Metric("Tied", Interval(0.0, 100.0))
         val deciding = Metric("Deciding", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(
@@ -236,7 +246,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `scores differing only by floating point noise count as tied`() {
+    @DisplayName("scores differing only by floating point noise count as tied")
+    fun scoresDifferingOnlyByFloatingPointNoiseCountAsTied() {
         val metric = Metric("Noisy", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         model.defineAlternatives(
@@ -265,7 +276,8 @@ class ModaRescaleRepresentationTest {
      *  set of alternatives in stages now ends up where supplying them all at once does.
      */
     @Test
-    fun `defining alternatives in stages gives the same result as defining them at once`() {
+    @DisplayName("defining alternatives in stages gives the same result as defining them at once")
+    fun definingAlternativesInStagesGivesTheSameResultAsDefiningThemAtOnce() {
         fun scoresFor(metric: MetricIfc, names: List<String>) =
             names.withIndex().associate { (i, name) -> name to listOf(Score(metric, 10.0 + 20.0 * i)) }
 
@@ -293,7 +305,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `defining the same alternatives repeatedly does not keep narrowing the domain`() {
+    @DisplayName("defining the same alternatives repeatedly does not keep narrowing the domain")
+    fun definingTheSameAlternativesRepeatedlyDoesNotKeepNarrowingTheDomain() {
         val metric = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         val scores = mapOf(
@@ -308,7 +321,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `redefining the metrics discards a domain fitted to the previous ones`() {
+    @DisplayName("redefining the metrics discards a domain fitted to the previous ones")
+    fun redefiningTheMetricsDiscardsADomainFittedToThePreviousOnes() {
         val original = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(original to LinearValueFunction()))
         model.defineAlternatives(
@@ -324,7 +338,8 @@ class ModaRescaleRepresentationTest {
     }
 
     @Test
-    fun `clearing the alternatives discards the domain fitted to them`() {
+    @DisplayName("clearing the alternatives discards the domain fitted to them")
+    fun clearingTheAlternativesDiscardsTheDomainFittedToThem() {
         val metric = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         model.defineAlternatives(
@@ -346,7 +361,8 @@ class ModaRescaleRepresentationTest {
      *  [MutableDomainMetric] implements the interface directly and adds no member for this purpose.
      */
     @Test
-    fun `a metric implemented outside this library is fitted without any new member`() {
+    @DisplayName("a metric implemented outside this library is fitted without any new member")
+    fun aMetricImplementedOutsideThisLibraryIsFittedWithoutAnyNewMember() {
         val metric = MutableDomainMetric("Throughput", Interval(0.0, 1000.0), adjustLower = true, adjustUpper = true)
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
         val scores = listOf(100.0, 150.0, 200.0, 250.0, 300.0)

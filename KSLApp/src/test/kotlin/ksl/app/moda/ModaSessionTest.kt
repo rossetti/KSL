@@ -25,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for running studies on behalf of a caller.
@@ -58,7 +59,8 @@ class ModaSessionTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a submitted study runs and reports its recommendation`() {
+    @DisplayName("a submitted study runs and reports its recommendation")
+    fun aSubmittedStudyRunsAndReportsItsRecommendation() {
         ModaSession().use { session ->
             val outcome = session.submitAndAwaitBlocking(standardDocument())
             val finished = assertIs<ModaStudyOutcome.Finished>(outcome, "the study did not finish: $outcome")
@@ -69,7 +71,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `a study says where it got to as it goes, and ends exactly once`() {
+    @DisplayName("a study says where it got to as it goes, and ends exactly once")
+    fun aStudySaysWhereItGotToAsItGoesAndEndsExactlyOnce() {
         ModaSession().use { session ->
             val handle = session.submit(standardDocument())
             val outcome = handle.awaitResultBlocking()
@@ -91,7 +94,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `a study that cannot be run finishes with the reasons rather than breaking`() {
+    @DisplayName("a study that cannot be run finishes with the reasons rather than breaking")
+    fun aStudyThatCannotBeRunFinishesWithTheReasonsRatherThanBreaking() {
         ModaSession().use { session ->
             val broken = standardDocument().copy(
                 metrics = listOf(MetricSpec("Cost", valueFunctionId = "nope", upperLimit = 100.0))
@@ -104,7 +108,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `every study gets its own identifier`() {
+    @DisplayName("every study gets its own identifier")
+    fun everyStudyGetsItsOwnIdentifier() {
         ModaSession().use { session ->
             val ids = (1..20).map { session.submit(standardDocument(it.toDouble())).studyId }
             assertEquals(ids.size, ids.toSet().size, "two studies were given the same identifier")
@@ -120,7 +125,8 @@ class ModaSessionTest {
      *  so running many at once must give each exactly the answer it would have got alone.
      */
     @Test
-    fun `studies running at the same time each get the answer they would have got alone`() {
+    @DisplayName("studies running at the same time each get the answer they would have got alone")
+    fun studiesRunningAtTheSameTimeEachGetTheAnswerTheyWouldHaveGotAlone() {
         val documents = (0 until 24).map { standardDocument(it * 10.0) }
 
         // What each study comes to when nothing else is happening.
@@ -149,7 +155,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `the same study submitted many times at once comes out the same every time`() {
+    @DisplayName("the same study submitted many times at once comes out the same every time")
+    fun theSameStudySubmittedManyTimesAtOnceComesOutTheSameEveryTime() {
         ModaSession().use { session ->
             val handles = (1..24).map { session.submit(standardDocument()) }
             val snapshots = handles.map {
@@ -169,7 +176,8 @@ class ModaSessionTest {
      *  between models would tie their results together.
      */
     @Test
-    fun `studies sharing metric names at the same time stay separate`() {
+    @DisplayName("studies sharing metric names at the same time stay separate")
+    fun studiesSharingMetricNamesAtTheSameTimeStaySeparate() {
         ModaSession().use { session ->
             val cheap = documentNamed("Cheap", mapOf("A" to 10.0, "B" to 20.0, "C" to 30.0))
             val dear = documentNamed("Dear", mapOf("A" to 900.0, "B" to 800.0, "C" to 700.0))
@@ -191,7 +199,8 @@ class ModaSessionTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study that has already finished is not disturbed by being cancelled`() {
+    @DisplayName("a study that has already finished is not disturbed by being cancelled")
+    fun aStudyThatHasAlreadyFinishedIsNotDisturbedByBeingCancelled() {
         ModaSession().use { session ->
             val handle = session.submit(standardDocument())
             val outcome = handle.awaitResultBlocking()
@@ -202,7 +211,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `cancelling settles the outcome rather than leaving a caller waiting`() {
+    @DisplayName("cancelling settles the outcome rather than leaving a caller waiting")
+    fun cancellingSettlesTheOutcomeRatherThanLeavingACallerWaiting() {
         ModaSession().use { session ->
             val handle = session.submit(standardDocument())
             handle.cancel("changed my mind")
@@ -217,7 +227,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `closing a session stops what is still running`() {
+    @DisplayName("closing a session stops what is still running")
+    fun closingASessionStopsWhatIsStillRunning() {
         val session = ModaSession()
         val handles = (1..8).map { session.submit(standardDocument(it.toDouble())) }
         session.close()
@@ -232,7 +243,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `a closed session refuses politely rather than by breaking`() {
+    @DisplayName("a closed session refuses politely rather than by breaking")
+    fun aClosedSessionRefusesPolitelyRatherThanByBreaking() {
         val session = ModaSession()
         session.close()
         val outcome = session.submitAndAwaitBlocking(standardDocument())
@@ -241,7 +253,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `closing twice does nothing the second time`() {
+    @DisplayName("closing twice does nothing the second time")
+    fun closingTwiceDoesNothingTheSecondTime() {
         val session = ModaSession()
         session.submit(standardDocument())
         session.close()
@@ -250,7 +263,8 @@ class ModaSessionTest {
     }
 
     @Test
-    fun `a study submitted with its own source reads from that source`() {
+    @DisplayName("a study submitted with its own source reads from that source")
+    fun aStudySubmittedWithItsOwnSourceReadsFromThatSource() {
         ModaSession().use { session ->
             val provider = ModaSourceProviderIfc {
                 ModaSourceIfc { alternatives, metrics ->

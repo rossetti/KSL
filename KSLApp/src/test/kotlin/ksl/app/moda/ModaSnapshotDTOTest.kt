@@ -30,6 +30,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for writing a MODA result out and reading it back.
@@ -62,7 +63,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `a result read back is the result that was written`() {
+    @DisplayName("a result read back is the result that was written")
+    fun aResultReadBackIsTheResultThatWasWritten() {
         val original = snapshot()
         val json = ModaJson.encodeToString(original.toDTO())
         val restored = ModaJson.decodeFromString<ModaSnapshotDTO>(json).toSnapshot()
@@ -70,7 +72,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `a result carrying units, a description and warnings survives the trip`() {
+    @DisplayName("a result carrying units, a description and warnings survives the trip")
+    fun aResultCarryingUnitsADescriptionAndWarningsSurvivesTheTrip() {
         val tied = Metric("Tied", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(tied to LinearValueFunction()), name = "Tied study")
         model.defineAlternatives(
@@ -87,7 +90,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `writing the same result twice produces the same bytes`() {
+    @DisplayName("writing the same result twice produces the same bytes")
+    fun writingTheSameResultTwiceProducesTheSameBytes() {
         val original = snapshot()
         val first = ModaJson.encodeToString(original.toDTO())
         repeat(5) {
@@ -98,7 +102,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `a result says which version wrote it`() {
+    @DisplayName("a result says which version wrote it")
+    fun aResultSaysWhichVersionWroteIt() {
         val json = ModaJson.encodeToString(snapshot().toDTO())
         assertTrue(
             json.contains("\"schemaVersion\":${ModaSnapshotDTO.SCHEMA_VERSION}"),
@@ -107,7 +112,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `a reader ignores fields it does not know about`() {
+    @DisplayName("a reader ignores fields it does not know about")
+    fun aReaderIgnoresFieldsItDoesNotKnowAbout() {
         // What a later version that had added a field would write.
         val json = ModaJson.encodeToString(snapshot().toDTO())
             .replaceFirst("{", "{\"someLaterField\":42,")
@@ -116,7 +122,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `a result written by a later version is refused rather than misread`() {
+    @DisplayName("a result written by a later version is refused rather than misread")
+    fun aResultWrittenByALaterVersionIsRefusedRatherThanMisread() {
         val dto = snapshot().toDTO().copy(aggregationMethod = "SOME_LATER_METHOD")
         val error = assertFailsWith<IllegalArgumentException> { dto.toSnapshot() }
         assertTrue(
@@ -126,7 +133,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `counting first ranks survives the trip as the method it was`() {
+    @DisplayName("counting first ranks survives the trip as the method it was")
+    fun countingFirstRanksSurvivesTheTripAsTheMethodItWas() {
         val original = snapshot(AggregationMethod.FIRST_RANK_COUNT)
         val restored = ModaJson.decodeFromString<ModaSnapshotDTO>(
             ModaJson.encodeToString(original.toDTO())
@@ -136,7 +144,8 @@ class ModaSnapshotDTOTest {
     }
 
     @Test
-    fun `the order the study declared things in survives the trip`() {
+    @DisplayName("the order the study declared things in survives the trip")
+    fun theOrderTheStudyDeclaredThingsInSurvivesTheTrip() {
         val restored = ModaJson.decodeFromString<ModaSnapshotDTO>(
             ModaJson.encodeToString(snapshot().toDTO())
         ).toSnapshot()

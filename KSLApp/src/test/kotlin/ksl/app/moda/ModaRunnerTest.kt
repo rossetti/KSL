@@ -28,6 +28,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for running a written-down study end to end.
@@ -66,7 +67,8 @@ class ModaRunnerTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a sound study produces a result over every alternative`() {
+    @DisplayName("a sound study produces a result over every alternative")
+    fun aSoundStudyProducesAResultOverEveryAlternative() {
         val result = ModaRunner().run(inlineDocument())
         val completed = assertIs<ModaRunResult.Completed>(result, "the study did not run: $result")
         assertTrue(completed.allAlternativesIncluded)
@@ -84,7 +86,8 @@ class ModaRunnerTest {
      *  is what shows the metrics used for the scores are the ones the model holds.
      */
     @Test
-    fun `running the same study twice gives the same answer`() {
+    @DisplayName("running the same study twice gives the same answer")
+    fun runningTheSameStudyTwiceGivesTheSameAnswer() {
         val runner = ModaRunner()
         val first = assertIs<ModaRunResult.Completed>(runner.run(inlineDocument()))
         val second = assertIs<ModaRunResult.Completed>(runner.run(inlineDocument()))
@@ -93,14 +96,16 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `the weights the study declares are the weights it uses`() {
+    @DisplayName("the weights the study declares are the weights it uses")
+    fun theWeightsTheStudyDeclaresAreTheWeightsItUses() {
         val completed = assertIs<ModaRunResult.Completed>(ModaRunner().run(inlineDocument()))
         assertEquals(2.0 / 3.0, completed.snapshot.metric("Cost")!!.weight, 1.0e-12)
         assertEquals(1.0 / 3.0, completed.snapshot.metric("Delay")!!.weight, 1.0e-12)
     }
 
     @Test
-    fun `the study's chosen methods are the ones recorded`() {
+    @DisplayName("the study's chosen methods are the ones recorded")
+    fun theStudySChosenMethodsAreTheOnesRecorded() {
         val document = inlineDocument().copy(
             rankingMethod = "Fractional",
             aggregationMethod = "FIRST_RANK_COUNT"
@@ -111,7 +116,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `holding the limits as declared leaves them unfitted`() {
+    @DisplayName("holding the limits as declared leaves them unfitted")
+    fun holdingTheLimitsAsDeclaredLeavesThemUnfitted() {
         val document = inlineDocument().copy(rescalePolicy = RescalePolicy.NONE)
         val completed = assertIs<ModaRunResult.Completed>(ModaRunner().run(document))
         val cost = completed.snapshot.metric("Cost")!!
@@ -128,7 +134,8 @@ class ModaRunnerTest {
      *  What has to hold is that the range used contains every score it is used on.
      */
     @Test
-    fun `fitting the limits moves them to sit around the scores`() {
+    @DisplayName("fitting the limits moves them to sit around the scores")
+    fun fittingTheLimitsMovesThemToSitAroundTheScores() {
         // Declared wider than the scores reach. Where the declared limits are tight enough that the
         // fitting would reach past them, they hold it back instead, which is covered where the
         // fitting itself is tested.
@@ -164,7 +171,8 @@ class ModaRunnerTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a study naming a value function nobody supplied does not run`() {
+    @DisplayName("a study naming a value function nobody supplied does not run")
+    fun aStudyNamingAValueFunctionNobodySuppliedDoesNotRun() {
         val document = inlineDocument().copy(
             metrics = listOf(
                 MetricSpec("Cost", valueFunctionId = "sigmoid", upperLimit = 100.0),
@@ -180,7 +188,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `a study whose data cannot be reached does not run`() {
+    @DisplayName("a study whose data cannot be reached does not run")
+    fun aStudyWhoseDataCannotBeReachedDoesNotRun() {
         val document = inlineDocument().copy(
             source = ModaSourceReference.DelimitedFile(
                 directory.resolve("absent.csv").toString(), "alternative", listOf("Cost", "Delay")
@@ -196,7 +205,8 @@ class ModaRunnerTest {
      *  look as though it has.
      */
     @Test
-    fun `a study left with too few alternatives to compare does not produce a result`() {
+    @DisplayName("a study left with too few alternatives to compare does not produce a result")
+    fun aStudyLeftWithTooFewAlternativesToCompareDoesNotProduceAResult() {
         val document = inlineDocument().copy(
             alternatives = listOf("North", "South"),
             source = ModaSourceReference.InlineScores(
@@ -214,7 +224,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `an alternative missing a score is left out and said to be`() {
+    @DisplayName("an alternative missing a score is left out and said to be")
+    fun anAlternativeMissingAScoreIsLeftOutAndSaidToBe() {
         val document = inlineDocument().copy(
             source = ModaSourceReference.InlineScores(
                 mapOf(
@@ -231,7 +242,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `things worth remarking on are carried through to a study that ran`() {
+    @DisplayName("things worth remarking on are carried through to a study that ran")
+    fun thingsWorthRemarkingOnAreCarriedThroughToAStudyThatRan() {
         val document = inlineDocument().copy(
             metrics = listOf(MetricSpec("Cost", weight = 2.0), MetricSpec("Delay", weight = 1.0, upperLimit = 60.0))
         )
@@ -243,7 +255,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `a metric nothing separates is reported on the result`() {
+    @DisplayName("a metric nothing separates is reported on the result")
+    fun aMetricNothingSeparatesIsReportedOnTheResult() {
         val document = inlineDocument().copy(
             source = ModaSourceReference.InlineScores(
                 mapOf(
@@ -263,7 +276,8 @@ class ModaRunnerTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `weights obtained by asking someone are the ones used`() {
+    @DisplayName("weights obtained by asking someone are the ones used")
+    fun weightsObtainedByAskingSomeoneAreTheOnesUsed() {
         val document = inlineDocument().copy(
             rescalePolicy = RescalePolicy.FIXED,
             elicitation = ElicitationSpec(
@@ -282,7 +296,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `elicited weights in a study that would refit its limits do not run`() {
+    @DisplayName("elicited weights in a study that would refit its limits do not run")
+    fun elicitedWeightsInAStudyThatWouldRefitItsLimitsDoNotRun() {
         val document = inlineDocument().copy(
             rescalePolicy = RescalePolicy.FROM_SCORES,
             elicitation = ElicitationSpec(
@@ -309,7 +324,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `a study reads its scores from a delimited file`() {
+    @DisplayName("a study reads its scores from a delimited file")
+    fun aStudyReadsItsScoresFromADelimitedFile() {
         writeScores(
             "scores.csv",
             """
@@ -333,7 +349,8 @@ class ModaRunnerTest {
      *  committed together.
      */
     @Test
-    fun `a relative path is read against wherever the study is`() {
+    @DisplayName("a relative path is read against wherever the study is")
+    fun aRelativePathIsReadAgainstWhereverTheStudyIs() {
         val nested = directory.resolve("study")
         Files.createDirectories(nested.resolve("data"))
         Files.writeString(
@@ -349,7 +366,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `a file using another separator, with a quoted field, is read correctly`() {
+    @DisplayName("a file using another separator, with a quoted field, is read correctly")
+    fun aFileUsingAnotherSeparatorWithAQuotedFieldIsReadCorrectly() {
         writeScores(
             "scores.tsv",
             "alternative;Cost;Delay\n\"North;ish\";20;50\nSouth;50;30\nEast;80;10\n"
@@ -373,7 +391,8 @@ class ModaRunnerTest {
      *  quietly make an alternative look excellent on a metric where smaller is better.
      */
     @Test
-    fun `a cell that is not a number is missing rather than zero`() {
+    @DisplayName("a cell that is not a number is missing rather than zero")
+    fun aCellThatIsNotANumberIsMissingRatherThanZero() {
         writeScores(
             "scores.csv",
             "alternative,Cost,Delay\nNorth,20,50\nSouth,50,30\nEast,n/a,10\n"
@@ -388,7 +407,8 @@ class ModaRunnerTest {
     }
 
     @Test
-    fun `a study can read scores from something registered for it`() {
+    @DisplayName("a study can read scores from something registered for it")
+    fun aStudyCanReadScoresFromSomethingRegisteredForIt() {
         val provider = ModaSourceProviderIfc { parameters ->
             val offset = parameters["offset"]?.toDouble() ?: 0.0
             ModaSourceIfc { alternatives, metrics ->

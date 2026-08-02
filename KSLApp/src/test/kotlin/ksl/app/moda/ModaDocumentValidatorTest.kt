@@ -22,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for checking a study before running it.
@@ -74,13 +75,15 @@ class ModaDocumentValidatorTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a sound study has nothing wrong with it`() {
+    @DisplayName("a sound study has nothing wrong with it")
+    fun aSoundStudyHasNothingWrongWithIt() {
         assertTrue(errorsOf(soundDocument()).isEmpty(), "a sound study was rejected: ${errorsOf(soundDocument())}")
         assertTrue(validator.isRunnable(soundDocument()))
     }
 
     @Test
-    fun `everything wrong is reported at once rather than one at a time`() {
+    @DisplayName("everything wrong is reported at once rather than one at a time")
+    fun everythingWrongIsReportedAtOnceRatherThanOneAtATime() {
         val broken = soundDocument().copy(
             name = "",
             alternatives = listOf("A"),
@@ -97,7 +100,8 @@ class ModaDocumentValidatorTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a value function nobody supplied is named along with what is available`() {
+    @DisplayName("a value function nobody supplied is named along with what is available")
+    fun aValueFunctionNobodySuppliedIsNamedAlongWithWhatIsAvailable() {
         val document = soundDocument().copy(
             metrics = listOf(
                 MetricSpec("Cost", valueFunctionId = "sigmoid", upperLimit = 100.0),
@@ -108,7 +112,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `two metrics with the same name are refused`() {
+    @DisplayName("two metrics with the same name are refused")
+    fun twoMetricsWithTheSameNameAreRefused() {
         val document = soundDocument().copy(
             metrics = listOf(MetricSpec("Cost", upperLimit = 100.0), MetricSpec("Cost", upperLimit = 50.0))
         )
@@ -116,18 +121,21 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a study needs something to compare and something to compare it on`() {
+    @DisplayName("a study needs something to compare and something to compare it on")
+    fun aStudyNeedsSomethingToCompareAndSomethingToCompareItOn() {
         assertErrorMentioning(soundDocument().copy(alternatives = listOf("A")), "alternatives")
         assertErrorMentioning(soundDocument().copy(metrics = emptyList()), "metrics")
     }
 
     @Test
-    fun `an alternative named twice is refused`() {
+    @DisplayName("an alternative named twice is refused")
+    fun anAlternativeNamedTwiceIsRefused() {
         assertErrorMentioning(soundDocument().copy(alternatives = listOf("A", "B", "A")), "alternatives", "A")
     }
 
     @Test
-    fun `weights that could not count towards a result are refused`() {
+    @DisplayName("weights that could not count towards a result are refused")
+    fun weightsThatCouldNotCountTowardsAResultAreRefused() {
         assertErrorMentioning(
             soundDocument().copy(
                 metrics = listOf(
@@ -149,7 +157,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `limits that are not a range are refused`() {
+    @DisplayName("limits that are not a range are refused")
+    fun limitsThatAreNotARangeAreRefused() {
         assertErrorMentioning(
             soundDocument().copy(
                 metrics = listOf(
@@ -162,7 +171,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a method the reader does not know is named along with what it could be`() {
+    @DisplayName("a method the reader does not know is named along with what it could be")
+    fun aMethodTheReaderDoesNotKnowIsNamedAlongWithWhatItCouldBe() {
         assertErrorMentioning(soundDocument().copy(rankingMethod = "Sideways"), "rankingMethod", "Sideways", "Ordinal")
         assertErrorMentioning(
             soundDocument().copy(aggregationMethod = "VIBES"), "aggregationMethod", "VIBES", "WEIGHTED_VALUE"
@@ -176,7 +186,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a study written by a later version is refused rather than misread`() {
+    @DisplayName("a study written by a later version is refused rather than misread")
+    fun aStudyWrittenByALaterVersionIsRefusedRatherThanMisread() {
         assertErrorMentioning(
             soundDocument().copy(schemaVersion = ModaDocument.SCHEMA_VERSION + 1),
             "schemaVersion", "later version"
@@ -188,7 +199,8 @@ class ModaDocumentValidatorTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a file that is not there is caught before anything runs`() {
+    @DisplayName("a file that is not there is caught before anything runs")
+    fun aFileThatIsNotThereIsCaughtBeforeAnythingRuns() {
         val document = soundDocument().copy(
             source = ModaSourceReference.DelimitedFile(
                 "definitely/not/here.csv", "alternative", listOf("Cost", "Delay")
@@ -198,7 +210,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a source that is understood but not yet supported says so plainly`() {
+    @DisplayName("a source that is understood but not yet supported says so plainly")
+    fun aSourceThatIsUnderstoodButNotYetSupportedSaysSoPlainly() {
         val database = soundDocument().copy(
             source = ModaSourceReference.KslDatabase(DatabaseConnectionRef("results"), listOf("e"), listOf("Cost"))
         )
@@ -209,7 +222,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a provider nobody registered is named along with what is registered`() {
+    @DisplayName("a provider nobody registered is named along with what is registered")
+    fun aProviderNobodyRegisteredIsNamedAlongWithWhatIsRegistered() {
         assertErrorMentioning(
             soundDocument().copy(source = ModaSourceReference.RegisteredProvider("mine")),
             "source", "mine", "None are registered"
@@ -217,7 +231,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a study that holds no scores for an alternative is caught before running`() {
+    @DisplayName("a study that holds no scores for an alternative is caught before running")
+    fun aStudyThatHoldsNoScoresForAnAlternativeIsCaughtBeforeRunning() {
         val document = soundDocument().copy(
             source = ModaSourceReference.InlineScores(mapOf("A" to mapOf("Cost" to 1.0, "Delay" to 2.0)))
         )
@@ -225,7 +240,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a file with no column for one of the metrics is caught before running`() {
+    @DisplayName("a file with no column for one of the metrics is caught before running")
+    fun aFileWithNoColumnForOneOfTheMetricsIsCaughtBeforeRunning() {
         val document = soundDocument().copy(
             source = ModaSourceReference.DelimitedFile("scores.csv", "alternative", listOf("Cost"))
         )
@@ -247,7 +263,8 @@ class ModaDocumentValidatorTest {
     )
 
     @Test
-    fun `elicited weights require limits that cannot move`() {
+    @DisplayName("elicited weights require limits that cannot move")
+    fun elicitedWeightsRequireLimitsThatCannotMove() {
         val fromScores = soundDocument().copy(elicitation = elicited(), rescalePolicy = RescalePolicy.FROM_SCORES)
         assertErrorMentioning(fromScores, "elicitation", "FIXED")
 
@@ -256,7 +273,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `elicited weights against limits the study no longer declares are refused`() {
+    @DisplayName("elicited weights against limits the study no longer declares are refused")
+    fun elicitedWeightsAgainstLimitsTheStudyNoLongerDeclaresAreRefused() {
         // The study's Cost range was edited after the weights were given against 0 to 100.
         val document = soundDocument().copy(
             metrics = listOf(
@@ -270,13 +288,15 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `elicited weights covering the study exactly are accepted`() {
+    @DisplayName("elicited weights covering the study exactly are accepted")
+    fun elicitedWeightsCoveringTheStudyExactlyAreAccepted() {
         val document = soundDocument().copy(elicitation = elicited(), rescalePolicy = RescalePolicy.FIXED)
         assertTrue(errorsOf(document).isEmpty(), "a sound elicitation was rejected: ${errorsOf(document)}")
     }
 
     @Test
-    fun `weights given for metrics the study does not have, or missing for ones it does, are refused`() {
+    @DisplayName("weights given for metrics the study does not have, or missing for ones it does, are refused")
+    fun weightsGivenForMetricsTheStudyDoesNotHaveOrMissingForOnesItDoesAreRefused() {
         val extra = soundDocument().copy(
             rescalePolicy = RescalePolicy.FIXED,
             elicitation = elicited().copy(ratings = elicited().ratings + ("Risk" to 10.0))
@@ -291,7 +311,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `a fixed study with a limit that is not a real bound is refused`() {
+    @DisplayName("a fixed study with a limit that is not a real bound is refused")
+    fun aFixedStudyWithALimitThatIsNotARealBoundIsRefused() {
         val document = soundDocument().copy(
             metrics = listOf(MetricSpec("Cost", weight = 1.0), MetricSpec("Delay", weight = 1.0, upperLimit = 60.0)),
             rescalePolicy = RescalePolicy.FIXED
@@ -304,7 +325,8 @@ class ModaDocumentValidatorTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `an unbounded metric is remarked on without stopping the study`() {
+    @DisplayName("an unbounded metric is remarked on without stopping the study")
+    fun anUnboundedMetricIsRemarkedOnWithoutStoppingTheStudy() {
         val document = soundDocument().copy(
             metrics = listOf(MetricSpec("Cost", weight = 1.0), MetricSpec("Delay", weight = 1.0, upperLimit = 60.0))
         )
@@ -317,7 +339,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `an absolute path is remarked on because the study will not travel`() {
+    @DisplayName("an absolute path is remarked on because the study will not travel")
+    fun anAbsolutePathIsRemarkedOnBecauseTheStudyWillNotTravel() {
         val document = soundDocument().copy(
             source = ModaSourceReference.DelimitedFile("/data/scores.csv", "alternative", listOf("Cost", "Delay"))
         )
@@ -328,7 +351,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `more metrics than alternatives is remarked on without stopping the study`() {
+    @DisplayName("more metrics than alternatives is remarked on without stopping the study")
+    fun moreMetricsThanAlternativesIsRemarkedOnWithoutStoppingTheStudy() {
         val document = soundDocument().copy(
             alternatives = listOf("A", "B"),
             metrics = listOf(
@@ -348,7 +372,8 @@ class ModaDocumentValidatorTest {
     }
 
     @Test
-    fun `an issue reads as something that can be acted on`() {
+    @DisplayName("an issue reads as something that can be acted on")
+    fun anIssueReadsAsSomethingThatCanBeActedOn() {
         val issue = errorsOf(
             soundDocument().copy(
                 metrics = listOf(MetricSpec("Cost", valueFunctionId = "nope", upperLimit = 100.0))

@@ -25,6 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for reading scores out of simulation replications.
@@ -70,7 +71,8 @@ class SimulationModaSourceTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `averaging is what happens unless something else is asked for`() {
+    @DisplayName("averaging is what happens unless something else is asked for")
+    fun averagingIsWhatHappensUnlessSomethingElseIsAskedFor() {
         val source = SimulationModaSource(data())
         assertEquals(ReplicationAggregation.MEAN, source.aggregation)
         val table = source.scores(setOf("Alpha"), setOf("Cost"))
@@ -79,7 +81,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `each way of reducing a series gives what it says`() {
+    @DisplayName("each way of reducing a series gives what it says")
+    fun eachWayOfReducingASeriesGivesWhatItSays() {
         val observations = listOf(1.0, 2.0, 3.0, 4.0, 100.0)
         val records = observations.mapIndexed { index, value ->
             record("Alpha", "Cost", index + 1, value, observations.size)
@@ -113,7 +116,8 @@ class SimulationModaSourceTest {
      *  question, so they must not give different answers.
      */
     @Test
-    fun `the median is the fiftieth percentile`() {
+    @DisplayName("the median is the fiftieth percentile")
+    fun theMedianIsTheFiftiethPercentile() {
         for (observations in listOf(
             listOf(1.0, 2.0, 3.0, 4.0, 100.0),
             listOf(5.0, 1.0, 4.0, 2.0),
@@ -137,7 +141,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `a percentile outside the range a percentile can take is refused`() {
+    @DisplayName("a percentile outside the range a percentile can take is refused")
+    fun aPercentileOutsideTheRangeAPercentileCanTakeIsRefused() {
         assertFailsWith<IllegalArgumentException> {
             SimulationModaSource(data(), ReplicationAggregation.PERCENTILE, 0.0)
         }
@@ -151,7 +156,8 @@ class SimulationModaSourceTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `the observations come back in replication order`() {
+    @DisplayName("the observations come back in replication order")
+    fun theObservationsComeBackInReplicationOrder() {
         val source = SimulationModaSource(data())
         assertContentEquals(listOf(1, 2, 3, 4, 5), source.replicationIds("Alpha"))
         val series = source.replicationScores("Alpha", "Cost")!!
@@ -161,7 +167,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `asking about something that was never observed gives nothing rather than an empty answer`() {
+    @DisplayName("asking about something that was never observed gives nothing rather than an empty answer")
+    fun askingAboutSomethingThatWasNeverObservedGivesNothingRatherThanAnEmptyAnswer() {
         val source = SimulationModaSource(data())
         assertNull(source.replicationScores("Nope", "Cost"))
         assertNull(source.replicationScores("Alpha", "Nope"))
@@ -173,7 +180,8 @@ class SimulationModaSourceTest {
      *  share none, even where they have the same count.
      */
     @Test
-    fun `the replications alternatives share are found by number and not by position`() {
+    @DisplayName("the replications alternatives share are found by number and not by position")
+    fun theReplicationsAlternativesShareAreFoundByNumberAndNotByPosition() {
         val records = listOf(
             record("Alpha", "Cost", 1, 1.0), record("Alpha", "Cost", 2, 2.0), record("Alpha", "Cost", 3, 3.0),
             record("Beta", "Cost", 2, 4.0), record("Beta", "Cost", 3, 5.0), record("Beta", "Cost", 4, 6.0)
@@ -192,7 +200,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `a replication recorded twice does not lengthen the series`() {
+    @DisplayName("a replication recorded twice does not lengthen the series")
+    fun aReplicationRecordedTwiceDoesNotLengthenTheSeries() {
         val records = listOf(
             record("Alpha", "Cost", 1, 1.0),
             record("Alpha", "Cost", 1, 99.0),
@@ -208,7 +217,8 @@ class SimulationModaSourceTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `a response that was never recorded is reported apart from a score that is merely absent`() {
+    @DisplayName("a response that was never recorded is reported apart from a score that is merely absent")
+    fun aResponseThatWasNeverRecordedIsReportedApartFromAScoreThatIsMerelyAbsent() {
         val records = data().filterNot { it.exp_name == "Gamma" && it.stat_name == "Delay" }
         val source = SimulationModaSource(records)
         val table = source.scores(setOf("Alpha", "Beta", "Gamma"), setOf("Cost", "Delay"))
@@ -220,7 +230,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `replications that recorded nothing are left out of the average`() {
+    @DisplayName("replications that recorded nothing are left out of the average")
+    fun replicationsThatRecordedNothingAreLeftOutOfTheAverage() {
         val records = listOf(
             record("Alpha", "Cost", 1, 10.0),
             record("Alpha", "Cost", 2, null),
@@ -240,7 +251,8 @@ class SimulationModaSourceTest {
      *  it has. Comparing replication by replication does, and that is enforced where it applies.
      */
     @Test
-    fun `alternatives observed different numbers of times are still aggregated`() {
+    @DisplayName("alternatives observed different numbers of times are still aggregated")
+    fun alternativesObservedDifferentNumbersOfTimesAreStillAggregated() {
         val records = data() + listOf(
             record("Alpha", "Cost", 6, 11.0, 6), record("Alpha", "Delay", 6, 8.0, 6)
         )
@@ -254,7 +266,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `the ranges come out the same way the analyzer works them out`() {
+    @DisplayName("the ranges come out the same way the analyzer works them out")
+    fun theRangesComeOutTheSameWayTheAnalyzerWorksThemOut() {
         val records = data()
         val fromSource = SimulationModaSource.recommendedDomains(setOf("Cost", "Delay"), records)
         val fromAnalyzer = ksl.utilities.moda.MODAAnalyzer
@@ -267,7 +280,8 @@ class SimulationModaSourceTest {
      *  handful of runs; a limit left open is exactly what the runs can speak to.
      */
     @Test
-    fun `limits that were stated are kept and only open ones are filled in`() {
+    @DisplayName("limits that were stated are kept and only open ones are filled in")
+    fun limitsThatWereStatedAreKeptAndOnlyOpenOnesAreFilledIn() {
         val records = data()
         val specs = SimulationModaSource.metricSpecsFor(
             mapOf("Cost" to 1.0),
@@ -283,7 +297,8 @@ class SimulationModaSourceTest {
     }
 
     @Test
-    fun `a study built over responses holds its ranges rather than fitting them again`() {
+    @DisplayName("a study built over responses holds its ranges rather than fitting them again")
+    fun aStudyBuiltOverResponsesHoldsItsRangesRatherThanFittingThemAgain() {
         val document = SimulationModaSource.documentFor(
             "Sim study", listOf("Alpha", "Beta", "Gamma"), mapOf("Cost" to 1.0, "Delay" to 1.0), data()
         )

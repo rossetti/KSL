@@ -29,6 +29,7 @@ import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Canonical baseline for the MODA engine, recorded before any of the engine work so that an
@@ -73,7 +74,8 @@ class ModaEngineBaselineTest {
     // ----------------------------------------------------------------------------------------
 
     @Test
-    fun `PDFModeler evaluation baseline`() {
+    @DisplayName("PDFModeler evaluation baseline")
+    fun pdfModelerEvaluationBaseline() {
         assertMatchesBaseline("pdfmodeler", pdfModelerReport())
     }
 
@@ -95,7 +97,8 @@ class ModaEngineBaselineTest {
     // ----------------------------------------------------------------------------------------
 
     @Test
-    fun `MODAAnalyzer baseline`() {
+    @DisplayName("MODAAnalyzer baseline")
+    fun modaAnalyzerBaseline() {
         assertMatchesBaseline("modaanalyzer", modaAnalyzerReport())
     }
 
@@ -158,7 +161,8 @@ class ModaEngineBaselineTest {
      *  starts passing.
      */
     @Test
-    fun `tied score baseline`() {
+    @DisplayName("tied score baseline")
+    fun tiedScoreBaseline() {
         assertMatchesBaseline("tied-scores", tiedScoreReport())
     }
 

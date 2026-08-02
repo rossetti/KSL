@@ -27,6 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.DisplayName
 
 /**
  *  Tests for eliciting weights by the swing method.
@@ -60,13 +61,15 @@ class SwingWeightElicitationTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `swings cannot be rated before they have been ranked`() {
+    @DisplayName("swings cannot be rated before they have been ranked")
+    fun swingsCannotBeRatedBeforeTheyHaveBeenRanked() {
         val elicitation = SwingWeightElicitation(metrics())
         assertFailsWith<IllegalStateException> { elicitation.rateSwing("Delay", 50.0) }
     }
 
     @Test
-    fun `weights cannot be taken while swings are still unrated`() {
+    @DisplayName("weights cannot be taken while swings are still unrated")
+    fun weightsCannotBeTakenWhileSwingsAreStillUnrated() {
         val elicitation = SwingWeightElicitation(metrics())
         elicitation.rankSwings(listOf("Cost", "Delay", "Risk"))
         assertFalse(elicitation.isComplete)
@@ -76,7 +79,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `ranking must cover every metric exactly once`() {
+    @DisplayName("ranking must cover every metric exactly once")
+    fun rankingMustCoverEveryMetricExactlyOnce() {
         val elicitation = SwingWeightElicitation(metrics())
         assertFailsWith<IllegalArgumentException> { elicitation.rankSwings(listOf("Cost", "Delay")) }
         assertFailsWith<IllegalArgumentException> { elicitation.rankSwings(listOf("Cost", "Delay", "Cost")) }
@@ -84,7 +88,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `the top swing defines the scale and cannot be rated against itself`() {
+    @DisplayName("the top swing defines the scale and cannot be rated against itself")
+    fun theTopSwingDefinesTheScaleAndCannotBeRatedAgainstItself() {
         val elicitation = SwingWeightElicitation(metrics())
         elicitation.rankSwings(listOf("Cost", "Delay", "Risk"))
         assertEquals(SwingWeightElicitation.TOP_SWING_RATING, elicitation.currentRatings["Cost"])
@@ -93,7 +98,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `a rating outside the scale is refused`() {
+    @DisplayName("a rating outside the scale is refused")
+    fun aRatingOutsideTheScaleIsRefused() {
         val elicitation = SwingWeightElicitation(metrics())
         elicitation.rankSwings(listOf("Cost", "Delay", "Risk"))
         assertFailsWith<IllegalArgumentException> { elicitation.rateSwing("Delay", -1.0) }
@@ -106,7 +112,8 @@ class SwingWeightElicitationTest {
      *  discard the ratings rather than keep answers to a question that is no longer the one asked.
      */
     @Test
-    fun `ranking again starts the ratings over`() {
+    @DisplayName("ranking again starts the ratings over")
+    fun rankingAgainStartsTheRatingsOver() {
         val elicitation = completed()
         assertTrue(elicitation.isComplete)
         elicitation.rankSwings(listOf("Risk", "Cost", "Delay"))
@@ -116,13 +123,15 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `metrics sharing a name cannot be elicited for`() {
+    @DisplayName("metrics sharing a name cannot be elicited for")
+    fun metricsSharingANameCannotBeElicitedFor() {
         val duplicated = listOf(Metric("Cost", Interval(0.0, 100.0)), Metric("Cost", Interval(0.0, 50.0)))
         assertFailsWith<IllegalArgumentException> { SwingWeightElicitation(duplicated) }
     }
 
     @Test
-    fun `there must be something to elicit weights for`() {
+    @DisplayName("there must be something to elicit weights for")
+    fun thereMustBeSomethingToElicitWeightsFor() {
         assertFailsWith<IllegalArgumentException> { SwingWeightElicitation(emptyList()) }
     }
 
@@ -131,7 +140,8 @@ class SwingWeightElicitationTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `the ratings become weights in proportion, summing to one`() {
+    @DisplayName("the ratings become weights in proportion, summing to one")
+    fun theRatingsBecomeWeightsInProportionSummingToOne() {
         val weights = completed().weights()
         // 100, 50 and 25 out of 175.
         assertEquals(100.0 / 175.0, weights["Cost"]!!, 1.0e-12)
@@ -141,13 +151,15 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `the most valuable swing gets the largest weight`() {
+    @DisplayName("the most valuable swing gets the largest weight")
+    fun theMostValuableSwingGetsTheLargestWeight() {
         val weights = completed().weights()
         assertEquals("Cost", weights.maxByOrNull { it.value }!!.key)
     }
 
     @Test
-    fun `a swing rated zero is allowed and takes no weight`() {
+    @DisplayName("a swing rated zero is allowed and takes no weight")
+    fun aSwingRatedZeroIsAllowedAndTakesNoWeight() {
         val elicitation = SwingWeightElicitation(metrics())
         elicitation.rankSwings(listOf("Cost", "Delay", "Risk"))
         elicitation.rateSwing("Delay", 0.0)
@@ -158,7 +170,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `a single metric takes all of the weight`() {
+    @DisplayName("a single metric takes all of the weight")
+    fun aSingleMetricTakesAllOfTheWeight() {
         val elicitation = SwingWeightElicitation(listOf(Metric("Only", Interval(0.0, 100.0))))
         elicitation.rankSwings(listOf("Only"))
         assertTrue(elicitation.isComplete)
@@ -192,7 +205,8 @@ class SwingWeightElicitationTest {
      *  weights describe, even though every number the person gave is unchanged.
      */
     @Test
-    fun `weights stop applying once the ranges are refitted`() {
+    @DisplayName("weights stop applying once the ranges are refitted")
+    fun weightsStopApplyingOnceTheRangesAreRefitted() {
         val metricList = metrics(adjustable = true)
         val record = completed(metricList).record()
         val snapshot = studyOver(metricList, rescale = true)
@@ -206,7 +220,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `weights keep applying when the ranges are held as declared`() {
+    @DisplayName("weights keep applying when the ranges are held as declared")
+    fun weightsKeepApplyingWhenTheRangesAreHeldAsDeclared() {
         val metricList = metrics(adjustable = false)
         val record = completed(metricList).record()
         val snapshot = studyOver(metricList, rescale = false)
@@ -221,7 +236,8 @@ class SwingWeightElicitationTest {
      *  weights that were actually given against a range that moved should stop applying.
      */
     @Test
-    fun `only the metrics whose ranges actually moved are reported`() {
+    @DisplayName("only the metrics whose ranges actually moved are reported")
+    fun onlyTheMetricsWhoseRangesActuallyMovedAreReported() {
         val metricList = listOf(
             Metric("Cost", Interval(0.0, 100.0), allowLowerLimitAdjustment = true, allowUpperLimitAdjustment = true),
             Metric("Delay", Interval(0.0, 60.0), allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false),
@@ -233,7 +249,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `the record says which ranges could move before anything is run`() {
+    @DisplayName("the record says which ranges could move before anything is run")
+    fun theRecordSaysWhichRangesCouldMoveBeforeAnythingIsRun() {
         val record = completed(metrics(adjustable = true)).record()
         assertContentEquals(listOf("Cost", "Delay", "Risk"), record.adjustableRanges)
 
@@ -242,7 +259,8 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `a metric missing from the study counts as a range that moved`() {
+    @DisplayName("a metric missing from the study counts as a range that moved")
+    fun aMetricMissingFromTheStudyCountsAsARangeThatMoved() {
         val record = completed(metrics()).record()
         val other = listOf(Metric("Cost", Interval(0.0, 100.0), false, false))
         val snapshot = studyOver(other, rescale = false)
@@ -250,20 +268,23 @@ class SwingWeightElicitationTest {
     }
 
     @Test
-    fun `the record carries the same weights the elicitation gives`() {
+    @DisplayName("the record carries the same weights the elicitation gives")
+    fun theRecordCarriesTheSameWeightsTheElicitationGives() {
         val elicitation = completed()
         assertEquals(elicitation.weights(), elicitation.record().weights())
     }
 
     @Test
-    fun `an incomplete elicitation cannot be recorded`() {
+    @DisplayName("an incomplete elicitation cannot be recorded")
+    fun anIncompleteElicitationCannotBeRecorded() {
         val elicitation = SwingWeightElicitation(metrics())
         elicitation.rankSwings(listOf("Cost", "Delay", "Risk"))
         assertFailsWith<IllegalStateException> { elicitation.record() }
     }
 
     @Test
-    fun `the record keeps the ranges the answers were given against`() {
+    @DisplayName("the record keeps the ranges the answers were given against")
+    fun theRecordKeepsTheRangesTheAnswersWereGivenAgainst() {
         val record = completed().record()
         assertEquals(ElicitedRange(0.0, 100.0), record.elicitedAgainst["Cost"])
         assertEquals(ElicitedRange(0.0, 60.0), record.elicitedAgainst["Delay"])
