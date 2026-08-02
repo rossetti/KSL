@@ -646,7 +646,11 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
                 val secondValue = data[secondIndex]
                 (firstValue + secondValue) / 2.0
             } else { //odd
-                val index = ceil(size / 2.0).toInt()
+                // Integer division truncates, which is what the middle index of a zero-based array
+                // needs: (size - 1) / 2. The previous ceil(size / 2.0) returned (size + 1) / 2, one
+                // position too high for every odd size, so a five-element sample reported its fourth
+                // smallest value and a three-element sample reported its largest.
+                val index = size / 2
                 data[index]
             }
             return median
