@@ -16,9 +16,18 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.moda
+package ksl.app.moda
 
 import ksl.utilities.Interval
+import ksl.utilities.moda.AdditiveMODAModel
+import ksl.utilities.moda.ElicitationRecord
+import ksl.utilities.moda.ElicitedRange
+import ksl.utilities.moda.LinearValueFunction
+import ksl.utilities.moda.Metric
+import ksl.utilities.moda.MetricIfc
+import ksl.utilities.moda.ModaSnapshot
+import ksl.utilities.moda.Score
+import ksl.utilities.moda.ValueFunctionIfc
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
