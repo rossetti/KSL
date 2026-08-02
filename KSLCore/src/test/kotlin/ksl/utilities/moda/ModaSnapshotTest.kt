@@ -57,6 +57,61 @@ class ModaSnapshotTest {
     }
 
     // ------------------------------------------------------------------------------------------
+    // Writing a result without the model that produced it
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     *  A snapshot builds the same rows the model does, table by table.
+     *
+     *  This is not a comparison of a thing with itself. `resultsAsDatabase` on the model now
+     *  delegates here, but the five row builders it used to call still exist on the model and are
+     *  still written separately: `metricData`, `alternativeScoreData`, `alternativeValueData`,
+     *  `alternativeOverallValueData` and `alternativeRankFrequencyData`. Those are what is compared,
+     *  so the two ways of deriving each row stay honest.
+     *
+     *  The ranks are what make this worth pinning. A model knows them; a snapshot works them out
+     *  again from the values and the ranking method it recorded. If that derivation ever stops
+     *  agreeing, a result written from a snapshot would look right and rank wrong.
+     *
+     *  Surrogate ids are excluded. They come from counters that advance with every row built
+     *  anywhere in the process, so two runs of the same construction never share them, and they
+     *  identify a row rather than saying anything about the result.
+     */
+    @Test
+    @DisplayName("a snapshot builds the same rows as the model it came from")
+    fun aSnapshotBuildsTheSameRowsAsTheModel() {
+        val (model, _, _) = studyModel()
+        val snapshot = ModaSnapshot.of(model)
+        val named = model.label ?: model.name
+
+        assertEquals(
+            model.metricData().map { it.copy(id = 0) },
+            snapshot.metricData(named).map { it.copy(id = 0) },
+            "the metric rows differ"
+        )
+        assertEquals(
+            model.alternativeScoreData().map { it.copy(id = 0) },
+            snapshot.scoreData(named).map { it.copy(id = 0) },
+            "the score rows differ"
+        )
+        assertEquals(
+            model.alternativeValueData().map { it.copy(id = 0) },
+            snapshot.valueData(named).map { it.copy(id = 0) },
+            "the value rows differ, which means the ranks were derived differently"
+        )
+        assertEquals(
+            model.alternativeOverallValueData().map { it.copy(id = 0) },
+            snapshot.overallValueData(named).map { it.copy(id = 0) },
+            "the overall rows differ"
+        )
+        assertEquals(
+            model.alternativeRankFrequencyData().map { it.copy(id = 0) },
+            snapshot.rankFrequencyData(named).map { it.copy(id = 0) },
+            "the rank frequency rows differ"
+        )
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Standing on its own
     // ------------------------------------------------------------------------------------------
 

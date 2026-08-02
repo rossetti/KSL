@@ -18,7 +18,12 @@
 
 package ksl.utilities.moda
 
+import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.Database
+import ksl.utilities.io.dbutil.DatabaseIfc
+import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
+import java.nio.file.Path
 
 /**
  *  How the alternatives are compared to arrive at a single recommendation.
@@ -60,6 +65,16 @@ data class MetricRecord(
     val effectiveUpperLimit: Double,
     /** Indicates the domain was fitted to the realized scores rather than used as declared. */
     val domainWasRescaled: Boolean,
+    /**
+     *  Whether each limit was allowed to move when the domain was fitted.
+     *
+     *  Needed to read [domainWasRescaled]: a domain that was not fitted because fitting was
+     *  forbidden means something different from one that was permitted to move and had no reason
+     *  to. Without these a reader cannot tell the two apart, and neither can a record written from
+     *  this snapshot, which reports both.
+     */
+    val allowLowerLimitAdjustment: Boolean,
+    val allowUpperLimitAdjustment: Boolean,
     /**
      *  The smallest and largest score any alternative actually achieved on this metric.
      *
@@ -157,6 +172,153 @@ data class ModaSnapshot(
     val hasTiedMetric: Boolean
         get() = metrics.any { it.hadTiedScores }
 
+    /**
+     *  How the alternatives placed on each metric, in the order of [alternatives].
+     *
+     *  Derived rather than recorded. A rank is a function of the values and the way ties are
+     *  handled, both of which are already here, so storing it as well would be storing the same
+     *  thing twice and inviting the two to disagree. [rankingMethod] is the method the study
+     *  actually used, so the ranks come out as the model produced them.
+     */
+    fun ranksByMetric(): Map<String, List<Double>> {
+        val method = Statistic.Companion.Ranking.entries.firstOrNull { it.name == rankingMethod }
+        requireNotNull(method) {
+            "The ranking method '$rankingMethod' is not one this version knows, so the ranks " +
+                    "behind this result cannot be reproduced."
+        }
+        return metrics.associate { metric ->
+            val byAlternative = alternatives.map { values[it]?.get(metric.name) ?: Double.NaN }
+            metric.name to Statistic.ranks(byAlternative.toDoubleArray(), method, true).toList()
+        }
+    }
+
+    /** The metric rows this result would write, in the order the study declared its metrics. */
+    fun metricData(modaName: String = name): List<MetricData> = metrics.map { metric ->
+        MetricData(
+            modaName = modaName,
+            metricName = metric.name,
+            direction = metric.direction,
+            weight = metric.weight,
+            // The domain the values were computed over, not the one declared, matching what a model
+            // writes: reporting the declared limits beside values computed over different ones would
+            // not explain them.
+            domainLowerLimit = metric.effectiveLowerLimit,
+            domainUpperLimit = metric.effectiveUpperLimit,
+            unitsOfMeasure = metric.unitsOfMeasure,
+            description = metric.description,
+            allowLowerLimitAdjustment = metric.allowLowerLimitAdjustment,
+            allowUpperLimitAdjustment = metric.allowUpperLimitAdjustment
+        )
+    }
+
+    /** The score rows this result would write. */
+    fun scoreData(modaName: String = name): List<ScoreData> = buildList {
+        for (alternative in alternatives) {
+            for (metric in metrics) {
+                add(
+                    ScoreData(
+                        modaName = modaName,
+                        alternative = alternative,
+                        scoreName = metric.name,
+                        scoreValue = scores[alternative]?.get(metric.name) ?: Double.NaN
+                    )
+                )
+            }
+        }
+    }
+
+    /** The value rows this result would write, each carrying where the alternative placed. */
+    fun valueData(modaName: String = name): List<ValueData> {
+        val ranks = ranksByMetric()
+        return buildList {
+            for ((index, alternative) in alternatives.withIndex()) {
+                for (metric in metrics) {
+                    add(
+                        ValueData(
+                            modaName = modaName,
+                            alternative = alternative,
+                            metricName = metric.name,
+                            metricValue = values[alternative]?.get(metric.name) ?: Double.NaN,
+                            rank = ranks[metric.name]?.getOrNull(index) ?: Double.NaN
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /** The overall rows this result would write. */
+    fun overallValueData(modaName: String = name): List<OverallValueData> = alternatives.map { alternative ->
+        OverallValueData(
+            modaName = modaName,
+            alternative = alternative,
+            weightedValue = overallValues[alternative] ?: Double.NaN,
+            firstRankCount = firstRankCounts[alternative] ?: 0,
+            averageRank = averageRankings[alternative] ?: Double.NaN
+        )
+    }
+
+    /**
+     *  The rank-frequency rows this result would write, ordered by average rank as a model orders
+     *  them, so the best-placed alternative comes first.
+     */
+    fun rankFrequencyData(modaName: String = name): List<AlternativeRankFrequencyData> {
+        val frequencies = alternatives.associateWith {
+            IntegerFrequency(name = "$it Metric Rank Frequencies")
+        }
+        for (row in valueData(modaName)) {
+            frequencies[row.alternative]!!.collect(row.rank)
+        }
+        return frequencies.toList()
+            .sortedBy { (_, frequency) -> frequency.average }
+            .flatMap { (alternative, frequency) ->
+                frequency.frequencyData().map {
+                    AlternativeRankFrequencyData(
+                        modaName = modaName,
+                        alternative = alternative,
+                        value = it.value,
+                        count = it.count,
+                        proportion = it.proportion,
+                        cumProportion = it.cumProportion
+                    )
+                }
+            }
+    }
+
+    /**
+     *  Writes this result to a database holding the metric, score, value, overall and rank-frequency
+     *  tables.
+     *
+     *  A result is worth keeping after the model that produced it has gone, which is the reason a
+     *  snapshot exists at all, so writing one must not require the model back. Everything the tables
+     *  hold is either recorded here or derived from what is: the ranks come from the values and the
+     *  ranking method, as they did when the model computed them.
+     *
+     *  @param dbName the name of the database on the disk
+     *  @param dir the directory to hold the database on the disk
+     *  @param deleteIfExists whether an existing database of that name is replaced
+     *  @param modaName the name to record in every row, defaulting to this result's own
+     */
+    fun resultsAsDatabase(
+        dbName: String,
+        dir: Path = KSL.dbDir,
+        deleteIfExists: Boolean = true,
+        modaName: String = name
+    ): DatabaseIfc {
+        val db = Database.createSimpleDb(
+            setOf(
+                ScoreData(), ValueData(), MetricData(),
+                OverallValueData(), AlternativeRankFrequencyData()
+            ), dbName, dir, deleteIfExists
+        )
+        db.insertAllDbDataIntoTable(metricData(modaName), "tblMetrics")
+        db.insertAllDbDataIntoTable(scoreData(modaName), "tblScores")
+        db.insertAllDbDataIntoTable(valueData(modaName), "tblValues")
+        db.insertAllDbDataIntoTable(overallValueData(modaName), "tblOverall")
+        db.insertAllDbDataIntoTable(rankFrequencyData(modaName), "tblRankFrequency")
+        return db
+    }
+
     companion object {
 
         /**
@@ -201,6 +363,8 @@ data class ModaSnapshot(
                     effectiveLowerLimit = effective.lowerLimit,
                     effectiveUpperLimit = effective.upperLimit,
                     domainWasRescaled = model.wasRescaled(metric),
+                    allowLowerLimitAdjustment = metric.allowLowerLimitAdjustment,
+                    allowUpperLimitAdjustment = metric.allowUpperLimitAdjustment,
                     realizedLowestScore = realized.minOrNull(),
                     realizedHighestScore = realized.maxOrNull(),
                     hadTiedScores = warnings.any { it is ModaWarning.TiedScores && it.metric == metric.name },

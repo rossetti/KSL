@@ -120,25 +120,9 @@ class AdditiveMODAModel(
         dbName: String,
         dir: Path = KSL.dbDir,
         deleteIfExists: Boolean = true
-    ): DatabaseIfc {
-        val db = Database.createSimpleDb(
-            setOf(
-                ScoreData(), ValueData(), MetricData(),
-                OverallValueData(), AlternativeRankFrequencyData()
-            ), dbName, dir, deleteIfExists
-        )
-        val metricData = metricData()
-        val scores = alternativeScoreData()
-        val values = alternativeValueData()
-        val overall = alternativeOverallValueData()
-        val ranks = alternativeRankFrequencyData()
-        db.insertAllDbDataIntoTable(metricData, "tblMetrics")
-        db.insertAllDbDataIntoTable(scores, "tblScores")
-        db.insertAllDbDataIntoTable(values, "tblValues")
-        db.insertAllDbDataIntoTable(overall, "tblOverall")
-        db.insertAllDbDataIntoTable(ranks, "tblRankFrequency")
-        return db
-    }
+    ): DatabaseIfc = ModaSnapshot.of(this).resultsAsDatabase(
+        dbName, dir, deleteIfExists, modaName = this.label ?: this.name
+    )
 
     companion object {
 
