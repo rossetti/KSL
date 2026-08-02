@@ -292,12 +292,15 @@ abstract class MODAModel(
      *  rather than about the alternative, and would stop being true the moment another alternative
      *  was added.
      *
-     *  The room left is a fraction `1/(n-1)` of the realized range at each end, for `n` alternatives.
-     *  Two consequences are worth knowing. It is proportional to each metric's own range, so every
-     *  metric is stretched by the same factor and the fitting cannot by itself reorder anything. And
-     *  it is large when there are few alternatives: with three of them the values can only occupy
-     *  `[0.25, 0.75]`, and with four `[0.2, 0.8]`, so a value well short of one does not mean an
-     *  alternative fell short of what was achievable.
+     *  The room left is a fraction of the realized range at each end: `1/(n-1)` for `n` alternatives,
+     *  capped by [maximumDomainMarginFraction] so that a study with a handful of alternatives is not
+     *  spread on the evidence of a handful of observations. Being a fraction of each metric's own
+     *  range, it stretches every metric by the same factor, so neither the room nor the cap on it
+     *  can by itself reorder anything.
+     *
+     *  It does compress the values towards the middle by a known amount, and a reader should expect
+     *  that: with the default cap the values occupy at worst `[0.167, 0.833]`, so a value short of
+     *  one does not mean an alternative fell short of what was achievable.
      *
      *  Fitting moves a limit inwards to where the alternatives are, and never outwards past what
      *  was declared possible. A declared limit is a statement about the metric — a utilization
@@ -366,7 +369,8 @@ abstract class MODAModel(
             return ProposedDomain(Interval(score - halfWidth, score + halfWidth), fromTiedScores = true)
         }
         if (stat.count > 2.0) {
-            return ProposedDomain(PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt()))
+            val margin = marginFractionFor(stat.count) * spread
+            return ProposedDomain(Interval(stat.min - margin, stat.max + margin))
         }
         // Two observations that differ. Rounding outward normally widens the interval, but it
         // leaves it unchanged when both values already sit on whole numbers, so guard the width
@@ -379,6 +383,24 @@ abstract class MODAModel(
             ProposedDomain(Interval(lower - tiedScoreHalfWidth, upper + tiedScoreHalfWidth))
         }
     }
+
+    /**
+     *  How much of the realized range to leave beyond each end when fitting a metric's domain, as a
+     *  fraction of that range, for a metric with the given number of scores.
+     *
+     *  The underlying estimate leaves `1/(n-1)`, which follows from treating the realized extremes
+     *  as a sample and asking where the extremes achievable probably lie. It is well judged for a
+     *  study with a reasonable number of alternatives and very heavy for one with a handful: at
+     *  three alternatives it leaves half the realized range at each end, tripling the width, on the
+     *  evidence of three observations.
+     *
+     *  It is therefore capped. The cap is on the fraction rather than on the amount, so the margin
+     *  stays proportional to each metric's own range, every metric is stretched by the same factor,
+     *  and capping cannot reorder anything any more than the margin itself can. Where the cap does
+     *  not bind this reproduces the estimate exactly.
+     */
+    private fun marginFractionFor(count: Double): Double =
+        min(1.0 / (count - 1.0), maximumDomainMarginFraction)
 
     /**
      *  A domain suggested by the realized scores, and whether it came from every alternative scoring
@@ -1100,6 +1122,26 @@ abstract class MODAModel(
         var tiedScoreHalfWidth: Double = 0.5
             set(value) {
                 require(value > 0.0) { "The tied score half-width must be > 0.0" }
+                field = value
+            }
+
+        /**
+         *  The most of the realized range that fitting will leave beyond each end, as a fraction of
+         *  that range.
+         *
+         *  Without a cap the fraction is `1/(n-1)` for `n` alternatives, which is half the range at
+         *  each end when there are three of them. Fitting would then treat three alternatives as
+         *  spanning a third of a domain built almost entirely out of room left over, and every value
+         *  would sit within `[0.25, 0.75]` however good or bad the alternative. The default cap of a
+         *  quarter keeps the widest case to `[0.167, 0.833]` and binds only below five alternatives;
+         *  at five it is exactly the uncapped fraction, and above five it does nothing at all.
+         *
+         *  Raising it above one half disables the cap, since one half is the largest fraction the
+         *  uncapped estimate ever produces.
+         */
+        var maximumDomainMarginFraction: Double = 0.25
+            set(value) {
+                require(value > 0.0) { "The maximum domain margin fraction must be > 0.0" }
                 field = value
             }
 

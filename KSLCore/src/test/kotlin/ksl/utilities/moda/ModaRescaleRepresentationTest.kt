@@ -82,34 +82,39 @@ class ModaRescaleRepresentationTest {
     // ------------------------------------------------------------------------------------------
 
     /**
-     *  Where the domain is fitted, it must be fitted to exactly the same interval as before, since
-     *  moving it would move every value computed from it. Comparing against the range estimate
-     *  directly pins the arithmetic regardless of what data a fixture happens to use.
+     *  Where the domain is fitted, the arithmetic must be exactly what is intended, since moving it
+     *  would move every value computed from it. The margin left at each end is a fraction of the
+     *  realized range, so it is computed here from that fraction rather than copied from the
+     *  implementation.
      */
     @Test
-    fun `a fitted domain is the same range estimate as before`() {
+    fun `a fitted domain leaves the intended margin around the realized range`() {
         val metric = Metric("Cost", Interval(0.0, 100.0))
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         val scores = listOf(20.0, 35.0, 60.0, 75.0)
         model.defineAlternatives(
             scores.withIndex().associate { (i, score) -> "Alt$i" to listOf(Score(metric, score)) }
         )
-        val expected = PDFModeler.rangeEstimate(scores.min(), scores.max(), scores.size)
-        assertEquals(expected, model.effectiveDomainOf(metric), "the fitted domain is no longer the range estimate")
+        // Four alternatives, so the uncapped fraction of a third is held to the cap of a quarter.
+        val margin = MODAModel.maximumDomainMarginFraction * (scores.max() - scores.min())
+        assertEquals(
+            Interval(scores.min() - margin, scores.max() + margin), model.effectiveDomainOf(metric),
+            "the fitted domain is not the realized range plus the intended margin"
+        )
     }
 
     @Test
-    fun `fitting only the upper limit keeps the declared lower limit and the estimated upper limit`() {
+    fun `fitting only the upper limit keeps the declared lower limit and the fitted upper limit`() {
         val metric = Metric("Cost", Interval(0.0, 100.0), allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true)
         val model = AdditiveMODAModel(mapOf(metric to LinearValueFunction()))
         val scores = listOf(20.0, 35.0, 60.0, 75.0)
         model.defineAlternatives(
             scores.withIndex().associate { (i, score) -> "Alt$i" to listOf(Score(metric, score)) }
         )
-        val estimate = PDFModeler.rangeEstimate(scores.min(), scores.max(), scores.size)
+        val margin = MODAModel.maximumDomainMarginFraction * (scores.max() - scores.min())
         assertEquals(
-            Interval(0.0, estimate.upperLimit), model.effectiveDomainOf(metric),
-            "a one-sided fit no longer combines the declared limit with the estimated one"
+            Interval(0.0, scores.max() + margin), model.effectiveDomainOf(metric),
+            "a one-sided fit no longer combines the declared limit with the fitted one"
         )
     }
 

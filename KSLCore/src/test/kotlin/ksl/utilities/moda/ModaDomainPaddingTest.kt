@@ -179,15 +179,20 @@ class ModaDomainPaddingTest {
         }
     }
 
+    /** The fraction of the realized range left beyond each end, for a given number of alternatives. */
+    private fun marginFraction(alternatives: Int): Double =
+        minOf(1.0 / (alternatives - 1.0), MODAModel.maximumDomainMarginFraction)
+
     /**
      *  What the padding does instead of reordering: it pulls every value towards the middle by a
-     *  known amount. With n alternatives the values can only occupy 1/(n+1) to n/(n+1), so with
-     *  three of them nothing can score above 0.75 however good it is relative to the others. Worth
-     *  pinning, because it is the part a reader of a report is most likely to misread.
+     *  known amount. With a margin fraction f the values can only occupy f/(1+2f) to (1+f)/(1+2f),
+     *  so under the default cap nothing can score above about 0.833 however good it is relative to
+     *  the others. Worth pinning, because it is the part a reader of a report is most likely to
+     *  misread.
      */
     @Test
     fun `the padding compresses the values by a known and predictable amount`() {
-        for (alternatives in listOf(3, 4, 5, 9)) {
+        for (alternatives in listOf(3, 4, 5, 9, 17)) {
             val scores = (1..alternatives).associate { index ->
                 "Alt$index" to mapOf("M1" to 100.0 * index)
             }
@@ -195,11 +200,77 @@ class ModaDomainPaddingTest {
             val metric = model.metrics.first()
             // Smaller is better by default, so the smallest score takes the largest value.
             val values = model.alternatives.map { model.valuesByAlternative(it)[metric]!! }
-            val expectedBest = alternatives.toDouble() / (alternatives + 1).toDouble()
-            val expectedWorst = 1.0 / (alternatives + 1).toDouble()
-            assertEquals(expectedBest, values.max(), 1.0e-12, "for $alternatives alternatives")
-            assertEquals(expectedWorst, values.min(), 1.0e-12, "for $alternatives alternatives")
+            val f = marginFraction(alternatives)
+            assertEquals((1.0 + f) / (1.0 + 2.0 * f), values.max(), 1.0e-12, "for $alternatives alternatives")
+            assertEquals(f / (1.0 + 2.0 * f), values.min(), 1.0e-12, "for $alternatives alternatives")
             assertTrue(values.all { it > 0.0 && it < 1.0 }, "a value reached an endpoint for $alternatives")
+        }
+    }
+
+    /**
+     *  Left uncapped, a study of three alternatives would be spread over a domain built mostly out
+     *  of room left over — half the realized range at each end, on the evidence of three
+     *  observations. The cap holds that back, and the values spread further as a result.
+     */
+    @Test
+    fun `the margin is capped so a handful of alternatives are not spread on a handful of observations`() {
+        val scores = mapOf(
+            "A" to mapOf("M1" to 100.0),
+            "B" to mapOf("M1" to 300.0),
+            "C" to mapOf("M1" to 500.0)
+        )
+        val model = studyOf(scores, mapOf("M1" to 1.0), declared = unconstrained)
+        val metric = model.metrics.first()
+        // Realized range 400. Uncapped the margin would be 200 each side, giving 1200 of width for
+        // 400 of alternatives; the cap holds it to 100, for 600.
+        assertEquals(Interval(0.0, 600.0), model.effectiveDomainOf(metric))
+        assertEquals(600.0, model.effectiveDomainOf(metric).width)
+    }
+
+    /**
+     *  With enough alternatives the estimate is already modest and the cap does nothing, so a study
+     *  large enough to speak for itself is fitted exactly as the estimate says.
+     */
+    @Test
+    fun `with enough alternatives the cap does nothing and the estimate stands`() {
+        for (alternatives in listOf(5, 9, 17, 33)) {
+            val scores = (1..alternatives).associate { index ->
+                "Alt$index" to mapOf("M1" to 100.0 * index)
+            }
+            val model = studyOf(scores, mapOf("M1" to 1.0), declared = unconstrained)
+            val realized = (1..alternatives).map { 100.0 * it }
+            assertEquals(
+                PDFModeler.rangeEstimate(realized.min(), realized.max(), alternatives),
+                model.effectiveDomainOf(model.metrics.first()),
+                "the cap should not bind for $alternatives alternatives"
+            )
+        }
+    }
+
+    /**
+     *  Capping a fraction of each metric's own range keeps the stretch common to every metric, so it
+     *  can no more reorder a study than the margin itself can. The neutrality tests above run over
+     *  three to seven alternatives, which spans where the cap binds and where it does not, so they
+     *  establish this for both.
+     */
+    @Test
+    fun `raising the cap beyond a half turns it off`() {
+        val scores = mapOf(
+            "A" to mapOf("M1" to 100.0),
+            "B" to mapOf("M1" to 300.0),
+            "C" to mapOf("M1" to 500.0)
+        )
+        val original = MODAModel.maximumDomainMarginFraction
+        try {
+            MODAModel.maximumDomainMarginFraction = 1.0
+            val model = studyOf(scores, mapOf("M1" to 1.0), declared = unconstrained)
+            assertEquals(
+                PDFModeler.rangeEstimate(100.0, 500.0, 3),
+                model.effectiveDomainOf(model.metrics.first()),
+                "a cap above a half should never bind"
+            )
+        } finally {
+            MODAModel.maximumDomainMarginFraction = original
         }
     }
 
@@ -248,10 +319,10 @@ class ModaDomainPaddingTest {
         )
         val near = model.metrics.first { it.name == "Near" }
         val far = model.metrics.first { it.name == "Far" }
-        // Near: realized 1..9, so a proposal of -3..13 held at zero gives 0..13.
-        assertEquals(Interval(0.0, 13.0), model.effectiveDomainOf(near))
-        // Far: realized 400..600, so a proposal of 300..700 held at zero gives 0..700.
-        assertEquals(Interval(0.0, 700.0), model.effectiveDomainOf(far))
+        // Near: realized 1..9, so a proposal of -1..11 held at zero gives 0..11.
+        assertEquals(Interval(0.0, 11.0), model.effectiveDomainOf(near))
+        // Far: realized 400..600, so a proposal of 350..650 held at zero gives 0..650.
+        assertEquals(Interval(0.0, 650.0), model.effectiveDomainOf(far))
 
         val nearStretch = model.effectiveDomainOf(near).width / 8.0
         val farStretch = model.effectiveDomainOf(far).width / 200.0
@@ -313,9 +384,10 @@ class ModaDomainPaddingTest {
         val open = studyOf(scores, weights, declared = unconstrained)
 
         val bounded = held.metrics.first { it.name == "Bounded" }
-        // Realized 5..95 proposes -40..140, which the declared limits trim back to 0..100.
+        // Realized 5..95, so a quarter of that range at each end proposes -17.5..117.5, which the
+        // declared limits trim back to 0..100.
         assertEquals(Interval(0.0, 100.0), held.effectiveDomainOf(bounded))
-        assertEquals(Interval(-40.0, 140.0), open.effectiveDomainOf(open.metrics.first { it.name == "Bounded" }))
+        assertEquals(Interval(-17.5, 117.5), open.effectiveDomainOf(open.metrics.first { it.name == "Bounded" }))
 
         // Both are well defined; whether they agree depends on the data, which is the point.
         assertEquals(held.alternatives.toSet(), open.alternatives.toSet())
@@ -340,9 +412,10 @@ class ModaDomainPaddingTest {
         val model = studyOf(scores, mapOf("Utilization" to 1.0), declared = Interval(0.0, 1.0))
         val metric = model.metrics.first()
 
-        // Realized 0.60..0.95 proposes 0.425..1.125; the upper limit trims it to 1.0.
+        // Realized 0.60..0.95, so a quarter of that range at each end proposes 0.5125..1.0375; the
+        // upper limit trims it to 1.0.
         val effective = model.effectiveDomainOf(metric)
-        assertEquals(0.425, effective.lowerLimit, 1.0e-12)
+        assertEquals(0.5125, effective.lowerLimit, 1.0e-12)
         assertEquals(1.0, effective.upperLimit, 1.0e-12, "the fitting reached past what the metric can be")
 
         val values = model.alternatives.associateWith { model.valuesByAlternative(it)[metric]!! }
@@ -402,14 +475,15 @@ class ModaDomainPaddingTest {
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
         model.defineAlternatives(
             mapOf(
-                "A" to listOf(Score(metric, 100.0)),
+                "A" to listOf(Score(metric, 50.0)),
                 "B" to listOf(Score(metric, 300.0)),
                 "C" to listOf(Score(metric, 500.0))
             )
         )
-        val estimate = PDFModeler.rangeEstimate(100.0, 500.0, 3)
-        assertTrue(estimate.lowerLimit < 0.0, "the setup does not exercise the floor")
-        assertEquals(Interval(0.0, estimate.upperLimit), model.effectiveDomainOf(metric))
+        // Realized 50..500, so a quarter of that range at each end proposes -62.5..612.5.
+        val margin = MODAModel.maximumDomainMarginFraction * 450.0
+        assertTrue(50.0 - margin < 0.0, "the setup does not exercise the floor")
+        assertEquals(Interval(0.0, 500.0 + margin), model.effectiveDomainOf(metric))
     }
 
     /**
@@ -423,12 +497,13 @@ class ModaDomainPaddingTest {
         val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
         model.defineAlternatives(
             mapOf(
-                "A" to listOf(Score(metric, 100.0)),
+                "A" to listOf(Score(metric, 50.0)),
                 "B" to listOf(Score(metric, 300.0)),
                 "C" to listOf(Score(metric, 500.0))
             )
         )
-        assertEquals(PDFModeler.rangeEstimate(100.0, 500.0, 3), model.effectiveDomainOf(metric))
+        val margin = MODAModel.maximumDomainMarginFraction * 450.0
+        assertEquals(Interval(50.0 - margin, 500.0 + margin), model.effectiveDomainOf(metric))
     }
 
     /**
