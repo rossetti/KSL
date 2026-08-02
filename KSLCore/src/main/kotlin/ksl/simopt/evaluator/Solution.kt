@@ -7,6 +7,7 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.observers.Emitter
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
+import java.util.concurrent.atomic.AtomicInteger
 
 interface SolutionEmitterIfc {
     val solutionEmitter : Emitter<Solution>
@@ -39,7 +40,7 @@ data class Solution(
     val responseEstimates: List<EstimatedResponse>,
     val evaluationNumber: Int,
     val isValid: Boolean = true,
-    val id: Int = solutionCounter++,
+    val id: Int = nextSolutionId(),
     val penaltyMemory: Map<String, PenaltyMemory> = emptyMap(),
     val searchState: SearchStateSnapshot? = null,
 ) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
@@ -362,8 +363,19 @@ data class Solution(
 //    }
 
     companion object {
-        var solutionCounter : Int = 0
-            private set
+
+        /**
+         *  Atomic because solvers run concurrently by design here -- pooled evaluators and the
+         *  concurrent solver runner both construct solutions from several threads at once -- and a
+         *  plain counter could give two of them the same id.
+         */
+        private val counter = AtomicInteger(0)
+
+        /** How many solutions have been created in this process. */
+        val solutionCounter: Int
+            get() = counter.get()
+
+        private fun nextSolutionId(): Int = counter.incrementAndGet()
     }
 }
 

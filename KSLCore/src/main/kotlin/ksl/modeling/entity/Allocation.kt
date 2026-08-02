@@ -19,8 +19,15 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.QueueCIfc
+import java.util.concurrent.atomic.AtomicInteger
 
-private var allocationCounter = 0
+/**
+ *  Allocations are created while a model runs, and KSL runs models concurrently, so a plain
+ *  counter could hand the same id to allocations in different models. Atomic for the same reason
+ *  as the QObject counter, and with the same caveat: the ids are unique but still shared across
+ *  models rather than belonging to one.
+ */
+private val allocationCounter = AtomicInteger(0)
 
 interface AllocationIfc {
 
@@ -109,7 +116,7 @@ class Allocation internal constructor(
     override val resource: ResourceCIfc
         get() = myResource
 
-    override val id = allocationCounter++
+    override val id = allocationCounter.incrementAndGet()
 
     override val timeAllocated: Double = myResource.time
 

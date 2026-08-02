@@ -19,8 +19,13 @@
 package ksl.modeling.entity
 
 import ksl.simulation.KSLEvent
+import java.util.concurrent.atomic.AtomicInteger
 
-private var allocationCounter = 0
+/**
+ *  Atomic for the reason the resource allocation counter is: allocations are made while a model
+ *  runs, and models run concurrently, so a plain counter repeated ids across them.
+ */
+private val allocationCounter = AtomicInteger(0)
 
 /**
  *  An allocation represents a distinct usage of a resource by an entity with an amount allocated.
@@ -40,7 +45,7 @@ class ResourcePoolAllocation(
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
 
-    val id : Int = allocationCounter++
+    val id : Int = allocationCounter.incrementAndGet()
 
     var allocationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
 

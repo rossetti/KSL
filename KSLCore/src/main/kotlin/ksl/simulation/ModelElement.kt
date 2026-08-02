@@ -24,6 +24,7 @@ import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.SpatialModel
 import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
+import java.util.concurrent.atomic.AtomicLong
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -2022,8 +2023,19 @@ abstract class ModelElement internal constructor(
         /**
          * incremented to give a running total of the number of model QObject
          * created
+         *
+         * Atomic because QObjects are created continuously while a model runs, and KSL runs models
+         * concurrently as a matter of course -- parallel simulation providers, concurrent solver
+         * runners, parallel designed experiments and concurrent scenario runners all do. A plain
+         * counter handed the same id to QObjects in different models, which shows up as repeated
+         * ids and repeated default names of the form ID_n.
+         *
+         * The counter is still shared by every model, so an id says nothing about which model made
+         * it and does not repeat run to run. Moving it to the owning model would fix that as well,
+         * and would match how event ids are already isolated, but it changes what an id means and
+         * is left for its own change.
          */
-        private var qObjCounter: Long = 0
+        private val qObjCounter = AtomicLong(0)
 
         @Suppress("unused")
         @JvmStatic
@@ -2171,9 +2183,6 @@ abstract class ModelElement internal constructor(
      * @param aName The name of the QObject
      */
     open inner class QObject @JvmOverloads constructor(aName: String? = null) : Comparable<QObject>, QObjectIfc {
-        init {
-            qObjCounter++
-        }
 
         final override val currentTime: Double //TODO is this needed?
             get() = this@ModelElement.time
@@ -2182,8 +2191,12 @@ abstract class ModelElement internal constructor(
          * Gets a uniquely assigned identifier for this QObject. This
          * identifier is assigned when the QObject is created. It may vary if the
          * order of creation changes.
+         *
+         * Taken in one step. Incrementing the counter and then reading it separately would leave a
+         * window in which another model's increment lands between the two, so both QObjects read
+         * the same value without either increment being lost.
          */
-        final override val id: Long = qObjCounter
+        final override val id: Long = qObjCounter.incrementAndGet()
 
         /**
          * The name of the QObject
