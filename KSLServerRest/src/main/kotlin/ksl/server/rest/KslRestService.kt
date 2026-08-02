@@ -92,6 +92,7 @@ import ksl.service.job.JobStatus
 import ksl.service.store.ArtifactStore
 import ksl.service.store.ResultKind
 import ksl.service.store.ResultStore
+import ksl.app.moda.toDTO
 import ksl.service.store.StoredResult
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -114,6 +115,10 @@ class KslRestService(
     private val runService = RunService.fromRegistry(registry, runDeadline = runDeadline)
     private val runJobs = JobManager<RunEvent, RunResult>(scope, maxConcurrentJobs)
     private val fitService = FitService()
+    private val modaService = ksl.service.capability.moda.ModaService()
+    private val modaJobs = JobManager<ksl.app.moda.ModaEvent, ksl.app.moda.ModaStudyOutcome>(
+        scope, maxConcurrentJobs
+    )
     private val reportArtifacts = ReportArtifactService()
     private val json = Json {
         encodeDefaults = true
@@ -750,12 +755,155 @@ class KslRestService(
             }
         }
 
+    // ----- multi-objective decision studies -----
+
+    /**
+     * The value functions a study may name, so a caller can find out what is on
+     * offer rather than guessing and being told afterwards that it guessed wrong.
+     */
+    fun modaValueFunctions(): JsonElement = buildJsonObject {
+        putJsonArray("valueFunctionIds") {
+            ksl.app.moda.ValueFunctionRegistry.Default.availableIds.forEach { add(it) }
+        }
+    }
+
+    /**
+     * Checks a study document without running it, reporting everything wrong or
+     * worth remarking on. Answered directly rather than as a job, because
+     * checking is quick and produces nothing that needs keeping.
+     *
+     * @throws IllegalArgumentException if the document cannot be read at all
+     */
+    fun checkModaDocument(documentText: String): JsonObject {
+        val document = decodeModa(documentText)
+        val issues = modaService.check(document)
+        return buildJsonObject {
+            put("name", document.name)
+            put("runnable", issues.none { it.severity == ksl.app.moda.Severity.ERROR })
+            putJsonArray("issues") {
+                issues.forEach { issue ->
+                    add(buildJsonObject {
+                        put("severity", issue.severity.name)
+                        put("element", issue.element)
+                        put("message", issue.message)
+                    })
+                }
+            }
+        }
+    }
+
+    /**
+     * Submits a study document to be run, returning the id to follow it by.
+     *
+     * @throws IllegalArgumentException if the document cannot be read
+     * @throws ksl.service.job.JobAtCapacityException if too many jobs are running
+     */
+    fun submitModaDocument(documentText: String): ModaSubmission {
+        val document = decodeModa(documentText)
+        val record = modaJobs.register { modaService.submit(document) }
+        return ModaSubmission(record.jobId, record.status.name)
+    }
+
+    /** Replayable event flow for SSE, from the beginning; completes when the study ends. */
+    fun modaEvents(jobId: String): Flow<ksl.app.moda.ModaEvent>? = modaJobs.events(jobId)
+
+    /** Live study status, or null when no such study is known. */
+    fun modaStatus(jobId: String): JobStatus? = modaJobs.status(jobId)
+
+    /**
+     * How a study ended, as JSON. Only call once [modaStatus] is TERMINAL.
+     *
+     * A study that was refused and one that broke are reported differently,
+     * because they call for different things: one is a document to correct and
+     * the other a fault to report.
+     */
+    suspend fun modaResult(jobId: String): JsonObject? {
+        val outcome = modaJobs.result(jobId) ?: return null
+        return when (outcome) {
+            is ksl.app.moda.ModaStudyOutcome.Finished -> when (val run = outcome.run) {
+                is ksl.app.moda.ModaRunResult.Completed -> buildJsonObject {
+                    put("studyId", outcome.studyId)
+                    put("outcome", "COMPLETED")
+                    put(
+                        "snapshot",
+                        json.encodeToJsonElement(
+                            ksl.app.moda.ModaSnapshotDTO.serializer(),
+                            run.snapshot.toDTO()
+                        )
+                    )
+                    putJsonArray("missing") {
+                        run.missing.forEach { add(buildJsonObject {
+                            put("alternative", it.alternative); put("metric", it.metric)
+                        }) }
+                    }
+                    putJsonArray("rejected") {
+                        run.rejected.forEach { add(buildJsonObject {
+                            put("alternative", it.alternative); put("message", it.message)
+                        }) }
+                    }
+                    putJsonArray("warnings") { run.warnings.forEach { add(it) } }
+                    putJsonArray("issues") { run.issues.forEach { add(issueJson(it)) } }
+                }
+                is ksl.app.moda.ModaRunResult.Invalid -> buildJsonObject {
+                    put("studyId", outcome.studyId)
+                    put("outcome", "REFUSED")
+                    putJsonArray("issues") { run.issues.forEach { add(issueJson(it)) } }
+                }
+            }
+            is ksl.app.moda.ModaStudyOutcome.Failed -> buildJsonObject {
+                put("studyId", outcome.studyId)
+                put("outcome", "FAILED")
+                put("message", outcome.message)
+            }
+            is ksl.app.moda.ModaStudyOutcome.Cancelled -> buildJsonObject {
+                put("studyId", outcome.studyId)
+                put("outcome", "CANCELLED")
+                put("reason", outcome.reason)
+            }
+        }
+    }
+
+    fun cancelModa(jobId: String, reason: String) = modaJobs.cancel(jobId, reason)
+
+    /** One study event as a small JSON object for an SSE `data:` payload. */
+    fun modaEventJson(event: ksl.app.moda.ModaEvent): JsonObject = buildJsonObject {
+        put("type", event::class.simpleName ?: "ModaEvent")
+        put("studyId", event.studyId)
+        put("detail", event.toString())
+    }
+
+    private fun issueJson(issue: ksl.app.moda.ValidationIssue): JsonObject = buildJsonObject {
+        put("severity", issue.severity.name)
+        put("element", issue.element)
+        put("message", issue.message)
+    }
+
+    private fun decodeModa(documentText: String): ksl.app.moda.ModaDocument = try {
+        ksl.app.moda.ModaDocumentFormats.fromJson(documentText)
+    } catch (e: Exception) {
+        throw IllegalArgumentException("invalid MODA study document: ${e.message}")
+    }
+
     override fun close() {
+        modaService.close()
         fitService.close()
         runService.close()
         scope.cancel()
     }
 }
+
+/**
+ * The outcome of submitting a decision study: the [jobId] to follow it by and
+ * the status it started in.
+ *
+ * The status is carried as text rather than as the status type itself, so that
+ * adding a status later cannot change how an existing one appears on the wire.
+ */
+@kotlinx.serialization.Serializable
+data class ModaSubmission(
+    val jobId: String,
+    val status: String,
+)
 
 /**
  * The outcome of a run/optimization/experiment submission: the content-addressed

@@ -58,6 +58,7 @@ import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationJson
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationRunConfigurationJson
+import ksl.app.moda.toDTO
 import ksl.service.capability.run.CacheVersion
 import ksl.service.capability.run.ExperimentDocuments
 import ksl.service.capability.run.IncrementalCombine
@@ -169,6 +170,7 @@ class KslMcpTools(
     // The async run-lifecycle orchestrator (submit / poll / cancel + store-on-completion + top-up),
     // extracted to the service layer. It shares runService/runJobs with the blocking paths below.
     private val runApp = RunApplicationService(registry, runService, runJobs, resultStore, artifactStore, json)
+    private val modaService = ksl.service.capability.moda.ModaService()
     private val reportArtifacts = ksl.service.capability.report.ReportArtifactService()
     private val resultDb = ksl.service.capability.dbanalysis.ResultDatabaseService()
     private val bundleAuthoring = ksl.service.capability.authoring.BundleAuthoringService()
@@ -2663,7 +2665,127 @@ class KslMcpTools(
     private fun JsonObject?.double(key: String): Double? =
         this?.get(key)?.jsonPrimitive?.doubleOrNull
 
+    // ----- multi-objective decision studies -----
+
+    /**
+     * `list_value_functions` — what a study may name for turning scores into
+     * values, so an agent can pick from what exists rather than guess at a name
+     * and be corrected afterwards.
+     */
+    fun listValueFunctions(): CallToolResult {
+        val ids = ksl.app.moda.ValueFunctionRegistry.Default.availableIds
+        val payload = buildJsonObject {
+            putJsonArray("valueFunctionIds") { ids.forEach { add(it) } }
+        }
+        return result("Value functions a study may name: ${ids.joinToString(", ")}.", payload)
+    }
+
+    /**
+     * `validate_moda_study` — checks a study without running it, reporting
+     * everything wrong or worth remarking on, each naming the part it concerns.
+     */
+    fun validateModaStudy(arguments: JsonObject?): CallToolResult {
+        val (text, argErr) = configDocText(arguments, "ModaDocument")
+        if (argErr != null) return argErr
+        val document = try {
+            ksl.app.moda.ModaDocumentFormats.fromJson(text!!)
+        } catch (e: Exception) {
+            return error("invalid MODA study document: ${e.message}")
+        }
+        val issues = modaService.check(document)
+        val errors = issues.filter { it.severity == ksl.app.moda.Severity.ERROR }
+        val payload = buildJsonObject {
+            put("name", document.name)
+            put("runnable", errors.isEmpty())
+            putJsonArray("issues") { issues.forEach { add(modaIssueJson(it)) } }
+        }
+        val summary = buildString {
+            if (errors.isEmpty()) {
+                appendLine("Study '${document.name}' can be run.")
+            } else {
+                appendLine("Study '${document.name}' cannot be run: ${errors.size} problem(s).")
+            }
+            issues.forEach { appendLine("  - [${it.severity}] ${it.element}: ${it.message}") }
+        }.trimEnd()
+        return result(summary, payload)
+    }
+
+    /**
+     * `run_moda_study` — runs a study and returns what it concluded.
+     *
+     * Answered in one call rather than as a job to poll, because a study over
+     * data already in hand finishes in well under a millisecond, so polling
+     * would cost an agent more round trips than the work itself takes. The
+     * asynchronous form, with progress and cancellation, is on the REST surface
+     * where studies may be reading from somewhere slower.
+     */
+    suspend fun runModaStudy(arguments: JsonObject?): CallToolResult {
+        val (text, argErr) = configDocText(arguments, "ModaDocument")
+        if (argErr != null) return argErr
+        val document = try {
+            ksl.app.moda.ModaDocumentFormats.fromJson(text!!)
+        } catch (e: Exception) {
+            return error("invalid MODA study document: ${e.message}")
+        }
+        return when (val outcome = modaService.submit(document).result.await()) {
+            is ksl.app.moda.ModaStudyOutcome.Finished -> when (val run = outcome.run) {
+                is ksl.app.moda.ModaRunResult.Completed -> {
+                    val snapshot = run.snapshot
+                    val payload = buildJsonObject {
+                        put("studyId", outcome.studyId)
+                        put("outcome", "COMPLETED")
+                        put(
+                            "snapshot",
+                            json.encodeToJsonElement(
+                                ksl.app.moda.ModaSnapshotDTO.serializer(),
+                                snapshot.toDTO()
+                            )
+                        )
+                        putJsonArray("warnings") { run.warnings.forEach { add(it) } }
+                    }
+                    val summary = buildString {
+                        appendLine("Study '${snapshot.name}' recommends ${snapshot.primaryRecommendation}.")
+                        appendLine("Ranked best first: ${snapshot.recommendationOrder.joinToString(" > ")}")
+                        snapshot.metrics.forEach { metric ->
+                            append("  - ${metric.name}: weight ${metric.weight}")
+                            if (metric.hadTiedScores) append(" (every alternative scored the same, so it separates nothing)")
+                            appendLine()
+                        }
+                        if (run.missing.isNotEmpty()) {
+                            appendLine("Left out for want of a score: " +
+                                    run.missing.joinToString(", ") { "${it.alternative} on ${it.metric}" })
+                        }
+                    }.trimEnd()
+                    result(summary, payload)
+                }
+                is ksl.app.moda.ModaRunResult.Invalid -> {
+                    val payload = buildJsonObject {
+                        put("studyId", outcome.studyId)
+                        put("outcome", "REFUSED")
+                        putJsonArray("issues") { run.issues.forEach { add(modaIssueJson(it)) } }
+                    }
+                    result(
+                        buildString {
+                            appendLine("Study '${document.name}' was not run:")
+                            run.errors.forEach { appendLine("  - ${it.element}: ${it.message}") }
+                        }.trimEnd(),
+                        payload
+                    )
+                }
+            }
+            is ksl.app.moda.ModaStudyOutcome.Failed -> error("the study stopped: ${outcome.message}")
+            is ksl.app.moda.ModaStudyOutcome.Cancelled -> error("the study was cancelled: ${outcome.reason}")
+        }
+    }
+
+    private fun modaIssueJson(issue: ksl.app.moda.ValidationIssue): JsonObject = buildJsonObject {
+        put("severity", issue.severity.name)
+        put("element", issue.element)
+        put("message", issue.message)
+    }
+
     override fun close() {
+        modaService.close()
         runService.close()
         scope.cancel()
     }

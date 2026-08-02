@@ -321,6 +321,73 @@ internal object McpResultSchemas {
         required = emptyList(),
     )
 
+    /** list_value_functions: the ways a study may turn a raw score into a value. */
+    val valueFunctions = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("valueFunctionIds") {
+                put("type", "array")
+                putJsonObject("items") { put("type", "string") }
+                put("description", "Name one of these as a metric's valueFunctionId; anything else is refused.")
+            }
+        },
+        required = listOf("valueFunctionIds"),
+    )
+
+    /** validate_moda_study: whether a study can be run, and everything wrong or worth remarking on. */
+    val modaValidation = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("name") { put("type", "string") }
+            putJsonObject("runnable") {
+                put("type", "boolean")
+                put("description", "False only when something makes the study impossible; remarks alone leave it true.")
+            }
+            putJsonObject("issues") {
+                put("type", "array")
+                put("description", "Each names the part of the document it concerns, so they can be worked through one at a time.")
+                putJsonObject("items") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("severity") { put("type", "string"); put("description", "ERROR or WARNING.") }
+                        putJsonObject("element") { put("type", "string") }
+                        putJsonObject("message") { put("type", "string") }
+                    }
+                }
+            }
+        },
+        required = listOf("name", "runnable", "issues"),
+    )
+
+    /** run_moda_study: what the study concluded, or why it was not run. */
+    val modaResult = ToolSchema(
+        properties = buildJsonObject {
+            putJsonObject("studyId") { put("type", "string") }
+            putJsonObject("outcome") {
+                put("type", "string")
+                put("description", "COMPLETED when the study ran; REFUSED when the document could not be carried out.")
+            }
+            putJsonObject("snapshot") {
+                put("type", "object")
+                put(
+                    "description",
+                    "The recorded study: metrics with the weight and the range each was scored over, the " +
+                        "alternatives, their values, the overall value of each, and the one recommended. " +
+                        "Present only when the outcome is COMPLETED.",
+                )
+            }
+            putJsonObject("warnings") {
+                put("type", "array")
+                putJsonObject("items") { put("type", "string") }
+                put("description", "Notable things about the study, such as a metric every alternative tied on.")
+            }
+            putJsonObject("issues") {
+                put("type", "array")
+                put("description", "Why the study was not run. Present only when the outcome is REFUSED.")
+                putJsonObject("items") { put("type", "object") }
+            }
+        },
+        required = listOf("studyId", "outcome"),
+    )
+
     /** list_bundles: every bundle the server makes available. */
     val bundles = ToolSchema(
         properties = buildJsonObject {

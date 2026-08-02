@@ -728,6 +728,38 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.preview,
         ) { request -> tools.previewFit(request.arguments) }
 
+        // ----- multi-objective decision studies -----
+
+        server.addTool(
+            name = "list_value_functions",
+            description = "The value functions a MODA study may name for turning a raw score into a value in " +
+                "[0,1]. Call this before writing a study, so its metrics name functions that exist rather " +
+                "than plausible-sounding ones that do not.",
+            inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+            outputSchema = McpResultSchemas.valueFunctions,
+        ) { tools.listValueFunctions() }
+
+        server.addTool(
+            name = "validate_moda_study",
+            description = "Check a MODA study document without running it. structuredContent reports every " +
+                "problem and remark, each naming the part of the document it concerns, and whether the study " +
+                "can be run at all. A study that is merely unwise still reports as runnable, with the " +
+                "remarks alongside.",
+            inputSchema = configDocSchema("ModaDocument"),
+            outputSchema = McpResultSchemas.modaValidation,
+        ) { request -> tools.validateModaStudy(request.arguments) }
+
+        server.addTool(
+            name = "run_moda_study",
+            description = "Run a MODA study: compare alternatives on several weighted metrics at once and " +
+                "report which one the study points to, the order behind that, and each metric's contribution. " +
+                "Answered in one call because a study over data held in the document finishes in " +
+                "milliseconds. Metrics that turned out to separate nothing are flagged, since a metric every " +
+                "alternative ties on carries no information and changes no ranking.",
+            inputSchema = configDocSchema("ModaDocument"),
+            outputSchema = McpResultSchemas.modaResult,
+        ) { request -> tools.runModaStudy(request.arguments) }
+
         val resultIdOnly = ToolSchema(
             properties = buildJsonObject { putJsonObject("resultId") { put("type", "string") } },
             required = listOf("resultId"),

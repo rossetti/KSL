@@ -411,6 +411,68 @@ fun Application.kslRestModule(
             send(ServerSentEvent(data = """{"done":true}""", event = "done"))
         }
 
+        // ----- multi-objective decision studies -----
+
+        // What a study may name for turning scores into values, so a caller can
+        // find out what is on offer rather than guess and be corrected later.
+        get("/moda/value-functions") { call.respond(service.modaValueFunctions()) }
+
+        // Checking without running. A study that is merely unwise still reports
+        // as runnable, with the remarks alongside.
+        post("/moda/validate") {
+            val text = call.receiveText()
+            val report = try {
+                service.checkModaDocument(text)
+            } catch (e: IllegalArgumentException) {
+                return@post call.respond(HttpStatusCode.BadRequest, StatusResponse(e.message ?: "invalid document"))
+            }
+            call.respond(report)
+        }
+
+        post("/moda/studies") {
+            val text = call.receiveText()
+            val submission = try {
+                service.submitModaDocument(text)
+            } catch (e: JobAtCapacityException) {
+                return@post call.respond(HttpStatusCode.ServiceUnavailable, StatusResponse("at capacity (${e.limit})"))
+            } catch (e: IllegalArgumentException) {
+                return@post call.respond(HttpStatusCode.BadRequest, StatusResponse(e.message ?: "invalid document"))
+            }
+            call.respond(HttpStatusCode.Accepted, submission)
+        }
+
+        get("/moda/studies/{jobId}/result") {
+            val jobId = call.parameters["jobId"]!!
+            when (service.modaStatus(jobId)) {
+                null -> call.respond(HttpStatusCode.NotFound, StatusResponse("unknown studyId"))
+                JobStatus.RUNNING -> call.respond(HttpStatusCode.Accepted, StatusResponse("RUNNING"))
+                JobStatus.TERMINAL -> service.modaResult(jobId)?.let { call.respond(it) }
+                    ?: call.respond(HttpStatusCode.NotFound, StatusResponse("unknown studyId"))
+            }
+        }
+
+        delete("/moda/studies/{jobId}") {
+            val jobId = call.parameters["jobId"]!!
+            if (service.modaStatus(jobId) == null) {
+                return@delete call.respond(HttpStatusCode.NotFound, StatusResponse("unknown studyId"))
+            }
+            service.cancelModa(jobId, "cancelled via REST")
+            call.respond(HttpStatusCode.Accepted, StatusResponse("CANCELLING"))
+        }
+
+        sse("/moda/studies/{jobId}/events") {
+            val jobId = call.parameters["jobId"]!!
+            val events = service.modaEvents(jobId)
+            if (events == null) {
+                send(ServerSentEvent(data = """{"error":"unknown studyId"}""", event = "error"))
+                return@sse
+            }
+            events.collect { event ->
+                send(ServerSentEvent(data = service.modaEventJson(event).toString(), event = "moda-event"))
+            }
+            send(ServerSentEvent(data = """{"done":true}""", event = "done"))
+        }
+
         // ----- retained-result projection (Phase 8.5 over REST) -----
         get("/results/{resultId}") {
             val fields = call.request.queryParameters["fields"]
