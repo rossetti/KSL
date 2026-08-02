@@ -57,7 +57,6 @@ sealed interface ModaRunResult {
         val snapshot: ModaSnapshot,
         val rejected: List<AlternativeRejection>,
         val missing: List<MissingScore>,
-        val warnings: List<String>,
         override val issues: List<ValidationIssue>
     ) : ModaRunResult {
 
@@ -149,7 +148,6 @@ class ModaRunner(
             snapshot = snapshot,
             rejected = defined.rejected,
             missing = table.missing,
-            warnings = model.warnings.map { it.message },
             issues = issues
         )
     }

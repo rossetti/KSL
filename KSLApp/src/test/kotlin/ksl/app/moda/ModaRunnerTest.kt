@@ -19,6 +19,7 @@
 package ksl.app.moda
 
 import ksl.utilities.moda.AggregationMethod
+import ksl.utilities.moda.ModaWarning
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -268,7 +269,10 @@ class ModaRunnerTest {
         )
         val completed = assertIs<ModaRunResult.Completed>(ModaRunner().run(document))
         assertTrue(completed.snapshot.metric("Delay")!!.hadTiedScores)
-        assertTrue(completed.warnings.any { it.contains("Delay") }, "${completed.warnings}")
+        assertTrue(
+            completed.snapshot.warnings.any { it is ModaWarning.TiedScores && it.metric == "Delay" },
+            "${completed.snapshot.warnings}"
+        )
     }
 
     // ------------------------------------------------------------------------------------------

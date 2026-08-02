@@ -2741,7 +2741,7 @@ class KslMcpTools(
                                 snapshot.toDTO()
                             )
                         )
-                        putJsonArray("warnings") { run.warnings.forEach { add(it) } }
+                        putJsonArray("warnings") { run.snapshot.warnings.forEach { add(it.message) } }
                     }
                     val summary = buildString {
                         appendLine("Study '${snapshot.name}' recommends ${snapshot.primaryRecommendation}.")

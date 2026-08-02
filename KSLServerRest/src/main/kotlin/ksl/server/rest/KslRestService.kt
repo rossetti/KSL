@@ -841,7 +841,7 @@ class KslRestService(
                             put("alternative", it.alternative); put("message", it.message)
                         }) }
                     }
-                    putJsonArray("warnings") { run.warnings.forEach { add(it) } }
+                    putJsonArray("warnings") { run.snapshot.warnings.forEach { add(it.message) } }
                     putJsonArray("issues") { run.issues.forEach { add(issueJson(it)) } }
                 }
                 is ksl.app.moda.ModaRunResult.Invalid -> buildJsonObject {
