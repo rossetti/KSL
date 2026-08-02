@@ -102,7 +102,15 @@ data class ModaSnapshot(
     /** The alternative this study points to, under [aggregationMethod]. */
     val primaryRecommendation: String,
     /** Anything worth reporting from evaluating the study. See [ModaWarning]. */
-    val warnings: List<String>
+    val warnings: List<String>,
+    /**
+     *  How repeated observations of each score were reduced to the single score compared here, or
+     *  null when the scores were not observed repeatedly.
+     *
+     *  Recorded because two studies over the same runs can reach different conclusions purely
+     *  through this choice, so a result that does not say which was used cannot be interpreted.
+     */
+    val replicationAggregation: String? = null
 ) {
 
     /**
@@ -145,7 +153,8 @@ data class ModaSnapshot(
         fun of(
             model: AdditiveMODAModel,
             rankTieMethod: Statistic.Companion.Ranking = model.defaultRankingMethod,
-            aggregation: AggregationMethod = AggregationMethod.WEIGHTED_VALUE
+            aggregation: AggregationMethod = AggregationMethod.WEIGHTED_VALUE,
+            replicationAggregation: String? = null
         ): ModaSnapshot {
             require(model.alternatives.isNotEmpty()) {
                 "A snapshot needs at least one alternative. The model '${model.name}' has none, " +
@@ -212,7 +221,8 @@ data class ModaSnapshot(
                 rankingMethod = rankTieMethod.name,
                 aggregationMethod = aggregation,
                 primaryRecommendation = primary,
-                warnings = warnings.map { it.message }
+                warnings = warnings.map { it.message },
+                replicationAggregation = replicationAggregation
             )
         }
     }

@@ -73,7 +73,13 @@ data class ModaSnapshotDTO(
     val rankingMethod: String,
     val aggregationMethod: String,
     val primaryRecommendation: String,
-    val warnings: List<String>
+    val warnings: List<String>,
+    /**
+     *  Added after the first version. Optional with a default, so a reader of this version makes
+     *  sense of a result written by the previous one and vice versa, which is why adding it did not
+     *  need the version raised.
+     */
+    val replicationAggregation: String? = null
 ) {
     companion object {
 
@@ -143,7 +149,8 @@ fun ModaSnapshot.toDTO(): ModaSnapshotDTO = ModaSnapshotDTO(
     rankingMethod = rankingMethod,
     aggregationMethod = aggregationMethod.name,
     primaryRecommendation = primaryRecommendation,
-    warnings = warnings
+    warnings = warnings,
+    replicationAggregation = replicationAggregation
 )
 
 /**
@@ -171,6 +178,7 @@ fun ModaSnapshotDTO.toSnapshot(): ModaSnapshot {
         rankingMethod = rankingMethod,
         aggregationMethod = aggregation,
         primaryRecommendation = primaryRecommendation,
-        warnings = warnings
+        warnings = warnings,
+        replicationAggregation = replicationAggregation
     )
 }
