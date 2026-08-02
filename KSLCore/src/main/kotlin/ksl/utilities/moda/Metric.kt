@@ -71,19 +71,31 @@ interface MetricIfc {
     fun newInstance() : MetricIfc
 
     /**
-     *  Returns an instance of MetricData
-     *  based on (modaName, weight)
+     *  Returns an instance of MetricData based on (modaName, weight), recording this metric's own
+     *  domain. This is what a metric considered on its own should report.
      *
-     *  The [reportedDomain] is the domain to record. It defaults to this metric's own domain, which
-     *  is what a metric considered on its own should report. A model that fitted the domain to the
-     *  scores it saw supplies the fitted domain instead, since that is the domain its recorded
-     *  values were computed over and reporting the declared one alongside them would not explain
-     *  them.
+     *  Written as a separate function rather than as a default argument on the three-argument form
+     *  so that it exists as a two-argument method on the JVM. Kotlin default arguments emit no such
+     *  overload, and the usual remedy does not apply here: `@JvmOverloads` cannot be used on an
+     *  interface method. A Java caller would otherwise have to pass a domain it has no opinion about.
+     */
+    fun metricData(
+        modaName: String,
+        weight: Double
+    ) : MetricData = metricData(modaName, weight, domain)
+
+    /**
+     *  Returns an instance of MetricData based on (modaName, weight), recording the supplied domain.
+     *
+     *  The [reportedDomain] is the domain to record. A model that fitted the domain to the scores it
+     *  saw supplies the fitted domain, since that is the domain its recorded values were computed
+     *  over and reporting the declared one alongside them would not explain them. A caller with no
+     *  such adjustment to report should use the two-argument form.
      */
     fun metricData(
         modaName: String,
         weight: Double,
-        reportedDomain: Interval = domain
+        reportedDomain: Interval
     ) : MetricData {
         val md = MetricData(
             modaName = modaName,
