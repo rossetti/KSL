@@ -21,8 +21,35 @@ package ksl.app.moda
 import ksl.utilities.moda.AggregationMethod
 import ksl.utilities.moda.MetricRecord
 import ksl.utilities.moda.ModaSnapshot
+import ksl.utilities.moda.ModaWarning
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+
+/**
+ *  Wire form of one warning from a MODA result. Flattens [ModaWarning].
+ *
+ *  A record rather than the sealed type it mirrors, because the wire needs one shape it can name
+ *  rather than a hierarchy it has to discriminate: the [kind] carries what the Kotlin type carried,
+ *  as the simple name of the case. A reader that only displays warnings uses [message]; one that
+ *  acts on them switches on [kind] and knows which metric to act on from [metric], which is what a
+ *  bare list of sentences could not support.
+ */
+@Serializable
+data class ModaWarningDTO(
+    val kind: String,
+    val metric: String,
+    /**
+     *  The text of the warning, written for a reader that only displays it. Derived from the other
+     *  fields, so it is written out but ignored on the way back in — reconstructing from [kind] and
+     *  the payload regenerates it, and trusting the text instead would let an edited message change
+     *  what the warning means.
+     */
+    val message: String,
+    /** The common score, when [kind] is `TiedScores`. Absent otherwise. */
+    val score: Double? = null,
+    /** The domain that was proposed and not applied, for the two domain cases. Absent otherwise. */
+    val candidate: String? = null
+)
 
 /**
  *  Wire form of one metric within a MODA result. Mirrors [MetricRecord].
@@ -79,7 +106,7 @@ data class ModaSnapshotDTO(
     val rankingMethod: String,
     val aggregationMethod: String,
     val primaryRecommendation: String,
-    val warnings: List<String>,
+    val warnings: List<ModaWarningDTO>,
     /**
      *  Added after the first version. Optional with a default, so a reader of this version makes
      *  sense of a result written by the previous one and vice versa, which is why adding it did not
@@ -108,6 +135,38 @@ val ModaJson: Json = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
     prettyPrint = false
+}
+
+/** Converts a warning to its wire form. */
+fun ModaWarning.toDTO(): ModaWarningDTO = when (this) {
+    is ModaWarning.TiedScores ->
+        ModaWarningDTO("TiedScores", metric, message, score = score)
+    is ModaWarning.DomainNotApplied ->
+        ModaWarningDTO("DomainNotApplied", metric, message, candidate = candidate)
+    is ModaWarning.DegenerateDomain ->
+        ModaWarningDTO("DegenerateDomain", metric, message, candidate = candidate)
+}
+
+/**
+ *  Converts a warning back from its wire form.
+ *
+ *  @throws IllegalArgumentException if the kind is not one this version knows, or if the payload the
+ *  kind requires is absent. Either means the result was written by a later version or by hand, and
+ *  guessing would produce a warning that reads plausibly and says the wrong thing.
+ */
+fun ModaWarningDTO.toWarning(): ModaWarning = when (kind) {
+    "TiedScores" -> ModaWarning.TiedScores(
+        metric, requireNotNull(score) { "a TiedScores warning for '$metric' carried no score" }
+    )
+    "DomainNotApplied" -> ModaWarning.DomainNotApplied(
+        metric, requireNotNull(candidate) { "a DomainNotApplied warning for '$metric' carried no candidate" }
+    )
+    "DegenerateDomain" -> ModaWarning.DegenerateDomain(
+        metric, requireNotNull(candidate) { "a DegenerateDomain warning for '$metric' carried no candidate" }
+    )
+    else -> throw IllegalArgumentException(
+        "Unknown warning kind '$kind' for metric '$metric'. The result was written by a later version."
+    )
 }
 
 /** Converts a metric record to its wire form. */
@@ -159,7 +218,7 @@ fun ModaSnapshot.toDTO(): ModaSnapshotDTO = ModaSnapshotDTO(
     rankingMethod = rankingMethod,
     aggregationMethod = aggregationMethod.name,
     primaryRecommendation = primaryRecommendation,
-    warnings = warnings,
+    warnings = warnings.map { it.toDTO() },
     replicationAggregation = replicationAggregation
 )
 
@@ -188,7 +247,7 @@ fun ModaSnapshotDTO.toSnapshot(): ModaSnapshot {
         rankingMethod = rankingMethod,
         aggregationMethod = aggregation,
         primaryRecommendation = primaryRecommendation,
-        warnings = warnings,
+        warnings = warnings.map { it.toWarning() },
         replicationAggregation = replicationAggregation
     )
 }

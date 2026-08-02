@@ -115,8 +115,17 @@ data class ModaSnapshot(
     val aggregationMethod: AggregationMethod,
     /** The alternative this study points to, under [aggregationMethod]. */
     val primaryRecommendation: String,
-    /** Anything worth reporting from evaluating the study. See [ModaWarning]. */
-    val warnings: List<String>,
+    /**
+     *  Anything worth reporting from evaluating the study, as [ModaWarning] rather than as text.
+     *
+     *  Kept typed because a caller holding only a snapshot is the ordinary case — a user interface
+     *  is expected to read results from here rather than from the model that produced them — and
+     *  each warning names the metric it concerns and what happened to it. Flattening to messages
+     *  would leave such a caller able to display a warning but not to act on one: it could not
+     *  group by metric, tell a tied metric from a domain that was not applied, or offer the remedy
+     *  that fits. The text is still one step away, through the message of each warning.
+     */
+    val warnings: List<ModaWarning>,
     /**
      *  How repeated observations of each score were reduced to the single score compared here, or
      *  null when the scores were not observed repeatedly.
@@ -239,7 +248,7 @@ data class ModaSnapshot(
                 rankingMethod = rankTieMethod.name,
                 aggregationMethod = aggregation,
                 primaryRecommendation = primary,
-                warnings = warnings.map { it.message },
+                warnings = warnings,
                 replicationAggregation = replicationAggregation
             )
         }

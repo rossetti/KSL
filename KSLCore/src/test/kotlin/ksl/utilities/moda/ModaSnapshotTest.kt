@@ -155,7 +155,7 @@ class ModaSnapshotTest {
         assertFalse(snapshot.metric("Deciding")!!.hadTiedScores)
         assertTrue(snapshot.hasTiedMetric)
         assertTrue(
-            snapshot.warnings.any { it.contains("Tied") },
+            snapshot.warnings.any { it is ModaWarning.TiedScores && it.metric == "Tied" },
             "the snapshot does not carry the reason the metric was flagged"
         )
     }

@@ -191,6 +191,35 @@ class ModaRescaleRepresentationTest {
         assertEquals("Cost", warning.metric)
     }
 
+    /**
+     *  A caller holding only a snapshot is the ordinary case, so a warning that never reaches the
+     *  snapshot may as well not have been raised.
+     *
+     *  Tied scores are already reachable from a snapshot through the metric record, but this case is
+     *  not: nothing on a metric says a domain was proposed for it and then refused. Reported as text
+     *  it could be shown and not acted on -- a reader could not tell it from the other two cases, or
+     *  find the metric without parsing the sentence.
+     */
+    @Test
+    @DisplayName("a refused domain reaches the snapshot as itself, naming its metric")
+    fun aRefusedDomainReachesTheSnapshotAsItself() {
+        val metric = MutableDomainMetric("Cost", Interval(0.0, 100.0), adjustLower = true, adjustUpper = false)
+        val scores = mapOf(
+            "A" to listOf(Score(metric, 10.0)),
+            "B" to listOf(Score(metric, 50.0)),
+            "C" to listOf(Score(metric, 90.0))
+        )
+        metric.declared = Interval(0.0, 60.0)
+        val model = AdditiveMODAModel(mapOf<MetricIfc, ValueFunctionIfc>(metric to LinearValueFunction()))
+        model.defineAlternatives(scores)
+
+        val snapshot = ModaSnapshot.of(model)
+        val carried = snapshot.warnings.filterIsInstance<ModaWarning.DomainNotApplied>().singleOrNull()
+        assertNotNull(carried, "the snapshot did not carry the refused domain")
+        assertEquals("Cost", carried.metric, "the snapshot lost which metric the warning concerns")
+        assertEquals(model.warnings, snapshot.warnings, "the snapshot altered the warnings")
+    }
+
     // ------------------------------------------------------------------------------------------
     // Tied scores, across every combination of the adjustment flags
     // ------------------------------------------------------------------------------------------
