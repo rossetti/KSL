@@ -181,7 +181,7 @@ class SimoptAppRunSetupTest {
         }
     }
 
-    // Path-helper tests live in KSLTesting at
+    // Path-helper tests live in KSLApp at
     // `ksl/app/optimization/paths/OptimizationPathsTest.kt` — they
     // exercise the pure `OptimizationPaths` substrate functions
     // without any controller / Swing dependency.

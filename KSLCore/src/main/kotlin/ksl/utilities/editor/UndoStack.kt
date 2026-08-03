@@ -141,9 +141,9 @@ class UndoStack(val limit: Int = DEFAULT_LIMIT) {
         publish()
     }
 
-    /** Test-only: depth of the undo stack.  Public because the test
-     *  lives in a separate Gradle module (KSLTesting) and `internal`
-     *  doesn't reach across module boundaries. */
+    /** Test-only: depth of the undo stack.  The test now lives in this
+     *  module's own test source set, which can see `internal`; the property
+     *  stays public because narrowing it would break published API. */
     val undoDepthForTest: Int get() = undoStack.size
 
     /** Test-only: depth of the redo stack. */

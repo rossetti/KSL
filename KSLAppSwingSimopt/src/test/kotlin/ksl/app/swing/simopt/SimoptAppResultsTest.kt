@@ -111,7 +111,7 @@ class SimoptAppResultsTest {
         }
     }
 
-    // Pure-writer tests live in KSLTesting at
+    // Pure-writer tests live in KSLApp at
     // `ksl/app/optimization/results/OptimizationResultsWriterTest.kt`.
     // They exercise the substrate writers (CSV, TOML, HTML, plot)
     // through `KSLAppSession.submit(RunSpec.Optimization(...))` —
@@ -192,7 +192,7 @@ class SimoptAppResultsTest {
         }
     }
 
-    // The dotted-key TOML quoting test lives in KSLTesting alongside
+    // The dotted-key TOML quoting test lives in KSLApp alongside
     // the other substrate writer tests.
 
     // ── Auto-derived solver / problem names ────────────────────────────
@@ -283,7 +283,7 @@ class SimoptAppResultsTest {
         }
     }
 
-    // TOML key-order and round-trip tests live in KSLTesting — they
+    // TOML key-order and round-trip tests live in KSLApp — they
     // exercise the substrate `RunSummary` data class's field
     // declaration order and the encoder/decoder symmetry without
     // needing the Swing controller.

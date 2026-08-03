@@ -235,7 +235,7 @@ class SimoptAppExecuteTest {
         }
     }
 
-    // formatObjective tests live in KSLTesting at
+    // formatObjective tests live in KSLApp at
     // `ksl/app/optimization/OptimizationFormattingTest.kt` — the
     // formatter is a substrate-level helper used by both this
     // panel and the HTML report writer.

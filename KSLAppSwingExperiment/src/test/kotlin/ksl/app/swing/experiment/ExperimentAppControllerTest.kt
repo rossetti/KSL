@@ -46,7 +46,7 @@ import kotlin.test.assertTrue
  *  All assertions hit the StateFlow surfaces directly — no Swing
  *  components instantiated, no model bundles loaded, no orchestrator
  *  submissions.  End-to-end submission is exercised in
- *  [ksl.app.orchestrator.ExperimentOrchestratorTest] (KSLTesting);
+ *  [ksl.app.orchestrator.ExperimentOrchestratorTest] (KSLApp);
  *  the builder against a real model lives in
  *  [ksl.app.config.experiment.ExperimentConfigurationBuilderTest].
  */

@@ -66,7 +66,7 @@ import java.nio.file.Path
  *  [`ksl.app.KSLAppSessionSingleHeadlessDemoTest`] asserts both of
  *  those invariants by reading this source file.
  *
- *  The companion test in KSLTesting drives this with a JUnit
+ *  The companion test in KSLApp drives this with a JUnit
  *  `@TempDir` workspace and asserts the rendered report file lands
  *  under the path
  *  `<workspace>/<sanitizeAppName(APP_NAME)>/output/<ANALYSIS_NAME>/reports/standard.html`,

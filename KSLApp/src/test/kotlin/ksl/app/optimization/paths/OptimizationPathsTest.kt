@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  *  canonical run-output directory layout
  *  (`<appWorkspace>/output/<analysisName>/run-NNN/`).
  *
- *  These tests have no Swing dependency and live in KSLTesting
+ *  These tests have no Swing dependency and live in KSLApp
  *  alongside the other substrate-level tests.
  */
 class OptimizationPathsTest {
