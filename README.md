@@ -19,7 +19,7 @@ The KSL has the following functionality:
 - Discrete event calendar and executive
 - Random number stream control
 - Discrete and continuous random variate generation
-  - Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma, GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial, Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular, Uniform, Weibull, DEmpirical, Empirical, AR1Normal
+  - Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma, GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial, Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular, Uniform, Weibull, DEmpirical, Empirical, AR1Normal, Metalog
 - Statistical summary collection including histograms and box plots
 - Automated probability distribution modeling
 - Monte Carlo simulation
@@ -40,13 +40,16 @@ The KSL has the following functionality:
 Who knows what the future may bring! The KSL is a complex and extremely useful library for performing Monte Carlo and discrete event
 simulation experiments.  Here is some planned and potential future functionality.
 
-- Release 1.4 accomplished a significant reorganization of the repository noted in [the release notes](docs/release-notes.md) 
+- Release 1.5 is a correctness release that also adds the metalog distribution family and
+  reworks multi-objective decision analysis — see [the release notes](docs/release-notes.md)
+- Release 1.4 accomplished a significant reorganization of the repository
   - New release and installation process
   - A new animation framework and application
   - MCP Servers for the code-base, application functionality, and the textbook
 - Future work is planned on 
   - material handling, agent-based constructs, and server computing
-  - additional artifacts for maven to support KSL based applications
+  - applications to surface MODA functionality
+  - constructs for sequential decision-making under uncertainty
 
 ## Licensing
 
@@ -189,20 +192,28 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.4"
+version = "R1.5"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.4")
+api("io.github.rossetti:KSLCore:R1.5")
 ```
 To your build for the latest release.
 
 ## Release Notes
 
 The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**, which
-covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.4, R1.3, …)
-and the installable **suite** of applications and servers (versioned 0.3.0, 0.2.0, …). A
+covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.5, R1.4, …)
+and the installable **suite** of applications and servers (versioned 0.3.3, 0.3.2, …). A
 suite release does not imply a library release, or the reverse.
+
+**Suite 0.3.3** — cancelling a single design point or scenario no longer throws away results
+that had already finished, and the Experiment app no longer reports success for cancels that
+did nothing. The Scenario app's per-scenario cancel glyph is clickable again; it had been
+inert during exactly the window it exists for.
+
+**Suite 0.3.2** — `ksl update` actually updates. It had been reading the manifest cached when
+you installed, so it re-downloaded the version you already had and reported success.
 
 **Suite 0.3.1** — fixes two things 0.3.0 shipped broken: the KSL Server could not find the
 shipped example bundles, and the polished layouts were reachable only from the menu bar.
@@ -214,11 +225,17 @@ install; fifteen polished layouts ship with the suite and are offered in the app
 shipped examples moved into a visible `KSL/examples/` folder. See the
 [gallery](https://rossetti.github.io/KSL-Animations/).
 
-**Updating an existing install:** re-run the installer one-liner above. `ksl update` is
-broken in 0.3.1 and earlier — it re-reads the manifest cached when you installed, so it
-re-downloads the version you already have and reports success. Suite 0.3.2 fixes it, but
-the fix cannot deliver itself: getting it needs one installer re-run, after which
-`ksl update` works normally.
+**Updating an existing install:** `ksl update` works normally from 0.3.2 on. If you are still
+on 0.3.1 or earlier its updater cannot deliver its own replacement, so getting current needs
+one re-run of the installer one-liner above.
+
+**R1.5:** a correctness release. The gamma distribution function, the sample median, the
+decision-analysis engine, and the ids handed out under concurrent execution all failed
+quietly rather than loudly, and all four are fixed — see
+[the release notes](docs/release-notes.md) for which results change and by how much. Adds the
+metalog distribution family, which takes its shape from data or from elicited quantiles
+rather than from a named family, and gives multi-objective decision analysis immutable result
+snapshots, weight sensitivity, and swing-weight elicitation. Not a drop-in for R1.4.
 
 **R1.4:** a reorganization and packaging release. The `ksl.app.*` model-packaging /
 run infrastructure moved out of the published KSLCore into a new internal `KSLApp`
