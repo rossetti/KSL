@@ -50,7 +50,11 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = "R1.4"
+
+// Deliberately unversioned. Nothing resolves this build as a dependency: it compiles the shared
+// sources listed below straight from the JVM modules, so it is coupled to their source rather than
+// to any published version of them. A version here would be a label on an artifact nobody asks for,
+// and carrying KSLCore's would imply the two ship together, which they do not.
 
 repositories {
     mavenCentral()

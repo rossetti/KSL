@@ -160,7 +160,7 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.5
 
-*(date).* A correctness release. Four things are fixed that failed quietly rather than loudly:
+*3 August 2026.* A correctness release. Four things are fixed that failed quietly rather than loudly:
 the gamma distribution function, the sample median, the decision-analysis engine, and the ids
 handed out while models run concurrently. **Things that change results** below lists every fix
 that makes a number differ from R1.4.
