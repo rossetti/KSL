@@ -1,4 +1,4 @@
-# Guide: the metalog distribution family
+# Guide: the [metalog](https://en.wikipedia.org/wiki/Metalog_distribution) distribution family
 
 **Packages:** `ksl.utilities.distributions.metalog`,
 `ksl.utilities.random.rvariable.metalog`, and the metalog estimators in
