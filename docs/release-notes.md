@@ -160,10 +160,10 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.5
 
-*(date).* A correctness release. Four things that could have returned wrong answers rather than failing
-are fixed: the gamma distribution function, the sample median, the decision-analysis engine,
-and the ids handed out while models run concurrently. **Things that change results** below
-lists every fix that makes a number differ from R1.4.
+*(date).* A correctness release. Four things are fixed that failed quietly rather than loudly:
+the gamma distribution function, the sample median, the decision-analysis engine, and the ids
+handed out while models run concurrently. **Things that change results** below lists every fix
+that makes a number differ from R1.4.
 
 Two additions: the **metalog** distribution family, and snapshots, weight sensitivity and
 swing-weight elicitation for **multi-objective decision analysis**. The guides cover how to
@@ -173,11 +173,36 @@ use them.
 
 ### Fixed
 
-- **`Gamma.cdf` was wrong above a shape of about 150, and threw an exception above about 1.1 × 10⁶.** The
-  series accepted a truncation far larger than it supposed, and the error grew with the shape:
-  at a shape of 10⁶ it was 1.1 × 10⁻⁶ against a stated precision of 1.05 × 10⁻⁸. Now within
-  precision throughout. This reaches `ChiSquaredDistribution`, `PearsonType5`, `Poisson` and
-  every chi-squared goodness-of-fit p-value. Such a shape parameter value is highly unlikely. The error was found during high precision testing of the new metalog functionality.
+- **`Gamma.cdf` stopped its series before it had converged.** One cause, two different
+  outcomes.
+  - **It lost accuracy as the shape grew, from a shape of about 150 upward.** The series
+    accepted a truncation larger than it supposed, and the shortfall grew roughly with the
+    square root of the shape. In relative terms:
+
+    | shape | probabilities good to | relative error |
+    |---:|---:|---:|
+    | 150 | ~8 significant figures | 1.1 × 10⁻⁸ |
+    | 10³ | ~7 | 5 × 10⁻⁸ |
+    | 10⁴ | ~6.7 | 1.8 × 10⁻⁷ |
+    | 10⁵ | ~6.2 | 6 × 10⁻⁷ |
+    | 10⁶ | ~5.7 | 2 × 10⁻⁶ |
+
+    The relative error is close to uniform across the distribution — at a shape of 10⁶ it is
+    1.7 × 10⁻⁶ three standard deviations below the mean, where the probability is 0.0013, and
+    2.1 × 10⁻⁶ at the mean — so it does not concentrate in the tail. Whether that mattered
+    depends on what the probability was for: it is immaterial to a percentile or a
+    goodness-of-fit statistic, and it exceeded the library's own declared tolerance
+    (`KSLMath.defaultNumericalPrecision`, 1.05 × 10⁻⁸) from a shape of about 150 on, which is
+    an ordinary shape — a sum of 150 exponentials reaches it. Nothing signalled the shortfall.
+  - **Above a shape of about 1.1 × 10⁶ it threw** `KSLTooManyIterationsException` rather than
+    returning, for arguments in a band near and below the distribution's mean, where the series
+    converges slowest. Further out it still returned, inaccurately. Shapes that large come from
+    fitting a gamma to tightly clustered data, where the shape is roughly the square of the mean
+    over the variance, and are rare.
+
+  Both are fixed; results are now within stated precision throughout. This reaches
+  `ChiSquaredDistribution`, `PearsonType5`, `Poisson` and every chi-squared goodness-of-fit
+  p-value. The defect was found during high-precision testing of the new metalog work.
 - **`Statistic.median` returned the wrong observation for odd-length data** — the element one
   above the middle, so `[1, 2, 3, 4, 100]` gave `4.0`. Always the next observation up, so it
   biased everything built on it in one direction: Laplace and logistic location parameters, the
@@ -218,7 +243,9 @@ use them.
 
 Each is a fix, and each means a number may differ from R1.4:
 
-- Gamma, chi-squared and Poisson probabilities, and every chi-squared goodness-of-fit p-value.
+- Gamma, chi-squared and Poisson probabilities, and every chi-squared goodness-of-fit
+  p-value. Differences appear in the sixth significant figure or beyond, growing with the
+  shape parameter.
 - The sample median for odd-length data, and so fitted Laplace and logistic location
   parameters, bootstrap medians, and box plots.
 - MODA studies with tightly declared bounds, through domain containment and the margin cap.
