@@ -158,15 +158,94 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
-Cancelling a single design point or scenario is unreliable in R1.4 and earlier.
-`ParallelDesignedExperiment.cancelDesignPoint` reports success for a point that has
-already finished, and both it and `ConcurrentScenarioRunner.cancelScenario` discard a
-unit's results if the request arrives after that unit's replications complete — the run
-reports the unit as cancelled and commits nothing for it. Sweeps that never cancel are
-unaffected, which is why this went unnoticed: it needs a cancel to race a finish, so it
-shows up far more readily on a CPU-constrained machine than on a development one. Both
-defects are fixed in source. The applications get the fix in suite 0.3.3; the published
-library gets it in the next library release.
+## R1.5
+
+*(date).* A correctness release. Four things that could have returned wrong answers rather than failing
+are fixed: the gamma distribution function, the sample median, the decision-analysis engine,
+and the ids handed out while models run concurrently. **Things that change results** below
+lists every fix that makes a number differ from R1.4.
+
+Two additions: the **metalog** distribution family, and snapshots, weight sensitivity and
+swing-weight elicitation for **multi-objective decision analysis**. The guides cover how to
+use them.
+
+**R1.5 is not a drop-in replacement for R1.4.** See **Compatibility**.
+
+### Fixed
+
+- **`Gamma.cdf` was wrong above a shape of about 150, and threw an exception above about 1.1 × 10⁶.** The
+  series accepted a truncation far larger than it supposed, and the error grew with the shape:
+  at a shape of 10⁶ it was 1.1 × 10⁻⁶ against a stated precision of 1.05 × 10⁻⁸. Now within
+  precision throughout. This reaches `ChiSquaredDistribution`, `PearsonType5`, `Poisson` and
+  every chi-squared goodness-of-fit p-value. Such a shape parameter value is highly unlikely. The error was found during high precision testing of the new metalog functionality.
+- **`Statistic.median` returned the wrong observation for odd-length data** — the element one
+  above the middle, so `[1, 2, 3, 4, 100]` gave `4.0`. Always the next observation up, so it
+  biased everything built on it in one direction: Laplace and logistic location parameters, the
+  bootstrap median, and every box plot's median line.
+- **MODA crashed or returned a not-a-number on tied scores**, and fitting a metric's domain
+  modified the caller's metric. Both are fixed; fitted domains are now held within the declared
+  limits. See the [MODA guide](guides/ksl-utilities-moda.md).
+- **Concurrently running models handed out duplicate ids.** `QObject`, `Allocation`,
+  `ResourcePoolAllocation` and simopt `Solution` drew from counters shared by the process and
+  read without synchronization — 16 000 QObjects across eight threads produced about 3 500
+  duplicates. Mostly this showed up as repeated ids and repeated `ID_n` default names rather
+  than as a failure. Ids are still shared across models, so they say nothing about which model
+  produced them.
+- **Cancelling one design point or scenario discarded finished results.** If the request
+  arrived after that unit's replications completed, the run threw away a complete set of
+  results and reported the unit as cancelled;
+  `ParallelDesignedExperiment.cancelDesignPoint` also returned `true` for units that had long
+  since finished. A result and a cancel now settle atomically.
+
+### New
+
+- **Metalog distributions.** `Metalog2P` through `Metalog6P`, each available unbounded,
+  lower-bounded, upper-bounded or bounded, with matching random variables and `RVType` entries.
+  A metalog takes its shape from the data rather than from a named family, so it describes
+  distributions no standard family matches, and it can be built from three elicited quantiles
+  when there is no data at all. Twenty estimators fit the family through
+  `PDFModeler.metalogEstimators`, a separate set from `PDFModeler.allEstimators`, so existing
+  fits are unaffected. See the [metalog guide](guides/ksl-metalog.md).
+- **MODA snapshots, sensitivity and elicitation.** `ModaSnapshot` is a complete, immutable
+  record of an evaluated study — recommendation, values, ranks, the domain each value was
+  computed over, and warnings — which reports and writes to a database without the model that
+  produced it. `ModaSensitivity` gives the weight at which the recommendation changes, which
+  alternative takes over, and how far the weight has to move to get there. Swing-weight
+  elicitation records the ranges weights were given against, so a later change to a range is
+  detectable. See the [MODA guide](guides/ksl-utilities-moda.md).
+
+### Things that change results
+
+Each is a fix, and each means a number may differ from R1.4:
+
+- Gamma, chi-squared and Poisson probabilities, and every chi-squared goodness-of-fit p-value.
+- The sample median for odd-length data, and so fitted Laplace and logistic location
+  parameters, bootstrap medians, and box plots.
+- MODA studies with tightly declared bounds, through domain containment and the margin cap.
+- `Allocation`, `ResourcePoolAllocation` and `Solution` ids now begin at 1 rather than 0.
+- `cancelDesignPoint` now returns `false` for a design point the dispatcher has not started
+  yet. Treat `true` as "the point was cancelled", not "the point exists".
+
+### Compatibility
+
+- **Removed.** The five `…DataCounter` fields on the MODA record companions
+  (`MetricData`, `ScoreData`, `ValueData`, `OverallValueData`,
+  `AlternativeRankFrequencyData`) were public and settable in R1.4. They are now private, and
+  ids are issued atomically. Code that read or reset one will not compile.
+- **`Gamma.maxNumIterations` rejects values it used to accept.** R1.4 silently raised anything
+  below 5 000 to 5 000. It now stores what you give it and throws on a value that is not
+  positive.
+- **Recompile, do not merely upgrade.** `Gamma.DEFAULT_MAX_ITERATIONS` and
+  `Gamma.INC_GAMMA_MAX_ITERATIONS` are public `const val`, so R1.4's value of 5 000 is inlined
+  into any bytecode that named one. Such code keeps passing 5 000 — below what the corrected
+  series needs at large shapes — until it is rebuilt against R1.5.
+- **`MetricIfc.metricData` is unaffected.** It gained a three-argument form; the two-argument
+  signature R1.4 published is unchanged, so existing Kotlin and Java callers need nothing.
+- **`ScoringResult.numberOfParameters` is defined differently but returns the same value for
+  every R1.4 distribution.** It now reports what the estimator estimated rather than the size of
+  the distribution type's declared parameter set. The two agree for every family whose members
+  fit the same parameters, which is all of them in R1.4; they differ only for metalogs, where
+  one type covers members that fit different numbers of parameters.
 
 ## R1.4
 

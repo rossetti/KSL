@@ -78,6 +78,7 @@ web console.
 | [`ksl-utilities-random`](ksl-utilities-random.md) | RNGs, `RVariableIfc`, `StreamProviderIfc`, stream-number conventions |
 | [`ksl-utilities-distributions`](ksl-utilities-distributions.md) | The distribution catalog and `CDFIfc` |
 | [`ksl-utilities-distributions-fitting`](ksl-utilities-distributions-fitting.md) | PDF / distribution fitting |
+| [`ksl-metalog`](ksl-metalog.md) | The metalog family: fitting, elicitation from quantiles, when not to use one |
 | [`ksl-utilities-statistic`](ksl-utilities-statistic.md) | `Statistic`, `WeightedStatistic`, `TimeWeighted`, batch-means |
 
 ## I/O, reporting, decision analysis

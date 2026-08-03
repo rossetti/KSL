@@ -278,6 +278,80 @@ analyzer.analyze()
 analyzer.resultsAsDatabase("MODA_Analyzer_Results.db")   // persist results
 ```
 
+### ...keep a result after the model has moved on?
+
+`ModaSnapshot.of(model)` takes a complete, immutable record of an evaluated study.
+It is the right thing to hold onto: a model can be given new alternatives, which
+refits its domains and changes everything it reports, and none of that reaches a
+snapshot already taken.
+
+```kotlin
+import ksl.utilities.moda.ModaSnapshot
+
+val snapshot = ModaSnapshot.of(model)
+snapshot.primaryRecommendation        // the alternative this study points to
+snapshot.recommendationOrder          // best first
+snapshot.overallValues                // per alternative
+snapshot.metrics                      // declared and effective domains, weights, units
+snapshot.warnings                     // typed, each naming the metric it concerns
+
+// A result can be written without the model that produced it.
+snapshot.resultsAsDatabase("StudyResults")
+```
+
+Each metric record carries both the domain you declared and the one the values
+were actually computed over, because reporting only the first leaves the values
+unexplained and reporting only the second hides that any fitting happened.
+
+### ...see what the model did, and what it could not do?
+
+Three questions, three answers:
+
+```kotlin
+// 1. What did it warn about?
+for (w in model.warnings) {
+    when (w) {
+        is ModaWarning.TiedScores -> "metric ${w.metric} cannot separate anything"
+        is ModaWarning.DomainNotApplied -> "a fitted domain for ${w.metric} was refused"
+        is ModaWarning.DegenerateDomain -> "a fitted domain for ${w.metric} had no width"
+    }
+}
+
+// 2. What did it not take in?
+val result = model.defineAlternativesReporting(scores)
+result.accepted            // names now held by the model
+result.rejected            // one entry per alternative left out, with the reason
+
+// 3. What range did it evaluate against?
+model.effectiveDomainOf(metric)
+```
+
+### ...ask how much the recommendation depends on the weights?
+
+A weight in an additive model is a scaling constant tied to a range, not a
+statement of importance in the abstract, so "how sure are we about this weight?"
+is a fair question to put to a study. `ModaSensitivity` answers it by finding the
+weight at which the recommendation would change.
+
+```kotlin
+import ksl.utilities.moda.ModaSensitivity
+
+val sensitivity = ModaSensitivity(snapshot)
+
+// The weight the recommendation hangs on most, if any.
+sensitivity.mostCriticalMetric()?.let { flip ->
+    println("${flip.metric}: at ${flip.currentWeight}, ${flip.displacedBy} takes over " +
+            "at ${flip.criticalWeight} -- a margin of ${flip.margin}")
+}
+
+// Or ask about one metric, or trace the whole curve.
+sensitivity.flipPointsForWinner("Cost")
+sensitivity.weightSweep("Cost")          // SweepPoint: weight, overallValues, winner
+```
+
+A small margin means the recommendation rests on a weight the decision maker may
+not have felt strongly about, which is worth reporting alongside the answer.
+
 ### ...report MODA results?
 
 `AdditiveMODAModel` integrates with the `ksl.utilities.io.report` DSL via
@@ -328,6 +402,12 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 | `AdditiveMODAModel` | Concrete model: overall value = weighted sum of per-metric values. |
 | `MODAAnalyzer` | High-level driver: per-replication MODA over `KSLDatabase` experiment data. |
 | `MODAAnalyzerData` | Describes one response for `MODAAnalyzer` (`responseName`, `direction`, `weight`, `valueFunction`, `domain`). |
+| `ModaSnapshot` | A complete, immutable result: recommendation, values, ranks, metric records, warnings. Survives the model. |
+| `MetricRecord` | One metric within a snapshot — declared *and* effective domain, weight, units, whether it was rescaled or tied. |
+| `ModaWarning` | Something worth reporting, naming its metric: `TiedScores`, `DomainNotApplied`, `DegenerateDomain`. Not errors. |
+| `AlternativeDefinitionResult` | What `defineAlternativesReporting` returns: what was accepted, and why anything was not. |
+| `ModaSensitivity` | How far a weight must move before the recommendation changes (`flipPoints`, `overallValuesAt`, `winnerAt`). |
+| `ElicitationRecord` | Weights obtained by swing elicitation, with the ranges they were given against, so a later range change can be detected. |
 
 ---
 
@@ -341,15 +421,42 @@ For full member lists, see the Dokka API reference. This is the orientation map.
   utilization, throughput, or goodness-of-fit correlations, set
   `direction = BiggerIsBetter`, or the ranking will be inverted.
 
-- **Each alternative needs a score for each metric.** The `Score` list per
-  alternative should cover every defined metric; mismatches produce invalid or
-  missing values.
+- **Each alternative needs a score for each metric, or it is left out.** An
+  alternative missing a metric, or scoring one twice, cannot be compared with one
+  scored on all of them, so the model does not take it in. It is simply absent
+  from the results, which looks the same as never having been offered — use
+  `defineAlternativesReporting` instead of `defineAlternatives` when you want to
+  be told what was left out and why.
 
-- **Domains matter for linear value functions.** `LinearValueFunction` scales a
-  score across the metric's `domain` interval. By default `Metric` allows the
-  model to rescale domains to the realized scores (`allowRescalingByMetrics` in
-  `defineAlternatives`); disable it if you want fixed, externally-meaningful
-  scales.
+- **Domains matter for linear value functions, and the fitted domain is not the
+  declared one.** `LinearValueFunction` scales a score across the metric's domain.
+  By default the model fits that domain to the scores the alternatives realized,
+  so the value function discriminates over the range that matters
+  (`allowRescalingByMetrics` in `defineAlternatives`; pass `false` for fixed,
+  externally-meaningful scales).
+
+  Fitting does **not** modify your metric. Ask the model what it used:
+
+  ```kotlin
+  model.defineAlternatives(scores)
+  val used = model.effectiveDomainOf(cost)   // what the values were computed over
+  val declared = cost.domain                 // unchanged, still what you declared
+  if (model.wasRescaled(cost)) { /* the two differ */ }
+  ```
+
+  A fitted domain is held within the limits the metric declared — a utilization
+  declared over zero to one is never fitted past one — and the room left around
+  the realized scores is capped by `MODAModel.maximumDomainMarginFraction`.
+
+- **A metric everything ties on cannot separate anything.** Where every
+  alternative scores the same on a metric, they all take the midpoint of the value
+  range and the metric contributes equally to each, changing no ranking. The model
+  says so rather than leaving you to notice: a `ModaWarning.TiedScores` names the
+  metric, and `MetricRecord.hadTiedScores` records it on a snapshot.
+
+- **Metric names must be unique.** Two metrics sharing a name are two metrics in
+  the model but one name in every report, data frame and database row, so
+  `defineMetrics` refuses them rather than producing results that cannot be read.
 
 - **Weights are normalized.** You can pass un-normalized weights; the additive
   model normalizes them. Equal weights are the default.
