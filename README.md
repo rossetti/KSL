@@ -204,8 +204,13 @@ To your build for the latest release.
 
 The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**, which
 covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.5.1, R1.5, …)
-and the installable **suite** of applications and servers (versioned 0.3.3, 0.3.2, …). A
+and the installable **suite** of applications and servers (versioned 0.3.4, 0.3.3, …). A
 suite release does not imply a library release, or the reverse.
+
+**Suite 0.3.4** — the Distribution app's AIC scoring option now penalises complexity instead
+of very slightly rewarding it, so a comparison that includes AIC can rank candidate
+distributions differently. Default fits are unaffected: they score on BIC, Anderson-Darling,
+Cramér-von Mises and the Q-Q correlation.
 
 **Suite 0.3.3** — cancelling a single design point or scenario no longer throws away results
 that had already finished, and the Experiment app no longer reports success for cancels that

@@ -6,7 +6,7 @@ numbering, so they are kept apart here:
 - **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.5.1`, `R1.5`, … The
   simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
 - **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
-  `0.3.3`, `0.3.2`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
+  `0.3.4`, `0.3.3`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
   [Suite releases](#suite-releases).
 
 A suite release does not imply a library release, or the reverse. The suite can gain an
@@ -23,6 +23,29 @@ in the [README](../README.md#installing-the-ksl-applications).
 time, so it re-downloads the version you already have and reports success. Until 0.3.2,
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
+
+## 0.3.4 — the AIC scoring option
+
+*5 August 2026.* This release changes KSLCore.
+
+**The Distribution application's AIC scoring option was not computing AIC.** Its charge for
+each extra estimated parameter was a fraction that never exceeded one and grew *smaller* as
+parameters were added — so rather than pricing complexity it rewarded it, very slightly. A
+fit ranked with **AIC** among the selected metrics was in effect ranked on goodness of fit
+alone, which favours whichever candidate family has the most parameters to spend. AIC now
+means what it has always meant: minus twice the log-likelihood, plus two for every estimated
+parameter. Where it appears in a scored comparison, the ranking can change.
+
+**Default fits are unaffected.** AIC is not one of the four metrics a fit uses unless you ask
+for it — those are BIC, Anderson-Darling, Cramér-von Mises and the Q-Q correlation, and BIC
+was computing BIC. If you have never added AIC to the metrics, nothing you have fitted moves.
+
+**Using KSLCore directly?** Two more statistics were wrong in the library — the Hannan-Quinn
+criterion and the Watson goodness-of-fit statistic — a small-sample corrected AIC has been
+added, and AIC's own signature has changed. The [R1.5.1 notes](#r151) cover all of it.
+
+**Upgrading.** `ksl update` works normally from 0.3.2 on. Nothing else in the suite behaves
+differently.
 
 ## 0.3.3 — cancelling one design point or scenario
 
