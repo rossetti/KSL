@@ -89,6 +89,23 @@ class ModaServiceTest {
         retention: kotlin.time.Duration = 30.minutes
     ) = JobManager<ModaEvent, ModaStudyOutcome>(scope, maxConcurrent, retention)
 
+    /**
+     *  Waits until the spine reports the job terminal.
+     *
+     *  A study's result is completed by the service, and the manager learns of it by awaiting the
+     *  same value the caller awaits — so a caller that has its result may still be ahead of the
+     *  manager's own bookkeeping. TERMINAL is the point at which the journal is drained and closed
+     *  and the record carries a finishing time, so anything asserting about either waits for it.
+     */
+    private suspend fun awaitTerminal(
+        jobs: JobManager<ModaEvent, ModaStudyOutcome>,
+        jobId: String
+    ) = withTimeout(10_000) {
+        while (jobs.status(jobId) != JobStatus.TERMINAL) {
+            kotlinx.coroutines.delay(10)
+        }
+    }
+
     // ------------------------------------------------------------------------------------------
     // Submitting through the spine
     // ------------------------------------------------------------------------------------------
@@ -109,6 +126,10 @@ class ModaServiceTest {
         val jobs = manager()
         val record = jobs.register { service.submit(document()) }
         withTimeout(30_000) { jobs.result(record.jobId) }
+        // The result settling does not mean the journal is closed: the manager awaits the same
+        // deferred the caller does, so under load it can still be recording when the caller looks.
+        // TERMINAL is the marker that the journal is drained, so wait for it before snapshotting.
+        awaitTerminal(jobs, record.jobId)
 
         val all = assertNotNull(jobs.eventsNow(record.jobId), "the job kept no journal")
         assertTrue(all.any { it is ModaEvent.Started }, "the journal has no start: $all")
@@ -128,11 +149,7 @@ class ModaServiceTest {
         assertNotNull(jobs.status(record.jobId))
         withTimeout(30_000) { jobs.result(record.jobId) }
         // Terminating is recorded just after the result settles, so allow it to catch up.
-        withTimeout(10_000) {
-            while (jobs.status(record.jobId) != JobStatus.TERMINAL) {
-                kotlinx.coroutines.delay(10)
-            }
-        }
+        awaitTerminal(jobs, record.jobId)
         assertEquals(JobStatus.TERMINAL, jobs.status(record.jobId))
         assertNotNull(jobs.list().first { it.jobId == record.jobId }.terminatedAt)
     }
@@ -294,6 +311,7 @@ class ModaServiceTest {
                 assertIs<ModaStudyOutcome.Finished>(outcome).run
             )
             assertEquals(name, completed.snapshot.name, "a job came back as the wrong study")
+            awaitTerminal(jobs, record.jobId)
             val journal = assertNotNull(jobs.eventsNow(record.jobId))
             assertTrue(
                 journal.all { it.studyId == record.jobId },

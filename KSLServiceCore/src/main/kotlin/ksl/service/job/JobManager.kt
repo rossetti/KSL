@@ -58,6 +58,28 @@ data class JobRecord(
  *
  * The manager launches its per-job collector and result-waiter coroutines in
  * the supplied [scope]; the host owns that scope's lifetime.
+ *
+ * ### What terminal means, and what it does not
+ *
+ * The manager does not own the capability's result: [JobHandleView.result] is
+ * completed by the capability itself, and the manager's own termination
+ * coroutine is a second party awaiting that same deferred. So [result] returning
+ * says nothing about the journal — it says only that the capability settled.
+ * A caller that awaits [result] and immediately calls [eventsNow] may legitimately
+ * see a journal that is missing the terminal event, because the manager's
+ * coroutine may not have been scheduled yet.
+ *
+ * The marker for a complete journal is [JobStatus.TERMINAL]. On termination the
+ * manager, in this order, recovers any tail events, closes the journal, and only
+ * then publishes `terminatedAt` — so once [status] reads TERMINAL, [eventsNow]
+ * returns the whole journal including the terminal event, and [list] reports a
+ * `terminatedAt`. Callers wanting a snapshot of the finished journal should wait
+ * for TERMINAL rather than for [result]; callers wanting the events themselves
+ * should prefer [events], whose flow completes only after the journal is closed
+ * and therefore never yields a truncated journal.
+ *
+ * This is why the transports fetch a result only once status reads TERMINAL
+ * (see `ksl.service.capability.run.RunApplicationService.getRunResult`).
  */
 class JobManager<E, R>(
     private val scope: CoroutineScope,
@@ -95,6 +117,12 @@ class JobManager<E, R>(
         // When the job terminates, recover any tail events the live collector
         // had not yet appended (the bounded replayCache always holds the most
         // recent events, including the terminal one), then close the journal.
+        //
+        // Order matters and is load-bearing: terminatedAt is published last, so
+        // that a caller observing TERMINAL is guaranteed a drained, closed
+        // journal. This coroutine races the callers of result(), which await the
+        // very same deferred, so TERMINAL — not result() returning — is the only
+        // marker of journal completeness.
         scope.launch {
             handle.result.await()
             val cache = handle.events.replayCache
@@ -111,18 +139,30 @@ class JobManager<E, R>(
         return entry.toRecord()
     }
 
-    /** Replayable event stream for [jobId] from [fromOffset], or null if unknown. */
+    /** Replayable event stream for [jobId] from [fromOffset], or null if unknown.
+     *  The strongly-consistent read: the flow completes only after the journal is
+     *  closed, so a consumer that collects it to the end always sees every event,
+     *  terminal one included, however the job's completion was scheduled. */
     fun events(jobId: String, fromOffset: Int = 0): Flow<E>? =
         entries[jobId]?.journal?.stream(fromOffset)
 
     /** A non-blocking snapshot of [jobId]'s journaled events from [fromOffset]
      *  (everything available now), or null if the job is unknown. The polling
-     *  counterpart to [events] for request/response transports. */
+     *  counterpart to [events] for request/response transports.
+     *
+     *  Being a snapshot, this is complete only once [status] reads
+     *  [JobStatus.TERMINAL]; a caller that polls has to keep polling until then,
+     *  and a caller that has merely awaited [result] has no such guarantee. */
     fun eventsNow(jobId: String, fromOffset: Int = 0): List<E>? =
         entries[jobId]?.journal?.available(fromOffset)
 
     /** Awaits the terminal result of [jobId], or null if unknown. Never throws
-     *  on the result itself — the capability's result types resolve normally. */
+     *  on the result itself — the capability's result types resolve normally.
+     *
+     *  This awaits the capability's own deferred, so it can return before the
+     *  manager has finished journaling the job: it implies nothing about
+     *  [eventsNow], [status], or [list]. Wait for [JobStatus.TERMINAL] when the
+     *  journal or the record matters. */
     suspend fun result(jobId: String): R? = entries[jobId]?.handle?.result?.await()
 
     /** Requests cancellation of [jobId]; no-op if unknown. */
@@ -130,7 +170,9 @@ class JobManager<E, R>(
         entries[jobId]?.handle?.cancel(reason)
     }
 
-    /** Coarse status of [jobId], or null if unknown / evicted. */
+    /** Coarse status of [jobId], or null if unknown / evicted. Reading
+     *  [JobStatus.TERMINAL] additionally means the job's journal is drained and
+     *  closed — it is the marker other reads should gate on. */
     fun status(jobId: String): JobStatus? = entries[jobId]?.let {
         if (it.terminatedAt == null) JobStatus.RUNNING else JobStatus.TERMINAL
     }
