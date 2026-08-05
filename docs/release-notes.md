@@ -3,10 +3,10 @@
 Two things are released from this repository, on separate cadences and with separate
 numbering, so they are kept apart here:
 
-- **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.4`, `R1.3`, … The
+- **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.5.1`, `R1.5`, … The
   simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
 - **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
-  `0.3.2`, `0.3.1`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
+  `0.3.3`, `0.3.2`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
   [Suite releases](#suite-releases).
 
 A suite release does not imply a library release, or the reverse. The suite can gain an
@@ -157,6 +157,42 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 `ksl.app.*` model-packaging / run infrastructure lives in a separate `KSLApp` module
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
+
+## R1.5.1
+
+*5 August 2026.* A correctness release for the information criteria in
+`ksl.utilities.statistic.Statistic`. A drop-in replacement for R1.5 — nothing removed and no
+signature changed — but four functions return different numbers.
+
+### Fixed
+
+- **`akaikeInfoCriterion` did not compute AIC.** Its penalty was the ratio
+  `(n - 2p + 2)/(n - p + 1)` rather than `2p`. That ratio is less than one and *shrinks* as
+  parameters are added, so the criterion fell as the model grew: minimising it picked the most
+  complex model on offer. It now returns `-2L + 2p`.
+- **`hannanQuinnInfoCriterion` carried the same ratio, and also multiplied the log-likelihood by
+  the parameter count.** It now returns `-2L + 2p·ln(ln n)`.
+- **`watsonTestStatistic` lost a pair of parentheses**, computing `(2i - 1)/2 * n` where the
+  definition is `(2i - 1)/(2n)`. Nothing inside KSL calls it — every internal use is commented
+  out in `ContinuousCDFGoodnessOfFit`.
+
+### New
+
+- **`akaikeInfoCriterionCorrected`** — the small-sample corrected criterion,
+  `AIC + 2p(p + 1)/(n - p - 1)`, which approaches AIC as the sample grows.
+- **A two-argument `akaikeInfoCriterion(numParameters, lnMax)`**, since AIC does not depend on
+  the sample size. The three-argument form still compiles, deprecated, and goes away in R1.6.
+
+### What changes for you
+
+- Every AIC and Hannan-Quinn value, and any model selected by minimising one. A model chosen
+  under R1.5 by AIC was chosen by log-likelihood alone, with a slight bonus for complexity.
+- Distribution fitting **only if you asked for AIC**. `PDFModeler.defaultScoringModels` uses BIC,
+  which was correct, so default fits and their rankings are unchanged.
+- Every `watsonTestStatistic` value.
+- `akaikeInfoCriterion` no longer rejects a model with at least as many parameters as
+  observations — the plain criterion divides by nothing. `hannanQuinnInfoCriterion` now requires
+  more than one observation and rejects a non-finite log-likelihood.
 
 ## R1.5
 
