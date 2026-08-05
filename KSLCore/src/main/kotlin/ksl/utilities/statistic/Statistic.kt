@@ -1219,7 +1219,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             var sumfi = 0.0
             for (k in orderStats.indices) {
                 val i = k + 1
-                val ei = (2.0 * i - 1.0) / 2.0 * n
+                val ei = (2.0 * i - 1.0) / (2.0 * n)
                 val fi = fn.cdf((orderStats[k]))
                 sumfi = sumfi + fi
                 sum = sum + (ei - fi) * (ei - fi)
@@ -1245,44 +1245,101 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
         }
 
         /**
-         *  Computes the AIC based on the sample size [sampleSize], the number of parameters
-         *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
-         *  function of the model.
-         *  Implementation based on [Vose](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=19631811c7fd08cac567a4ee886acae6d82e8f3f)
+         *  Computes Akaike's information criterion (AIC) from the number of parameters
+         *  estimated for the model [numParameters] and the maximized value [lnMax] of the
+         *  log-likelihood function of the model. That is, 2p - 2L, for p parameters and
+         *  maximized log-likelihood L. Smaller is better. The penalty 2p grows by 2 for each
+         *  additional parameter, which is what makes the criterion trade fit against complexity.
+         *
+         *  Unlike the other information criteria, the plain criterion does not depend on the
+         *  sample size. For a small-sample corrected form that does, see
+         *  `akaikeInfoCriterionCorrected`.
          */
+        @JvmStatic
+        @Suppress("unused")
+        fun akaikeInfoCriterion(numParameters: Int, lnMax: Double): Double {
+            require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
+            require(lnMax != Double.NEGATIVE_INFINITY) { "Log-Likelihood Max was negative $lnMax in AIC calculation" }
+            require(lnMax != Double.POSITIVE_INFINITY) { "Log-Likelihood Max was positive $lnMax in AIC calculation" }
+            require(lnMax.isFinite()) { "Log-Likelihood Max was $lnMax in AIC calculation" }
+            return 2.0 * numParameters - 2.0 * lnMax
+        }
+
+        /**
+         *  Computes Akaike's information criterion (AIC) from the number of parameters
+         *  estimated for the model [numParameters] and the maximized value [lnMax] of the
+         *  log-likelihood function of the model. The [sampleSize] is validated but otherwise
+         *  unused: AIC does not depend on it.
+         *
+         *  Retained only so that code written against R1.5 and earlier still compiles. Note that
+         *  the value returned has changed: through R1.5 the penalty was the ratio
+         *  (n - 2p + 2)/(n - p + 1), which lies in (0, 1] and shrinks as parameters are added,
+         *  so the criterion fell as the model grew rather than rising. Callers that ranked models
+         *  by it were ranking by log-likelihood alone, with a small bonus for complexity.
+         */
+        @Deprecated(
+            message = "AIC does not depend on the sample size. Use the two-argument form.",
+            replaceWith = ReplaceWith("Statistic.akaikeInfoCriterion(numParameters, lnMax)"),
+            level = DeprecationLevel.WARNING
+        )
         @JvmStatic
         @Suppress("unused")
         fun akaikeInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
+            return akaikeInfoCriterion(numParameters, lnMax)
+        }
+
+        /**
+         *  Computes the small-sample corrected form of Akaike's information criterion (AICc)
+         *  based on the sample size [sampleSize], the number of parameters estimated for the
+         *  model [numParameters], and the maximized value [lnMax] of the log-likelihood function
+         *  of the model. That is, AIC + 2p(p + 1)/(n - p - 1), for n observations and p parameters.
+         *  Smaller is better.
+         *
+         *  The correction is meaningful only when the sample size exceeds the number of parameters
+         *  by more than one, and it vanishes as the sample size grows, so AICc approaches
+         *  `akaikeInfoCriterion` for large samples.
+         */
+        @JvmStatic
+        @Suppress("unused")
+        fun akaikeInfoCriterionCorrected(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
+            require(sampleSize > 0) { "The size of the sample must be > 0" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
-            require(sampleSize - numParameters + 1 > 0) { "The sample size must be > (the number of parameters - 1)" }
-            require(lnMax != Double.NEGATIVE_INFINITY) { "Log-Likelihood Max was negative $lnMax in BIC calculation" }
-            require(lnMax != Double.POSITIVE_INFINITY) { "Log-Likelihood Max was positive $lnMax in BIC calculation" }
-            require(lnMax.isFinite()) { "Log-Likelihood Max was $lnMax in AIC calculation." }
+            require(sampleSize - numParameters - 1 > 0) { "The sample size must be > (the number of parameters + 1)" }
+            require(lnMax != Double.NEGATIVE_INFINITY) { "Log-Likelihood Max was negative $lnMax in AICc calculation" }
+            require(lnMax != Double.POSITIVE_INFINITY) { "Log-Likelihood Max was positive $lnMax in AICc calculation" }
+            require(lnMax.isFinite()) { "Log-Likelihood Max was $lnMax in AICc calculation" }
             val n = sampleSize.toDouble()
             val k = numParameters.toDouble()
-            val num = n - 2.0 * k + 2
-            val deNom = n - k + 1.0
-            return (num / deNom) - 2.0 * lnMax
+            val aic = akaikeInfoCriterion(numParameters, lnMax)
+            return aic + (2.0 * k * (k + 1.0)) / (n - k - 1.0)
         }
 
         /**
          *  Computes the Hannan-Quinn criterion based on the sample size [sampleSize], the number of parameters
          *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
-         *  function of the model.
+         *  function of the model. That is, 2p*ln(ln(n)) - 2L, for n observations, p parameters, and
+         *  maximized log-likelihood L. Smaller is better.
+         *
+         *  The penalty per parameter, 2*ln(ln(n)), is negative for samples smaller than
+         *  e (about 2.72) and remains below AIC's penalty of 2 until the sample size reaches
+         *  e raised to the power e (about 15.15), beyond which it exceeds it and keeps growing.
+         *  This is inherent to the criterion, not an artifact of the implementation, but it means
+         *  that the criterion is intended for large samples.
+         *
          *  Implementation based on [Vose](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=19631811c7fd08cac567a4ee886acae6d82e8f3f)
          */
         @JvmStatic
         @Suppress("unused")
         fun hannanQuinnInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
-            require(sampleSize > 0) { "The size of the sample must be > 0" }
+            require(sampleSize > 1) { "The size of the sample must be > 1" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
-            require(sampleSize - numParameters + 1 > 0) { "The sample size must be > (the number of parameters - 1)" }
+            require(lnMax != Double.NEGATIVE_INFINITY) { "Log-Likelihood Max was negative $lnMax in HQC calculation" }
+            require(lnMax != Double.POSITIVE_INFINITY) { "Log-Likelihood Max was positive $lnMax in HQC calculation" }
+            require(lnMax.isFinite()) { "Log-Likelihood Max was $lnMax in HQC calculation" }
             val n = sampleSize.toDouble()
             val k = numParameters.toDouble()
-            val num = n - 2.0 * k + 2
-            val deNom = n - k + 1.0
-            return (num / deNom) * ln(ln(n)) - 2.0 * k * lnMax
+            return 2.0 * k * ln(ln(n)) - 2.0 * lnMax
         }
 
         /**

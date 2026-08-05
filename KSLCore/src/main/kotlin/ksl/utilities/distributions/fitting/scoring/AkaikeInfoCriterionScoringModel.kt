@@ -52,7 +52,7 @@ class AkaikeInfoCriterionScoringModel(
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit}  made for $cdf : log-likelihood was not finite" }
             return Score(metric, domain.upperLimit, true)
         }
-        val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
+        val score = Statistic.akaikeInfoCriterion(k, lm)
         // if there is a problem, just return bad score.
         if (!score.isFinite() || score.isNaN()) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : AIC score was infinite/NaN" }
