@@ -28,7 +28,7 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = "R1.5"
+version = "R1.5.1"
 
 repositories {
 
