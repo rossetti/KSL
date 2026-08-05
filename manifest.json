@@ -1,6 +1,6 @@
 {
   "kslWorkLayout": 1,
-  "_comment": "What install.sh / bin/ksl operate on. The suite asset URL + sha256 are filled in when a release is cut; until then use --from <local ksl-suite.zip>. 'items' is the catalog `ksl list/install/uninstall <id>` acts on: id -> a directory under the software's hidden .support/. It lists what can be added or removed INDEPENDENTLY, which is why lib/ (every app needs it) and bin/ (the manager itself) are deliberately absent. Per-item release URLs can be added later for independent per-app updates.",
+  "_comment": "What install.sh / bin/ksl operate on. The suite asset URL + sha256 are filled in when a release is cut; until then use --from <local ksl-suite.zip>. 'items' is the catalog `ksl list/install/uninstall <id>` acts on: id -> a directory under the software's hidden .support/. It lists what can be added or removed INDEPENDENTLY, which is why lib/ (every app needs it) and bin/ (the manager itself) are deliberately absent. So are the shipped examples: they live at <install>/examples, OUTSIDE .support, and the installer and `ksl update` replace them wholesale every time, so there is nothing independent to add or remove. An 'examples' entry with path 'bundles' was carried here until 0.3.4 and could only ever misreport -- it named .support/bundles, which 0.3.0 emptied and install.sh deletes on sight as a leftover, so `ksl list` said examples were absent while they sat in examples/bundles, and install/uninstall acted on a directory that never exists. Per-item release URLs can be added later for independent per-app updates.",
   "suite": { "version": "0.3.4", "asset": "https://github.com/rossetti/KSL/releases/download/suite-v0.3.4/ksl-suite.zip", "sha256": "e1d97d55a3bb076d0f405db29882f9816d337c48e45cc07c1df62babb90ccfa8" },
   "items": [
     { "id": "single",       "kind": "app",     "path": "Apps/Single" },
@@ -12,7 +12,6 @@
     { "id": "bundle",       "kind": "app",     "path": "Apps/Bundle" },
     { "id": "animation",    "kind": "app",     "path": "Apps/Animation" },
     { "id": "suite",        "kind": "server",  "path": "Servers/suite", "entry": "gui", "launcher": "ksl-server",   "display": "Server" },
-    { "id": "kslpkg",       "kind": "tool",    "path": "Tools/kslpkg" },
-    { "id": "examples",     "kind": "bundles", "path": "bundles" }
+    { "id": "kslpkg",       "kind": "tool",    "path": "Tools/kslpkg" }
   ]
 }

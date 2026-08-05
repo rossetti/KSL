@@ -117,6 +117,35 @@ function SuiteZip {
 # extract only this item's entries -- the analog of `unzip "<path>/*"`. $root defaults to
 # .support, where nearly everything lives; examples\ passes $kslHome because it sits beside
 # the apps where a student can find it.
+# Remove anything in lib\ that the payload just extracted did not deliver. Derived from the zip
+# rather than a list to keep in step, and run after extraction so a failure cannot leave an install
+# with no lib\ at all. The twin of prune_stale_lib in bin/ksl; see the call site for why.
+function PruneStaleLib([string]$zip, [string]$support) {
+    $libDir = Join-Path $support "lib"
+    if (-not (Test-Path $libDir)) { return }
+    $shipped = @{}
+    $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        foreach ($e in $za.Entries) {
+            if ($e.FullName -notlike "lib/*") { continue }
+            if ([string]::IsNullOrEmpty($e.Name)) { continue }   # directory entry
+            $shipped[$e.Name] = $true
+        }
+    }
+    finally { $za.Dispose() }
+    # An empty set means the read failed, not that the payload ships no jars; pruning on that
+    # reading would empty lib\ and leave nothing runnable.
+    if ($shipped.Count -eq 0) { return }
+    $removed = 0
+    foreach ($f in Get-ChildItem -File -Path $libDir -ErrorAction SilentlyContinue) {
+        if (-not $shipped.ContainsKey($f.Name)) {
+            Remove-Item -Force $f.FullName -ErrorAction SilentlyContinue
+            $removed++
+        }
+    }
+    if ($removed -gt 0) { Say "removed $removed stale jar(s) left by an earlier release" }
+}
+
 function ExtractItem([string]$zip, [string]$path, [string]$root = $null) {
     if (-not $root) { $root = $support }
     $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
@@ -357,6 +386,13 @@ function CmdUpdate([string]$id) {
         # bundles and polished layouts were never refreshed. examples\ goes to $kslHome, not
         # .support -- it is content a student opens, not plumbing.
         foreach ($top in @("lib", "Apps", "Servers", "Tools")) { ExtractItem $zip $top }
+        # ExtractItem overwrites what the zip holds and removes nothing else, so jars dropped
+        # between releases accumulate -- and `lib\*` on a launcher's classpath resolves duplicates
+        # by an order the JVM does not specify, so a corrected library can lose to the one it
+        # replaced. Only lib\ is pruned: it is absent from the catalog because nothing in it is
+        # independently installable, whereas Apps\, Servers\ and Tools\ hold the user's own
+        # install/uninstall choices.
+        PruneStaleLib $zip $support
         $exDir = Join-Path $kslHome "examples"
         if (Test-Path $exDir) { Remove-Item -Recurse -Force $exDir -ErrorAction SilentlyContinue }
         ExtractItem $zip "examples" $kslHome

@@ -37,6 +37,35 @@ $ScriptDir   = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 function Say([string]$m) { Write-Host $m }
 function Die([string]$m) { Write-Host "error: $m"; exit 1 }
 
+# Remove anything in lib\ that the payload just unpacked did not deliver. Derived from the zip
+# rather than a hand-kept list, and run after extraction so a failed unpack cannot leave an install
+# with no lib\ at all. The twin of prune_stale_lib in install.sh; see the call site for why.
+function PruneStaleLib([string]$zip, [string]$support) {
+    $libDir = Join-Path $support "lib"
+    if (-not (Test-Path $libDir)) { return }
+    $shipped = @{}
+    $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        foreach ($e in $za.Entries) {
+            if ($e.FullName -notlike "lib/*") { continue }
+            if ([string]::IsNullOrEmpty($e.Name)) { continue }   # directory entry
+            $shipped[$e.Name] = $true
+        }
+    }
+    finally { $za.Dispose() }
+    # An empty set means the read failed, not that the payload ships no jars. Pruning on that
+    # reading would empty lib\ and leave nothing runnable.
+    if ($shipped.Count -eq 0) { return }
+    $removed = 0
+    foreach ($f in Get-ChildItem -File -Path $libDir -ErrorAction SilentlyContinue) {
+        if (-not $shipped.ContainsKey($f.Name)) {
+            Remove-Item -Force $f.FullName -ErrorAction SilentlyContinue
+            $removed++
+        }
+    }
+    if ($removed -gt 0) { Say "* removed $removed stale jar(s) left by an earlier release" }
+}
+
 # --- 1. Java 21+ ---
 function JavaCommand {
     $exe = if ($IsWin) { "java.exe" } else { "java" }
@@ -105,6 +134,14 @@ try {
     # --- 4. unpack into the hidden support folder ---
     Say "* Unpacking..."
     Expand-Archive -Path $zip -DestinationPath $support -Force
+    # Expand-Archive -Force overwrites what the zip holds and removes nothing else, so jars dropped
+    # between releases accumulate: updating 0.3.3 -> 0.3.4 left KSLCore-R1.4.jar beside
+    # KSLCore-R1.5.1.jar. Launchers put the directory on the classpath with `lib/*`, whose expansion
+    # order the JVM does not specify, so with two versions of a class present the winner is not
+    # something a release controls. lib/ alone is pruned: the catalog omits it because nothing there
+    # is independently installable, so nothing here reflects a user's choice -- unlike Apps\,
+    # Servers\ and Tools\, where pruning would undo an `ksl uninstall`.
+    PruneStaleLib $zip $support
     # The helper belongs next to the apps, not hidden away.
     foreach ($f in @("ksl.ps1", "ksl.cmd")) {
         $srcF = Join-Path $support "bin\$f"

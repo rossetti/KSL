@@ -77,10 +77,42 @@ else
   fi
 fi
 
+# Delete anything in lib/ that the payload just extracted did not deliver. `unzip -o` overwrites
+# what the zip contains and removes nothing else, so every jar the suite has ever shipped
+# accumulates: updating 0.3.3 -> 0.3.4 left KSLCore-R1.4.jar beside KSLCore-R1.5.1.jar. That is not
+# merely dead weight. Every launcher puts the whole directory on the classpath with `lib/*`, whose
+# expansion order the JVM does not specify, so which of two versions of a class wins is not
+# something a release controls -- a corrected library can silently lose to the one it replaced.
+#
+# lib/ is the one directory safe to prune wholesale: the catalog deliberately omits it (nothing
+# there is independently installable), so nothing here can reflect a choice the user made. Apps/,
+# Servers/ and Tools/ must NOT be treated this way -- `ksl uninstall single` removes Apps/Single,
+# and pruning against the payload would silently reinstate it.
+#
+# Derived from the zip rather than a hand-kept list, which drifts (see the note in bin/ksl's
+# whole-suite update), and run AFTER extraction so a failed unpack cannot leave an install with no
+# lib/ at all.
+prune_stale_lib() {  # $1 = the payload zip
+  [ -d "$SUPPORT/lib" ] || return 0
+  unzip -Z1 "$1" 'lib/*' 2>/dev/null | sed 's|^lib/||' | grep . | sort > "$TMP/lib-shipped" || return 0
+  # An empty listing means the query failed, not that the payload ships no jars. Deleting the whole
+  # of lib/ on that reading would leave nothing runnable, so treat it as "say nothing, do nothing".
+  [ -s "$TMP/lib-shipped" ] || return 0
+  ls -1 "$SUPPORT/lib" 2>/dev/null | sort > "$TMP/lib-present"
+  n=0
+  while IFS= read -r stale; do
+    [ -n "$stale" ] || continue
+    rm -f "$SUPPORT/lib/$stale" && n=$((n + 1))
+  done < <(comm -13 "$TMP/lib-shipped" "$TMP/lib-present")
+  [ "$n" -gt 0 ] && say "* removed $n stale jar(s) left by an earlier release"
+  return 0
+}
+
 # --- 4. unpack into the hidden support folder ---
 say "* Unpacking..."
 command -v unzip >/dev/null 2>&1 || die "unzip not found"
 unzip -q -o "$ZIP" -d "$SUPPORT"
+prune_stale_lib "$ZIP"
 # bin/ksl belongs next to the apps, not hidden away. Move rather than copy: on an update
 # the old ksl may be the very script running this, and a rename leaves it on its old inode
 # whereas an overwrite would corrupt it mid-read.
