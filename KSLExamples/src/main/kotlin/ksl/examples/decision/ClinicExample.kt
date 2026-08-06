@@ -4,6 +4,7 @@ import ksl.modeling.decision.*
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.SResource
 import ksl.modeling.station.SingleQStation
+import ksl.modeling.station.StationNetwork
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -16,6 +17,7 @@ import kotlin.math.roundToInt
  */
 class ClinicSubsystem(
     parent: ModelElement,
+    exit: QObjectReceiverIfc,          // where patients go after the exam
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -25,7 +27,7 @@ class ClinicSubsystem(
     // exam is declared first: SingleQStation takes its successor as a constructor parameter.
     private val exam = SingleQStation(
         this, activityTime = ExponentialRV(12.0, streamNum = 2),
-        resource = examStaff, name = "${this.name}:Exam")
+        resource = examStaff, nextReceiver = exit, name = "${this.name}:Exam")
 
     private val triage = SingleQStation(
         this, activityTime = ExponentialRV(6.0, streamNum = 1),
@@ -81,7 +83,14 @@ class ProportionalStaffing(ctx: PolicyCreationContext) : PolicyIfc {
 
 fun main() {
     val model = Model("ClinicStudy")
-    val clinic = ClinicSubsystem(model, name = "Clinic")
+
+    // Arrivals and departures are ordinary ksl.modeling.station wiring, unrelated to
+    // the decision. SourceStation and SinkStation have internal constructors, so both
+    // come from a StationNetwork.
+    val flow   = StationNetwork(model, "ClinicFlow")
+    val exit   = flow.sink("Exit")
+    val clinic = ClinicSubsystem(model, exit = exit, name = "Clinic")
+    flow.source("Patients", ExponentialRV(5.0, streamNum = 3), firstReceiver = clinic.entry)
 
     model.numberOfReplications = 30
     model.lengthOfReplication = 43_200.0
