@@ -8,6 +8,11 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.roundToInt
 
+/**
+ * A two-station clinic sharing a fixed pool of staff, with a shift review that may
+ * reallocate them every eight hours. Nothing about the clinic's internals is public:
+ * the decision surface and two named parameters are the entire public API.
+ */
 class ClinicSubsystem(
     parent: ModelElement,
     name: String? = null
@@ -16,6 +21,7 @@ class ClinicSubsystem(
     private val triageStaff = SResource(this, capacity = 4, name = "${this.name}:TriageStaff")
     private val examStaff   = SResource(this, capacity = 4, name = "${this.name}:ExamStaff")
 
+    // exam is declared first: SingleQStation takes its successor as a constructor parameter.
     private val exam = SingleQStation(
         this, activityTime = ExponentialRV(12.0, streamNum = 2),
         resource = examStaff, name = "${this.name}:Exam")
@@ -25,17 +31,32 @@ class ClinicSubsystem(
         resource = triageStaff, nextReceiver = exam, name = "${this.name}:Triage")
 
     val shiftReview = decisionElement("ShiftReview") {
-        observe(triage.waitingQ.numInQ)
-        observe(exam.waitingQ.numInQ)
-        lever(triageStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
-        lever(examStaff,   limits = 0..10) { v -> changeCapacity(v.toInt()) }
-        budget(triageStaff, examStaff, total = 8.0)
+        observe(triage.waitingQ.numInQ)                                     // index 0
+        observe(exam.waitingQ.numInQ)                                       // index 1
+
+        // lever(...) returns the lever's own identity; budget names levers, not targets.
+        val t = lever(triageStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
+        val e = lever(examStaff,   limits = 0..10) { v -> changeCapacity(v.toInt()) }
+        budget(t, e, total = 8.0)
+
         every(480.0)
         policy = HoldCurrentPolicy
     }
 
-    val triageStaffElement: ModelElement get() = triageStaff
-    val examStaffElement: ModelElement get() = examStaff
+    // Resolved once, after the element exists. Private: these are identity tokens
+    // the subsystem uses to mediate its own parameters.
+    private val triageLever = shiftReview.leverRef(triageStaff.name)
+    private val examLever   = shiftReview.leverRef(examStaff.name)
+
+    /** How many staff this run may put on triage. Narrowing only — the model allows 0..10. */
+    var triageStaffRange: IntRange
+        get() = shiftReview.limitsOf(triageLever)
+        set(value) { shiftReview.narrow(triageLever, value) }
+
+    /** How many staff this run may put on exam. */
+    var examStaffRange: IntRange
+        get() = shiftReview.limitsOf(examLever)
+        set(value) { shiftReview.narrow(examLever, value) }
 }
 
 class ProportionalStaffing(ctx: PolicyCreationContext) : PolicyIfc {
@@ -61,8 +82,9 @@ fun main() {
     model.lengthOfReplication = 43_200.0
     model.lengthOfReplicationWarmUp = 4_320.0
 
-    clinic.shiftReview.narrow(clinic.triageStaffElement, 1..7)
-    clinic.shiftReview.narrow(clinic.examStaffElement, 1..7)
+    // Parameterization: named properties on the subsystem, like reviewPolicy.
+    clinic.triageStaffRange = 1..7
+    clinic.examStaffRange   = 1..7
 
     model.experimentName = "baseline"
     model.simulate()

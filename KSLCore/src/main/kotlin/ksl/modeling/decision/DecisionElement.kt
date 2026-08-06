@@ -9,6 +9,13 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 
+/**
+ *  The identity of a declared lever. A lever is (target, limits, domain, write), so its
+ *  identity is its own — not that of the element it writes, which may back several levers.
+ *  Pure data: holding one confers no access to anything.
+ */
+data class LeverRef internal constructor(val declaredName: String)
+
 /** STUB — Appendix E.2, §4.10.1. */
 class DecisionElement internal constructor(
     parent: ModelElement,
@@ -42,8 +49,13 @@ class DecisionElement internal constructor(
         get() = TODO("stub")
         set(@Suppress("UNUSED_PARAMETER") value) { requireNotRunning("maxEpochs") }
 
-    fun narrow(owner: ModelElement, limits: IntRange) { requireNotRunning("narrow") }
-    fun narrow(owner: ModelElement, limits: ClosedFloatingPointRange<Double>) { requireNotRunning("narrow") }
+    /** Resolve a declared lever by name. Throws BindingException if there is no such lever. */
+    fun leverRef(declaredName: String): LeverRef = TODO("stub")
+
+    fun narrow(lever: LeverRef, limits: IntRange) { requireNotRunning("narrow") }
+    fun narrow(lever: LeverRef, limits: ClosedFloatingPointRange<Double>) { requireNotRunning("narrow") }
+    fun limitsOf(lever: LeverRef): IntRange = TODO("stub")
+    fun boundsOf(lever: LeverRef): ClosedFloatingPointRange<Double> = TODO("stub")
     fun rewardRate(source: ResponseIfc, rate: Double) { requireNotRunning("rewardRate") }
 
     // ---- Observation ------------------------------------------------------------
@@ -87,13 +99,24 @@ class DecisionElementBuilder internal constructor(
     fun observe(source: ResponseIfc, alias: String) {}
     fun observe(name: String, source: GetValueIfc) {}
 
-    fun <T : ModelElement> lever(owner: T, limits: IntRange, set: T.(Double) -> Unit) {}
-    fun <T : ModelElement> lever(owner: T, limits: ClosedFloatingPointRange<Double>, set: T.(Double) -> Unit) {}
-    fun <T : ModelElement> lever(owner: T, levels: List<String>, set: T.(Double) -> Unit) {}
-    fun batchLever(vararg owners: ModelElement, applyAll: (DoubleArray) -> Unit) {}
+    // Each returns the declared lever's identity, for use by budget/atMost and by
+    // DecisionElement.narrow. Generic in the owner so the setter receiver resolves.
+    fun <T : ModelElement> lever(
+        owner: T, limits: IntRange, alias: String? = null, set: T.(Double) -> Unit
+    ): LeverRef = LeverRef(alias ?: owner.name)
 
-    fun budget(vararg owners: ModelElement, total: Double) {}
-    fun atMost(vararg owners: ModelElement, total: Double) {}
+    fun <T : ModelElement> lever(
+        owner: T, limits: ClosedFloatingPointRange<Double>, alias: String? = null, set: T.(Double) -> Unit
+    ): LeverRef = LeverRef(alias ?: owner.name)
+
+    fun <T : ModelElement> lever(
+        owner: T, levels: List<String>, alias: String? = null, set: T.(Double) -> Unit
+    ): LeverRef = LeverRef(alias ?: owner.name)
+
+    fun batchLever(vararg levers: LeverRef, applyAll: (DoubleArray) -> Unit) {}
+
+    fun budget(vararg levers: LeverRef, total: Double) {}
+    fun atMost(vararg levers: LeverRef, total: Double) {}
 
     fun reward(source: ResponseIfc, rate: Double, sense: RewardSense = RewardSense.COST) {}
 

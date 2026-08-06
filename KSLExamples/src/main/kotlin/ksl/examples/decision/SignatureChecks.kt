@@ -19,6 +19,9 @@ private class Checks(parent: ModelElement) {
     // Claim (§4.1.4 of an earlier draft): a subsystem can re-export the policy by delegation.
     var reviewPolicy: PolicyIfc by e::policy
 
+    // Claim (§4.1.2.2): a LeverRef identifies the lever, not its target.
+    fun narrowByRef(r: LeverRef) { e.narrow(r, 1..7) }
+
     // Claim: parameterization setters are ordinary properties.
     fun parameters() {
         e.epochInterval = 240.0
