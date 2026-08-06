@@ -35,13 +35,15 @@ class DecisionElement internal constructor(
     fun descriptor(): DecisionSurfaceDescriptor = TODO("stub")
 
     // ---- Parameterization: replication-initial (§4.1.3) -------------------------
+    /**
+     *  The rule. Replication-initial: the setter throws while the model is running.
+     *  Assigning a [ShapeAwarePolicyIfc] calls its configure(descriptor()) immediately,
+     *  so a rule that requires something of the shape, or must build something from it,
+     *  fails or does its work here rather than at the first epoch.
+     */
     var policy: PolicyIfc
         get() = TODO("stub")
         set(@Suppress("UNUSED_PARAMETER") value) { requireNotRunning("policy") }
-
-    /** Named `policyFrom`, not an overload of `policy`: PolicyIfc is a fun interface,
-     *  so `policy { … }` would be ambiguous with assigning the property. */
-    fun policyFrom(factory: (PolicyCreationContext) -> PolicyIfc) { requireNotRunning("policy") }
 
     var epochInterval: Double
         get() = TODO("stub")
@@ -157,7 +159,6 @@ class DecisionElementBuilder internal constructor(
     var feasibility: FeasibilityPolicy = FeasibilityPolicy.REJECT
 
     var policy: PolicyIfc? = null
-    fun policyFrom(factory: (PolicyCreationContext) -> PolicyIfc) {}
     fun captureTo(factory: (RunProvenance) -> TransitionSink) {}
 
     internal fun build(): DecisionElement {

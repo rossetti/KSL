@@ -10,10 +10,10 @@ private class Checks(parent: ModelElement) {
 
     private val e = parent.decisionElement("Check") { policy = HoldCurrentPolicy }
 
-    // Claim: the property form and the factory form coexist on the element.
-    fun bothPolicyForms() {
+    // Claim: one way to give the element a policy, whatever the policy needs.
+    fun policyAssignment() {
         e.policy = HoldCurrentPolicy
-        e.policyFrom { ctx -> FixedPolicy(doubleArrayOf(ctx.leverBounds.size.toDouble())) }
+        e.policy = FixedPolicy(doubleArrayOf(4.0, 4.0))   // configure() runs on assignment
     }
 
     // Claim (§4.1.4 of an earlier draft): a subsystem can re-export the policy by delegation.

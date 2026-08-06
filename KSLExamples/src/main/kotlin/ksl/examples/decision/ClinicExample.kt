@@ -1,6 +1,8 @@
 package ksl.examples.decision
 
 import ksl.modeling.decision.*
+import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
+import ksl.modeling.decision.descriptor.SumEquals
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.SResource
 import ksl.modeling.station.SingleQStation
@@ -66,10 +68,21 @@ class ClinicSubsystem(
     val entry: QObjectReceiverIfc get() = triage
 }
 
-class ProportionalStaffing(ctx: PolicyCreationContext) : PolicyIfc {
-    private val budget = ctx.budgetTotal(leverIndex = 0) ?: error("triage lever is in no budget")
-    private val bounds = ctx.leverBounds[0]
+object ProportionalStaffing : ShapeAwarePolicyIfc {
+
+    /** Called once when this rule is assigned, before any replication. */
+    override fun configure(surface: DecisionSurfaceDescriptor) {
+        require(surface.levers.size == 2) {
+            "ProportionalStaffing expects two levers, found ${surface.levers.size}."
+        }
+        require(surface.constraints.any { it is SumEquals }) {
+            "ProportionalStaffing expects a declared budget over its two levers."
+        }
+    }
+
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+        val budget = ctx.budgetTotal(leverIndex = 0)!!      // configure() guaranteed it
+        val bounds = ctx.leverBounds[0]
         val qTriage = observation[0]
         val qExam = observation[1]
         val t = when {
@@ -104,7 +117,7 @@ fun main() {
     model.simulate()
 
     model.resetStartStreamOption = true
-    clinic.shiftReview.policyFrom { ctx -> ProportionalStaffing(ctx) }
+    clinic.shiftReview.policy = ProportionalStaffing
     model.experimentName = "proportional"
     model.simulate()
 
