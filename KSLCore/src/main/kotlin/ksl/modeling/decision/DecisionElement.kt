@@ -55,13 +55,25 @@ class DecisionElement internal constructor(
         get() = TODO("stub")
         set(@Suppress("UNUSED_PARAMETER") value) { requireNotRunning("maxEpochs") }
 
-    /** Resolve a declared lever by name. Throws BindingException if there is no such lever. */
+    /**
+     *  Resolve the lever declared over [owner]. The owner is a lookup KEY here, not the
+     *  lever's identity (§4.1.2.2): it must resolve to exactly one lever, and throws
+     *  AmbiguousLeverException if it backs several. Preferred over [leverRef] because it
+     *  states no name — the declaration already derived one from this same object.
+     */
+    fun leverFor(owner: ModelElement): LeverRef = TODO("stub")
+
+    /** Resolve a declared lever by name. Needed when [owner] backs several levers and each
+     *  was given an alias, and by the by-name path of B.12. */
     fun leverRef(declaredName: String): LeverRef = TODO("stub")
 
     fun narrow(lever: LeverRef, limits: IntRange) { requireNotRunning("narrow") }
     fun narrow(lever: LeverRef, limits: ClosedFloatingPointRange<Double>) { requireNotRunning("narrow") }
     fun limitsOf(lever: LeverRef): IntRange = TODO("stub")
     fun boundsOf(lever: LeverRef): ClosedFloatingPointRange<Double> = TODO("stub")
+
+    /** Resolve the reward term declared over [source]; same contract as [leverFor]. */
+    fun rewardFor(source: ResponseIfc): RewardRef = TODO("stub")
 
     fun rewardRef(declaredName: String): RewardRef = TODO("stub")
     fun rewardRate(term: RewardRef, rate: Double) { requireNotRunning("rewardRate") }

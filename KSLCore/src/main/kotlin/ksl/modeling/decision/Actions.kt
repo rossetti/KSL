@@ -34,4 +34,11 @@ class BindingException(val unresolved: String, val available: List<String>) :
 
 class NarrowingException(message: String) : RuntimeException(message)
 
+/** Thrown by leverFor/rewardFor when the owner backs more than one declared lever or term. */
+class AmbiguousLeverException(ownerName: String, val candidates: List<String>) :
+    RuntimeException(
+        "Model element '$ownerName' backs ${candidates.size} declared levers: $candidates. " +
+            "Use leverRef(alias) to say which one."
+    )
+
 class RewardKindException(message: String) : RuntimeException(message)

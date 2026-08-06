@@ -46,8 +46,8 @@ class ClinicSubsystem(
 
     // Resolved once, after the element exists. Private: these are identity tokens
     // the subsystem uses to mediate its own parameters.
-    private val triageLever = shiftReview.leverRef(triageStaff.name)
-    private val examLever   = shiftReview.leverRef(examStaff.name)
+    private val triageLever = shiftReview.leverFor(triageStaff)
+    private val examLever   = shiftReview.leverFor(examStaff)
 
     /** How many staff this run may put on triage. Narrowing only — the model allows 0..10. */
     var triageStaffRange: IntRange
