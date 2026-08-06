@@ -284,13 +284,18 @@ class Level1CompatibilityTest {
     }
 
     /**
-     *  The same rule, with the parameterization §4.1.4 applies to it: narrow each lever
-     *  to 1..7 so neither station can be left with no staff. The narrowed run is expected
-     *  to be dramatically better than the unnarrowed one, which makes narrowing a
-     *  load-bearing parameter rather than a convenience.
+     *  What narrowing is actually for. [ProportionalStaffingForTest] allocates on
+     *  instantaneous queue length, which is a badly conditioned signal — it oscillates and
+     *  strands a station with no staff. Narrowing each lever to 1..7 caps how bad that can
+     *  get without repairing the rule.
+     *
+     *  Read this as a statement about safety limits, not about rule quality: the fixed
+     *  ProportionalStaffing in KSLExamples scores the same narrowed or not. Narrowing is
+     *  worth having because rules are sometimes wrong, which is exactly the claim §4.3.3
+     *  makes for declared limits.
      */
     @Test
-    fun narrowingChangesTheOutcomeOfTheSameRule() {
+    fun narrowingCapsTheDamageFromABadlyConditionedRule() {
         fun systemTime(narrow: Boolean): Double {
             val model = build(Arm.HOLD_WITH_READ)
             val clinic = model.getModelElement("Clinic") as Clinic

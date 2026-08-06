@@ -10,7 +10,9 @@ import ksl.modeling.station.StationNetwork
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
-import kotlin.math.roundToInt
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.max
 
 /**
  * A two-station clinic sharing a fixed pool of staff, with a shift review that may
@@ -36,8 +38,17 @@ class ClinicSubsystem(
         resource = triageStaff, nextReceiver = exam, name = "${this.name}:Triage")
 
     val shiftReview = decisionElement("ShiftReview") {
-        observe(triage.waitingQ.numInQ)                                     // index 0
-        observe(exam.waitingQ.numInQ)                                       // index 1
+        // Observation i is the allocation weight for lever i. Each is the TIME-AVERAGE
+        // number of busy units — an estimate of the work arriving at that station, in
+        // server-units. Two properties matter and neither is incidental: it measures
+        // demand rather than congestion, and it is an average rather than a snapshot.
+        // See the note on ProportionalStaffing for what each one buys.
+        observe("Triage:Load") {                                            // index 0
+            triageStaff.numBusyUnits.withinReplicationStatistic.weightedAverage
+        }
+        observe("Exam:Load") {                                              // index 1
+            examStaff.numBusyUnits.withinReplicationStatistic.weightedAverage
+        }
 
         // lever(...) returns the lever's own identity; budget names levers, not targets.
         // read is what lets the element answer "where does this lever stand now?" — needed
@@ -73,29 +84,109 @@ class ClinicSubsystem(
     val entry: QObjectReceiverIfc get() = triage
 }
 
+/**
+ * Split the declared staffing budget in proportion to observed demand.
+ *
+ * Observation i is the weight for lever i, so what this rule allocates *on* is chosen by
+ * the model's `observe` declarations rather than restated here — see the block in
+ * [ClinicSubsystem], which declares each resource's busy units.
+ *
+ * **Why the observations are time-averaged busy units.** The first version of this rule
+ * allocated in proportion to instantaneous queue length and oscillated hard. The clinic
+ * runs eight staff against an offered load of 3.6 server-units, so both queues sit near
+ * zero in equilibrium and one patient waiting at triage with none at exam reads as "all
+ * eight to triage" — which starves exam, fills exam's queue, and starves triage at the
+ * next epoch. The arithmetic below was never the problem; the signal was, in two separate
+ * ways, and fixing either one alone is not enough.
+ *
+ * *Demand, not congestion.* **Queue length is a consequence of the allocation**, so
+ * allocating on it closes a positive feedback loop with a 480-unit delay. Busy units are
+ * what the arrival process makes them: while a station has enough capacity, its busy count
+ * does not depend on what this rule decided. Allocating on a quantity the rule does not
+ * itself move is what breaks the loop.
+ *
+ * *An average, not a snapshot.* Instantaneous busy units at triage are 0, 1, 2 or 3 at any
+ * moment around a mean of 1.2 — the station is completely idle about 30% of the time. A
+ * snapshot reading of (0, 3) sends every spare unit to exam and leaves triage at its floor,
+ * below its own offered load, for a full 480-unit shift. The time-average estimates the
+ * load rather than sampling it.
+ *
+ * Measured over 30 replications, mean system time (`StaffingPolicyBenchmarkTest`):
+ *
+ * ```
+ *   do nothing, static 4/4                 20.28
+ *   static 3/5, the M/M/c optimum          19.01
+ *   proportional to queue length          187.45     <- the original
+ *   proportional to instantaneous busy     68.84     <- demand, but still a snapshot
+ *   proportional to time-averaged busy     19.03     <- this rule
+ * ```
+ *
+ * Damping the original — moving partway toward the target each epoch, or capping the step
+ * size — would reduce the amplitude without removing the loop. Feeding it a signal from
+ * outside the loop, and estimating rather than sampling that signal, removes it.
+ *
+ * **What this rule cannot show.** The clinic's arrivals are stationary, so the best
+ * possible rule is a constant and this one converges to it. It earns 19.03 against the
+ * optimum's 19.01 and does not need the levers narrowed to stay safe, which is the point
+ * — but a shift review is only genuinely worth making when demand varies by shift, and
+ * this model's does not.
+ */
 object ProportionalStaffing : ShapeAwarePolicyIfc {
 
-    /** Called once when this rule is assigned, before any replication. */
+    /**
+     * Called once when this rule is assigned, before any replication.
+     *
+     * Only invariants that cannot subsequently change are checked here. Lever bounds are
+     * deliberately not: `narrow(...)` is replication-initial too and may be called after
+     * this policy is assigned, so a bounds check made here could be stale by the first
+     * epoch. Bounds are honoured in [action], where they are current.
+     */
     override fun configure(surface: DecisionSurfaceDescriptor) {
-        require(surface.levers.size == 2) {
-            "ProportionalStaffing expects two levers, found ${surface.levers.size}."
+        require(surface.observations.size == surface.levers.size) {
+            "ProportionalStaffing weights each lever by one observation, so it needs " +
+                "${surface.levers.size} observations; the element declares ${surface.observations.size}."
         }
         require(surface.constraints.any { it is SumEquals }) {
-            "ProportionalStaffing expects a declared budget over its two levers."
+            "ProportionalStaffing divides a fixed budget, so it needs a declared budget() " +
+                "over its levers. The element declares: ${surface.constraints}"
         }
     }
 
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
         val budget = ctx.budgetTotal(leverIndex = 0)!!      // configure() guaranteed it
-        val bounds = ctx.leverBounds[0]
-        val qTriage = observation[0]
-        val qExam = observation[1]
-        val t = when {
-            qTriage + qExam == 0.0 -> (budget / 2.0).roundToInt().toDouble()
-            else -> (budget * qTriage / (qTriage + qExam)).roundToInt().toDouble()
-                .coerceIn(bounds.start, bounds.endInclusive)
+        val n = ctx.leverNames.size
+        val lo = DoubleArray(n) { ceil(ctx.leverBounds[it].start) }
+        val hi = DoubleArray(n) { floor(ctx.leverBounds[it].endInclusive) }
+
+        // Each lever's ideal real-valued share. Equal shares when there is no demand to
+        // divide, which is also what keeps the rule from dividing by zero.
+        val weight = DoubleArray(n) { max(observation[it], 0.0) }
+        val total = weight.sum()
+        val ideal = DoubleArray(n) { if (total > 0.0) budget * weight[it] / total else budget / n }
+
+        // Integer apportionment. Give every lever its lower bound, then hand out the
+        // remaining units one at a time to whichever lever is furthest below its ideal
+        // share and not already at its upper bound. This lands on the budget exactly and
+        // never proposes a value outside a lever's own limits — both of which the
+        // declaration requires and would otherwise reject the action for.
+        val allocation = lo.copyOf()
+        var remaining = budget - allocation.sum()
+        while (remaining >= 1.0) {
+            var best = -1
+            var largestShortfall = Double.NEGATIVE_INFINITY
+            for (i in 0 until n) {
+                if (allocation[i] + 1.0 > hi[i]) continue
+                val shortfall = ideal[i] - allocation[i]
+                if (shortfall > largestShortfall) {
+                    largestShortfall = shortfall
+                    best = i
+                }
+            }
+            if (best < 0) break         // every lever is at its ceiling
+            allocation[best] += 1.0
+            remaining -= 1.0
         }
-        return doubleArrayOf(t, budget - t)
+        return allocation
     }
 }
 
