@@ -41,10 +41,29 @@ internal class LeverDecl(
     val modelUpperLimit: Double,
     val levels: List<String>?,
     val write: (Double) -> Unit,
-    val read: (() -> Double)?
+    val read: (() -> Double)?,
+    /** 𝒳(s) for this lever, evaluated at every epoch. Null means "the envelope is the set". */
+    val boundsFn: (() -> ClosedFloatingPointRange<Double>)? = null
 ) {
     var lowerBound: Double = modelLowerLimit
     var upperBound: Double = modelUpperLimit
+
+    val stateDependent: Boolean get() = boundsFn != null
+
+    /**
+     *  §4.3.3: envelope ∩ narrowed ∩ 𝒳(s). The first two are [modelLowerLimit]..[modelUpperLimit]
+     *  and [lowerBound]..[upperBound]; the third comes from [boundsFn] if declared.
+     */
+    fun feasibleRange(): ClosedFloatingPointRange<Double> {
+        val f = boundsFn ?: return lowerBound..upperBound
+        val x = f()
+        // INTERSECTION, not containment. "What this region is owed" may legitimately exceed
+        // "what one truck holds"; the effective set is simply the smaller of the two, and an
+        // empty intersection is the empty-set case of §4.4.6.3 rather than an error. An
+        // earlier version required 𝒳(s) to lie inside the envelope and rejected the first
+        // natural declaration written against it.
+        return maxOf(lowerBound, x.start)..minOf(upperBound, x.endInclusive)
+    }
 
     fun info(): LeverInfo = LeverInfo(
         name = name,
@@ -68,6 +87,19 @@ class DecisionElement internal constructor(
     internal val observationDecls = mutableListOf<ObservationDecl>()
     internal val leverDecls = mutableListOf<LeverDecl>()
     internal val jointConstraints = mutableListOf<JointConstraint>()
+
+    /**
+     *  The joint constraints as the element evaluates them. [totalFn] is re-read at every
+     *  epoch, so a budget may itself be a state (§4.4.6.1). [jointConstraints] keeps the
+     *  declared, serializable form for the descriptor.
+     */
+    internal class JointDecl(
+        val equality: Boolean,
+        val names: List<String>,
+        val totalFn: () -> Double,
+        val stateDependent: Boolean
+    )
+    internal val jointDecls = mutableListOf<JointDecl>()
 
     lateinit var catalog: DecisionCatalog
         internal set
@@ -115,6 +147,7 @@ class DecisionElement internal constructor(
                 modelUpperLimit = it.modelUpperLimit,
                 lowerBound = it.lowerBound,
                 upperBound = it.upperBound,
+                stateDependent = it.stateDependent,
                 levels = it.levels
             )
         },
@@ -256,7 +289,7 @@ class DecisionElement internal constructor(
     }
 
     // ---- Runtime ----------------------------------------------------------------
-    private lateinit var binding: DefaultActionBinding
+    internal lateinit var binding: DefaultActionBinding
     private lateinit var ctx: MutableDecisionContext
     private var lastEpochTime: Double = 0.0
     private var calendarIndex: Int = 0
@@ -376,7 +409,10 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
     private val decls: List<LeverDecl> get() = element.leverDecls
 
     fun clamp(action: DoubleArray): DoubleArray =
-        DoubleArray(action.size) { i -> action[i].coerceIn(decls[i].lowerBound, decls[i].upperBound) }
+        DoubleArray(action.size) { i ->
+            val r = decls[i].feasibleRange()
+            if (r.isEmpty()) Double.NaN else action[i].coerceIn(r.start, r.endInclusive)
+        }
 
     override fun prepare(action: DoubleArray): PreparedAction {
         val violations = mutableListOf<String>()
@@ -387,30 +423,37 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         }
         for ((i, d) in decls.withIndex()) {
             val v = action[i]
+            // §4.3.3: envelope ∩ narrowed ∩ 𝒳(s), re-evaluated at every epoch.
+            val range = d.feasibleRange()
             if (v.isNaN()) {
                 violations += "'${d.name}' received NaN."
-            } else if (v < d.lowerBound || v > d.upperBound) {
-                violations += "'${d.name}' = $v is outside [${d.lowerBound}, ${d.upperBound}]."
+            } else if (range.isEmpty()) {
+                violations += "'${d.name}' has an empty feasible set at this epoch: " +
+                    "[${range.start}, ${range.endInclusive}]. No value is available (§4.4.6.3)."
+            } else if (v < range.start || v > range.endInclusive) {
+                val why = if (d.stateDependent) " (the state-dependent set, inside the envelope " +
+                    "[${d.modelLowerLimit}, ${d.modelUpperLimit}])" else ""
+                violations += "'${d.name}' = $v is outside [${range.start}, ${range.endInclusive}]$why."
             } else if (d.domain == LeverDomain.INTEGER && v != Math.rint(v)) {
                 violations += "'${d.name}' = $v is not integral, but the lever's domain is INTEGER."
             }
         }
         val index = decls.withIndex().associate { (i, d) -> d.name to i }
-        for (c in element.jointConstraints) {
+        for (c in element.jointDecls) {
             val sum = c.names.sumOf { n ->
                 val i = index[n] ?: return PreparedAction.Invalid(listOf("Constraint names unknown lever '$n'."))
                 action[i]
             }
-            when (c) {
-                is SumEquals ->
-                    if (Math.abs(sum - c.total) > 1e-9) {
-                        violations += "Sum of ${c.names} is $sum; the declaration requires exactly ${c.total}."
-                    }
-                is SumAtMost ->
-                    if (sum > c.total + 1e-9) {
-                        violations += "Sum of ${c.names} is $sum; the declaration allows at most ${c.total}."
-                    }
-                else -> {}
+            val total = c.totalFn()
+            val what = if (c.stateDependent) "the state-dependent total" else "the declaration"
+            if (c.equality) {
+                if (Math.abs(sum - total) > 1e-9) {
+                    violations += "Sum of ${c.names} is $sum; $what requires exactly $total."
+                }
+            } else {
+                if (sum > total + 1e-9) {
+                    violations += "Sum of ${c.names} is $sum; $what allows at most $total."
+                }
             }
         }
         if (violations.isNotEmpty()) return PreparedAction.Invalid(violations)
@@ -474,14 +517,32 @@ internal class MutableDecisionContext(private val element: DecisionElement) : De
 
     override val constraints: List<JointConstraint> = element.jointConstraints.toList()
 
+    // ---- The feasible set 𝒳(s), §4.4.6.2. Epoch-scoped; all pure.
+    override fun feasibleBounds(leverIndex: Int): ClosedFloatingPointRange<Double> =
+        element.leverDecls[leverIndex].feasibleRange()
+
+    /**
+     *  Membership in 𝒳(s). §4.4.6.2 requires this to DELEGATE to prepare rather than
+     *  re-derive the test, so that a rule cannot be told an action is feasible and then
+     *  rejected for proposing it.
+     */
+    override fun isFeasible(action: DoubleArray): Boolean =
+        element.binding.prepare(action) is PreparedAction.Ready
+
+    override fun violations(action: DoubleArray): List<String> =
+        (element.binding.prepare(action) as? PreparedAction.Invalid)?.violations ?: emptyList()
+
+    /**
+     *  The total governing this lever **as it stands now**. Once a budget can itself be a
+     *  state (§4.4.6.1) the declared total and the current total are different numbers, and
+     *  a policy allocating within the budget needs the current one — the declared envelope
+     *  is still available through [constraints]. Returning the declared value here would
+     *  hand every allocating rule an upper bound and call it the budget.
+     */
     override fun budgetTotal(leverIndex: Int): Double? {
         val name = leverNames[leverIndex]
-        val c = constraints.firstOrNull { it.names.contains(name) } ?: return null
-        return when (c) {
-            is SumEquals -> c.total
-            is SumAtMost -> c.total
-            else -> null
-        }
+        val d = element.jointDecls.firstOrNull { it.names.contains(name) } ?: return null
+        return d.totalFn()
     }
 
     override val currentAction: DoubleArray
@@ -538,30 +599,35 @@ class DecisionElementBuilder internal constructor(
         owner: T,
         limits: IntRange,
         alias: String? = null,
+        bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
         read: (T.() -> Double)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
-        owner, LeverDomain.INTEGER, limits.first.toDouble(), limits.last.toDouble(), null, alias, read, set
+        owner, LeverDomain.INTEGER, limits.first.toDouble(), limits.last.toDouble(), null, alias,
+        bounds, read, set
     )
 
     fun <T : ModelElement> lever(
         owner: T,
         limits: ClosedFloatingPointRange<Double>,
         alias: String? = null,
+        bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
         read: (T.() -> Double)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
-        owner, LeverDomain.CONTINUOUS, limits.start, limits.endInclusive, null, alias, read, set
+        owner, LeverDomain.CONTINUOUS, limits.start, limits.endInclusive, null, alias, bounds, read, set
     )
 
     fun <T : ModelElement> lever(
         owner: T,
         levels: List<String>,
         alias: String? = null,
+        bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
         read: (T.() -> Double)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
-        owner, LeverDomain.CATEGORICAL, 0.0, (levels.size - 1).toDouble(), levels, alias, read, set
+        owner, LeverDomain.CATEGORICAL, 0.0, (levels.size - 1).toDouble(), levels, alias,
+        bounds, read, set
     )
 
     private fun <T : ModelElement> declare(
@@ -571,6 +637,7 @@ class DecisionElementBuilder internal constructor(
         upper: Double,
         levels: List<String>?,
         alias: String?,
+        bounds: (T.() -> ClosedFloatingPointRange<Double>)?,
         read: (T.() -> Double)?,
         set: T.(Double) -> Unit
     ): LeverRef {
@@ -585,7 +652,8 @@ class DecisionElementBuilder internal constructor(
             modelUpperLimit = upper,
             levels = levels,
             write = { v -> owner.set(v) },
-            read = if (read == null) null else ({ owner.read() })
+            read = if (read == null) null else ({ owner.read() }),
+            boundsFn = if (bounds == null) null else ({ owner.bounds() })
         )
         return LeverRef(name)
     }
@@ -595,11 +663,32 @@ class DecisionElementBuilder internal constructor(
     }
 
     fun budget(vararg levers: LeverRef, total: Double) {
-        element.jointConstraints += SumEquals(levers.map { it.declaredName }, total)
+        val names = levers.map { it.declaredName }
+        element.jointConstraints += SumEquals(names, total)
+        element.jointDecls += DecisionElement.JointDecl(true, names, { total }, false)
     }
 
     fun atMost(vararg levers: LeverRef, total: Double) {
-        element.jointConstraints += SumAtMost(levers.map { it.declaredName }, total)
+        val names = levers.map { it.declaredName }
+        element.jointConstraints += SumAtMost(names, total)
+        element.jointDecls += DecisionElement.JointDecl(false, names, { total }, false)
+    }
+
+    /**
+     *  A budget that is itself a state (§4.4.6.1) — "ship no more than is on hand". The
+     *  descriptor records [envelope] as the declared total and flags the constraint
+     *  state-dependent, because a serialized descriptor cannot carry a lambda.
+     */
+    fun budget(vararg levers: LeverRef, envelope: Double, total: () -> Double) {
+        val names = levers.map { it.declaredName }
+        element.jointConstraints += SumEquals(names, envelope)
+        element.jointDecls += DecisionElement.JointDecl(true, names, total, true)
+    }
+
+    fun atMost(vararg levers: LeverRef, envelope: Double, total: () -> Double) {
+        val names = levers.map { it.declaredName }
+        element.jointConstraints += SumAtMost(names, envelope)
+        element.jointDecls += DecisionElement.JointDecl(false, names, total, true)
     }
 
     fun reward(

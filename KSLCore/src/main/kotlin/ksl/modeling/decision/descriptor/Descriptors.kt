@@ -59,6 +59,12 @@ data class LeverDescriptor(
     val modelUpperLimit: Double,
     val lowerBound: Double,
     val upperBound: Double,
+    /**
+     *  True when 𝒳(s) narrows the bounds above at each epoch (§4.4.6). The reported numbers
+     *  are then an ENVELOPE, not the feasible set, and a consumer that cannot handle a
+     *  state-dependent set should refuse rather than take them for the action space.
+     */
+    val stateDependent: Boolean = false,
     val levels: List<String>? = null,
     val unit: String? = null
 )
