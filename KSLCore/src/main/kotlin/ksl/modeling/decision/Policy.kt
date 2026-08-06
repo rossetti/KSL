@@ -58,6 +58,8 @@ interface ShapeAwarePolicyIfc : PolicyIfc {
 /** A policy with a lifecycle: per-replication state to reset, or a resource to release. */
 interface ManagedPolicyIfc : PolicyIfc, AutoCloseable {
     fun beforeEpisode(episodeIndex: Int) {}
+    /** The completed transition this rule's own action earned — what an adaptive rule needs. */
+    fun onTransition(record: TransitionRecord) {}
     fun afterEpisode(episodeIndex: Int, source: TerminationSource) {}
     override fun close() {}
 }

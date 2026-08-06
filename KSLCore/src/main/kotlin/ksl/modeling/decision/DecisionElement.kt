@@ -3,8 +3,6 @@ package ksl.modeling.decision
 import ksl.modeling.decision.descriptor.*
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.ResponseIfc
-import ksl.sdm.capture.RunProvenance
-import ksl.sdm.capture.TransitionSink
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
