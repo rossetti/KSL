@@ -797,14 +797,14 @@ on the Dokka pages.
 |---|---|
 | `GridEpidemicExample` | grid projection + Moore neighborhoods + SIR dynamics |
 | `NetworkRumorExample` | network projection + reachability + independent-cascade diffusion |
-| `CorridorPedestrianExample` | continuous projection + social-force pedestrians |
-| `PedestrianCrowdExample` | force-based dynamics on a richer 2D space |
-| `BuildingEvacuationExample` | FlowField-guided steering |
+| `CorridorPedestrianExample` | the simplest continuous projection — constant-velocity traversal, no forces, no collisions |
+| `PedestrianCrowdExample` | social-force dynamics (Helbing) over a `FlowField` on a richer 2D space |
+| `BuildingEvacuationExample` | multi-source distance field via `GridGraph.distanceField`; gradient descent instead of per-agent A* |
 | `FlockingExample` | Reynolds boids (separation + alignment + cohesion) |
 | `WarehouseAGVExample` | `MovableAgentResource` on a grid; AGV routing |
 | `AutonomousDeliveryExample` | continuous space + travel + contract-net |
 | `AutonomousForkliftExample` | `AgentResource` with on/off-shift + reactive statechart |
-| `JobShopExample` | multiple resource agents with statechart-driven dispatch |
+| `JobShopExample` | contract-net dispatch with no spatial component — typed messages only |
 | `DroneDeliveryExample` | 3D capstone — `ContinuousVolume` + `Dynamics3D` + drone fleet |
 
 **KSL Book**
