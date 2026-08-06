@@ -13,7 +13,11 @@ interface PolicyCreationContext {
     val observationNames: List<String>
     val leverNames: List<String>
     val leverBounds: List<ClosedFloatingPointRange<Double>>
-    fun budgetTotal(): Double?
+    /** The declared constraints, as data. */
+    val constraints: List<ksl.modeling.decision.descriptor.JointConstraint>
+
+    /** Total of the budget governing the lever at [leverIndex], or null if it is in none. */
+    fun budgetTotal(leverIndex: Int): Double?
 }
 
 /** Live. Valid ONLY during the action() call that receives it. Never retained. */

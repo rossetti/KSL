@@ -16,6 +16,12 @@ import ksl.utilities.GetValueIfc
  */
 data class LeverRef internal constructor(val declaredName: String)
 
+/**
+ *  The identity of a declared reward term. A term is (source, kind, rate, sense), so its
+ *  identity is its own — one source may back several terms at different rates or senses.
+ */
+data class RewardRef internal constructor(val declaredName: String)
+
 /** STUB — Appendix E.2, §4.10.1. */
 class DecisionElement internal constructor(
     parent: ModelElement,
@@ -56,7 +62,14 @@ class DecisionElement internal constructor(
     fun narrow(lever: LeverRef, limits: ClosedFloatingPointRange<Double>) { requireNotRunning("narrow") }
     fun limitsOf(lever: LeverRef): IntRange = TODO("stub")
     fun boundsOf(lever: LeverRef): ClosedFloatingPointRange<Double> = TODO("stub")
-    fun rewardRate(source: ResponseIfc, rate: Double) { requireNotRunning("rewardRate") }
+
+    fun rewardRef(declaredName: String): RewardRef = TODO("stub")
+    fun rewardRate(term: RewardRef, rate: Double) { requireNotRunning("rewardRate") }
+
+    /** Labels this rule in trajectories and reports. Defaults to the policy's class name. */
+    var policyLabel: String
+        get() = TODO("stub")
+        set(@Suppress("UNUSED_PARAMETER") value) { requireNotRunning("policyLabel") }
 
     // ---- Observation ------------------------------------------------------------
     val estimand: ResponseCIfc get() = TODO("stub")
@@ -118,7 +131,10 @@ class DecisionElementBuilder internal constructor(
     fun budget(vararg levers: LeverRef, total: Double) {}
     fun atMost(vararg levers: LeverRef, total: Double) {}
 
-    fun reward(source: ResponseIfc, rate: Double, sense: RewardSense = RewardSense.COST) {}
+    fun reward(
+        source: ResponseIfc, rate: Double,
+        sense: RewardSense = RewardSense.COST, alias: String? = null
+    ): RewardRef = RewardRef(alias ?: source.name)
 
     fun every(interval: Double, firstAtTimeZero: Boolean = false) {}
     fun onCalendar(times: List<Double>) {}

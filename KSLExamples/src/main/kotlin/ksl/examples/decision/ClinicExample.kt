@@ -1,6 +1,7 @@
 package ksl.examples.decision
 
 import ksl.modeling.decision.*
+import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.SResource
 import ksl.modeling.station.SingleQStation
 import ksl.simulation.Model
@@ -57,10 +58,14 @@ class ClinicSubsystem(
     var examStaffRange: IntRange
         get() = shiftReview.limitsOf(examLever)
         set(value) { shiftReview.narrow(examLever, value) }
+
+    /** Where arrivals enter. QObjectReceiverIfc is all a source needs — publishing the
+     *  station itself would hand out its queue and its resource. */
+    val entry: QObjectReceiverIfc get() = triage
 }
 
 class ProportionalStaffing(ctx: PolicyCreationContext) : PolicyIfc {
-    private val budget = ctx.budgetTotal() ?: error("requires a declared budget")
+    private val budget = ctx.budgetTotal(leverIndex = 0) ?: error("triage lever is in no budget")
     private val bounds = ctx.leverBounds[0]
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
         val qTriage = observation[0]
