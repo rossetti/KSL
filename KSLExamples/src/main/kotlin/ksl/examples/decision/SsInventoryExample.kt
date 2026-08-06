@@ -2,15 +2,34 @@ package ksl.examples.decision
 
 import ksl.modeling.decision.*
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
+import ksl.modeling.elements.EventGeneratorIfc
+import ksl.modeling.nhpp.NHPPEventGenerator
+import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
+
+/**
+ * Demand rate patterns for [SsInventory]. Both have a mean rate of 1.0 per unit time over
+ * a 100-unit cycle, so the two models see the same total demand and differ only in when it
+ * arrives. That is what makes the comparison in §8.2.6 clean.
+ */
+object DemandRates {
+    /** Flat. Equivalent to a stationary Poisson process at rate 1. */
+    val stationary: PiecewiseConstantRateFunction
+        get() = PiecewiseConstantRateFunction(doubleArrayOf(100.0), doubleArrayOf(1.0))
+
+    /** A quiet stretch, a sharp season at six times the rate, then quiet again. */
+    val seasonal: PiecewiseConstantRateFunction
+        get() = PiecewiseConstantRateFunction(
+            doubleArrayOf(40.0, 20.0, 40.0), doubleArrayOf(0.5, 3.0, 0.5))
+}
 
 /**
  * A periodic-review inventory system, built from scratch — it uses no KSL inventory
@@ -41,7 +60,7 @@ class SsInventory(
     initialOnHand: Int = 60,
     private val leadTime: Double = 2.0,
     private val reviewPeriod: Double = 5.0,
-    private val demandTBA: RVariableIfc = ExponentialRV(1.0, streamNum = 11),
+    private val rateFunction: PiecewiseConstantRateFunction = DemandRates.stationary,
     maxOrder: Int = 200,
     /**
      * Whether the order-quantity lever declares a `read`. There is no natural answer:
@@ -70,13 +89,54 @@ class SsInventory(
     val onHand: Double get() = myOnHand.value
 
     // ---- Demand -----------------------------------------------------------------
-    private inner class DemandArrival : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) {
-            if (myOnHand.value >= 1.0) myOnHand.decrement(1.0) else myBackorder.increment(1.0)
-            schedule(demandTBA.value)
-        }
+    // A non-homogeneous Poisson process, from ksl.modeling.nhpp. The rate function repeats
+    // when its range is covered, so a 100-unit pattern cycles for the whole replication.
+    private val myDemandGenerator = NHPPEventGenerator(
+        this, this::demandArrival, rateFunction, streamNum = 11)
+
+    private val myDemandCount = Counter(this, name = "${this.name}:DemandCount")
+
+    private fun demandArrival(generator: EventGeneratorIfc) {
+        myDemandCount.increment()
+        if (myOnHand.value >= 1.0) myOnHand.decrement(1.0) else myBackorder.increment(1.0)
     }
-    private val demandArrival = DemandArrival()
+
+    // ---- What a rule may know about demand ---------------------------------------
+    /** Lead time plus review period: the interval an order placed now has to cover. */
+    val protectionInterval: Double get() = leadTime + reviewPeriod
+
+    private val cycleLength: Double get() = rateFunction.timeRangeUpperLimit
+    private val ratePerCycle: Double get() = rateFunction.cumulativeRateRangeUpperLimit
+
+    /** The cumulative rate at absolute time [t], unwrapping the repeated cycle. */
+    private fun cumulativeRateAt(t: Double): Double {
+        val cycles = floor(t / cycleLength)
+        val within = t - cycles * cycleLength
+        // The rate function's range is closed below and open above, so a time landing
+        // exactly on the cycle boundary belongs to the next cycle's start.
+        return if (within >= cycleLength) (cycles + 1.0) * ratePerCycle
+        else cycles * ratePerCycle + rateFunction.cumulativeRate(within)
+    }
+
+    /**
+     * Expected demand between now and now plus the protection interval. This is
+     * ANTICIPATIVE: the rate function is known, so a rule can see the season coming
+     * rather than inferring it after it starts.
+     */
+    val expectedDemandOverProtection: Double
+        get() = cumulativeRateAt(time + protectionInterval) - cumulativeRateAt(time)
+
+    /** The instantaneous demand rate. Known for the same reason. */
+    val currentDemandRate: Double get() = rateFunction.rate(time % cycleLength)
+
+    /**
+     * Demand observed since the previous review — a REACTIVE signal, and one the design
+     * cannot express today. This is exactly `INTERVAL_DELTA` over [myDemandCount]
+     * (§4.2.4.1), hand-rolled in the model because the observation kind does not exist.
+     */
+    private var demandCountAtLastReview: Double = 0.0
+    val demandSinceLastReview: Double
+        get() = myDemandCount.value - demandCountAtLastReview
 
     // ---- Replenishment ----------------------------------------------------------
     private inner class OrderArrival : EventAction<Int>() {
@@ -100,6 +160,7 @@ class SsInventory(
      */
     private fun placeOrder(quantity: Int) {
         lastOrderQuantity = quantity.toDouble()
+        demandCountAtLastReview = myDemandCount.value
         if (quantity <= 0) return
         myOrderCount.increment()
         myUnitsOrdered.increment(quantity.toDouble())
@@ -109,7 +170,10 @@ class SsInventory(
 
     // ---- The decision -----------------------------------------------------------
     val review: DecisionElement = decisionElement("Review") {
-        observe("$name:Position") { inventoryPosition }
+        // Declaration order is the vector order (§4.2.3).
+        observe("$name:Position") { inventoryPosition }                         // 0
+        observe("$name:ExpectedDemand") { expectedDemandOverProtection }        // 1
+        observe("$name:DemandSinceReview") { demandSinceLastReview }            // 2
         lever(
             this@SsInventory, limits = 0..maxOrder, alias = "$name:OrderQty",
             read = if (leverHasReader) ({ lastOrderQuantity }) else null
@@ -120,7 +184,11 @@ class SsInventory(
 
     override fun initialize() {
         lastOrderQuantity = 0.0
-        demandArrival.schedule(demandTBA.value)
+        demandCountAtLastReview = 0.0
+    }
+
+    override fun warmUp() {
+        demandCountAtLastReview = 0.0
     }
 }
 
@@ -128,10 +196,21 @@ class SsInventory(
  * The classic (s, S) rule. When the inventory position falls to the reorder point [s] or
  * below, order enough to bring it up to [bigS]; otherwise order nothing.
  *
- * `configure` checks what cannot change afterwards — one lever, one observation — and
- * checks `s < S`, which is a property of the rule and not of the element.
+ * **[positionIndex] exists because the design has no way for a rule to say which
+ * observation it wants.** This rule needs one number — the inventory position — out of a
+ * positional vector whose other entries belong to other rules. It cannot ask for it by
+ * meaning, so whoever wires a model to this rule must supply the index by hand, and a
+ * wrong index compiles, binds, and produces plausible nonsense. See §8.2.6.
+ *
+ * `configure` can therefore only check that the vector is long enough. Checking
+ * `observations.size == 1`, which an earlier version did, broke the moment the element
+ * declared an observation for a different rule.
  */
-class SsPolicy(private val s: Int, private val bigS: Int) : ShapeAwarePolicyIfc {
+class SsPolicy(
+    private val s: Int,
+    private val bigS: Int,
+    private val positionIndex: Int = 0
+) : ShapeAwarePolicyIfc {
 
     init { require(s < bigS) { "The reorder point s=$s must be below the order-up-to level S=$bigS" } }
 
@@ -139,20 +218,71 @@ class SsPolicy(private val s: Int, private val bigS: Int) : ShapeAwarePolicyIfc 
         require(surface.levers.size == 1) {
             "SsPolicy orders one quantity; the element declares ${surface.levers.size} levers."
         }
-        require(surface.observations.size == 1) {
-            "SsPolicy reads one inventory position; the element declares " +
-                "${surface.observations.size} observations."
+        require(positionIndex < surface.observations.size) {
+            "SsPolicy was told to read observation $positionIndex, but the element declares " +
+                "only ${surface.observations.size}: ${surface.observations.map { it.name }}"
         }
     }
 
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
-        val position = observation[0]
+        val position = observation[positionIndex]
         val order = if (position <= s) bigS - position else 0.0
         val bounds = ctx.leverBounds[0]
         return doubleArrayOf(max(0.0, order).coerceIn(bounds.start, bounds.endInclusive))
     }
 
     override fun toString(): String = "(s=$s, S=$bigS)"
+}
+
+/**
+ * A dynamic (s, S) rule: the same policy form, with the two parameters recomputed at every
+ * review from the demand the next protection interval is expected to bring.
+ *
+ * ```
+ *   s = a * mu           safety scales with the demand to be covered
+ *   Q = b * sqrt(mu)     order size scales as EOQ does, with the square root of the rate
+ *   S = s + Q
+ * ```
+ *
+ * where `mu` is the expected demand over the lead time plus the review period. With a
+ * constant rate this reduces to a fixed (s, S) — which is what makes it a fair comparison
+ * against the best static rule rather than a different kind of animal.
+ *
+ * It is **anticipative**: `mu` comes from the model's known rate function, so the rule sees
+ * the season coming. A reactive variant reading observed demand instead is a one-word
+ * change at the call site, and §8.2.6 measures both.
+ */
+class DynamicSsPolicy(
+    private val a: Double,
+    private val b: Double,
+    private val positionIndex: Int = 0,
+    private val demandIndex: Int = 1
+) : ShapeAwarePolicyIfc {
+
+    override fun configure(surface: DecisionSurfaceDescriptor) {
+        require(surface.levers.size == 1) {
+            "DynamicSsPolicy orders one quantity; the element declares ${surface.levers.size} levers."
+        }
+        val n = surface.observations.size
+        require(positionIndex < n && demandIndex < n) {
+            "DynamicSsPolicy reads observations $positionIndex and $demandIndex, but the " +
+                "element declares only $n: ${surface.observations.map { it.name }}"
+        }
+    }
+
+    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+        val position = observation[positionIndex]
+        val mu = max(observation[demandIndex], 0.0)
+        val s = a * mu
+        val bigS = s + b * sqrt(mu)
+        // The lever's domain is INTEGER, so the rule must round. The declaration catches
+        // this if it forgets — which it did, on the first run.
+        val order = if (position <= s) Math.rint(bigS - position) else 0.0
+        val bounds = ctx.leverBounds[0]
+        return doubleArrayOf(max(0.0, order).coerceIn(bounds.start, bounds.endInclusive))
+    }
+
+    override fun toString(): String = "dynamic(a=%.2f, b=%.2f)".format(a, b)
 }
 
 /** Order nothing, ever. The do-nothing reference arm every benchmark needs (§4.1.10). */
