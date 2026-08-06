@@ -40,8 +40,13 @@ class ClinicSubsystem(
         observe(exam.waitingQ.numInQ)                                       // index 1
 
         // lever(...) returns the lever's own identity; budget names levers, not targets.
-        val t = lever(triageStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
-        val e = lever(examStaff,   limits = 0..10) { v -> changeCapacity(v.toInt()) }
+        // read is what lets the element answer "where does this lever stand now?" — needed
+        // by HoldCurrentPolicy, and by the check that skips a write that would change
+        // nothing. A lever declared without it is write-only.
+        val t = lever(triageStaff, limits = 0..10,
+            read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+        val e = lever(examStaff, limits = 0..10,
+            read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
         budget(t, e, total = 8.0)
 
         every(480.0)
