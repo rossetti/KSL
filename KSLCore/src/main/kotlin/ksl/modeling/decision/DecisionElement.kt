@@ -315,6 +315,26 @@ class DecisionElement internal constructor(
     fun narrow(lever: LeverRef, limits: ClosedFloatingPointRange<Double>) {
         requireNotRunning("narrow")
         val d = declOf(lever)
+        // §7.3.1 step 3: non-integral limits on an INTEGER domain. The declaration path cannot
+        // produce them — `lever(owner, IntRange)` takes integers — but this overload can, and the
+        // consequence is two accessors of one lever disagreeing: `limitsOf` truncates 1.5 to 1
+        // while `prepare` computes feasibility against 1.5 and rejects an action of 1. That is the
+        // disagreement §4.4.6.2 goes out of its way to prevent between `contains` and `prepare`.
+        //
+        // Rejected rather than rounded inward, for §4.3.3's reason: rounding is clamping's cousin,
+        // and a narrowing that quietly becomes a different narrowing is the thing this call refuses
+        // to do.
+        if (d.domain == LeverDomain.INTEGER &&
+            (limits.start != Math.rint(limits.start) || limits.endInclusive != Math.rint(limits.endInclusive))
+        ) {
+            throw NarrowingException(
+                "Cannot narrow '${d.name}' to [${limits.start}, ${limits.endInclusive}]: the lever's " +
+                    "domain is INTEGER and those bounds are not integral. `limitsOf` would report " +
+                    "[${limits.start.toInt()}, ${limits.endInclusive.toInt()}] while the element " +
+                    "accepted a different set, so the two would disagree (§4.3.3). Narrow with an " +
+                    "IntRange, or state integral bounds."
+            )
+        }
         if (limits.start < d.modelLowerLimit || limits.endInclusive > d.modelUpperLimit) {
             throw NarrowingException(
                 "Cannot narrow '${d.name}' to [${limits.start}, ${limits.endInclusive}]: the model " +
