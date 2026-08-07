@@ -18,10 +18,15 @@
 
 package ksl.modeling.agent
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -359,5 +364,61 @@ class StatechartHierarchyTest {
         var m: DoubleTransitionModel? = null
         runModel({ m = DoubleTransitionModel(it) }, length = 4.0)
         assertEquals("S2", m!!.walker.statechart?.currentStateName)
+    }
+
+    // ── D10 — the exit-action case is kept, but made findable ────────────────
+
+    /** Captures WARN-level messages logged via SLF4J/logback while [block] runs. */
+    private fun captureWarnings(block: () -> Unit): List<String> {
+        val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
+        val appender = ListAppender<ILoggingEvent>()
+        appender.start()
+        root.addAppender(appender)
+        try {
+            block()
+        } finally {
+            root.detachAppender(appender)
+            appender.stop()
+        }
+        return appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage }
+    }
+
+    /**
+     *  Gate D10 kept the deferred-transition behaviour rather than changing it, on the
+     *  grounds that redirecting a partially-exited chain is riskier than the surprise
+     *  it would prevent. The condition is therefore reported instead of silently
+     *  tolerated, so a modeller can discover that it happened.
+     *
+     *  The message must name enough to act on: which agent and statechart, which state's
+     *  exit action made the call, what it asked for, and what was already in flight.
+     */
+    @Test
+    @DisplayName("D10: a transition from an exit action is reported at WARN")
+    fun transitionFromExitActionIsLogged() {
+        val warnings = captureWarnings {
+            runModel({ ExitActionModel(it) }, length = 4.0)
+        }
+        val relevant = warnings.filter { "exit action" in it }
+        assertEquals(1, relevant.size, "expected exactly one report; got: $warnings")
+        val message = relevant.single()
+        for (fragment in listOf("walker", "S1", "S2", "S3", "in flight")) {
+            assertTrue(fragment in message, "report should mention '$fragment'; was: $message")
+        }
+    }
+
+    /**
+     *  The companion guard: an ordinary transition must stay silent, or the report
+     *  would be noise rather than signal.
+     */
+    @Test
+    @DisplayName("D10: ordinary transitions are not reported")
+    fun ordinaryTransitionsAreNotLogged() {
+        val warnings = captureWarnings {
+            runModel({ NestingModel(it) })
+        }
+        assertTrue(
+            warnings.none { "exit action" in it },
+            "ordinary transitions must not warn; got: $warnings",
+        )
     }
 }

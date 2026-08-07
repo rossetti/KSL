@@ -18,6 +18,8 @@
 
 package ksl.modeling.agent
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.animation.AnimationEvent
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.GeneratorActionIfc
@@ -82,6 +84,20 @@ open class AgentModel(
     parent: ModelElement,
     name: String? = null,
 ) : ProcessModel(parent, name) {
+
+    companion object {
+        /**
+         *  Logger for the agent layer, under the category
+         *  `ksl.modeling.agent.AgentModel`.
+         *
+         *  Currently it reports one condition: a `transitionTo` issued from a state's
+         *  exit action, which is deferred rather than substituted and so causes the
+         *  in-flight transition's target to be entered on the way through. See the
+         *  `Statechart` KDoc for what that means and why. Raise the category to WARN
+         *  or lower to see it; it is silent otherwise.
+         */
+        val logger: KLogger = KotlinLogging.logger {}
+    }
 
     // ── Registry of setup-time agents ────────────────────────────────────────
 
@@ -499,6 +515,31 @@ open class AgentModel(
      *  a trigger enabled by the same event, the innermost wins and the
      *  ancestor's action does not run.
      *
+     *  ## Calling `transitionTo` from an exit action
+     *
+     *  `transitionTo` records a target and schedules a zero-delay event
+     *  rather than transitioning on the spot, so where it is called from
+     *  matters:
+     *
+     *   - From a **trigger** (timeout, condition, signal, message) or an
+     *     **entry** action, the request is folded into the transition
+     *     being processed. A second call in the same action body is
+     *     ignored — the *first* target wins.
+     *   - From an **exit** action, the transition in flight is already
+     *     past the point of redirection, so the request becomes a
+     *     *second* transition performed once the first completes. The
+     *     in-flight target is therefore entered on the way through, and
+     *     **its entry actions run**, before the chart moves on to the
+     *     state the exit action asked for.
+     *
+     *  The second case is deterministic but easy to be surprised by, so
+     *  it is reported: a WARN is emitted to the `AgentModel.logger`
+     *  category (`ksl.modeling.agent.AgentModel`) naming the agent, the
+     *  statechart, the exiting state, the requested target and the
+     *  in-flight target. Enable that category at WARN or lower to see
+     *  it. To move directly to a state, trigger the transition from the
+     *  source state rather than from its exit action.
+     *
      *  Implemented as an `inner class` of [AgentModel] rather than a
      *  separate `ModelElement`: the inner-class outer-instance
      *  reference (`this@AgentModel`) gives this class direct access to
@@ -538,6 +579,13 @@ open class AgentModel(
 
         private var currentLeaf: StatechartState? = null
         private var cachedActiveChain: List<StatechartState> = emptyList()
+
+        /**
+         *  Non-null only while [performTransition] is running exit actions, holding
+         *  the target of the transition in flight. Lets a `transitionTo` issued from
+         *  an exit action be recognised and logged.
+         */
+        private var exitingTowardTarget: String? = null
 
         // Per-state pending triggers — hierarchical states have
         // multiple active levels concurrently, each with its own
@@ -871,6 +919,22 @@ open class AgentModel(
                     require(states.containsKey(stateName)) {
                         "Unknown state '$stateName' in statechart for ${owner.name}."
                     }
+                    // A transition requested while exit actions are running becomes a
+                    // *second* transition, performed after the one in flight finishes —
+                    // so the in-flight target is entered on the way through. That is
+                    // deliberate (see the Statechart KDoc) but easy to be surprised by,
+                    // so make it findable rather than silent.
+                    exitingTowardTarget?.let { inFlight ->
+                        AgentModel.logger.warn {
+                            "statechart '$statechartName' for agent '${owner.name}' at time " +
+                                "${owner.currentTime}: transitionTo('$stateName') was called from " +
+                                "the exit action of state '${state.name}' while a transition to " +
+                                "'$inFlight' was in flight. The in-flight transition completes " +
+                                "first, so '$inFlight' is entered (its entry actions run) before " +
+                                "'$stateName'. To go straight to '$stateName', trigger the " +
+                                "transition from the source state instead of from its exit action."
+                        }
+                    }
                     pendingTransitionTarget = stateName
                     val action = ModelElement.EventActionIfc<Nothing> { _ -> performTransition() }
                     pendingTransitionEvent = this@AgentModel.schedule(
@@ -892,11 +956,19 @@ open class AgentModel(
             val lca = findLCA(oldChain, newChain)
             val fromLeafName = currentLeaf?.name
 
-            // Exit from leaf up to (not including) LCA, bottom-up.
-            for (state in oldChain.asReversed()) {
-                if (state === lca) break
-                cancelStateTriggers(state)
-                runExitActions(state)
+            // Exit from leaf up to (not including) LCA, bottom-up. The target is held
+            // for the duration so that a transitionTo issued from an exit action can be
+            // detected and reported; try/finally so a throwing exit action cannot leave
+            // the flag set and mis-report the next transition.
+            exitingTowardTarget = target
+            try {
+                for (state in oldChain.asReversed()) {
+                    if (state === lca) break
+                    cancelStateTriggers(state)
+                    runExitActions(state)
+                }
+            } finally {
+                exitingTowardTarget = null
             }
 
             // Trim the cached chain down to the LCA.
