@@ -178,16 +178,19 @@ class DeclarationSurfaceCoverageTest {
         println()
         val deferred = results.filterValues { it.startsWith("REFUSED AT DECLARATION") }
         val refused = results.filterValues { it == "REFUSED AT CONSTRUCTION" }
-        val atRun = results.filterValues { it == "REFUSED AT RUN TIME" || it == "REFUSED AT USE" }
+        val atRun = results.filterValues { it == "REFUSED AT RUN TIME" }
+        val atUse = results.filterValues { it == "REFUSED AT USE" }
         val fails = results.filterValues { it.startsWith("FAILS") }
         println("  ${results.size} declarable forms probed: " +
             "${results.count { it.value == "WORKS" }} work, " +
             "${deferred.size} refused at declaration as unbuilt, " +
             "${refused.size} refused at construction by design, " +
-            "${atRun.size} refused at run time by design, ${fails.size} fail")
+            "${atRun.size} refused at run time by design, " +
+            "${atUse.size} refused at use by design, ${fails.size} fail")
         if (deferred.isNotEmpty()) println("  not built: ${deferred.keys}")
         if (refused.isNotEmpty()) println("  at build : ${refused.keys}")
         if (atRun.isNotEmpty()) println("  at run   : ${atRun.keys}")
+        if (atUse.isNotEmpty()) println("  at use   : ${atUse.keys}")
         if (fails.isNotEmpty()) println("  failing  : ${fails.keys}")
 
         // Every cell of the matrix now has a stated outcome: it works, or it is refused
