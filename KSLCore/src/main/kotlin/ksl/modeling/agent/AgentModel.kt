@@ -114,29 +114,18 @@ open class AgentModel(
      *  By design this registry does **not** include `AgentResource`s (which manage their own
      *  statechart lifecycle) or transient `Agent`s created *during* a replication; both are instead
      *  surfaced via [AgentRegistryObserver]. (See `AgentRegistryObserverTest`.)
+     *
+     *  Registration is one-way on purpose: there is no way to drop an entry. Because
+     *  membership here is what drives the per-replication restart, removing one would
+     *  silently stop a `PermanentAgent` restarting on later replications. To retire an
+     *  agent, use `AgentLike.dispose` for its behaviour and [Context.remove] for its
+     *  population membership; neither touches this registry.
      */
     val agents: List<AgentLike>
         get() = _agents
 
     val agentCount: Int
         get() = _agents.size
-
-    /**
-     *  Drop [agent] from the setup-time registry. **Internal**: this is bookkeeping
-     *  for the registry described on [agents], not a way to retire an agent.
-     *
-     *  It was public and had no caller anywhere. Since [agents] holds only setup-time
-     *  agents, and its stated job is to drive the per-replication restart, the sole
-     *  effect a modeller could have achieved with it was to silently stop a
-     *  `PermanentAgent` being restarted on subsequent replications — a destructive
-     *  outcome behind an inviting name, and one nothing in the package wanted.
-     *
-     *  To retire an agent, use `AgentLike.dispose` for its behaviour and
-     *  [Context.remove] for its population membership. Neither touches this registry.
-     */
-    internal fun removeAgent(agent: AgentLike) {
-        _agents.remove(agent)
-    }
 
     /**
      *  Setup-time resource-agents ([ksl.modeling.agent.AgentResource]). Kept **separate** from
