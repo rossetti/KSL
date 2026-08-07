@@ -39,7 +39,13 @@ class FlockingTest {
         // Modest population + dt = 0.1 for fast CI; tunings unchanged.
         sys.population = 40
         sys.dt = 0.1
-        model.lengthOfReplication = 60.0
+        // 120 rather than 60: the example now defaults to the synchronous (Jacobi)
+        // update, under which consensus forms more slowly because alignment
+        // propagates one step per tick instead of within a tick. The flock is just
+        // as coherent -- final polarization reaches 0.94 here and ~1.0 by t = 240 --
+        // it simply needs more simulated time to get there. See the FlockingExample
+        // KDoc for the measured comparison of both regimes.
+        model.lengthOfReplication = 120.0
         model.numberOfReplications = 1
         model.simulate()
 
