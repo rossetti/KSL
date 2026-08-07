@@ -59,4 +59,36 @@ interface AgentLike {
      */
     val statechart: AgentModel.Statechart?
         get() = null
+
+    /**
+     *  Tear down this agent's *behaviour*: stop its statechart and clear its
+     *  mailbox. Call it when an agent is finished — a pedestrian that has
+     *  evacuated, a customer that has departed, a vehicle taken out of service.
+     *
+     *  Without it a departed agent keeps running. A statechart holds scheduled
+     *  timeout and condition events, so a pending trigger will still fire after the
+     *  agent has left the population, transitioning its state and running its entry
+     *  and exit actions; and messages delivered to its mailbox afterwards accumulate
+     *  unread. Neither is corrected until end of replication.
+     *
+     *  **This is deliberately separate from context membership.**
+     *  `AgentModel.Context.remove` means "no longer part of this population" — it
+     *  updates membership, notifies projections, and tells the animation layer to
+     *  stop drawing the agent. It does *not* mean the agent is finished, because an
+     *  agent may legitimately leave one context and join another. So removal does
+     *  not dispose, and the usual departure is both:
+     *
+     *  ```
+     *  context.remove(agent)
+     *  agent.dispose()
+     *  ```
+     *
+     *  Disposal is idempotent and does not remove the agent from any context, end a
+     *  running `process { }` body, or prevent the agent being used again — a
+     *  statechart can be restarted with `statechart?.start()`.
+     */
+    fun dispose() {
+        statechart?.stop()
+        mailbox.reset()
+    }
 }
