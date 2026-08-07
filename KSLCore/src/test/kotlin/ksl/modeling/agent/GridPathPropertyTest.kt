@@ -45,10 +45,14 @@ class GridPathPropertyTest {
 
     private class Heuristic(val label: String, val fn: (Cell, Cell) -> Double)
 
+    /**
+     *  Every non-ZERO heuristic `GridHeuristics` offers. After the removal of the
+     *  Manhattan heuristic, all of these are admissible under *both* movement
+     *  rules, so the sweeps below apply the whole set to both.
+     */
     private val geometricHeuristics = listOf(
         Heuristic("CHEBYSHEV", GridHeuristics.CHEBYSHEV),
         Heuristic("EUCLIDEAN", GridHeuristics.EUCLIDEAN),
-        Heuristic("MANHATTAN", GridHeuristics.MANHATTAN),
         Heuristic("OCTILE", GridHeuristics.OCTILE),
     )
 
@@ -156,121 +160,98 @@ class GridPathPropertyTest {
         return found
     }
 
-    // ── The property, for the heuristics that should satisfy it ──────────────
-
-    @Test
-    @DisplayName("A* equals Dijkstra for CHEBYSHEV, EUCLIDEAN and OCTILE on Moore grids")
-    fun admissibleHeuristicsMatchDijkstraOnMooreGrids() {
-        val safe = geometricHeuristics.filter { it.label != "MANHATTAN" }
-        val all = mutableListOf<Divergence>()
-        for (h in safe) {
-            for (cornerCutting in listOf(false, true)) {
-                all += divergences(h, MovementRule.MOORE, cornerCutting, varyCosts = false)
-                all += divergences(h, MovementRule.MOORE, cornerCutting, varyCosts = true)
-            }
-        }
-        assertTrue(all.isEmpty(), "A* diverged from Dijkstra:\n" + all.joinToString("\n"))
-    }
-
-    @Test
-    @DisplayName("A* equals Dijkstra for every geometric heuristic on Von Neumann grids")
-    fun allGeometricHeuristicsMatchDijkstraOnVonNeumannGrids() {
+    private fun sweepAll(rule: MovementRule): List<Divergence> {
         val all = mutableListOf<Divergence>()
         for (h in geometricHeuristics) {
             for (cornerCutting in listOf(false, true)) {
-                all += divergences(h, MovementRule.VON_NEUMANN, cornerCutting, varyCosts = false)
-                all += divergences(h, MovementRule.VON_NEUMANN, cornerCutting, varyCosts = true)
+                all += divergences(h, rule, cornerCutting, varyCosts = false)
+                all += divergences(h, rule, cornerCutting, varyCosts = true)
             }
         }
+        return all
+    }
+
+    // ── The governing property ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("A* equals Dijkstra for every offered heuristic on Moore grids")
+    fun everyHeuristicMatchesDijkstraOnMooreGrids() {
+        val all = sweepAll(MovementRule.MOORE)
         assertTrue(all.isEmpty(), "A* diverged from Dijkstra:\n" + all.joinToString("\n"))
     }
 
-    // ── Hypothesis A1-a ──────────────────────────────────────────────────────
+    @Test
+    @DisplayName("A* equals Dijkstra for every offered heuristic on Von Neumann grids")
+    fun everyHeuristicMatchesDijkstraOnVonNeumannGrids() {
+        val all = sweepAll(MovementRule.VON_NEUMANN)
+        assertTrue(all.isEmpty(), "A* diverged from Dijkstra:\n" + all.joinToString("\n"))
+    }
+
+    // ── Lower-bound guarantees ───────────────────────────────────────────────
 
     /**
-     *  `GridHeuristics.MANHATTAN` over-estimates on a Moore grid, because
-     *  `GridGraph.edgeWeight` charges √2 for a diagonal step while MANHATTAN counts
-     *  it as 2. Over a pure diagonal run of k cells the true cost is k·√2 ≈ 1.414k
-     *  against a heuristic estimate of 2k, so the heuristic is **not** a lower bound
-     *  and A\* optimality is not guaranteed.
-     *
-     *  This test asserts the arithmetic directly — it holds regardless of whether any
-     *  particular search happens to expose it.
+     *  Every heuristic `GridHeuristics` offers must be a lower bound on the true
+     *  cost, over every endpoint pair, under *both* movement rules. This is the
+     *  invariant that lets a modeler pick any of them without consulting a table.
      */
     @Test
-    @DisplayName("A1-a: MANHATTAN over-estimates true Moore cost along a diagonal")
-    fun manhattanOverEstimatesOnMooreDiagonal() {
+    @DisplayName("Every offered heuristic is a lower bound under both movement rules")
+    fun offeredHeuristicsAreLowerBounds() {
+        for (rule in MovementRule.entries) {
+            val g = GridGraph(10, 10, movementRule = rule)
+            val from = Cell(0, 0)
+            for (c in 0 until 10) {
+                for (r in 0 until 10) {
+                    val to = Cell(c, r)
+                    val trueCost = g.shortestPath(from, to, GridHeuristics.ZERO)!!.totalWeight
+                    for (h in geometricHeuristics) {
+                        val estimate = h.fn(from, to)
+                        assertTrue(
+                            estimate <= trueCost + 1e-9,
+                            "${h.label} over-estimated $from->$to on $rule: " +
+                                "est=$estimate true=$trueCost",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     *  Regression guard for the removal of the Manhattan heuristic (gate D7).
+     *
+     *  Manhattan distance over-estimates the true cost on a Moore grid, because
+     *  `GridGraph.edgeWeight` charges √2 for a diagonal step while Manhattan
+     *  charges 2. A differential sweep confirmed this was not merely theoretical:
+     *  roughly 17% of randomized Moore instances returned a sub-optimal path, the
+     *  worst by 1.757 against a true optimum of 17.899. `GridHeuristics` therefore
+     *  no longer offers a Manhattan heuristic.
+     *
+     *  This test asserts the arithmetic that justified the removal, so that
+     *  re-introducing such a heuristic fails here first. `Cell.manhattanDistanceTo`
+     *  itself is unaffected and remains correct as a Von Neumann metric.
+     */
+    @Test
+    @DisplayName("D7 guard: Manhattan distance over-estimates true Moore cost")
+    fun manhattanDistanceIsNotAdmissibleUnderMooreMovement() {
         val g = GridGraph(10, 10, movementRule = MovementRule.MOORE)
         val from = Cell(0, 0)
         val to = Cell(9, 9)
         val trueCost = g.shortestPath(from, to, GridHeuristics.ZERO)!!.totalWeight
-        val estimate = GridHeuristics.MANHATTAN(from, to)
+        val manhattan = from.manhattanDistanceTo(to).toDouble()
         assertTrue(
-            estimate > trueCost + 1e-9,
-            "expected MANHATTAN to over-estimate on a Moore grid; " +
-                "estimate=$estimate trueCost=$trueCost",
+            manhattan > trueCost + 1e-9,
+            "Manhattan distance is expected to over-estimate on a Moore grid; " +
+                "manhattan=$manhattan trueCost=$trueCost",
         )
-    }
-
-    /**
-     *  **Characterization test for a confirmed defect — see gate D7.**
-     *
-     *  Being inadmissible in theory does not by itself mean a search returns a wrong
-     *  answer, so this pins what actually happens: sweeping randomized Moore grids,
-     *  `GridHeuristics.MANHATTAN` returns a *suboptimal* path on a substantial
-     *  fraction of instances. At the time of writing, 63 of 368 reachable cases
-     *  (~17%) diverged from Dijkstra, the worst by 1.757 cost units against a true
-     *  optimum of 17.899 — roughly a 10% longer route.
-     *
-     *  This matters because `MovementRule.MOORE` is the **default**, and both
-     *  `GridHeuristics` and `GridGraph.shortestPath` describe the pre-built
-     *  heuristics as admissible without qualifying by movement rule. A modeler who
-     *  picks MANHATTAN on a default grid silently gets non-optimal paths.
-     *
-     *  This test asserts the divergence *exists*, so it is a record of current
-     *  behavior rather than of desired behavior. **When D7 is decided — reject the
-     *  pairing, drop MANHATTAN from the pre-built set, or document it as
-     *  Moore-unsafe — this test must be inverted or deleted.**
-     */
-    @Test
-    @DisplayName("A1-a: MANHATTAN yields suboptimal paths on Moore grids (current behavior)")
-    fun manhattanReturnsSuboptimalPathsOnMooreGrids() {
-        val found = mutableListOf<Divergence>()
-        for (cornerCutting in listOf(false, true)) {
-            found += divergences(
-                Heuristic("MANHATTAN", GridHeuristics.MANHATTAN),
-                MovementRule.MOORE, cornerCutting, varyCosts = false, grids = 24,
-            )
-        }
+        // ...and is a valid lower bound under Von Neumann, which is why the metric
+        // itself is kept even though the heuristic was withdrawn.
+        val vn = GridGraph(10, 10, movementRule = MovementRule.VON_NEUMANN)
+        val vnCost = vn.shortestPath(from, to, GridHeuristics.ZERO)!!.totalWeight
         assertTrue(
-            found.isNotEmpty(),
-            "MANHATTAN no longer diverges from Dijkstra on Moore grids — if this was " +
-                "fixed deliberately, delete this characterization test (gate D7).",
+            manhattan <= vnCost + 1e-9,
+            "Manhattan distance should be admissible under Von Neumann; " +
+                "manhattan=$manhattan trueCost=$vnCost",
         )
-    }
-
-    /**
-     *  The companion property: CHEBYSHEV, EUCLIDEAN and OCTILE never over-estimate
-     *  the true Moore cost between the same endpoints, which is why they are safe
-     *  where MANHATTAN is not.
-     */
-    @Test
-    @DisplayName("CHEBYSHEV, EUCLIDEAN and OCTILE never over-estimate true Moore cost")
-    fun safeHeuristicsAreLowerBoundsOnMooreGrids() {
-        val g = GridGraph(10, 10, movementRule = MovementRule.MOORE)
-        val from = Cell(0, 0)
-        for (c in 0 until 10) {
-            for (r in 0 until 10) {
-                val to = Cell(c, r)
-                val trueCost = g.shortestPath(from, to, GridHeuristics.ZERO)!!.totalWeight
-                for (h in geometricHeuristics.filter { it.label != "MANHATTAN" }) {
-                    val estimate = h.fn(from, to)
-                    assertTrue(
-                        estimate <= trueCost + 1e-9,
-                        "${h.label} over-estimated $from->$to: est=$estimate true=$trueCost",
-                    )
-                }
-            }
-        }
     }
 }
