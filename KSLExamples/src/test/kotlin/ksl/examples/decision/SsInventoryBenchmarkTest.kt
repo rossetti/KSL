@@ -16,9 +16,11 @@ import kotlin.test.assertTrue
  *
  *   1. Does an (s, S) rule expressed as a PolicyIfc actually work, and can a parameter
  *      sweep find the optimum?
- *   2. Does HoldCurrentPolicy — the Level-2 baseline the whole compatibility argument
- *      rests on — mean anything when the action is a transaction rather than a setting?
- *   3. Is the do-nothing arm §4.1.10 requires even expressible here?
+ *   2. Does the Level-2 baseline the whole compatibility argument rests on mean anything
+ *      when the action is a transaction rather than a setting? It did not — that is the
+ *      finding of §8.2.2 — and §8.2.3's declared neutral is why it does now.
+ *   3. What is left of the defect once the repair is in? The elision still drops orders
+ *      under a lever DECLARED a setting, and the last test here measures exactly that.
  */
 class SsInventoryBenchmarkTest {
 
