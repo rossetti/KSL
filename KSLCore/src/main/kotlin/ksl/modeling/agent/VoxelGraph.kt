@@ -36,16 +36,27 @@ enum class VoxelMovementRule { MOORE_26, VON_NEUMANN_6 }
 
 /**
  *  Pre-built heuristic functions for A* pathfinding on a [VoxelGraph].
- *  All are admissible on uniform-cost grids (voxel costs all ≥ 1.0)
- *  under the appropriate movement rule:
+ *  On uniform-cost grids (voxel costs all ≥ 1.0) every heuristic here is
+ *  **admissible under both movement rules**, so any of them is safe on any
+ *  graph. They differ only in how tight the bound is, which affects search
+ *  speed and not correctness.
  *
- *  | Heuristic | Movement rule | Notes |
+ *  | Heuristic | Tightest under | Notes |
  *  |---|---|---|
  *  | [ZERO] | any | A* degenerates to Dijkstra |
- *  | [MANHATTAN] | VON_NEUMANN_6 | tight for 6-way movement |
  *  | [CHEBYSHEV] | MOORE_26 | tight when all step costs are 1 (not the default) |
  *  | [OCTILE] | MOORE_26 | tight when orth = 1, face-diag = √2, body-diag = √3 (the default) |
  *  | [EUCLIDEAN] | either | always admissible but never tight on a grid |
+ *
+ *  **Why there is no Manhattan heuristic.** Manhattan distance is a lower bound
+ *  only under VON_NEUMANN_6. Under MOORE_26 — the *default* — a body-diagonal
+ *  step costs √3 while Manhattan charges it 3, so the estimate exceeds the true
+ *  cost and A* may return a sub-optimal path. A differential sweep against
+ *  Dijkstra found sub-optimal results on roughly 45% of randomised MOORE_26
+ *  instances (worse than the 2D case, since 3/√3 over-estimates more than
+ *  2/√2), which is why the heuristic was withdrawn rather than documented. Use
+ *  [OCTILE] or [EUCLIDEAN] instead. `Voxel.manhattanDistanceTo` is unaffected
+ *  and remains the right metric for 6-way neighbourhood queries.
  *
  *  **Admissibility and voxel costs.** Every non-[ZERO] heuristic
  *  assumes each step costs at least its geometric length — i.e. all
@@ -56,7 +67,6 @@ enum class VoxelMovementRule { MOORE_26, VON_NEUMANN_6 }
  */
 object VoxelHeuristics {
     val ZERO: (Voxel, Voxel) -> Double = { _, _ -> 0.0 }
-    val MANHATTAN: (Voxel, Voxel) -> Double = { a, b -> a.manhattanDistanceTo(b).toDouble() }
     val CHEBYSHEV: (Voxel, Voxel) -> Double = { a, b -> a.chebyshevDistanceTo(b).toDouble() }
     val OCTILE: (Voxel, Voxel) -> Double = { a, b -> a.octileDistanceTo(b) }
     val EUCLIDEAN: (Voxel, Voxel) -> Double = { a, b -> a.euclideanDistanceTo(b) }

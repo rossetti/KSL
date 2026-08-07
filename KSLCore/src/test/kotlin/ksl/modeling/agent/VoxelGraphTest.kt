@@ -234,19 +234,28 @@ class VoxelGraphTest {
 
     // ── A* heuristic admissibility (path lengths must match) ──────────────
 
+    /**
+     *  Note on coverage: this fixture is a single obstacle-free uniform-cost graph,
+     *  which is not sufficient to detect an inadmissible heuristic — on an open grid
+     *  the greedy direction is usually optimal anyway, so even a heuristic that
+     *  over-estimates still lands on the shortest path. This test previously
+     *  included `VoxelHeuristics.MANHATTAN` and passed, while a randomized sweep
+     *  with obstacles showed MANHATTAN returning sub-optimal paths on ~45% of
+     *  MOORE_26 instances; the heuristic has since been withdrawn (gate D7).
+     *  `VoxelPathPropertyTest` carries the randomized differential coverage.
+     */
     @Test
     fun allHeuristicsProduceSamePathLengthOnUniformCostGrid() {
         val g = VoxelGraph(8, 8, 8, movementRule = VoxelMovementRule.MOORE_26)
         val a = Voxel(0, 0, 0)
         val b = Voxel(6, 4, 7)
         val lZero = g.shortestPathLength(a, b, VoxelHeuristics.ZERO)
-        val lManh = g.shortestPathLength(a, b, VoxelHeuristics.MANHATTAN)
         val lCheb = g.shortestPathLength(a, b, VoxelHeuristics.CHEBYSHEV)
         val lOct = g.shortestPathLength(a, b, VoxelHeuristics.OCTILE)
         val lEucl = g.shortestPathLength(a, b, VoxelHeuristics.EUCLIDEAN)
         // All heuristics must produce the same optimal path length
         // (they may explore different node orderings).
-        for (l in listOf(lManh, lCheb, lOct, lEucl)) {
+        for (l in listOf(lCheb, lOct, lEucl)) {
             assertEquals(lZero, l, 1e-9)
         }
     }
