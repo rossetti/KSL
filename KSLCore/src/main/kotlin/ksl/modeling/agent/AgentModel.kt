@@ -121,7 +121,20 @@ open class AgentModel(
     val agentCount: Int
         get() = _agents.size
 
-    fun removeAgent(agent: AgentLike) {
+    /**
+     *  Drop [agent] from the setup-time registry. **Internal**: this is bookkeeping
+     *  for the registry described on [agents], not a way to retire an agent.
+     *
+     *  It was public and had no caller anywhere. Since [agents] holds only setup-time
+     *  agents, and its stated job is to drive the per-replication restart, the sole
+     *  effect a modeller could have achieved with it was to silently stop a
+     *  `PermanentAgent` being restarted on subsequent replications — a destructive
+     *  outcome behind an inviting name, and one nothing in the package wanted.
+     *
+     *  To retire an agent, use `AgentLike.dispose` for its behaviour and
+     *  [Context.remove] for its population membership. Neither touches this registry.
+     */
+    internal fun removeAgent(agent: AgentLike) {
         _agents.remove(agent)
     }
 
