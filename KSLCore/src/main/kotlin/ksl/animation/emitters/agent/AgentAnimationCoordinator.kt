@@ -161,13 +161,17 @@ class AgentAnimationCoordinator(
     private fun wire(agent: AgentLike) {
         if (!wiredAgents.add(agent)) return // already wired
         registryEmitter.onAgentRegistered(agent) // emits AgentRegistered
-        agent.statechart?.addObserver(StatechartAnimationEmitter(agent.name, model))
+        agent.statechart?.let { chart ->
+            val chartEmitter = StatechartAnimationEmitter(agent.name, model)
+            chart.attachObserver(chartEmitter)
+            undoActions.add { chart.detachObserver(chartEmitter) }
+        }
         val mailboxEmitter = MailboxAnimationEmitter(agent.name, model)
-        agent.mailbox.addObserver(mailboxEmitter)
-        undoActions.add { agent.mailbox.removeObserver(mailboxEmitter) }
+        agent.mailbox.attachObserver(mailboxEmitter)
+        undoActions.add { agent.mailbox.detachObserver(mailboxEmitter) }
     }
 
-    /** Stop observing registrations and remove the per-agent observers that can be removed. */
+    /** Stop observing registrations and remove every per-agent observer this wired up. */
     fun detach() {
         agentModel.detachRegistryObserver(this)
         agentModel.detachModelElementObserver(networkSnapshotObserver)

@@ -27,7 +27,7 @@ import ksl.simulation.Model
  * An [AgentModel.MailboxObserver] that emits [AnimationEvent.AgentMessageDelivered] on
  * each delivery and [AnimationEvent.AgentMessageConsumed] on each consumption for one
  * agent's mailbox. Attach one per agent
- * (`agent.mailbox.addObserver(MailboxAnimationEmitter(agent.name, model))`); the mailbox
+ * (`agent.mailbox.attachObserver(MailboxAnimationEmitter(agent.name, model))`); the mailbox
  * is unchanged.
  *
  * The mailbox callbacks carry only the message and the post-operation mailbox size (not

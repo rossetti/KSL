@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 /**
- *  Phase A of the station-integration API asks: [AgentModel.AgentMailbox.addObserver]
+ *  Phase A of the station-integration API asks: [AgentModel.AgentMailbox.attachObserver]
  *  is public, so cross-view integration code (or any external observer)
  *  can watch a mailbox's traffic. This test compiles and runs from a
  *  separate module, which on its own proves the member is public —
@@ -68,7 +68,7 @@ class MailboxObserverTest {
         }
 
         init {
-            box.mailbox.addObserver(observer)
+            box.mailbox.attachObserver(observer)
         }
 
         override fun initialize() {
@@ -89,8 +89,8 @@ class MailboxObserverTest {
         assertEquals(1, m.consumed, "external observer should see the consumption")
         assertEquals(1, m.box.mailbox.observerCount, "one observer attached")
 
-        // removeObserver drops it.
-        m.box.mailbox.removeObserver(m.observer)
+        // detachObserver drops it.
+        m.box.mailbox.detachObserver(m.observer)
         assertEquals(0, m.box.mailbox.observerCount, "observer should be removable")
     }
 }

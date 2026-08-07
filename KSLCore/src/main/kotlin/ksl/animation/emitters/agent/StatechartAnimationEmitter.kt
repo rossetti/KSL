@@ -26,7 +26,7 @@ import ksl.simulation.Model
  * An [AgentModel.StatechartObserver] that emits agent statechart events:
  * [AnimationEvent.AgentStateEntered], [AnimationEvent.AgentStateExited], and
  * [AnimationEvent.AgentTransition]. Attach one per agent to that agent's statechart
- * (`agent.statechart?.addObserver(StatechartAnimationEmitter(agent.name, model))`).
+ * (`agent.statechart?.attachObserver(StatechartAnimationEmitter(agent.name, model))`).
  *
  * Because the statechart callbacks carry only the state name and time (not the agent),
  * each instance is bound to a single [agentName].

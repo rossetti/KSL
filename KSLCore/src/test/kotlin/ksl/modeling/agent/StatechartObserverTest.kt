@@ -34,12 +34,13 @@ import kotlin.test.assertTrue
  *  likely to be reached for. `StatechartHierarchyTest` uses it as an instrument for
  *  ordering; this covers the contract itself.
  *
- *  **API asymmetry worth recording.** `MailboxObserver` has `addObserver` /
- *  `removeObserver`, `AgentRegistryObserver` has `attachRegistryObserver` /
- *  `detachRegistryObserver`, and `StatechartObserver` has only `addObserver` — there
- *  is no way to detach one, and the naming differs across all three. Nothing here
- *  depends on removal, so the tests pin what exists rather than asserting what does
- *  not.
+ *  **Finding H-14, since fixed.** The three observer hooks used to disagree:
+ *  `MailboxObserver` had `addObserver`/`removeObserver`, `AgentRegistryObserver` had
+ *  `attachRegistryObserver`/`detachRegistryObserver`, and `StatechartObserver` had
+ *  only `addObserver` — no way to detach one at all. That was not merely cosmetic:
+ *  `AgentAnimationCoordinator` could register an undo for its mailbox emitter but
+ *  not for its statechart emitter, and said so in its own KDoc. All three now read
+ *  attach/detach, and detaching is covered below.
  */
 class StatechartObserverTest {
 
@@ -71,7 +72,7 @@ class StatechartObserverTest {
                     state("first") { onTimeout(2.0) { transitionTo("second") } }
                     state("second") {}
                 }
-                observers.forEach { statechart?.addObserver(it) }
+                observers.forEach { statechart?.attachObserver(it) }
             }
         }
         val walker = Walker()
@@ -142,7 +143,7 @@ class StatechartObserverTest {
                             state("inner") {}
                         }
                     }
-                    statechart?.addObserver(r)
+                    statechart?.attachObserver(r)
                 }
             }
         }
@@ -153,6 +154,55 @@ class StatechartObserverTest {
             listOf("outer", "inner"), r.entered,
             "the composite and the leaf should both be reported, outermost first",
         )
+    }
+
+    /**
+     *  H-14: a statechart observer can now be detached, which it previously could
+     *  not. The consequence was concrete — `AgentAnimationCoordinator` registered an
+     *  undo for its mailbox emitter and had no way to register one for its statechart
+     *  emitter, so a detached coordinator kept emitting.
+     */
+    @Test
+    @DisplayName("C6/H-14: a detached observer stops receiving events")
+    fun detachedObserverStopsReceiving() {
+        val stays = Recorder("stays")
+        val goes = Recorder("goes")
+        val model = Model("detachObservers")
+        val m = object : AgentModel(model, "detach") {
+            val walker = object : Agent("walker") {
+                init {
+                    statechart {
+                        initial("s")
+                        state("s") { onTimeout(1.0) { transitionTo("t") } }
+                        state("t") { onTimeout(1.0) { transitionTo("u") } }
+                        state("u") {}
+                    }
+                    statechart?.attachObserver(stays)
+                    statechart?.attachObserver(goes)
+                }
+            }
+            override fun initialize() {
+                super.initialize()
+                // Detach one observer after the first transition, before the second.
+                schedule(EventActionIfc<Nothing> { walker.statechart?.detachObserver(goes) }, 1.5)
+            }
+        }
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 4.0
+        model.simulate()
+
+        assertEquals(listOf("s", "t", "u"), stays.entered, "the attached observer sees everything")
+        assertEquals(listOf("s", "t"), goes.entered, "the detached one stops at the detach point")
+        assertEquals(1, m.walker.statechart?.observerCount, "one observer should remain")
+    }
+
+    /** Detaching something never attached must be a no-op, not an error. */
+    @Test
+    @DisplayName("C6/H-14: detaching an unattached observer is harmless")
+    fun detachingUnattachedObserverIsNoOp() {
+        val m = run(listOf(Recorder("only")))
+        m.walker.statechart?.detachObserver(Recorder("stranger"))
+        assertEquals(1, m.walker.statechart?.observerCount)
     }
 
     /**
@@ -172,7 +222,7 @@ class StatechartObserverTest {
                         initial("s"); state("s") { onTimeout(1.0) { transitionTo("t") } }
                         state("t") {}
                     }
-                    statechart?.addObserver(watched)
+                    statechart?.attachObserver(watched)
                 }
             }
 

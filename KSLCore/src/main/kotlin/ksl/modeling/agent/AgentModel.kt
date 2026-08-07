@@ -453,14 +453,14 @@ open class AgentModel(
          *  a mailbox and completes a service when a reply arrives).
          *  Observers are normally attached at setup time; attaching at
          *  runtime is allowed but only sees traffic delivered after the
-         *  attach. Mirrors the public [Statechart.addObserver].
+         *  attach. Mirrors the public [Statechart.attachObserver].
          */
-        fun addObserver(observer: MailboxObserver<M>) {
+        fun attachObserver(observer: MailboxObserver<M>) {
             observers.add(observer)
         }
 
-        /** Remove a previously-registered [MailboxObserver]. No-op if not attached. */
-        fun removeObserver(observer: MailboxObserver<M>) {
+        /** Remove a previously-attached [MailboxObserver]. No-op if not attached. */
+        fun detachObserver(observer: MailboxObserver<M>) {
             observers.remove(observer)
         }
 
@@ -627,9 +627,18 @@ open class AgentModel(
          *  and transition events. Events fire for *every* level of
          *  the active chain (composite + leaf), in entry / exit order.
          */
-        fun addObserver(observer: StatechartObserver) {
+        fun attachObserver(observer: StatechartObserver) {
             observers.add(observer)
         }
+
+        /** Remove a previously-attached observer. No-op if not attached. */
+        fun detachObserver(observer: StatechartObserver) {
+            observers.remove(observer)
+        }
+
+        /** Number of currently-attached observers (for diagnostics). */
+        val observerCount: Int
+            get() = observers.size
 
         /**
          *  Name of the currently active leaf state, or the last leaf
@@ -1372,7 +1381,7 @@ open class AgentModel(
                     Response(this, "${this.name}:NumTimesEntered_$stateName")
                 }
                 myNumTransitions = Response(this, "${this.name}:NumTransitions")
-                sc.addObserver(object : StatechartObserver {
+                sc.attachObserver(object : StatechartObserver {
                     override fun onStateEntered(stateName: String, time: Double) {
                         perStateEntryCounts[stateName] =
                             (perStateEntryCounts[stateName] ?: 0L) + 1L
@@ -1392,7 +1401,7 @@ open class AgentModel(
             }
 
             // Subscribe to mailbox events.
-            agent.mailbox.addObserver(object : MailboxObserver<AgentMessage> {
+            agent.mailbox.attachObserver(object : MailboxObserver<AgentMessage> {
                 override fun onMessageDelivered(message: AgentMessage, currentSize: Int) {
                     deliveredCount += 1
                     myNumInMailbox.value = currentSize.toDouble()

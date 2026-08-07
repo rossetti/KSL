@@ -97,7 +97,7 @@ class StatechartHierarchyTest {
                         }
                     }
                 }
-                statechart?.addObserver(recorder)
+                statechart?.attachObserver(recorder)
             }
         }
         val walker = Walker()
@@ -225,7 +225,7 @@ class StatechartHierarchyTest {
                     }
                     state("Away") { onTimeout(1.0) { transitionTo("P") } }
                 }
-                statechart?.addObserver(recorder)
+                statechart?.attachObserver(recorder)
             }
         }
         val walker = Walker()
@@ -298,7 +298,7 @@ class StatechartHierarchyTest {
                     state("S2") {}
                     state("S3") {}
                 }
-                statechart?.addObserver(recorder)
+                statechart?.attachObserver(recorder)
             }
         }
         val walker = Walker()
