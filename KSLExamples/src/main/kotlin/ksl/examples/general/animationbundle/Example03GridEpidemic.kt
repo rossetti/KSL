@@ -25,19 +25,19 @@ import ksl.simulation.Model
 
 /**
  * Example 3 — the first **agent-based** demo: an SIR epidemic on a 20×20 grid torus
- * ([GridEpidemicExample]). Its purpose is to drive the *agent* paradigm end-to-end and make the
- * agent-rendering gaps concrete (it is the validation behind the plan's would-be "8F" items).
+ * ([GridEpidemicExample]). It drives the *agent* paradigm end to end, and is the reference for
+ * animating a grid model whose agents change state.
  *
  * What this exercises and what to look for:
  *  - Agents emit `AgentPositionChanged` with **cell coordinates** (x = column, y = row), so the
  *    layout uses a world where **1 unit = 1 cell** to line agents up with the drawn grid.
- *  - The current renderer draws each agent as a dot colored by its **name**, so the 50 agents come
- *    out in 8 cycling palette colors — there is **no SIR state coloring** (Susceptible/Infected/
- *    Recovered), even though the engine emits `AgentStateEntered/Exited`. That missing state-based
- *    styling is exactly the agent gap we're validating.
+ *  - **State-based colouring.** The model calls `reportAnimationState` as each agent's health
+ *    changes, and the layout maps those names to colours via `agentStateColor`, so the population
+ *    recolours blue → red → green as the epidemic runs. This is the pattern to copy for any grid
+ *    model whose agents have a state worth seeing; it needs no statechart, just the reported name.
  *  - The three `TWResponse`s (NumSusceptible/NumInfected/NumRecovered) flow through the normal
- *    response path, so the SIR populations show as live bars (the population-by-state display that
- *    process-view Phase 8 already covers).
+ *    response path, so the SIR populations also show as live bars — the same story told twice,
+ *    once spatially and once as a time series.
  */
 object Example03GridEpidemic {
 
@@ -71,8 +71,8 @@ object Example03GridEpidemic {
 
         objectClass("Person") { color = "#1f77b4"; size = 0.7 }
 
-        // SIR state coloring (8I.2): the model reports "Susceptible"/"Infected"/"Recovered" via
-        // reportAnimationState, and these recolor each agent as the epidemic progresses.
+        // The model reports "Susceptible"/"Infected"/"Recovered" via reportAnimationState;
+        // these map those names to colours, recolouring each agent as the epidemic progresses.
         agentStateColor("Susceptible", "#1f77b4") // blue
         agentStateColor("Infected", "#d62728")    // red
         agentStateColor("Recovered", "#2ca02c")   // green

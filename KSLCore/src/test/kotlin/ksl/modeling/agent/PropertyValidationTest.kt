@@ -18,32 +18,70 @@
 
 package ksl.modeling.agent
 
-import ksl.examples.general.agent.PedestrianCrowdExample
-import ksl.examples.general.agent.WarehouseAGVExample
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 
 /**
- *  Tests for the validation delegates in `PropertyValidation.kt` and
- *  their integration with the agent package's mutable defaults.
+ *  Tests for the validation delegates in `PropertyValidation.kt` and their
+ *  integration with the agent package's mutable defaults.
  *
- *  Each test that mutates a global `Defaults` value restores it in
- *  `@AfterEach` to prevent leakage across tests.
+ *  **Phase C10.** This suite used to exercise the delegates through
+ *  `PedestrianCrowdExample` and `WarehouseAGVExample` — a `KSLCore` unit test that
+ *  broke whenever an *example* changed a default value, and conceptually inverted
+ *  the dependency direction, since examples are meant to be a sink. Those cases are
+ *  now driven through [Fixture], a stand-in owned by this test that reproduces the
+ *  same shape: a mutable `Defaults` companion plus instance properties initialised
+ *  from it.
+ *
+ *  **Phase C9.** The fixture also exercises every factory the family offers.
+ *  `atLeast` and `inRange` previously had no use anywhere — main, examples or tests.
+ *  Unlike a construct that is wrong, these are correct and complete the family, so
+ *  they are wired up rather than withdrawn; the inclusive/exclusive pairing of
+ *  `atLeast` against `greaterThan` is precisely why both earn their place, and that
+ *  boundary is what the tests below pin.
+ *
+ *  Each test that mutates a global `Defaults` value restores it in `@AfterEach`, so
+ *  other tests in the same JVM see consistent values.
  */
 class PropertyValidationTest {
 
-    // Capture and restore each touched default so other tests in the
-    // same JVM see consistent values.
+    /**
+     *  A test-owned stand-in for the shape the agent examples use: mutable global
+     *  defaults, and per-instance properties seeded from them at construction. Every
+     *  delegate in the family appears exactly once.
+     */
+    private class Fixture {
+        var mass: Double by positive(Defaults.mass)
+        var force: Double by nonNegative(Defaults.force)
+        var chance: Double by probability(Defaults.chance)
+        var capacity: Int by positive(Defaults.capacity)
+        var backlog: Int by nonNegative(Defaults.backlog)
+        var floorInclusive: Double by atLeast(2.0, Defaults.floorInclusive)
+        var floorExclusive: Double by greaterThan(1.0, Defaults.floorExclusive)
+        var bounded: Double by inRange(0.0..10.0, Defaults.bounded)
+
+        companion object Defaults {
+            var mass: Double by positive(80.0)
+            var force: Double by nonNegative(2000.0)
+            var chance: Double by probability(0.2)
+            var capacity: Int by positive(3)
+            var backlog: Int by nonNegative(0)
+            var floorInclusive: Double by atLeast(2.0, 5.0)
+            var floorExclusive: Double by greaterThan(1.0, 2.0)
+            var bounded: Double by inRange(0.0..10.0, 5.0)
+        }
+    }
+
+    // Capture and restore each touched default.
     private val savedTravelStepSize: Double = Travel.Defaults.stepSize
     private val savedFlowCellSize: Double = FlowField.Defaults.cellSize
     private val savedResourceCapacity: Int = AgentResource.Defaults.capacity
     private val savedNetEdgeWeight: Double = NetworkProjection.Defaults.edgeWeight
     private val savedNearestGrowth: Double = ContinuousProjection.Defaults.nearestRadiusGrowthFactor
-    private val savedPedMass: Double = PedestrianCrowdExample.Defaults.mass
-    private val savedPedAPed: Double = PedestrianCrowdExample.Defaults.aPed
-    private val savedAGVLow: Double = WarehouseAGVExample.Defaults.lowBatteryThreshold
+    private val savedFixtureMass: Double = Fixture.Defaults.mass
 
     @AfterEach
     fun restoreDefaults() {
@@ -52,9 +90,7 @@ class PropertyValidationTest {
         AgentResource.Defaults.capacity = savedResourceCapacity
         NetworkProjection.Defaults.edgeWeight = savedNetEdgeWeight
         ContinuousProjection.Defaults.nearestRadiusGrowthFactor = savedNearestGrowth
-        PedestrianCrowdExample.Defaults.mass = savedPedMass
-        PedestrianCrowdExample.Defaults.aPed = savedPedAPed
-        WarehouseAGVExample.Defaults.lowBatteryThreshold = savedAGVLow
+        Fixture.Defaults.mass = savedFixtureMass
     }
 
     // ── Core-library defaults reject invalid values ─────────────────────────
@@ -110,60 +146,117 @@ class PropertyValidationTest {
         val b: Agent = Agent("b").also { ctx.add(it) }
     }
 
-    // ── Example-class defaults reject invalid values ───────────────────────
+    // ── C9: every factory, at its boundary ──────────────────────────────────
 
     @Test
-    fun pedestrianMassDefaultRejectsNonPositive() {
-        assertThrows<IllegalArgumentException> { PedestrianCrowdExample.Defaults.mass = 0.0 }
-        assertThrows<IllegalArgumentException> { PedestrianCrowdExample.Defaults.mass = -10.0 }
+    @DisplayName("C9: positive excludes zero; nonNegative includes it")
+    fun positiveAndNonNegativeDifferAtZero() {
+        val f = Fixture()
+        assertThrows<IllegalArgumentException> { f.mass = 0.0 }
+        assertThrows<IllegalArgumentException> { f.mass = -1.0 }
+        f.force = 0.0
+        assertEquals(0.0, f.force, "non-negative admits zero")
+        assertThrows<IllegalArgumentException> { f.force = -0.001 }
     }
 
     @Test
-    fun pedestrianAPedDefaultRejectsNegativeButAllowsZero() {
-        // Force constants are non-negative (zero = turn off).
-        PedestrianCrowdExample.Defaults.aPed = 0.0
-        assertEquals(0.0, PedestrianCrowdExample.Defaults.aPed)
-        assertThrows<IllegalArgumentException> { PedestrianCrowdExample.Defaults.aPed = -100.0 }
+    @DisplayName("C9: the Int overloads validate the same way")
+    fun intOverloadsValidate() {
+        val f = Fixture()
+        assertThrows<IllegalArgumentException> { f.capacity = 0 }
+        assertThrows<IllegalArgumentException> { f.capacity = -2 }
+        f.backlog = 0
+        assertEquals(0, f.backlog, "non-negative Int admits zero")
+        assertThrows<IllegalArgumentException> { f.backlog = -1 }
     }
 
     @Test
-    fun warehouseLowBatteryThresholdRejectsOutOfRange() {
-        // Probability constraint: [0, 1].
-        WarehouseAGVExample.Defaults.lowBatteryThreshold = 0.0  // valid
-        WarehouseAGVExample.Defaults.lowBatteryThreshold = 1.0  // valid
-        assertThrows<IllegalArgumentException> { WarehouseAGVExample.Defaults.lowBatteryThreshold = -0.01 }
-        assertThrows<IllegalArgumentException> { WarehouseAGVExample.Defaults.lowBatteryThreshold = 1.5 }
+    @DisplayName("C9: probability admits both endpoints and nothing outside")
+    fun probabilityAdmitsBothEndpoints() {
+        val f = Fixture()
+        f.chance = 0.0
+        assertEquals(0.0, f.chance)
+        f.chance = 1.0
+        assertEquals(1.0, f.chance)
+        assertThrows<IllegalArgumentException> { f.chance = -0.000001 }
+        assertThrows<IllegalArgumentException> { f.chance = 1.000001 }
     }
 
-    // ── Per-instance setters validate independently of Defaults ────────────
-
+    /**
+     *  The pair that justifies having both: `atLeast` is inclusive of its bound and
+     *  `greaterThan` is exclusive. A model that treats the two as interchangeable
+     *  gets a silently different admissible set at exactly one value.
+     */
     @Test
-    fun pedestrianInstanceSetterRejectsInvalidEvenWhenDefaultIsValid() {
-        val model = ksl.simulation.Model("PVT-ped")
-        val sys = PedestrianCrowdExample(model, "ped")
-        assertThrows<IllegalArgumentException> { sys.mass = -1.0 }
-        assertThrows<IllegalArgumentException> { sys.tau = 0.0 }
-        // A valid assignment still works.
-        sys.mass = 75.0
-        assertEquals(75.0, sys.mass)
+    @DisplayName("C9: atLeast admits its bound, greaterThan rejects it")
+    fun atLeastIsInclusiveAndGreaterThanIsNot() {
+        val f = Fixture()
+        f.floorInclusive = 2.0
+        assertEquals(2.0, f.floorInclusive, "atLeast(2.0) must admit exactly 2.0")
+        assertThrows<IllegalArgumentException> { f.floorInclusive = 1.999999 }
+
+        assertThrows<IllegalArgumentException> { f.floorExclusive = 1.0 }
+        f.floorExclusive = 1.000001
+        assertEquals(1.000001, f.floorExclusive, "greaterThan(1.0) must admit just above 1.0")
     }
 
-    // ── Default constants from Defaults are reflected in new instances ─────
+    @Test
+    @DisplayName("C9: inRange admits both endpoints and nothing outside")
+    fun inRangeAdmitsBothEndpoints() {
+        val f = Fixture()
+        f.bounded = 0.0
+        assertEquals(0.0, f.bounded)
+        f.bounded = 10.0
+        assertEquals(10.0, f.bounded)
+        assertThrows<IllegalArgumentException> { f.bounded = -0.001 }
+        assertThrows<IllegalArgumentException> { f.bounded = 10.001 }
+    }
+
+    /**
+     *  The message must name the property and the offending value, or a modeller
+     *  gets a bare `IllegalArgumentException` from deep inside a delegate with no
+     *  clue which of a dozen parameters was wrong.
+     */
+    @Test
+    @DisplayName("C9: the rejection message names the property and the value")
+    fun rejectionMessageIsInformative() {
+        val f = Fixture()
+        val message = assertThrows<IllegalArgumentException> { f.mass = -5.0 }.message
+        assertEquals(true, message?.contains("mass"), "should name the property; was: $message")
+        assertEquals(true, message?.contains("-5"), "should name the value; was: $message")
+    }
+
+    // ── C10: Defaults semantics, on a fixture this test owns ────────────────
 
     @Test
+    @DisplayName("C10: an instance setter validates independently of a valid default")
+    fun instanceSetterValidatesIndependentlyOfDefaults() {
+        val f = Fixture()
+        assertThrows<IllegalArgumentException> { f.mass = -1.0 }
+        f.mass = 75.0
+        assertEquals(75.0, f.mass)
+    }
+
+    @Test
+    @DisplayName("C10: changing a default affects subsequently built instances")
     fun changingDefaultsAffectsSubsequentInstances() {
-        PedestrianCrowdExample.Defaults.mass = 90.0
-        val model = ksl.simulation.Model("PVT-default")
-        val sys = PedestrianCrowdExample(model, "ped")
-        assertEquals(90.0, sys.mass)
+        Fixture.Defaults.mass = 90.0
+        assertEquals(90.0, Fixture().mass)
     }
 
     @Test
+    @DisplayName("C10: changing a default does not reach back into existing instances")
     fun changingDefaultsDoesNotRetroactivelyAffectExistingInstances() {
-        val model = ksl.simulation.Model("PVT-no-retro")
-        val sys = PedestrianCrowdExample(model, "ped")
-        val originalMass = sys.mass
-        PedestrianCrowdExample.Defaults.mass = 100.0
-        assertEquals(originalMass, sys.mass)  // not retroactively changed
+        val f = Fixture()
+        val original = f.mass
+        Fixture.Defaults.mass = 100.0
+        assertEquals(original, f.mass, "an existing instance keeps the value it was built with")
+    }
+
+    @Test
+    @DisplayName("C10: a default is itself validated on assignment")
+    fun defaultsValidateOnAssignment() {
+        assertThrows<IllegalArgumentException> { Fixture.Defaults.mass = 0.0 }
+        assertThrows<IllegalArgumentException> { Fixture.Defaults.mass = -1.0 }
     }
 }
