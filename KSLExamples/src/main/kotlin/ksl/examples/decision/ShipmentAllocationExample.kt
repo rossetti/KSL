@@ -126,12 +126,17 @@ class ShipmentDepot(
                 // §4.4.6: the envelope is the truck; 𝒳(s) is what this region is owed.
                 lever(
                     this@ShipmentDepot, limits = 0..truckCapacity,
+                    // Shipping is a TRANSACTION: there is no "current shipment", and two
+                    // dispatches of the same size are two dispatches. Doing nothing is
+                    // shipping zero, which is an action (§8.2.3).
+                    neutral = Neutral.Value(0.0),
                     alias = "Ship:${regionNames[i]}",
                     bounds = { 0.0..backlog(i) }
                 ) { q -> ship(i, q.toInt()) }
             } else {
                 lever(
                     this@ShipmentDepot, limits = 0..truckCapacity,
+                    neutral = Neutral.Value(0.0),
                     alias = "Ship:${regionNames[i]}"
                 ) { q -> ship(i, q.toInt()) }
             }
@@ -147,7 +152,7 @@ class ShipmentDepot(
         }
 
         every(reviewPeriod)
-        policy = ShipNothing
+        policy = NeutralPolicy
     }
 
     override fun initialize() {
@@ -160,7 +165,13 @@ class ShipmentDepot(
     }
 }
 
-/** The do-nothing arm §4.1.10 requires. Ship nothing, ever. */
+/**
+ * The do-nothing arm §4.1.10 requires. Ship nothing, ever.
+ *
+ * Like `OrderNothingPolicy`, this is a hand-written stand-in for a baseline the library
+ * could not supply before §8.2.3, and `NeutralPolicy` now supplies it generically for these
+ * transactional levers. Kept so the benchmark keeps naming what it named.
+ */
 object ShipNothing : PolicyIfc {
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray =
         DoubleArray(ctx.leverNames.size)

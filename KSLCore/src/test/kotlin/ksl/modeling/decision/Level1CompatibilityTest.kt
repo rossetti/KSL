@@ -14,20 +14,27 @@ import org.junit.jupiter.api.Test
 
 /**
  *  The vertical slice of §8.1. It tests exactly one claim: that a decision element under
- *  HoldCurrentPolicy reproduces the same model with no decision element, response for
+ *  NeutralPolicy reproduces the same model with no decision element, response for
  *  response and counter for counter.
  *
  *  Four arms of one clinic model:
  *
- *   NONE            no decision element at all — the reference
- *   HOLD_WITH_READ  HoldCurrentPolicy over levers that declare how to read their own value
- *   HOLD_NO_READ    HoldCurrentPolicy over levers that declare only how to write
- *   FIXED_NO_READ   FixedPolicy(4, 4) — the values the model already has — over write-only
- *                   levers, so that every epoch issues a redundant write
+ *   NONE              no decision element at all — the reference
+ *   HOLD_SETTING      the capacities declared as SETTINGS, under NeutralPolicy
+ *   HOLD_TRANSACTION  the same capacities MIS-declared as TRANSACTIONS with a neutral of 4,
+ *                     under NeutralPolicy
+ *   FIXED_TRANSACTION the same mis-declaration under FixedPolicy(4, 4) — the values the
+ *                     model already has — so that every epoch issues a redundant write
+ *
+ *  There is no "hold, but the lever cannot be read" arm any more, and its absence is the
+ *  result of §8.2.3: a SETTING carries its reader inside `Neutral.Current`, so a setting
+ *  without one cannot be written down. What used to be an omission a modeler could make
+ *  silently is now a choice between two spellings, and the two arms below are those
+ *  spellings applied to the same clinic.
  */
 class Level1CompatibilityTest {
 
-    enum class Arm { NONE, HOLD_WITH_READ, HOLD_NO_READ, FIXED_NO_READ }
+    enum class Arm { NONE, HOLD_SETTING, HOLD_TRANSACTION, FIXED_TRANSACTION }
 
     class Clinic(
         parent: ModelElement,
@@ -51,31 +58,39 @@ class Level1CompatibilityTest {
 
         val shiftReview: DecisionElement? = when (arm) {
             Arm.NONE -> null
-            Arm.HOLD_WITH_READ -> decisionElement("ShiftReview") {
+            Arm.HOLD_SETTING -> decisionElement("ShiftReview") {
                 observe(triage.waitingQ.numInQ)
                 observe(exam.waitingQ.numInQ)
                 val t = lever(triageStaff, limits = 0..10,
-                    read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+                    neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                 val e = lever(examStaff, limits = 0..10,
-                    read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+                    neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                 budget(t, e, total = 8.0)
                 every(480.0)
-                policy = HoldCurrentPolicy
+                policy = NeutralPolicy
             }
-            Arm.HOLD_NO_READ -> decisionElement("ShiftReview") {
+            // A capacity declared as a TRANSACTION. It is a mis-declaration — a capacity is
+            // held, not done — and the design cannot know that; what it can do is make the
+            // claim explicit and its consequence stated. Nothing is elided, so every epoch
+            // writes the capacity the resource already has.
+            Arm.HOLD_TRANSACTION -> decisionElement("ShiftReview") {
                 observe(triage.waitingQ.numInQ)
                 observe(exam.waitingQ.numInQ)
-                val t = lever(triageStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
-                val e = lever(examStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
+                val t = lever(triageStaff, limits = 0..10,
+                    neutral = Neutral.Value(4.0)) { v -> changeCapacity(v.toInt()) }
+                val e = lever(examStaff, limits = 0..10,
+                    neutral = Neutral.Value(4.0)) { v -> changeCapacity(v.toInt()) }
                 budget(t, e, total = 8.0)
                 every(480.0)
-                policy = HoldCurrentPolicy
+                policy = NeutralPolicy
             }
-            Arm.FIXED_NO_READ -> decisionElement("ShiftReview") {
+            Arm.FIXED_TRANSACTION -> decisionElement("ShiftReview") {
                 observe(triage.waitingQ.numInQ)
                 observe(exam.waitingQ.numInQ)
-                val t = lever(triageStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
-                val e = lever(examStaff, limits = 0..10) { v -> changeCapacity(v.toInt()) }
+                val t = lever(triageStaff, limits = 0..10,
+                    neutral = Neutral.Value(4.0)) { v -> changeCapacity(v.toInt()) }
+                val e = lever(examStaff, limits = 0..10,
+                    neutral = Neutral.Value(4.0)) { v -> changeCapacity(v.toInt()) }
                 budget(t, e, total = 8.0)
                 every(480.0)
                 policy = FixedPolicy(doubleArrayOf(4.0, 4.0))
@@ -153,11 +168,32 @@ class Level1CompatibilityTest {
      *  invisible in every reported statistic.
      */
     @Test
-    fun holdCurrentPolicyReproducesTheUnmodifiedModel() {
+    fun neutralPolicyReproducesTheUnmodifiedModel() {
         val none = run(Arm.NONE, Grain.FINE)
-        val hold = run(Arm.HOLD_WITH_READ, Grain.FINE)
+        val hold = run(Arm.HOLD_SETTING, Grain.FINE)
         val diffs = differences(none, hold)
-        assertTrue(diffs.isEmpty(), "HoldCurrentPolicy perturbed the model:\n${diffs.joinToString("\n")}")
+        assertTrue(diffs.isEmpty(), "NeutralPolicy perturbed the model:\n${diffs.joinToString("\n")}")
+    }
+
+    /**
+     *  What `NeutralPolicy` means for a TRANSACTION, and why it is not the same claim.
+     *
+     *  Doing nothing to a transaction is acting with its declared amount, so `NeutralPolicy`
+     *  over `Neutral.Value(4.0)` must write exactly what `FixedPolicy(4, 4)` writes — every
+     *  epoch, with nothing elided. If the two arms ever diverge, `neutralAction` is not being
+     *  honoured and the generic baseline of §6.2 is not generic after all.
+     */
+    @Test
+    fun theNeutralOfATransactionIsAnAction() {
+        val diffs = differences(
+            run(Arm.HOLD_TRANSACTION, Grain.FINE),
+            run(Arm.FIXED_TRANSACTION, Grain.FINE)
+        )
+        assertTrue(
+            diffs.isEmpty(),
+            "NeutralPolicy over Neutral.Value(4.0) did not write what FixedPolicy(4, 4) " +
+                "writes:\n${diffs.joinToString("\n")}"
+        )
     }
 
     /**
@@ -169,13 +205,13 @@ class Level1CompatibilityTest {
      */
     @Test
     fun writingTheCurrentValueBackIsInvisibleInTheReportButNotUnderneathIt() {
-        val reportedDiffs = differences(run(Arm.NONE), run(Arm.FIXED_NO_READ))
+        val reportedDiffs = differences(run(Arm.NONE), run(Arm.FIXED_TRANSACTION))
         assertTrue(
             reportedDiffs.isEmpty(),
             "Redundant writes changed a reported statistic:\n${reportedDiffs.joinToString("\n")}"
         )
 
-        val fineDiffs = differences(run(Arm.NONE, Grain.FINE), run(Arm.FIXED_NO_READ, Grain.FINE))
+        val fineDiffs = differences(run(Arm.NONE, Grain.FINE), run(Arm.FIXED_TRANSACTION, Grain.FINE))
         assertFalse(fineDiffs.isEmpty(), "Expected redundant writes to be visible at the fine grain")
         println("Redundant-write arm, reported grain: no differences.")
         println("Redundant-write arm, fine grain: ${fineDiffs.size} differences:")
@@ -213,7 +249,7 @@ class Level1CompatibilityTest {
         val controlDiffs = differences(controlA, controlB)
 
         val none = harvest(buildDefaultStreams(Arm.NONE).also { it.simulate() }, Grain.FINE)
-        val hold = harvest(buildDefaultStreams(Arm.HOLD_WITH_READ).also { it.simulate() }, Grain.FINE)
+        val hold = harvest(buildDefaultStreams(Arm.HOLD_SETTING).also { it.simulate() }, Grain.FINE)
         val armDiffs = differences(none, hold)
 
         println("Default streams, two identical models:      ${controlDiffs.size} differences")
@@ -249,12 +285,12 @@ class Level1CompatibilityTest {
                     observe(triage.waitingQ.numInQ)
                     observe(exam.waitingQ.numInQ)
                     val t = lever(triageStaff, limits = 0..10,
-                        read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+                        neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                     val e = lever(examStaff, limits = 0..10,
-                        read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+                        neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                     budget(t, e, total = 8.0)
                     every(480.0)
-                    policy = HoldCurrentPolicy
+                    policy = NeutralPolicy
                 }
             }
         }
@@ -268,13 +304,13 @@ class Level1CompatibilityTest {
      */
     @Test
     fun aStateDependentRuleActuallyChangesTheModel() {
-        val model = build(Arm.HOLD_WITH_READ)
+        val model = build(Arm.HOLD_SETTING)
         val clinic = model.getModelElement("Clinic") as Clinic
         val element = clinic.shiftReview!!
         element.policy = ProportionalStaffingForTest
         model.simulate()
         val moved = harvest(model, Grain.FINE)
-        val held = run(Arm.HOLD_WITH_READ, Grain.FINE)
+        val held = run(Arm.HOLD_SETTING, Grain.FINE)
         val diffs = differences(held, moved)
         assertFalse(diffs.isEmpty(), "The state-dependent rule changed nothing")
         assertTrue(element.epochCount > 0, "no epoch ever ran")
@@ -297,7 +333,7 @@ class Level1CompatibilityTest {
     @Test
     fun narrowingCapsTheDamageFromABadlyConditionedRule() {
         fun systemTime(narrow: Boolean): Double {
-            val model = build(Arm.HOLD_WITH_READ)
+            val model = build(Arm.HOLD_SETTING)
             val clinic = model.getModelElement("Clinic") as Clinic
             val element = clinic.shiftReview!!
             if (narrow) {
@@ -332,14 +368,40 @@ class Level1CompatibilityTest {
     }
 
     /**
-     *  A write-only lever cannot answer "what is the current value?", so the baseline
-     *  policy has nothing to return. This documents the failure rather than the fix.
+     *  What used to be the HOLD_NO_READ arm, and why there is no arm any more.
+     *
+     *  A write-only lever cannot answer "what is the current value?", so `currentAction` was
+     *  `NaN` in that position and `HoldCurrentPolicy` failed at the first epoch. The old test
+     *  here documented that failure. §8.2.3 removes the arm rather than the failure: a lever
+     *  with no reader is a TRANSACTION, and `neutralAction` answers for it.
+     *
+     *  Both facts are asserted together, because the second is only interesting given the
+     *  first — `currentAction` is still `NaN` for a transaction, and still should be. Inventing
+     *  a current value for something that has none would be the conflation §8.2.2 measured,
+     *  reintroduced one layer down.
      */
     @Test
-    fun holdCurrentPolicyFailsOnWriteOnlyLevers() {
-        val model = build(Arm.HOLD_NO_READ)
-        val e = runCatching { model.simulate() }.exceptionOrNull()
-        assertTrue(e != null, "expected HoldCurrentPolicy over write-only levers to fail")
-        println("HOLD_NO_READ failed with: ${e!!::class.simpleName}: ${e.message}")
+    fun aTransactionHasNoCurrentValueButAlwaysHasANeutralOne() {
+        var currents: DoubleArray? = null
+        var neutrals: DoubleArray? = null
+
+        val model = build(Arm.HOLD_TRANSACTION)
+        val element = model.getModelElement("ShiftReview") as DecisionElement
+        element.policy = PolicyIfc { _, ctx ->
+            if (currents == null) { currents = ctx.currentAction; neutrals = ctx.neutralAction }
+            ctx.neutralAction
+        }
+        model.numberOfReplications = 1
+        model.simulate()
+
+        println()
+        println("A capacity declared as a TRANSACTION with neutral 4.0:")
+        println("  currentAction = ${currents!!.toList()}   (NaN: a transaction has no current value)")
+        println("  neutralAction = ${neutrals!!.toList()}   (the declared amount)")
+
+        assertTrue(currents!!.all { it.isNaN() },
+            "currentAction should be NaN for a transaction, not an invented number")
+        assertTrue(neutrals!!.all { it == 4.0 },
+            "neutralAction should be the declared amount; got ${neutrals!!.toList()}")
     }
 }

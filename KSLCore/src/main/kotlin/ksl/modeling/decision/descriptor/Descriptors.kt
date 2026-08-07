@@ -12,6 +12,20 @@ data class SchemaVersion(val major: Int = 1, val minor: Int = 0)
 
 enum class LeverDomain { CONTINUOUS, INTEGER, CATEGORICAL }
 
+/**
+ *  What a lever is, distinguished by the only thing the machinery needs to tell apart:
+ *  **what it means to do nothing** (§8.2.2, §8.2.3).
+ *
+ *  [SETTING] — a quantity the model *holds*: a capacity, a reorder point, a service rate.
+ *  It has a current value, applying it twice is the same as applying it once, and doing
+ *  nothing means writing nothing.
+ *
+ *  [TRANSACTION] — a quantity the model *does*: placing an order, dispatching a shipment.
+ *  There is no "current order quantity", applying it twice acts twice, and doing nothing
+ *  means acting with the neutral amount, which is an action rather than an abstention.
+ */
+enum class LeverKind { SETTING, TRANSACTION }
+
 enum class RewardKind { TIME_INTEGRAL, OBSERVATION_SUM, COUNTER_TOTAL }
 
 enum class RewardSense { REWARD, COST }
@@ -63,6 +77,12 @@ data class ObservationDescriptor(
 data class LeverDescriptor(
     val name: String,
     val domain: LeverDomain,
+    /**
+     *  Whether this lever is held or done (§8.2.3). A consumer that plans a sequence of
+     *  actions needs it: repeating a SETTING is idempotent and repeating a TRANSACTION is
+     *  not, and no other field distinguishes them.
+     */
+    val kind: LeverKind = LeverKind.SETTING,
     val modelLowerLimit: Double,
     val modelUpperLimit: Double,
     val lowerBound: Double,

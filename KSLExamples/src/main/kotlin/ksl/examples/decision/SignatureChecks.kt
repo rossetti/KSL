@@ -8,11 +8,11 @@ import ksl.simulation.ModelElement
 @Suppress("unused")
 private class Checks(parent: ModelElement) {
 
-    private val e = parent.decisionElement("Check") { policy = HoldCurrentPolicy }
+    private val e = parent.decisionElement("Check") { policy = NeutralPolicy }
 
     // Claim: one way to give the element a policy, whatever the policy needs.
     fun policyAssignment() {
-        e.policy = HoldCurrentPolicy
+        e.policy = NeutralPolicy
         e.policy = FixedPolicy(doubleArrayOf(4.0, 4.0))   // configure() runs on assignment
     }
 
@@ -29,6 +29,6 @@ private class Checks(parent: ModelElement) {
         e.feasibilityPolicy = FeasibilityPolicy.CLAMP_THEN_REJECT
     }
 
-    // Claim: HoldCurrentPolicy is an ordinary PolicyIfc, not a special case.
-    fun baselineIsAPolicy(ctx: DecisionContext): DoubleArray = HoldCurrentPolicy.action(doubleArrayOf(), ctx)
+    // Claim: NeutralPolicy is an ordinary PolicyIfc, not a special case.
+    fun baselineIsAPolicy(ctx: DecisionContext): DoubleArray = NeutralPolicy.action(doubleArrayOf(), ctx)
 }

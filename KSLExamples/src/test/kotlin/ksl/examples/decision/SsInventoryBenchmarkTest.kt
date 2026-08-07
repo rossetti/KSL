@@ -1,9 +1,11 @@
 package ksl.examples.decision
 
-import ksl.modeling.decision.HoldCurrentPolicy
+import ksl.modeling.decision.DecisionElement
+import ksl.modeling.decision.NeutralPolicy
 import ksl.modeling.decision.PolicyIfc
 import ksl.simulation.Model
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -20,9 +22,9 @@ import kotlin.test.assertTrue
  */
 class SsInventoryBenchmarkTest {
 
-    private fun run(rule: PolicyIfc, leverHasReader: Boolean = false): Model {
+    private fun run(rule: PolicyIfc, declareOrderAsSetting: Boolean = false): Model {
         val model = Model("SsInventoryStudy")
-        val inv = SsInventory(model, leverHasReader = leverHasReader, name = "Inv")
+        val inv = SsInventory(model, declareOrderAsSetting = declareOrderAsSetting, name = "Inv")
         model.numberOfReplications = 30
         model.lengthOfReplication = 5_000.0
         model.lengthOfReplicationWarmUp = 1_000.0
@@ -31,8 +33,8 @@ class SsInventoryBenchmarkTest {
         return model
     }
 
-    private fun cost(rule: PolicyIfc, leverHasReader: Boolean = false) =
-        costOf(run(rule, leverHasReader), "Inv")
+    private fun cost(rule: PolicyIfc, declareOrderAsSetting: Boolean = false) =
+        costOf(run(rule, declareOrderAsSetting), "Inv")
 
     private fun orderCount(model: Model) =
         model.counters.first { it.name == "Inv:OrderCount" }.acrossReplicationStatistic.average
@@ -87,25 +89,33 @@ class SsInventoryBenchmarkTest {
     }
 
     /**
-     *  The prediction under test, and the reason this exercise was chosen.
+     *  The prediction this exercise was chosen to test, now inverted — which is what the
+     *  earlier version of this test asked whoever fixed the design to do.
      *
-     *  The order quantity is a TRANSACTION, not a setting. There is no "current order
-     *  quantity" to read, so the lever is write-only, so DecisionContext.currentAction
-     *  has nothing to return, so HoldCurrentPolicy — the Level-2 compatibility baseline
-     *  of §6.2 — cannot be evaluated at all.
+     *  The order quantity is a TRANSACTION. There is no "current order quantity" to read,
+     *  so `DecisionContext.currentAction` has nothing to return, so `HoldCurrentPolicy` —
+     *  the Level-2 compatibility baseline of §6.2 — could not be evaluated at all, and the
+     *  design's central guarantee was unavailable for the canonical MDP example (§8.2.2).
      *
-     *  If this test passes, the design's central guarantee is unavailable for the
-     *  canonical MDP example. See §8.2.2.
+     *  With a declared neutral (§8.2.3) the baseline is generic: `NeutralPolicy` orders the
+     *  declared amount, which for this lever is zero, so it must agree exactly with the
+     *  hand-written `OrderNothingPolicy` the exercise had to supply in its absence.
      */
     @Test
-    fun holdCurrentPolicyIsMeaninglessForATransactionalLever() {
-        val e = runCatching { run(HoldCurrentPolicy) }.exceptionOrNull()
+    fun theLevelTwoBaselineIsAvailableForATransactionalLever() {
+        val generic = cost(NeutralPolicy)
+        val handWritten = cost(OrderNothingPolicy)
+
         println()
-        println("HoldCurrentPolicy on an order-quantity lever: ${e?.let { it::class.simpleName + ": " + it.message } ?: "SUCCEEDED"}")
-        assertTrue(
-            e != null,
-            "HoldCurrentPolicy ran on a transactional lever. If this now works, re-read §8.2.2 — " +
-                "either a reader was added to the lever, or currentAction changed meaning."
+        println("Level-2 baseline on an order-quantity lever:")
+        println("  NeutralPolicy       total = %8.4f".format(generic.total))
+        println("  OrderNothingPolicy  total = %8.4f  (hand-written, was the only option)"
+            .format(handWritten.total))
+
+        assertEquals(
+            handWritten.total, generic.total, 1e-9,
+            "NeutralPolicy did not reproduce the hand-written do-nothing arm, so the neutral " +
+                "declared on the lever is not what the baseline writes (§8.2.3)"
         )
     }
 
@@ -117,36 +127,48 @@ class SsInventoryBenchmarkTest {
      *  Level-2 assertion depends on it. For a transaction it is silent data loss — two
      *  consecutive orders of the same size are one order, and the second is dropped.
      *
-     *  The only thing standing between an (s, S) model and that bug is that an order
-     *  quantity has no obvious reader, so nobody supplies one. Supply one and the bug
-     *  appears. Nothing in the design warns against it, because the design has one lever
-     *  concept where it needs two (§8.2.3).
+     *  What §8.2.3 changes is **which of the two a modeler ends up with**. Before it, the
+     *  declaration could not say, `supportsCurrentValue = false` meant either "there is
+     *  nothing to read" or "nobody supplied a reader", and §4.1.2.3 advised supplying one —
+     *  so the design pushed a modeler toward the losing arm. Now the two arms are two
+     *  spellings, the correct one is the shorter, and `LeverDescriptor.kind` carries the
+     *  claim where a reviewer or a codec can see it.
+     *
+     *  It is worth being exact about the limit of the repair: **the bug is still reachable.**
+     *  The library cannot know that an order is not a capacity. What it can do is refuse to
+     *  infer, and that is what is asserted here — the loss still happens under the
+     *  mis-declaration, and no longer happens under the natural one.
      */
     @Test
-    fun givingATransactionalLeverAReaderSilentlyDropsRepeatedOrders() {
+    fun theElisionStillDropsOrdersWhenATransactionIsDeclaredASetting() {
         val rule = SsPolicy(2, 10)
-        val withoutReader = run(rule)
-        val withReader = run(rule, leverHasReader = true)
+        val asTransaction = run(rule)
+        val asSetting = run(rule, declareOrderAsSetting = true)
 
-        val ordersWithout = orderCount(withoutReader)
-        val ordersWith = orderCount(withReader)
-        val costWithout = costOf(withoutReader, "Inv").total
-        val costWith = costOf(withReader, "Inv").total
+        val ordersCorrect = orderCount(asTransaction)
+        val ordersWrong = orderCount(asSetting)
+        val costCorrect = costOf(asTransaction, "Inv").total
+        val costWrong = costOf(asSetting, "Inv").total
 
         println()
-        println("(s=2, S=10), identical models, identical rule:")
-        println("  lever without a reader: %8.2f orders per replication, cost %8.2f"
-            .format(ordersWithout, costWithout))
-        println("  lever WITH a reader:    %8.2f orders per replication, cost %8.2f"
-            .format(ordersWith, costWith))
-        println("  orders lost to the no-op elision: %.2f (%.1f%%)"
-            .format(ordersWithout - ordersWith, 100.0 * (ordersWithout - ordersWith) / ordersWithout))
+        println("(s=2, S=10), identical models, identical rule, two declarations:")
+        println("  Neutral.Value(0.0)   TRANSACTION : %8.2f orders per replication, cost %8.2f"
+            .format(ordersCorrect, costCorrect))
+        println("  Neutral.Current {…}  SETTING     : %8.2f orders per replication, cost %8.2f"
+            .format(ordersWrong, costWrong))
+        println("  orders lost to the no-op elision under the mis-declaration: %.2f (%.1f%%)"
+            .format(ordersCorrect - ordersWrong, 100.0 * (ordersCorrect - ordersWrong) / ordersCorrect))
+        println("  the kind is now in the descriptor, so the claim is auditable:")
+        for ((label, m) in listOf("TRANSACTION arm" to asTransaction, "SETTING arm" to asSetting)) {
+            val d = m.getModelElement("Review") as DecisionElement
+            println("    %-16s %s".format(label, d.descriptor().levers.map { "${it.name}=${it.kind}" }))
+        }
 
         assertTrue(
-            ordersWith < ordersWithout,
-            "Expected the elision to drop repeated same-size orders. If this no longer " +
-                "happens, LeverKind (§8.2.3) has been implemented and this test should assert " +
-                "the opposite."
+            ordersWrong < ordersCorrect,
+            "Expected the elision to drop repeated same-size orders when the lever is " +
+                "DECLARED a setting. If this no longer happens, the elision has stopped " +
+                "applying to settings, which §6.2 depends on."
         )
     }
 }

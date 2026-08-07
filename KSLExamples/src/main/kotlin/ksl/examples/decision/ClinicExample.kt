@@ -51,17 +51,17 @@ class ClinicSubsystem(
         }
 
         // lever(...) returns the lever's own identity; budget names levers, not targets.
-        // read is what lets the element answer "where does this lever stand now?" — needed
-        // by HoldCurrentPolicy, and by the check that skips a write that would change
-        // nothing. A lever declared without it is write-only.
+        // A capacity is a SETTING: doing nothing means leaving it where it stands, so the
+        // neutral carries the reader (§8.2.3). That reader is what lets the element answer
+        // "where does this lever stand now?" and skip a write that would change nothing.
         val t = lever(triageStaff, limits = 0..10,
-            read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+            neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
         val e = lever(examStaff, limits = 0..10,
-            read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+            neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
         budget(t, e, total = 8.0)
 
         every(480.0)
-        policy = HoldCurrentPolicy
+        policy = NeutralPolicy
     }
 
     // Resolved once, after the element exists. Private: these are identity tokens

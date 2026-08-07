@@ -2,7 +2,8 @@ package ksl.examples.decision
 
 import ksl.modeling.decision.DecisionElement
 import ksl.modeling.decision.FixedPolicy
-import ksl.modeling.decision.HoldCurrentPolicy
+import ksl.modeling.decision.Neutral
+import ksl.modeling.decision.NeutralPolicy
 import ksl.modeling.decision.PolicyIfc
 import ksl.modeling.decision.decisionElement
 import ksl.modeling.station.QObjectReceiverIfc
@@ -82,9 +83,9 @@ class StaffingPolicyBenchmarkTest {
                 }
             }
             val t = lever(triageStaff, limits = 0..10,
-                read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+                neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
             val e = lever(examStaff, limits = 0..10,
-                read = { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
+                neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
             budget(t, e, total = 8.0)
             every(480.0)
             policy = rule
@@ -122,7 +123,7 @@ class StaffingPolicyBenchmarkTest {
      */
     @Test
     fun proportionalToDemandBeatsProportionalToCongestion() {
-        val doNothing = meanSystemTime(rule = HoldCurrentPolicy)                    // static 4/4
+        val doNothing = meanSystemTime(rule = NeutralPolicy)                    // static 4/4
         val optimum = meanSystemTime(rule = FixedPolicy(doubleArrayOf(3.0, 5.0)))   // M/M/c optimum
         val queue = meanSystemTime(basis = Basis.QUEUE)
         val busy = meanSystemTime(basis = Basis.BUSY)
@@ -157,7 +158,7 @@ class StaffingPolicyBenchmarkTest {
     fun theFixedRuleIsStableWithoutNarrowing() {
         val wide = meanSystemTime(narrowTo = null)
         val narrowed = meanSystemTime()
-        val doNothing = meanSystemTime(rule = HoldCurrentPolicy)
+        val doNothing = meanSystemTime(rule = NeutralPolicy)
         println("time-averaged busy basis: unnarrowed = %.2f, narrowed to 1..7 = %.2f, do nothing = %.2f"
             .format(wide, narrowed, doNothing))
         assertTrue(wide < doNothing, "the rule needs narrowing to be safe; it should not")

@@ -11,12 +11,18 @@ fun interface PolicyIfc {
 }
 
 /**
- *  Everything a rule may know at a decision instant. Valid ONLY during the action()
- *  call that receives it — the element reuses one instance and updates the epoch-scoped
- *  fields, so retaining it is a bug.
+ *  Everything a rule may know at a decision instant.
  *
- *  The declared-shape fields are constant for the life of the element; they are here
- *  rather than in a separate creation-time context so that a rule needs no factory.
+ *  The element reuses one instance and updates the epoch-scoped members in place, so a
+ *  retained context would answer questions about a later epoch than the one the rule thinks
+ *  it is in. That used to be documented as "retaining it is a bug" and nothing prevented it;
+ *  it is now **enforced** — every epoch-scoped member throws [StaleDecisionContextException]
+ *  when read outside the `action` call that supplied it (§4.5.3, G.9 row 6).
+ *
+ *  The declared-shape members are exempt, and the split is the point: they are constant for
+ *  the life of the element, so retaining *them* is harmless and a rule that wants to keep the
+ *  lever names may. What a rule may not keep is anything that means something different at
+ *  the next epoch.
  */
 interface DecisionContext {
 
@@ -48,8 +54,45 @@ interface DecisionContext {
     val actions: ActionSet
 
     // ---- Where the levers stand right now (§4.10.2 step 6).
+    /**
+     *  The current value of each lever, or `NaN` in any position whose lever is a
+     *  [ksl.modeling.decision.descriptor.LeverKind.TRANSACTION] — a transaction has no
+     *  current value, and `NaN` says so rather than inventing one. A rule that wants
+     *  "do nothing" wants [neutralAction], which is defined for both kinds.
+     */
     val currentAction: DoubleArray
+
+    /**
+     *  **Do nothing**, as each lever declared it (§8.2.3): the current value of a setting,
+     *  the declared amount of a transaction.
+     *
+     *  This is what makes the Level-2 baseline of §6.2 available to every model rather than
+     *  only to models whose decisions happen to be settings — the difference between a safety
+     *  property and a convention.
+     */
+    val neutralAction: DoubleArray
 }
+
+/**
+ *  Thrown when a [DecisionContext] is read outside the `action` call that supplied it.
+ *
+ *  §4.5.3 stated the rule and the design relied on rules obeying it. The failure it prevents
+ *  is silent: a policy that stashes the context in a field and reads `simulationTime` from a
+ *  background thread, or at the next epoch, gets a well-formed number belonging to a different
+ *  decision. There is nothing to notice.
+ */
+class StaleDecisionContextException(
+    val elementName: String,
+    val member: String,
+    val decisionsSince: Long
+) : IllegalStateException(
+    "`$member` was read outside the action() call that supplied this DecisionContext " +
+        "(element '$elementName'; " +
+        (if (decisionsSince == 0L) "the decision it belongs to has since ended"
+         else "$decisionsSince decision(s) have been made since") +
+        "). A context is valid only during the call that receives it. Copy what you need out " +
+        "of it during action() — the values, not the context (§4.5.3)."
+)
 
 /**
  *  Implement when a rule requires something of the declared shape, or must BUILD
@@ -73,9 +116,18 @@ interface ManagedPolicyIfc : PolicyIfc, AutoCloseable {
     override fun close() {}
 }
 
-/** Change nothing. The Level-1 compatibility baseline (§6). */
-object HoldCurrentPolicy : PolicyIfc {
-    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray = ctx.currentAction
+/**
+ *  Do nothing — every lever takes its declared neutral value. The Level-2 compatibility
+ *  baseline of §6.2.
+ *
+ *  This was `HoldCurrentPolicy`, returning `ctx.currentAction`, which worked only for models
+ *  whose levers are all settings. On a transactional model `currentAction` is `NaN` in every
+ *  position and the baseline could not run at all (§8.2.2), so the one arm §4.1.10 requires of
+ *  every worked example had to be hand-written per model. With a declared neutral it is
+ *  generic again.
+ */
+object NeutralPolicy : PolicyIfc {
+    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray = ctx.neutralAction
 }
 
 /** A constant action. Arity is checked against the declaration at assignment. */

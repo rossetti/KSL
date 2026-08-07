@@ -257,19 +257,33 @@ abstract class LookaheadPolicy(
 /**
  *  The element's [ActionSet]. Enumeration is over the integer and categorical levers only;
  *  a continuous lever makes [size] null, which is what tells a rule to use [GridSearch].
+ *
+ *  [live] is the owning context's epoch-scope check (§4.5.3, G.9 row 6). 𝒳(s) is a function of
+ *  the state, so a set retained past its epoch answers about a state that has moved on — the
+ *  same hazard as a retained context, and it would survive a guard placed only on the
+ *  context's `actions` getter.
  */
-internal class ElementActionSet(private val element: DecisionElement) : ActionSet {
+internal class ElementActionSet(
+    private val element: DecisionElement,
+    private val live: (String) -> Unit = {}
+) : ActionSet {
 
     override val leverCount: Int get() = element.leverDecls.size
 
-    override fun bounds(leverIndex: Int): ClosedFloatingPointRange<Double> =
-        element.leverDecls[leverIndex].feasibleRange()
+    override fun bounds(leverIndex: Int): ClosedFloatingPointRange<Double> {
+        live("bounds")
+        return element.leverDecls[leverIndex].feasibleRange()
+    }
 
-    override operator fun contains(action: DoubleArray): Boolean =
-        element.binding.prepare(action) is PreparedAction.Ready
+    override operator fun contains(action: DoubleArray): Boolean {
+        live("contains")
+        return element.binding.prepare(action) is PreparedAction.Ready
+    }
 
-    override fun violations(action: DoubleArray): List<String> =
-        (element.binding.prepare(action) as? PreparedAction.Invalid)?.violations ?: emptyList()
+    override fun violations(action: DoubleArray): List<String> {
+        live("violations")
+        return (element.binding.prepare(action) as? PreparedAction.Invalid)?.violations ?: emptyList()
+    }
 
     /** Per-lever candidate counts, or null if any lever is continuous or the product is huge. */
     private fun axisCounts(): LongArray? {
@@ -293,6 +307,7 @@ internal class ElementActionSet(private val element: DecisionElement) : ActionSe
 
     override val size: Long?
         get() {
+            live("size")
             val counts = axisCounts() ?: return null
             var p = 1L
             for (c in counts) p *= c
@@ -306,6 +321,7 @@ internal class ElementActionSet(private val element: DecisionElement) : ActionSe
         get() = if (draws == 0L) Double.NaN else accepted.toDouble() / draws
 
     override fun sample(uniform: GetValueIfc, count: Int, maxAttempts: Int): Sequence<DoubleArray> {
+        live("sample")
         val n = leverCount
         val ranges = (0 until n).map { bounds(it) }
         val integral = element.leverDecls.map { it.domain != LeverDomain.CONTINUOUS }
@@ -347,6 +363,7 @@ internal class ElementActionSet(private val element: DecisionElement) : ActionSe
     }
 
     override fun asSequence(): Sequence<DoubleArray> {
+        live("asSequence")
         val counts = axisCounts()
             ?: throw IllegalStateException(
                 "This action set is not enumerable — it has a continuous lever, or more than " +

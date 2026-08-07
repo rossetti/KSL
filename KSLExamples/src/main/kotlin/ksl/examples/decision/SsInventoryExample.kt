@@ -63,12 +63,16 @@ class SsInventory(
     private val rateFunction: PiecewiseConstantRateFunction = DemandRates.stationary,
     maxOrder: Int = 200,
     /**
-     * Whether the order-quantity lever declares a `read`. There is no natural answer:
-     * an order quantity has no "current value", so the closest thing is the size of the
-     * last order placed. Supplying it is what §8.2.3 is about — it makes the lever look
-     * like a setting to machinery that assumes settings.
+     * Whether to declare the order-quantity lever as a SETTING rather than a TRANSACTION.
+     *
+     * An order quantity is a transaction: there is no "current order quantity", and the
+     * closest thing — the size of the last order — is only meaningful if you believe an
+     * order is a setting. Before §8.2.3 the declaration could not say which it was, and
+     * §4.1.2.3's advice to always supply a reader pushed a modeler toward the wrong one.
+     * It can now be said, and this flag exists to declare it **wrong on purpose** so the
+     * consequence stays measurable (§8.2.2).
      */
-    leverHasReader: Boolean = false,
+    declareOrderAsSetting: Boolean = false,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -174,12 +178,16 @@ class SsInventory(
         observe("$name:Position") { inventoryPosition }                         // 0
         observe("$name:ExpectedDemand") { expectedDemandOverProtection }        // 1
         observe("$name:DemandSinceReview") { demandSinceLastReview }            // 2
+        // Placing an order is a TRANSACTION. Doing nothing is ordering zero — an action
+        // with a declared amount, not an abstention (§8.2.3). Declaring it as a SETTING is
+        // the mistake the old design encouraged, and `declareOrderAsSetting` reproduces it.
         lever(
             this@SsInventory, limits = 0..maxOrder, alias = "$name:OrderQty",
-            read = if (leverHasReader) ({ lastOrderQuantity }) else null
+            neutral = if (declareOrderAsSetting) Neutral.Current { lastOrderQuantity }
+                      else Neutral.Value(0.0)
         ) { q -> placeOrder(q.toInt()) }
         every(reviewPeriod)
-        policy = OrderNothingPolicy
+        policy = NeutralPolicy
     }
 
     override fun initialize() {
@@ -285,7 +293,16 @@ class DynamicSsPolicy(
     override fun toString(): String = "dynamic(a=%.2f, b=%.2f)".format(a, b)
 }
 
-/** Order nothing, ever. The do-nothing reference arm every benchmark needs (§4.1.10). */
+/**
+ * Order nothing, ever. The do-nothing reference arm every benchmark needs (§4.1.10).
+ *
+ * **This class no longer needs to exist**, and that is the point of §8.2.3. It was written by
+ * hand because `HoldCurrentPolicy` could not run on a transactional model at all — the
+ * Level-2 baseline of §6.2 was unavailable for the canonical MDP example, and every
+ * transactional model would have had to write its own arm. With a declared neutral,
+ * `NeutralPolicy` does this generically. It is kept only so the benchmarks that name it keep
+ * comparing what they compared before; `SsInventoryBenchmarkTest` asserts the two agree.
+ */
 object OrderNothingPolicy : PolicyIfc {
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray =
         doubleArrayOf(0.0)

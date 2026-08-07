@@ -29,19 +29,28 @@ internal class ObservationDecl(
 )
 
 /**
- *  A declared lever. [read] is optional because KSL has no uniform settable interface, so
- *  the block form of the DSL can always supply a write and cannot always supply a read.
- *  Whether it was supplied is what [LeverInfo.supportsCurrentValue] reports.
+ *  A declared lever.
+ *
+ *  [read] is non-null exactly when [kind] is [LeverKind.SETTING], and it is not a separate
+ *  optional argument any more: it is the content of `Neutral.Current` (§8.2.3). A reader used
+ *  to be optional because KSL has no uniform settable interface, so the block form of the DSL
+ *  can always supply a write and cannot always supply a read — true, but it made "no reader"
+ *  mean two different things, which is what §8.2.2 measured going wrong.
+ *
+ *  [neutralValue] is what this lever does when a rule declines to act on it. For a setting it
+ *  reads the current value; for a transaction it returns the declared constant.
  */
 internal class LeverDecl(
     val name: String,
     val owner: ModelElement,
     val domain: LeverDomain,
+    val kind: LeverKind,
     val modelLowerLimit: Double,
     val modelUpperLimit: Double,
     val levels: List<String>?,
     val write: (Double) -> Unit,
     val read: (() -> Double)?,
+    val neutralValue: () -> Double,
     /** 𝒳(s) for this lever, evaluated at every epoch. Null means "the envelope is the set". */
     val boundsFn: (() -> ClosedFloatingPointRange<Double>)? = null
 ) {
@@ -68,6 +77,7 @@ internal class LeverDecl(
     fun info(): LeverInfo = LeverInfo(
         name = name,
         domain = domain,
+        kind = kind,
         modelLowerLimit = modelLowerLimit,
         modelUpperLimit = modelUpperLimit,
         supportsCurrentValue = read != null,
@@ -159,6 +169,7 @@ class DecisionElement internal constructor(
                 modelUpperLimit = it.modelUpperLimit,
                 lowerBound = it.lowerBound,
                 upperBound = it.upperBound,
+                kind = it.kind,
                 stateDependent = it.stateDependent,
                 levels = it.levels
             )
@@ -177,7 +188,7 @@ class DecisionElement internal constructor(
     )
 
     // ---- Parameterization: replication-initial (§4.1.3) -------------------------
-    private var myPolicy: PolicyIfc = HoldCurrentPolicy
+    private var myPolicy: PolicyIfc = NeutralPolicy
 
     /**
      *  The rule. Replication-initial: the setter throws while the model is running.
@@ -341,6 +352,10 @@ class DecisionElement internal constructor(
     private fun readObservations(): DoubleArray =
         DoubleArray(observationDecls.size) { observationDecls[it].source.value }
 
+    /** Do nothing, as each lever declared it (§8.2.3). */
+    internal fun neutralAction(): DoubleArray =
+        DoubleArray(leverDecls.size) { leverDecls[it].neutralValue() }
+
     private fun runEpoch() {
         // Step 1 — observe.
         val s = readObservations()
@@ -358,13 +373,17 @@ class DecisionElement internal constructor(
             return
         }
 
-        // Step 6 — decide and act.
-        ctx.update(time, time - lastEpochTime, myEpochCount)
+        // Step 6 — decide and act. The context is open only for the duration of the call:
+        // reading it afterwards throws rather than answering about a later epoch (§4.5.3).
+        // `finally`, so a rule that throws still leaves no live context behind.
+        val view = ctx.open(time, time - lastEpochTime, myEpochCount)
         val action = try {
-            myPolicy.action(s, ctx)
+            myPolicy.action(s, view)
         } catch (e: Throwable) {
             myLastTermination = TerminationSource.POLICY_ERROR
             throw e
+        } finally {
+            ctx.close()
         }
         when (val prepared = binding.prepare(action)) {
             is PreparedAction.Ready -> binding.apply(prepared.plan)
@@ -508,19 +527,29 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         }
         if (violations.isNotEmpty()) return PreparedAction.Invalid(violations)
 
-        // Plan. A step whose target equals its source is ELIDED, not written: writing a
-        // value back is not a no-op in KSL (TWResponse.assignValue collects an observation
-        // and notifies observers regardless of whether the value changed).
+        // Plan. For a SETTING, a step whose target equals its source is ELIDED, not written:
+        // writing a value back is not a no-op in KSL (TWResponse.assignValue collects an
+        // observation and notifies observers regardless of whether the value changed).
+        //
+        // For a TRANSACTION the elision is not merely unnecessary, it is WRONG — two
+        // consecutive orders of the same size are two orders, and skipping the second loses
+        // one. §8.2.2 measured that: 5.83 orders per replication, 1.5%, gone with no error.
+        // A transaction now has no reader at all (`Neutral.Value` carries none), so `from` is
+        // NaN and the guard cannot fire; the kind test states the rule rather than relying on
+        // that coincidence.
         val steps = mutableListOf<ActionPlan.Step>()
         for ((i, d) in decls.withIndex()) {
             val from = element.catalog.actuator(d.name).let { a ->
                 if (a is StatefulLeverActuator) a.currentValue() else Double.NaN
             }
             val to = action[i]
-            if (!from.isNaN() && from == to) continue
+            if (d.kind == LeverKind.SETTING && !from.isNaN() && from == to) continue
             steps += ActionPlan.Step(d.name, from, to, element.catalog.actuator(d.name)!!)
         }
-        // Decreases before increases (§4.4): frees capacity before committing it.
+        // Decreases before increases (§4.4): frees capacity before committing it. The ordering
+        // is defined over SETTINGS; a transaction has no `from` to take a difference against,
+        // so it keys 0.0 and — the sort being stable — transactions keep their declaration
+        // order among the neutral moves (§4.4, §8.2.3).
         steps.sortBy { if (it.from.isNaN()) 0.0 else it.to - it.from }
         return PreparedAction.Ready(ActionPlan(steps))
     }
@@ -541,31 +570,106 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
 }
 
 /**
- *  §4.5.3. One instance per element, reused; the epoch-scoped fields are updated in place.
+ *  §4.5.3. The element's decision state, and the factory for the per-epoch views handed to
+ *  rules. The constant half — names, constraints, narrowed bounds — is held here once and
+ *  shared by every view, which is what the original "one instance, reused" design was for.
+ *
+ *  **The aliasing hazard is closed here rather than documented** (G.9 row 6). §4.5.3 said
+ *  retaining a context is a bug and nothing prevented it, and the failure it invites is
+ *  silent: a rule that stashes the context and reads `simulationTime` later gets a
+ *  well-formed number belonging to a different decision.
+ *
+ *  What a rule receives is an [EpochContext] stamped with the generation it was minted for.
+ *  Every epoch-scoped read compares that stamp against the generation currently live and
+ *  throws [StaleDecisionContextException] if they differ. A bare "is an epoch open?" flag
+ *  would not do: it catches a read after the run, but a context stashed at epoch 1 and read
+ *  during epoch 5 would find an epoch open and answer about epoch 5. The stamp is what makes
+ *  the two cases distinguishable, and it is why the counter is on the view rather than here.
+ *
+ *  The cost is one small object per decision, plus the [ActionSet] that belongs to it. That
+ *  is the trade the original design was avoiding, and it buys a named failure in place of a
+ *  wrong answer.
  */
-internal class MutableDecisionContext(private val element: DecisionElement) : DecisionContext {
+internal class MutableDecisionContext(private val element: DecisionElement) {
 
-    override var simulationTime: Double = 0.0
+    // ---- The declared shape. Constant; computed once; shared by every view. Retaining
+    // these is legitimate, so nothing guards them.
+    val elementName: String = element.name
+    val modelName: String = element.model.name
+    val observationNames: List<String> = element.observationDecls.map { it.name }
+    val leverNames: List<String> = element.leverDecls.map { it.name }
+    val constraints: List<JointConstraint> = element.jointConstraints.toList()
+
+    // ---- Liveness. `generation` counts decisions; `live` is the one being served, or -1.
+    private var generation: Long = 0L
+    private var live: Long = -1L
+
+    var simulationTime: Double = 0.0
         private set
-    override var intervalSinceLastEpoch: Double = 0.0
+    var intervalSinceLastEpoch: Double = 0.0
         private set
-    override var epochIndex: Int = 0
+    var epochIndex: Int = 0
         private set
 
+    val owner: DecisionElement get() = element
+
+    internal fun check(stamp: Long, member: String) {
+        if (stamp != live) throw StaleDecisionContextException(elementName, member, generation - stamp)
+    }
+
+    /** Mint the view for this decision. */
+    internal fun open(now: Double, sinceLast: Double, index: Int): DecisionContext {
+        generation++
+        live = generation
+        simulationTime = now
+        intervalSinceLastEpoch = sinceLast
+        epochIndex = index
+        return EpochContext(this, generation)
+    }
+
+    internal fun close() {
+        live = -1L
+    }
+}
+
+/**
+ *  What a rule is handed: the element's decision state, stamped with the generation this
+ *  view was minted for (§4.5.3, G.9 row 6).
+ *
+ *  The declared-shape members delegate without checking — they are constant for the life of
+ *  the element, so a rule that keeps the lever names is doing nothing wrong. Everything that
+ *  means something different at the next epoch checks first.
+ */
+internal class EpochContext(
+    private val state: MutableDecisionContext,
+    private val stamp: Long
+) : DecisionContext {
+
+    private val element get() = state.owner
+
+    private fun live(member: String) = state.check(stamp, member)
+
+    // ---- Epoch-scoped.
+    override val simulationTime: Double
+        get() { live("simulationTime"); return state.simulationTime }
+    override val intervalSinceLastEpoch: Double
+        get() { live("intervalSinceLastEpoch"); return state.intervalSinceLastEpoch }
+    override val epochIndex: Int
+        get() { live("epochIndex"); return state.epochIndex }
     override val remainingRunLength: Double
-        get() = element.model.lengthOfReplication - simulationTime
+        get() { live("remainingRunLength"); return element.model.lengthOfReplication - state.simulationTime }
     override val replicationId: Int
-        get() = element.model.currentReplicationId
+        get() { live("replicationId"); return element.model.currentReplicationId }
 
-    override val elementName: String = element.name
-    override val modelName: String = element.model.name
-    override val observationNames: List<String> = element.observationDecls.map { it.name }
-    override val leverNames: List<String> = element.leverDecls.map { it.name }
+    // ---- The declared shape. Constant; unguarded.
+    override val elementName: String get() = state.elementName
+    override val modelName: String get() = state.modelName
+    override val observationNames: List<String> get() = state.observationNames
+    override val leverNames: List<String> get() = state.leverNames
+    override val constraints: List<JointConstraint> get() = state.constraints
 
     override val leverBounds: List<ClosedFloatingPointRange<Double>>
         get() = element.leverDecls.map { it.lowerBound..it.upperBound }
-
-    override val constraints: List<JointConstraint> = element.jointConstraints.toList()
 
     /**
      *  The total governing this lever **as it stands now**. Once a budget can itself be a
@@ -574,30 +678,39 @@ internal class MutableDecisionContext(private val element: DecisionElement) : De
      *  is still available through [constraints]. Returning the declared value here would
      *  hand every allocating rule an upper bound and call it the budget.
      *
+     *  Epoch-scoped for exactly that reason: a state-dependent total read after the epoch is
+     *  a number about a different state.
+     *
      *  There is at most one such constraint: `build()` rejects a lever named by two
      *  (G.9 row 3), because this accessor returns one number and could otherwise return
      *  whichever was declared first. So `firstOrNull` here is `theOnlyOneOrNull`.
      */
     override fun budgetTotal(leverIndex: Int): Double? {
+        live("budgetTotal")
         val name = leverNames[leverIndex]
         val d = element.jointDecls.firstOrNull { it.names.contains(name) } ?: return null
         return d.totalFn()
     }
 
-    // ---- The feasible set 𝒳(s) as an object, §4.4.6.5.
-    override val actions: ActionSet = ElementActionSet(element)
+    // ---- The feasible set 𝒳(s) as an object, §4.4.6.5. It carries this view's stamp too:
+    // 𝒳(s) is a function of the state, so a retained ActionSet is the same hazard, and
+    // guarding only the getter that hands it out would leave the door open.
+    private val myActions: ActionSet = ElementActionSet(element) { m -> live("actions.$m") }
+
+    override val actions: ActionSet
+        get() { live("actions"); return myActions }
 
     override val currentAction: DoubleArray
-        get() = DoubleArray(element.leverDecls.size) { i ->
-            val a = element.catalog.actuator(element.leverDecls[i].name)
-            if (a is StatefulLeverActuator) a.currentValue() else Double.NaN
+        get() {
+            live("currentAction")
+            return DoubleArray(element.leverDecls.size) { i ->
+                val a = element.catalog.actuator(element.leverDecls[i].name)
+                if (a is StatefulLeverActuator) a.currentValue() else Double.NaN
+            }
         }
 
-    fun update(now: Double, sinceLast: Double, index: Int) {
-        simulationTime = now
-        intervalSinceLastEpoch = sinceLast
-        epochIndex = index
-    }
+    override val neutralAction: DoubleArray
+        get() { live("neutralAction"); return element.neutralAction() }
 }
 
 @DslMarker
@@ -634,42 +747,46 @@ class DecisionElementBuilder internal constructor(
     // Each returns the declared lever's identity, for use by budget/atMost and by
     // DecisionElement.narrow. Generic in the owner so the setter receiver resolves.
     //
-    // [read] is optional and supplies the lever's CURRENT value. Without it the element
-    // cannot answer DecisionContext.currentAction for this lever, and cannot tell whether
-    // a write would change anything. See §8.1.
+    // [neutral] is REQUIRED and says what this lever does when a rule declines to act on it
+    // (§8.2.3). `Neutral.Current { … }` makes it a SETTING and carries the reader; the reader
+    // is not a separate optional argument, because a setting without one cannot answer
+    // `currentAction` and cannot participate in §6.2's Level-2 argument. `Neutral.Value(0.0)`
+    // makes it a TRANSACTION, for which there is nothing to read and doing nothing is an
+    // action with a declared amount.
     fun <T : ModelElement> lever(
         owner: T,
         limits: IntRange,
+        neutral: Neutral<T>,
         alias: String? = null,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
-        read: (T.() -> Double)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
         owner, LeverDomain.INTEGER, limits.first.toDouble(), limits.last.toDouble(), null, alias,
-        bounds, read, set
+        bounds, neutral, set
     )
 
     fun <T : ModelElement> lever(
         owner: T,
         limits: ClosedFloatingPointRange<Double>,
+        neutral: Neutral<T>,
         alias: String? = null,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
-        read: (T.() -> Double)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
-        owner, LeverDomain.CONTINUOUS, limits.start, limits.endInclusive, null, alias, bounds, read, set
+        owner, LeverDomain.CONTINUOUS, limits.start, limits.endInclusive, null, alias,
+        bounds, neutral, set
     )
 
     fun <T : ModelElement> lever(
         owner: T,
         levels: List<String>,
+        neutral: Neutral<T>,
         alias: String? = null,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
-        read: (T.() -> Double)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
         owner, LeverDomain.CATEGORICAL, 0.0, (levels.size - 1).toDouble(), levels, alias,
-        bounds, read, set
+        bounds, neutral, set
     )
 
     private fun <T : ModelElement> declare(
@@ -680,21 +797,44 @@ class DecisionElementBuilder internal constructor(
         levels: List<String>?,
         alias: String?,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)?,
-        read: (T.() -> Double)?,
+        neutral: Neutral<T>,
         set: T.(Double) -> Unit
     ): LeverRef {
         require(lower <= upper) { "Lever limits for '${alias ?: owner.name}' are unordered: [$lower, $upper]" }
         val name = alias ?: owner.name
         require(element.leverDecls.none { it.name == name }) { "Lever '$name' is declared twice." }
+        // The reader and the kind both come out of `neutral`, which is why they can no
+        // longer disagree. A CATEGORICAL transaction is refused: doing nothing to an
+        // unordered lever is not a number, and `Neutral.Value` would have to name a level
+        // index, which is the same category error §4.4.4's clamp refuses to make.
+        if (domain == LeverDomain.CATEGORICAL && neutral is Neutral.Value) {
+            throw IllegalArgumentException(
+                "Lever '$name' is CATEGORICAL and declares Neutral.Value(${neutral.amount}). A " +
+                    "categorical lever's values are labels with no arithmetic, so a neutral " +
+                    "AMOUNT means nothing — the same category error §4.4.4's clamp refuses to " +
+                    "make. Declare Neutral.Current { … } naming the level in force (§8.2.3)."
+            )
+        }
         element.leverDecls += LeverDecl(
             name = name,
             owner = owner,
             domain = domain,
+            kind = when (neutral) {
+                is Neutral.Current -> LeverKind.SETTING
+                is Neutral.Value -> LeverKind.TRANSACTION
+            },
             modelLowerLimit = lower,
             modelUpperLimit = upper,
             levels = levels,
             write = { v -> owner.set(v) },
-            read = if (read == null) null else ({ owner.read() }),
+            read = when (neutral) {
+                is Neutral.Current -> ({ neutral.read(owner) })
+                is Neutral.Value -> null
+            },
+            neutralValue = when (neutral) {
+                is Neutral.Current -> ({ neutral.read(owner) })
+                is Neutral.Value -> ({ neutral.amount })
+            },
             boundsFn = if (bounds == null) null else ({ owner.bounds() })
         )
         return LeverRef(name)
