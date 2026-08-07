@@ -52,6 +52,7 @@ class AgentExampleReplicationTest {
      */
     private val examples: List<Pair<String, (Model) -> ModelElement>> = listOf(
         "AgentArrivalsExample" to { m: Model -> AgentArrivalsExample(m) },
+        "AgentPerformanceExample" to { m: Model -> AgentPerformanceExample(m) },
         "GridEpidemicExample" to { m: Model -> GridEpidemicExample(m) },
         "NetworkRumorExample" to { m: Model -> NetworkRumorExample(m) },
         "CorridorPedestrianExample" to { m: Model -> CorridorPedestrianExample(m) },
