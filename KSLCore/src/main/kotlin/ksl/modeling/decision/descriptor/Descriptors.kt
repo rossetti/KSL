@@ -94,6 +94,14 @@ data class LeverDescriptor(
      */
     val stateDependent: Boolean = false,
     val levels: List<String>? = null,
+    /**
+     *  What this lever is measured in — "staff", "units", "$/hour". Optional by design
+     *  (§4.2.4, G.9 row 7): requiring it would be ceremony, and the library cannot verify a
+     *  unit against the model. What it does with one is check that a joint constraint does
+     *  not sum levers measured in different things, and name it in every violation message —
+     *  and, through this descriptor, let a `ShapeAwarePolicyIfc` refuse a surface whose units
+     *  are not what the rule was written for.
+     */
     val unit: String? = null
 )
 

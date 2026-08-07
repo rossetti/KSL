@@ -141,6 +141,15 @@ class DeclarationSurfaceCoverageTest {
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Value(0.0)) { v -> mode = v.toInt() }
                 every(10.0); policy = NeutralPolicy }
         }
+        results["budget over mismatched units"] = probe("budget(a, b) where a and b differ in unit") {
+            runWith { w -> observe(w.level)
+                val a = lever(w, 0..10, alias = "a", unit = "staff",
+                    neutral = Neutral.Current { level.value }) { }
+                val b = lever(w, 0..10, alias = "b", unit = "dollars",
+                    neutral = Neutral.Current { rate }) { }
+                budget(a, b, total = 5.0)
+                every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0) } }
+        }
         results["context read after the epoch"] = probe("retaining the DecisionContext (§4.5.3)") {
             var stashed: DecisionContext? = null
             runWith { w -> observe(w.level)
@@ -241,6 +250,102 @@ class DeclarationSurfaceCoverageTest {
         assertTrue(failure != null,
             "clamping an unordered domain should reject; it ran and left mode = ${w.mode}")
         assertTrue(w.mode == 0, "no category should have been written; mode = ${w.mode}")
+    }
+
+    /**
+     *  G.9 row 7. `unit` was a field nothing read, which is the fault D.10 names. It is now
+     *  read in the one place where units actually combine — a joint constraint sums its
+     *  levers — and printed wherever a value is reported.
+     *
+     *  The scope is the interesting part, and it is deliberately narrow. `unit` is optional,
+     *  so every check built on it is conditional on someone having declared one, and a
+     *  surface that declares nothing passes trivially. `unitCoverage()` exists so that
+     *  "passed" and "was never checked" are distinguishable, which is the difference between
+     *  an enforced invariant and a decorative one.
+     */
+    @Test
+    fun aJointConstraintOverMismatchedUnitsIsRefusedAndPartialCoverageIsReported() {
+        fun declare(unitB: String?, unitC: String?): Pair<Throwable?, UnitCoverage?> {
+            val model = Model("Units-$unitB-$unitC")
+            val w = Widget(model, "W")
+            var cov: UnitCoverage? = null
+            val e = runCatching {
+                val el = w.decisionElement("D") {
+                    observe(w.level, "Level", unit = "widgets")
+                    val a = lever(w, 0..10, alias = "a", unit = "staff",
+                        neutral = Neutral.Current { level.value }) { }
+                    val b = lever(w, 0..10, alias = "b", unit = unitB,
+                        neutral = Neutral.Current { rate }) { }
+                    val c = lever(w, 0..10, alias = "c", unit = unitC,
+                        neutral = Neutral.Current { mode.toDouble() }) { }
+                    budget(a, b, c, total = 5.0)
+                    every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) }
+                }
+                cov = el.unitCoverage()
+            }.exceptionOrNull()
+            return e to cov
+        }
+
+        val (agreeing, fullCov) = declare("staff", "staff")
+        val (mismatched, _) = declare("staff", "dollars")
+        val (partial, partCov) = declare("staff", null)
+
+        println()
+        println("budget(a, b, c) == 5, a always in staff:")
+        println("  b, c in staff        : ${agreeing?.let { it::class.simpleName } ?: "ACCEPTED"}   $fullCov")
+        println("  c in dollars         : ${mismatched?.let { it::class.simpleName } ?: "ACCEPTED"}")
+        println("    ${mismatched?.message}")
+        println("  c undeclared         : ${partial?.let { it::class.simpleName } ?: "ACCEPTED"}   $partCov")
+
+        assertTrue(agreeing == null, "levers agreeing on a unit should be legal: $agreeing")
+        assertTrue(mismatched is IllegalArgumentException,
+            "summing staff and dollars should be refused; it was accepted")
+        val msg = mismatched.message ?: ""
+        assertTrue("staff" in msg && "dollars" in msg,
+            "the refusal should name both units; said: $msg")
+
+        // An undeclared unit is not an error — `unit` is optional and a partial declaration
+        // is a legitimate half-step — but the surface must not claim it was fully checked.
+        assertTrue(partial == null, "an undeclared unit should not be an error: $partial")
+        assertTrue(fullCov!!.fullyChecked, "the agreeing surface should report a full check")
+        assertTrue(!partCov!!.fullyChecked,
+            "a partly-declared constraint must not report as fully checked; got $partCov")
+        assertTrue(partCov.constraintsPartlyChecked == 1, "expected one partly-checked constraint")
+    }
+
+    /**
+     *  The other half of row 7: a unit appears wherever a number about a lever is reported,
+     *  because a violation message is the one place a units mistake reliably surfaces at all.
+     */
+    @Test
+    fun violationMessagesNameTheDeclaredUnit() {
+        val model = Model("UnitsInMessages")
+        val w = Widget(model, "W")
+        var violations: List<String> = emptyList()
+        w.decisionElement("D") {
+            observe(w.level)
+            val a = lever(w, 0..10, alias = "a", unit = "staff",
+                neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
+            val b = lever(w, 0..10, alias = "b", unit = "staff",
+                neutral = Neutral.Current { rate }) { v -> rate = v }
+            budget(a, b, total = 8.0)
+            every(10.0)
+            policy = PolicyIfc { _, ctx ->
+                violations = ctx.actions.violations(doubleArrayOf(40.0, 0.0))
+                doubleArrayOf(4.0, 4.0)
+            }
+        }
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 30.0
+        model.simulate()
+
+        println()
+        println("Violations for the action (40, 0) against two levers in staff, budget 8:")
+        violations.forEach { println("  $it") }
+
+        assertTrue(violations.isNotEmpty(), "the probe action should have violated something")
+        assertTrue(violations.all { "staff" in it },
+            "every violation about a united lever should name the unit; got $violations")
     }
 
     /**

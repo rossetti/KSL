@@ -25,7 +25,14 @@ data class RewardRef internal constructor(val declaredName: String)
  */
 internal class ObservationDecl(
     val name: String,
-    val source: GetValueIfc
+    val source: GetValueIfc,
+    /**
+     *  What this reading is measured in — "jobs", "server-units", "$/hour". Optional, and
+     *  optional deliberately (§4.2.4, G.9 row 7): requiring it would be ceremony on every
+     *  declaration, and the library cannot verify it against anything. What it can do is
+     *  carry it where a rule and an error message can reach it.
+     */
+    val unit: String? = null
 )
 
 /**
@@ -52,7 +59,9 @@ internal class LeverDecl(
     val read: (() -> Double)?,
     val neutralValue: () -> Double,
     /** 𝒳(s) for this lever, evaluated at every epoch. Null means "the envelope is the set". */
-    val boundsFn: (() -> ClosedFloatingPointRange<Double>)? = null
+    val boundsFn: (() -> ClosedFloatingPointRange<Double>)? = null,
+    /** What this lever is measured in. Optional; see [ObservationDecl.unit] (§4.2.4). */
+    val unit: String? = null
 ) {
     var lowerBound: Double = modelLowerLimit
     var upperBound: Double = modelUpperLimit
@@ -81,7 +90,8 @@ internal class LeverDecl(
         modelLowerLimit = modelLowerLimit,
         modelUpperLimit = modelUpperLimit,
         supportsCurrentValue = read != null,
-        levels = levels
+        levels = levels,
+        unit = unit
     )
 }
 
@@ -123,6 +133,35 @@ class DecisionElement internal constructor(
     }
     internal val jointDecls = mutableListOf<JointDecl>()
 
+    /**
+     *  Constraints where some but not all levers declared a unit, so `build()`'s consistency
+     *  check saw only part of the sum. Reported by [unitCoverage] rather than rejected: a
+     *  partial declaration is a legitimate half-step, and refusing it would make `unit`
+     *  all-or-nothing, which is the ceremony §4.2.4 declined.
+     */
+    internal val partiallyUnitedConstraints = mutableListOf<Int>()
+
+    /**
+     *  What the declaration says about units, and what it therefore could not check (§4.2.4).
+     *
+     *  A field that documents an invariant nothing enforces is the fault D.10 names, and the
+     *  honest answer to "is `unit` load-bearing?" is *partly* — it is checked where units
+     *  combine, printed where a value is reported, and available to a rule that wants to
+     *  require one. This makes the remaining gap countable instead of rhetorical.
+     */
+    fun unitCoverage(): UnitCoverage = UnitCoverage(
+        observationsDeclared = observationDecls.count { it.unit != null },
+        observations = observationDecls.size,
+        leversDeclared = leverDecls.count { it.unit != null },
+        levers = leverDecls.size,
+        constraintsChecked = jointDecls.indices.count { k ->
+            k !in partiallyUnitedConstraints &&
+                jointDecls[k].names.all { n -> leverDecls.first { it.name == n }.unit != null }
+        },
+        constraintsPartlyChecked = partiallyUnitedConstraints.size,
+        constraints = jointDecls.size
+    )
+
     lateinit var catalog: DecisionCatalog
         internal set
 
@@ -160,7 +199,7 @@ class DecisionElement internal constructor(
 
     fun descriptor(): DecisionSurfaceDescriptor = DecisionSurfaceDescriptor(
         name = this.name,
-        observations = observationDecls.map { ObservationDescriptor(it.name) },
+        observations = observationDecls.map { ObservationDescriptor(it.name, unit = it.unit) },
         levers = leverDecls.map {
             LeverDescriptor(
                 name = it.name,
@@ -171,7 +210,8 @@ class DecisionElement internal constructor(
                 upperBound = it.upperBound,
                 kind = it.kind,
                 stateDependent = it.stateDependent,
-                levels = it.levels
+                levels = it.levels,
+                unit = it.unit
             )
         },
         constraints = jointConstraints.toList(),
@@ -477,6 +517,17 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
             if (r.isEmpty()) Double.NaN else action[i].coerceIn(r.start, r.endInclusive)
         }
 
+    /**
+     *  The declared unit, formatted for a message, or "" if none was declared (§4.2.4).
+     *
+     *  Every number this class reports about a lever goes through here. A magnitude that
+     *  looks wrong — 480 where 8 was meant — reads differently with "minutes" next to it than
+     *  with nothing, and a violation message is the one place a units mistake reliably
+     *  surfaces at all, since the library cannot detect one that never violates anything
+     *  (G.9 row 7).
+     */
+    private fun LeverDecl.u(): String = if (unit == null) "" else " $unit"
+
     override fun prepare(action: DoubleArray): PreparedAction {
         val violations = mutableListOf<String>()
         if (action.size != decls.size) {
@@ -492,19 +543,20 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
                 violations += "'${d.name}' received NaN."
             } else if (range.isEmpty()) {
                 violations += "'${d.name}' has an empty feasible set at this epoch: " +
-                    "[${range.start}, ${range.endInclusive}]. No value is available (§4.4.6.3)."
+                    "[${range.start}, ${range.endInclusive}]${d.u()}. No value is available (§4.4.6.3)."
             } else if (v < range.start || v > range.endInclusive) {
                 val why = when {
                     d.domain == LeverDomain.CATEGORICAL ->
                         " — the declared levels are ${d.levels}. Clamping does not apply to an " +
                             "unordered domain, so CLAMP_THEN_REJECT rejects here (§4.4.4)"
                     d.stateDependent -> " (the state-dependent set, inside the envelope " +
-                        "[${d.modelLowerLimit}, ${d.modelUpperLimit}])"
+                        "[${d.modelLowerLimit}, ${d.modelUpperLimit}]${d.u()})"
                     else -> ""
                 }
-                violations += "'${d.name}' = $v is outside [${range.start}, ${range.endInclusive}]$why."
+                violations += "'${d.name}' = $v${d.u()} is outside " +
+                    "[${range.start}, ${range.endInclusive}]${d.u()}$why."
             } else if (d.domain == LeverDomain.INTEGER && v != Math.rint(v)) {
-                violations += "'${d.name}' = $v is not integral, but the lever's domain is INTEGER."
+                violations += "'${d.name}' = $v${d.u()} is not integral, but the lever's domain is INTEGER."
             }
         }
         val index = decls.withIndex().associate { (i, d) -> d.name to i }
@@ -515,13 +567,17 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
             }
             val total = c.totalFn()
             val what = if (c.stateDependent) "the state-dependent total" else "the declaration"
+            // build() has already established that the summed levers agree on a unit, so
+            // there is one unit for the sum and for the total, and naming it is honest.
+            val cu = c.names.firstNotNullOfOrNull { n -> decls.first { it.name == n }.unit }
+                ?.let { " $it" } ?: ""
             if (c.equality) {
                 if (Math.abs(sum - total) > 1e-9) {
-                    violations += "Sum of ${c.names} is $sum; $what requires exactly $total."
+                    violations += "Sum of ${c.names} is $sum$cu; $what requires exactly $total$cu."
                 }
             } else {
                 if (sum > total + 1e-9) {
-                    violations += "Sum of ${c.names} is $sum; $what allows at most $total."
+                    violations += "Sum of ${c.names} is $sum$cu; $what allows at most $total$cu."
                 }
             }
         }
@@ -598,6 +654,8 @@ internal class MutableDecisionContext(private val element: DecisionElement) {
     val modelName: String = element.model.name
     val observationNames: List<String> = element.observationDecls.map { it.name }
     val leverNames: List<String> = element.leverDecls.map { it.name }
+    val observationUnits: List<String?> = element.observationDecls.map { it.unit }
+    val leverUnits: List<String?> = element.leverDecls.map { it.unit }
     val constraints: List<JointConstraint> = element.jointConstraints.toList()
 
     // ---- Liveness. `generation` counts decisions; `live` is the one being served, or -1.
@@ -666,6 +724,8 @@ internal class EpochContext(
     override val modelName: String get() = state.modelName
     override val observationNames: List<String> get() = state.observationNames
     override val leverNames: List<String> get() = state.leverNames
+    override val observationUnits: List<String?> get() = state.observationUnits
+    override val leverUnits: List<String?> get() = state.leverUnits
     override val constraints: List<JointConstraint> get() = state.constraints
 
     override val leverBounds: List<ClosedFloatingPointRange<Double>>
@@ -731,17 +791,17 @@ fun ModelElement.decisionElement(
 class DecisionElementBuilder internal constructor(
     private val element: DecisionElement
 ) {
-    fun observe(source: ResponseIfc) = observe(source, source.name)
+    fun observe(source: ResponseIfc, unit: String? = null) = observe(source, source.name, unit)
 
-    fun observe(source: ResponseIfc, alias: String) {
+    fun observe(source: ResponseIfc, alias: String, unit: String? = null) {
         // ResponseIfc carries ValueIfc, NOT GetValueIfc: KSL has two interfaces declaring
         // `val value: Double` and they are unrelated. The catalog is typed on GetValueIfc,
         // so a response must be adapted. See §8.1.
-        element.observationDecls += ObservationDecl(alias, GetValueIfc { source.value })
+        element.observationDecls += ObservationDecl(alias, GetValueIfc { source.value }, unit)
     }
 
-    fun observe(name: String, source: GetValueIfc) {
-        element.observationDecls += ObservationDecl(name, source)
+    fun observe(name: String, unit: String? = null, source: GetValueIfc) {
+        element.observationDecls += ObservationDecl(name, source, unit)
     }
 
     // Each returns the declared lever's identity, for use by budget/atMost and by
@@ -758,11 +818,12 @@ class DecisionElementBuilder internal constructor(
         limits: IntRange,
         neutral: Neutral<T>,
         alias: String? = null,
+        unit: String? = null,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
         owner, LeverDomain.INTEGER, limits.first.toDouble(), limits.last.toDouble(), null, alias,
-        bounds, neutral, set
+        unit, bounds, neutral, set
     )
 
     fun <T : ModelElement> lever(
@@ -770,11 +831,12 @@ class DecisionElementBuilder internal constructor(
         limits: ClosedFloatingPointRange<Double>,
         neutral: Neutral<T>,
         alias: String? = null,
+        unit: String? = null,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
         owner, LeverDomain.CONTINUOUS, limits.start, limits.endInclusive, null, alias,
-        bounds, neutral, set
+        unit, bounds, neutral, set
     )
 
     fun <T : ModelElement> lever(
@@ -782,11 +844,12 @@ class DecisionElementBuilder internal constructor(
         levels: List<String>,
         neutral: Neutral<T>,
         alias: String? = null,
+        unit: String? = null,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)? = null,
         set: T.(Double) -> Unit
     ): LeverRef = declare(
         owner, LeverDomain.CATEGORICAL, 0.0, (levels.size - 1).toDouble(), levels, alias,
-        bounds, neutral, set
+        unit, bounds, neutral, set
     )
 
     private fun <T : ModelElement> declare(
@@ -796,6 +859,7 @@ class DecisionElementBuilder internal constructor(
         upper: Double,
         levels: List<String>?,
         alias: String?,
+        unit: String?,
         bounds: (T.() -> ClosedFloatingPointRange<Double>)?,
         neutral: Neutral<T>,
         set: T.(Double) -> Unit
@@ -835,7 +899,8 @@ class DecisionElementBuilder internal constructor(
                 is Neutral.Current -> ({ neutral.read(owner) })
                 is Neutral.Value -> ({ neutral.amount })
             },
-            boundsFn = if (bounds == null) null else ({ owner.bounds() })
+            boundsFn = if (bounds == null) null else ({ owner.bounds() }),
+            unit = unit
         )
         return LeverRef(name)
     }
@@ -928,6 +993,29 @@ class DecisionElementBuilder internal constructor(
         for (c in element.jointConstraints) {
             for (n in c.names) {
                 require(n in declared) { "Constraint names lever '$n', which is not declared. Declared: $declared" }
+            }
+        }
+        // §4.2.4 / G.9 row 7: a joint constraint SUMS its levers, so summing levers measured
+        // in different things is an arithmetic error, not a modelling preference. This is the
+        // one place the library can check a unit against something, because it is the one
+        // place units are combined. Levers that declare no unit are skipped — `unit` is
+        // optional, and an optional field cannot be the basis of a mandatory check.
+        for ((k, c) in element.jointDecls.withIndex()) {
+            val declared = c.names.mapNotNull { n ->
+                element.leverDecls.first { it.name == n }.unit?.let { u -> n to u }
+            }
+            val distinct = declared.map { it.second }.distinct()
+            require(distinct.size <= 1) {
+                "The constraint `${c.describe()}` sums levers measured in different units: " +
+                    declared.joinToString(", ") { "${it.first} in ${it.second}" } +
+                    ". A sum of quantities in different units is not a quantity, so no total " +
+                    "can be right for it. Declare one unit for all of them, or express the " +
+                    "intent as ${distinct.size} separate constraints (§4.2.4)."
+            }
+            if (distinct.size == 1 && declared.size < c.names.size) {
+                // Not an error: `unit` is optional and a partial declaration is a legitimate
+                // half-step. But it does mean the check above only covered part of the sum.
+                element.partiallyUnitedConstraints += k
             }
         }
         // §4.4.6.2 / G.9 row 3: one lever, one joint total. `budgetTotal` returns a single

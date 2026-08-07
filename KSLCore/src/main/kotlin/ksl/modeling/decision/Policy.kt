@@ -38,6 +38,22 @@ interface DecisionContext {
     val modelName: String
     val observationNames: List<String>
     val leverNames: List<String>
+
+    /**
+     *  What each observation and each lever is measured in, positionally, `null` where none
+     *  was declared (§4.2.4).
+     *
+     *  A `Double` in a positional array carries no units, and §4.2.4 states plainly that a
+     *  wrong-but-plausible declaration — jobs where server-units were meant — is undetectable
+     *  by anything in this design. These are what let a rule detect it *for itself*: a rule
+     *  that knows what it was written for can compare, in `configure` or at the first epoch,
+     *  and refuse rather than produce a plausible wrong answer. The library cannot make that
+     *  check because only the rule knows the answer; what it can do is carry the question.
+     *
+     *  Declared shape, not epoch-scoped: constant for the life of the element.
+     */
+    val observationUnits: List<String?>
+    val leverUnits: List<String?>
     /** Indexed, not mapped: read at every epoch (§4.2.3). */
     val leverBounds: List<ClosedFloatingPointRange<Double>>
     val constraints: List<JointConstraint>

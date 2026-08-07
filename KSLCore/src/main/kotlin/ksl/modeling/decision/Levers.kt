@@ -63,7 +63,8 @@ data class LeverInfo(
     val modelUpperLimit: Double,
     val supportsCurrentValue: Boolean,
     val batchGroup: String? = null,
-    val levels: List<String>? = null
+    val levels: List<String>? = null,
+    val unit: String? = null
 )
 
 /** Read-only view of a Response, TWResponse, or Counter used as a reward source. */
@@ -71,4 +72,36 @@ interface RewardSourceCIfc : GetValueIfc {
     val name: String
     /** The accumulated quantity whose difference between epochs is the interval's contribution. */
     fun accumulated(): Double
+}
+
+/**
+ *  How much of a decision surface's units were declared, and how much of the checking that
+ *  makes possible actually ran (§4.2.4, G.9 row 7).
+ *
+ *  `unit` is optional, so every check built on it is conditional on someone having declared
+ *  one. That is a defensible design and an easy one to let rot: a surface where nothing
+ *  declares a unit passes every unit check trivially, and looks identical in a green test run
+ *  to one where every check fired. This type is what makes the difference visible, and it is
+ *  the answer to D.10's objection that a field documenting an unenforced invariant is a fault —
+ *  the invariant is enforced where it can be, and the coverage of that enforcement is reported
+ *  rather than assumed.
+ */
+data class UnitCoverage(
+    val observationsDeclared: Int,
+    val observations: Int,
+    val leversDeclared: Int,
+    val levers: Int,
+    /** Constraints where every summed lever declared a unit, so the sum was fully checked. */
+    val constraintsChecked: Int,
+    /** Constraints where only some did — checked in part, and knowingly so. */
+    val constraintsPartlyChecked: Int,
+    val constraints: Int
+) {
+    val fullyChecked: Boolean
+        get() = constraintsPartlyChecked == 0 && constraintsChecked == constraints
+
+    override fun toString(): String =
+        "units: observations $observationsDeclared/$observations, levers $leversDeclared/$levers, " +
+            "constraints fully checked $constraintsChecked/$constraints" +
+            (if (constraintsPartlyChecked > 0) " ($constraintsPartlyChecked partly)" else "")
 }

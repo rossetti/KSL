@@ -150,6 +150,27 @@ object ProportionalStaffing : ShapeAwarePolicyIfc {
             "ProportionalStaffing divides a fixed budget, so it needs a declared budget() " +
                 "over its levers. The element declares: ${surface.constraints}"
         }
+
+        // The rule normalizes by the SUM of the observations, so they must be commensurable.
+        // The library cannot know that — only this rule knows it sums its weights — which is
+        // why §4.2.4 carries the unit to `configure` rather than checking it centrally
+        // (G.9 row 7).
+        //
+        // Be exact about what this catches. The §8.1.2 defect was choosing the wrong basis,
+        // and the two worst arms of that benchmark — an instantaneous read of busy units at
+        // 68.84 and its time-average at 19.03 — are BOTH declared "server-units", correctly.
+        // This check is blind to a factor of three and a half. What it catches is weighting
+        // one station on jobs and another on server-units, where the sum in the denominator
+        // is not a quantity at all. Units answer "are these the same kind of thing?", never
+        // "is this the right thing?".
+        val units = surface.observations.mapNotNull { it.unit }.distinct()
+        require(units.size <= 1) {
+            "ProportionalStaffing weights each lever by observation[i] / sum(observation), " +
+                "so its observations must be measured in the same thing. The element declares " +
+                units.joinToString(" and ") + ": " +
+                surface.observations.joinToString(", ") { "${it.name} in ${it.unit ?: "(undeclared)"}" } +
+                ". Their sum is not a quantity, so the shares divided from it are not shares."
+        }
     }
 
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
