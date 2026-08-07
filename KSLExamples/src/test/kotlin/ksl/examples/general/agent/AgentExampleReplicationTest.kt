@@ -51,6 +51,7 @@ class AgentExampleReplicationTest {
      *  newly added example has to be listed here, which is the point of the guard.
      */
     private val examples: List<Pair<String, (Model) -> ModelElement>> = listOf(
+        "AgentArrivalsExample" to { m: Model -> AgentArrivalsExample(m) },
         "GridEpidemicExample" to { m: Model -> GridEpidemicExample(m) },
         "NetworkRumorExample" to { m: Model -> NetworkRumorExample(m) },
         "CorridorPedestrianExample" to { m: Model -> CorridorPedestrianExample(m) },

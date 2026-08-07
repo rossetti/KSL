@@ -1823,19 +1823,63 @@ open class AgentModel(
         }
     }
 
-    // ── AgentGenerator (unchanged in contract) ──────────────────────────────
+    // ── AgentGenerator ──────────────────────────────────────────────────────
 
     /**
-     *  Schedules the creation of agents over time and activates each
-     *  agent's default process. Mirror of
-     *  [ksl.modeling.entity.ProcessModel.EntityGenerator] but produces
-     *  [Agent] instances. The agent must have `defaultProcess`
-     *  configured.
+     *  Schedules the creation of agents over time and activates each new agent's
+     *  default process. The agent-layer mirror of
+     *  [ksl.modeling.entity.ProcessModel.EntityGenerator], and the most direct
+     *  translation of "entities arrive from a stochastic process" into the agent
+     *  view. Being a subclass of [EventGenerator], the usual generator controls
+     *  apply.
+     *
+     *  Being `protected`, it is constructed from inside an [AgentModel] subclass —
+     *  the same visibility `EntityGenerator` has.
+     *
+     *  ```
+     *  private val arrivals = AgentGenerator(
+     *      agentFactory = { Shopper("shopper-${++created}") },
+     *      timeUntilFirst = ExponentialRV(2.0, streamNum = 1),
+     *      timeBetween = ExponentialRV(2.0, streamNum = 2),
+     *      context = shoppers,
+     *  )
+     *  ```
+     *
+     *  ## What the generator does, and what it leaves to you
+     *
+     *  It creates the agent, optionally adds it to [context], and activates its
+     *  default process. It does **not** place the agent in a projection, because
+     *  where a new agent belongs — which cell, which point, which node — is a
+     *  modelling decision the generator cannot make. Do that in [agentFactory],
+     *  which runs before activation:
+     *
+     *  ```
+     *  agentFactory = {
+     *      Shopper("shopper-${++created}").also { grid.placeAt(it, Cell(0, midRow)) }
+     *  }
+     *  ```
+     *
+     *  The failure mode is quiet, so it is worth stating: an agent that never joins
+     *  a context has no projection position, is invisible to [Population] queries,
+     *  and does not appear in animation. Nothing raises an error — the model simply
+     *  runs with an agent nobody can see. Passing [context] removes the commonest
+     *  half of that mistake; the placement half stays with the factory.
+     *
+     *  @param agentFactory builds one agent; also the right place to position it
+     *  @param timeUntilFirst time until the first agent is created
+     *  @param timeBetween time between successive creations
+     *  @param context optional context to add each new agent to before activation.
+     *    Null means the factory is responsible for membership, if any is wanted
+     *  @param maxAgents maximum number of agents to create
+     *  @param timeOfLast simulated time after which no further agents are created
+     *  @param activationPriority tie-break priority for the activation event
+     *  @param name optional name for the generator
      */
     protected inner class AgentGenerator<A : Agent>(
         private val agentFactory: () -> A,
         timeUntilFirst: RVariableIfc,
         timeBetween: RVariableIfc,
+        private val context: Context<A>? = null,
         maxAgents: Long = Long.MAX_VALUE,
         timeOfLast: Double = Double.POSITIVE_INFINITY,
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
@@ -1853,6 +1897,9 @@ open class AgentModel(
                 "Agent ${agent.name} has no default process. Define one via " +
                     "process(isDefaultProcess = true) { ... } before generation."
             }
+            // Join the context before activating, so the agent's own process sees
+            // itself as a member from its first instruction.
+            context?.add(agent)
             activate(agent.defaultProcess!!, priority = activationPriority)
         }
     }
