@@ -110,6 +110,22 @@ behavior. Action handlers are *not* coroutines — they run on the
 executive. For suspending work, transition to a state that triggers a
 separate `process { … }` body.
 
+Because states nest, a started chart occupies a **chain** — one leaf
+plus each of its ancestors — rather than a single state;
+`activeStateNames` exposes it. Transitions resolve through the least
+common ancestor of the source and target chains: states are exited
+from the leaf upward to (but not including) the LCA, then entered from
+below the LCA down to the new leaf. Three consequences follow, and all
+three are things models rely on:
+
+- Moving between two substates of the same parent **leaves that parent
+  untouched**, so any timeout or condition it owns keeps running.
+- Re-entering a composite restarts it at its initial substate. There
+  is no history.
+- When a substate and an ancestor both have a trigger enabled by the
+  same event, the **innermost wins and the ancestor's action does not
+  run at all**.
+
 ### Communication is messages on a shared bus
 
 `AgentMessage` is a sealed hierarchy: `Inform<P>`, `Request<P>`,
@@ -151,7 +167,43 @@ A `Dynamics<A>` layer on a `ContinuousProjection` applies named
 (`separation`, `alignment`, `cohesion`, `peerRepulsion`,
 `wallRepulsion`, `desiredVelocity`, `viscousDrag`) cover the textbook
 flocking and social-force patterns. `Dynamics3D` is the volumetric
-equivalent.
+equivalent. Integration is semi-implicit Euler: velocity is advanced
+from the summed force, clamped to `[minSpeed, maxSpeed]`, and only
+then is position advanced using the *new* velocity.
+
+### Update order is a modelling choice
+
+When several agents interact each step, you must decide what state
+they see. The package offers both answers and they give different
+results:
+
+- **Synchronous (Jacobi)** — every agent's step is computed from the
+  *same* prior state, then all are applied. Drive the population from
+  one process with `runDynamicsAll`. Independent of the order agents
+  are visited.
+- **Asynchronous (Gauss-Seidel)** — each agent steps and applies
+  immediately, so agents handled later in a tick see neighbours that
+  have *already* moved. This is what you get by giving every agent its
+  own `runDynamics` loop.
+
+Neither is wrong; they encode different assumptions about whether
+agents react to a shared snapshot or to a partly-updated world. But
+the choice is visible in results, not just in performance.
+`FlockingExample` ships both behind `useJacobiUpdate` so you can
+measure it: at 40 boids the asynchronous rule reaches flock consensus
+roughly twice as fast early in a run, because alignment propagates
+through the whole flock within one tick instead of one step per tick.
+That speed-up is an artefact of update order, not of the model.
+
+The classic cautionary case is Huberman and Glance (1993, *PNAS*
+90:7716–7718), who showed that celebrated spatial patterns in Nowak
+and May's evolutionary-games model were an artefact of synchronous
+updating and vanished under asynchronous updating. If a measure
+matters to your conclusions, check whether it survives the other rule.
+
+Grid models have no batch driver — `runDynamicsAll` is specific to
+`ContinuousProjection`. A cellular automaton that needs simultaneous
+update must compute all next states before committing any, by hand.
 
 ---
 
@@ -220,6 +272,67 @@ class WorkflowModel(parent: ModelElement) : AgentModel(parent) {
 the agent is activated." Create `Job` instances on demand (from a
 source's `marking` hook, from another agent's process body, from an
 `initialize()` callback for the first batch).
+
+> **A `KSLProcess` is one-shot.** Once it completes or is terminated it
+> cannot be activated again — repeating behaviour means a *new* process
+> on a *new* agent. So do not hold an agent as a model field and
+> re-activate its script from `initialize()`: it survives replication 1,
+> is terminated by end-of-replication cleanup, and fails on replication 2
+> with "cannot be activated … because the entity is already running a
+> process". Build agents fresh inside `initialize()`, or give a genuinely
+> permanent agent a statechart instead — statecharts *are* restarted each
+> replication. A generator held as a field is fine, and is the standard
+> shape, because it manufactures a new agent every firing.
+
+### ...generate agents over time
+
+`AgentGenerator` schedules agent creation on a random interval and
+activates each new agent's default process. It is the agent-layer
+mirror of `ksl.modeling.entity.ProcessModel.EntityGenerator` and the
+most direct translation of "entities arrive from a Poisson process".
+It extends `EventGenerator`, so the usual generator controls apply, and
+it is `protected` — build it inside your `AgentModel` subclass.
+
+```kotlin
+class ArrivalsModel(parent: ModelElement) : AgentModel(parent) {
+
+    val shoppers: Context<Shopper> = Context("shoppers")
+    val grid: GridProjection<Shopper> = GridProjection(shoppers, columns = 20, rows = 20)
+
+    inner class Shopper(aName: String) : Agent(aName) {
+        val script: KSLProcess = process(isDefaultProcess = true) {
+            delay(5.0)
+            shoppers.remove(this@Shopper)
+            dispose()
+        }
+    }
+
+    private var created = 0
+
+    private val arrivals = AgentGenerator(
+        agentFactory = {
+            Shopper("shopper-${++created}").also { grid.placeAt(it, Cell(0, 10)) }
+        },
+        timeUntilFirst = ExponentialRV(2.0, streamNum = 1),
+        timeBetween = ExponentialRV(2.0, streamNum = 2),
+        context = shoppers,
+    )
+}
+```
+
+Parameters in order: `agentFactory`, `timeUntilFirst`, `timeBetween`,
+`context` (optional), `maxAgents`, `timeOfLast`, `activationPriority`,
+`name`.
+
+The generator creates the agent, adds it to `context` if you supplied
+one, and activates its default process. It does **not** position the
+agent — where a new agent belongs is a modelling decision — so do that
+in the factory, which runs before activation. The failure mode is
+quiet: an agent that joins no context has no projection position, is
+invisible to `Population` queries and never appears in animation, with
+nothing raised. Passing `context` removes the commonest half of that.
+
+Generation throws if the agent has no `process(isDefaultProcess = true)`.
 
 ### ...author a statechart
 
@@ -465,10 +578,39 @@ class FlockModel(parent: ModelElement) : AgentModel(parent) {
         dynamics.addForce(separation<Bird>(radius = 5.0))
         dynamics.addForce(alignment<Bird>(radius = 15.0))
         dynamics.addForce(cohesion<Bird>(radius = 30.0))
-        // Each tick: dynamics.stepAll(birds.members, dt = 0.1)
     }
 }
 ```
+
+Then drive it. For a **synchronous** update — every agent stepping from
+the same prior state — run one controller process over the whole
+population:
+
+```kotlin
+inner class FlockController : Agent("controller") {
+    val script: KSLProcess = process(isDefaultProcess = true) {
+        runDynamicsAll(
+            dynamics,
+            agents = { birds.members },
+            dt = 0.1,
+            apply = { bird, vNew, pNew ->            // boundary handling goes here
+                dynamics.setVelocity(bird, vNew)
+                space.moveTo(bird, wrap(pNew))
+            },
+        )
+    }
+}
+```
+
+`apply` is where a torus wrap or a wall rejection belongs, because
+`ContinuousProjection` stores positions verbatim. The `agents` lambda is
+re-evaluated each tick, so births and deaths are handled for free.
+
+For an **asynchronous** update instead, give each agent its own
+`runDynamics(agent, dynamics, dt)` loop. See "Update order is a
+modelling choice" above before picking — the two give different results.
+
+`runDynamics3D` and `runDynamics3DAll` are the volumetric equivalents.
 
 `Force` factories that ship: `separation`, `alignment`, `cohesion`
 (the Reynolds-flocking trio), `peerRepulsion`, `wallRepulsion`,
@@ -507,6 +649,59 @@ class TaskAuctionModel(parent: ModelElement) : AgentModel(parent) {
 The helper reserves the initiator's mailbox for the conversation
 before broadcasting, so a `onMessage<Propose>` handler elsewhere on
 the same mailbox can't consume bids out from under it.
+
+### ...protect a multi-message conversation
+
+`withReservation` is the mechanism Contract-Net uses, available for
+protocols of your own. While the reservation is held, every message
+matching the predicate is diverted into its private buffer instead of
+reaching any other consumer on that mailbox; the block collects them
+at its leisure.
+
+```kotlin
+val replies = withReservation(mailbox, { it.conversationId == convId }) { reservation ->
+    for (peer in peers) {
+        sendMessage(AgentMessage.Request(this@Coordinator, ask, convId), peer.mailbox)
+    }
+    delay(deadline)              // replies accumulate while we are suspended
+    reservation.collected()
+}
+```
+
+Reach for it whenever a conversation spans more than one message and
+must not be intercepted — see the delivery-precedence gotcha below for
+why interception is possible at all.
+
+Prefer this to reserving and releasing by hand. A reservation that is
+never released keeps swallowing every matching message for the rest of
+the replication, silently; the scoped form releases on every exit path,
+including a block that throws or a process that is terminated while
+suspended inside it.
+
+### ...retire an agent
+
+Two different things happen when an agent is finished, and you usually
+want both:
+
+```kotlin
+context.remove(agent)   // no longer part of this population
+agent.dispose()         // stop its behaviour
+```
+
+`Context.remove` updates membership, notifies projections, and tells
+the animation layer to stop drawing the agent. It deliberately does
+**not** stop the agent's behaviour, because an agent may legitimately
+leave one context and join another.
+
+`dispose` stops the statechart and clears the mailbox. Without it a
+departed agent keeps running: a statechart holds scheduled timeout and
+condition events, so a trigger armed before departure still fires
+afterwards — transitioning state and executing entry and exit actions —
+and messages delivered later pile up unread. Neither is corrected until
+end of replication.
+
+Disposal is idempotent, and is not a one-way door: a disposed
+statechart can be restarted with `statechart?.start()`.
 
 ### ...make an agent a seizable resource
 
@@ -661,8 +856,14 @@ on the Dokka pages.
   `AgentResource` (seizable; also a `ResourceWithQ`).
 - `MovableAgentResource` — `AgentResource` whose position lives in a
   `ContinuousProjection`.
+- `AgentGenerator<A>` — `protected`; schedules agent creation over time
+  and activates each new agent's default process. An `EventGenerator`
+  subclass. The factory owns placement; an optional `context` handles
+  membership.
 - `AgentRegistryObserver` — external hook for agent-registration
   events.
+- `AgentLike.dispose()` — stop an agent's statechart and clear its
+  mailbox. Separate from `Context.remove`, which handles membership.
 
 **Behavior**
 
@@ -677,6 +878,9 @@ on the Dokka pages.
 - `AgentMailbox` — POJO recipient filter on the shared bus.
 - `contractNet<Q, B>(bidders, callForProposals, deadline, selectBest)`
   — the announce / bid / award helper.
+- `withReservation(mailbox, predicate) { … }` — hold a mailbox
+  reservation for the duration of a block, so a multi-message
+  conversation cannot be intercepted. Releases on every exit path.
 - `sendMessage(msg, mailbox)` — suspending; for `process { … }`.
 - `mailbox.deliver(msg)` — non-suspending; for statechart actions.
 
@@ -718,8 +922,12 @@ on the Dokka pages.
 - `Force<A>`, `Forces` (factory functions: `separation`, `alignment`,
   `cohesion`, `peerRepulsion`, `wallRepulsion`, `desiredVelocity`,
   `viscousDrag`, `constantForce`, `weighted`).
-- `Dynamics<A>` — adds forces, integrates velocity, bounds `minSpeed`
-  / `maxSpeed`.
+- `Dynamics<A>` — adds forces, integrates velocity (semi-implicit
+  Euler), bounds `minSpeed` / `maxSpeed`.
+- `runDynamicsAll` / `runDynamics` (and the `3D` pair) — the process
+  drivers. The former steps a whole population synchronously; the
+  latter drives one agent at a time. See "Update order is a modelling
+  choice".
 - `FlowField`, `FlowField3D` — distance-from-sources gradient fields
   for steering.
 - `JitterDirection` — deterministic small-angle jitter for breaking
@@ -751,6 +959,28 @@ on the Dokka pages.
 - **Messages are filtered by mailbox reference**, not by name. Send
   to the wrong `mailbox` and the message is silently dropped — no
   recipient matches and no error fires.
+- **Delivery has a precedence order, and consumers compete.** A message
+  goes first to any matching reservation, then to a suspended
+  `receiveMessage` waiter, and only then to the pending queue and the
+  statechart's `onMessage` handlers. So an agent that both runs a
+  protocol and carries a statechart matching the same traffic has no
+  guarantee which sees a given message — it depends on whether the
+  receiver happens to be suspended at that instant. Use
+  `withReservation` when it matters.
+- **`transitionTo` records a target; it does not transition.** From a
+  trigger or an entry action the request folds into the transition in
+  progress, and two calls in one action body resolve to the *first*
+  target. From an **exit** action it becomes a second transition after
+  the first completes — so the in-flight target is entered and its entry
+  actions run before the chart moves on. That case is reported at WARN
+  on the `ksl.modeling.agent.AgentModel` logger, naming the agent, both
+  states and the remedy.
+- **A self-transition notifies but does nothing else.** `transitionTo`
+  targeting the current leaf fires `onTransition`, but performs no exit
+  and no re-entry, so the state's triggers are never re-armed. The
+  obvious periodic-timer idiom — `onTimeout(d) { transitionTo(here) }` —
+  therefore fires exactly once. For a repeating timer, alternate between
+  two states, or re-arm from a `process { }` loop.
 - **Coincident agents under force-based dynamics need jitter.** Two
   agents at the same position produce a zero separation force; use
   `JitterDirection` with an explicit `RNStream` to break the tie
@@ -762,6 +992,10 @@ on the Dokka pages.
 - **`AgentResource` grants are not vetoable per request in v1.** Use
   `goOffShift()` for "refuse new work"; for finer policy, fall back
   to process-view seize logic.
+- **Leaving a context does not stop an agent.** `Context.remove` is a
+  membership operation; call `dispose()` as well when an agent is
+  finished, or its pending statechart triggers will still fire and its
+  mailbox will still accumulate. See "...retire an agent".
 - **2D and 3D types live in the same package.** `Point2D` and
   `Point3D`, `FlowField` and `FlowField3D`, etc. — import the variant
   you need, don't mix dimensions on one projection.

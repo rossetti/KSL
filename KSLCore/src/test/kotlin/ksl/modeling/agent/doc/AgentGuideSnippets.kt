@@ -3,6 +3,8 @@ package ksl.modeling.agent.doc
 import ksl.modeling.agent.AgentLike
 import ksl.modeling.agent.AgentMessage
 import ksl.modeling.agent.AgentModel
+import ksl.modeling.agent.runDynamicsAll
+import ksl.modeling.agent.withReservation
 import ksl.modeling.agent.AgentResource
 import ksl.modeling.agent.AgentSignal
 import ksl.modeling.agent.Cell
@@ -363,6 +365,96 @@ private object AgentGuideSnippets {
             var defaultStepSize: Double by positive(1.0)
             var defaultPopulation: Int by positive(50)
         }
+    }
+
+
+    // -- Recipe: generate agents over time with AgentGenerator ----------
+
+    class ArrivalsModel(parent: ModelElement) : AgentModel(parent) {
+
+        val shoppers: Context<Shopper> = Context("shoppers")
+        val grid: GridProjection<Shopper> = GridProjection(shoppers, columns = 20, rows = 20)
+
+        inner class Shopper(aName: String) : Agent(aName) {
+            val script: KSLProcess = process(isDefaultProcess = true) {
+                delay(5.0)
+                shoppers.remove(this@Shopper)
+                dispose()
+            }
+        }
+
+        private var created = 0
+
+        private val arrivals = AgentGenerator(
+            agentFactory = {
+                Shopper("shopper-${++created}").also { grid.placeAt(it, Cell(0, 10)) }
+            },
+            timeUntilFirst = ExponentialRV(2.0, streamNum = 1),
+            timeBetween = ExponentialRV(2.0, streamNum = 2),
+            context = shoppers,
+        )
+    }
+
+    // -- Recipe: drive a population synchronously (Jacobi) --------------
+
+    class SyncFlockModel(parent: ModelElement) : AgentModel(parent) {
+        inner class Bird(aName: String) : Agent(aName)
+
+        val birds: Context<Bird> = Context("birds")
+        val space = ContinuousProjection(birds, 0.0..200.0, 0.0..200.0, torus = true)
+        val dynamics = Dynamics(space)
+
+        private fun wrap(p: Point2D): Point2D =
+            Point2D(((p.x % 200.0) + 200.0) % 200.0, ((p.y % 200.0) + 200.0) % 200.0)
+
+        inner class FlockController : Agent("controller") {
+            val script: KSLProcess = process(isDefaultProcess = true) {
+                runDynamicsAll(
+                    dynamics,
+                    agents = { birds.members },
+                    dt = 0.1,
+                    apply = { bird, vNew, pNew ->
+                        dynamics.setVelocity(bird, vNew)
+                        space.moveTo(bird, wrap(pNew))
+                    },
+                )
+            }
+        }
+    }
+
+    // -- Recipe: protect a multi-message conversation -------------------
+
+    class ReservationModel(parent: ModelElement) : AgentModel(parent) {
+        inner class Peer(aName: String) : Agent(aName)
+
+        val peers: List<Peer> = listOf(Peer("p1"), Peer("p2"))
+
+        inner class Coordinator : Agent("coordinator") {
+            val script: KSLProcess = process(isDefaultProcess = true) {
+                val convId = "round-1"
+                val ask = "please bid"
+                val replies = withReservation(
+                    mailbox,
+                    { it.conversationId == convId },
+                ) { reservation ->
+                    for (peer in peers) {
+                        sendMessage(
+                            AgentMessage.Request(this@Coordinator, ask, convId),
+                            peer.mailbox,
+                        )
+                    }
+                    delay(1.0)
+                    reservation.collected()
+                }
+            }
+        }
+    }
+
+    // -- Recipe: retire an agent ---------------------------------------
+
+    fun retire(context: AgentModel.Context<AgentModel.Agent>, agent: AgentModel.Agent) {
+        context.remove(agent)
+        agent.dispose()
     }
 
     // -- Recipe: read per-agent statistics + observe agent registration -
