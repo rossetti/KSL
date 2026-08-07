@@ -2,6 +2,7 @@ package ksl.modeling.decision
 
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.LeverDomain
+import ksl.utilities.GetValueIfc
 
 /**
  *  The feasible action set 𝒳(s) as an OBJECT rather than as scattered members of the
@@ -45,6 +46,25 @@ interface ActionSet {
      *  here without checking has made an error the library should not paper over.
      */
     fun asSequence(): Sequence<DoubleArray>
+
+    /**
+     *  Up to [count] feasible actions drawn at random — the only way to search a set that
+     *  [asSequence] cannot walk, which on a model with several state-dependent levers is
+     *  the usual case rather than the exception (§8.2.10: 97% of epochs).
+     *
+     *  [uniform] must yield U(0, 1) and should come from a `RandomVariable` owned by the
+     *  policy, so that draws reset per replication and honour the model's stream options
+     *  (§4.5.6, D.12). The set does not own randomness and must not.
+     *
+     *  The default strategy is rejection, so **the yielded count may be fewer than
+     *  [count]** — with a tight equality constraint it may be zero. [acceptanceRate] is
+     *  how a caller finds that out. A constraint-aware sampler may be substituted per
+     *  constraint kind without changing this signature.
+     */
+    fun sample(uniform: GetValueIfc, count: Int, maxAttempts: Int = count * 20): Sequence<DoubleArray>
+
+    /** Accepted draws over attempted draws, since this set was created. NaN before any. */
+    val acceptanceRate: Double
 
     companion object {
         /** Above this, [size] reports null rather than a number nobody should walk. */
@@ -116,6 +136,35 @@ class GridSearch(private val pointsPerLever: Int = 11) : ActionSearch {
             for (v in axes[i]) { current[i] = v; walk(i + 1) }
         }
         walk(0)
+        return best
+    }
+}
+
+/**
+ *  Score [candidates] actions drawn at random from the set.
+ *
+ *  This is the strategy for an action space that is neither small enough to enumerate nor
+ *  low-dimensional enough to grid — which the declaration surface admits directly: several
+ *  levers with state-dependent bounds produce sets of a million and more (§8.2.10).
+ *
+ *  [uniform] should be a `RandomVariable` the policy owns, per §4.5.6. Because sampling is
+ *  by rejection, a tight constraint can starve it; a caller that must know should read
+ *  [ActionSet.acceptanceRate].
+ */
+class SampledSearch(
+    private val candidates: Int = 200,
+    private val uniform: GetValueIfc
+) : ActionSearch {
+
+    init { require(candidates >= 1) { "A sampled search needs at least one candidate." } }
+
+    override fun best(actions: ActionSet, score: (DoubleArray) -> Double): DoubleArray? {
+        var best: DoubleArray? = null
+        var bestScore = Double.MAX_VALUE
+        for (a in actions.sample(uniform, candidates)) {
+            val s = score(a)
+            if (s < bestScore) { bestScore = s; best = a.copyOf() }
+        }
         return best
     }
 }
@@ -249,6 +298,53 @@ internal class ElementActionSet(private val element: DecisionElement) : ActionSe
             for (c in counts) p *= c
             return p
         }
+
+    private var draws = 0L
+    private var accepted = 0L
+
+    override val acceptanceRate: Double
+        get() = if (draws == 0L) Double.NaN else accepted.toDouble() / draws
+
+    override fun sample(uniform: GetValueIfc, count: Int, maxAttempts: Int): Sequence<DoubleArray> {
+        val n = leverCount
+        val ranges = (0 until n).map { bounds(it) }
+        val integral = element.leverDecls.map { it.domain != LeverDomain.CONTINUOUS }
+        return sequence {
+            if (ranges.any { it.isEmpty() }) return@sequence
+            var yielded = 0
+            var attempts = 0
+            val candidate = DoubleArray(n)
+
+            // Seed with the lower-bound corner. Under a SumAtMost constraint it is feasible
+            // whenever the set is non-empty, and it is exactly the point uniform rejection
+            // is least likely to find when a joint total is tight relative to the boxes —
+            // measured starvation without it, on the shipment depot.
+            for (i in 0 until n) {
+                candidate[i] = if (integral[i]) Math.ceil(ranges[i].start) else ranges[i].start
+            }
+            draws++
+            if (candidate in this@ElementActionSet) {
+                accepted++; yielded++
+                yield(candidate.copyOf())
+            }
+            while (yielded < count && attempts < maxAttempts) {
+                attempts++
+                draws++
+                for (i in 0 until n) {
+                    val r = ranges[i]
+                    val u = uniform.value
+                    var v = r.start + u * (r.endInclusive - r.start)
+                    if (integral[i]) v = Math.rint(v)
+                    candidate[i] = v
+                }
+                if (candidate in this@ElementActionSet) {
+                    accepted++
+                    yielded++
+                    yield(candidate.copyOf())
+                }
+            }
+        }
+    }
 
     override fun asSequence(): Sequence<DoubleArray> {
         val counts = axisCounts()
