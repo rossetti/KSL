@@ -397,9 +397,9 @@ class DeclarationSurfaceCoverageTest {
     }
 
     /**
-     *  G.9 row 6. §4.5.3 said retaining a context is a bug and nothing prevented it. The
-     *  element reuses one instance, so a retained context answers about whatever epoch has
-     *  happened since — a well-formed number belonging to a different decision, with nothing
+     *  G.9 row 6. §4.5.3 said retaining a context is a bug and nothing prevented it. Before the
+     *  repair the element reused one instance, so a retained context answered about whatever epoch
+     *  had happened since — a well-formed number belonging to a different decision, with nothing
      *  to notice.
      *
      *  The split is the design decision worth testing, not just the throw: the **declared
