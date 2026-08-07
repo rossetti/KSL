@@ -98,7 +98,19 @@ class DecisionElement internal constructor(
         val names: List<String>,
         val totalFn: () -> Double,
         val stateDependent: Boolean
-    )
+    ) {
+        /**
+         *  How the constraint reads back to whoever declared it. Used in the rejection
+         *  message when two constraints claim one lever, so the modeler sees both.
+         *  A state-dependent total is not evaluated here — at construction there is no
+         *  state to evaluate it against.
+         */
+        fun describe(): String {
+            val rel = if (equality) "==" else "<="
+            val rhs = if (stateDependent) "a state-dependent total" else totalFn().toString()
+            return "sum(${names.joinToString(", ")}) $rel $rhs"
+        }
+    }
     internal val jointDecls = mutableListOf<JointDecl>()
 
     lateinit var catalog: DecisionCatalog
@@ -561,6 +573,10 @@ internal class MutableDecisionContext(private val element: DecisionElement) : De
      *  a policy allocating within the budget needs the current one — the declared envelope
      *  is still available through [constraints]. Returning the declared value here would
      *  hand every allocating rule an upper bound and call it the budget.
+     *
+     *  There is at most one such constraint: `build()` rejects a lever named by two
+     *  (G.9 row 3), because this accessor returns one number and could otherwise return
+     *  whichever was declared first. So `firstOrNull` here is `theOnlyOneOrNull`.
      */
     override fun budgetTotal(leverIndex: Int): Double? {
         val name = leverNames[leverIndex]
@@ -772,6 +788,21 @@ class DecisionElementBuilder internal constructor(
         for (c in element.jointConstraints) {
             for (n in c.names) {
                 require(n in declared) { "Constraint names lever '$n', which is not declared. Declared: $declared" }
+            }
+        }
+        // §4.4.6.2 / G.9 row 3: one lever, one joint total. `budgetTotal` returns a single
+        // number, so a lever named by two constraints hands an allocating rule whichever
+        // was declared first and gives it no way to act on the other. Refuse at
+        // construction, naming both — that is what §4.2.6 promises everywhere else.
+        for (n in declared) {
+            val owning = element.jointDecls.filter { n in it.names }
+            require(owning.size <= 1) {
+                "Lever '$n' is named by ${owning.size} joint constraints: " +
+                    owning.joinToString("; ") { it.describe() } +
+                    ". A lever has one budget — `budgetTotal` returns a single number, so a " +
+                    "rule allocating '$n' would see only the first of these and could not " +
+                    "honour the rest. Express the intent as one constraint over '$n', or " +
+                    "split '$n' into one lever per constraint (§4.4.6.2)."
             }
         }
         // §4.6.4 / G.9 row 10: the declared ordering must match the numbers that produce it.

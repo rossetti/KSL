@@ -35,6 +35,12 @@ class DeclarationSurfaceCoverageTest {
         val verdict = when {
             outcome == null -> "WORKS"
             outcome is NotDeclarableYetException -> "REFUSED AT DECLARATION (${outcome.milestone})"
+            // `build()` validation. Not a gap in the library — a form the DSL can spell and
+            // the design has decided against, refused where §4.2.6 says refusals belong.
+            outcome is IllegalArgumentException -> "REFUSED AT CONSTRUCTION"
+            // The declaration is legal; this particular action was not. Also a decision,
+            // but one that can only be made once there is an action to look at (§4.4.4).
+            outcome is ActionValidationException -> "REFUSED AT RUN TIME"
             else -> "FAILS: ${outcome::class.simpleName}"
         }
         println("  %-46s %s".format(what, verdict))
@@ -148,15 +154,32 @@ class DeclarationSurfaceCoverageTest {
             }
 
         println()
-        val notBuilt = results.filterValues { it.startsWith("DECLARED") }
+        val deferred = results.filterValues { it.startsWith("REFUSED AT DECLARATION") }
+        val refused = results.filterValues { it == "REFUSED AT CONSTRUCTION" }
+        val atRun = results.filterValues { it == "REFUSED AT RUN TIME" }
         val fails = results.filterValues { it.startsWith("FAILS") }
         println("  ${results.size} declarable forms probed: " +
             "${results.count { it.value == "WORKS" }} work, " +
-            "${notBuilt.size} declared but not built, ${fails.size} fail")
-        if (notBuilt.isNotEmpty()) println("  not built: ${notBuilt.keys}")
+            "${deferred.size} refused at declaration as unbuilt, " +
+            "${refused.size} refused at construction by design, " +
+            "${atRun.size} refused at run time by design, ${fails.size} fail")
+        if (deferred.isNotEmpty()) println("  not built: ${deferred.keys}")
+        if (refused.isNotEmpty()) println("  at build : ${refused.keys}")
+        if (atRun.isNotEmpty()) println("  at run   : ${atRun.keys}")
         if (fails.isNotEmpty()) println("  failing  : ${fails.keys}")
 
-        assertTrue(results.isNotEmpty())
+        // Every cell of the matrix now has a stated outcome: it works, or it is refused
+        // somewhere, with a reason. "Ran, semantics unspecified" is the state this probe
+        // was written to find, and there are none left.
+        assertTrue(fails.isEmpty(),
+            "a declarable form neither works nor is refused with a reason: ${fails.keys}")
+
+        // G.9 row 3: the shared lever is refused where the refusal can name both constraints.
+        assertTrue(
+            results["two constraints over one lever"] == "REFUSED AT CONSTRUCTION",
+            "a lever in two joint constraints should be refused at build(); " +
+                "saw ${results["two constraints over one lever"]}"
+        )
     }
 
     // ---------------------------------------------------------------------------
@@ -193,6 +216,52 @@ class DeclarationSurfaceCoverageTest {
         assertTrue(failure != null,
             "clamping an unordered domain should reject; it ran and left mode = ${w.mode}")
         assertTrue(w.mode == 0, "no category should have been written; mode = ${w.mode}")
+    }
+
+    /**
+     *  G.9 row 3. Two joint constraints over one lever used to run: `budgetTotal` returned
+     *  whichever was declared first, so a rule allocating the shared lever was told one of
+     *  its two budgets and was given no way to learn there was another. That is the failure
+     *  §4.2.6 exists to prevent, so it is refused at construction — and the refusal names
+     *  both constraints, because knowing which lever is over-claimed is not enough to fix it.
+     */
+    @Test
+    fun aLeverInTwoJointConstraintsIsRefusedAndBothConstraintsAreNamed() {
+        fun declare(second: (DecisionElementBuilder.(LeverRef, LeverRef, LeverRef) -> Unit)?): Throwable? {
+            val model = Model("SharedLever")
+            val w = Widget(model, "W")
+            return runCatching {
+                w.decisionElement("D") {
+                    observe(w.level)
+                    val a = lever(w, 0..10, alias = "a", read = { level.value }) { }
+                    val b = lever(w, 0..10, alias = "b", read = { rate }) { }
+                    val c = lever(w, 0..10, alias = "c", read = { mode.toDouble() }) { }
+                    budget(a, b, total = 5.0)
+                    second?.invoke(this, a, b, c)
+                    every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) }
+                }
+            }.exceptionOrNull()
+        }
+
+        val shared = declare { _, b, c -> atMost(b, c, total = 7.0) }
+        val disjoint = declare { _, _, c -> atMost(c, total = 7.0) }
+
+        println()
+        println("budget(a, b) == 5 declared, then:")
+        println("  atMost(b, c) <= 7  (shares b)   : ${shared?.let { it::class.simpleName } ?: "ACCEPTED"}")
+        println("    ${shared?.message}")
+        println("  atMost(c)    <= 7  (disjoint)   : ${disjoint?.let { it::class.simpleName } ?: "ACCEPTED"}")
+
+        assertTrue(shared is IllegalArgumentException,
+            "a lever named by two joint constraints should be refused at build()")
+        val msg = shared.message ?: ""
+        assertTrue("'b'" in msg, "the refusal should name the over-claimed lever; said: $msg")
+        assertTrue("sum(a, b) == 5.0" in msg && "sum(b, c) <= 7.0" in msg,
+            "the refusal should name BOTH constraints, not just the lever; said: $msg")
+
+        // The check is about a shared lever, not about having two constraints. Two
+        // constraints over disjoint levers is the ordinary multi-resource declaration.
+        assertTrue(disjoint == null, "disjoint constraints should still be legal: $disjoint")
     }
 
     /**
