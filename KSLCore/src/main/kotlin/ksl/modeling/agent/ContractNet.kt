@@ -97,16 +97,15 @@ suspend fun <Q, B> KSLProcessBuilder.contractNet(
     // Per-model, per-replication counter → reproducible, model-isolated.
     val convId = initiator.agentModel.nextConversationId()
 
-    // 1. Reserve this conversation BEFORE broadcasting, so the proposals
-    //    are captured in isolation. Without this, a statechart
-    //    `onMessage<Propose>` handler (or any other receiver) on the
-    //    initiator's own mailbox could consume bids before we collect
-    //    them.
-    val reservation = initiator.mailbox.reserve { m ->
-        m is AgentMessage.Propose<*> && m.conversationId == convId
-    }
-
-    try {
+    // 1. Reserve this conversation BEFORE broadcasting, so the proposals are
+    //    captured in isolation. Without this, a statechart `onMessage<Propose>`
+    //    handler (or any other receiver) on the initiator's own mailbox could
+    //    consume bids before we collect them. withReservation releases on every
+    //    exit path, including a thrown selectBest or a terminated process.
+    return withReservation(
+        initiator.mailbox,
+        { m -> m is AgentMessage.Propose<*> && m.conversationId == convId },
+    ) { reservation ->
         // 2. Broadcast the call for proposals.
         for (bidder in bidders) {
             sendMessage(
@@ -144,7 +143,7 @@ suspend fun <Q, B> KSLProcessBuilder.contractNet(
                     sendMessage(AgentMessage.Reject(initiator, convId, "not selected"), loser.mailbox)
                 }
             }
-            return ContractNetOutcome(winner, winning)
+            ContractNetOutcome(winner, winning)
         } else {
             // No acceptable proposal — reject everyone who responded.
             for (p in proposals) {
@@ -154,9 +153,7 @@ suspend fun <Q, B> KSLProcessBuilder.contractNet(
                     loser.mailbox,
                 )
             }
-            return null
+            null
         }
-    } finally {
-        reservation.release()
     }
 }

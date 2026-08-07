@@ -100,3 +100,48 @@ suspend inline fun <reified T : M, M : AgentMessage> KSLProcessBuilder.receiveMe
     @Suppress("UNCHECKED_CAST")
     return receiveMessage(mailbox, suspensionName) { it is T } as T
 }
+
+/**
+ *  Run [block] with a **reservation** held on [mailbox]: while it is active, every
+ *  message matching [predicate] is diverted into the reservation's private buffer
+ *  instead of reaching any other consumer, and [block] collects them at its leisure.
+ *  The reservation is released when [block] finishes, on every exit path.
+ *
+ *  Reach for it when a conversation spans more than one message and must not be
+ *  intercepted. Delivery on a mailbox is competitive: a message is offered first to
+ *  any reservation, then to a suspended [receiveMessage] waiter, and only then
+ *  queued and shown to statechart `onMessage` handlers. So an agent that both runs a
+ *  multi-message protocol and carries a statechart matching the same traffic has no
+ *  guarantee about which one sees a given message — unless the protocol reserves it.
+ *
+ *  ```
+ *  val replies = withReservation(mailbox, { it.conversationId == convId }) { reservation ->
+ *      for (peer in peers) sendMessage(AgentMessage.Request(me, ask, convId), peer.mailbox)
+ *      delay(deadline)          // replies accumulate in the reservation meanwhile
+ *      reservation.collected()
+ *  }
+ *  ```
+ *
+ *  Prefer this to reserving and releasing by hand. A reservation that is never
+ *  released keeps swallowing every matching message for the rest of the
+ *  replication, silently — the scoped form makes that impossible, including when
+ *  [block] throws or the surrounding process is terminated.
+ *
+ *  This is the mechanism [contractNet] uses internally for its bidding round.
+ *
+ *  @param mailbox the mailbox to reserve on — usually the calling agent's own
+ *  @param predicate which messages this reservation captures
+ *  @param block receives the live reservation; its result is returned
+ */
+suspend fun <M : AgentMessage, R> KSLProcessBuilder.withReservation(
+    mailbox: AgentModel.AgentMailbox<M>,
+    predicate: (M) -> Boolean,
+    block: suspend KSLProcessBuilder.(reservation: AgentModel.AgentMailbox<M>.Reservation) -> R,
+): R {
+    val reservation = mailbox.reserve(predicate)
+    return try {
+        block(reservation)
+    } finally {
+        reservation.release()
+    }
+}
