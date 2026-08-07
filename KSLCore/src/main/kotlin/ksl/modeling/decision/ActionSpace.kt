@@ -170,13 +170,21 @@ class SampledSearch(
 }
 
 /**
- *  An approximation of downstream value, evaluated at a post-decision state.
+ *  An approximation of downstream value, evaluated at a post-decision state — the V̄ of
+ *  approximate dynamic programming (§4.5.5).
  *
  *  This is the piece only the modeler can supply, and separating it is the point: it can be
  *  unit-tested with no simulation, swapped between a computed form and a fitted one without
  *  touching the policy that uses it, and shared between policies.
+ *
+ *  **Not `ValueFunctionIfc`**, which this was called until a review noticed that
+ *  `ksl.utilities.moda.ValueFunctionIfc` already exists — also a `fun interface`, also with a
+ *  `value(...)` method, and used by `MODAModel` and `PDFModeler`. The two mean different
+ *  things: MODA's maps a criterion's score onto a common value scale, and this one estimates
+ *  cost-to-go. A study scoring decision policies on several criteria would import both, and
+ *  the collision would surface as an import alias in user code rather than in the library.
  */
-fun interface ValueFunctionIfc {
+fun interface ValueApproximationIfc {
     /** The estimated cost-to-go from [postDecision]. */
     fun value(postDecision: DoubleArray): Double
 }
@@ -189,7 +197,7 @@ fun interface ValueFunctionIfc {
  *  forwarding `ManagedPolicyIfc.onTransition` to [update] — one class rather than a new
  *  concept. §8.2.9 measured that those hooks are currently never called.
  */
-interface LearnableValueFunctionIfc : ValueFunctionIfc {
+interface LearnableValueApproximationIfc : ValueApproximationIfc {
     /** Fold one observation of realised cost-to-go into the estimate. */
     fun update(postDecision: DoubleArray, observedCostToGo: Double)
     /** Forget everything. Called per replication once the lifecycle hooks are plumbed. */
