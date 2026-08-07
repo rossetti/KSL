@@ -60,6 +60,15 @@ class DynamicsVectorSampler(
                             }
                         }
                     }
+                    // 3D volumes sample the same way; their samples arrive already
+                    // flattened to x-y, since the overlay event carries no z channel.
+                    for (dyn in ctx.dynamics3DLinks) {
+                        for (s in dyn.overlaySample(overlays.velocities, overlays.forces)) {
+                            if (subset.isEmpty() || s.name in subset) {
+                                sink.emit(AnimationEvent.AgentVectorSampled(time, s.name, dyn.space.name, s.vx, s.vy, s.fx, s.fy))
+                            }
+                        }
+                    }
                 }
             }
             sampleAction.schedule(interval)

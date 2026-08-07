@@ -23,6 +23,7 @@ import ksl.simulation.ModelElement
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  *  The 3D counterpart of `ForceAnalyticTest`.
@@ -69,11 +70,11 @@ class ForceAnalytic3DTest {
         Dynamics3D(m.space, mass = { mass }, maxSpeed = 1.0e6, minSpeed = 0.0)
 
     /**
-     *  Evaluate one force directly.
+     *  Evaluate one force in isolation, without registering it on the dynamics.
      *
-     *  `Dynamics` (2D) exposes `netForceOn` for exactly this, but `Dynamics3D` does
-     *  not — see finding H-11 on 2D/3D API parity — so the 3D suite invokes the
-     *  `Force3D` functional interface itself.
+     *  Kept distinct from `netForceOn`, which sums *all* registered forces: these
+     *  cases assert the closed form of a single factory, so evaluating it directly
+     *  keeps the assertion about that factory alone.
      */
     private fun evaluate(
         f: Force3D<AgentModel.Agent>,
@@ -212,5 +213,92 @@ class ForceAnalytic3DTest {
             evaluate(cohesion3D(radius = 4.0), a, dyn),
             "only the x axis should wrap",
         )
+    }
+
+    // ── D9 — 2D/3D parity for the overlay surface (finding H-11) ─────────────
+
+    @Test
+    @DisplayName("D9: netForceOn sums every registered force on all three axes")
+    fun netForceOn3DSumsRegisteredForces() {
+        val m = model()
+        val a = m.place("a", 0.0, 0.0, 0.0)
+        val dyn = unclamped(m)
+        dyn.addForce(constantForce3D(Point3D(1.0, 2.0, 3.0)))
+        dyn.addForce(constantForce3D(Point3D(0.5, -1.0, 4.0)))
+        assertPoint(1.5, 1.0, 7.0, dyn.netForceOn(a), "netForceOn must sum all forces")
+    }
+
+    @Test
+    @DisplayName("D9: netForceOn returns the origin for an agent with no position")
+    fun netForceOn3DIsOriginForUnplacedAgent() {
+        val m = model()
+        val stray = m.P("stray")
+        m.ctx.add(stray)
+        val dyn = unclamped(m)
+        dyn.addForce(constantForce3D(Point3D(1.0, 1.0, 1.0)))
+        assertPoint(0.0, 0.0, 0.0, dyn.netForceOn(stray), "an unplaced agent has no force")
+    }
+
+    /**
+     *  The overlay event `AgentVectorSampled` carries no z channel and the renderer
+     *  draws in 2D, so 3D samples are deliberately flattened to x–y — the same
+     *  convention `ContinuousVolume.placeAt` already uses for positions. This asserts
+     *  the flattening is exactly a projection: x and y survive untouched, z is
+     *  dropped rather than folded into another axis.
+     */
+    @Test
+    @DisplayName("D9: overlaySample projects 3D velocity and force onto x-y")
+    fun overlaySample3DFlattensToXY() {
+        val m = model()
+        val a = m.place("a", 0.0, 0.0, 0.0)
+        val dyn = unclamped(m)
+        dyn.setVelocity(a, Point3D(1.0, 2.0, 99.0))
+        dyn.addForce(constantForce3D(Point3D(3.0, 4.0, 99.0)))
+
+        val sample = dyn.overlaySample(wantVelocity = true, wantForce = true).single()
+        assertEquals("a", sample.name)
+        assertEquals(1.0, sample.vx, 1e-9)
+        assertEquals(2.0, sample.vy, 1e-9)
+        assertEquals(3.0, sample.fx, 1e-9)
+        assertEquals(4.0, sample.fy, 1e-9)
+    }
+
+    @Test
+    @DisplayName("D9: overlaySample marks uncaptured channels as NaN")
+    fun overlaySample3DMarksUncapturedChannelsNaN() {
+        val m = model()
+        val a = m.place("a", 0.0, 0.0, 0.0)
+        val dyn = unclamped(m)
+        dyn.setVelocity(a, Point3D(1.0, 2.0, 3.0))
+        dyn.addForce(constantForce3D(Point3D(3.0, 4.0, 5.0)))
+
+        val velocityOnly = dyn.overlaySample(wantVelocity = true, wantForce = false).single()
+        assertEquals(1.0, velocityOnly.vx, 1e-9)
+        assertTrue(velocityOnly.fx.isNaN(), "force must be NaN when not requested")
+
+        val forceOnly = dyn.overlaySample(wantVelocity = false, wantForce = true).single()
+        assertTrue(forceOnly.vx.isNaN(), "velocity must be NaN when not requested")
+        assertEquals(3.0, forceOnly.fx, 1e-9)
+    }
+
+    /**
+     *  Before D9 a 3D model could not register its dynamics for the overlay at all —
+     *  `attachDynamics` accepted only the 2D type — so the velocity/force overlay was
+     *  inert for every `ContinuousVolume` model, `DroneDeliveryExample` included.
+     */
+    @Test
+    @DisplayName("D9: a 3D dynamics can be attached for the overlay and is keyed by space")
+    fun attachDynamics3DRegistersForOverlay() {
+        val m = model()
+        val dyn = unclamped(m)
+        assertTrue(m.ctx.dynamics3DLinks.isEmpty(), "nothing attached yet")
+
+        m.ctx.attachDynamics(dyn)
+        assertEquals(listOf(dyn), m.ctx.dynamics3DLinks.toList())
+
+        // Re-declaring the same space overwrites rather than accumulating, matching
+        // the 2D overload, so per-replication initialize() calls stay idempotent.
+        m.ctx.attachDynamics(dyn)
+        assertEquals(1, m.ctx.dynamics3DLinks.size, "re-attach must overwrite, not accumulate")
     }
 }

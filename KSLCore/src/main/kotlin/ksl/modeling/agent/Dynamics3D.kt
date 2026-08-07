@@ -136,6 +136,37 @@ class Dynamics3D<A : AgentLike> @JvmOverloads constructor(
         get() = forces.size
 
     /**
+     * The summed net steering force on [agent] right now, without integrating — the 3D
+     * analog of [Dynamics.netForceOn]. [dt] is passed through to the force factories
+     * (most are dt-independent). Returns ORIGIN if the agent has no position.
+     */
+    fun netForceOn(agent: A, dt: Double = 1.0): Point3D {
+        space.positionOf(agent) ?: return Point3D.ORIGIN
+        var fx = 0.0; var fy = 0.0; var fz = 0.0
+        for (force in forces) {
+            val f = force.compute(agent, this, dt)
+            fx += f.x; fy += f.y; fz += f.z
+        }
+        return Point3D(fx, fy, fz)
+    }
+
+    /**
+     * Type-erased per-agent velocity/force samples for the animation overlay (G10),
+     * the 3D analog of [Dynamics.overlaySample]. NaN marks an uncaptured component.
+     *
+     * Samples are **flattened to the x–y plane**, matching how
+     * [ContinuousVolume.placeAt] emits 3D positions: the vector overlay event carries
+     * no z channel, and the renderer draws in 2D. The z components of velocity and
+     * net force are therefore dropped here rather than silently mis-drawn.
+     */
+    fun overlaySample(wantVelocity: Boolean, wantForce: Boolean): List<AgentVectorSample> =
+        space.context.members.map { a ->
+            val v = if (wantVelocity) velocityOf(a) else null
+            val f = if (wantForce) netForceOn(a) else null
+            AgentVectorSample(a.name, v?.x ?: Double.NaN, v?.y ?: Double.NaN, f?.x ?: Double.NaN, f?.y ?: Double.NaN)
+        }
+
+    /**
      *  One Euler integration step for [agent]: sum registered forces,
      *  integrate velocity by `(sumForce / mass) * dt`, clamp to
      *  `[minSpeed, maxSpeed]`, compute candidate position

@@ -1615,6 +1615,26 @@ open class AgentModel(
         val dynamicsLinks: Collection<Dynamics<*>>
             get() = _dynamics.values
 
+        /** 3D dynamics declared for the overlay, keyed by the volume they drive. */
+        private val _dynamics3D: MutableMap<String, Dynamics3D<*>> = mutableMapOf()
+
+        /**
+         *  Declare a 3D [dynamics] so the velocity/force overlay (G10) can sample it —
+         *  the [ContinuousVolume] counterpart of the [Dynamics] overload above, and
+         *  keyed the same way, so re-declaring each replication overwrites rather than
+         *  accumulates.
+         *
+         *  Samples are flattened to the x–y plane, since the overlay event carries no
+         *  z channel; see `Dynamics3D.overlaySample`.
+         */
+        fun attachDynamics(dynamics: Dynamics3D<*>) {
+            _dynamics3D[dynamics.space.name] = dynamics
+        }
+
+        /** The 3D dynamics declared via the [Dynamics3D] overload of `attachDynamics`. */
+        val dynamics3DLinks: Collection<Dynamics3D<*>>
+            get() = _dynamics3D.values
+
         /**
          *  Add [agent] to this context. Notifies every attached
          *  projection via `onAgentJoined`. No-op if already a member.
