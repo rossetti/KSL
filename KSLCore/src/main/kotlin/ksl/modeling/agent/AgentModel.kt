@@ -482,9 +482,22 @@ open class AgentModel(
     // ── Statechart (POJO inner class) ────────────────────────────────────────
 
     /**
-     *  A flat statechart attached to an [AgentLike] owner. Behavior
-     *  consists of a finite set of named states; the chart is always
-     *  in exactly one state once started.
+     *  A hierarchical statechart attached to an [AgentLike] owner.
+     *  Behavior consists of named states which may nest: a state
+     *  declared inside another is a substate of it. Once started the
+     *  chart occupies a *chain* of states — one leaf plus each of its
+     *  ancestors — not a single state. [activeStateNames] exposes that
+     *  chain, and it degenerates to one element for a chart with no
+     *  nesting.
+     *
+     *  Transitions resolve through the least common ancestor of the
+     *  source and target chains: states are exited from the leaf upward
+     *  to (but not including) the LCA, then entered from below the LCA
+     *  downward to the new leaf. So a transition between two substates
+     *  of the same parent leaves that parent — and any pending triggers
+     *  it owns — untouched. Where a substate and an ancestor both have
+     *  a trigger enabled by the same event, the innermost wins and the
+     *  ancestor's action does not run.
      *
      *  Implemented as an `inner class` of [AgentModel] rather than a
      *  separate `ModelElement`: the inner-class outer-instance
