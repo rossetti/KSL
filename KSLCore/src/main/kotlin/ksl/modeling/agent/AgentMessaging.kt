@@ -69,7 +69,18 @@ suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessage(
     // peer will resume us with the matched message.
     val suspension = entity.Suspension(name = suspensionName, type = SuspendType.WAIT_FOR_ITEMS)
     val waiter = mailbox.registerWaiter(predicate, suspension)
-    suspendFor(suspension)
+    try {
+        suspendFor(suspension)
+    } finally {
+        // Deregister on *every* exit path. A normal delivery has already removed
+        // this waiter inside deliver(), so the call is a no-op there. What matters
+        // is the abnormal path: terminating a process resumes its continuation with
+        // a ProcessTerminatedException, which unwinds through this suspension point.
+        // Without this, the waiter would outlive its process, and the next matching
+        // message would be handed to it -- ahead of the pending queue and any live
+        // receiver -- consuming the message and then resuming a terminated process.
+        mailbox.removeWaiter(waiter)
+    }
     @Suppress("UNCHECKED_CAST")
     return waiter.result as M
 }
