@@ -1,6 +1,7 @@
 package ksl.modeling.decision
 
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
+import ksl.modeling.decision.descriptor.WarmUpOrdering
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
@@ -33,7 +34,7 @@ class DeclarationSurfaceCoverageTest {
         val outcome = runCatching(block).exceptionOrNull()
         val verdict = when {
             outcome == null -> "WORKS"
-            outcome is NotImplementedError -> "DECLARED, NOT BUILT"
+            outcome is NotDeclarableYetException -> "REFUSED AT DECLARATION (${outcome.milestone})"
             else -> "FAILS: ${outcome::class.simpleName}"
         }
         println("  %-46s %s".format(what, verdict))
@@ -132,11 +133,19 @@ class DeclarationSurfaceCoverageTest {
             model.numberOfReplications = 2; model.lengthOfReplication = 100.0
             model.simulate()
         }
-        results["epoch priority after warm-up"] = probe("epochPriority above DEFAULT_WARMUP_EVENT_PRIORITY") {
-            runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
-                lever(w, 0..10, read = { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = HoldCurrentPolicy }
-        }
+        results["epoch priority after warm-up, undeclared"] =
+            probe("epochPriority past warm-up without saying so") {
+                runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
+                    lever(w, 0..10, read = { level.value }) { v -> setLevel(v.toInt()) }
+                    every(10.0); policy = HoldCurrentPolicy }
+            }
+        results["epoch priority after warm-up, declared"] =
+            probe("the same, with warmUpOrdering = WARM_UP_FIRST") {
+                runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
+                    warmUpOrdering = WarmUpOrdering.WARM_UP_FIRST
+                    lever(w, 0..10, read = { level.value }) { v -> setLevel(v.toInt()) }
+                    every(10.0); policy = HoldCurrentPolicy }
+            }
 
         println()
         val notBuilt = results.filterValues { it.startsWith("DECLARED") }
@@ -161,7 +170,7 @@ class DeclarationSurfaceCoverageTest {
      *  library silently choosing a category the rule never asked for.
      */
     @Test
-    fun clampingACategoricalLeverSilentlyPicksACategory() {
+    fun clampingACategoricalLeverIsRefusedRatherThanGuessed() {
         val model = Model("CategoricalClamp")
         val w = Widget(model, "W")
         w.decisionElement("D") {
@@ -173,13 +182,17 @@ class DeclarationSurfaceCoverageTest {
         }
         model.numberOfReplications = 1
         model.lengthOfReplication = 100.0
-        model.simulate()
+        val failure = runCatching { model.simulate() }.exceptionOrNull()
 
         println()
-        println("CATEGORICAL clamp: policy asked for level 9 of {off, slow, fast}; lever ended at ${w.mode}")
-        assertTrue(w.mode == 2,
-            "expected the clamp to pick the highest level by numeric proximity — it chose ${w.mode}")
-        println("  -> the request was nonsense and the library chose 'fast' rather than rejecting")
+        println("CATEGORICAL clamp: policy asked for level 9 of {off, slow, fast}")
+        println("  outcome  : ${failure?.let { it::class.simpleName } ?: "ran, lever ended at ${w.mode}"}")
+        println("  mode     : ${w.mode}   (0 = off; untouched means nothing was guessed)")
+        (failure as? ActionValidationException)?.violations?.forEach { println("  violation: $it") }
+
+        assertTrue(failure != null,
+            "clamping an unordered domain should reject; it ran and left mode = ${w.mode}")
+        assertTrue(w.mode == 0, "no category should have been written; mode = ${w.mode}")
     }
 
     /**
@@ -189,7 +202,7 @@ class DeclarationSurfaceCoverageTest {
      *  checks it, so a modeler can invert a documented guarantee by declaring a number.
      */
     @Test
-    fun epochPriorityCanSilentlyInvertTheWarmUpGuarantee() {
+    fun theWarmUpOrderingIsDeclaredAndChecked() {
         fun epochsSeenAtWarmUp(priority: Int): Int {
             val model = Model("WarmUpOrder-$priority")
             var seen = -1
@@ -200,6 +213,8 @@ class DeclarationSurfaceCoverageTest {
             }
             w.element = w.decisionElement("D") {
                 epochPriority = priority
+                warmUpOrdering = if (priority < KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY) WarmUpOrdering.EPOCH_FIRST
+                                 else WarmUpOrdering.WARM_UP_FIRST
                 observe(w.level)
                 lever(w, 0..10, read = { level.value }) { v -> level.value = v.toDouble() }
                 every(10.0)
@@ -221,6 +236,62 @@ class DeclarationSurfaceCoverageTest {
         println("  epochPriority = warm-up + 1              : $after")
         assertTrue(before == 2, "the default should put the t=20 epoch BEFORE warm-up; saw $before")
         assertTrue(after == 1, "a higher priority number should put it AFTER; saw $after")
-        println("  -> §4.6.4's ordering is a consequence of a settable number that nothing validates")
+        println("  -> both orderings are reachable, and build() now rejects a priority that")
+        println("     contradicts the declared warmUpOrdering (G.9 row 10)")
+
+        // The contradiction is refused rather than silently obeyed.
+        val contradiction = runCatching {
+            val model = Model("Contradiction")
+            val w = Widget(model, "W")
+            w.decisionElement("D") {
+                epochPriority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1
+                warmUpOrdering = WarmUpOrdering.EPOCH_FIRST      // the numbers say otherwise
+                observe(w.level)
+                lever(w, 0..10, read = { level.value }) { v -> setLevel(v.toInt()) }
+                every(10.0); policy = HoldCurrentPolicy
+            }
+        }.exceptionOrNull()
+        println("  declaring EPOCH_FIRST with a priority that sorts after warm-up: " +
+            "${contradiction?.let { it::class.simpleName } ?: "ACCEPTED"}")
+        assertTrue(contradiction is IllegalArgumentException,
+            "a priority contradicting the declared ordering should be rejected at build()")
+    }
+
+    /**
+     *  G.9 row 12. Two elements whose epochs coincide at equal priority run in declaration
+     *  order — deterministic, and now stated and tested rather than left to event id by
+     *  accident. A different priority is the mechanism for controlling it.
+     */
+    @Test
+    fun coincidingElementsRunInDeclarationOrderAndPriorityOverridesIt() {
+        fun order(secondPriority: Int): List<String> {
+            val model = Model("Ordering-$secondPriority")
+            val fired = mutableListOf<String>()
+            val w1 = Widget(model, "W1"); val w2 = Widget(model, "W2")
+            fun declare(w: Widget, tag: String, priority: Int) {
+                w.decisionElement("D-$tag") {
+                    epochPriority = priority
+                    observe(w.level)
+                    lever(w, 0..10, read = { level.value }) { v -> setLevel(v.toInt()) }
+                    every(10.0)
+                    policy = PolicyIfc { _, ctx -> fired += tag; ctx.currentAction }
+                }
+            }
+            declare(w1, "first", KSLEvent.MEDIUM_LOW_PRIORITY)
+            declare(w2, "second", secondPriority)
+            model.numberOfReplications = 1
+            model.lengthOfReplication = 30.0
+            model.simulate()
+            return fired.take(2)
+        }
+
+        val equal = order(KSLEvent.MEDIUM_LOW_PRIORITY)
+        val raised = order(KSLEvent.MEDIUM_LOW_PRIORITY - 1)     // lower number sorts earlier
+        println()
+        println("Two elements, epochs coinciding every 10:")
+        println("  equal priority                  -> $equal")
+        println("  second declared higher priority -> $raised")
+        assertTrue(equal == listOf("first", "second"), "declaration order should decide; saw $equal")
+        assertTrue(raised == listOf("second", "first"), "priority should override it; saw $raised")
     }
 }

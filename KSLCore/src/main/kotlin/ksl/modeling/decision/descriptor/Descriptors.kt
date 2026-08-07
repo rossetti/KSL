@@ -22,6 +22,14 @@ enum class TerminationSource { NATURAL, MAX_EPOCHS, RUN_LENGTH, MODEL_STOPPED, P
 
 enum class EpochKind { PERIODIC, CALENDAR }
 
+/**
+ *  Which runs first when a decision epoch coincides with the element's warm-up (§4.6.4).
+ *
+ *  It exists because the ordering is a consequence of two settable priorities rather than a
+ *  property of the design, so the intent has to be declarable in order to be checkable.
+ */
+enum class WarmUpOrdering { EPOCH_FIRST, WARM_UP_FIRST }
+
 @Serializable
 sealed interface SourceRef {
     val name: String

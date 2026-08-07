@@ -195,6 +195,16 @@ class DecisionElement internal constructor(
     internal var firstAtTimeZero: Boolean = false
     internal val calendar = mutableListOf<Double>()
     internal var epochPriority: Int = KSLEvent.MEDIUM_LOW_PRIORITY
+
+    /**
+     *  Which of the two events at a coinciding instant runs first (§4.6.4, G.9 row 10).
+     *
+     *  §4.6.4's analysis is a CONSEQUENCE of `epochPriority` sorting ahead of this element's
+     *  `warmUpPriority`, not a fact about the design. Since both are settable, an ordering
+     *  the document asserts could be inverted by declaring a number and nothing would say
+     *  so. Declaring the intent lets `build()` check the numbers against it.
+     */
+    internal var warmUpOrdering: WarmUpOrdering = WarmUpOrdering.EPOCH_FIRST
     internal var terminalCondition: (() -> Boolean)? = null
 
     private var myFeasibilityPolicy: FeasibilityPolicy = FeasibilityPolicy.REJECT
@@ -280,6 +290,17 @@ class DecisionElement internal constructor(
 
     private var myLastTermination: TerminationSource? = null
     val lastTermination: TerminationSource? get() = myLastTermination
+
+    /**
+     *  The priority this element's epoch events carry (§4.6.2, G.9 row 12).
+     *
+     *  Two elements whose epochs coincide and whose priorities are equal execute in the
+     *  order their events were scheduled, which is their declaration order. That is
+     *  deterministic and reproducible, and it is **not** a contract anyone should rely on
+     *  for correctness: an element that must act before another should say so with a
+     *  different priority rather than by being declared first.
+     */
+    val declaredEpochPriority: Int get() = epochPriority
 
     private fun requireNotRunning(what: String) {
         check(model.isNotRunning) {
@@ -408,9 +429,20 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
 
     private val decls: List<LeverDecl> get() = element.leverDecls
 
+    /**
+     *  §4.4.4's repair, applied only where it means something.
+     *
+     *  Clamping is `coerceIn` — numeric proximity — which presumes the domain is ORDERED.
+     *  A `CATEGORICAL` lever's values are level indices standing for labels with no order,
+     *  so coercing a request for level 9 into `fast` is not repair: it substitutes a
+     *  category the rule never asked for. Such a lever is left untouched, so the re-prepare
+     *  rejects it and the modeler is told rather than quietly obeyed (G.9 row 9).
+     */
     fun clamp(action: DoubleArray): DoubleArray =
         DoubleArray(action.size) { i ->
-            val r = decls[i].feasibleRange()
+            val d = decls[i]
+            if (d.domain == LeverDomain.CATEGORICAL) return@DoubleArray action[i]
+            val r = d.feasibleRange()
             if (r.isEmpty()) Double.NaN else action[i].coerceIn(r.start, r.endInclusive)
         }
 
@@ -431,8 +463,14 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
                 violations += "'${d.name}' has an empty feasible set at this epoch: " +
                     "[${range.start}, ${range.endInclusive}]. No value is available (§4.4.6.3)."
             } else if (v < range.start || v > range.endInclusive) {
-                val why = if (d.stateDependent) " (the state-dependent set, inside the envelope " +
-                    "[${d.modelLowerLimit}, ${d.modelUpperLimit}])" else ""
+                val why = when {
+                    d.domain == LeverDomain.CATEGORICAL ->
+                        " — the declared levels are ${d.levels}. Clamping does not apply to an " +
+                            "unordered domain, so CLAMP_THEN_REJECT rejects here (§4.4.4)"
+                    d.stateDependent -> " (the state-dependent set, inside the envelope " +
+                        "[${d.modelLowerLimit}, ${d.modelUpperLimit}])"
+                    else -> ""
+                }
                 violations += "'${d.name}' = $v is outside [${range.start}, ${range.endInclusive}]$why."
             } else if (d.domain == LeverDomain.INTEGER && v != Math.rint(v)) {
                 violations += "'${d.name}' = $v is not integral, but the lever's domain is INTEGER."
@@ -646,9 +684,8 @@ class DecisionElementBuilder internal constructor(
         return LeverRef(name)
     }
 
-    fun batchLever(vararg levers: LeverRef, applyAll: (DoubleArray) -> Unit) {
-        TODO("not in the vertical slice")
-    }
+    fun batchLever(vararg levers: LeverRef, applyAll: (DoubleArray) -> Unit): Nothing =
+        throw NotDeclarableYetException("batchLever", "M1 step 6", "§4.4.5")
 
     fun budget(vararg levers: LeverRef, total: Double) {
         val names = levers.map { it.declaredName }
@@ -679,10 +716,16 @@ class DecisionElementBuilder internal constructor(
         element.jointDecls += DecisionElement.JointDecl(false, names, total, true)
     }
 
+    /**
+     *  Declaring a reward is **not yet carried**, and it fails here rather than later.
+     *  An earlier version returned a `RewardRef` and let the failure surface at
+     *  `estimand` — so a modeler could declare a reward that nothing consumed and find
+     *  out much later (G.9 row 11).
+     */
     fun reward(
         source: ResponseIfc, rate: Double,
         sense: RewardSense = RewardSense.COST, alias: String? = null
-    ): RewardRef = RewardRef(alias ?: source.name)
+    ): Nothing = throw NotDeclarableYetException("reward", "M2", "§4.2.5")
 
     fun every(interval: Double, firstAtTimeZero: Boolean = false) {
         element.epochKind = EpochKind.PERIODIC
@@ -700,6 +743,15 @@ class DecisionElementBuilder internal constructor(
         get() = element.epochPriority
         set(value) { element.epochPriority = value }
 
+    /**
+     *  Which runs first when an epoch coincides with this element's warm-up (§4.6.4).
+     *  `build()` checks [epochPriority] against the element's `warmUpPriority` and rejects
+     *  a combination that contradicts what is declared here.
+     */
+    var warmUpOrdering: WarmUpOrdering
+        get() = element.warmUpOrdering
+        set(value) { element.warmUpOrdering = value }
+
     fun maxEpochs(n: Int) { element.myMaxEpochs = n }
     fun terminalWhen(condition: () -> Boolean) { element.terminalCondition = condition }
 
@@ -709,9 +761,8 @@ class DecisionElementBuilder internal constructor(
 
     var policy: PolicyIfc? = null
 
-    fun captureTo(factory: (RunProvenance) -> TransitionSink) {
-        TODO("not in the vertical slice")
-    }
+    fun captureTo(factory: (RunProvenance) -> TransitionSink): Nothing =
+        throw NotDeclarableYetException("captureTo", "M3", "§4.8")
 
     internal fun build(): DecisionElement {
         require(policy != null) { "A decision element requires a policy." }
@@ -721,6 +772,22 @@ class DecisionElementBuilder internal constructor(
         for (c in element.jointConstraints) {
             for (n in c.names) {
                 require(n in declared) { "Constraint names lever '$n', which is not declared. Declared: $declared" }
+            }
+        }
+        // §4.6.4 / G.9 row 10: the declared ordering must match the numbers that produce it.
+        val epochP = element.epochPriority
+        val warmP = element.warmUpPriority
+        when (element.warmUpOrdering) {
+            WarmUpOrdering.EPOCH_FIRST -> require(epochP < warmP) {
+                "Element '${element.name}' declares warmUpOrdering = EPOCH_FIRST, but its epoch " +
+                    "priority ($epochP) does not sort ahead of its warm-up priority ($warmP), so " +
+                    "the epoch at a coinciding instant would run AFTER the warm-up. Lower the " +
+                    "epoch priority, or declare WARM_UP_FIRST if that is what you mean (§4.6.4)."
+            }
+            WarmUpOrdering.WARM_UP_FIRST -> require(epochP > warmP) {
+                "Element '${element.name}' declares warmUpOrdering = WARM_UP_FIRST, but its epoch " +
+                    "priority ($epochP) sorts ahead of its warm-up priority ($warmP), so the epoch " +
+                    "would run BEFORE the warm-up (§4.6.4)."
             }
         }
         element.buildCatalog()

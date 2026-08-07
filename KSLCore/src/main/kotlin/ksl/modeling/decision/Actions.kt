@@ -42,3 +42,20 @@ class AmbiguousLeverException(ownerName: String, val candidates: List<String>) :
     )
 
 class RewardKindException(message: String) : RuntimeException(message)
+
+/**
+ *  A form the DSL accepts and the library does not yet carry (G.9 row 11).
+ *
+ *  Thrown **at the declaration**, not at the eventual use. A modeler who writes something
+ *  legal should learn immediately that it is not yet supported and which milestone carries
+ *  it — not run a study and find the value missing. When the milestone lands, the throw is
+ *  replaced by the implementation and nothing else changes.
+ */
+class NotDeclarableYetException(
+    val form: String,
+    val milestone: String,
+    val section: String
+) : RuntimeException(
+    "`$form` is specified in $section and is not implemented yet; it is scheduled for $milestone. " +
+        "It fails here, at the declaration, rather than later at the point of use."
+)
