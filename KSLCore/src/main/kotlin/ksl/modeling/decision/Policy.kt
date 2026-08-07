@@ -38,17 +38,14 @@ interface DecisionContext {
     /** Total of the budget governing the lever at [leverIndex], or null if it is in none. */
     fun budgetTotal(leverIndex: Int): Double?
 
-    // ---- What may be done NOW: the feasible set 𝒳(s), §4.4.6.2.
-    // Epoch-scoped, pure, and none of them can write anything.
-
-    /** The bounds in force for this lever at THIS epoch: envelope ∩ narrowed ∩ 𝒳(s). */
-    fun feasibleBounds(leverIndex: Int): ClosedFloatingPointRange<Double>
-
-    /** Membership in 𝒳(s). The same predicate the element applies when the action arrives. */
-    fun isFeasible(action: DoubleArray): Boolean
-
-    /** Why not. Empty exactly when [isFeasible] is true. */
-    fun violations(action: DoubleArray): List<String>
+    /**
+     *  What may be done NOW: the feasible set 𝒳(s) as an object (§4.4.6.5).
+     *
+     *  Epoch-scoped and pure. Bounds, membership, violations and enumeration all live on
+     *  [ActionSet] rather than being spread across this interface, so that a rule which
+     *  searches 𝒳(s) can be handed the set instead of rebuilding it from parts.
+     */
+    val actions: ActionSet
 
     // ---- Where the levers stand right now (§4.10.2 step 6).
     val currentAction: DoubleArray

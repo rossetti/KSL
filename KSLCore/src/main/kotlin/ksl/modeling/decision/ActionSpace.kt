@@ -1,0 +1,278 @@
+package ksl.modeling.decision
+
+import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
+import ksl.modeling.decision.descriptor.LeverDomain
+
+/**
+ *  The feasible action set 𝒳(s) as an OBJECT rather than as scattered members of the
+ *  decision context (§4.4.6.5).
+ *
+ *  An earlier form of §4.4.6 put `feasibleBounds`, `isFeasible` and `violations` directly
+ *  on [DecisionContext] and left `feasibleActions` unbuilt. That correctly identified that
+ *  the set was missing and then failed to name it, so every rule that wanted to search
+ *  𝒳(s) rebuilt the loop, the filter and the argmin for itself. Naming it makes those
+ *  reusable and testable without a simulation.
+ *
+ *  All members are pure and epoch-scoped: an instance is valid only during the `action`
+ *  call that received the context carrying it.
+ */
+interface ActionSet {
+
+    /** How many levers an action vector has. */
+    val leverCount: Int
+
+    /**
+     *  How many actions the set contains, or **null** when that is not a useful question —
+     *  any `CONTINUOUS` lever, or a discrete product beyond [ENUMERATION_CEILING].
+     *
+     *  A rule that intends to enumerate must consult this first. Its whole purpose is to
+     *  let a policy refuse in `configure` rather than discover at the first epoch that the
+     *  set it planned to walk has ten million members.
+     */
+    val size: Long?
+
+    /** Bounds in force for this lever at this epoch: envelope ∩ narrowed ∩ 𝒳(s) (§4.3.3). */
+    fun bounds(leverIndex: Int): ClosedFloatingPointRange<Double>
+
+    /** Membership. The same predicate the element applies when the action arrives. */
+    operator fun contains(action: DoubleArray): Boolean
+
+    /** Why not. Empty exactly when [contains] is true. */
+    fun violations(action: DoubleArray): List<String>
+
+    /**
+     *  Every action in the set. Throws when [size] is null, because a rule that reaches
+     *  here without checking has made an error the library should not paper over.
+     */
+    fun asSequence(): Sequence<DoubleArray>
+
+    companion object {
+        /** Above this, [size] reports null rather than a number nobody should walk. */
+        const val ENUMERATION_CEILING: Long = 1_000_000L
+    }
+}
+
+/**
+ *  How a rule searches [ActionSet] for its best member. Model-independent, which is why it
+ *  belongs to the library: the loop is the same for every value-function and cost-function
+ *  policy ever written, and only the scoring differs.
+ */
+fun interface ActionSearch {
+    /**
+     *  The action minimising [score], or **null** when the set is empty.
+     *  [score] is called at most once per candidate and must be pure.
+     */
+    fun best(actions: ActionSet, score: (DoubleArray) -> Double): DoubleArray?
+}
+
+/** Score every action. Requires a finite [ActionSet.size]. */
+object ExhaustiveSearch : ActionSearch {
+    override fun best(actions: ActionSet, score: (DoubleArray) -> Double): DoubleArray? {
+        checkNotNull(actions.size) {
+            "ExhaustiveSearch needs an enumerable action set. This one reports no size — " +
+                "it has a continuous lever, or more than ${ActionSet.ENUMERATION_CEILING} members. " +
+                "Use GridSearch, or refuse in configure()."
+        }
+        var best: DoubleArray? = null
+        var bestScore = Double.MAX_VALUE
+        for (a in actions.asSequence()) {
+            val s = score(a)
+            if (s < bestScore) { bestScore = s; best = a.copyOf() }
+        }
+        return best
+    }
+}
+
+/**
+ *  Score a regular grid over each lever's feasible range, keeping only feasible points.
+ *  The fallback when the set is continuous or too large to walk.
+ */
+class GridSearch(private val pointsPerLever: Int = 11) : ActionSearch {
+
+    init { require(pointsPerLever >= 2) { "A grid needs at least 2 points per lever." } }
+
+    override fun best(actions: ActionSet, score: (DoubleArray) -> Double): DoubleArray? {
+        val n = actions.leverCount
+        val axes = (0 until n).map { i ->
+            val r = actions.bounds(i)
+            if (r.isEmpty()) return null
+            if (r.start == r.endInclusive) doubleArrayOf(r.start)
+            else DoubleArray(pointsPerLever) { k ->
+                r.start + (r.endInclusive - r.start) * k / (pointsPerLever - 1)
+            }
+        }
+        var best: DoubleArray? = null
+        var bestScore = Double.MAX_VALUE
+        val current = DoubleArray(n)
+
+        fun walk(i: Int) {
+            if (i == n) {
+                if (current in actions) {
+                    val s = score(current)
+                    if (s < bestScore) { bestScore = s; best = current.copyOf() }
+                }
+                return
+            }
+            for (v in axes[i]) { current[i] = v; walk(i + 1) }
+        }
+        walk(0)
+        return best
+    }
+}
+
+/**
+ *  An approximation of downstream value, evaluated at a post-decision state.
+ *
+ *  This is the piece only the modeler can supply, and separating it is the point: it can be
+ *  unit-tested with no simulation, swapped between a computed form and a fitted one without
+ *  touching the policy that uses it, and shared between policies.
+ */
+fun interface ValueFunctionIfc {
+    /** The estimated cost-to-go from [postDecision]. */
+    fun value(postDecision: DoubleArray): Double
+}
+
+/**
+ *  A value function that improves from observed experience.
+ *
+ *  The seam exists so that when the epoch loop delivers transitions (§4.8, M3) and rewards
+ *  (§4.2.5, M2), a [LookaheadPolicy] holding one of these becomes a learning rule by
+ *  forwarding `ManagedPolicyIfc.onTransition` to [update] — one class rather than a new
+ *  concept. §8.2.9 measured that those hooks are currently never called.
+ */
+interface LearnableValueFunctionIfc : ValueFunctionIfc {
+    /** Fold one observation of realised cost-to-go into the estimate. */
+    fun update(postDecision: DoubleArray, observedCostToGo: Double)
+    /** Forget everything. Called per replication once the lifecycle hooks are plumbed. */
+    fun reset()
+}
+
+/**
+ *  The skeleton shared by every policy that **chooses among available actions** rather than
+ *  constructing one directly: value-function approximations, and cost-function
+ *  approximations that score candidates.
+ *
+ *  A modeler supplies the three model-specific pieces and nothing else:
+ *
+ *  ```kotlin
+ *  class MyRule : LookaheadPolicy(ExhaustiveSearch) {
+ *      override fun contribution(obs, action, ctx) = ...   // C(s, a), the immediate cost
+ *      override fun postDecision(obs, action)      = ...   // S^x(s, a)
+ *      override fun value(postDecision, ctx)       = ...   // V̄
+ *  }
+ *  ```
+ *
+ *  The enumeration, the feasibility filter, the argmin and the empty-set fallback come from
+ *  the library. Contrast §8.2.9's first VFA, which inlined all four inside one `action`
+ *  method — the reason §8.2.11 argues the design was one abstraction where the problem has
+ *  five.
+ *
+ *  **Not every policy fits this shape, and that is deliberate.** A rule that *constructs* an
+ *  action — the greedy allocator of §8.2.8 sorts regions and fills them — implements plain
+ *  [PolicyIfc] instead. Two shapes, because there are two ways to decide.
+ */
+abstract class LookaheadPolicy(
+    protected val search: ActionSearch = ExhaustiveSearch
+) : ShapeAwarePolicyIfc {
+
+    /** `C(s, a)`: the cost incurred by taking [action] now. */
+    protected abstract fun contribution(
+        observation: DoubleArray, action: DoubleArray, ctx: DecisionContext): Double
+
+    /**
+     *  `S^x(s, a)`: the state immediately after the decision and before the exogenous
+     *  information. Defaults to the observation unchanged, which is right for a rule whose
+     *  action does not move the observed state.
+     */
+    protected open fun postDecision(observation: DoubleArray, action: DoubleArray): DoubleArray =
+        observation
+
+    /** `V̄`: estimated cost-to-go from the post-decision state. */
+    protected abstract fun value(postDecision: DoubleArray, ctx: DecisionContext): Double
+
+    /**
+     *  What to do when 𝒳(s) is empty (§4.4.6.3). Zeros by default; §8.2.3's declared
+     *  neutral value is what should replace this once it exists.
+     */
+    protected open fun whenNothingIsFeasible(ctx: DecisionContext): DoubleArray =
+        DoubleArray(ctx.leverNames.size)
+
+    override fun configure(surface: DecisionSurfaceDescriptor) {}
+
+    final override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray =
+        search.best(ctx.actions) { a ->
+            contribution(observation, a, ctx) + value(postDecision(observation, a), ctx)
+        } ?: whenNothingIsFeasible(ctx)
+}
+
+/**
+ *  The element's [ActionSet]. Enumeration is over the integer and categorical levers only;
+ *  a continuous lever makes [size] null, which is what tells a rule to use [GridSearch].
+ */
+internal class ElementActionSet(private val element: DecisionElement) : ActionSet {
+
+    override val leverCount: Int get() = element.leverDecls.size
+
+    override fun bounds(leverIndex: Int): ClosedFloatingPointRange<Double> =
+        element.leverDecls[leverIndex].feasibleRange()
+
+    override operator fun contains(action: DoubleArray): Boolean =
+        element.binding.prepare(action) is PreparedAction.Ready
+
+    override fun violations(action: DoubleArray): List<String> =
+        (element.binding.prepare(action) as? PreparedAction.Invalid)?.violations ?: emptyList()
+
+    /** Per-lever candidate counts, or null if any lever is continuous or the product is huge. */
+    private fun axisCounts(): LongArray? {
+        val counts = LongArray(leverCount)
+        var product = 1L
+        for ((i, d) in element.leverDecls.withIndex()) {
+            if (d.domain == LeverDomain.CONTINUOUS) return null
+            val r = d.feasibleRange()
+            if (r.isEmpty()) { counts[i] = 0L; product = 0L; continue }
+            val lo = Math.ceil(r.start).toLong()
+            val hi = Math.floor(r.endInclusive).toLong()
+            val c = if (hi < lo) 0L else hi - lo + 1L
+            counts[i] = c
+            if (c == 0L) { product = 0L } else {
+                if (product > ActionSet.ENUMERATION_CEILING / c) return null
+                product *= c
+            }
+        }
+        return counts
+    }
+
+    override val size: Long?
+        get() {
+            val counts = axisCounts() ?: return null
+            var p = 1L
+            for (c in counts) p *= c
+            return p
+        }
+
+    override fun asSequence(): Sequence<DoubleArray> {
+        val counts = axisCounts()
+            ?: throw IllegalStateException(
+                "This action set is not enumerable — it has a continuous lever, or more than " +
+                    "${ActionSet.ENUMERATION_CEILING} members. Check ActionSet.size first."
+            )
+        val lows = DoubleArray(leverCount) { Math.ceil(element.leverDecls[it].feasibleRange().start) }
+        return sequence {
+            if (counts.any { it == 0L }) return@sequence
+            val idx = IntArray(counts.size)
+            val current = DoubleArray(counts.size)
+            while (true) {
+                for (i in idx.indices) current[i] = lows[i] + idx[i]
+                if (current in this@ElementActionSet) yield(current.copyOf())
+                var k = counts.size - 1
+                while (k >= 0) {
+                    idx[k]++
+                    if (idx[k] < counts[k]) break
+                    idx[k] = 0
+                    k--
+                }
+                if (k < 0) break
+            }
+        }
+    }
+}

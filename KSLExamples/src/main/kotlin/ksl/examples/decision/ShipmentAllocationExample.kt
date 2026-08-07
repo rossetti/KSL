@@ -208,7 +208,7 @@ class GreedyByShortageCost(
 
         for (i in order) {
             val want = if (useFeasibleSet) {
-                ctx.feasibleBounds(i).endInclusive          // what this region is owed
+                ctx.actions.bounds(i).endInclusive          // what this region is owed
             } else {
                 observation[i]                              // the same number, re-derived
             }
@@ -233,7 +233,7 @@ class ProportionalShipping(private val useFeasibleSet: Boolean) : PolicyIfc {
         // and omitting them makes the rule infeasible whenever stock exceeds total backlog —
         // which §4.4.6 rejects rather than letting the model absorb.
         val cap = DoubleArray(n) {
-            if (useFeasibleSet) ctx.feasibleBounds(it).endInclusive else max(observation[it], 0.0)
+            if (useFeasibleSet) ctx.actions.bounds(it).endInclusive else max(observation[it], 0.0)
         }
         val backlogs = DoubleArray(n) { max(observation[it], 0.0) }
         val sum = backlogs.sum()

@@ -517,21 +517,6 @@ internal class MutableDecisionContext(private val element: DecisionElement) : De
 
     override val constraints: List<JointConstraint> = element.jointConstraints.toList()
 
-    // ---- The feasible set 𝒳(s), §4.4.6.2. Epoch-scoped; all pure.
-    override fun feasibleBounds(leverIndex: Int): ClosedFloatingPointRange<Double> =
-        element.leverDecls[leverIndex].feasibleRange()
-
-    /**
-     *  Membership in 𝒳(s). §4.4.6.2 requires this to DELEGATE to prepare rather than
-     *  re-derive the test, so that a rule cannot be told an action is feasible and then
-     *  rejected for proposing it.
-     */
-    override fun isFeasible(action: DoubleArray): Boolean =
-        element.binding.prepare(action) is PreparedAction.Ready
-
-    override fun violations(action: DoubleArray): List<String> =
-        (element.binding.prepare(action) as? PreparedAction.Invalid)?.violations ?: emptyList()
-
     /**
      *  The total governing this lever **as it stands now**. Once a budget can itself be a
      *  state (§4.4.6.1) the declared total and the current total are different numbers, and
@@ -544,6 +529,9 @@ internal class MutableDecisionContext(private val element: DecisionElement) : De
         val d = element.jointDecls.firstOrNull { it.names.contains(name) } ?: return null
         return d.totalFn()
     }
+
+    // ---- The feasible set 𝒳(s) as an object, §4.4.6.5.
+    override val actions: ActionSet = ElementActionSet(element)
 
     override val currentAction: DoubleArray
         get() = DoubleArray(element.leverDecls.size) { i ->

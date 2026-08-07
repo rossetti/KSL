@@ -5,7 +5,6 @@ import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.TerminationSource
 import kotlin.math.exp
 import kotlin.math.max
-import kotlin.math.min
 
 /**
  * Does the design let a modeler write a value-function policy — enumerate the actions
@@ -40,24 +39,22 @@ internal fun expectedLeftover(y: Double, mu: Double): Double {
  *   immediate ordering cost  +  V̄(post-decision state)
  * ```
  *
- * over the feasible actions. Three parts, and each tests something different about the
- * design:
+ * over the feasible actions.
  *
- *  1. **Enumeration.** The set of order quantities comes from `ctx.feasibleBounds(0)`,
- *     filtered by `ctx.isFeasible`. Nothing in the design enumerates for you (§4.4.6.2's
- *     `feasibleActions` is specified and not built), so this rule does it itself.
+ * **This class is the §8.2.11 rewrite.** The first version inlined four things inside one
+ * `action` method: the enumeration loop, the feasibility filter, the argmin, and the
+ * empty-set fallback. All four are model-independent and now live in [LookaheadPolicy] and
+ * [ExhaustiveSearch], leaving three overrides that are nothing but this problem's economics:
  *
- *  2. **The post-decision state.** For inventory it is one line: order `a` on top of
- *     position `x` gives `y = x + a`, before any demand arrives. The design supplies no
- *     generic post-decision transition, but a modeler who knows their model needs no help.
+ * ```
+ *   contribution   C(s, a)     the ordering cost
+ *   postDecision   S^x(s, a)   x + a, before demand arrives
+ *   value          V̄           the newsvendor cost over the protection interval
+ * ```
  *
- *  3. **`V̄` itself.** Here it is the newsvendor cost of covering demand over the lead time
- *     plus the review period — the textbook approximation, computed rather than learned.
- *     [value] is the single method a learned or fitted `V̄` would replace.
- *
- * The purchase cost `c` is deliberately absent from the objective: every unit demanded is
- * eventually bought, so `c·a` is policy-invariant in the long run and including it would
- * bias the rule against ordering.
+ * Each is a pure function of arrays and can be unit-tested without a simulation. The
+ * purchase cost `c` is deliberately absent: every unit demanded is eventually bought, so
+ * `c·a` is policy-invariant in the long run and including it would bias against ordering.
  */
 class NewsvendorVfaPolicy(
     private val orderCost: Double = 32.0,
@@ -65,32 +62,19 @@ class NewsvendorVfaPolicy(
     private val shortageRate: Double = 5.0,
     private val positionIndex: Int = 0,
     private val expectedDemandIndex: Int = 1,
-    /**
-     * Fraction of the protection interval that is one review period, `R / (L + R)`. Used
-     * only when [amortizeSetup] is on, to turn demand-over-the-protection-interval into
-     * demand-per-period.
-     */
+    /** `R / (L + R)`: turns demand-over-the-protection-interval into demand-per-period. */
     private val reviewFraction: Double = 5.0 / 7.0,
     /**
-     * Whether `V̄` charges the setup cost **amortized over the order it buys** rather than
-     * once against a single period.
+     * Whether the contribution charges the setup cost **amortized over the order it buys**
+     * rather than once against a single period.
      *
-     * With it off this is a MYOPIC rule: it weighs one setup against one period's holding
-     * and shortage, which over-penalises ordering and is the textbook reason myopic
-     * policies are suboptimal under a fixed ordering cost. With it on, `K · muPerPeriod / a`
-     * is the setup cost per period that an order of size `a` implies — one continuation
-     * term, and the difference is measured in `VfaInventoryTest`.
+     * With it off this is a MYOPIC rule: one setup weighed against one period's holding and
+     * shortage, which over-penalises ordering and is the textbook reason myopic policies are
+     * suboptimal under a fixed ordering cost. With it on, `K · muPerPeriod / a` is the setup
+     * cost per period that an order of size `a` implies.
      */
-    private val amortizeSetup: Boolean = true,
-    /** Cap on how many candidate actions to score. Enumeration is the policy's problem. */
-    private val maxCandidates: Int = 400
-) : ShapeAwarePolicyIfc {
-
-    /** Counted so the exercise can report what enumeration actually costs. */
-    var feasibilityChecks: Long = 0L
-        private set
-    var candidatesScored: Long = 0L
-        private set
+    private val amortizeSetup: Boolean = true
+) : LookaheadPolicy(ExhaustiveSearch) {
 
     override fun configure(surface: DecisionSurfaceDescriptor) {
         require(surface.levers.size == 1) {
@@ -102,44 +86,30 @@ class NewsvendorVfaPolicy(
         }
     }
 
-    /** `V̄` at the post-decision position [y]: expected holding plus shortage over the interval. */
-    private fun value(y: Double, mu: Double): Double {
+    /** `C(s, a)` — the ordering cost. Purchase cost is policy-invariant and omitted. */
+    override fun contribution(
+        observation: DoubleArray, action: DoubleArray, ctx: DecisionContext
+    ): Double {
+        val a = action[0]
+        if (a <= 0.0) return 0.0
+        val mu = max(observation[expectedDemandIndex], 0.0)
+        return if (amortizeSetup) orderCost * (mu * reviewFraction) / a else orderCost
+    }
+
+    /** `S^x(s, a)` — order `a` onto position `x` and the position is `x + a`, pre-demand. */
+    override fun postDecision(observation: DoubleArray, action: DoubleArray): DoubleArray {
+        val next = observation.copyOf()
+        next[positionIndex] = observation[positionIndex] + action[0]
+        return next
+    }
+
+    /** `V̄` — newsvendor cost of covering demand over the lead time plus the review period. */
+    override fun value(postDecision: DoubleArray, ctx: DecisionContext): Double {
+        val y = postDecision[positionIndex]
+        val mu = max(postDecision[expectedDemandIndex], 0.0)
         val leftover = expectedLeftover(y, mu)
         val short = mu - y + leftover
         return holdingRate * leftover + shortageRate * max(short, 0.0)
-    }
-
-    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
-        val x = observation[positionIndex]
-        val mu = max(observation[expectedDemandIndex], 0.0)
-
-        // 1 — enumerate. The design gives bounds and a membership test; the loop is ours.
-        val range = ctx.feasibleBounds(0)
-        val lo = Math.ceil(range.start).toInt()
-        val hi = min(Math.floor(range.endInclusive), (lo + maxCandidates).toDouble()).toInt()
-
-        var bestAction = 0.0
-        var bestCost = Double.MAX_VALUE
-        val probe = DoubleArray(1)
-
-        for (a in lo..hi) {
-            probe[0] = a.toDouble()
-            feasibilityChecks++
-            if (!ctx.isFeasible(probe)) continue
-            candidatesScored++
-            // 2 — the post-decision state, and 3 — V̄ evaluated at it.
-            val setup = when {
-                a <= 0 -> 0.0
-                amortizeSetup -> orderCost * (mu * reviewFraction) / a
-                else -> orderCost
-            }
-            val cost = setup + value(x + a, mu)
-            if (cost < bestCost) {
-                bestCost = cost
-                bestAction = a.toDouble()
-            }
-        }
-        return doubleArrayOf(bestAction)
     }
 
     override fun toString(): String =

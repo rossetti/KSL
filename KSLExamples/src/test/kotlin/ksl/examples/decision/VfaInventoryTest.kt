@@ -1,5 +1,7 @@
 package ksl.examples.decision
 
+import ksl.modeling.decision.ActionSet
+import ksl.modeling.decision.DecisionContext
 import ksl.modeling.decision.PolicyIfc
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.simulation.Model
@@ -74,7 +76,7 @@ class VfaInventoryTest {
                 .format("no tuning", myopicCost, 100.0 * (staticCost - myopicCost) / staticCost))
             println("  VFA, one extra term  %-22s %9.3f  (%+.1f%%)"
                 .format("no tuning", amortizedCost, 100.0 * (staticCost - amortizedCost) / staticCost))
-            println("  enumeration: %,d feasibility checks".format(amortized.feasibilityChecks))
+            println("  (enumeration, filtering and argmin now come from LookaheadPolicy)")
 
             // The architecture claim: a VFA runs and behaves sensibly. The QUALITY claim is
             // about V̄, not about the design — a myopic value term is known to lose to a
@@ -92,27 +94,38 @@ class VfaInventoryTest {
     }
 
     /**
-     *  What enumeration costs when nothing enumerates for you. Every candidate is one
-     *  `isFeasible` call, and §4.4.6.2 requires that to delegate to `prepare` — which
-     *  builds a plan, reads each lever's current value, and sorts. Correct, and not free.
+     *  The action set as an object. Before §4.4.6.5 a rule could ask for bounds and test
+     *  membership but had no way to ask **how many** actions there were — so it could not
+     *  tell a set it could walk from one it could not.
      */
     @Test
-    fun enumerationIsAffordableHereAndTheReasonItMightNotBeIsMeasurable() {
-        val vfa = NewsvendorVfaPolicy()
-        val started = System.nanoTime()
-        run(DemandRates.seasonal, vfa, reps = 5)
-        val elapsedMs = (System.nanoTime() - started) / 1_000_000
+    fun theActionSetReportsItsOwnSize() {
+        var minSize = Long.MAX_VALUE
+        var maxSize = 0L
+        var sawNull = false
 
-        val perCheck = if (vfa.feasibilityChecks > 0)
-            (System.nanoTime() - started).toDouble() / vfa.feasibilityChecks else 0.0
+        val prober = object : PolicyIfc {
+            override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+                val n = ctx.actions.size
+                if (n == null) sawNull = true else {
+                    minSize = minOf(minSize, n)
+                    maxSize = maxOf(maxSize, n)
+                    // Enumerating must agree with the count it reports.
+                    check(ctx.actions.asSequence().count().toLong() == n) {
+                        "asSequence yielded a different number of actions than size reported"
+                    }
+                }
+                return DoubleArray(ctx.leverNames.size)
+            }
+        }
+        run(DemandRates.seasonal, prober, reps = 2)
 
         println()
-        println("Enumeration, 5 replications:")
-        println("  feasibility checks : %,d".format(vfa.feasibilityChecks))
-        println("  candidates scored  : %,d".format(vfa.candidatesScored))
-        println("  wall clock         : %,d ms".format(elapsedMs))
-        println("  upper bound per check (includes the whole simulation): %.1f us".format(perCheck / 1000.0))
-        assertTrue(vfa.feasibilityChecks > 100_000, "the probe did not enumerate enough to mean anything")
+        println("Action set size over the run: min $minSize, max $maxSize, ever unenumerable: $sawNull")
+        // This lever has no state-dependent bounds, so the size is constant here — the
+        // varying case is asserted on the shipment depot, where 𝒳(s) genuinely moves.
+        assertTrue(!sawNull, "an integer lever inside the ceiling should report a size")
+        assertTrue(maxSize <= ActionSet.ENUMERATION_CEILING, "size should be null above the ceiling")
     }
 
     // ------------------------------------------------------------------ learning

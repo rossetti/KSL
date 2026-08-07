@@ -99,21 +99,21 @@ class ShipmentAllocationTest {
                 // Candidates that straddle every boundary the element enforces.
                 val candidates = listOf(
                     DoubleArray(n),                                             // all zero
-                    DoubleArray(n) { ctx.feasibleBounds(it).endInclusive },     // each at its max
-                    DoubleArray(n) { ctx.feasibleBounds(it).endInclusive + 1 }, // each just over
+                    DoubleArray(n) { ctx.actions.bounds(it).endInclusive },     // each at its max
+                    DoubleArray(n) { ctx.actions.bounds(it).endInclusive + 1 }, // each just over
                     DoubleArray(n) { if (it == 0) budget else 0.0 },            // the whole budget
                     DoubleArray(n) { if (it == 0) budget + 1 else 0.0 },        // just over it
                     DoubleArray(n) { 0.5 }                                      // non-integral
                 )
                 for (c in candidates) {
                     checked++
-                    val says = ctx.isFeasible(c)
-                    val why = ctx.violations(c)
+                    val says = (c in ctx.actions)
+                    val why = ctx.actions.violations(c)
                     // The contract: isFeasible true <=> no violations. One predicate.
                     if (says != why.isEmpty()) disagreements++
                 }
                 // Act feasibly so the replication proceeds.
-                return DoubleArray(n) { ctx.feasibleBounds(it).endInclusive }
+                return DoubleArray(n) { ctx.actions.bounds(it).endInclusive }
                     .let { plan ->
                         var left = budget
                         DoubleArray(n) { i -> val g = minOf(plan[i], left); left -= g; Math.rint(g) }
@@ -176,5 +176,52 @@ class ShipmentAllocationTest {
         println("CFA reading 𝒳(s)      : %9.4f".format(a))
         println("CFA re-deriving 𝒳(s)  : %9.4f  (absorbed ${dB.overShipmentsAbsorbed})".format(b))
         assertTrue(Math.abs(a - b) < 1e-9, "the two formulations disagreed: $a vs $b")
+    }
+
+    /**
+     *  The action set is an object with a size, and here that size genuinely moves: three
+     *  levers whose bounds are backlogs and whose joint total is the stock on hand.
+     *
+     *  This is the test that justifies `size` being **nullable**. A VFA on this model cannot
+     *  enumerate — most of the time there are more actions than anyone should walk — and the
+     *  only way it can find that out without trying is to ask.
+     */
+    @Test
+    fun theActionSetSizeTracksTheStateAndOftenExceedsWhatCanBeWalked() {
+        var minSize = Long.MAX_VALUE
+        var maxSize = 0L
+        var enumerable = 0
+        var tooLarge = 0
+        var shown = 0
+
+        val prober = object : PolicyIfc {
+            override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+                val n = ctx.actions.size
+                if (n == null) tooLarge++ else {
+                    minSize = minOf(minSize, n); maxSize = maxOf(maxSize, n); enumerable++
+                    if (shown < 3) {
+                        shown++
+                        val bounds = (0 until ctx.actions.leverCount)
+                            .joinToString(", ") { "%.0f".format(ctx.actions.bounds(it).endInclusive) }
+                        println("  backlogs ($bounds), budget %.0f -> %,d feasible actions"
+                            .format(ctx.budgetTotal(0) ?: 0.0, n))
+                    }
+                }
+                return DoubleArray(ctx.leverNames.size)
+            }
+        }
+        run(stateDependent = true) { prober }
+
+        val total = enumerable + tooLarge
+        println("Feasible action count: min %,d, max %,d over %,d enumerable epochs".format(minSize, maxSize, enumerable))
+        println("  epochs where the set exceeded the walkable ceiling: %,d of %,d (%.0f%%)"
+            .format(tooLarge, total, 100.0 * tooLarge / total))
+
+        assertTrue(total > 1000, "not enough epochs to mean anything")
+        assertTrue(minSize < maxSize, "the action set size never moved, but 𝒳(s) is state-dependent here")
+        assertTrue(
+            tooLarge > 0,
+            "the set was always enumerable, so this model does not demonstrate why size is nullable"
+        )
     }
 }
