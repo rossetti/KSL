@@ -175,18 +175,31 @@ class JobShopExample(parent: ModelElement, name: String? = null) : AgentModel(pa
         }
     }
 
-    val workers: List<Worker> = listOf(
-        Worker("worker1", serviceRate = 1.0, utilization = workerUtilization[0]),
-        Worker("worker2", serviceRate = 1.5, utilization = workerUtilization[1]),
-        Worker("worker3", serviceRate = 0.8, utilization = workerUtilization[2]),
-    )
+    /**
+     *  The workers for the current replication. Rebuilt by [initialize] rather than
+     *  held for the model's lifetime: a `KSLProcess` is one-shot, so an agent kept as
+     *  a field could have its behavior activated only once, and replication 2 would
+     *  fail. The dispatcher reads this property when its process runs, so it always
+     *  bids against the current replication's workers.
+     */
+    var workers: List<Worker> = emptyList()
+        private set
 
-    val dispatcher: Dispatcher = Dispatcher()
+    /** The dispatcher for the current replication; see [workers]. */
+    var dispatcher: Dispatcher? = null
+        private set
 
     override fun initialize() {
         super.initialize()
+        workers = listOf(
+            Worker("worker1", serviceRate = 1.0, utilization = workerUtilization[0]),
+            Worker("worker2", serviceRate = 1.5, utilization = workerUtilization[1]),
+            Worker("worker3", serviceRate = 0.8, utilization = workerUtilization[2]),
+        )
+        val d = Dispatcher()
+        dispatcher = d
         for (w in workers) activate(w.behavior)
-        activate(dispatcher.behavior)
+        activate(d.behavior)
     }
 }
 
@@ -197,6 +210,6 @@ fun main() {
     model.numberOfReplications = 1
     model.simulate()
     model.print()
-    println("Jobs assigned: ${sys.dispatcher.jobsAssigned}")
-    println("Jobs unassigned: ${sys.dispatcher.jobsUnassigned}")
+    println("Jobs assigned: ${sys.dispatcher?.jobsAssigned}")
+    println("Jobs unassigned: ${sys.dispatcher?.jobsUnassigned}")
 }

@@ -338,7 +338,15 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
         }
     }
 
-    val drones: List<Drone> = (1..Defaults.numDrones).map { Drone("drone-$it") }
+    /**
+     *  The fleet for the current replication. Rebuilt by [initialize] rather than held
+     *  for the model's lifetime: each drone runs a long-lived `process`, and a
+     *  `KSLProcess` is one-shot, so a field-held drone could be activated only once
+     *  and replication 2 would fail. The dispatcher reads this property when its own
+     *  process runs, so it always sees the current fleet.
+     */
+    var drones: List<Drone> = emptyList()
+        private set
 
     // ── Dispatcher ─────────────────────────────────────────────────────────
 
@@ -367,7 +375,9 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
         }
     }
 
-    val dispatcher: Dispatcher = Dispatcher()
+    /** The dispatcher for the current replication; see [drones]. */
+    var dispatcher: Dispatcher? = null
+        private set
 
     // ── Order generator ────────────────────────────────────────────────────
 
@@ -385,19 +395,23 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
                 val order = Order(deliveryPoints[targetIndex], currentTime)
                 sendMessage(
                     AgentMessage.Inform(this@OrderGenerator, order),
-                    dispatcher.mailbox,
+                    checkNotNull(dispatcher) { "dispatcher is created by initialize()" }.mailbox,
                 )
             }
         }
     }
 
-    val orderGen: OrderGenerator = OrderGenerator()
+    /** The order generator for the current replication; see [drones]. */
+    var orderGen: OrderGenerator? = null
+        private set
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
 
     override fun initialize() {
         super.initialize()
-        // Place each drone at the depot.
+        // Fresh fleet and driver agents each replication: every one of them runs a
+        // long-lived process, and a KSLProcess cannot be activated a second time.
+        drones = (1..Defaults.numDrones).map { Drone("drone-$it") }
         for (drone in drones) {
             sky.add(drone)
             space.placeAt(drone, voxelCenter(depot))
@@ -407,8 +421,12 @@ class DroneDeliveryExample(parent: ModelElement, name: String? = null) :
             activate(drone.script)
             numIdleDrones.increment()
         }
-        activate(dispatcher.script)
-        activate(orderGen.script)
+        val d = Dispatcher()
+        dispatcher = d
+        val g = OrderGenerator()
+        orderGen = g
+        activate(d.script)
+        activate(g.script)
     }
 }
 

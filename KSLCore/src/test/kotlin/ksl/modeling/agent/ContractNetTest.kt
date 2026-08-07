@@ -254,9 +254,12 @@ class ContractNetTest {
         // With arrival mean 8 and a 500-unit run, we expect roughly 60 jobs.
         // The smoke test just confirms the model ran and at least one job
         // was successfully assigned.
+        // The dispatcher is now rebuilt per replication (a KSLProcess is one-shot),
+        // so this reads the last replication's dispatcher.
+        val dispatcher = checkNotNull(sys.dispatcher) { "initialize() creates the dispatcher" }
         assertTrue(
-            sys.dispatcher.jobsAssigned > 0,
-            "JobShopExample should assign at least one job; got ${sys.dispatcher.jobsAssigned}"
+            dispatcher.jobsAssigned > 0,
+            "JobShopExample should assign at least one job; got ${dispatcher.jobsAssigned}"
         )
     }
 }

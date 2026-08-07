@@ -316,8 +316,12 @@ class AutonomousDeliveryExample(parent: ModelElement, name: String? = null) :
 
     // ── Wire-up ─────────────────────────────────────────────────────────────
 
+    /**
+     *  The dispatcher is genuinely permanent: its behaviour is a statechart, and
+     *  `AgentModel.initialize()` restarts statecharts each replication, so there is
+     *  no one-shot process to re-activate.
+     */
     val dispatcher: Dispatcher = Dispatcher()
-    private val orderGen: OrderGenerator = OrderGenerator({ dispatcher })
 
     override fun initialize() {
         super.initialize()
@@ -326,7 +330,9 @@ class AutonomousDeliveryExample(parent: ModelElement, name: String? = null) :
             truck.currentIntersection = depot
             space.placeAt(truck, depot.position)
         }
-        activate(orderGen.script)
+        // The order generator drives a long-lived process, and a KSLProcess is
+        // one-shot, so it is built fresh each replication rather than held as a field.
+        activate(OrderGenerator({ dispatcher }).script)
     }
 }
 

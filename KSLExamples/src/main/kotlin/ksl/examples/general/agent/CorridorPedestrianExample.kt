@@ -177,11 +177,14 @@ class CorridorPedestrianExample(parent: ModelElement, name: String? = null) :
         }
     }
 
-    private val arrivals = Arrivals()
-
     override fun initialize() {
         super.initialize()
-        activate(arrivals.script)
+        // A KSLProcess is one-shot: once it completes or is terminated it cannot be
+        // activated again. The arrivals driver is therefore built fresh here, on every
+        // replication, rather than held as a field — a field would give the model a
+        // single process instance for its whole lifetime, which replication 2 could
+        // not re-activate.
+        activate(Arrivals().script)
     }
 }
 

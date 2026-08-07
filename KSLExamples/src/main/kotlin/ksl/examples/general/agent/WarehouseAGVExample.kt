@@ -482,7 +482,15 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
         }
     }
 
-    val controllers: List<AGVController> = agvs.map { AGVController(it) }
+    /**
+     *  Controllers for the current replication. Rebuilt by [initialize] rather than
+     *  held for the model's lifetime: a `KSLProcess` is one-shot, so an agent kept as
+     *  a field could have its script activated only once and replication 2 would fail.
+     *  The AGVs themselves *are* structural and stay as fields — they are resources,
+     *  and only their state is reset per replication.
+     */
+    var controllers: List<AGVController> = emptyList()
+        private set
 
     // ── Dispatcher ─────────────────────────────────────────────────────────
 
@@ -508,7 +516,9 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
         }
     }
 
-    val dispatcher: Dispatcher = Dispatcher()
+    /** The dispatcher for the current replication; see [controllers]. */
+    var dispatcher: Dispatcher? = null
+        private set
 
     // ── Task generator ─────────────────────────────────────────────────────
 
@@ -527,7 +537,7 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
                 val task = PalletTask(pickup, dropoff, currentTime)
                 sendMessage(
                     AgentMessage.Inform(this@TaskGenerator, task),
-                    dispatcher.mailbox,
+                    checkNotNull(dispatcher) { "dispatcher is created by initialize()" }.mailbox,
                 )
             }
         }
@@ -545,7 +555,9 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
         }
     }
 
-    val taskGen: TaskGenerator = TaskGenerator()
+    /** The task generator for the current replication; see [controllers]. */
+    var taskGen: TaskGenerator? = null
+        private set
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -563,8 +575,16 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
             space.placeAt(agv, cellCenter(initCell))
         }
 
-        activate(taskGen.script)
-        activate(dispatcher.script)
+        // Fresh driver agents each replication, in dependency order: the dispatcher
+        // bids against the controllers, and the task generator messages the dispatcher.
+        controllers = agvs.map { AGVController(it) }
+        val d = Dispatcher()
+        dispatcher = d
+        val g = TaskGenerator()
+        taskGen = g
+
+        activate(g.script)
+        activate(d.script)
         for (c in controllers) activate(c.script)
     }
 }
