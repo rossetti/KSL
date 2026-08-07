@@ -795,6 +795,8 @@ on the Dokka pages.
 
 | Example | Showcases |
 |---|---|
+| `AgentArrivalsExample` | `AgentGenerator`: an open population arriving, crossing a grid and departing |
+| `AgentPerformanceExample` | `collectPerformance`: per-agent statistics for named role-holders |
 | `GridEpidemicExample` | grid projection + Moore neighborhoods + SIR dynamics |
 | `NetworkRumorExample` | network projection + reachability + independent-cascade diffusion |
 | `CorridorPedestrianExample` | the simplest continuous projection — constant-velocity traversal, no forces, no collisions |
