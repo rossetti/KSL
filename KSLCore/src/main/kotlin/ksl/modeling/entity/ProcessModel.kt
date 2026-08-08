@@ -63,6 +63,7 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
 private data class ResumeIntent(
     val source: ResumeSource,
     val detail: String?,
+    val scheduledForProcessId: Int,
     val scheduledAtTime: Double,
     val scheduledSuspendType: SuspendType,
     val scheduledSuspendName: String?,
@@ -523,6 +524,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myWaitingForResourceState
         val isWaitingForConveyor: Boolean
             get() = state == myWaitingForConveyorState
+
+        /**
+         *  True when the entity's process has ended, by completing or by being terminated, and the
+         *  entity has not yet been given another one. This is the only state from which an idle
+         *  entity may be scheduled into a new process, so it is the state an entity rests in between
+         *  processes.
+         */
         val isProcessEnded: Boolean
             get() = state == myProcessEndedState
         val isBlockedSending: Boolean
@@ -883,6 +891,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val intent = ResumeIntent(
                     source = source,
                     detail = detail,
+                    // which process this wakeup belongs to; ResumeAction drops it if the entity has
+                    // moved on to a different one by the time the event fires
+                    scheduledForProcessId = myCurrentProcess!!.id,
                     scheduledAtTime = time,
                     scheduledSuspendType = currentSuspendType,
                     scheduledSuspendName = currentSuspendName,
@@ -911,6 +922,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // 2) private inner class ResumeAction : EventAction<Nothing>
             // what schedules the ResumeAction???: the resumeProcess() function, which is called many places
             // ResumeAction is the event based resumption, which must eventually directly resume the continuation
+            //
+            // Deliberately NOT given the staleness check that ResumeAction has: there is no
+            // ResumeIntent here to compare against, and both queue-based callers remove the entity
+            // from the queue immediately before calling, so a terminated entity cannot be selected.
+            // Adding a liveness check here would silence genuine state-machine errors on the one
+            // resume path that has no provenance. If a third caller is ever added, revisit this.
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
@@ -928,13 +945,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  are collected on its queueing.  If the entity is experiencing a delay,
          *  then the event associated with the delay is cancelled.
          *
+         *  Termination also releases the **entity**, not only the things it was entangled with. The
+         *  entity stops being bound to the terminated process and is left in the process-ended state,
+         *  exactly as it would be after a process completed normally. It may therefore be given a new
+         *  process instance, and the natural place to do that is the handleTerminatedProcess()
+         *  function or the afterTermination argument below, both of which run after the release.
+         *
+         *  The process instance itself remains one-shot: a terminated process cannot be activated
+         *  again, for this entity or any other. Repeating the behavior means creating a new process
+         *  instance for the entity.
+         *
          *  If the entity has additional processes in
          *  its process sequence they are not automatically executed. If the user
          *  requires specific behavior to occur for the entity after termination, then
          *  the user should override the Entity's handleTerminatedProcess() function to
          *  supply specific logic.  Termination happens immediately, with no time delay.
          *
-         *  @param afterTermination a function to invoke after the process is successfully terminated
+         *  Calling this function when the entity is not currently executing a process does nothing.
+         *
+         *  @param afterTermination a function to invoke after the process is successfully terminated.
+         *  The entity supplied to it has already been released and may be given a new process.
          */
         fun terminateProcess(afterTermination: ((entity: Entity) -> Unit)? = null) {
             if (myCurrentProcess != null) {
@@ -945,6 +975,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private inner class ResumeAction : EventAction<ResumeIntent>() {
             override fun action(event: KSLEvent<ResumeIntent>) {
                 val intent = event.message
+                // The process this resume was scheduled for may have ended in the interval. A
+                // terminated process leaves no way to recall an event already on the calendar, and
+                // the entity may since have been given a different process, which must not be
+                // resumed by someone else's wakeup. The check is on process identity, not on state,
+                // so a resume that is genuinely wrong for a live process still reaches the state
+                // machine and still raises. Checked ahead of the DELAY guard below because that
+                // guard reads currentSuspendType, which now describes whatever process is current --
+                // a stale resume would otherwise be reported as a bogus DELAY violation.
+                if (intent != null && myCurrentProcess?.id != intent.scheduledForProcessId) {
+                    logger.warn { "r = ${model.currentReplicationNumber} : $time > STALE RESUME DROPPED : event_id = ${event.id} : entity_id = $id : scheduled for process_id = ${intent.scheduledForProcessId}, current process = ${myCurrentProcess?.name} (id = ${myCurrentProcess?.id}) : intent = $intent" }
+                    return
+                }
                 if (currentSuspendType == SuspendType.DELAY && intent?.source?.mayResumeDelay != true) {
                     val message = "r = ${model.currentReplicationNumber} : $time > ResumeAction event_id = ${event.id} " +
                             "from source = ${intent?.source} attempted to resume a DELAY for entity_id = $id. " +
@@ -1025,6 +1067,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             emitAnimation { AnimationEvent.ProcessCompleted(time, id, completedProcess.name) }
             // must clear the current process so next can be run if there is one
             myCurrentProcess = null
+            // Both ways a process can end now leave the entity in the one state that means "ended,
+            // may be scheduled again". A completed entity used to stay Active -- a state defined as
+            // executing non-suspending code within its process, which it is not -- and re-activation
+            // worked there only because Active happens to implement schedule(). Note there is no
+            // this@Entity qualifier here and none is wanted: this function is declared on Entity, so
+            // a bare state is already the entity's. The mirror-image line in
+            // afterTerminatedProcessCompletion sits inside ProcessCoroutine and does need it.
+            state.processEnded()
             afterRunningProcess(completedProcess)
             // do not permit blockages to carry over to another process, there can be no active blockages when the process completes
             if (hasActiveBlockages) {
@@ -1061,7 +1111,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /**
          *  Subclasses of Entity can use this method to clean up after a process is terminated
-         *  for the entity. Currently, it does nothing.
+         *  for the entity. By default, it does nothing.
+         *
+         *  The entity has already been released by the time this is called: it is no longer bound to
+         *  the terminated process and is in the process-ended state. So this is the place to decide
+         *  what the entity does next, including activating a new process instance on it — abandon
+         *  the task that was terminated and start a recovery task, for example. The terminated
+         *  process instance itself cannot be reused; create a new one.
+         *
          *  @param terminatedProcess the process that was terminated.
          */
         protected open fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
@@ -1402,9 +1459,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        // Every suspended state accepts processEnded(): a process can end while the entity is
+        // suspended, because terminating it unwinds the coroutine from its suspension point. The
+        // entity must then be left in a state that will accept schedule() again. The base
+        // EntityState.processEnded() still raises, so a suspension kind that leaves the entity
+        // somewhere unexpected fails a test rather than transitioning silently.
         private inner class Scheduled : EntityState("Scheduled") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1412,11 +1478,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class InHoldQueue : EntityState("InHoldQueue") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1424,17 +1498,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class WaitingForBatch : EntityState("WaitingForBatch") {
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
+        // Unreachable: waitForConveyor() has no call sites anywhere. requestConveyor, rideConveyor
+        // and exit suspend through hold(), so a conveyor-suspended entity is InHoldQueue. Kept for
+        // uniformity with the other suspended states.
         private inner class WaitingForConveyor : EntityState("WaitingForConveyor") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1442,11 +1531,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class BlockedReceiving : EntityState("BlockedReceiving") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1454,11 +1551,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class BlockedUntilCompletion : EntityState("BlockedUntilCompletion") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1545,14 +1650,41 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  @param priority used to indicate priority of activation if there are activations at the same time.
              *  Lower priority goes first.
              *  @return KSLEvent the event used to schedule the activation
+             *  @throws IllegalStateException if this process has already completed or been terminated. A
+             *  KSLProcess is one-shot; repeating behavior requires a new process instance.
              */
             internal fun activate(
                 timeUntilActivation: Double = 0.0,
                 priority: Int = KSLEvent.DEFAULT_PRIORITY
             ): KSLEvent<KSLProcess> {
+                // A KSLProcess is one-shot. Checked here, ahead of the pending/current checks, because
+                // neither of those reports the actual cause. A terminated process leaves myCurrentProcess
+                // set (it is cleared only on successful completion), so re-activating one reports "already
+                // running a process" about a process that is not running. A completed process passes both
+                // checks and instead fails later, inside the activation event, from the coroutine state
+                // machine ("Tried to start process ... from an illegal state: Completed") -- detached from
+                // the activate() call that caused it. Both are the same modeling error, and both now fail
+                // here, at the call site, naming the remedy.
+                check(!isCompleted && !isTerminated) {
+                    "The process '$name' cannot be activated for entity_id = ${entity.id} because it has already " +
+                        "${if (isCompleted) "completed" else "been terminated"}. A KSLProcess is one-shot: to repeat " +
+                        "the behavior, create a new process instance and activate that. A process held in a property " +
+                        "built once (e.g. a field of the model) cannot be re-activated in a later replication."
+                }
                 check(!hasPendingProcess) { "The $this process cannot be activated for the entity because the entity already has a pending process: ${pendingProcess?.name}" }
                 // hasCurrentProcess gets set to false (currentProcess get set to null) in afterSuccessfulProcessCompletion()
-                check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process: ${currentProcess?.name}" }
+                check(!hasCurrentProcess) {
+                    val cp = currentProcess
+                    if (cp != null && (cp.isTerminated || cp.isCompleted)) {
+                        // The entity is bound to a process that is no longer running. Only successful
+                        // completion clears that binding, so this is reachable after a termination.
+                        "The process '$name' cannot be activated for entity_id = ${entity.id} because the entity's " +
+                            "process '${cp.name}' has ${if (cp.isTerminated) "been terminated" else "completed"} and " +
+                            "the entity is still bound to it. Activate the new process on a new entity."
+                    } else {
+                        "The $this process cannot be activated for the entity because the entity is already running a process: ${cp?.name}"
+                    }
+                }
                 myPendingProcess = this
                 entity.state.schedule()
                 //logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
@@ -1632,7 +1764,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SUSPEND
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
                 suspension.suspending(this@Entity)
-                suspend()
+                try {
+                    suspend()
+                } finally {
+                    // Abnormal exit only. Suspension.resume() nulls suspendedEntity synchronously
+                    // when it schedules the resume, so this is a no-op on the normal path. It
+                    // deliberately does not set isResumed: a wait ended by termination is not a
+                    // completed one, and leaving that flag false lets a recovery process pass the
+                    // same Suspension through suspendFor again.
+                    suspension.abandon()
+                }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -1663,10 +1804,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (blockage.isActive) {
                     blockage.addBlockedEntity(this@Entity)
                     entity.state.blockUntilCompletion()
-                    suspend()
-                    entity.state.activate()
-                    blockage.removeBlockedEntity(this@Entity)
+                    try {
+                        suspend()
+                        entity.state.activate()
+                    } finally {
+                        // Abnormal exit only. Blockage.end() resumes every entity in its blocked list
+                        // and relies on each one removing itself after resuming, which a terminated
+                        // entity never does -- so the blockage would keep trying to resume a dead
+                        // process every time it is cleared. entity.state.activate() stays inside the
+                        // try so termination skips it: the entity must remain in
+                        // BlockedUntilCompletion for the termination cleanup to see it.
+                        blockage.removeBlockedEntity(this@Entity)
+                    }
                 }
+                // statistic-bearing, and left outside the try on purpose: the entity's own queue
+                // membership is already undone by afterTerminatedProcessCompletion's isQueued branch
                 queue?.remove(this@Entity)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked from ${blockage.name} in process, ($this)" }
                 currentSuspendName = null
@@ -1833,11 +1985,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // enqueue the amount request so that it is a candidate for selection
                 val request = blockingQ.enqueueAmountRequest(entity,
                     predicate, amount, blockingPriority)
-                waitForRequestedItems(blockingQ, request)
-                // The entity wanting the items has been resumed because it can be filled or
-                // because its request can be immediately filled. The request should be able to be filled.
-                // This next call also removes the request from the blocking queue's requestQ of requests waiting for items.
-                val list = blockingQ.fill(request)
+                val list = try {
+                    waitForRequestedItems(blockingQ, request)
+                    // The entity wanting the items has been resumed because it can be filled or
+                    // because its request can be immediately filled. The request should be able to be filled.
+                    // This next call also removes the request from the blocking queue's requestQ of requests waiting for items.
+                    blockingQ.fill(request)
+                } finally {
+                    // Abnormal exit only. Termination unwinds through the suspend() inside
+                    // waitForRequestedItems, so the fill above never runs. A leaked request is
+                    // selected by notifyWaitingRequests ahead of any live receiver, so the item is
+                    // offered to a dead process and no live receiver ever sees it. A no-op on the
+                    // normal path, where fill() has already removed the request.
+                    blockingQ.removeRequest(request)
+                }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return list
@@ -1854,11 +2015,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // enqueue the channel request so that it is a candidate for selection
                 val request = blockingQ.enqueueChannelRequest(entity,
                     predicate, blockingPriority)
-                waitForRequestedItems(blockingQ, request)
-                // The entity wanting the items has been resumed because it can be filled or
-                // because its request can be immediately filled. The request should be able to be filled.
-                // This next call also removes the request from the blocking queue's requestQ of requests waiting for items.
-                val list = blockingQ.fill(request)
+                val list = try {
+                    waitForRequestedItems(blockingQ, request)
+                    // The entity wanting the items has been resumed because it can be filled or
+                    // because its request can be immediately filled. The request should be able to be filled.
+                    // This next call also removes the request from the blocking queue's requestQ of requests waiting for items.
+                    blockingQ.fill(request)
+                } finally {
+                    // Abnormal exit only; see waitForItems for the full reasoning.
+                    blockingQ.removeRequest(request)
+                }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return list
@@ -1983,9 +2149,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resource.name, queue.name, amountNeeded) }
-                waitForResource(request, resource, queue)
-                // entity has been told to resume or the request was selected for allocation
-                queue.remove(request) // take the request out of the queue after possible wait
+                try {
+                    waitForResource(request, resource, queue)
+                    // entity has been told to resume or the request was selected for allocation
+                    queue.remove(request) // take the request out of the queue after possible wait
+                } finally {
+                    // Abnormal exit only. Termination resumes the continuation with a
+                    // ProcessTerminatedException, which unwinds through the suspend() inside
+                    // waitForResource, so the removal above never runs. Without this the request
+                    // outlives its process: the next release of the resource marks it resume-pending,
+                    // and since only RequestQ.remove clears that flag, the resource stays permanently
+                    // short by amountRequested for every other request waiting in this queue.
+                    // A no-op on the normal path -- Queue.remove has already nulled request.queue --
+                    // so no second waiting-time observation is recorded. Swept through request.queue
+                    // rather than the queue parameter because the request may have been moved.
+                    (request.queue as? RequestQ)?.remove(request, false)
+                }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResource != resource) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource ${resource.name} to resource ${request.resource.name}" }
@@ -2058,15 +2237,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resourcePool.name, queue.name, amountNeeded) }
                 // this causes the selection rule to be invoked to see if resources are available
                 //TODO: The current implementation does not facilitate partial filling
-                if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resourcePool.name) }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                try {
+                    if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                        emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resourcePool.name) }
+                        entity.state.waitForResource()
+                        suspend()
+                        entity.state.activate()
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    }
+                    queue.remove(request) // take the request out of the queue after possible wait
+                } finally {
+                    // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
+                    // A no-op on the normal path, so it records no second waiting-time observation.
+                    (request.queue as? RequestQ)?.remove(request, false)
                 }
-                queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResourcePool != resourcePool) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource pool ${resourcePool.name} to resource pool ${request.myResourcePool.name}" }
@@ -2108,16 +2293,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.enqueue(request) // put the request in the queue
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, movableResourcePool.name, queue.name, 1) }
                 // this causes the selection rule to be invoked to see if resources are available
-                if (!movableResourcePool.canAllocate(resourceSelectionRule)) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, movableResourcePool.name) }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                try {
+                    if (!movableResourcePool.canAllocate(resourceSelectionRule)) {
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                        emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, movableResourcePool.name) }
+                        entity.state.waitForResource()
+                        suspend()
+                        entity.state.activate()
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    }
+                    // entity has been told to resume
+                    queue.remove(request) // take the request out of the queue after possible wait
+                } finally {
+                    // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
+                    // A no-op on the normal path, so it records no second waiting-time observation.
+                    (request.queue as? RequestQ)?.remove(request, false)
                 }
-                // entity has been told to resume
-                queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myMovableResourcePool != movableResourcePool) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource pool ${movableResourcePool.name} to resource pool ${request.myMovableResourcePool.name}" }
@@ -2795,6 +2986,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  are collected on its queueing.  If the entity is experiencing a delay,
              *  then the event associated with the delay is cancelled.
              *
+             *  Finally the entity itself is released: unbound from the terminated process, its
+             *  suspension-kind fields cleared, and moved to the process-ended state, which is what
+             *  allows the hooks that run after this -- handleTerminatedProcess() and the
+             *  afterTermination callback -- to give it a new process.
+             *
              *  If the entity has additional processes in
              *  its process sequence they are not automatically executed. If the user
              *  requires specific behavior to occur for the entity after termination, then
@@ -2822,6 +3018,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                // Release the entity itself, not only its entanglements. Successful completion clears
+                // the binding in afterSuccessfulProcessCompletion; termination must do the same, and
+                // must also leave the suspended state that the exception unwound from -- otherwise the
+                // entity is stuck: bound to a dead process, and in a state that will not accept
+                // schedule(). The currentSuspend* fields are reset here because the unwind skips every
+                // suspending function's own reset, so without this the entity would run its next
+                // process while still reporting the suspension kind of the process that died.
+                // Deliberately last: the branches above read isQueued and isScheduled, which are
+                // entity-state predicates. Note this@Entity.state -- an unqualified state here is the
+                // coroutine's ProcessState, and would compile.
+                myCurrentProcess = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                this@Entity.state.processEnded()
             }
 
             override fun toString(): String {
@@ -2968,6 +3178,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal fun suspending(suspendingEntity: Entity) {
                 require(suspendingEntity == myEntity) { "The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}" }
                 isResumed = false
+                isAbandoned = false
                 suspendedEntity = suspendingEntity
             }
 
@@ -2990,16 +3201,33 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 private set
 
             /**
+             *  True indicates that the entity's process ended at this suspension point by some path
+             *  other than resumption, so nothing is waiting on the suspension any more. Distinct from
+             *  isResumed, which means the wait completed normally, and distinct from a suspension that
+             *  has never been used. Resuming an abandoned suspension is not an error; it is dropped and
+             *  logged. The flag is cleared when the suspension is used again.
+             */
+            var isAbandoned: Boolean = false
+                private set
+
+            /**
              *  Causes the suspension to be resumed at the current time (i.e. without any delay).
              *  Errors will result if the suspension is not associated with a suspending entity
              *  via the suspend(suspension: Suspension) function or if the suspension has already
-             *  been resumed.
+             *  been resumed. If the suspension was abandoned because its entity's process ended at
+             *  this suspension point, the resumption is dropped and logged rather than treated as an
+             *  error: whoever holds the suspension cannot be expected to know that the waiting process
+             *  was terminated.
              *
              * @param priority the priority associated with the resume. Can be used
              * to order resumptions that occur at the same time.
              */
             internal fun resume(priority: Int = RESUME_PRIORITY) {
                 require(!isResumed) { "The suspension with label $label and type $type associated with entity ${myEntity.name} has already been resumed." }
+                if (isAbandoned) {
+                    logger.warn { "r = ${model.currentReplicationNumber} : $time > RESUME DROPPED : the suspension with label $label and type $type was abandoned because entity ${myEntity.name} (id = ${myEntity.id}) ended its process at this suspension point. Nothing was waiting on it." }
+                    return
+                }
                 require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity." }
                 suspendedEntity?.scheduleResumeProcess(
                     priority = priority,
@@ -3008,6 +3236,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 )
                 isResumed = true
                 suspendedEntity = null
+            }
+
+            /**
+             *  Ends the association with the suspending entity without marking the suspension as
+             *  resumed. Called when a process ends at this suspension point by some path other than
+             *  resumption -- termination, or any other exception unwinding through it. Leaving
+             *  isResumed false keeps a terminated wait distinguishable from a completed one and
+             *  allows the suspension to be used again by a later process. The isAbandoned flag is
+             *  what lets a later resume() tell this case apart from a suspension that was never used,
+             *  which remains an error.
+             */
+            internal fun abandon() {
+                if (suspendedEntity != null) {
+                    isAbandoned = true
+                    suspendedEntity = null
+                }
             }
 
             override fun toString(): String {
