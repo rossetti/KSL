@@ -174,22 +174,25 @@ class ProcessActivationDiagnosticsTest {
     // ── H-15: what a terminated entity can and cannot do ────────────────────
 
     /**
-     *  Documents current behavior rather than endorsing it (finding H-15). After a termination the
-     *  entity remains bound to the terminated process, so even a *fresh* process cannot be activated
-     *  on it. The message now says that, instead of claiming the entity is running something.
+     *  H-15, decided in favor of releasing the entity. Termination used to clean up everything the
+     *  entity was entangled *with* — allocations, queue membership, the delay event — and leave the
+     *  entity's own two state fields stale, so it stayed bound to the dead process and in whatever
+     *  suspended state the exception unwound from. That made it unable to run any further process.
      *
-     *  If H-15 is later decided in favor of releasing the entity, this test is the one that changes,
-     *  and it is deliberately worded so that the change is obvious rather than silent.
+     *  Termination now releases the entity as well, so a *fresh* process activates normally. The
+     *  one-shot rule is unchanged and still applies to the process instance, which is what
+     *  `reactivatingTerminatedProcessReportsTermination` above pins.
+     *
+     *  This test previously asserted the opposite and was worded so that the change would be
+     *  obvious rather than silent. It is that change.
      */
     @Test
-    @DisplayName("H-15: after termination the entity stays bound, so even a fresh process is refused")
-    fun terminatedEntityRefusesEvenAFreshProcess() {
+    @DisplayName("H-15: after termination the entity is released, so a fresh process activates")
+    fun terminatedEntityAcceptsAFreshProcess() {
         val m = run(endByTermination = true, reuseSame = false)
-        assertTrue(m.boundProcessWasSpent, "the entity is still bound to the terminated process")
-        assertTrue(!m.succeeded, "current behavior: no process can be activated on a terminated entity")
-        val msg = assertNotNull(m.failure)
-        assertContains(msg, "still bound to it")
-        assertContains(msg, "new entity", message = "the message should state the available remedy")
+        assertTrue(!m.boundProcessWasSpent, "termination must clear the entity's binding to the dead process")
+        assertTrue(m.succeeded, "a fresh process instance on a terminated entity is legal")
+        assertNull(m.failure)
     }
 
     // ── The H-12 shape, end to end ──────────────────────────────────────────

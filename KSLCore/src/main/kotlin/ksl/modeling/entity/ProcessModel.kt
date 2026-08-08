@@ -63,6 +63,7 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
 private data class ResumeIntent(
     val source: ResumeSource,
     val detail: String?,
+    val scheduledForProcessId: Int,
     val scheduledAtTime: Double,
     val scheduledSuspendType: SuspendType,
     val scheduledSuspendName: String?,
@@ -883,6 +884,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val intent = ResumeIntent(
                     source = source,
                     detail = detail,
+                    // which process this wakeup belongs to; ResumeAction drops it if the entity has
+                    // moved on to a different one by the time the event fires
+                    scheduledForProcessId = myCurrentProcess!!.id,
                     scheduledAtTime = time,
                     scheduledSuspendType = currentSuspendType,
                     scheduledSuspendName = currentSuspendName,
@@ -911,6 +915,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // 2) private inner class ResumeAction : EventAction<Nothing>
             // what schedules the ResumeAction???: the resumeProcess() function, which is called many places
             // ResumeAction is the event based resumption, which must eventually directly resume the continuation
+            //
+            // Deliberately NOT given the staleness check that ResumeAction has: there is no
+            // ResumeIntent here to compare against, and both queue-based callers remove the entity
+            // from the queue immediately before calling, so a terminated entity cannot be selected.
+            // Adding a liveness check here would silence genuine state-machine errors on the one
+            // resume path that has no provenance. If a third caller is ever added, revisit this.
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
@@ -945,6 +955,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private inner class ResumeAction : EventAction<ResumeIntent>() {
             override fun action(event: KSLEvent<ResumeIntent>) {
                 val intent = event.message
+                // The process this resume was scheduled for may have ended in the interval. A
+                // terminated process leaves no way to recall an event already on the calendar, and
+                // the entity may since have been given a different process, which must not be
+                // resumed by someone else's wakeup. The check is on process identity, not on state,
+                // so a resume that is genuinely wrong for a live process still reaches the state
+                // machine and still raises. Checked ahead of the DELAY guard below because that
+                // guard reads currentSuspendType, which now describes whatever process is current --
+                // a stale resume would otherwise be reported as a bogus DELAY violation.
+                if (intent != null && myCurrentProcess?.id != intent.scheduledForProcessId) {
+                    logger.warn { "r = ${model.currentReplicationNumber} : $time > STALE RESUME DROPPED : event_id = ${event.id} : entity_id = $id : scheduled for process_id = ${intent.scheduledForProcessId}, current process = ${myCurrentProcess?.name} (id = ${myCurrentProcess?.id}) : intent = $intent" }
+                    return
+                }
                 if (currentSuspendType == SuspendType.DELAY && intent?.source?.mayResumeDelay != true) {
                     val message = "r = ${model.currentReplicationNumber} : $time > ResumeAction event_id = ${event.id} " +
                             "from source = ${intent?.source} attempted to resume a DELAY for entity_id = $id. " +
@@ -2956,6 +2978,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                // Release the entity itself, not only its entanglements. Successful completion clears
+                // the binding in afterSuccessfulProcessCompletion; termination must do the same, and
+                // must also leave the suspended state that the exception unwound from -- otherwise the
+                // entity is stuck: bound to a dead process, and in a state that will not accept
+                // schedule(). The currentSuspend* fields are reset here because the unwind skips every
+                // suspending function's own reset, so without this the entity would run its next
+                // process while still reporting the suspension kind of the process that died.
+                // Deliberately last: the branches above read isQueued and isScheduled, which are
+                // entity-state predicates. Note this@Entity.state -- an unqualified state here is the
+                // coroutine's ProcessState, and would compile.
+                myCurrentProcess = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                this@Entity.state.processEnded()
             }
 
             override fun toString(): String {

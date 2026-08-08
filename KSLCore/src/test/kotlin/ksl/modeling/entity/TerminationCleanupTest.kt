@@ -407,4 +407,249 @@ class TerminationCleanupTest {
         assertTrue(m.sleeper.susp.isResumed, "the normal path must still mark the suspension resumed")
         assertFalse(m.sleeper.susp.isAbandoned, "the finally must not mistake a completed wait for an abandoned one")
     }
+
+    // ── What termination must keep doing ────────────────────────────────────
+    //
+    // Releasing the entity meant adding lines to the end of afterTerminatedProcessCompletion, whose
+    // earlier branches read the very entity state those lines change. These pin the cleanup that was
+    // already there, so a reordering cannot pass unnoticed.
+
+    /**
+     *  The delay event must still be cancelled. This is the test that fails if the release is placed
+     *  *before* the isQueued / isScheduled branches: the entity would already be in ProcessEnded, the
+     *  isScheduled branch would not run, and the delayed action would fire after the termination.
+     */
+    private class CancelledDelayModel(parent: ModelElement) : ProcessModel(parent, null) {
+        var delayCompleted = false
+        lateinit var doomed: Sleeper
+
+        inner class Sleeper : Entity() {
+            val work = process("sleeper") {
+                delay(20.0)
+                delayCompleted = true
+            }
+        }
+
+        override fun initialize() {
+            delayCompleted = false
+            doomed = Sleeper()
+            activate(doomed.work)
+            schedule(::terminateDoomed, 5.0)
+        }
+
+        private fun terminateDoomed(event: KSLEvent<Nothing>) {
+            doomed.terminateProcess()
+        }
+    }
+
+    @Test
+    @DisplayName("Termination still cancels the delay event the entity was waiting on")
+    fun terminatedDelayEventIsStillCancelled() {
+        val m = simulate("cancelledDelay", 100.0) { CancelledDelayModel(it) }
+        assertFalse(
+            m.delayCompleted,
+            "the delay event must be cancelled; if the release runs before the isScheduled branch it will not be",
+        )
+    }
+
+    /**
+     *  A hold-queued entity must still be removed with no waiting-time statistics — the reneging
+     *  convention. Termination reads `isQueued` to do it, and that predicate is entity state.
+     */
+    private class HoldQueueCleanupModel(parent: ModelElement) : ProcessModel(parent, null) {
+        val hq = HoldQueue(this, "HQ")
+        lateinit var doomed: Waiter
+
+        inner class Waiter : Entity() {
+            val work = process("waiter") { hold(hq) }
+        }
+
+        override fun initialize() {
+            doomed = Waiter()
+            activate(doomed.work)
+            schedule(::terminateDoomed, 5.0)
+        }
+
+        private fun terminateDoomed(event: KSLEvent<Nothing>) {
+            doomed.terminateProcess()
+        }
+    }
+
+    @Test
+    @DisplayName("Termination still removes a held entity from its queue with no statistics")
+    fun terminatedHoldIsStillRemovedWithoutStatistics() {
+        val m = simulate("holdCleanup", 100.0) { HoldQueueCleanupModel(it) }
+        assertEquals(0, m.hq.size, "the entity must be out of the hold queue")
+        assertEquals(
+            0.0, m.hq.timeInQ.withinReplicationStatistic.count, 0.0,
+            "a terminated wait contributes no waiting-time observation",
+        )
+    }
+
+    /** Resources are still released, so a waiting entity can proceed. */
+    private class ResourceReleaseModel(parent: ModelElement) : ProcessModel(parent, null) {
+        val res = ResourceWithQ(this, name = "R", capacity = 1)
+        var waiterServed = false
+        lateinit var doomed: Holder
+
+        inner class Holder : Entity() {
+            val work = process("holder") {
+                val a = seize(res, 1)
+                delay(100.0)
+                release(a)
+            }
+        }
+
+        inner class Waiter : Entity() {
+            val work = process("waiter") {
+                val a = seize(res, 1)
+                waiterServed = true
+                delay(1.0)
+                release(a)
+            }
+        }
+
+        override fun initialize() {
+            waiterServed = false
+            doomed = Holder()
+            activate(doomed.work)
+            activate(Waiter().work, 1.0)
+            schedule(::terminateDoomed, 5.0)
+        }
+
+        private fun terminateDoomed(event: KSLEvent<Nothing>) {
+            doomed.terminateProcess()
+        }
+    }
+
+    @Test
+    @DisplayName("Termination still releases the entity's allocations")
+    fun terminationStillReleasesAllocations() {
+        val m = simulate("resourceRelease", 100.0) { ResourceReleaseModel(it) }
+        assertTrue(m.waiterServed, "the terminated entity's units must go back to the resource")
+        assertTrue(m.doomed.isProcessEnded, "and the entity is released as well")
+    }
+
+    /**
+     *  The post-termination hooks are the reason H-15 matters: both are documented as the place to
+     *  put behaviour that follows a termination, and until the entity was released neither could do
+     *  the obvious thing — abandon this task and start the recovery task on the same entity.
+     */
+    private class HookActivationModel(parent: ModelElement, val useCallback: Boolean) : ProcessModel(parent, null) {
+        var recoveryRan = false
+        lateinit var doomed: Worker
+
+        inner class Worker : Entity() {
+            val work = process("work") { delay(100.0) }
+            fun recovery(): KSLProcess = process("recovery") {
+                delay(1.0)
+                recoveryRan = true
+            }
+
+            override fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+                if (!useCallback) activate(recovery())
+            }
+        }
+
+        override fun initialize() {
+            recoveryRan = false
+            doomed = Worker()
+            activate(doomed.work)
+            schedule(::terminateDoomed, 5.0)
+        }
+
+        private fun terminateDoomed(event: KSLEvent<Nothing>) {
+            if (useCallback) {
+                doomed.terminateProcess { entity -> activate((entity as Worker).recovery()) }
+            } else {
+                doomed.terminateProcess()
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("handleTerminatedProcess can start a new process on the released entity")
+    fun handleTerminatedProcessCanActivateARecovery() {
+        val m = simulate("hookHandle", 100.0) { HookActivationModel(it, useCallback = false) }
+        assertTrue(m.recoveryRan, "the documented post-termination hook must be able to reuse the entity")
+    }
+
+    @Test
+    @DisplayName("The afterTermination callback can start a new process on the released entity")
+    fun afterTerminationCallbackCanActivateARecovery() {
+        val m = simulate("hookCallback", 100.0) { HookActivationModel(it, useCallback = true) }
+        assertTrue(m.recoveryRan, "the terminateProcess callback must be able to reuse the entity")
+    }
+
+    /**
+     *  Releasing the entity must not make the one-shot rule negotiable: the *process instance* is
+     *  still spent, and re-activating it must still fail with the diagnostic added for that.
+     */
+    private class SameProcessReuseModel(parent: ModelElement) : ProcessModel(parent, null) {
+        var failure: String? = null
+        lateinit var doomed: Worker
+
+        inner class Worker : Entity() {
+            val work = process("work") { delay(100.0) }
+        }
+
+        override fun initialize() {
+            failure = null
+            doomed = Worker()
+            activate(doomed.work)
+            schedule(::terminateThenReuse, 5.0)
+        }
+
+        private fun terminateThenReuse(event: KSLEvent<Nothing>) {
+            doomed.terminateProcess()
+            try {
+                activate(doomed.work)
+            } catch (e: IllegalStateException) {
+                failure = e.message
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("The terminated process instance itself is still one-shot")
+    fun theSameTerminatedProcessStillCannotBeReactivated() {
+        val m = simulate("sameProcessReuse", 100.0) { SameProcessReuseModel(it) }
+        val msg = m.failure
+        assertTrue(msg != null && msg.contains("one-shot"), "expected the one-shot diagnostic, was: $msg")
+        assertTrue(msg.contains("been terminated"), "and it should say how the process ended, was: $msg")
+    }
+
+    /**
+     *  `Entity.isSuspended` falls back to the entity state when the process binding is null. That
+     *  branch was effectively dead while termination left the binding set; releasing the entity makes
+     *  it load-bearing, and it is correct only because the entity is left in ProcessEnded.
+     */
+    private class SweepModel(parent: ModelElement) : ProcessModel(parent, null) {
+        val hq = HoldQueue(this, "HQ")
+        var suspendedAtEndOfReplication = -1
+
+        inner class Waiter : Entity() {
+            val work = process("waiter") { hold(hq) }
+        }
+
+        override fun initialize() {
+            repeat(3) { activate(Waiter().work) }
+        }
+
+        override fun afterReplication() {
+            super.afterReplication()
+            suspendedAtEndOfReplication = suspendedEntitiesSnapshot.size
+        }
+    }
+
+    @Test
+    @DisplayName("The end-of-replication sweep still terminates suspended entities and leaves none")
+    fun afterReplicationSweepStillDrainsSuspendedEntities() {
+        val m = simulate("replicationSweep", 20.0) { SweepModel(it) }
+        assertEquals(
+            0, m.suspendedAtEndOfReplication,
+            "the sweep terminates every suspended entity; a released entity reports isSuspended false " +
+                "through the entity-state fallback, so none may be left behind",
+        )
+    }
 }
