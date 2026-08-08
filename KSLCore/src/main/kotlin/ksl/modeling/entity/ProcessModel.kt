@@ -524,6 +524,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myWaitingForResourceState
         val isWaitingForConveyor: Boolean
             get() = state == myWaitingForConveyorState
+
+        /**
+         *  True when the entity's process has ended, by completing or by being terminated, and the
+         *  entity has not yet been given another one. This is the only state from which an idle
+         *  entity may be scheduled into a new process, so it is the state an entity rests in between
+         *  processes.
+         */
         val isProcessEnded: Boolean
             get() = state == myProcessEndedState
         val isBlockedSending: Boolean
@@ -938,13 +945,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  are collected on its queueing.  If the entity is experiencing a delay,
          *  then the event associated with the delay is cancelled.
          *
+         *  Termination also releases the **entity**, not only the things it was entangled with. The
+         *  entity stops being bound to the terminated process and is left in the process-ended state,
+         *  exactly as it would be after a process completed normally. It may therefore be given a new
+         *  process instance, and the natural place to do that is the handleTerminatedProcess()
+         *  function or the afterTermination argument below, both of which run after the release.
+         *
+         *  The process instance itself remains one-shot: a terminated process cannot be activated
+         *  again, for this entity or any other. Repeating the behavior means creating a new process
+         *  instance for the entity.
+         *
          *  If the entity has additional processes in
          *  its process sequence they are not automatically executed. If the user
          *  requires specific behavior to occur for the entity after termination, then
          *  the user should override the Entity's handleTerminatedProcess() function to
          *  supply specific logic.  Termination happens immediately, with no time delay.
          *
-         *  @param afterTermination a function to invoke after the process is successfully terminated
+         *  Calling this function when the entity is not currently executing a process does nothing.
+         *
+         *  @param afterTermination a function to invoke after the process is successfully terminated.
+         *  The entity supplied to it has already been released and may be given a new process.
          */
         fun terminateProcess(afterTermination: ((entity: Entity) -> Unit)? = null) {
             if (myCurrentProcess != null) {
@@ -1091,7 +1111,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /**
          *  Subclasses of Entity can use this method to clean up after a process is terminated
-         *  for the entity. Currently, it does nothing.
+         *  for the entity. By default, it does nothing.
+         *
+         *  The entity has already been released by the time this is called: it is no longer bound to
+         *  the terminated process and is in the process-ended state. So this is the place to decide
+         *  what the entity does next, including activating a new process instance on it — abandon
+         *  the task that was terminated and start a recovery task, for example. The terminated
+         *  process instance itself cannot be reused; create a new one.
+         *
          *  @param terminatedProcess the process that was terminated.
          */
         protected open fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
@@ -2958,6 +2985,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  waiting in a queue, the entity is removed from the queue and no statistics
              *  are collected on its queueing.  If the entity is experiencing a delay,
              *  then the event associated with the delay is cancelled.
+             *
+             *  Finally the entity itself is released: unbound from the terminated process, its
+             *  suspension-kind fields cleared, and moved to the process-ended state, which is what
+             *  allows the hooks that run after this -- handleTerminatedProcess() and the
+             *  afterTermination callback -- to give it a new process.
              *
              *  If the entity has additional processes in
              *  its process sequence they are not automatically executed. If the user
