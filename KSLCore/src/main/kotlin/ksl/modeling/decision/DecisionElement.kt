@@ -1022,7 +1022,7 @@ class DecisionElementBuilder internal constructor(
     fun reward(
         source: ResponseIfc, rate: Double,
         sense: RewardSense = RewardSense.COST, alias: String? = null
-    ): Nothing = throw NotDeclarableYetException("reward", "M2", "§4.2.5")
+    ): Nothing = throw NotDeclarableYetException("reward", "M1 step 5b", "§4.2.5")
 
     fun every(interval: Double, firstAtTimeZero: Boolean = false) {
         element.epochKind = EpochKind.PERIODIC
@@ -1059,7 +1059,7 @@ class DecisionElementBuilder internal constructor(
     var policy: PolicyIfc? = null
 
     fun captureTo(factory: (RunProvenance) -> TransitionSink): Nothing =
-        throw NotDeclarableYetException("captureTo", "M3", "§4.8")
+        throw NotDeclarableYetException("captureTo", "M1 step 7c", "§4.8")
 
     internal fun build(): DecisionElement {
         require(policy != null) { "A decision element requires a policy." }

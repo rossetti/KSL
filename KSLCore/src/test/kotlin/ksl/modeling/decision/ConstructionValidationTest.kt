@@ -449,9 +449,14 @@ class ConstructionValidationTest {
 
     /**
      *  E.3 lists `RewardKindException`, and nothing throws it. That is correct today — reward
-     *  declaration is refused wholesale at M2 by `NotDeclarableYetException` (G.9 row 11), so the
-     *  kind mismatch it guards cannot yet be reached. Recorded so the inventory's claim and the
-     *  tree's behaviour are not silently different, and so M2 has a test to invert.
+     *  declaration is refused wholesale by `NotDeclarableYetException` (G.9 row 11), so the kind
+     *  mismatch it guards cannot yet be reached. Recorded so the inventory's claim and the tree's
+     *  behaviour are not silently different, and so step 5b has a test to invert.
+     *
+     *  The milestone the refusal names is part of the contract (E.3), and it moved: §7.1.1 brought
+     *  reward accrual into M1, so a modeler who declares a reward today is told "M1 step 5b" rather
+     *  than "M2". A message that points at the wrong milestone is worse than one that points at
+     *  none, because it is actionable and wrong.
      */
     @Test
     fun theRewardKindCheckIsDeclaredAndUnreachableUntilRewardsExist() {
@@ -466,6 +471,6 @@ class ConstructionValidationTest {
         assertTrue(e is NotDeclarableYetException,
             "rewards are refused at the declaration until M2; RewardKindException guards a path " +
                 "that cannot be reached before then")
-        assertEquals("M2", e.milestone)
+        assertEquals("M1 step 5b", e.milestone)
     }
 }

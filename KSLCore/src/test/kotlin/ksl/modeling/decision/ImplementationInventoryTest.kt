@@ -70,7 +70,7 @@ class ImplementationInventoryTest {
             "ManagedPolicyIfc" m 1,
             "NeutralPolicy" m 1,
             "FixedPolicy" m 1,
-            "RewardSourceCIfc" m 2,
+            "RewardSourceCIfc" m 1,
             // The feasible set and the score-and-pick skeleton (§4.4.6, §4.5.5). These are in
             // THIS package and not in `descriptor`: `ElementActionSet` reads `DecisionElement`
             // and delegates membership to `DefaultActionBinding.prepare`, so placing them in
@@ -85,17 +85,19 @@ class ImplementationInventoryTest {
             "LearnableValueApproximationIfc" m 2,
             "LookaheadPolicy" m 1,
             // The capture CONTRACT lives with its producer; only implementations live in
-            // ksl.sdm.capture (E.1, D.19).
-            "TransitionRecord" m 3,
+            // ksl.sdm.capture (E.1, D.19). M1 since §7.1.1: §4.10.2 step 4 emits, and §4.10.4's
+            // acceptance matrix asserts what it emits, so M1 cannot be tested without them.
+            // `RunProvenance` stays M3 — it is wiring for durable sinks, not for the loop.
+            "TransitionRecord" m 1,
             "RunProvenance" m 3,
-            "TransitionSink" m 3,
+            "TransitionSink" m 1,
             // Exceptions (E.3).
             "ActionValidationException" m 1,
             "ActionApplicationException" m 1,
             "BindingException" m 1,
             "AmbiguousLeverException" m 1,
             "NarrowingException" m 1,
-            "RewardKindException" m 2,
+            "RewardKindException" m 1,
             "NotDeclarableYetException" m 1,
             "StaleDecisionContextException" m 1
         )
@@ -120,19 +122,19 @@ class ImplementationInventoryTest {
             "FeasibilityPolicy" m 1,
             "WarmUpOrdering" m 1,
             "TerminationSource" m 1,
-            "SourceRef" m 2,
-            "ResponseRef" m 2,
-            "CounterRef" m 2,
-            "RewardDescriptor" m 2,
-            "RewardKind" m 2,
-            "RewardSense" m 2
+            "SourceRef" m 1,
+            "ResponseRef" m 1,
+            "CounterRef" m 1,
+            "RewardDescriptor" m 1,
+            "RewardKind" m 1,
+            "RewardSense" m 1
         )
 
         // ---- ksl.sdm.capture — implementations only.
         pkg(
             "ksl.sdm.capture",
-            "NullSink" m 3,
-            "MemorySink" m 3
+            "NullSink" m 1,
+            "MemorySink" m 1
         )
         return out
     }
