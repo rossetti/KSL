@@ -1047,6 +1047,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             emitAnimation { AnimationEvent.ProcessCompleted(time, id, completedProcess.name) }
             // must clear the current process so next can be run if there is one
             myCurrentProcess = null
+            // Both ways a process can end now leave the entity in the one state that means "ended,
+            // may be scheduled again". A completed entity used to stay Active -- a state defined as
+            // executing non-suspending code within its process, which it is not -- and re-activation
+            // worked there only because Active happens to implement schedule(). Note there is no
+            // this@Entity qualifier here and none is wanted: this function is declared on Entity, so
+            // a bare state is already the entity's. The mirror-image line in
+            // afterTerminatedProcessCompletion sits inside ProcessCoroutine and does need it.
+            state.processEnded()
             afterRunningProcess(completedProcess)
             // do not permit blockages to carry over to another process, there can be no active blockages when the process completes
             if (hasActiveBlockages) {
