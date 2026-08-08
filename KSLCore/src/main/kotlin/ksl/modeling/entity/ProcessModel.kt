@@ -1402,9 +1402,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        // Every suspended state accepts processEnded(): a process can end while the entity is
+        // suspended, because terminating it unwinds the coroutine from its suspension point. The
+        // entity must then be left in a state that will accept schedule() again. The base
+        // EntityState.processEnded() still raises, so a suspension kind that leaves the entity
+        // somewhere unexpected fails a test rather than transitioning silently.
         private inner class Scheduled : EntityState("Scheduled") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1412,11 +1421,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class InHoldQueue : EntityState("InHoldQueue") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1424,17 +1441,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class WaitingForBatch : EntityState("WaitingForBatch") {
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
+        // Unreachable: waitForConveyor() has no call sites anywhere. requestConveyor, rideConveyor
+        // and exit suspend through hold(), so a conveyor-suspended entity is InHoldQueue. Kept for
+        // uniformity with the other suspended states.
         private inner class WaitingForConveyor : EntityState("WaitingForConveyor") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1442,11 +1474,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class BlockedReceiving : EntityState("BlockedReceiving") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
@@ -1454,11 +1494,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun activate() {
                 state = myActiveState
             }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
         }
 
         private inner class BlockedUntilCompletion : EntityState("BlockedUntilCompletion") {
             override fun activate() {
                 state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
             }
         }
 
