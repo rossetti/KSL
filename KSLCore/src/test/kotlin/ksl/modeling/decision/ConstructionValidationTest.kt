@@ -91,7 +91,7 @@ class ConstructionValidationTest {
             Case("a budget naming a lever nobody declared", listOf("ghost", "real")) { w ->
                 observe(w.level)
                 lever(w, 0..10, alias = "real", neutral = Neutral.Current { level.value }) { }
-                budget(LeverRef("ghost"), total = 5.0)
+                budget(LeverRef("D", "ghost"), total = 5.0)
                 every(10.0); policy = NeutralPolicy
             }
         )
@@ -130,7 +130,7 @@ class ConstructionValidationTest {
         val e = declaring { w ->
             observe(w.level)
             val a = lever(w, 0..10, alias = "a", neutral = Neutral.Current { level.value }) { }
-            atMost(a, LeverRef("nope"), total = 5.0)
+            atMost(a, LeverRef("D", "nope"), total = 5.0)
             every(10.0); policy = NeutralPolicy
         }
         println()
@@ -354,17 +354,18 @@ class ConstructionValidationTest {
     }
 
     /**
-     *  **The second gap, and the one worth more.** §7.3.1 step 8 requires that *a `LeverRef` from
-     *  one element cannot be used to narrow another*. Nothing enforces it: a `LeverRef` is a
-     *  declared name and nothing else, so when two elements happen to declare the same alias, one
-     *  element's reference silently narrows the other's lever.
+     *  §7.3.1 step 8: **a `LeverRef` from one element cannot be used to narrow another.** Nothing
+     *  enforced it. A ref was a bare declared name, so when two elements declared the same alias —
+     *  which is what two instances of one subsystem produce, and §4.1.9 is explicitly about that
+     *  case — one element's reference silently narrowed the other's lever. The call did something
+     *  other than what it appeared to say, and nothing anywhere reported it.
      *
-     *  The names collide easily, because §4.2.2 says names come from the model and two instances of
-     *  the same subsystem declare the same aliases (§4.1.9 is explicitly about that case). This is
-     *  the shape D.15 already found once: a reference that identifies less than it appears to.
+     *  A ref now names its element too. The check runs at both moments a ref is consumed: at
+     *  parameterization, where it would have narrowed the wrong lever, and at declaration, where a
+     *  constraint would otherwise have been built over the right name for the wrong reason.
      */
     @Test
-    fun aLeverRefFromOneElementCanStillNarrowAnother() {
+    fun aLeverRefFromOneElementCannotBeUsedOnAnother() {
         val model = Model("CrossElement")
         val w1 = Widget(model, "W1")
         val w2 = Widget(model, "W2")
@@ -379,21 +380,71 @@ class ConstructionValidationTest {
 
         val refFromFirst = first.leverRef("staff")
         val crossed = runCatching { second.narrow(refFromFirst, 3..4) }.exceptionOrNull()
+        val alsoCrossed = runCatching { second.limitsOf(refFromFirst) }.exceptionOrNull()
 
         println()
         println("Two elements, each with a lever aliased \"staff\":")
+        println("  the ref reads                    : $refFromFirst")
         println("  second.narrow(first's ref, 3..4) : ${crossed.named()}")
+        println("      ${crossed?.message}")
+        println("  second.limitsOf(first's ref)     : ${alsoCrossed.named()}")
         println("  first's limits                   : ${first.limitsOf(first.leverRef("staff"))}")
         println("  second's limits                  : ${second.limitsOf(second.leverRef("staff"))}")
 
-        assertTrue(crossed == null,
-            "a foreign LeverRef is now refused — invert this test and tick §7.3.1 step 8's " +
-                "criterion that a LeverRef from one element cannot narrow another")
-        assertEquals(3..4, second.limitsOf(second.leverRef("staff")),
-            "the foreign reference narrowed the second element's own lever")
-        assertEquals(0..10, first.limitsOf(first.leverRef("staff")),
-            "and the element the reference actually came from is untouched — so the call did " +
-                "something, silently, other than what it appears to say")
+        assertTrue(crossed is BindingException,
+            "a foreign LeverRef should be refused; got ${crossed.named()}")
+        val m = crossed.message.orEmpty()
+        assertTrue("D-first" in m && "D-second" in m,
+            "the refusal must name both elements — with a shared alias, naming only the lever " +
+                "reads as a contradiction: $m")
+        assertTrue("leverRef" in m, "and it must say how to get the right one: $m")
+        assertTrue(alsoCrossed is BindingException, "every consumer of a ref checks it, not just narrow")
+
+        assertEquals(0..10, second.limitsOf(second.leverRef("staff")),
+            "the wrong lever must be untouched")
+        assertEquals(0..10, first.limitsOf(first.leverRef("staff")))
+
+        // Each element's own ref still works, so the check distinguishes rather than forbids.
+        second.narrow(second.leverRef("staff"), 3..4)
+        assertEquals(3..4, second.limitsOf(second.leverRef("staff")))
+        assertEquals(0..10, first.limitsOf(first.leverRef("staff")))
+    }
+
+    /**
+     *  The same ref, consumed at the other moment. A constraint joins levers of the element that
+     *  declares it; a ref from a sibling would have passed `build()`'s name check whenever the two
+     *  elements shared an alias, and produced a constraint over this element's lever that the
+     *  modeler believed was over the other's.
+     */
+    @Test
+    fun aConstraintCannotJoinALeverOfAnotherElement() {
+        val model = Model("CrossConstraint")
+        val w1 = Widget(model, "W1")
+        val w2 = Widget(model, "W2")
+        val first = w1.decisionElement("D-first") {
+            observe(w1.level)
+            lever(w1, 0..10, alias = "staff", neutral = Neutral.Current { level.value }) { }
+            every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
+        }
+        val foreign = first.leverRef("staff")
+
+        val e = runCatching {
+            w2.decisionElement("D-second") {
+                observe(w2.level)
+                val own = lever(w2, 0..10, alias = "staff",
+                    neutral = Neutral.Current { level.value }) { }
+                budget(own, foreign, total = 8.0)
+                every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
+            }
+        }.exceptionOrNull()
+
+        println()
+        println("budget(own \"staff\", another element's \"staff\"): ${e.named()}")
+        println("  ${e?.message}")
+        assertTrue(e is IllegalArgumentException,
+            "a constraint over a sibling's lever should be refused at construction")
+        assertTrue("D-first" in e.message.orEmpty() && "D-second" in e.message.orEmpty(),
+            "the refusal must name both elements: ${e.message}")
     }
 
     /**

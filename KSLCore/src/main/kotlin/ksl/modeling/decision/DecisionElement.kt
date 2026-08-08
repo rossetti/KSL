@@ -11,14 +11,32 @@ import ksl.utilities.GetValueIfc
  *  The identity of a declared lever. A lever is (target, limits, domain, write), so its
  *  identity is its own — not that of the element it writes, which may back several levers.
  *  Pure data: holding one confers no access to anything.
+ *
+ *  **It names its element as well as itself, and that is not decoration.** A ref used to be a
+ *  bare declared name, and §7.3.1 step 8 required that a ref from one element cannot narrow
+ *  another. Nothing enforced it: two elements declaring the same alias — which is exactly what
+ *  two instances of one subsystem produce (§4.1.9) — let one element's reference silently
+ *  narrow the other's lever, and the call did something other than what it appeared to say.
+ *  D.15 found this shape once already: a reference that identifies less than it looks like it
+ *  does.
+ *
+ *  Identity is by *name* rather than by object, for the reason §4.2.2 gives — names come from
+ *  the model and the descriptor is keyed on them — and element names are unique within a model
+ *  (`Model.addToModelElementMap`), so the pair is a key. Across two models it deliberately is
+ *  not: a ref reads "lever `staff` of element `Review`", which is what B.12's late binding
+ *  would want to resolve against a freshly built model.
  */
-data class LeverRef internal constructor(val declaredName: String)
+data class LeverRef internal constructor(val elementName: String, val declaredName: String)
 
 /**
  *  The identity of a declared reward term. A term is (source, kind, rate, sense), so its
  *  identity is its own — one source may back several terms at different rates or senses.
+ *
+ *  Carries its element for the same reason [LeverRef] does, and pre-emptively: D.16 records
+ *  that the lever/reward pair has produced the same defect on both sides five times, and
+ *  fixing one of them alone is how that keeps happening.
  */
-data class RewardRef internal constructor(val declaredName: String)
+data class RewardRef internal constructor(val elementName: String, val declaredName: String)
 
 /**
  *  A declared observation: a name and something to read it from.
@@ -293,19 +311,37 @@ class DecisionElement internal constructor(
         if (hits.size > 1) {
             throw AmbiguousLeverException(owner.name, hits.map { it.name })
         }
-        return LeverRef(hits.single().name)
+        return LeverRef(this.name, hits.single().name)
     }
 
     /** Resolve a declared lever by name. */
     fun leverRef(declaredName: String): LeverRef {
         leverDecls.firstOrNull { it.name == declaredName }
             ?: throw BindingException(declaredName, leverDecls.map { it.name })
-        return LeverRef(declaredName)
+        return LeverRef(this.name, declaredName)
     }
 
-    private fun declOf(lever: LeverRef): LeverDecl =
-        leverDecls.firstOrNull { it.name == lever.declaredName }
+    /**
+     *  Resolve a ref against *this* element, refusing one that belongs to another (§7.3.1 step 8).
+     *
+     *  The element check comes first and is separate from the name check, because the two are
+     *  different mistakes with different repairs: a name this element does not declare is a typo
+     *  or a stale alias, and a ref from a sibling element is a call that would otherwise have
+     *  narrowed the wrong lever without saying so.
+     */
+    private fun declOf(lever: LeverRef): LeverDecl {
+        if (lever.elementName != this.name) {
+            throw BindingException(
+                "${lever.elementName}:${lever.declaredName}",
+                leverDecls.map { "${this.name}:${it.name}" },
+                "That reference was issued by decision element '${lever.elementName}' and this is " +
+                    "'${this.name}'. Ask this element for its own: leverRef(\"${lever.declaredName}\") " +
+                    "or leverFor(target)."
+            )
+        }
+        return leverDecls.firstOrNull { it.name == lever.declaredName }
             ?: throw BindingException(lever.declaredName, leverDecls.map { it.name })
+    }
 
     fun narrow(lever: LeverRef, limits: IntRange) {
         requireNotRunning("narrow")
@@ -922,20 +958,40 @@ class DecisionElementBuilder internal constructor(
             boundsFn = if (bounds == null) null else ({ owner.bounds() }),
             unit = unit
         )
-        return LeverRef(name)
+        return LeverRef(element.name, name)
     }
 
     fun batchLever(vararg levers: LeverRef, applyAll: (DoubleArray) -> Unit): Nothing =
         throw NotDeclarableYetException("batchLever", "M1 step 6", "§4.4.5")
 
+    /**
+     *  Names for a constraint, refusing a ref that belongs to a different element.
+     *
+     *  `build()` already rejects a name this element does not declare, which catches a foreign ref
+     *  whose alias is unique. It does *not* catch one whose alias happens to match — the case
+     *  §4.1.9 makes ordinary, since two instances of a subsystem declare the same aliases — and
+     *  that is the one where the constraint would have been built over the right name for the
+     *  wrong reason.
+     */
+    private fun namesOf(levers: Array<out LeverRef>): List<String> {
+        for (l in levers) {
+            require(l.elementName == element.name) {
+                "Constraint names lever '${l.declaredName}' of decision element " +
+                    "'${l.elementName}', but this is '${element.name}'. A constraint may only " +
+                    "join levers of the element that declares it (§4.4.1)."
+            }
+        }
+        return levers.map { it.declaredName }
+    }
+
     fun budget(vararg levers: LeverRef, total: Double) {
-        val names = levers.map { it.declaredName }
+        val names = namesOf(levers)
         element.jointConstraints += SumEquals(names, total)
         element.jointDecls += DecisionElement.JointDecl(true, names, { total }, false)
     }
 
     fun atMost(vararg levers: LeverRef, total: Double) {
-        val names = levers.map { it.declaredName }
+        val names = namesOf(levers)
         element.jointConstraints += SumAtMost(names, total)
         element.jointDecls += DecisionElement.JointDecl(false, names, { total }, false)
     }
@@ -946,13 +1002,13 @@ class DecisionElementBuilder internal constructor(
      *  state-dependent, because a serialized descriptor cannot carry a lambda.
      */
     fun budget(vararg levers: LeverRef, envelope: Double, total: () -> Double) {
-        val names = levers.map { it.declaredName }
+        val names = namesOf(levers)
         element.jointConstraints += SumEquals(names, envelope)
         element.jointDecls += DecisionElement.JointDecl(true, names, total, true)
     }
 
     fun atMost(vararg levers: LeverRef, envelope: Double, total: () -> Double) {
-        val names = levers.map { it.declaredName }
+        val names = namesOf(levers)
         element.jointConstraints += SumAtMost(names, envelope)
         element.jointDecls += DecisionElement.JointDecl(false, names, total, true)
     }

@@ -29,8 +29,22 @@ class ActionValidationException(val violations: List<String>) :
 class ActionApplicationException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause)
 
-class BindingException(val unresolved: String, val available: List<String>) :
-    RuntimeException("Cannot resolve '$unresolved'. Available: $available")
+/**
+ *  A declared name that does not resolve against the element it was given to.
+ *
+ *  [hint] carries the *reason* when the plain "no such name" reading would be wrong — most often a
+ *  `LeverRef` that resolves perfectly well, just not here. E.3 requires the message to name the
+ *  unresolved item and list what was available; when the two elements share an alias, that pair
+ *  alone reads as a contradiction ("`staff` is unavailable; available: `staff`"), so the hint is
+ *  what makes the message actionable rather than baffling.
+ */
+class BindingException(
+    val unresolved: String,
+    val available: List<String>,
+    val hint: String? = null
+) : RuntimeException(
+    "Cannot resolve '$unresolved'. Available: $available" + (hint?.let { ". $it" } ?: "")
+)
 
 class NarrowingException(message: String) : RuntimeException(message)
 
