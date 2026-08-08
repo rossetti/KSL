@@ -179,7 +179,12 @@ open class MovableResourcePool(
         // now determine the movable resource to allocate
         val movableResource = selectMovableResourceForAllocation(requestLocation, resourceAllocationRule, list)
         ProcessModel.logger.trace { "Movable Resource ${movableResource.name} allocated from the pool $name." }
-        return movableResource.allocate(entity, 1, queue, allocationName)
+        val allocation = movableResource.allocate(entity, 1, queue, allocationName)
+        // The requests waiting in this queue are the pool's, not the member's: a request built by a
+        // seize against this pool names the pool, because no member has been chosen when it queues.
+        // Recording the pool here is what lets the release process the queue on the pool's behalf.
+        allocation.originatingPool = this
+        return allocation
     }
 
     fun deallocate(allocation: Allocation) {

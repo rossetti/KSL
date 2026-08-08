@@ -182,6 +182,12 @@ open class ResourcePool @JvmOverloads constructor(
         ProcessModel.logger.trace { "There were ${resourceIntMap.size} allocations made to meet the $amountNeeded units needed." }
         for ((resource, amt) in resourceIntMap) {
             val ra = resource.allocate(entity, amt, queue, allocationName)
+            // The normal path releases the ResourcePoolAllocation above, which processes this queue
+            // on the pool's behalf. But these member-level allocations are reachable too -- through
+            // the public allocations property, and through releaseAllResources(), which is what
+            // termination uses -- and releasing one of those directly would otherwise process the
+            // queue on behalf of a single member and match none of the pool's waiting requests.
+            ra.originatingPool = this
             a.myAllocations.add(ra)
             ProcessModel.logger.trace { "Resource ${resource.name} allocated $amt unit from the pool." }
         }

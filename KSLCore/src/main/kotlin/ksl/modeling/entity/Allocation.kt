@@ -116,6 +116,17 @@ class Allocation internal constructor(
     override val resource: ResourceCIfc
         get() = myResource
 
+    /**
+     *  The pool that the request was made against, when this allocation was created to satisfy a
+     *  pool-level request. Null when the request named an individual resource.
+     *
+     *  A waiting request names what was *wanted*, and a request from a seize against a pool names
+     *  the pool, not whichever member the selection rule later picked. So on release the queue has
+     *  to be processed on behalf of the pool, or no waiter can ever be matched against it. The
+     *  release of an allocation in ProcessModel is where this is consumed.
+     */
+    internal var originatingPool: AbstractResourcePool<*>? = null
+
     override val id = allocationCounter.incrementAndGet()
 
     override val timeAllocated: Double = myResource.time

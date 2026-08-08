@@ -2497,10 +2497,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
                 if (!executive.isEnded) {
+                    // A pool-level allocation has to be released on behalf of its pool. The requests
+                    // waiting in this queue name what was wanted, and a seize against a pool names
+                    // the pool, not the member that happened to be allocated -- so passing the member
+                    // here matches nothing and no waiter is ever woken.
+                    val pool = allocation.originatingPool
                     allocation.myQueue.processWaitingRequestsForResource(
-                        allocation.myResource,
+                        pool ?: allocation.myResource,
                         releasePriority,
-                        ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
+                        if (pool != null) ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE
+                        else ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
                         "released_by_entity_id=${entity.id}, allocation_id=${allocation.id}"
                     )
                 }
