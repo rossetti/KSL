@@ -421,6 +421,21 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     /**
+     * Called from ProcessModel to deregister a request whose process ended at the suspension point
+     * that created it, rather than by being filled. No waiting time statistics are collected, which
+     * matches the convention of removeAndTerminateChannelRequest. This is a no-op when the request
+     * has already been removed by fill(), so it is safe on the normal path.
+     *
+     * Without it a request would outlive its process, and notifyWaitingRequests would select it
+     * ahead of any live receiver, offering the item to a process that can never take it.
+     *
+     * @param request the request to remove from the queue of requests waiting for items
+     */
+    internal fun removeRequest(request: ChannelRequest) {
+        myRequestQ.remove(request, false)
+    }
+
+    /**
      *  Called from ProcessModel via the entity to place the item into the
      *  blocking queue's channel. There must be space for the item in the channel.
      *  Adding an item to the channel triggers the processing of entities that
