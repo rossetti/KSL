@@ -1545,14 +1545,41 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  @param priority used to indicate priority of activation if there are activations at the same time.
              *  Lower priority goes first.
              *  @return KSLEvent the event used to schedule the activation
+             *  @throws IllegalStateException if this process has already completed or been terminated. A
+             *  KSLProcess is one-shot; repeating behavior requires a new process instance.
              */
             internal fun activate(
                 timeUntilActivation: Double = 0.0,
                 priority: Int = KSLEvent.DEFAULT_PRIORITY
             ): KSLEvent<KSLProcess> {
+                // A KSLProcess is one-shot. Checked here, ahead of the pending/current checks, because
+                // neither of those reports the actual cause. A terminated process leaves myCurrentProcess
+                // set (it is cleared only on successful completion), so re-activating one reports "already
+                // running a process" about a process that is not running. A completed process passes both
+                // checks and instead fails later, inside the activation event, from the coroutine state
+                // machine ("Tried to start process ... from an illegal state: Completed") -- detached from
+                // the activate() call that caused it. Both are the same modeling error, and both now fail
+                // here, at the call site, naming the remedy.
+                check(!isCompleted && !isTerminated) {
+                    "The process '$name' cannot be activated for entity_id = ${entity.id} because it has already " +
+                        "${if (isCompleted) "completed" else "been terminated"}. A KSLProcess is one-shot: to repeat " +
+                        "the behavior, create a new process instance and activate that. A process held in a property " +
+                        "built once (e.g. a field of the model) cannot be re-activated in a later replication."
+                }
                 check(!hasPendingProcess) { "The $this process cannot be activated for the entity because the entity already has a pending process: ${pendingProcess?.name}" }
                 // hasCurrentProcess gets set to false (currentProcess get set to null) in afterSuccessfulProcessCompletion()
-                check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process: ${currentProcess?.name}" }
+                check(!hasCurrentProcess) {
+                    val cp = currentProcess
+                    if (cp != null && (cp.isTerminated || cp.isCompleted)) {
+                        // The entity is bound to a process that is no longer running. Only successful
+                        // completion clears that binding, so this is reachable after a termination.
+                        "The process '$name' cannot be activated for entity_id = ${entity.id} because the entity's " +
+                            "process '${cp.name}' has ${if (cp.isTerminated) "been terminated" else "completed"} and " +
+                            "the entity is still bound to it. Activate the new process on a new entity."
+                    } else {
+                        "The $this process cannot be activated for the entity because the entity is already running a process: ${cp?.name}"
+                    }
+                }
                 myPendingProcess = this
                 entity.state.schedule()
                 //logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
