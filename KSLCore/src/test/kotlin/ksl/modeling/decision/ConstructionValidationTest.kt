@@ -448,29 +448,70 @@ class ConstructionValidationTest {
     }
 
     /**
-     *  E.3 lists `RewardKindException`, and nothing throws it. That is correct today — reward
-     *  declaration is refused wholesale by `NotDeclarableYetException` (G.9 row 11), so the kind
-     *  mismatch it guards cannot yet be reached. Recorded so the inventory's claim and the tree's
-     *  behaviour are not silently different, and so step 5b has a test to invert.
+     *  §4.2.5's kind check, now reachable. It was not, and this test asserted that it was not:
+     *  reward declaration was refused wholesale by `NotDeclarableYetException`, so
+     *  `RewardKindException` guarded a path nothing could take. M1 step 5b built the path.
      *
-     *  The milestone the refusal names is part of the contract (E.3), and it moved: §7.1.1 brought
-     *  reward accrual into M1, so a modeler who declares a reward today is told "M1 step 5b" rather
-     *  than "M2". A message that points at the wrong milestone is worse than one that points at
-     *  none, because it is actionable and wrong.
+     *  The check fires only when a modeler *states* a kind, because otherwise the kind is inferred
+     *  from the source and cannot disagree with it. Stating one is worth allowing precisely so it
+     *  can be wrong: it turns an assumption about a source's type into a claim the build checks.
      */
     @Test
-    fun theRewardKindCheckIsDeclaredAndUnreachableUntilRewardsExist() {
-        val e = declaring { w ->
-            observe(w.level)
-            lever(w, 0..10, neutral = Neutral.Current { level.value }) { }
-            reward(w.level, rate = 1.0)
-            every(10.0); policy = NeutralPolicy
-        }
+    fun declaringARewardKindTheSourceCannotProvideIsRefused() {
+        val model = Model("RewardKinds")
+        val w = Widget(model, "W")
+        val perObservation = ksl.modeling.variable.Response(w, name = "Observed")
+
+        fun declare(kind: ksl.modeling.decision.descriptor.RewardKind?) = runCatching {
+            w.decisionElement("D-${kind ?: "inferred"}") {
+                observe(w.level)
+                lever(w, 0..10, neutral = Neutral.Current { level.value }) { }
+                reward(perObservation, rate = 1.0, kind = kind)
+                every(10.0); policy = NeutralPolicy
+            }
+        }.exceptionOrNull()
+
+        val inferred = declare(null)
+        val correct = declare(ksl.modeling.decision.descriptor.RewardKind.OBSERVATION_SUM)
+        val wrong = declare(ksl.modeling.decision.descriptor.RewardKind.TIME_INTEGRAL)
+
         println()
-        println("declaring a reward: ${e.named()} — ${e?.message}")
-        assertTrue(e is NotDeclarableYetException,
-            "rewards are refused at the declaration until M2; RewardKindException guards a path " +
-                "that cannot be reached before then")
-        assertEquals("M1 step 5b", e.milestone)
+        println("reward(a plain Response):")
+        println("  kind omitted           : ${inferred.named()}")
+        println("  kind = OBSERVATION_SUM : ${correct.named()}")
+        println("  kind = TIME_INTEGRAL   : ${wrong.named()}")
+        println("    ${wrong?.message}")
+
+        assertTrue(inferred == null, "omitting the kind should infer it: $inferred")
+        assertTrue(correct == null, "stating the right kind should be accepted: $correct")
+        assertTrue(wrong is RewardKindException,
+            "a time integral over a plain Response should be refused; got ${wrong.named()}")
+        val m = wrong.message.orEmpty()
+        assertTrue("TIME_INTEGRAL" in m && "OBSERVATION_SUM" in m,
+            "E.3 requires the message to name the declared kind AND the one the source implies: $m")
+    }
+
+    /** A reward source that cannot answer `accumulated()` is refused by the compiler, not at run
+     *  time — `reward` takes a `ResponseCIfc` or a `CounterCIfc`, and a bare `ResponseIfc` carries
+     *  neither accumulation. This test exists to record that the refusal is the type system's, so
+     *  that nobody later "fixes" the signature back to `ResponseIfc` (§4.2.5, §8.1.1 defect 2). */
+    @Test
+    fun aRewardTermIsDeclaredTwiceIsRefused() {
+        val model = Model("DuplicateReward")
+        val w = Widget(model, "W")
+        val r = ksl.modeling.variable.Response(w, name = "Observed")
+        val e = runCatching {
+            w.decisionElement("D") {
+                observe(w.level)
+                lever(w, 0..10, neutral = Neutral.Current { level.value }) { }
+                reward(r, rate = 1.0)
+                reward(r, rate = 2.0)
+                every(10.0); policy = NeutralPolicy
+            }
+        }.exceptionOrNull()
+        println()
+        println("the same reward source declared twice: ${e.named()} — ${e?.message}")
+        assertTrue(e is IllegalArgumentException, "a duplicate term name should be refused")
+        assertTrue("twice" in e.message.orEmpty())
     }
 }

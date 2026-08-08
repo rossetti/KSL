@@ -37,9 +37,16 @@ class RewardSourceAccessorTest {
         /** COUNTER_TOTAL: a rate per occurrence. */
         val occurrences = Counter(this, name = "Occurrences")
 
+        /** Called at t = 1.5 and t = 2.5 — mid-interval, where a lag is visible. */
+        var probe: (() -> Unit)? = null
+
         override fun initialize() {
             schedule(::tick, 1.0)
+            schedule(::peek, 1.5)
+            schedule(::peek, 2.5)
         }
+
+        private fun peek(e: ksl.simulation.KSLEvent<Nothing>) { probe?.invoke() }
 
         private fun tick(e: ksl.simulation.KSLEvent<Nothing>) {
             perObservation.value = 3.0          // three observations of 3.0 -> sum 9.0
@@ -50,63 +57,62 @@ class RewardSourceAccessorTest {
     }
 
     /**
-     *  The three adapters M2 will need, written here so that what each reads is a fact rather
-     *  than a claim. Each returns the quantity whose difference between epochs is the interval's
-     *  contribution (§4.2.5).
+     *  The accumulated quantity, read **during** the run — which is the only reading that matters,
+     *  and the one an earlier version of this test did not take.
+     *
+     *  It read after the replication ended, when KSL has flushed a time-weighted statistic's final
+     *  area, and so it asserted the right numbers while being blind to the defect §4.10.4's matrix
+     *  later found: `TimeWeightedStatistic` banks the previous value's area only when a NEW value
+     *  arrives, so mid-run `weightedSum` lags by everything accrued since `timeOfChange`. On a
+     *  quantity that changes rarely — on-hand inventory, a capacity, a queue empty for a shift —
+     *  that lag is the whole interval, and every interval reward reads as zero.
+     *
+     *  The lesson is narrower than "test more": a test that samples only at the one instant the
+     *  system tidies itself up cannot see a lag, and end-of-run is exactly that instant.
      */
-    private fun accumulatorFor(source: Any): RewardSourceCIfc = when (source) {
-        is TWResponse -> object : RewardSourceCIfc {
-            override val name = source.name
-            override fun value(): Double = source.value
-            // The time integral: weightedSum over a TimeWeightedStatistic weights by duration.
-            override fun accumulated(): Double = source.withinReplicationStatistic.weightedSum
-        }
-        is Response -> object : RewardSourceCIfc {
-            override val name = source.name
-            override fun value(): Double = source.value
-            // Unit weights, so weightedSum is the plain sum of the values observed.
-            override fun accumulated(): Double = source.withinReplicationStatistic.weightedSum
-        }
-        is Counter -> object : RewardSourceCIfc {
-            override val name = source.name
-            override fun value(): Double = source.value
-            // A Counter has NO withinReplicationStatistic. Its running total IS its value.
-            override fun accumulated(): Double = source.value
-        }
-        else -> error("not a reward source: ${source::class.simpleName}")
-    }
-
     @Test
     fun eachRewardKindAccumulatesThroughTheAccessorThatActuallyExists() {
         val model = Model("RewardSources")
         val s = Sources(model)
+        val readings = mutableListOf<Triple<Double, Double, Double>>()
+        s.probe = {
+            readings += Triple(
+                rewardSourceFor(s.perObservation) { s.time }.accumulated(),
+                rewardSourceFor(s.timeWeighted) { s.time }.accumulated(),
+                rewardSourceFor(s.occurrences) { s.time }.accumulated()
+            )
+        }
         model.numberOfReplications = 1
         model.lengthOfReplication = 3.0
         model.simulate()
 
-        val obs = accumulatorFor(s.perObservation)
-        val twr = accumulatorFor(s.timeWeighted)
-        val cnt = accumulatorFor(s.occurrences)
-
         println()
-        println("Accumulated quantity at t = 3, three ticks at t = 1, 2, 3:")
-        println("  OBSERVATION_SUM (Response)   %8.2f   via withinReplicationStatistic.weightedSum"
-            .format(obs.accumulated()))
-        println("  TIME_INTEGRAL   (TWResponse) %8.2f   via withinReplicationStatistic.weightedSum"
-            .format(twr.accumulated()))
-        println("  COUNTER_TOTAL   (Counter)    %8.2f   via value — it has no within-replication statistic"
-            .format(cnt.accumulated()))
+        println("Accumulated quantity read at t = 1.5 and 2.5, with the level held at 2.0 throughout:")
+        readings.forEachIndexed { i, (obs, twr, cnt) ->
+            println("  reading %d: OBSERVATION_SUM %6.2f   TIME_INTEGRAL %6.2f   COUNTER_TOTAL %6.2f"
+                .format(i + 1, obs, twr, cnt))
+        }
 
-        assertEquals(9.0, obs.accumulated(), 1e-9, "three observations of 3.0 should sum to 9.0")
-        assertEquals(4.0, twr.accumulated(), 1e-9, "held at 2.0 from t=1 to t=3 is an area of 4.0")
-        assertEquals(3.0, cnt.accumulated(), 1e-9, "three increments of 1.0")
+        assertTrue(readings.size == 2, "expected two mid-run readings; got ${readings.size}")
+        val (obs1, twr1, cnt1) = readings[0]
+        val (obs2, twr2, cnt2) = readings[1]
+
+        // OBSERVATION_SUM: one observation of 3.0 by t=1.5, two by t=2.5.
+        assertEquals(3.0, obs1, 1e-9)
+        assertEquals(6.0, obs2, 1e-9)
+        // COUNTER_TOTAL: the running count, live.
+        assertEquals(1.0, cnt1, 1e-9)
+        assertEquals(2.0, cnt2, 1e-9)
+        // TIME_INTEGRAL: held at 2.0 from t=1, so area 1.0 by t=1.5 and 3.0 by t=2.5. This is the
+        // assertion the end-of-run version could not make — weightedSum alone reports 0.0 at both.
+        assertEquals(1.0, twr1, 1e-9,
+            "the area since timeOfChange must be included; weightedSum alone would say 0.0")
+        assertEquals(3.0, twr2, 1e-9)
+
+        // And the difference between two readings is what a reward term actually uses.
+        assertEquals(2.0, twr2 - twr1, 1e-9, "one unit of time at level 2.0")
     }
 
-    /**
-     *  The assertion that would have caught the prose defect: a `Counter` does not have the member
-     *  §4.2.5 said all three sources share. Stated as a property of the KSL type rather than of
-     *  this design, because that is what it is.
-     */
     @Test
     fun aCounterHasNoWithinReplicationStatistic() {
         val members = Counter::class.members.map { it.name }.toSet()
@@ -127,7 +133,7 @@ class RewardSourceAccessorTest {
         model.numberOfReplications = 1
         model.lengthOfReplication = 3.0
         model.simulate()
-        val g: GetValueIfc = accumulatorFor(s.occurrences)
+        val g: GetValueIfc = rewardSourceFor(s.occurrences) { s.time }
         assertEquals(3.0, g.value(), 1e-9)
     }
 }

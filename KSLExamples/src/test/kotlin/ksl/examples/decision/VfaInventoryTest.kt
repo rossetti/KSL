@@ -131,36 +131,51 @@ class VfaInventoryTest {
     // ------------------------------------------------------------------ learning
 
     /**
-     *  The other half of the question, and the one that fails.
+     *  The other half of the question, and the one that used to fail.
      *
-     *  `ManagedPolicyIfc` declares exactly the three hooks an adaptive rule needs —
-     *  `beforeEpisode`, `onTransition`, `afterEpisode` — and a policy can implement them
-     *  today. **Nothing calls them.** The epoch loop has no transition record to give
-     *  (§8.1.3: capture is unimplemented) and no reward to put in one (the estimand is
-     *  unimplemented), so a rule that wants to learn from its own experience has an
-     *  interface to implement and no experience delivered to it.
+     *  `ManagedPolicyIfc` declares the three hooks an adaptive rule needs — `beforeEpisode`,
+     *  `onTransition`, `afterEpisode` — and for a long time **nothing called them**. The epoch loop
+     *  had no transition to give and no reward to put in one, so a rule that wanted to learn from
+     *  its own experience had an interface to implement and no experience delivered to it. This
+     *  test asserted that gap, and said in its failure message that it should be inverted when the
+     *  plumbing landed. M1 steps 7b and 7c landed it (§7.1.1).
      *
-     *  This test asserts the gap. When capture and the estimand land, it should be
-     *  rewritten to assert the opposite.
+     *  What is asserted now is the contract rather than its absence, and the counts are the
+     *  contract: **one episode per replication** (§4.6.3), so `beforeEpisode` and `afterEpisode`
+     *  fire once each per replication and never more; and one transition per completed interval,
+     *  which is fewer than the number of decisions because the first interval of each episode has
+     *  no predecessor to close and the last may have no duration (§4.8.3).
      */
     @Test
-    fun theLearningHooksAreDeclaredButNeverCalled() {
+    fun theLearningHooksAreCalledWithOneEpisodePerReplication() {
+        val reps = 3
         val probe = LearningProbePolicy(NewsvendorVfaPolicy())
-        run(DemandRates.seasonal, probe, reps = 3)
+        run(DemandRates.seasonal, probe, reps = reps)
 
         println()
-        println("ManagedPolicyIfc hooks over ${probe.actionsTaken} decisions:")
+        println("ManagedPolicyIfc hooks over ${probe.actionsTaken} decisions in $reps replications:")
         println("  beforeEpisode : ${probe.episodesStarted}")
         println("  onTransition  : ${probe.transitionsSeen}")
         println("  afterEpisode  : ${probe.episodesEnded}")
         println("  close         : ${probe.closes}")
 
         assertTrue(probe.actionsTaken > 1000, "the policy did not run")
-        assertEquals(0, probe.episodesStarted,
-            "beforeEpisode is now called — rewrite this test to assert the contract instead")
-        assertEquals(0, probe.transitionsSeen,
-            "onTransition is now called — a learning rule can be written; rewrite this test")
-        assertEquals(0, probe.episodesEnded,
-            "afterEpisode is now called — rewrite this test")
+        assertEquals(reps, probe.episodesStarted,
+            "one episode per replication (§4.6.3), so exactly $reps beginnings")
+        assertEquals(reps, probe.episodesEnded,
+            "and exactly $reps endings — an episode that ends early must not also be ended again " +
+                "by replicationEnded()")
+        assertEquals(1, probe.closes, "close() is per experiment, not per replication (§4.7)")
+
+        assertTrue(probe.transitionsSeen > 0,
+            "a rule can now learn from its own experience; this is the assertion the earlier " +
+                "version of this test was written to be replaced by")
+        assertTrue(probe.transitionsSeen < probe.actionsTaken,
+            "there must be fewer transitions than decisions: the first interval of each episode " +
+                "has no predecessor to close (§4.10.2 step 4)")
+        assertTrue(probe.transitionsSeen >= probe.actionsTaken - 2 * reps,
+            "but only a little fewer — ${probe.actionsTaken - probe.transitionsSeen} were " +
+                "discarded across $reps replications, and the rules allow at most two per episode " +
+                "(no predecessor, and a zero-length final interval)")
     }
 }

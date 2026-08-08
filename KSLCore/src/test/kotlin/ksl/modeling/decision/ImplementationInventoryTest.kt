@@ -71,6 +71,8 @@ class ImplementationInventoryTest {
             "NeutralPolicy" m 1,
             "FixedPolicy" m 1,
             "RewardSourceCIfc" m 1,
+            "RewardDecl" m 1,
+            "RewardBinding" m 1,
             // The feasible set and the score-and-pick skeleton (§4.4.6, §4.5.5). These are in
             // THIS package and not in `descriptor`: `ElementActionSet` reads `DecisionElement`
             // and delegates membership to `DefaultActionBinding.prepare`, so placing them in
@@ -89,7 +91,7 @@ class ImplementationInventoryTest {
             // acceptance matrix asserts what it emits, so M1 cannot be tested without them.
             // `RunProvenance` stays M3 — it is wiring for durable sinks, not for the loop.
             "TransitionRecord" m 1,
-            "RunProvenance" m 3,
+            "RunProvenance" m 1,
             "TransitionSink" m 1,
             // Exceptions (E.3).
             "ActionValidationException" m 1,

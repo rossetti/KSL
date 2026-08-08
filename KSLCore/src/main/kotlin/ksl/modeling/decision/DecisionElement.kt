@@ -1,6 +1,8 @@
 package ksl.modeling.decision
 
 import ksl.modeling.decision.descriptor.*
+import ksl.modeling.variable.CounterCIfc
+import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.ResponseIfc
 import ksl.simulation.KSLEvent
@@ -150,6 +152,7 @@ class DecisionElement internal constructor(
         }
     }
     internal val jointDecls = mutableListOf<JointDecl>()
+    internal val rewardDecls = mutableListOf<RewardDecl>()
 
     /**
      *  Constraints where some but not all levers declared a unit, so `build()`'s consistency
@@ -233,7 +236,9 @@ class DecisionElement internal constructor(
             )
         },
         constraints = jointConstraints.toList(),
-        rewards = emptyList(),
+        rewards = rewardDecls.map {
+            RewardDescriptor(it.name, it.sourceRef, it.kind, it.declaredRate, it.sense)
+        },
         epochs = EpochDescriptor(
             kind = epochKind,
             interval = if (epochKind == EpochKind.PERIODIC) myEpochInterval else null,
@@ -391,9 +396,47 @@ class DecisionElement internal constructor(
         return d.lowerBound..d.upperBound
     }
 
-    fun rewardFor(source: ResponseIfc): RewardRef = TODO("not in the vertical slice")
-    fun rewardRef(declaredName: String): RewardRef = TODO("not in the vertical slice")
-    fun rewardRate(term: RewardRef, rate: Double) { requireNotRunning("rewardRate") }
+    /**
+     *  Resolve the reward term declared over [source]. Symmetric with [leverFor], including its
+     *  failure modes: a source backing several terms is ambiguous, and D.16 records that fixing
+     *  one half of the lever/reward pair alone is how the same defect keeps recurring.
+     */
+    fun rewardFor(source: ResponseCIfc): RewardRef {
+        val hits = rewardDecls.filter { it.source.name == source.name }
+        if (hits.isEmpty()) throw BindingException(source.name, rewardDecls.map { it.name })
+        if (hits.size > 1) throw AmbiguousLeverException(source.name, hits.map { it.name })
+        return RewardRef(this.name, hits.single().name)
+    }
+
+    fun rewardRef(declaredName: String): RewardRef {
+        rewardDecls.firstOrNull { it.name == declaredName }
+            ?: throw BindingException(declaredName, rewardDecls.map { it.name })
+        return RewardRef(this.name, declaredName)
+    }
+
+    /**
+     *  A rate is a parameter (§4.1.3), so it is replication-initial and re-signed on assignment —
+     *  the sense was fixed at declaration and only the magnitude is being set here.
+     */
+    fun rewardRate(term: RewardRef, rate: Double) {
+        requireNotRunning("rewardRate")
+        if (term.elementName != this.name) {
+            throw BindingException(
+                "${term.elementName}:${term.declaredName}",
+                rewardDecls.map { "${this.name}:${it.name}" },
+                "That reference was issued by decision element '${term.elementName}' and this is " +
+                    "'${this.name}'. Ask this element for its own: rewardRef(\"${term.declaredName}\")."
+            )
+        }
+        val i = rewardDecls.indexOfFirst { it.name == term.declaredName }
+        if (i < 0) throw BindingException(term.declaredName, rewardDecls.map { it.name })
+        val d = rewardDecls[i]
+        rewardDecls[i] = RewardDecl(
+            name = d.name, kind = d.kind,
+            signedRate = if (d.sense == RewardSense.COST) -rate else rate,
+            declaredRate = rate, sense = d.sense, source = d.source, sourceRef = d.sourceRef
+        )
+    }
 
     private var myPolicyLabel: String? = null
     /** Labels this rule in trajectories and reports. Defaults to the policy's class name. */
@@ -402,7 +445,40 @@ class DecisionElement internal constructor(
         set(value) { requireNotRunning("policyLabel"); myPolicyLabel = value }
 
     // ---- Observation ------------------------------------------------------------
-    val estimand: ResponseCIfc get() = TODO("not in the vertical slice")
+    /**
+     *  §4.10.1: `"<name>:TotalReward"`, an **ordinary `Response`** so that
+     *  `ReplicationDataCollector` and `model.print()` find it with no special case (§4.9).
+     *
+     *  One observation per replication, published where the episode ends — at step 5 if it ends
+     *  early, otherwise at `replicationEnded()`.
+     *
+     *  **It exists only when a reward is declared**, and the first attempt got this wrong. Creating
+     *  it eagerly seemed tidier — the report's shape would then not depend on the declaration — and
+     *  it broke §6.2 Level 2 immediately: a decision element under `NeutralPolicy` must reproduce
+     *  the unmodified model, and the arm carrying the element suddenly had one response the other
+     *  did not. The reasoning was backwards. The report's shape *should* follow the declaration,
+     *  because declaring a reward is asking for a number, and an element that declares none must
+     *  remain invisible.
+     */
+    private var myEstimand: Response? = null
+
+    val estimand: ResponseCIfc
+        get() = myEstimand ?: throw IllegalStateException(
+            "'${this.name}' declares no reward, so there is nothing for its estimand to report. " +
+                "Declare one with reward(source, rate) (§4.2.5). The response is created only " +
+                "when a reward is, so that an element without one stays invisible to §6.2's " +
+                "Level-2 comparison."
+        )
+
+    internal fun createEstimand() {
+        if (rewardDecls.isNotEmpty() && myEstimand == null) {
+            myEstimand = Response(this, name = "${this.name}:TotalReward")
+        }
+    }
+
+    /** Reward accrued this replication since the warm-up, in reward units (COST already negated). */
+    private var accruedReward: Double = 0.0
+    private var estimandPublished: Boolean = false
 
     private var myEpochCount: Int = 0
     val epochCount: Int get() = myEpochCount
@@ -434,9 +510,22 @@ class DecisionElement internal constructor(
     private var lastEpochTime: Double = 0.0
     private var calendarIndex: Int = 0
 
+    internal lateinit var rewards: RewardBinding
+        private set
+
+    /** What the decision at the previous epoch started, waiting for its successor state. */
+    private class Pending(
+        val state: DoubleArray, val action: DoubleArray, val time: Double, val epochIndex: Int
+    )
+    private var pending: Pending? = null
+
+    internal var sinkFactory: ((RunProvenance) -> TransitionSink)? = null
+    private var sink: TransitionSink = ksl.sdm.capture.NullSink
+
     internal fun bind() {
         binding = DefaultActionBinding(this)
         ctx = MutableDecisionContext(this)
+        rewards = RewardBinding(rewardDecls.toList())
     }
 
     private inner class EpochAction : EventAction<Nothing>() {
@@ -453,19 +542,36 @@ class DecisionElement internal constructor(
         DoubleArray(leverDecls.size) { leverDecls[it].neutralValue() }
 
     private fun runEpoch() {
-        // Step 1 — observe.
+        // Step 1 — observe. ONE read, serving both the successor state of the transition that is
+        // completing and the state of the decision about to be made: a catalog entry backed by a
+        // computed lambda need not be pure, so reading twice could disagree with itself.
         val s = readObservations()
 
-        // Steps 2-4 (rewards, transition emission) are outside the vertical slice.
+        // Step 2 — close the interval. One read of every reward source, differenced against the
+        // baseline and adopted as the new one. `null` means there was no baseline — the first
+        // epoch of an episode, or one invalidated by warm-up — which is NOT a reward of zero.
+        val intervalReward = rewards.closeInterval()
+        if (intervalReward != null) accruedReward += intervalReward
 
-        // Step 3 — classify the ending.
+        // Step 3 — classify the ending. Before the emit, because `terminated` and `truncated` are
+        // fields of the row step 4 writes (§4.6.3).
         val terminal = terminalCondition?.invoke() == true
-        if (terminal) {
-            myLastTermination = TerminationSource.NATURAL
-            return
+        val ending: TerminationSource? = when {
+            terminal -> TerminationSource.NATURAL
+            myEpochCount >= myMaxEpochs -> TerminationSource.MAX_EPOCHS
+            else -> null
         }
-        if (myEpochCount >= myMaxEpochs) {
-            myLastTermination = TerminationSource.MAX_EPOCHS
+
+        // Step 4 — emit the pending transition, or discard it. Three reasons to discard, and they
+        // are separate facts rather than one: no predecessor at all, an interval whose reward is
+        // not measurable, and an interval with no duration (§4.8.3).
+        emitPending(successor = s, reward = intervalReward, ending = ending)
+
+        // Step 5 — stop if the episode ended. The replication continues; the decision sequence
+        // does not, so nothing is decided and nothing is scheduled.
+        if (ending != null) {
+            myLastTermination = ending
+            publishEstimand(ending)
             return
         }
 
@@ -497,9 +603,55 @@ class DecisionElement internal constructor(
         }
 
         // Step 7 — carry forward and schedule.
+        pending = Pending(s, action.copyOf(), time, myEpochCount)
         myEpochCount++
         lastEpochTime = time
         scheduleNextEpoch()
+    }
+
+    /**
+     *  §4.10.2 step 4. Write the completed transition, or discard it for one of three reasons.
+     *
+     *  A discarded transition is not an error and not a row of zeros: a row carrying no duration
+     *  carries no information and would bias any per-interval average (§4.8.3, D.8), and a row
+     *  whose reward could not be measured would report a number the model never produced.
+     */
+    private fun emitPending(successor: DoubleArray, reward: Double?, ending: TerminationSource?) {
+        val p = pending ?: return                 // discard 1: no predecessor
+        pending = null
+        if (reward == null) return                // discard 2: baseline invalidated, or none yet
+        val tau = time - p.time
+        if (tau <= 0.0) return                    // discard 3: zero-length (§4.8.3)
+        val record = TransitionRecord(
+            replicationId = model.currentReplicationId,
+            epochIndex = p.epochIndex,
+            time = time,
+            tau = tau,
+            state = p.state,
+            action = p.action,
+            reward = reward,
+            successorState = successor,
+            terminated = ending == TerminationSource.NATURAL,
+            truncated = ending != null && ending != TerminationSource.NATURAL,
+            source = ending
+        )
+        sink.write(record)
+        // The hook §4.5.4.1 declares and §8.2.9 measured was never called. It is called here:
+        // a LookaheadPolicy holding a LearnableValueApproximationIfc becomes an adaptive rule by
+        // forwarding this, which is one class rather than a new concept.
+        (myPolicy as? ManagedPolicyIfc)?.onTransition(record)
+    }
+
+    /**
+     *  One observation of the estimand per replication, wherever the episode ends. Guarded because
+     *  both step 5 and `replicationEnded()` can be the end, and a `Response` assigned twice would
+     *  contribute two observations to the across-replication statistic.
+     */
+    private fun publishEstimand(source: TerminationSource) {
+        if (estimandPublished) return
+        estimandPublished = true
+        myEstimand?.value = accruedReward
+        (myPolicy as? ManagedPolicyIfc)?.afterEpisode(model.currentReplicationId, source)
     }
 
     private fun scheduleNextEpoch() {
@@ -520,11 +672,38 @@ class DecisionElement internal constructor(
     }
 
     // ---- Lifecycle (§4.10.3) ----------------------------------------------------
+    override fun beforeExperiment() {
+        // The sink is opened once per experiment, with the provenance a row needs in order to be
+        // written without a live Model (§4.8.2). The descriptor is computed here rather than
+        // stored, so it cannot be stale (§4.1.5).
+        val factory = sinkFactory
+        if (factory != null) {
+            sink = factory(
+                RunProvenance(
+                    modelName = model.name,
+                    experimentName = model.experimentName,
+                    elementName = this.name,
+                    policyLabel = policyLabel,
+                    descriptor = descriptor()
+                )
+            )
+        }
+    }
+
     override fun initialize() {
         myEpochCount = 0
         myLastTermination = null
         lastEpochTime = 0.0
         calendarIndex = 0
+        pending = null
+        accruedReward = 0.0
+        estimandPublished = false
+        // §4.10.3: initialize() must NOT read reward sources. It runs in model-element
+        // construction order, so reading a sibling's accumulated value here would make the
+        // baseline depend on declaration order. It starts invalid and is taken at the first
+        // epoch instead — which costs one discarded transition and buys order-independence.
+        rewards.invalidate()
+        (myPolicy as? ManagedPolicyIfc)?.beforeEpisode(model.currentReplicationId)
         when (epochKind) {
             EpochKind.PERIODIC -> {
                 if (myEpochInterval.isFinite()) {
@@ -537,15 +716,39 @@ class DecisionElement internal constructor(
     }
 
     override fun warmUp() {
-        // The pending transition and reward baseline are outside the vertical slice.
-        // The epoch at this instant, if any, has already run: MEDIUM_LOW_PRIORITY (100 000)
-        // sorts ahead of DEFAULT_WARMUP_EVENT_PRIORITY (1 000 000).
+        // §4.6.4. Discard the transition in flight and invalidate the baseline — the interval
+        // straddling the warm-up is half pre-warm-up and reporting it would credit the estimand
+        // with reward the run is meant to forget. Read nothing else: the epoch at this instant,
+        // if any, has ALREADY run, because epochPriority sorts ahead of warmUpPriority and
+        // build() checks that against the declared warmUpOrdering (§4.6.4.1).
+        pending = null
+        rewards.invalidate()
+        accruedReward = 0.0
     }
 
-    override fun replicationEnded() {}
+    override fun replicationEnded() {
+        // §4.10.3: close the final transition over the partial interval. `RUN_LENGTH` unless the
+        // episode already ended, in which case step 5 recorded why and emitted its own row.
+        if (myLastTermination == null) {
+            val reward = rewards.closeInterval()
+            if (reward != null) accruedReward += reward
+            myLastTermination = TerminationSource.RUN_LENGTH
+            emitPending(readObservations(), reward, TerminationSource.RUN_LENGTH)
+        }
+        publishEstimand(myLastTermination ?: TerminationSource.RUN_LENGTH)
+    }
 
     override fun afterExperiment() {
-        (myPolicy as? ManagedPolicyIfc)?.close()
+        // §4.7. Both handles close exactly once, and a failure in one does not prevent the other.
+        val failures = mutableListOf<Throwable>()
+        runCatching { (myPolicy as? ManagedPolicyIfc)?.close() }.exceptionOrNull()?.let { failures += it }
+        runCatching { sink.close() }.exceptionOrNull()?.let { failures += it }
+        sink = ksl.sdm.capture.NullSink
+        if (failures.isNotEmpty()) {
+            val first = failures.first()
+            failures.drop(1).forEach { first.addSuppressed(it) }
+            throw first
+        }
     }
 }
 
@@ -1014,15 +1217,49 @@ class DecisionElementBuilder internal constructor(
     }
 
     /**
-     *  Declaring a reward is **not yet carried**, and it fails here rather than later.
-     *  An earlier version returned a `RewardRef` and let the failure surface at
-     *  `estimand` — so a modeler could declare a reward that nothing consumed and find
-     *  out much later (G.9 row 11).
+     *  Declare a reward term: a rate times an accumulated quantity, differenced between epochs
+     *  (§4.2.5).
+     *
+     *  **The source type is `ResponseCIfc`, not `ResponseIfc`.** Only the former carries
+     *  `withinReplicationStatistic`, which is what "accumulated" means for a response — so a
+     *  source that cannot answer is refused by the compiler rather than at construction. See the
+     *  `Counter` overload: it needs one because a counter accumulates somewhere else entirely.
+     *
+     *  [kind] is normally omitted and inferred from the source. Stating it turns an assumption
+     *  about the source's type into a claim `build()` checks.
      */
     fun reward(
-        source: ResponseIfc, rate: Double,
-        sense: RewardSense = RewardSense.COST, alias: String? = null
-    ): Nothing = throw NotDeclarableYetException("reward", "M1 step 5b", "§4.2.5")
+        source: ResponseCIfc, rate: Double,
+        sense: RewardSense = RewardSense.COST, alias: String? = null,
+        kind: RewardKind? = null
+    ): RewardRef = declareReward(source, source.name, rate, sense, alias, kind)
+
+    /** As above, for a `Counter` — whose accumulation is its `value` (§4.2.5). */
+    fun reward(
+        source: CounterCIfc, rate: Double,
+        sense: RewardSense = RewardSense.COST, alias: String? = null,
+        kind: RewardKind? = null
+    ): RewardRef = declareReward(source, source.name, rate, sense, alias, kind)
+
+    private fun declareReward(
+        source: Any, sourceName: String, rate: Double,
+        sense: RewardSense, alias: String?, kind: RewardKind?
+    ): RewardRef {
+        val name = alias ?: sourceName
+        require(element.rewardDecls.none { it.name == name }) { "Reward term '$name' is declared twice." }
+        checkRewardKind(kind, source, name)
+        element.rewardDecls += RewardDecl(
+            name = name,
+            kind = inferRewardKind(source),
+            // §4.2.5: the sign is applied ONCE, here, so nothing downstream flips it again.
+            signedRate = if (sense == RewardSense.COST) -rate else rate,
+            declaredRate = rate,
+            sense = sense,
+            source = rewardSourceFor(source) { element.time },
+            sourceRef = sourceRefFor(source)
+        )
+        return RewardRef(element.name, name)
+    }
 
     fun every(interval: Double, firstAtTimeZero: Boolean = false) {
         element.epochKind = EpochKind.PERIODIC
@@ -1058,8 +1295,14 @@ class DecisionElementBuilder internal constructor(
 
     var policy: PolicyIfc? = null
 
-    fun captureTo(factory: (RunProvenance) -> TransitionSink): Nothing =
-        throw NotDeclarableYetException("captureTo", "M1 step 7c", "§4.8")
+    /**
+     *  Where this element's transitions go (§4.8.2). The factory is called once per experiment,
+     *  at `beforeExperiment()`, with the provenance a row needs to be written without a live
+     *  `Model` — which is what lets a sink be tested standalone or write from another thread.
+     */
+    fun captureTo(factory: (RunProvenance) -> TransitionSink) {
+        element.sinkFactory = factory
+    }
 
     internal fun build(): DecisionElement {
         require(policy != null) { "A decision element requires a policy." }
@@ -1126,6 +1369,7 @@ class DecisionElementBuilder internal constructor(
             }
         }
         element.buildCatalog()
+        element.createEstimand()
         element.bind()
         element.policy = policy!!
         return element
