@@ -176,7 +176,9 @@ class VfaInventoryTest {
                 "has no predecessor to close (§4.10.2 step 4)")
         assertTrue(probe.transitionsSeen >= probe.actionsTaken - 2 * reps,
             "but only a little fewer — ${probe.actionsTaken - probe.transitionsSeen} were " +
-                "discarded across $reps replications, and the rules allow at most two per episode " +
-                "(no predecessor, and a zero-length final interval)")
+                "discarded across $reps replications. The gap is bounded by two per episode: " +
+                "§4.10.2.1 gives attempts = decisions + 1 and discards = 1 + [warm-up] + " +
+                "[horizon on an epoch boundary], so gap = discards - 1 <= 2. This run has both " +
+                "terms, so three transitions are discarded per episode and the gap is exactly two")
     }
 }
