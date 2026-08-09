@@ -610,18 +610,61 @@ class DecisionElement internal constructor(
     }
 
     /**
+     *  §4.10.2.1. Per-rule accounting for [emitPending], so that the emission truth table is a
+     *  *checked* property rather than one re-derived by reading two functions.
+     *
+     *  Counters accumulate over the element's lifetime, which is one model's, so they are
+     *  per-experiment totals across replications. Nothing resets them: a fresh `Model` gives a
+     *  fresh element, and that is the scope the table is stated at.
+     *
+     *  Internal rather than public. This is an accounting of an internal branch, not a published
+     *  contract, and §6.1 keeps new public API to what a modeler actually needs.
+     */
+    internal class EmissionCensus {
+        var attempts: Int = 0
+        var emitted: Int = 0
+        var noPredecessor: Int = 0
+        var noBaseline: Int = 0
+        var zeroLength: Int = 0
+
+        val discards: Int get() = noPredecessor + noBaseline + zeroLength
+
+        override fun toString(): String =
+            "attempts=$attempts emitted=$emitted noPredecessor=$noPredecessor " +
+                "noBaseline=$noBaseline zeroLength=$zeroLength"
+    }
+
+    internal val census = EmissionCensus()
+
+    /**
      *  §4.10.2 step 4. Write the completed transition, or discard it for one of three reasons.
      *
      *  A discarded transition is not an error and not a row of zeros: a row carrying no duration
      *  carries no information and would bias any per-interval average (§4.8.3, D.8), and a row
      *  whose reward could not be measured would report a number the model never produced.
+     *
+     *  **The order of the three tests is attributive, not merely procedural** (§4.10.2.1). They
+     *  short-circuit, so when more than one predicate holds the first one recorded is the reason.
+     *  This is why discard 2 never fires: `rewards.invalidate()` is called at exactly two sites,
+     *  `initialize()` and `warmUp()`, and both clear `pending` in the same breath, so there is no
+     *  reachable state in which a transition is pending while its baseline is not. It is kept as a
+     *  guard on that two-site invariant, and `EmissionTruthTableTest` fails if it ever fires —
+     *  which is the point of keeping an unreachable branch rather than deleting it.
      */
     private fun emitPending(successor: DoubleArray, reward: Double?, ending: TerminationSource?) {
-        val p = pending ?: return                 // discard 1: no predecessor
+        census.attempts++
+        val p = pending ?: run { census.noPredecessor++; return }   // discard 1: no predecessor
         pending = null
-        if (reward == null) return                // discard 2: baseline invalidated, or none yet
+        if (reward == null) {                     // discard 2: baseline invalidated, or none yet
+            census.noBaseline++
+            return
+        }
         val tau = time - p.time
-        if (tau <= 0.0) return                    // discard 3: zero-length (§4.8.3)
+        if (tau <= 0.0) {                         // discard 3: zero-length (§4.8.3)
+            census.zeroLength++
+            return
+        }
+        census.emitted++
         val record = TransitionRecord(
             replicationId = model.currentReplicationId,
             epochIndex = p.epochIndex,
