@@ -7,7 +7,24 @@ sealed interface PreparedAction {
     data class Invalid(val violations: List<String>) : PreparedAction
 }
 
-class ActionPlan internal constructor(internal val steps: List<Step>) {
+class ActionPlan internal constructor(
+    internal val steps: List<Step>,
+    /**
+     *  §4.8.3. The resolved target of **every** lever, in declaration order — what the model ends
+     *  the epoch holding, which is what a transition's `action` records.
+     *
+     *  Not derivable from [steps]: a SETTING whose target equals its source is elided rather than
+     *  written, so a lever that was already at its value has no step. Reconstructing the vector
+     *  from the steps would silently drop exactly those levers.
+     */
+    internal val applied: DoubleArray,
+    /**
+     *  §4.4.6.3. Per lever, in declaration order: was its feasible set empty at this epoch, so that
+     *  it took its declared neutral rather than anything the rule chose? `null` when every lever
+     *  had something to choose from, which is the ordinary case and costs a row nothing.
+     */
+    internal val unavailable: BooleanArray?
+) {
 
     /** Inert view: what will be written, in order. Holding one cannot write anything. */
     val writes: List<PlannedWrite> = steps.map { PlannedWrite(it.name, it.from, it.to) }

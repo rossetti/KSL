@@ -515,7 +515,15 @@ class DecisionElement internal constructor(
 
     /** What the decision at the previous epoch started, waiting for its successor state. */
     private class Pending(
-        val state: DoubleArray, val action: DoubleArray, val time: Double, val epochIndex: Int
+        val state: DoubleArray,
+        /** What was written to the levers, not what the rule asked for (§4.8.3). */
+        val action: DoubleArray,
+        /** What the rule asked for, kept only when it differs from [action]. */
+        val proposedAction: DoubleArray?,
+        /** Which levers had an empty feasible set at the decision (§4.4.6.3). */
+        val unavailable: BooleanArray?,
+        val time: Double,
+        val epochIndex: Int
     )
     private var pending: Pending? = null
 
@@ -587,13 +595,17 @@ class DecisionElement internal constructor(
         } finally {
             ctx.close()
         }
-        when (val prepared = binding.prepare(action)) {
-            is PreparedAction.Ready -> binding.apply(prepared.plan)
+        // The plan that was actually applied. §4.8.3: a transition records what was WRITTEN, not
+        // what was asked for. The two differ whenever CLAMP_THEN_REJECT repaired the request or a
+        // lever's feasible set was empty, and a trajectory whose action column did not produce its
+        // reward column is not a trajectory.
+        val applied: ActionPlan = when (val prepared = binding.prepare(action)) {
+            is PreparedAction.Ready -> prepared.plan.also { binding.apply(it) }
             is PreparedAction.Invalid -> {
                 if (myFeasibilityPolicy == FeasibilityPolicy.CLAMP_THEN_REJECT) {
                     val clamped = binding.clamp(action)
                     when (val second = binding.prepare(clamped)) {
-                        is PreparedAction.Ready -> binding.apply(second.plan)
+                        is PreparedAction.Ready -> second.plan.also { binding.apply(it) }
                         is PreparedAction.Invalid -> throw ActionValidationException(second.violations)
                     }
                 } else {
@@ -602,8 +614,13 @@ class DecisionElement internal constructor(
             }
         }
 
-        // Step 7 — carry forward and schedule.
-        pending = Pending(s, action.copyOf(), time, myEpochCount)
+        // Step 7 — carry forward and schedule. The proposed vector is kept only when it differs
+        // from what was written, so a non-null `proposedAction` is a positive signal that the
+        // request was repaired rather than a column that repeats `action` on every row.
+        val appliedVector = applied.applied
+        val proposed = if (action.contentEquals(appliedVector)) null else action.copyOf()
+        pending = Pending(s, appliedVector.copyOf(), proposed, applied.unavailable?.copyOf(),
+            time, myEpochCount)
         myEpochCount++
         lastEpochTime = time
         scheduleNextEpoch()
@@ -666,12 +683,15 @@ class DecisionElement internal constructor(
         }
         census.emitted++
         val record = TransitionRecord(
+            elementName = this.name,
             replicationId = model.currentReplicationId,
             epochIndex = p.epochIndex,
             time = time,
             tau = tau,
             state = p.state,
             action = p.action,
+            proposedAction = p.proposedAction,
+            leverUnavailable = p.unavailable,
             reward = reward,
             successorState = successor,
             terminated = ending == TerminationSource.NATURAL,
@@ -816,7 +836,11 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
             val d = decls[i]
             if (d.domain == LeverDomain.CATEGORICAL) return@DoubleArray action[i]
             val r = d.feasibleRange()
-            if (r.isEmpty()) Double.NaN else action[i].coerceIn(r.start, r.endInclusive)
+            // An empty set is left alone rather than mapped to NaN. `prepare` resolves such a
+            // lever to its neutral (§4.4.6.3) and raises no violation, so there is nothing here to
+            // repair; the earlier NaN made the re-prepare reject the value clamping had just
+            // produced, which turned "no action was possible" into a dead replication.
+            if (r.isEmpty()) action[i] else action[i].coerceIn(r.start, r.endInclusive)
         }
 
     /**
@@ -837,15 +861,29 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
                 listOf("The policy returned ${action.size} values; ${decls.size} levers are declared.")
             )
         }
+        // §4.4.6.3. The resolved value of every lever, which is what the rule asked for except
+        // where its feasible set was empty and the lever therefore takes its declared neutral.
+        // An empty set is NOT a violation: it means no action was possible, which is a fact about
+        // the epoch rather than a fault in the rule. This is what the section has always said; the
+        // first implementation classified it alongside NaN and killed the replication, and the
+        // exception it threw cited the section by number.
+        val resolved = action.copyOf()
+        var unavailable: BooleanArray? = null
+
         for ((i, d) in decls.withIndex()) {
             val v = action[i]
             // §4.3.3: envelope ∩ narrowed ∩ 𝒳(s), re-evaluated at every epoch.
             val range = d.feasibleRange()
+            if (range.isEmpty()) {
+                // Nothing to choose from. Take the neutral, record that it was forced, and do not
+                // judge what the rule asked for — there was no value it could have named.
+                val flags = unavailable ?: BooleanArray(decls.size).also { unavailable = it }
+                flags[i] = true
+                resolved[i] = d.neutralValue()
+                continue
+            }
             if (v.isNaN()) {
                 violations += "'${d.name}' received NaN."
-            } else if (range.isEmpty()) {
-                violations += "'${d.name}' has an empty feasible set at this epoch: " +
-                    "[${range.start}, ${range.endInclusive}]${d.u()}. No value is available (§4.4.6.3)."
             } else if (v < range.start || v > range.endInclusive) {
                 val why = when {
                     d.domain == LeverDomain.CATEGORICAL ->
@@ -863,9 +901,11 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         }
         val index = decls.withIndex().associate { (i, d) -> d.name to i }
         for (c in element.jointDecls) {
+            // Over the RESOLVED values, not the requested ones: a constraint is a statement about
+            // what the model will hold, and a lever forced to its neutral contributes the neutral.
             val sum = c.names.sumOf { n ->
                 val i = index[n] ?: return PreparedAction.Invalid(listOf("Constraint names unknown lever '$n'."))
-                action[i]
+                resolved[i]
             }
             val total = c.totalFn()
             val what = if (c.stateDependent) "the state-dependent total" else "the declaration"
@@ -900,7 +940,7 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
             val from = element.catalog.actuator(d.name).let { a ->
                 if (a is StatefulLeverActuator) a.currentValue() else Double.NaN
             }
-            val to = action[i]
+            val to = resolved[i]
             if (d.kind == LeverKind.SETTING && !from.isNaN() && from == to) continue
             steps += ActionPlan.Step(d.name, from, to, element.catalog.actuator(d.name)!!)
         }
@@ -909,7 +949,7 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         // so it keys 0.0 and — the sort being stable — transactions keep their declaration
         // order among the neutral moves (§4.4, §8.2.3).
         steps.sortBy { if (it.from.isNaN()) 0.0 else it.to - it.from }
-        return PreparedAction.Ready(ActionPlan(steps))
+        return PreparedAction.Ready(ActionPlan(steps, resolved, unavailable))
     }
 
     override fun apply(plan: ActionPlan) {
