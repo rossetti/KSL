@@ -34,15 +34,13 @@ import ksl.simulation.SimulationReporter
 fun main() {
     val m = Model("DLB_with_Q")
     // create the model element and attach it to the main model
-    DriveThroughPharmacyWithQ(m)
-    val rs: Response? = m.response("System Time")
-    val tw: TWResponse? = m.response("# in System") as TWResponse?
+    val dtp = DriveThroughPharmacyWithQ(m)
     //ResponseSchedule sched = new ResponseSchedule(m, 5.0);
     val sched = ResponseSchedule(m, 0.0)
     //sched.addConsecutiveIntervals(2, 5, "Interval");
     sched.addIntervals(5.0, 2, 5.0)
-    sched.addResponseToAllIntervals(rs!!)
-    sched.addResponseToAllIntervals(tw!!)
+    sched.addResponseToAllIntervals(dtp.systemTime)
+    sched.addResponseToAllIntervals(dtp.numInSystem)
     // sched.setStartTime(5.0);
     //sched.setScheduleRepeatFlag(true);
     sched.scheduleRepeatFlag = false
@@ -50,8 +48,8 @@ fun main() {
     val ri = ResponseInterval(m, 1.0, "Hourly")
     ri.repeatFlag = true
     ri.startTime = 0.0
-    ri.addResponseToInterval(rs, true)
-    ri.addResponseToInterval(tw, true)
+    ri.addResponseToInterval(dtp.systemTime, true)
+    ri.addResponseToInterval(dtp.numInSystem, true)
     System.out.println(sched)
     m.numberOfReplications = 2
     m.lengthOfReplication = 20.0
