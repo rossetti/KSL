@@ -192,18 +192,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.5.1"
+version = "R1.6"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.5.1")
+api("io.github.rossetti:KSLCore:R1.6")
 ```
 To your build for the latest release.
 
 ## Release Notes
 
 The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**, which
-covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.5.1, R1.5, …)
+covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.6, R1.5.1, …)
 and the installable **suite** of applications and servers (versioned 0.3.4, 0.3.3, …). A
 suite release does not imply a library release, or the reverse.
 
@@ -234,26 +234,19 @@ shipped examples moved into a visible `KSL/examples/` folder. See the
 on 0.3.1 or earlier its updater cannot deliver its own replacement, so getting current needs
 one re-run of the installer one-liner above.
 
+**R1.6:** a correctness release in three areas. Interval and period statistics for time-weighted
+responses — `ResponseInterval`, `TimeSeriesResponse`, and anything on a `ResponseSchedule` — were
+measured over the wrong window, and an interval the warm-up fell inside was worse still, up to a
+`Counter` reporting a negative count. `MovableResourcePool` never woke the entities queued for it,
+a regression since R1.2.6 that left them waiting forever. A terminated process left its entity
+permanently unusable, where an entity whose process merely completed was reusable. Interval
+statistics on time-weighted responses change — see [the release notes](docs/release-notes.md) for
+how much. A drop-in for R1.5.1 unless you use the experimental `ksl.modeling.agent`, whose
+observer methods were renamed.
+
 **R1.5.1:** a correctness release for the information criteria. `Statistic.akaikeInfoCriterion`
 and `Statistic.hannanQuinnInfoCriterion` penalised complexity with a term that was not a
 penalty, so minimising AIC picked the most complex model on offer. Both are now the standard
 criteria, `akaikeInfoCriterionCorrected` (AICc) is new, and the Watson goodness-of-fit statistic
 regained a lost pair of parentheses. Default distribution fitting is unaffected — its scoring
 set uses BIC, which was correct.
-
-**R1.5:** a correctness release. The gamma distribution function, the sample median, the
-decision-analysis engine, and the ids handed out under concurrent execution all failed
-quietly rather than loudly, and all four are fixed — see
-[the release notes](docs/release-notes.md) for which results change and by how much. Adds the
-metalog distribution family, which takes its shape from data or from elicited quantiles
-rather than from a named family, and gives multi-objective decision analysis immutable result
-snapshots, weight sensitivity, and swing-weight elicitation. Not a drop-in for R1.4.
-
-**R1.4:** a reorganization and packaging release. The `ksl.app.*` model-packaging /
-run infrastructure moved out of the published KSLCore into a new internal `KSLApp`
-module, so KSLCore is now just the simulation engine; a new `ksl.animation` capture
-layer feeds the animation app; and simulation optimization gained a penalty-function
-method (Park & Kim 2015) plus corrected ISC statistics, feasible-lattice sampling
-guards, and a fixed default constraint penalty. The applications and servers now ship
-as a single installable suite. See [the release notes](docs/release-notes.md) for the
-full list.

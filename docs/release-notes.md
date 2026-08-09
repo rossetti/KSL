@@ -3,7 +3,7 @@
 Two things are released from this repository, on separate cadences and with separate
 numbering, so they are kept apart here:
 
-- **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.5.1`, `R1.5`, … The
+- **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.6`, `R1.5.1`, … The
   simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
 - **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
   `0.3.4`, `0.3.3`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
@@ -180,6 +180,75 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 `ksl.app.*` model-packaging / run infrastructure lives in a separate `KSLApp` module
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
+
+## R1.6
+
+*9 August 2026.* A correctness release in three areas: interval and period statistics, entity
+state after a terminated process, and movable resource pools. The experimental
+`ksl.modeling.agent` package also gains fixes and a small API cleanup — the one place R1.6 is
+**not** a drop-in replacement for R1.5.1.
+
+### Fixed
+
+- **Interval and period averages for time-weighted responses were measured over the wrong
+  window.** `ResponseInterval`, `TimeSeriesResponse` and anything on a `ResponseSchedule`
+  snapshotted a response's within-replication statistic at the interval start and differenced it
+  at the end. A `TWResponse` banks a segment only when the next value arrives, so both reads
+  lagged: the figure reported was an average over neither the requested window nor any part of
+  it. Observation-based responses and counters were correct and are unchanged.
+- **A warm-up falling inside a `ResponseInterval` corrupted it.** The warm-up resets what the
+  interval captured at its start. The interval could report the current height as though the
+  variable had been constant across a window in which it changed, and a `Counter` could report a
+  **negative** count. Such an interval is now discarded — it observes nothing, counters and the
+  empty-interval indicator included — and the discard is logged once per experiment.
+- **A `TimeSeriesResponse` period split by a warm-up reported a wrong number.** This class slices
+  time and is documented as not reacting to warm-ups, which it now does: it accumulates
+  independently of the responses it watches, so every period is measured over its own window
+  whether or not a warm-up falls inside it.
+- **`MovableResourcePool` never woke the entities queued for it.** A request queued against a
+  pool names the pool, but the pool released the individual member, which matched none of its own
+  waiting requests — so entities waited forever. A **regression introduced in R1.2.6** and
+  present through R1.5.1. Terminating an entity holding an ordinary `ResourcePool` allocation
+  stranded that pool's waiters the same way.
+- **A terminated process left its entity permanently unusable.** The entity stayed bound to the
+  dead process and in whatever suspended state the unwind left it, while an entity whose process
+  merely *completed* was reusable. Four suspension kinds also left registrations behind — `seize`
+  a `Request`, `waitForItems` / `waitForAnyItems` a `ChannelRequest`, `waitFor(blockage)` a
+  blockage entry, `suspendFor` a back-reference — all surfacing as "Tried to resume process …
+  from an illegal state: Terminated". A completed process now ends in `ProcessEnded` rather than
+  `Active`, so both endings agree.
+- **`ksl.modeling.agent`** — the Manhattan A\* heuristic is withdrawn, because it is a lower
+  bound only under `VON_NEUMANN` movement: under the default `MOORE` rule a diagonal step costs
+  the square root of two while Manhattan charges two, so the estimate exceeded the true cost and
+  A\* lost its optimality guarantee. An agent removed from its context kept firing statechart
+  timers, and a `receiveMessage` waiter outlived its process.
+
+### New
+
+- **`ResponseCIfc.withinReplicationAverage`, `withinReplicationWeightedSum` and
+  `withinReplicationSumOfWeights`** — the accumulated average, area and elapsed weight in the
+  current replication. A `TWResponse` overrides the latter two to include the segment currently
+  in progress, which its within-replication statistic cannot hold.
+- **`AgentLike.dispose`** for agent teardown, **`withReservation`** for scoped mailbox
+  reservations, and **`Statechart.detachObserver`**, which previously had no way to detach an
+  observer at all.
+
+### Things that change results
+
+- Every interval and period statistic on a **time-weighted** response — `ResponseInterval`,
+  `TimeSeriesResponse`, `ResponseSchedule`. Measured across the shipped examples: 22 of 127
+  responses moved, median 1.2%, maximum 12.5%. Observation-based responses collected over the
+  same intervals did not move.
+- Models using `MovableResourcePool` under contention, which previously stalled, now run to
+  completion.
+- Agent path-finding under `MOORE` movement, which now returns optimal paths.
+
+### Compatibility
+
+**A drop-in replacement for R1.5.1 unless you use `ksl.modeling.agent`.** That package is
+released as experimental and its API changed without deprecation shims: `addObserver` and
+`removeObserver` on `AgentMailbox` and `Statechart` are now `attachObserver` and
+`detachObserver`, and the uncalled `AgentModel.removeAgent` has been deleted.
 
 ## R1.5.1
 
