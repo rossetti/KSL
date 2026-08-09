@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = "R1.5.1"
+version = "R1.6"
 
 repositories {
     mavenCentral()
