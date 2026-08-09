@@ -593,7 +593,21 @@ class TimeSeriesResponse @JvmOverloads constructor(
         myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
+    /**
+     *  True when a warm-up has occurred since the period in progress began collecting. See the
+     *  matching field on ResponseInterval: the values snapshotted at the start of the period are
+     *  differenced against a statistic that has since been reset, so the period is discarded. A
+     *  discarded period still appears in the collected data, with a null value.
+     */
+    private var warmUpDuringPeriod: Boolean = false
+
+    override fun warmUp() {
+        super.warmUp()
+        warmUpDuringPeriod = true
+    }
+
     private fun startPeriodCollection() {
+        warmUpDuringPeriod = false
         for ((response, data) in myResponses) {
             timeLastStarted = time
             // See ResponseInterval.StartIntervalAction: the statistic's own sums lag for a
@@ -630,7 +644,10 @@ class TimeSeriesResponse @JvmOverloads constructor(
             val sum: Double = response.withinReplicationWeightedSum - data.mySumAtStart
             val denom: Double = response.withinReplicationSumOfWeights - data.mySumOfWeightsAtStart
             val numObs: Double = w.count - data.myNumObsAtStart
-            val value: Double? = if (numObs == 0.0) {
+            val value: Double? = if (warmUpDuringPeriod) {
+                // the start snapshot refers to a statistic that has since been reset
+                null
+            } else if (numObs == 0.0) {
                 // there were no changes of the variable during the period
                 // cannot observe Response but can observe TWResponse
                 if (response is TWResponse) {
@@ -667,12 +684,15 @@ class TimeSeriesResponse @JvmOverloads constructor(
         }
 
         for ((counter, data) in myCounters) {
-            val intervalCount: Double = counter.value - data.myTotalAtStart
+            // Counter.warmUp() resets the count, so differencing against the start snapshot can
+            // report a negative period count. Discard for the same reason as the responses.
+            val intervalCount: Double? =
+                if (warmUpDuringPeriod) null else counter.value - data.myTotalAtStart
             val counterData = TimeSeriesPeriodData(
                 counter.id, counter.name, r, periodCounter,
                 timeLastStarted, periodLength, intervalCount
             )
-            if (myAcrossRepCounterStatsTable != null) {
+            if ((myAcrossRepCounterStatsTable != null) && (intervalCount != null)) {
                 var statistic = myAcrossRepCounterStatsTable!!.get(counter, periodCounter)
                 if (statistic == null) {
                     statistic = Statistic("${counter.name}_Period_$periodCounter")

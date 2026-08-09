@@ -345,8 +345,27 @@ class ResponseInterval @JvmOverloads constructor(
         }
     }
 
+    /**
+     *  True when a warm-up has occurred since the interval in progress began collecting. A warm-up
+     *  resets each response's within-replication statistic and each counter's count, so the values
+     *  snapshotted at the start of the interval are differenced against quantities that no longer
+     *  exist. Nothing sensible can be reported for such an interval and it is discarded.
+     *
+     *  Set by warmUp() and cleared when an interval starts, which makes the outcome independent of
+     *  the order in which the model elements receive the warm-up: if the start action runs first the
+     *  flag is set afterwards and the interval is discarded, and if the warm-up runs first the start
+     *  action clears the flag and snapshots the reset statistic, which is correct.
+     */
+    private var warmUpDuringInterval: Boolean = false
+
+    override fun warmUp() {
+        super.warmUp()
+        warmUpDuringInterval = true
+    }
+
     private inner class StartIntervalAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
+            warmUpDuringInterval = false
             for ((key, data) in myResponses) {
                 timeLastStarted = time
                 // Read the area and elapsed weight *including* any segment still in flight. The
@@ -382,6 +401,11 @@ class ResponseInterval @JvmOverloads constructor(
                 val sum: Double = key.withinReplicationWeightedSum - data.mySumAtStart
                 val denom: Double = key.withinReplicationSumOfWeights - data.mySumOfWeightsAtStart
                 val numObs: Double = w.count - data.myNumObsAtStart
+                if (warmUpDuringInterval) {
+                    // the snapshot at the start refers to a statistic that has since been reset;
+                    // neither the average nor the empty flag can be computed, so observe neither
+                    continue
+                }
                 if (data.myEmptyResponse != null) {
                     data.myEmptyResponse!!.value = (numObs == 0.0).toDouble()
                 }
@@ -406,6 +430,11 @@ class ResponseInterval @JvmOverloads constructor(
                 }
             }
             for ((key, data) in myCounters) {
+                // Counter.warmUp() resets the count, so differencing against the start snapshot can
+                // report a negative interval count. Discard for the same reason as the responses.
+                if (warmUpDuringInterval) {
+                    continue
+                }
                 val intervalCount: Double = key.value - data.myTotalAtStart
                 data.myResponse.value = intervalCount
             }
