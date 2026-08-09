@@ -596,9 +596,11 @@ class TimeSeriesResponse @JvmOverloads constructor(
     private fun startPeriodCollection() {
         for ((response, data) in myResponses) {
             timeLastStarted = time
+            // See ResponseInterval.StartIntervalAction: the statistic's own sums lag for a
+            // TWResponse, so the boundaries must read the area including the in-flight segment.
             val w: WeightedStatisticIfc = response.withinReplicationStatistic
-            data.mySumAtStart = w.weightedSum
-            data.mySumOfWeightsAtStart = w.sumOfWeights
+            data.mySumAtStart = response.withinReplicationWeightedSum
+            data.mySumOfWeightsAtStart = response.withinReplicationSumOfWeights
             data.myNumObsAtStart = w.count
         }
         for ((counter, data) in myCounters) {
@@ -625,8 +627,8 @@ class TimeSeriesResponse @JvmOverloads constructor(
         for ((response, data) in myResponses) {
             timeLastEnded = time
             val w: WeightedStatisticIfc = response.withinReplicationStatistic
-            val sum: Double = w.weightedSum - data.mySumAtStart
-            val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
+            val sum: Double = response.withinReplicationWeightedSum - data.mySumAtStart
+            val denom: Double = response.withinReplicationSumOfWeights - data.mySumOfWeightsAtStart
             val numObs: Double = w.count - data.myNumObsAtStart
             val value: Double? = if (numObs == 0.0) {
                 // there were no changes of the variable during the period

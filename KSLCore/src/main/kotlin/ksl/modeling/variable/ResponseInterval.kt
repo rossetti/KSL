@@ -349,9 +349,14 @@ class ResponseInterval @JvmOverloads constructor(
         override fun action(event: KSLEvent<Nothing>) {
             for ((key, data) in myResponses) {
                 timeLastStarted = time
+                // Read the area and elapsed weight *including* any segment still in flight. The
+                // statistic's own weightedSum/sumOfWeights lag for a TWResponse, so differencing
+                // them at the two boundaries would bracket [lastChangeBefore(start),
+                // lastChangeBefore(end)] rather than this interval. Count is still differenced from
+                // the statistic: it counts changes inside the interval, which is what it should.
                 val w: WeightedStatisticIfc = key.withinReplicationStatistic
-                data.mySumAtStart = w.weightedSum
-                data.mySumOfWeightsAtStart = w.sumOfWeights
+                data.mySumAtStart = key.withinReplicationWeightedSum
+                data.mySumOfWeightsAtStart = key.withinReplicationSumOfWeights
                 data.myNumObsAtStart = w.count
                 if (key is TWResponse) {
                     data.myValueAtStart!!.value = key.value
@@ -374,8 +379,8 @@ class ResponseInterval @JvmOverloads constructor(
             for ((key, data) in myResponses) {
                 timeLastEnded = time
                 val w: WeightedStatisticIfc = key.withinReplicationStatistic
-                val sum: Double = w.weightedSum - data.mySumAtStart
-                val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
+                val sum: Double = key.withinReplicationWeightedSum - data.mySumAtStart
+                val denom: Double = key.withinReplicationSumOfWeights - data.mySumOfWeightsAtStart
                 val numObs: Double = w.count - data.myNumObsAtStart
                 if (data.myEmptyResponse != null) {
                     data.myEmptyResponse!!.value = (numObs == 0.0).toDouble()

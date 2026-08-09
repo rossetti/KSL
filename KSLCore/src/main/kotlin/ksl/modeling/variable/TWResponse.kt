@@ -119,6 +119,23 @@ open class TWResponse @JvmOverloads constructor(
             }
         }
 
+    /**
+     *  Also includes the segment currently in progress — height `value`, width `time - timeOfChange`.
+     *  The within-replication statistic cannot hold it: a weighted statistic collects a value once,
+     *  with one final weight, and cannot afterward revise it or the observation count, so a segment
+     *  is not collected until the next assignment fixes its width. Its area so far is nonetheless
+     *  known at any instant, which is what this adds.
+     */
+    override val withinReplicationWeightedSum: Double
+        get() = myWithinReplicationStatistic.weightedSum + myValue * (time - timeOfChange)
+
+    /**
+     *  Also includes the width of the segment currently in progress, so differencing this at two
+     *  instants gives exactly the elapsed time between them.
+     */
+    override val withinReplicationSumOfWeights: Double
+        get() = myWithinReplicationStatistic.sumOfWeights + (time - timeOfChange)
+
     override fun assignValue(newValue: Double) {
         require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain for variable ${this.name}" }
         previousValue = myValue

@@ -85,6 +85,33 @@ interface ResponseCIfc : ResponseIfc {
     val withinReplicationStatistic: WeightedStatisticIfc
 
     /**
+     *  The weighted average accumulated so far in the current replication.
+     *
+     *  For an observation-based response this is the statistic's own average.
+     *  For a time-persistent response, this is the time-weighted average.
+     */
+    val withinReplicationAverage: Double
+        get() = withinReplicationStatistic.weightedAverage
+
+    /**
+     *  The weighted sum held by the within-replication statistic. A convenience accessor: reading
+     *  withinReplicationStatistic returns a new instance on every call, and this avoids that copy.
+     *
+     *  A time-weighted response overrides this to also include the segment currently in progress,
+     *  which the statistic cannot hold. See TWResponse.
+     */
+    val withinReplicationWeightedSum: Double
+        get() = withinReplicationStatistic.weightedSum
+
+    /**
+     *  The sum of weights held by the within-replication statistic, as a convenience accessor that
+     *  avoids the copy made by reading withinReplicationStatistic. A time-weighted response
+     *  overrides it for the same reason as withinReplicationWeightedSum.
+     */
+    val withinReplicationSumOfWeights: Double
+        get() = withinReplicationStatistic.sumOfWeights
+
+    /**
      *  Add an action that will occur when the count limit is achieved
      */
     fun addCountLimitAction(action: CountActionIfc)
@@ -258,6 +285,12 @@ open class Response internal constructor(
 
     override val withinReplicationStatistic: WeightedStatisticIfc
         get() = myWithinReplicationStatistic.instance()
+
+    override val withinReplicationWeightedSum: Double
+        get() = myWithinReplicationStatistic.weightedSum
+
+    override val withinReplicationSumOfWeights: Double
+        get() = myWithinReplicationStatistic.sumOfWeights
 
     override var defaultReportingOption: Boolean = true
 
