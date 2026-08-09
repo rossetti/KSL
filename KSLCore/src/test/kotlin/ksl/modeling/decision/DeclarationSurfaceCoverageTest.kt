@@ -6,6 +6,7 @@ import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -31,6 +32,9 @@ class DeclarationSurfaceCoverageTest {
         fun bump() { ticks.increment(1.0) }
     }
 
+    /** Every probe, in declaration order, as it will appear in the generated matrix. */
+    private val matrix = mutableListOf<Pair<String, String>>()
+
     private fun probe(what: String, block: () -> Unit): String {
         val outcome = runCatching(block).exceptionOrNull()
         val verdict = when {
@@ -48,8 +52,47 @@ class DeclarationSurfaceCoverageTest {
             outcome is StaleDecisionContextException -> "REFUSED AT USE"
             else -> "FAILS: ${outcome::class.simpleName}"
         }
-        println("  %-46s %s".format(what, verdict))
+        println("  %-56s %s".format(what, verdict))
+        matrix += what to verdict
         return verdict
+    }
+
+    /**
+     *  Write the matrix as markdown, so §4.4.6.5 can carry this table rather than a
+     *  transcription of it.
+     *
+     *  §4.4.6.5's table was maintained by hand and drifted: it reported "8 working, 3 refused at
+     *  declaration" against a tree that worked 10 and refused 1, because two of the three had been
+     *  built and nobody re-counted. Appendix E.2 drifted the same way and for the same reason,
+     *  while Appendix G — copied from the tree and checked against it — did not. The difference is
+     *  mechanical rather than moral, so this emits what the table should say.
+     *
+     *  It writes a file rather than only printing because a table assembled by eye from console
+     *  output is a transcription again, one step removed.
+     */
+    private fun emitMatrix() {
+        val out = StringBuilder()
+        out.appendLine("| Form the DSL accepts | Verdict |")
+        out.appendLine("|---|---|")
+        for ((form, verdict) in matrix) out.appendLine("| $form | $verdict |")
+        val n = matrix.size
+        fun count(prefix: String) = matrix.count { it.second.startsWith(prefix) }
+        out.appendLine()
+        out.appendLine(
+            "$n declarable forms probed: ${count("WORKS")} work, " +
+                "${count("REFUSED AT DECLARATION")} refused at declaration as unbuilt, " +
+                "${count("REFUSED AT CONSTRUCTION")} refused at construction by design, " +
+                "${count("REFUSED AT RUN TIME")} refused at run time by design, " +
+                "${count("REFUSED AT USE")} refused at use by design, " +
+                "${count("FAILS")} unspecified."
+        )
+        val file = File("build/reports/declaration_surface_matrix.md")
+        file.parentFile?.mkdirs()
+        file.writeText(out.toString())
+        println()
+        println("--- generated matrix, written to ${file.absolutePath} ---")
+        print(out)
+        println("--- end ---")
     }
 
     private fun runWith(
@@ -75,20 +118,20 @@ class DeclarationSurfaceCoverageTest {
         println()
         println("=== D.24 coverage probe: what the DSL accepts vs what the library carries ===")
 
-        results["INTEGER lever"] = probe("lever(limits = 0..10)") {
+        results["INTEGER lever"] = probe("`lever(limits = 0..10)`") {
             runWith { w -> observe(w.level); lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["CONTINUOUS lever"] = probe("lever(limits = 0.0..10.0)") {
+        results["CONTINUOUS lever"] = probe("`lever(limits = 0.0..10.0)`") {
             runWith { w -> observe(w.level); lever(w, 0.0..10.0, neutral = Neutral.Current { rate }) { v -> rate = v }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["CATEGORICAL lever"] = probe("lever(levels = listOf(...))") {
+        results["CATEGORICAL lever"] = probe("`lever(levels = listOf(...))`") {
             runWith { w -> observe(w.level)
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Current { mode.toDouble() }) { v -> mode = v.toInt() }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["CATEGORICAL + CLAMP_THEN_REJECT"] = probe("clamping a categorical lever") {
+        results["CATEGORICAL + CLAMP_THEN_REJECT"] = probe("clamping a `CATEGORICAL` lever") {
             runWith { w -> observe(w.level)
                 feasibility = FeasibilityPolicy.CLAMP_THEN_REJECT
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Current { mode.toDouble() }) { v -> mode = v.toInt() }
@@ -96,35 +139,35 @@ class DeclarationSurfaceCoverageTest {
                 policy = PolicyIfc { _, _ -> doubleArrayOf(9.0) }   // far outside; must clamp
             }
         }
-        results["batchLever"] = probe("batchLever(...) for atomic multi-writes (§4.4.5)") {
+        results["batchLever"] = probe("`batchLever(...)` for atomic multi-writes (§4.4.5)") {
             runWith { w -> observe(w.level)
                 val a = lever(w, 0..10, alias = "a", neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 val b = lever(w, 0..10, alias = "b", neutral = Neutral.Current { rate }) { v -> rate = v }
                 batchLever(a, b) { }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["reward + estimand"] = probe("reward(...) then read the estimand (§4.2.5)") {
+        results["reward + estimand"] = probe("`reward(...)` then read the estimand (§4.2.5)") {
             val m = runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 reward(w.level, rate = 1.0)
                 every(10.0); policy = NeutralPolicy }
             (m.getModelElement("D") as DecisionElement).estimand
         }
-        results["captureTo"] = probe("captureTo(...) trajectory sink (§4.8)") {
+        results["captureTo"] = probe("`captureTo(...)` trajectory sink (§4.8)") {
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 captureTo { ksl.sdm.capture.NullSink }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["CALENDAR timing"] = probe("onCalendar(listOf(...))") {
+        results["CALENDAR timing"] = probe("`onCalendar(listOf(...))`") {
             runWith { w -> observe(w.level); lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 onCalendar(listOf(15.0, 35.0, 60.0)); policy = NeutralPolicy }
         }
-        results["terminalWhen"] = probe("terminalWhen { ... } episode ending (§4.6.3)") {
+        results["terminalWhen"] = probe("`terminalWhen { ... }` episode ending (§4.6.3)") {
             runWith { w -> observe(w.level); lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 every(10.0); terminalWhen { false }; policy = NeutralPolicy }
         }
-        results["two constraints over one lever"] = probe("budget(a,b) and atMost(b,c) sharing b") {
+        results["two constraints over one lever"] = probe("`budget(a,b)` and `atMost(b,c)` sharing `b`") {
             runWith { w -> observe(w.level)
                 val a = lever(w, 0..10, alias = "a", neutral = Neutral.Current { level.value }) { }
                 val b = lever(w, 0..10, alias = "b", neutral = Neutral.Current { rate }) { }
@@ -132,17 +175,17 @@ class DeclarationSurfaceCoverageTest {
                 budget(a, b, total = 5.0); atMost(b, c, total = 5.0)
                 every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) } }
         }
-        results["TRANSACTION lever"] = probe("lever(neutral = Neutral.Value(0.0)) (§8.2.3)") {
+        results["TRANSACTION lever"] = probe("`lever(neutral = Neutral.Value(0.0))` (§8.2.3)") {
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Value(0.0)) { v -> repeat(v.toInt()) { bump() } }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["CATEGORICAL transaction"] = probe("a categorical lever with a neutral AMOUNT") {
+        results["CATEGORICAL transaction"] = probe("a `CATEGORICAL` lever with a neutral AMOUNT") {
             runWith { w -> observe(w.level)
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Value(0.0)) { v -> mode = v.toInt() }
                 every(10.0); policy = NeutralPolicy }
         }
-        results["budget over mismatched units"] = probe("budget(a, b) where a and b differ in unit") {
+        results["budget over mismatched units"] = probe("`budget(a, b)` where `a` and `b` differ in unit") {
             runWith { w -> observe(w.level)
                 val a = lever(w, 0..10, alias = "a", unit = "staff",
                     neutral = Neutral.Current { level.value }) { }
@@ -151,7 +194,7 @@ class DeclarationSurfaceCoverageTest {
                 budget(a, b, total = 5.0)
                 every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0) } }
         }
-        results["context read after the epoch"] = probe("retaining the DecisionContext (§4.5.3)") {
+        results["context read after the epoch"] = probe("retaining the `DecisionContext` (§4.5.3)") {
             var stashed: DecisionContext? = null
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
@@ -172,13 +215,13 @@ class DeclarationSurfaceCoverageTest {
             model.simulate()
         }
         results["epoch priority after warm-up, undeclared"] =
-            probe("epochPriority past warm-up without saying so") {
+            probe("`epochPriority` past warm-up without saying so") {
                 runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
                     lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                     every(10.0); policy = NeutralPolicy }
             }
         results["epoch priority after warm-up, declared"] =
-            probe("the same, with warmUpOrdering = WARM_UP_FIRST") {
+            probe("the same, with `warmUpOrdering = WARM_UP_FIRST`") {
                 runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
                     warmUpOrdering = WarmUpOrdering.WARM_UP_FIRST
                     lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
@@ -202,6 +245,8 @@ class DeclarationSurfaceCoverageTest {
         if (atRun.isNotEmpty()) println("  at run   : ${atRun.keys}")
         if (atUse.isNotEmpty()) println("  at use   : ${atUse.keys}")
         if (fails.isNotEmpty()) println("  failing  : ${fails.keys}")
+
+        emitMatrix()
 
         // Every cell of the matrix now has a stated outcome: it works, or it is refused
         // somewhere, with a reason. "Ran, semantics unspecified" is the state this probe
