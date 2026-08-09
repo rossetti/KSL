@@ -28,6 +28,14 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   So: merge to `main` when the thing is proven, then run steps 4–5 **from `main`** so the tag points
   at the merged commit and the manifest lands where the installers actually look.
 
+- **Quit any running KSL Server (and the apps) before installing.** The installer unpacks with
+  `unzip -o`, replacing every jar. It happens to unlink and recreate rather than truncate in place,
+  so a running JVM keeps reading its old inode and does not crash — but it is then the *previous*
+  release running against the *new* `examples/` folder, which the installer deletes and replaces
+  outright and which is read by path, not from the pinned classpath. A server left running through
+  an install can therefore load example bundles built against a KSLCore it does not have. Quit
+  first and the question does not arise.
+
 - **`install.sh`, `install.ps1` and `manifest.json` must exist on `main`.** The one-liner fetches the
   installers, and those in turn fetch the manifest, from `raw.githubusercontent.com/rossetti/KSL/main`.
   If they aren't there the install 404s before it ever reads the manifest. That was a real gate for the
@@ -141,13 +149,26 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
      Open **KSL Server** (Launchpad / Start Menu → KSL / applications menu) so its menu-bar /
      system-tray lamp turns green, choose **Open Console** — it opens at
      `http://127.0.0.1:3001/admin` — click **Connect** to configure a client with one click,
-     restart that client, and confirm a first tool call (e.g. *"search the textbook for event
+     restart that client (needed after any server restart, not just the first configuration),
+     and confirm a first tool call (e.g. *"search the textbook for event
      scheduling"*, which exercises the book capability from step 3). The console's **Usage
      study** region exports the local study log as `.jsonl` (all fields) or `.csv` (15
      columns), with filenames `ksl-usage[-<label>]-<date>.<ext>`.
 
 ## Notes
 
+- **A `--from` install reports the *previous* version, and that is not a failed upgrade.** The
+  installer prints whatever it finds in `manifest.json` (`VER=` in `install.sh`), and stamping
+  deliberately writes `build/release/manifest.json` without touching the tracked file — copying it
+  over is step 5. So `VERSIONS.txt` and `ksl list` show the old version while the shipped jars are
+  the new one. To check the real version, read a jar's manifest
+  (`unzip -p .../Servers/suite/ksl-server.jar META-INF/MANIFEST.MF | grep Implementation-Version`)
+  or the server's `/version`; both come from `kslSuiteVersion`.
+- **Restarting the KSL Server orphans the bridges that clients connect through.** Each MCP client
+  session runs a `ksl-bridge` process pointed at `http://127.0.0.1:3001/`. Those survive a server
+  restart, keep executing their old jar, and hang instead of reconnecting — a tool call times out
+  rather than failing fast. `/status` settles it: if `served` is still 0, the request never
+  arrived. Restart the client after restarting the server, not just when first configuring it.
 - **Empty `sha256`** in the committed manifest is allowed — the installer just skips
   integrity verification. Stamping fills it so downloads are checked.
 - **`ksl update`** on an already-installed machine re-reads the manifest and pulls the
