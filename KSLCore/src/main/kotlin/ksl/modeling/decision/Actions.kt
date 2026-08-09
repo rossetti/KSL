@@ -64,6 +64,15 @@ class RewardKindException(message: String) : RuntimeException(message)
  *  legal should learn immediately that it is not yet supported and which milestone carries
  *  it — not run a study and find the value missing. When the milestone lands, the throw is
  *  replaced by the implementation and nothing else changes.
+ *
+ *  [milestone] is the weak part of this message and is known to be. [section] is durable — it
+ *  names where the form is specified — while a milestone label is a project-plan coordinate
+ *  that means nothing to a reader outside the project and goes stale when the plan is redrawn.
+ *  It has gone stale twice: once when §7.1.1 moved work between milestones, and once when a
+ *  step was reported complete while still carrying a refusal that pointed at it. The label is
+ *  kept because during development it is the most useful thing to tell an implementer, and it
+ *  should not survive into a release — at which point every remaining use of this exception is
+ *  itself a release blocker, so the question resolves itself.
  */
 class NotDeclarableYetException(
     val form: String,

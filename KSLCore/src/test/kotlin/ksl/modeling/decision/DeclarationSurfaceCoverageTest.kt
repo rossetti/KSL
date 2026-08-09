@@ -216,17 +216,17 @@ class DeclarationSurfaceCoverageTest {
                 "saw ${results["two constraints over one lever"]}"
         )
 
-        // §4.4.6.5 prints this set as a table, and a table is not executable. Three forms were
-        // deferred when the probe was first written; `reward` and `captureTo` have since been
-        // built and §4.4.6.5 said so only because someone noticed. Pinning the set means the
-        // next form to land breaks this assertion instead of leaving a paragraph quietly wrong.
+        // How complete the DSL is, as one number the library states about itself: exactly one
+        // form is accepted at the declaration and cannot yet be carried. That is a property of
+        // this library worth pinning for its own sake — a second one appearing is either a
+        // regression or a deliberate deferral, and both should be decided rather than noticed.
         assertEquals(setOf("batchLever"), deferred.keys,
-            "the set of declarable-but-unbuilt forms changed. Update §4.4.6.5's table and this " +
-                "assertion together — the table is the claim and this is what makes it checkable")
+            "the set of forms the DSL accepts but cannot yet carry changed; it was {batchLever}")
 
-        // And the milestone a refusal names is part of its contract (§4.4.6.5). `batchLever`
-        // said "M1 step 6" while §7.3.0 reported step 6 as Done, so a modeler was told to wait
-        // for work that had landed. §7.3.1 now carries batchLever as a criterion of step 6.
+        // The refusal's text is user-facing, so it is asserted like any other message. The
+        // milestone it names is part of what it promises: `batchLever` says "M1 step 6", and
+        // §7.3.1 carries the atomic multi-write among step 6's acceptance criteria, so the two
+        // agree. See the note in Actions.kt on why a milestone label is a weak thing to promise.
         assertEquals("REFUSED AT DECLARATION (M1 step 6)", results["batchLever"],
             "batchLever's refusal must name the step whose acceptance criteria cover it")
     }
