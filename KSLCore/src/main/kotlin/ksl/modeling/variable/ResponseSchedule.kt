@@ -57,6 +57,11 @@ import ksl.simulation.ModelElement
  * other words, response intervals do not have to be on a schedule. The schedule facilitates
  * the collection of many responses across many intervals.
  *
+ * If the model has a warm-up period, any interval that is still collecting when the warm-up occurs
+ * is discarded and observes nothing; see ResponseInterval. With the 24-hour schedule described
+ * above, that is at most the single interval containing the warm-up time, and the schedule's
+ * remaining intervals are unaffected.
+ *
  * @param parent         the parent model element
  * @param theScheduleStartTime the time to start the schedule, must be finite.
  * @param repeatSchedule Whether the schedule will repeat

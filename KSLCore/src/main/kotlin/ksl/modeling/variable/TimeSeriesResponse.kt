@@ -5,14 +5,14 @@ package ksl.modeling.variable
 import kotlinx.serialization.Serializable
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
+import ksl.observers.ModelElementObserver
 import ksl.simulation.KSLEvent
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.collections.HashBasedTable
 import ksl.utilities.collections.MutableTable
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistic.WeightedStatisticIfc
+import ksl.utilities.statistic.WeightedStatistic
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import org.jetbrains.kotlinx.dataframe.api.remove
@@ -31,7 +31,10 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  @param length the length of time associated with the period
  *  @param value the collected value. For Response and TWResponse instances the value property represents
  *  the average of the response over the indicated period. For Counter instances
- *  the value property represents the total count during the indicated period.
+ *  the value property represents the total count during the indicated period. The value is null only
+ *  when an observation-based Response was not observed at all during the period, in which case there
+ *  is no average to report. A TWResponse always has a value, because a period in which it never
+ *  changed still has its height across the whole period, and a Counter always has a count.
  */
 @Serializable
 data class TimeSeriesPeriodData(
@@ -216,8 +219,12 @@ interface TimeSeriesResponseCIfc : ParentNameIfc {
  *  for each replication.  The response or counter information is recorded at the end of each
  *  completed period. The number of periods to collect must be supplied.
  *
- *  This class does not react to warm up events.  That is, periods observed prior to the warmup event
- *  will contain data that was observed during the warmup period.  The standard usage for this
+ *  This class does not react to warm up events. That is, periods observed prior to the warmup event
+ *  will contain data that was observed during the warmup period. This class is only slicing time, so
+ *  every period is reported over its own window, whether it falls before the warm-up, after it, or
+ *  across it. That holds because the class accumulates each observed response into a statistic of its
+ *  own rather than differencing the response's within-replication statistic, which the warm-up resets.
+ *  The standard usage for this
  *  class is likely not within an infinite horizon (steady-state) context. However, if you do not
  *  want data collected during warmup periods, then specify the default start time for the
  *  time series to be greater than or equal to the specified warmup period length using
@@ -306,6 +313,8 @@ class TimeSeriesResponse @JvmOverloads constructor(
     private var myAcrossRepResponseStatsTable: MutableTable<ResponseCIfc, Int, Statistic>? = null
     private var myAcrossRepCounterStatsTable: MutableTable<CounterCIfc, Int, Statistic>? = null
 
+    private val myResponseObserver = ResponseObserver()
+
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }
         require(periodLength > 0.0) { "The length of the time series period must be > 0.0" }
@@ -313,10 +322,12 @@ class TimeSeriesResponse @JvmOverloads constructor(
         for (response in responses) {
             myResponses[response] = PeriodStartData()
             myResponseData[response] = mutableListOf()
+            (response as Response).attachModelElementObserver(myResponseObserver)
         }
         for (counter in counters) {
             myCounters[counter] = PeriodStartData()
             myCounterData[counter] = mutableListOf()
+            (counter as Counter).attachModelElementObserver(myResponseObserver)
         }
     }
 
@@ -532,6 +543,20 @@ class TimeSeriesResponse @JvmOverloads constructor(
         myStartEvent = schedule(this::startFirstPeriod, defaultStartTime, priority = KSLEvent.VERY_HIGH_PRIORITY)
     }
 
+    override fun beforeReplication() {
+        super.beforeReplication()
+        // Cleared here rather than only after the replication because the observer starts collecting
+        // as soon as any watched element assigns a value during initialize(). Every element receives
+        // beforeReplication before any element receives initialize(), so nothing observed in this
+        // replication can be cleared by this.
+        for (d in myResponses.values) {
+            d.reset()
+        }
+        for (d in myCounters.values) {
+            d.reset()
+        }
+    }
+
     override fun afterReplication() {
         super.afterReplication()
         for (d in myResponses.values) {
@@ -544,7 +569,6 @@ class TimeSeriesResponse @JvmOverloads constructor(
 
     override fun beforeExperiment() {
         super.beforeExperiment()
-        warnedOfDiscard = false
         for ((_, list) in myResponseData) {
             list.clear()
         }
@@ -577,15 +601,86 @@ class TimeSeriesResponse @JvmOverloads constructor(
      * of the period
      */
     internal inner class PeriodStartData() {
+        /**
+         *  This class accumulates each observed response itself rather than differencing the
+         *  response's own within-replication statistic. That statistic is reset by the warm-up, and
+         *  differencing across the reset produces a figure belonging to no requested period. This
+         *  one belongs to this class, so nothing resets it and every period is measured over its own
+         *  window. It is fed by ResponseObserver exactly as the response feeds its own, except for
+         *  the weight at the warm-up instant.
+         */
+        val myStat = WeightedStatistic()
+
+        /**
+         *  The time of the most recent collection into myStat, which is the left edge of the
+         *  time-persistent segment still in progress.
+         */
+        var myLastTime = 0.0
         var mySumAtStart = 0.0
         var mySumOfWeightsAtStart = 0.0
-        var myTotalAtStart = 0.0
-        var myNumObsAtStart = 0.0
         fun reset() {
+            myStat.reset()
+            myLastTime = 0.0
             mySumAtStart = 0.0
             mySumOfWeightsAtStart = 0.0
-            myTotalAtStart = 0.0
-            myNumObsAtStart = 0.0
+        }
+    }
+
+    /**
+     *  Accumulates each observed response into a statistic owned by this class. The collection rule
+     *  is the one the observed element applies to its own statistic: a plain Response contributes its
+     *  new value at weight one, a TWResponse contributes the value that was in force over a span of
+     *  time, and a Counter contributes the size of the increment.
+     *
+     *  The single deliberate difference is the time weight. TWResponse.assignValue weights by
+     *  timeOfChange minus previousTimeOfChange, and warmUp() sets timeOfChange to the current time
+     *  before its self-assignment, so at the warm-up that weight is zero and the segment from the
+     *  last real change up to the warm-up is discarded. That is correct for the response, which is
+     *  meant to discard pre-warm-up area, and wrong for a time series, which is only slicing time.
+     *  Weighting by the time since this class last collected keeps the segment.
+     *
+     *  Counter.warmUp() resets through resetCounter(0.0, false), which deliberately does not notify,
+     *  while every real increment notifies with previousValue set. Differencing those two therefore
+     *  counts increments correctly across a warm-up.
+     */
+    private inner class ResponseObserver : ModelElementObserver() {
+        override fun update(modelElement: ModelElement) {
+            when (modelElement) {
+                is Counter -> {
+                    val data = myCounters[modelElement] ?: return
+                    data.myStat.value = modelElement.value - modelElement.previousValue
+                }
+                is TWResponse -> {
+                    val data = myResponses[modelElement] ?: return
+                    val w = time - data.myLastTime
+                    // WeightedStatistic.collect treats a non-positive weight as a missing
+                    // observation, so a zero-width segment is skipped rather than recorded
+                    if (w > 0.0) {
+                        data.myStat.collect(modelElement.previousValue, w)
+                    }
+                    data.myLastTime = time
+                }
+                is Response -> {
+                    val data = myResponses[modelElement] ?: return
+                    data.myStat.value = modelElement.value
+                }
+            }
+        }
+    }
+
+    /**
+     *  Collects the time-persistent segment that is still in progress at a period boundary, so that
+     *  the accumulated weight differenced across a period is exactly the period length. Flushing is
+     *  safe here in a way it would not be on the response's own statistic, which is read by others
+     *  and whose observation count would be perturbed.
+     */
+    private fun bankInFlight(response: ResponseCIfc, data: PeriodStartData) {
+        if (response is TWResponse) {
+            val w = time - data.myLastTime
+            if (w > 0.0) {
+                data.myStat.collect(response.value, w)
+            }
+            data.myLastTime = time
         }
     }
 
@@ -595,38 +690,15 @@ class TimeSeriesResponse @JvmOverloads constructor(
         myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
-    /**
-     *  True when a warm-up has occurred since the period in progress began collecting. See the
-     *  matching field on ResponseInterval: the values snapshotted at the start of the period are
-     *  differenced against a statistic that has since been reset, so the period is discarded. A
-     *  discarded period still appears in the collected data, with a null value.
-     */
-    private var warmUpDuringPeriod: Boolean = false
-
-    /**
-     *  Ensures the discard is reported once per experiment rather than once per replication; see the
-     *  matching field on ResponseInterval.
-     */
-    private var warnedOfDiscard = false
-
-    override fun warmUp() {
-        super.warmUp()
-        warmUpDuringPeriod = true
-    }
-
     private fun startPeriodCollection() {
-        warmUpDuringPeriod = false
         for ((response, data) in myResponses) {
             timeLastStarted = time
-            // See ResponseInterval.StartIntervalAction: the statistic's own sums lag for a
-            // TWResponse, so the boundaries must read the area including the in-flight segment.
-            val w: WeightedStatisticIfc = response.withinReplicationStatistic
-            data.mySumAtStart = response.withinReplicationWeightedSum
-            data.mySumOfWeightsAtStart = response.withinReplicationSumOfWeights
-            data.myNumObsAtStart = w.count
+            bankInFlight(response, data)
+            data.mySumAtStart = data.myStat.weightedSum
+            data.mySumOfWeightsAtStart = data.myStat.sumOfWeights
         }
-        for ((counter, data) in myCounters) {
-            data.myTotalAtStart = counter.value
+        for ((_, data) in myCounters) {
+            data.mySumAtStart = data.myStat.weightedSum
         }
     }
 
@@ -646,44 +718,16 @@ class TimeSeriesResponse @JvmOverloads constructor(
 
     private fun endPeriodCollection() {
         val r = model.currentReplicationNumber
-        if (warmUpDuringPeriod && !warnedOfDiscard) {
-            warnedOfDiscard = true
-            Model.logger.warn {
-                "Period $periodCounter of ${this@TimeSeriesResponse.name} ending at time $time is " +
-                    "discarded: a warm-up occurred while it was collecting, so it spans data the " +
-                    "replication is meant to discard. It is recorded with a null value. The warm-up " +
-                    "time and the period length are both fixed, so this recurs in every replication."
-            }
-        }
         for ((response, data) in myResponses) {
             timeLastEnded = time
-            val w: WeightedStatisticIfc = response.withinReplicationStatistic
-            val sum: Double = response.withinReplicationWeightedSum - data.mySumAtStart
-            val denom: Double = response.withinReplicationSumOfWeights - data.mySumOfWeightsAtStart
-            val numObs: Double = w.count - data.myNumObsAtStart
-            val value: Double? = if (warmUpDuringPeriod) {
-                // the start snapshot refers to a statistic that has since been reset
-                null
-            } else if (numObs == 0.0) {
-                // there were no changes of the variable during the period
-                // cannot observe Response but can observe TWResponse
-                if (response is TWResponse) {
-                    //no observations, value did not change during interval
-                    // average = area/time = height*width/width = height
-                    //data.myResponse.value = response.value
-                    response.value
-                } else {
-                    null
-                }
-            } else {
-                // there were observations, denominator cannot be 0, but just in case
-                if (denom != 0.0) {
-                    val avg = sum / denom
-                    avg
-                } else {
-                    null
-                }
-            }
+            bankInFlight(response, data)
+            val sum: Double = data.myStat.weightedSum - data.mySumAtStart
+            val denom: Double = data.myStat.sumOfWeights - data.mySumOfWeightsAtStart
+            // For a TWResponse the accumulated weight is exactly the period length, so a period in
+            // which the variable never changed divides the constant area by the period and returns
+            // the height. For a plain Response the weight is the number of observations, so zero
+            // means the period was empty and there is no average to report.
+            val value: Double? = if (denom > 0.0) sum / denom else null
             //construct the data and capture it
             val responseData = TimeSeriesPeriodData(
                 response.id, response.name, r,
@@ -701,15 +745,14 @@ class TimeSeriesResponse @JvmOverloads constructor(
         }
 
         for ((counter, data) in myCounters) {
-            // Counter.warmUp() resets the count, so differencing against the start snapshot can
-            // report a negative period count. Discard for the same reason as the responses.
-            val intervalCount: Double? =
-                if (warmUpDuringPeriod) null else counter.value - data.myTotalAtStart
+            // The increments observed during the period, accumulated here rather than differenced
+            // from the counter's own value, which the warm-up resets to zero.
+            val intervalCount: Double = data.myStat.weightedSum - data.mySumAtStart
             val counterData = TimeSeriesPeriodData(
                 counter.id, counter.name, r, periodCounter,
                 timeLastStarted, periodLength, intervalCount
             )
-            if ((myAcrossRepCounterStatsTable != null) && (intervalCount != null)) {
+            if (myAcrossRepCounterStatsTable != null) {
                 var statistic = myAcrossRepCounterStatsTable!!.get(counter, periodCounter)
                 if (statistic == null) {
                     statistic = Statistic("${counter.name}_Period_$periodCounter")

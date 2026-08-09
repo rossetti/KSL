@@ -67,10 +67,10 @@ class IntervalStatisticsWindowTest {
     // ── One change strictly inside the interval ─────────────────────────────
 
     /**
-     *  Level 2.0 becoming 5.0 at t = 15, over [10, 20]. The true time-average is
+     *  Level 2.0 becoming 5.0 at t = 15, over 10 to 20. The true time-average is
      *  (2.0 x 5 + 5.0 x 5) / 10 = 3.5.
      *
-     *  Before the fix both classes reported 2.0 — the average over [0, 15], because the last change
+     *  Before the fix both classes reported 2.0 — the average over 0 to 15, because the last change
      *  at or before t = 10 was at t = 0 and the last at or before t = 20 was at t = 15. The
      *  denominator was 15 for a window 10 wide.
      */
@@ -135,7 +135,7 @@ class IntervalStatisticsWindowTest {
 
     /**
      *  A window with more than one change, so the fix cannot be right by accident on a single
-     *  segment. Level 1.0, becoming 2.0 at t = 12, 4.0 at t = 14, 8.0 at t = 18, over [10, 20]:
+     *  segment. Level 1.0, becoming 2.0 at t = 12, 4.0 at t = 14, 8.0 at t = 18, over 10 to 20:
      *  (1 x 2 + 2 x 2 + 4 x 4 + 8 x 2) / 10 = 3.8.
      */
     @Test
@@ -154,7 +154,7 @@ class IntervalStatisticsWindowTest {
 
     /**
      *  Changes on both sides of the window as well as inside it, so a boundary that reads the wrong
-     *  side is caught. Level 1.0, becoming 2.0 at t = 5, 6.0 at t = 15, 9.0 at t = 25, over [10, 20]:
+     *  side is caught. Level 1.0, becoming 2.0 at t = 5, 6.0 at t = 15, 9.0 at t = 25, over 10 to 20:
      *  (2 x 5 + 6 x 5) / 10 = 4.0.
      */
     @Test

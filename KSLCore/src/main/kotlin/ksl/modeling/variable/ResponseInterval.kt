@@ -52,6 +52,20 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  * one observation.  This is most relevant when the interval is repeated because
  * intervals with no observations are not tabulated.
  *
+ * An interval that is still collecting when the warm-up event occurs is discarded: it observes
+ * nothing at all, neither an average for its responses, nor a total for its counters, nor its
+ * empty-interval indicator. The warm-up resets the very quantities that were captured when the
+ * interval started, so no figure computed by differencing them describes the interval, and an
+ * interval names a window that the reported value is supposed to belong to. A counter in this
+ * situation formerly reported a negative count. A warm-up falling exactly on an interval boundary
+ * straddles nothing and discards nothing. The discard is reported once per experiment through a
+ * warning, because the warm-up time and the interval schedule are both fixed and the situation
+ * therefore recurs identically in every replication.
+ *
+ * This is deliberately the opposite of what TimeSeriesResponse does, because the two are built for
+ * opposite contexts. An interval names a window in a study that discards a warm-up period, whereas a
+ * time series is only slicing time and reports every period it slices.
+ *
  * @author rossetti
  */
 class ResponseInterval @JvmOverloads constructor(

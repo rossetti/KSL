@@ -39,12 +39,19 @@ import kotlin.test.assertTrue
  *  demonstrably changed. A `Counter` interval could report a **negative** count — the one symptom in
  *  this whole defect that is impossible on its face.
  *
- *  Such an interval spans data the run is meant to forget, so there is no honest value to report and
- *  it is discarded: the interval observes nothing, and a time-series period records a null value.
+ *  **The two classes answer this differently, because they are built for opposite contexts.**
  *
- *  The flag is set by `warmUp()` and cleared when an interval starts, which makes the outcome
- *  independent of the order in which model elements receive the warm-up. The last two tests pin the
- *  ordering cases.
+ *  A `ResponseInterval` names a window and is used in a steady-state study, typically through a
+ *  `ResponseSchedule` collecting each hour across many days. An interval spanning the warm-up holds
+ *  data the run is meant to forget, so there is no honest value to publish under that label and the
+ *  interval observes nothing. Its flag is set by `warmUp()` and cleared when an interval starts,
+ *  which makes the outcome independent of the order in which model elements receive the warm-up;
+ *  two tests below pin the ordering cases.
+ *
+ *  A `TimeSeriesResponse` is only slicing time and is built for a context without a warm-up at all.
+ *  Every period is reported over its own window, whether it falls before the warm-up, after it, or
+ *  across it. It reaches that by accumulating each response into a statistic of its own instead of
+ *  differencing the response's, so no reset can reach it.
  */
 class IntervalStatisticsWarmUpTest {
 
@@ -62,6 +69,22 @@ class IntervalStatisticsWarmUpTest {
 
         private fun change(event: KSLEvent<Double>) {
             level.value = event.message!!
+        }
+    }
+
+    /** A plain, observation-based Response driven by a scripted list of (time, value) observations. */
+    private class Meter(
+        parent: ModelElement,
+        private val observations: List<Pair<Double, Double>>,
+    ) : ModelElement(parent) {
+        val reading = Response(this, name = "Reading")
+
+        override fun initialize() {
+            for ((t, v) in observations) schedule(::observe, t, message = v)
+        }
+
+        private fun observe(event: KSLEvent<Double>) {
+            reading.value = event.message!!
         }
     }
 
@@ -85,7 +108,7 @@ class IntervalStatisticsWarmUpTest {
 
     /**
      *  Case A: a change before the interval and a change inside it. Level 2.0, becoming 3.0 at
-     *  t = 10 and 5.0 at t = 27, interval [20, 30], warm-up at t = 25.
+     *  t = 10 and 5.0 at t = 27, interval 20 to 30, warm-up at t = 25.
      *
      *  Before the fix the reset drove the differenced observation count to exactly zero, so the
      *  no-observations branch reported 5.0 — the height at the end — for a window whose true average
@@ -111,7 +134,7 @@ class IntervalStatisticsWarmUpTest {
 
     /**
      *  Case B: no change before the interval, one inside it. Level 2.0 becoming 5.0 at t = 27.
-     *  Before the fix the general branch ran and reported 2.0 — the average over [25, 27] — for a
+     *  Before the fix the general branch ran and reported 2.0 — the average over 25 to 27 — for a
      *  window whose true average is 2.9.
      */
     @Test
@@ -181,30 +204,113 @@ class IntervalStatisticsWarmUpTest {
     // ── TimeSeriesResponse, the other implementation ────────────────────────
 
     /**
-     *  Periods are back to back, so exactly one straddles the warm-up. That one records a null value;
-     *  the periods on either side are unaffected and keep reporting.
+     *  A `TimeSeriesResponse` is only slicing time, so a period the warm-up falls inside is still that
+     *  period and must be reported over its own window. It does not discard, unlike `ResponseInterval`
+     *  above, because the two classes are built for opposite contexts.
+     *
+     *  This is the case measured against the original implementation. Level 2.0, becoming 6.0 at
+     *  t = 12 and 4.0 at t = 18, warm-up at t = 15, period 2 is 10 to 20:
+     *  (2 x 2 + 6 x 3 + 6 x 3 + 4 x 2) / 10 = 4.8.
+     *
+     *  The original reported **6.0** — sum 18.0 over a denominator of 3.0 for a period ten wide,
+     *  which is the average over 15 to 18. The warm-up resets the response's within-replication
+     *  statistic, so the end read had accumulated only since t = 15 while the start snapshot predated
+     *  it. My first fix recorded null here, which is equally wrong for this class.
      */
     @Test
-    @DisplayName("The time-series period straddling a warm-up records a null value; its neighbours do not")
-    fun timeSeriesDiscardsOnlyTheStraddlingPeriod() {
+    @DisplayName("A time-series period straddling a warm-up reports its true average")
+    fun timeSeriesReportsPeriodStraddlingWarmUp() {
         val model = Model("warmUpTimeSeries")
-        val tank = Tank(model, listOf(27.0 to 5.0), initial = 2.0, name = "T")
+        val tank = Tank(model, listOf(12.0 to 6.0, 18.0 to 4.0), initial = 2.0, name = "T")
         val series = TimeSeriesResponse(
-            tank, periodLength = 10.0, numPeriods = 5, responses = setOf(tank.level)
+            tank, periodLength = 10.0, numPeriods = 3, responses = setOf(tank.level)
         )
         model.numberOfReplications = 1
-        model.lengthOfReplication = 50.0
-        model.lengthOfReplicationWarmUp = 25.0
+        model.lengthOfReplication = 30.0
+        model.lengthOfReplicationWarmUp = 15.0
         model.simulate()
         val periods = series.responsePeriodDataAsList(tank.level).associateBy { it.period }
-        assertNotNull(periods[2]?.value, "[10,20] ends before the warm-up and is unaffected")
-        assertNull(periods[3]?.value, "[20,30] straddles the warm-up at 25 and must be discarded")
-        assertNotNull(periods[4]?.value, "[30,40] begins after the warm-up and is unaffected")
+        assertEquals(2.0, periods[1]?.value ?: Double.NaN, 1e-9, "[0,10]: constant at 2.0")
+        assertEquals(
+            4.8, periods[2]?.value ?: Double.NaN, 1e-9,
+            "[10,20] straddles the warm-up at 15; the original reported 6.0, then null",
+        )
+        assertEquals(4.0, periods[3]?.value ?: Double.NaN, 1e-9, "[20,30]: constant at 4.0")
     }
 
+    /**
+     *  The same model with no warm-up at all. Every period must report exactly what it reports with
+     *  the warm-up in place — which is what "does not react to warm up events" has to mean if the
+     *  class is only slicing time.
+     */
     @Test
-    @DisplayName("A time-series counter period straddling a warm-up records a null value")
-    fun timeSeriesDiscardsStraddlingCounterPeriod() {
+    @DisplayName("Removing the warm-up changes no time-series period value")
+    fun timeSeriesIsUnchangedWithoutAWarmUp() {
+        val model = Model("noWarmUpTimeSeries")
+        val tank = Tank(model, listOf(12.0 to 6.0, 18.0 to 4.0), initial = 2.0, name = "T")
+        val series = TimeSeriesResponse(
+            tank, periodLength = 10.0, numPeriods = 3, responses = setOf(tank.level)
+        )
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 30.0
+        model.simulate()
+        val periods = series.responsePeriodDataAsList(tank.level).associateBy { it.period }
+        assertEquals(2.0, periods[1]?.value ?: Double.NaN, 1e-9, "same as with the warm-up")
+        assertEquals(4.8, periods[2]?.value ?: Double.NaN, 1e-9, "same as with the warm-up")
+        assertEquals(4.0, periods[3]?.value ?: Double.NaN, 1e-9, "same as with the warm-up")
+    }
+
+    /**
+     *  A warm-up landing exactly on a period boundary is where element ordering could decide the
+     *  answer. Neither neighbouring period may move.
+     */
+    @Test
+    @DisplayName("A warm-up on a period boundary leaves both neighbouring periods exact")
+    fun timeSeriesWarmUpOnPeriodBoundary() {
+        val model = Model("boundaryWarmUpTimeSeries")
+        val tank = Tank(model, listOf(12.0 to 6.0, 18.0 to 4.0), initial = 2.0, name = "T")
+        val series = TimeSeriesResponse(
+            tank, periodLength = 10.0, numPeriods = 3, responses = setOf(tank.level)
+        )
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 30.0
+        model.lengthOfReplicationWarmUp = 20.0
+        model.simulate()
+        val periods = series.responsePeriodDataAsList(tank.level).associateBy { it.period }
+        assertEquals(4.8, periods[2]?.value ?: Double.NaN, 1e-9, "[10,20] ends exactly at the warm-up")
+        assertEquals(4.0, periods[3]?.value ?: Double.NaN, 1e-9, "[20,30] starts exactly at the warm-up")
+    }
+
+    /**
+     *  An observation-based response across the warm-up. Its statistic is reset just as a
+     *  `TWResponse`'s is, so the period must be assembled from the observations themselves:
+     *  1, 2, 3, 4 at t = 12, 14, 16, 18 in 10 to 20 averages 2.5.
+     */
+    @Test
+    @DisplayName("A plain Response period straddling a warm-up averages its own observations")
+    fun timeSeriesPlainResponseAcrossWarmUp() {
+        val model = Model("warmUpTimeSeriesPlain")
+        val meter = Meter(model, listOf(12.0 to 1.0, 14.0 to 2.0, 16.0 to 3.0, 18.0 to 4.0))
+        val series = TimeSeriesResponse(
+            meter, periodLength = 10.0, numPeriods = 3, responses = setOf(meter.reading)
+        )
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 30.0
+        model.lengthOfReplicationWarmUp = 15.0
+        model.simulate()
+        val periods = series.responsePeriodDataAsList(meter.reading).associateBy { it.period }
+        assertEquals(2.5, periods[2]?.value ?: Double.NaN, 1e-9, "(1 + 2 + 3 + 4) / 4")
+        assertNull(periods[1]?.value, "[0,10] holds no observations, so it still has no average")
+    }
+
+    /**
+     *  A counter period straddling the warm-up. `Counter.warmUp()` zeroes the count, so differencing
+     *  the counter's own value across it produced a negative period count — the defect from §10.6,
+     *  reported here rather than discarded.
+     */
+    @Test
+    @DisplayName("A time-series counter period straddling a warm-up reports its true count")
+    fun timeSeriesCounterAcrossWarmUp() {
         val model = Model("warmUpTimeSeriesCounter")
         val ticker = Ticker(model, until = 50.0)
         val series = TimeSeriesResponse(
@@ -215,8 +321,11 @@ class IntervalStatisticsWarmUpTest {
         model.lengthOfReplicationWarmUp = 25.0
         model.simulate()
         val periods = series.counterPeriodDataAsList(ticker.count).associateBy { it.period }
-        assertNotNull(periods[2]?.value, "[10,20] ends before the warm-up")
-        assertNull(periods[3]?.value, "[20,30] straddles the warm-up and must be discarded")
+        assertEquals(10.0, periods[2]?.value ?: Double.NaN, 1e-9, "[10,20] ends before the warm-up")
+        assertEquals(
+            10.0, periods[3]?.value ?: Double.NaN, 1e-9,
+            "[20,30] straddles the warm-up at 25; five ticks before it and five after",
+        )
         assertEquals(10.0, periods[4]?.value ?: Double.NaN, 1e-9, "[30,40] counts ten ticks as usual")
     }
 
@@ -224,7 +333,7 @@ class IntervalStatisticsWarmUpTest {
 
     /**
      *  A warm-up exactly at an interval boundary is the case where model-element ordering could
-     *  decide the answer. Warm-up at t = 20, interval [20, 30]: whichever runs first, the interval
+     *  decide the answer. Warm-up at t = 20, interval 20 to 30: whichever runs first, the interval
      *  collects entirely after the reset and there is nothing to discard.
      */
     @Test

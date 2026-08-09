@@ -108,7 +108,7 @@ class IntervalStatisticsBaselineTest {
     // ── A TWResponse that does not change inside the interval ───────────────
 
     /**
-     *  Level 2.0, becoming 5.0 at t = 15, over the interval [30, 40]. Nothing changes inside, so the
+     *  Level 2.0, becoming 5.0 at t = 15, over the interval 30 to 40. Nothing changes inside, so the
      *  no-observations branch reports the current height, which is exactly the time-average of a
      *  constant.
      */
@@ -130,7 +130,7 @@ class IntervalStatisticsBaselineTest {
     // ── A Counter over an interval ──────────────────────────────────────────
 
     /**
-     *  One increment per unit time. Over [10, 20] that is exactly ten increments. A `Counter` has
+     *  One increment per unit time. Over 10 to 20 that is exactly ten increments. A `Counter` has
      *  nothing in flight, so differencing its live value is exact — which locates the defect as
      *  being about time-weighted accumulation rather than about differencing across a boundary.
      */
