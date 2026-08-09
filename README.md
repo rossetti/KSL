@@ -40,6 +40,8 @@ The KSL has the following functionality:
 Who knows what the future may bring! The KSL is a complex and extremely useful library for performing Monte Carlo and discrete event
 simulation experiments.  Here is some planned and potential future functionality.
 
+- Release 1.6 is a correctness release covering interval and period statistics, entity state
+  after a terminated process, and movable resource pools — see [the release notes](docs/release-notes.md)
 - Release 1.5 is a correctness release that also adds the metalog distribution family and
   reworks multi-objective decision analysis — see [the release notes](docs/release-notes.md)
 - Release 1.4 accomplished a significant reorganization of the repository
@@ -206,6 +208,14 @@ The full release history lives in **[docs/release-notes.md](docs/release-notes.m
 covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.6, R1.5.1, …)
 and the installable **suite** of applications and servers (versioned 0.3.4, 0.3.3, …). A
 suite release does not imply a library release, or the reverse.
+
+**Suite 0.3.5** — no application changed; the engine did. Interval and period statistics for
+time-persistent quantities — queue lengths, utilisation, number in system — were measured over
+the wrong window, and an interval containing a warm-up could report a level as though it were
+constant or a counter as a negative number. Models using a movable resource pool could hang
+forever waiting for a transporter, broken since R1.2.6. The *Warehouse AGV* and *Drone Delivery*
+animation examples now run more than one replication. Results written before 0.3.5 are not
+migrated, so re-run rather than compare across the upgrade.
 
 **Suite 0.3.4** — the Distribution app's AIC scoring option now penalises complexity instead
 of very slightly rewarding it, so a comparison that includes AIC can rank candidate

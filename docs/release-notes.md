@@ -24,6 +24,38 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.3.5 — the R1.6 engine
+
+*9 August 2026.* No application changed in this release. The simulation engine underneath them
+did, and it changes numbers.
+
+**Interval and period statistics for time-persistent quantities were measured over the wrong
+window.** Anything collected through a response schedule, a response interval, or a time series —
+queue lengths, resource utilisation, numbers in system — was averaged over a window offset from
+the one you asked for. If a warm-up period fell inside such an interval it was worse: an interval
+could report a level as though it had been constant throughout, and a counter could report a
+**negative** count. Across the shipped examples 22 of 127 responses moved, by 1.2% at the median
+and 12.5% at most. Observation-based statistics — waiting times, system times — were correct and
+are unchanged.
+
+**Results databases are not migrated.** Rows written before 0.3.5 keep the values they were
+written with. Comparing an interval statistic from an older run against a new one in the Results
+application compares two different computations, so re-run rather than compare across the upgrade.
+
+**Models using a movable resource pool could hang.** Entities queued for a pool of transporters
+were never woken when one was released, so they waited forever. This has been broken since library
+release R1.2.6. A model that stalled should now run to completion.
+
+**Two shipped animation examples could not run past one replication.** *Warehouse AGV* and *Drone
+Delivery* failed on replication 2 with "entity is already running a process". Both now run any
+number of replications. Their polished layouts are unchanged.
+
+**Upgrading.** `ksl update` works normally from 0.3.2 on. Nothing in the applications behaves
+differently.
+
+**Using KSLCore directly?** The [R1.6 notes](#r16) cover the library changes, including one API
+change in the experimental agent package.
+
 ## 0.3.4 — the AIC scoring option
 
 *5 August 2026.* This release changes KSLCore.
