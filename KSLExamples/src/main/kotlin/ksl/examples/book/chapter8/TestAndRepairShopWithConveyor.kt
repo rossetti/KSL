@@ -118,7 +118,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     init {
         loopConveyor.accessQueueAt(myRepair.name).defaultReportingOption = false
-        println(loopConveyor)
+ //       println(loopConveyor)
     }
 
     // define the process
