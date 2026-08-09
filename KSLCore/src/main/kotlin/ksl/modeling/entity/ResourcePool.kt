@@ -160,7 +160,10 @@ open class ResourcePool @JvmOverloads constructor(
      * @param resourceSelectionRule The rule to use to select resources to allocate from
      * @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources
      * @return an allocation representing that the units have been allocated to the entity. The reference
-     * to this allocation is necessary in order to deallocate the allocated units.
+     * to this allocation is necessary in order to deallocate the allocated units. The returned object
+     * groups one allocation per contributing resource; each of those records this pool as the pool the
+     * request was made against, so that releasing one of them individually still processes the queue on
+     * the pool's behalf rather than on behalf of a single member.
      */
     fun allocate(
         entity: ProcessModel.Entity,

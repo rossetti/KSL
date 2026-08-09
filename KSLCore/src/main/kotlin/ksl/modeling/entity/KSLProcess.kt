@@ -1625,6 +1625,12 @@ interface KSLProcessBuilder {
     /**
      *  Releases the allocation of the resource
      *
+     *  If the allocation was made to satisfy a request against a *pool*, the waiting requests in
+     *  the queue name the pool rather than the member that happened to be allocated, so the release
+     *  processes that queue on the pool's behalf. The allocation records which pool it came from, so
+     *  this is automatic and the caller does not choose. Releasing a member allocation of a pool
+     *  therefore still wakes the entities queued for that pool.
+     *
      *  @param allocation represents an allocation of so many units of a resource to an entity
      *  @param releasePriority the priority associated with this release. This priority is used
      *  to order the resumption events associated with the release. If multiple releases occur at the same

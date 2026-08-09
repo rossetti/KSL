@@ -157,8 +157,12 @@ open class MovableResourcePool(
      * to wait if the allocation was not immediately filled
      * @param resourceSelectionRule The rule to use to select resources to allocate from
      * @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources
-     * @return an allocation representing that the units have been allocated to the entity. The reference
-     * to this allocation is necessary in order to deallocate the allocated units.
+     * @return an allocation representing that the unit has been allocated to the entity. The reference
+     * to this allocation is necessary in order to deallocate the allocated unit. The allocation belongs
+     * to the individual movable resource that was selected, but it records this pool as the pool the
+     * request was made against, so that releasing it processes the queue on the pool's behalf. Without
+     * that, the release would name the individual resource and match none of the pool's waiting
+     * requests, which name the pool.
      */
     fun allocate(
         entity: ProcessModel.Entity,
