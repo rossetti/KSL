@@ -1060,7 +1060,7 @@
     "scheduled capacity change rules",
     "pharmacist staffing example"
   ],
-  "enhancing-the-stem-career-mixer-model": [
+  "sec-ch7StemEnhanced": [
     "stem career fair",
     "career mixer example",
     "conversation area sizing",
@@ -1078,11 +1078,22 @@
     "distance between locations",
     "feet per minute speed"
   ],
-  "collecting-statistics-over-periods-of-time": [
+  "non-stationary-stem-career-fair-mixer": [
+    "time varying arrival rate",
+    "arrival rates by 30 minute period",
+    "peak period staffing plan",
+    "changing recruiters by hour",
+    "choosing the least busy recruiter",
+    "walking speed between stations",
+    "pa announcement before closing",
+    "mixer problem statement"
+  ],
+  "collecting-period-statistics-for-the-mixer-model": [
     "interval statistics",
     "hourly statistics",
     "ResponseInterval",
     "ResponseSchedule",
+    "TimeSeriesResponse",
     "statistics during time window",
     "tally based data periods",
     "peak period performance",
