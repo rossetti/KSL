@@ -310,8 +310,8 @@ object OrderNothingPolicy : PolicyIfc {
 
 /**
  * Average cost per unit time, assembled from the model's own responses. Doing this by
- * hand is what a reward estimand (§4.2.5, M2) would automate — and note that all three
- * reward kinds appear here.
+ * hand is what a reward estimand (§4.2.5) automates — M1 step 7b built it — and note that all
+ * three reward kinds appear here.
  */
 data class InventoryCost(
     val orderSetup: Double, val purchase: Double,

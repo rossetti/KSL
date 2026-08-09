@@ -7,6 +7,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -214,6 +215,20 @@ class DeclarationSurfaceCoverageTest {
             "a lever in two joint constraints should be refused at build(); " +
                 "saw ${results["two constraints over one lever"]}"
         )
+
+        // §4.4.6.5 prints this set as a table, and a table is not executable. Three forms were
+        // deferred when the probe was first written; `reward` and `captureTo` have since been
+        // built and §4.4.6.5 said so only because someone noticed. Pinning the set means the
+        // next form to land breaks this assertion instead of leaving a paragraph quietly wrong.
+        assertEquals(setOf("batchLever"), deferred.keys,
+            "the set of declarable-but-unbuilt forms changed. Update §4.4.6.5's table and this " +
+                "assertion together — the table is the claim and this is what makes it checkable")
+
+        // And the milestone a refusal names is part of its contract (§4.4.6.5). `batchLever`
+        // said "M1 step 6" while §7.3.0 reported step 6 as Done, so a modeler was told to wait
+        // for work that had landed. §7.3.1 now carries batchLever as a criterion of step 6.
+        assertEquals("REFUSED AT DECLARATION (M1 step 6)", results["batchLever"],
+            "batchLever's refusal must name the step whose acceptance criteria cover it")
     }
 
     // ---------------------------------------------------------------------------

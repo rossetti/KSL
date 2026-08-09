@@ -13,9 +13,10 @@ import kotlin.test.assertTrue
  *  Can a modeler write a value-function policy against the design as it stands — their own
  *  action enumeration, their own `V̄` — and have it fit?
  *
- *  The answer splits, and the split is the finding. Evaluating a value function works with
- *  the interfaces that exist. Learning one does not, because the interface that exists for
- *  it is never called.
+ *  The answer splits, and the split is the finding. Evaluating a value function works with the
+ *  interfaces that exist. Learning one did not, because the interface that exists for it was
+ *  never called — and M1 steps 7b and 7c have since fixed that, so the second half of this test
+ *  now asserts the contract rather than its absence.
  */
 class VfaInventoryTest {
 

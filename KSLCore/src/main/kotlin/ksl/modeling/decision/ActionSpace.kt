@@ -192,15 +192,18 @@ fun interface ValueApproximationIfc {
 /**
  *  A value function that improves from observed experience.
  *
- *  The seam exists so that when the epoch loop delivers transitions (§4.8, M3) and rewards
- *  (§4.2.5, M2), a [LookaheadPolicy] holding one of these becomes a learning rule by
- *  forwarding `ManagedPolicyIfc.onTransition` to [update] — one class rather than a new
- *  concept. §8.2.9 measured that those hooks are currently never called.
+ *  The seam exists so that a [LookaheadPolicy] holding one of these becomes a learning rule by
+ *  forwarding `ManagedPolicyIfc.onTransition` to [update] — one class rather than a new concept.
+ *
+ *  The epoch loop delivers the transitions and the rewards it needs: M1 steps 7b and 7c wired
+ *  §4.10.2's steps 2 and 4, and §8.2.9 measures the hooks firing. **No shipped class forwards them
+ *  to [update]** — that adapter is the one piece still unwritten, and writing it is not the same
+ *  problem as choosing a fitting algorithm, which is out of scope (§1.2).
  */
 interface LearnableValueApproximationIfc : ValueApproximationIfc {
     /** Fold one observation of realised cost-to-go into the estimate. */
     fun update(postDecision: DoubleArray, observedCostToGo: Double)
-    /** Forget everything. Called per replication once the lifecycle hooks are plumbed. */
+    /** Forget everything. Called once per episode — one episode per replication (§4.6.3). */
     fun reset()
 }
 

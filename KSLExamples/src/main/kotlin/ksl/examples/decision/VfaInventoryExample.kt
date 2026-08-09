@@ -121,9 +121,10 @@ class NewsvendorVfaPolicy(
  * design provides for it. It records nothing useful — the point is the counters.
  *
  * [ManagedPolicyIfc] declares exactly the three hooks an adaptive rule needs: reset per
- * episode, observe each completed transition, finish the episode. The interface exists and
- * a policy can implement it. Whether anything ever calls it is what
- * `VfaInventoryTest.theLearningHooksAreDeclaredButNeverCalled` measures.
+ * episode, observe each completed transition, finish the episode. The interface exists, a policy
+ * can implement it, and the epoch loop now calls it — which is what
+ * `VfaInventoryTest.theLearningHooksAreCalledWithOneEpisodePerReplication` measures. It counted
+ * zeros until M1 steps 7b and 7c landed.
  */
 class LearningProbePolicy(
     private val inner: PolicyIfc
