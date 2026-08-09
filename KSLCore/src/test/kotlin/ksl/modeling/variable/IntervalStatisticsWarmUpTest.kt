@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  *  A warm-up resets each response's within-replication statistic and each counter's count. An
@@ -260,5 +261,73 @@ class IntervalStatisticsWarmUpTest {
         model.simulate()
         assertEquals(1.0, avg.withinReplicationStatistic.count, 0.0, "a stale flag would discard this")
         assertEquals(2.9, avg.withinReplicationStatistic.weightedAverage, 1e-9, "(2.0 x 7 + 5.0 x 3) / 10")
+    }
+
+    // ── The warning ─────────────────────────────────────────────────────────
+
+    /**
+     *  A discarded interval is silent in the output — the interval simply observes nothing, which is
+     *  indistinguishable from an interval that never ran. A log warning is therefore the only signal
+     *  a modeller gets, so it must actually fire.
+     *
+     *  Captured by attaching an appender to the logger rather than by inspecting statistics, because
+     *  the whole point is that the statistics show nothing.
+     */
+    private fun captureWarnings(block: () -> Unit): List<String> {
+        val logger = org.slf4j.LoggerFactory.getLogger(Model::class.java) as ch.qos.logback.classic.Logger
+        val appender = ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>()
+        appender.start()
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+        return appender.list
+            .filter { it.level == ch.qos.logback.classic.Level.WARN }
+            .map { it.formattedMessage }
+    }
+
+    @Test
+    @DisplayName("A discarded interval logs a warning, once, naming the interval")
+    fun discardedIntervalWarnsOnce() {
+        val warnings = captureWarnings {
+            val model = Model("warnDiscard")
+            val tank = Tank(model, listOf(27.0 to 5.0), initial = 2.0, name = "T")
+            val interval = ResponseInterval(tank, theDuration = 10.0, label = "Window")
+            interval.startTime = 20.0
+            interval.addResponseToInterval(tank.level)
+            model.numberOfReplications = 3
+            model.lengthOfReplication = 50.0
+            model.lengthOfReplicationWarmUp = 25.0
+            model.simulate()
+        }
+        val discardWarnings = warnings.filter { it.contains("is discarded") }
+        assertEquals(
+            1, discardWarnings.size,
+            "three replications each discard the interval, but it is reported once: $discardWarnings",
+        )
+        assertTrue(discardWarnings.first().contains("Window"), "the warning should name the interval")
+    }
+
+    @Test
+    @DisplayName("A warm-up on an interval boundary logs no discard warning")
+    fun boundaryWarmUpDoesNotWarn() {
+        val warnings = captureWarnings {
+            val model = Model("warnNoDiscard")
+            val tank = Tank(model, listOf(27.0 to 5.0), initial = 2.0, name = "T")
+            val interval = ResponseInterval(tank, theDuration = 10.0, label = "Window")
+            interval.startTime = 20.0
+            interval.addResponseToInterval(tank.level)
+            model.numberOfReplications = 3
+            model.lengthOfReplication = 50.0
+            model.lengthOfReplicationWarmUp = 20.0
+            model.simulate()
+        }
+        assertEquals(
+            0, warnings.count { it.contains("is discarded") },
+            "nothing straddles a warm-up that lands on the boundary, so nothing is discarded",
+        )
     }
 }

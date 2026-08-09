@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.collections.HashBasedTable
 import ksl.utilities.collections.MutableTable
@@ -543,6 +544,7 @@ class TimeSeriesResponse @JvmOverloads constructor(
 
     override fun beforeExperiment() {
         super.beforeExperiment()
+        warnedOfDiscard = false
         for ((_, list) in myResponseData) {
             list.clear()
         }
@@ -601,6 +603,12 @@ class TimeSeriesResponse @JvmOverloads constructor(
      */
     private var warmUpDuringPeriod: Boolean = false
 
+    /**
+     *  Ensures the discard is reported once per experiment rather than once per replication; see the
+     *  matching field on ResponseInterval.
+     */
+    private var warnedOfDiscard = false
+
     override fun warmUp() {
         super.warmUp()
         warmUpDuringPeriod = true
@@ -638,6 +646,15 @@ class TimeSeriesResponse @JvmOverloads constructor(
 
     private fun endPeriodCollection() {
         val r = model.currentReplicationNumber
+        if (warmUpDuringPeriod && !warnedOfDiscard) {
+            warnedOfDiscard = true
+            Model.logger.warn {
+                "Period $periodCounter of ${this@TimeSeriesResponse.name} ending at time $time is " +
+                    "discarded: a warm-up occurred while it was collecting, so it spans data the " +
+                    "replication is meant to discard. It is recorded with a null value. The warm-up " +
+                    "time and the period length are both fixed, so this recurs in every replication."
+            }
+        }
         for ((response, data) in myResponses) {
             timeLastEnded = time
             val w: WeightedStatisticIfc = response.withinReplicationStatistic

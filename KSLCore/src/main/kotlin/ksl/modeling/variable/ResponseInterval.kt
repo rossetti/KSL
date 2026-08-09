@@ -24,6 +24,7 @@ package ksl.modeling.variable
 
 import ksl.observers.ModelElementObserver
 import ksl.simulation.KSLEvent
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
@@ -358,6 +359,19 @@ class ResponseInterval @JvmOverloads constructor(
      */
     private var warmUpDuringInterval: Boolean = false
 
+    /**
+     *  Ensures the discard is reported once per experiment rather than once per replication. The
+     *  warm-up time and the interval schedule are both fixed, so an interval that straddles the
+     *  warm-up does so in every replication; repeating the warning would add a line per replication
+     *  and say nothing the first did not.
+     */
+    private var warnedOfDiscard = false
+
+    override fun beforeExperiment() {
+        super.beforeExperiment()
+        warnedOfDiscard = false
+    }
+
     override fun warmUp() {
         super.warmUp()
         warmUpDuringInterval = true
@@ -395,6 +409,15 @@ class ResponseInterval @JvmOverloads constructor(
 
     private inner class EndIntervalAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
+            if (warmUpDuringInterval && !warnedOfDiscard) {
+                warnedOfDiscard = true
+                Model.logger.warn {
+                    "Interval ${this@ResponseInterval.name} ending at time $time is discarded: a " +
+                        "warm-up occurred while it was collecting, so it spans data the replication " +
+                        "is meant to discard. No observation is recorded for it. The warm-up time " +
+                        "and the interval schedule are both fixed, so this recurs in every replication."
+                }
+            }
             for ((key, data) in myResponses) {
                 timeLastEnded = time
                 val w: WeightedStatisticIfc = key.withinReplicationStatistic
