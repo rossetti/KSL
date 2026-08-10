@@ -125,10 +125,49 @@ interface ShapeAwarePolicyIfc : PolicyIfc {
 
 /** A policy with a lifecycle: per-replication state to reset, or a resource to release. */
 interface ManagedPolicyIfc : PolicyIfc, AutoCloseable {
+
+    /**
+     *  §4.7. Acquire whatever this rule needs for **one experiment**. Called from the element's
+     *  `beforeExperiment()`, so it runs again on every `model.simulate()`.
+     */
+    fun beforeExperiment() {}
+
     fun beforeEpisode(episodeIndex: Int) {}
+
     /** The completed transition this rule's own action earned — what an adaptive rule needs. */
     fun onTransition(record: TransitionRecord) {}
+
     fun afterEpisode(episodeIndex: Int, source: TerminationSource) {}
+
+    /**
+     *  §4.7. Release whatever [beforeExperiment] acquired. Called from the element's
+     *  `afterExperiment()`, and **paired with it on every run** — a model simulated three times
+     *  calls both three times.
+     *
+     *  This is where per-run teardown goes. It is deliberately not [close].
+     */
+    fun afterExperiment() {}
+
+    /**
+     *  End of life, not end of experiment.
+     *
+     *  **The element does not call this at `afterExperiment()`**, and the first version did — which
+     *  meant a model simulated twice ran its second experiment against a policy whose resources had
+     *  already been released, with no error and no sign in the output. Measured on a two-run, two-
+     *  replication model: the policy was closed after run 1 and then used **twelve** more times.
+     *  Repeated evaluation of one model is not an exotic case; it is what a parameter sweep and
+     *  simulation optimization (B.5) both do.
+     *
+     *  The element closes only what the element opened (§4.7). It opens a sink, through the factory
+     *  at `beforeExperiment()`, so it closes the sink. It never opened the policy — the user
+     *  constructed it and assigned it — so the only moment it closes one is when that policy is
+     *  **replaced**, which is the user saying they are finished with it here. The last policy
+     *  assigned is the user's to close, exactly as `WelchFileObserver` is
+     *  (`observers/welch/WelchFileObserver.kt:100`, whose own `close` is documented "Call when done
+     *  with the observer. Idempotent.").
+     *
+     *  Implementations should be idempotent, for the same reason that one is.
+     */
     override fun close() {}
 }
 

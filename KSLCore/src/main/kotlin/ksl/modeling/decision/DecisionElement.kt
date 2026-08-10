@@ -263,7 +263,14 @@ class DecisionElement internal constructor(
         get() = myPolicy
         set(value) {
             requireNotRunning("policy")
-            (myPolicy as? ManagedPolicyIfc)?.close()
+            // §4.7. Replacement is the one moment the element is definitively finished with a
+            // policy it was handed, so it is the one moment it closes one. §4.9's k-policy
+            // comparison assigns k rules to one element in a loop, and leaving each of the k-1
+            // superseded rules unclosed would leak whatever they hold.
+            //
+            // Assigning the SAME policy back is not a replacement and must not close it — that
+            // reads as a no-op at the call site and would otherwise release a live resource.
+            if (value !== myPolicy) (myPolicy as? ManagedPolicyIfc)?.close()
             myPolicy = value
             if (value is ShapeAwarePolicyIfc) value.configure(descriptor())
         }
@@ -736,6 +743,11 @@ class DecisionElement internal constructor(
 
     // ---- Lifecycle (§4.10.3) ----------------------------------------------------
     override fun beforeExperiment() {
+        // §4.7. A managed policy acquires its per-experiment resources here, paired with the
+        // afterExperiment() below on every run — so a model simulated three times sets the policy
+        // up three times rather than leaving runs 2 and 3 to use what run 1 tore down.
+        (myPolicy as? ManagedPolicyIfc)?.beforeExperiment()
+
         // The sink is opened once per experiment, with the provenance a row needs in order to be
         // written without a live Model (§4.8.2). The descriptor is computed here rather than
         // stored, so it cannot be stale (§4.1.5).
@@ -802,9 +814,20 @@ class DecisionElement internal constructor(
     }
 
     override fun afterExperiment() {
-        // §4.7. Both handles close exactly once, and a failure in one does not prevent the other.
+        // §4.7. The element closes what the element OPENED. It opened the sink, through the
+        // factory in beforeExperiment(), so it closes the sink. It did not open the policy — the
+        // user constructed it and assigned it — so the policy gets its per-experiment teardown
+        // here and its close() only when replaced.
+        //
+        // This used to call policy.close(), which made a second model.simulate() run against a
+        // policy whose resources had been released: measured at twelve uses after close on a
+        // two-run model, silently. A sweep and simulation optimization (B.5) both re-run one
+        // model, so that is the ordinary case rather than an exotic one.
+        //
+        // Both teardowns are attempted and a failure in one does not prevent the other.
         val failures = mutableListOf<Throwable>()
-        runCatching { (myPolicy as? ManagedPolicyIfc)?.close() }.exceptionOrNull()?.let { failures += it }
+        runCatching { (myPolicy as? ManagedPolicyIfc)?.afterExperiment() }
+            .exceptionOrNull()?.let { failures += it }
         runCatching { sink.close() }.exceptionOrNull()?.let { failures += it }
         sink = ksl.sdm.capture.NullSink
         if (failures.isNotEmpty()) {

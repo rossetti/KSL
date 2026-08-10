@@ -159,6 +159,8 @@ class VfaInventoryTest {
         println("  onTransition  : ${probe.transitionsSeen}")
         println("  afterEpisode  : ${probe.episodesEnded}")
         println("  close         : ${probe.closes}")
+        println("  beforeExpt    : ${probe.experimentsStarted}")
+        println("  afterExpt     : ${probe.experimentsEnded}")
 
         assertTrue(probe.actionsTaken > 1000, "the policy did not run")
         assertEquals(reps, probe.episodesStarted,
@@ -166,7 +168,14 @@ class VfaInventoryTest {
         assertEquals(reps, probe.episodesEnded,
             "and exactly $reps endings — an episode that ends early must not also be ended again " +
                 "by replicationEnded()")
-        assertEquals(1, probe.closes, "close() is per experiment, not per replication (§4.7)")
+        // §4.7. The element closes what the element OPENED, and it did not open this policy.
+        assertEquals(0, probe.closes,
+            "the element must not close a policy it was handed. It used to close at " +
+                "afterExperiment(), which left a second model.simulate() running against " +
+                "released resources — the per-experiment pair below is what replaced it")
+        assertEquals(1, probe.experimentsStarted, "beforeExperiment() is per experiment")
+        assertEquals(1, probe.experimentsEnded, "and afterExperiment() pairs with it")
+        assertEquals(0, probe.actionsAfterClose, "and nothing decided after a close")
 
         assertTrue(probe.transitionsSeen > 0,
             "a rule can now learn from its own experience; this is the assertion the earlier " +

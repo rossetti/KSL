@@ -120,11 +120,14 @@ class NewsvendorVfaPolicy(
  * A policy that wants to **learn** rather than evaluate, written against the interface the
  * design provides for it. It records nothing useful — the point is the counters.
  *
- * [ManagedPolicyIfc] declares exactly the three hooks an adaptive rule needs: reset per
- * episode, observe each completed transition, finish the episode. The interface exists, a policy
- * can implement it, and the epoch loop now calls it — which is what
+ * [ManagedPolicyIfc] declares the hooks an adaptive rule needs: set up per experiment, reset per
+ * episode, observe each completed transition, finish the episode, tear down per experiment. The
+ * interface exists, a policy can implement it, and the epoch loop now calls it — which is what
  * `VfaInventoryTest.theLearningHooksAreCalledWithOneEpisodePerReplication` measures. It counted
  * zeros until M1 steps 7b and 7c landed.
+ *
+ * [closes] and [actionsAfterClose] are the §4.7 ownership assertions: the element must NOT close a
+ * policy it did not open, and a policy must never be asked to decide after it has been closed.
  */
 class LearningProbePolicy(
     private val inner: PolicyIfc
@@ -138,16 +141,28 @@ class LearningProbePolicy(
         private set
     var closes = 0
         private set
+    var experimentsStarted = 0
+        private set
+    var experimentsEnded = 0
+        private set
     var actionsTaken = 0
         private set
+    var actionsAfterClose = 0
+        private set
+    private var closed = false
 
+    override fun beforeExperiment() { experimentsStarted++ }
     override fun beforeEpisode(episodeIndex: Int) { episodesStarted++ }
     override fun onTransition(record: TransitionRecord) { transitionsSeen++ }
     override fun afterEpisode(episodeIndex: Int, source: TerminationSource) { episodesEnded++ }
-    override fun close() { closes++ }
+    override fun afterExperiment() { experimentsEnded++ }
+    override fun close() { closes++; closed = true }
 
     override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
         actionsTaken++
+        // §4.7. A rule asked to decide after its resources were released is the defect this
+        // probe exists to catch; counting it is cheaper than reasoning about when it cannot happen.
+        if (closed) actionsAfterClose++
         return inner.action(observation, ctx)
     }
 }
