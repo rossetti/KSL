@@ -263,6 +263,15 @@ class DecisionElement internal constructor(
         get() = myPolicy
         set(value) {
             requireNotRunning("policy")
+
+            // §4.1.3.1. EVERYTHING THAT CAN FAIL HAPPENS FIRST, and the irreversible act happens
+            // last. `configure` rejects a policy whose shape does not match the declaration —
+            // FixedPolicy checks its arity there — and this used to run after the incumbent had
+            // been closed and replaced, so a refused assignment left the element holding the rule
+            // that had just refused it, with the previous rule closed and unrecoverable. The
+            // caller saw an exception that reads as "nothing happened".
+            if (value is ShapeAwarePolicyIfc) value.configure(descriptor())
+
             // §4.7. Replacement is the one moment the element is definitively finished with a
             // policy it was handed, so it is the one moment it closes one. §4.9's k-policy
             // comparison assigns k rules to one element in a loop, and leaving each of the k-1
@@ -272,7 +281,6 @@ class DecisionElement internal constructor(
             // reads as a no-op at the call site and would otherwise release a live resource.
             if (value !== myPolicy) (myPolicy as? ManagedPolicyIfc)?.close()
             myPolicy = value
-            if (value is ShapeAwarePolicyIfc) value.configure(descriptor())
         }
 
     internal var myEpochInterval: Double = Double.POSITIVE_INFINITY
