@@ -22,10 +22,16 @@ import kotlin.test.assertTrue
  *  produced them. §6.2 says Level 2 "must include same-time event ordering and a stream-position
  *  trace"; this is that.
  *
- *  **Streams are pinned, and there is an identical-models control**, for the reason §10.4 gives:
- *  `DefaultRNStreamProvider` is a JVM-wide counter, so two models built in one JVM never draw the
- *  same streams and a comparison over default streams measures the provider rather than the
- *  subsystem. The control fails if this test is ever measuring nothing.
+ *  **Streams are pinned, and there is an identical-models control.** The control currently passes
+ *  trivially: each `Model` owns its stream provider (`Model.kt:207`), and a random variable built on
+ *  another provider is re-instantiated against the model's own (`RandomVariable.kt:94`), so two
+ *  identical models in one JVM draw the same streams whether or not they are pinned. It is kept as a
+ *  **canary** rather than a live guard — it would catch KSL returning to a shared provider, or this
+ *  element acquiring randomness of its own, either of which would invalidate everything below.
+ *
+ *  An earlier version of this comment said the opposite, repeating P§6.2's claim that two models in
+ *  one JVM never draw the same streams. That was true of the KSL the proposal was written against
+ *  and is no longer; see OOD §10.4.
  *
  *  The stream position is read *indirectly and exactly*: after each run, one further draw is taken
  *  from every random variable. Two runs whose streams are at the same position produce the same
