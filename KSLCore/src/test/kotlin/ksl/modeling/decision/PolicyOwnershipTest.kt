@@ -197,6 +197,71 @@ class PolicyOwnershipTest {
         assertTrue(made.all { it.rows.isNotEmpty() }, "both runs captured something")
     }
 
+    // ---------------------------------------------------------------- failure injection
+
+    /**
+     *  §4.7's close paths under failure — the step 9/10 criterion that had not been exercised.
+     *
+     *  Teardown has two obligations, a managed policy's and a sink's, and they are independent.
+     *  Each must be attempted even when the other fails, so that a secondary failure cannot mask a
+     *  primary one, and the caller must learn about both.
+     */
+    @Test
+    fun bothTeardownsAreAttemptedWhenEitherFails() {
+        class FailingSink(val fail: Boolean) : TransitionSink {
+            var closes = 0; var writes = 0
+            override fun write(record: TransitionRecord) { writes++ }
+            override fun close() { closes++; if (fail) throw IllegalStateException("sink close failed") }
+        }
+        class FailingPolicy(val fail: Boolean) : ManagedPolicyIfc {
+            var teardowns = 0
+            override fun afterExperiment() { teardowns++; if (fail) throw IllegalStateException("policy teardown failed") }
+            override fun action(observation: DoubleArray, ctx: DecisionContext) = doubleArrayOf(1.0)
+        }
+
+        fun run(policyFails: Boolean, sinkFails: Boolean): Triple<Throwable?, FailingPolicy, FailingSink> {
+            val model = Model("Teardown")
+            val p = FailingPolicy(policyFails)
+            val sink = FailingSink(sinkFails)
+            val tank = Tank(model, "T")
+            tank.decisionElement("D") {
+                observe(tank.level)
+                lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
+                reward(tank.level, rate = 1.0, sense = RewardSense.COST)
+                captureTo { sink }
+                every(10.0)
+                policy = p
+            }
+            model.numberOfReplications = 1
+            model.lengthOfReplication = 55.0
+            var root = runCatching { model.simulate() }.exceptionOrNull()
+            while (root?.cause != null && root.cause !== root) root = root.cause
+            return Triple(root, p, sink)
+        }
+
+        println()
+
+        val (t1, p1, s1) = run(policyFails = false, sinkFails = true)
+        println("sink close fails    → ${t1?.message}; policy teardown ran = ${p1.teardowns}")
+        assertEquals("sink close failed", t1?.message, "the caller learns the sink failed")
+        assertEquals(1, p1.teardowns, "and the policy's teardown still ran")
+        assertTrue(s1.writes > 0, "the run actually captured something, so this is not vacuous")
+
+        val (t2, p2, s2) = run(policyFails = true, sinkFails = false)
+        println("policy teardown fails → ${t2?.message}; sink closed = ${s2.closes}")
+        assertEquals("policy teardown failed", t2?.message)
+        assertEquals(1, s2.closes, "the sink is still closed — the element opened it and owes it that")
+        assertEquals(1, p2.teardowns)
+
+        val (t3, p3, s3) = run(policyFails = true, sinkFails = true)
+        println("both fail             → primary=${t3?.message}; suppressed=${t3?.suppressed?.map { it.message }}")
+        assertEquals(1, p3.teardowns); assertEquals(1, s3.closes)
+        assertEquals("policy teardown failed", t3?.message, "the first failure is the primary one")
+        assertEquals(listOf("sink close failed"), t3?.suppressed?.map { it.message },
+            "and the second is suppressed onto it rather than lost — a secondary failure must " +
+                "not mask a primary one, and must not vanish either")
+    }
+
     /** A policy with no external resource needs none of this, which is §4.7's headline promise. */
     @Test
     fun anOrdinaryPolicyNeedsNoLifecycleAtAll() {

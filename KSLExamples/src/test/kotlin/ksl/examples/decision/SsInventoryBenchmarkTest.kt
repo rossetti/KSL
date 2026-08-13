@@ -162,7 +162,7 @@ class SsInventoryBenchmarkTest {
             .format(ordersCorrect - ordersWrong, 100.0 * (ordersCorrect - ordersWrong) / ordersCorrect))
         println("  the kind is now in the descriptor, so the claim is auditable:")
         for ((label, m) in listOf("TRANSACTION arm" to asTransaction, "SETTING arm" to asSetting)) {
-            val d = m.getModelElement("Review") as DecisionElement
+            val d = m.getModelElement("Inv:Review") as DecisionElement
             println("    %-16s %s".format(label, d.descriptor().levers.map { "${it.name}=${it.kind}" }))
         }
 

@@ -173,7 +173,16 @@ class SsInventory(
     }
 
     // ---- The decision -----------------------------------------------------------
-    val review: DecisionElement = decisionElement("Review") {
+    /**
+     *  §4.1.9. The name is qualified with the subsystem's own, exactly as every other child of
+     *  this class is (`${this.name}:OnHand`, `${this.name}:OrderCount`, …). It was the bare
+     *  literal "Review" until a multi-element interrogation found that two `SsInventory`
+     *  instances in one model then collide on it — KSL requires element names to be unique
+     *  model-wide — so this class could not be used twice. The DSL reads as though the name were
+     *  local, which is the trap: `decisionElement("Review")` looks like a label, while
+     *  `TWResponse(this, name = …)` visibly demands an identifier.
+     */
+    val review: DecisionElement = decisionElement("${this.name}:Review") {
         // Declaration order is the vector order (§4.2.3).
         observe("$name:Position") { inventoryPosition }                         // 0
         observe("$name:ExpectedDemand") { expectedDemandOverProtection }        // 1

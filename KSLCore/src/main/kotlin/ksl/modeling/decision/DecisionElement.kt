@@ -279,8 +279,20 @@ class DecisionElement internal constructor(
             //
             // Assigning the SAME policy back is not a replacement and must not close it — that
             // reads as a no-op at the call site and would otherwise release a live resource.
-            if (value !== myPolicy) (myPolicy as? ManagedPolicyIfc)?.close()
+            val superseded = if (value !== myPolicy) myPolicy as? ManagedPolicyIfc else null
+
+            // COMMIT BEFORE CLOSING. §4.1.3.1's rule is that the irreversible act happens last,
+            // and `close` was placed there — but close is irreversible AND fallible, which the
+            // rule did not account for. With the commit after it, a close that threw left the
+            // element holding an incumbent it had already closed, and every retry re-closed and
+            // re-threw: the element was permanently wedged and the replacement could never happen.
+            //
+            // The replacement is the primary act; closing the superseded policy is a courtesy
+            // performed on the caller's behalf. If the courtesy fails the primary act still
+            // stands and the failure is reported — which is how afterExperiment() already treats
+            // the same pair of obligations.
             myPolicy = value
+            superseded?.close()
         }
 
     internal var myEpochInterval: Double = Double.POSITIVE_INFINITY

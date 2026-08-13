@@ -103,6 +103,43 @@ class ParameterizationAtomicityTest {
         assertEquals(1, incumbent.closes, "the incumbent is closed by the assignment that succeeds")
     }
 
+    /**
+     *  The case §4.1.3.1's rule did not cover, found by an interrogation pass before the port.
+     *
+     *  `close()` is irreversible **and fallible**, and it used to sit immediately before the
+     *  commit — so a superseded policy whose `close` threw left the element holding an incumbent
+     *  it had already closed, with the assignment never made. Worse, it was unrecoverable: every
+     *  retry re-closed the same incumbent and threw again, so the element could never take a new
+     *  policy. The replacement is the primary act and closing the superseded rule is a courtesy;
+     *  the courtesy failing must not undo the act.
+     */
+    @Test
+    fun aSupersededPolicyWhoseCloseFailsDoesNotBlockTheReplacement() {
+        class ThrowsOnClose : ManagedPolicyIfc {
+            var closes = 0; private set
+            override fun close() { closes++; throw IllegalStateException("close failed") }
+            override fun action(observation: DoubleArray, ctx: DecisionContext) = doubleArrayOf(1.0)
+        }
+
+        val model = Model("CloseFails")
+        val incumbent = ThrowsOnClose()
+        val e = element(model, incumbent)
+        val challenger = Resourceful("challenger")
+
+        val thrown = assertFailsWith<IllegalStateException> { e.policy = challenger }
+        assertEquals("close failed", thrown.message,
+            "the caller learns the superseded policy's close failed")
+
+        assertSame(challenger, e.policy,
+            "but the replacement stands: the element holds the new rule, not one it has closed")
+        assertEquals(1, incumbent.closes, "and the incumbent was closed exactly once")
+
+        // The element is still usable — this is what fails if the commit follows the close.
+        val third = Resourceful("third")
+        e.policy = third
+        assertSame(third, e.policy, "a subsequent assignment succeeds; the element is not wedged")
+    }
+
     // ---------------------------------------------------------------- narrowing
 
     /** Narrowing validates both bounds before writing either, so a rejection leaves the pair intact. */
