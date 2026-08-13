@@ -23,26 +23,68 @@ class ActionPlan internal constructor(
      *  it took its declared neutral rather than anything the rule chose? `null` when every lever
      *  had something to choose from, which is the ordinary case and costs a row nothing.
      */
-    internal val unavailable: BooleanArray?
+    internal val unavailable: BooleanArray?,
+    /**
+     *  §4.4.5. The model-authored atomic writes, each moving a declared group in one act.
+     *
+     *  Applied before the individual steps: a group exists because its members must move
+     *  together, which makes it the part most likely to be what a joint constraint is about.
+     */
+    internal val batches: List<Batch> = emptyList()
 ) {
 
-    /** Inert view: what will be written, in order. Holding one cannot write anything. */
-    val writes: List<PlannedWrite> = steps.map { PlannedWrite(it.name, it.from, it.to) }
+    /**
+     *  Inert view: what will be written, in order — the batch groups first, then the individual
+     *  levers in their decrease-before-increase order. Holding one cannot write anything.
+     *
+     *  A batched member appears here with `from` = `NaN`: the element does not read a batched
+     *  lever's current value, because it never writes one individually and the group's function
+     *  is what knows how to move it.
+     */
+    val writes: List<PlannedWrite> =
+        batches.flatMap { b -> b.names.mapIndexed { i, n -> PlannedWrite(n, Double.NaN, b.values[i]) } } +
+            steps.map { PlannedWrite(it.name, it.from, it.to) }
 
     data class PlannedWrite(val name: String, val from: Double, val to: Double)
 
     internal class Step(
         val name: String, val from: Double, val to: Double, val actuator: LeverActuator)
+
+    /** One declared group and the values its [applyAll] will be handed, in declaration order. */
+    internal class Batch(
+        val names: List<String>, val values: DoubleArray, val applyAll: (DoubleArray) -> Unit)
 }
 
+/**
+ *  §4.4.2 — the two-call contract between a proposed action and the model.
+ *
+ *  `prepare` validates and resolves; `apply` writes. There is deliberately no single call that does
+ *  both, and the absence is what makes "**no lever is written when an action is rejected**" a
+ *  property of the type rather than of an implementation. It is also what lets a test assert a plan
+ *  without mutating a model.
+ */
 interface ActionBinding {
     fun prepare(action: DoubleArray): PreparedAction
     fun apply(plan: ActionPlan)
 }
 
+/**
+ *  An action that could not be applied: outside a lever's bounds, non-integral on an integer
+ *  domain, `NaN`, the wrong arity, or violating a joint constraint.
+ *
+ *  It carries **every** violation rather than the first, because a rule that returned three bad
+ *  values should learn about three. When this is thrown, no lever has been written.
+ */
 class ActionValidationException(val violations: List<String>) :
     RuntimeException("Infeasible action; no lever was written. Violations: $violations")
 
+/**
+ *  A write that failed partway through applying a plan.
+ *
+ *  This is the one place the subsystem cannot promise all-or-nothing: by the time it is thrown some
+ *  levers have moved and some have not, and the message says how many. Where that matters, a model
+ *  author declares the group as an atomic batch instead (§4.4.5).
+ */
 class ActionApplicationException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause)
 
@@ -63,6 +105,13 @@ class BindingException(
     "Cannot resolve '$unresolved'. Available: $available" + (hint?.let { ". $it" } ?: "")
 )
 
+/**
+ *  An attempt to narrow a lever outside what the model declares, or to non-integral bounds on an
+ *  integer domain.
+ *
+ *  The model's limits are a physical fact and the experiment's are a choice, so narrowing may only
+ *  shrink. A rejected narrowing leaves **both** bounds as they were (§4.1.3.1).
+ */
 class NarrowingException(message: String) : RuntimeException(message)
 
 /** Thrown by leverFor/rewardFor when the owner backs more than one declared lever or term. */
@@ -72,6 +121,12 @@ class AmbiguousLeverException(ownerName: String, val candidates: List<String>) :
             "Use leverRef(alias) to say which one."
     )
 
+/**
+ *  A reward term whose declared accumulation kind does not match what its source actually offers —
+ *  a `TIME_INTEGRAL` declared against a plain `Response`, say.
+ *
+ *  Raised at the declaration, where the mistake was made, rather than at the first epoch.
+ */
 class RewardKindException(message: String) : RuntimeException(message)
 
 /**

@@ -261,19 +261,19 @@ class DeclarationSurfaceCoverageTest {
                 "saw ${results["two constraints over one lever"]}"
         )
 
-        // How complete the DSL is, as one number the library states about itself: exactly one
-        // form is accepted at the declaration and cannot yet be carried. That is a property of
-        // this library worth pinning for its own sake — a second one appearing is either a
-        // regression or a deliberate deferral, and both should be decided rather than noticed.
-        assertEquals(setOf("batchLever"), deferred.keys,
-            "the set of forms the DSL accepts but cannot yet carry changed; it was {batchLever}")
+        // How complete the DSL is, as one number the library states about itself: **every** form
+        // the DSL accepts is now carried. `batchLever` was the last deferral and it landed
+        // (§4.4.5, `BatchLeverTest`), so this set is empty — and an entry appearing in it is
+        // either a regression or a deliberate deferral, both of which should be decided rather
+        // than noticed.
+        assertEquals(emptySet(), deferred.keys,
+            "a form the DSL accepts can no longer be carried. Every declarable form is supposed " +
+                "to work: if this is a deliberate deferral, say so here and in §4.4.6.5's matrix; " +
+                "if it is not, it is a regression. Deferred: ${deferred.keys}")
 
-        // The refusal's text is user-facing, so it is asserted like any other message. The
-        // milestone it names is part of what it promises: `batchLever` says "M1 step 6", and
-        // §7.3.1 carries the atomic multi-write among step 6's acceptance criteria, so the two
-        // agree. See the note in Actions.kt on why a milestone label is a weak thing to promise.
-        assertEquals("REFUSED AT DECLARATION (M1 step 6)", results["batchLever"],
-            "batchLever's refusal must name the step whose acceptance criteria cover it")
+        assertEquals("WORKS", results["batchLever"],
+            "batchLever is the atomic multi-write of §4.4.5 and ADR-6's stated escape hatch. It " +
+                "refused at the declaration until a pre-port audit closed it")
     }
 
     // ---------------------------------------------------------------------------

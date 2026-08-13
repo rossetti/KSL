@@ -13,10 +13,32 @@ interface LeverActuator {
     fun apply(value: Double)
 }
 
+/**
+ *  An actuator whose lever has a readable current value — which is to say, a `SETTING`.
+ *
+ *  The element needs it to plan a write as `from → to`, which is what allows a setting already at
+ *  its target to be **elided** rather than written. That elision is not an optimisation: writing a
+ *  value back to a KSL response collects an observation and notifies observers whether or not the
+ *  value changed, so without it a do-nothing rule would be visible in the output and §6.2's
+ *  Level-2 guarantee would fail at the fine grain.
+ */
 interface StatefulLeverActuator : LeverActuator {
     fun currentValue(): Double
 }
 
+/**
+ *  §4.4.5 — a model-authored write that moves several levers in **one act**.
+ *
+ *  The element's ordering rule keeps the common case feasible at every intermediate point, and that
+ *  is not atomicity: between two individual writes a joint constraint can be momentarily violated,
+ *  and a model that observes itself mid-action can see it. The library cannot close that itself,
+ *  because the writes have synchronous consequences inside the model and buffering them under a
+ *  lock would not help. This is the escape hatch: the author supplies the one function that moves
+ *  the whole group, and the element calls it once.
+ *
+ *  [applyAll] receives a value for **every** member in [names] order, including members that did
+ *  not move — a batch is one call and cannot be handed a partial vector.
+ */
 interface BatchLeverActuator {
     val names: List<String>
     fun applyAll(values: DoubleArray)

@@ -152,6 +152,22 @@ class DecisionElement internal constructor(
         }
     }
     internal val jointDecls = mutableListOf<JointDecl>()
+
+    /**
+     *  §4.4.5 — a model-authored atomic multi-lever write.
+     *
+     *  The design's ordering rule (decreases before increases) keeps the common case feasible at
+     *  every intermediate point, and that is *not* atomicity: between two writes a joint constraint
+     *  can be momentarily violated, and a model that observes itself mid-action can see it. Where
+     *  that matters, the model author supplies one function that moves the whole group, and the
+     *  element calls it once instead of writing the members individually.
+     *
+     *  [names] is the group in **declaration order**, which is the order [applyAll] receives its
+     *  values in — positional, like everything else that crosses this boundary (§4.2.3).
+     */
+    internal class BatchDecl(val names: List<String>, val applyAll: (DoubleArray) -> Unit)
+
+    internal val batchDecls = mutableListOf<BatchDecl>()
     internal val rewardDecls = mutableListOf<RewardDecl>()
 
     /**
@@ -983,7 +999,13 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         // NaN and the guard cannot fire; the kind test states the rule rather than relying on
         // that coincidence.
         val steps = mutableListOf<ActionPlan.Step>()
+        val batched = element.batchDecls.flatMap { it.names }.toSet()
         for ((i, d) in decls.withIndex()) {
+            // A batched lever is not written individually — its group is written as one act below.
+            // The elision rule does not apply to it either: a batch receives every member's value,
+            // including members that did not move, because `applyAll` is one call and cannot be
+            // given a partial vector.
+            if (d.name in batched) continue
             val from = element.catalog.actuator(d.name).let { a ->
                 if (a is StatefulLeverActuator) a.currentValue() else Double.NaN
             }
@@ -996,10 +1018,32 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         // so it keys 0.0 and — the sort being stable — transactions keep their declaration
         // order among the neutral moves (§4.4, §8.2.3).
         steps.sortBy { if (it.from.isNaN()) 0.0 else it.to - it.from }
-        return PreparedAction.Ready(ActionPlan(steps, resolved, unavailable))
+
+        // Each declared group becomes one batch write, carrying its members' resolved values in
+        // declaration order. A batch has no intermediate state, so it needs no place in the
+        // decrease-before-increase ordering among its own members; between the batch and the
+        // individual writes the groups go first, which is the conservative choice — a group that
+        // exists because its members must move together is the part most likely to be the one a
+        // constraint is about.
+        val batches = element.batchDecls.map { b ->
+            ActionPlan.Batch(b.names, DoubleArray(b.names.size) { k -> resolved[index.getValue(b.names[k])] }, b.applyAll)
+        }
+        return PreparedAction.Ready(ActionPlan(steps, resolved, unavailable, batches))
     }
 
     override fun apply(plan: ActionPlan) {
+        for (b in plan.batches) {
+            try {
+                b.applyAll(b.values.copyOf())
+            } catch (e: Throwable) {
+                throw ActionApplicationException(
+                    "Applying the batch ${b.names} = ${b.values.toList()} failed. A batch is one " +
+                        "act by construction, so whether the model is partially mutated is the " +
+                        "batch function's business rather than the element's (§4.4.5).",
+                    e
+                )
+            }
+        }
         for (step in plan.steps) {
             try {
                 step.actuator.apply(step.to)
@@ -1303,8 +1347,59 @@ class DecisionElementBuilder internal constructor(
         return LeverRef(element.name, name)
     }
 
-    fun batchLever(vararg levers: LeverRef, applyAll: (DoubleArray) -> Unit): Nothing =
-        throw NotDeclarableYetException("batchLever", "M1 step 6", "§4.4.5")
+    /**
+     *  §4.4.5 — declare that a group of already-declared levers must be written **as one act**.
+     *
+     *  The element's ordering rule (decreases before increases) keeps the common case feasible at
+     *  every intermediate point, and that is not the same as atomicity: between two writes a joint
+     *  constraint can be momentarily violated, and a model that observes itself mid-action can see
+     *  it. `batchLever` is the escape hatch for the cases where that matters. The library cannot
+     *  provide atomicity itself — the writes have synchronous consequences inside the model, so
+     *  buffering them under a lock would not help — so the model author supplies the one function
+     *  that moves the whole group, and the element calls it once.
+     *
+     *  [applyAll] receives the group's values in the order the refs were given here, which is the
+     *  same positional convention every other array crossing this boundary uses (§4.2.3). It
+     *  receives a value for **every** member, including members that did not move: a batch is one
+     *  call and cannot be handed a partial vector, so the elision rule that applies to individual
+     *  settings does not apply within a group.
+     *
+     *  Validation and feasibility are unchanged. A batched lever is checked against its domain,
+     *  envelope, narrowing, state-dependent set and any joint constraint exactly as an unbatched
+     *  one is, and a rejected action writes nothing at all — batching changes *how* the values
+     *  reach the model, not *whether* they are allowed to.
+     */
+    fun batchLever(vararg levers: LeverRef, applyAll: (DoubleArray) -> Unit) {
+        require(levers.size >= 2) {
+            "batchLever needs at least two levers; a group of one is an ordinary lever and " +
+                "declaring it as a batch would only remove the elision that makes §6.2's " +
+                "Level-2 guarantee hold for settings."
+        }
+        val names = levers.map { ref ->
+            require(ref.elementName == element.name) {
+                "batchLever was given a lever from decision element '${ref.elementName}' and this " +
+                    "is '${element.name}'. Ask this element for its own: leverRef(\"${ref.declaredName}\")."
+            }
+            ref.declaredName
+        }
+        val declared = element.leverDecls.map { it.name }.toSet()
+        val unknown = names.filterNot { it in declared }
+        require(unknown.isEmpty()) {
+            "batchLever names $unknown, which ${if (unknown.size == 1) "is" else "are"} not " +
+                "declared. Declared: $declared. Declare the levers first, then group them."
+        }
+        require(names.toSet().size == names.size) {
+            "batchLever names the same lever more than once: $names. A lever gets one value per " +
+                "epoch, so it can appear in a group once."
+        }
+        val alreadyBatched = element.batchDecls.flatMap { it.names }.toSet()
+        val overlap = names.filter { it in alreadyBatched }
+        require(overlap.isEmpty()) {
+            "$overlap already belong(s) to another batch. A lever is written by exactly one act, " +
+                "so it can be in at most one group."
+        }
+        element.batchDecls += DecisionElement.BatchDecl(names, applyAll)
+    }
 
     /**
      *  Names for a constraint, refusing a ref that belongs to a different element.
