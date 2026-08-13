@@ -4,7 +4,7 @@ import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.modeling.decision.descriptor.LeverKind
 import ksl.utilities.GetValueIfc
 
-/** STUB — Appendix E.2. Actuators: the only things that write a model during a decision. */
+/** §4.3 — actuators: the only things that write a model during a decision. */
 
 interface LeverActuator {
     val domain: LeverDomain

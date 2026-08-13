@@ -17,9 +17,9 @@ import kotlin.test.assertTrue
  *  row is a timeline with an expected sequence of *emitted rows*, while emission sat in a later
  *  milestone that M1's scope paragraph excluded. §7.1.1 is the correction; this is what it bought.
  *
- *  The tests below cover **nine of the matrix's fifteen rows** — the ones that are statements about
+ *  The tests below cover **nine of the matrix's fourteen rows** — the ones that are statements about
  *  the epoch timeline, which is what this class is for. Several cover more than one row, because
- *  rows 1, 4 and 5 are the same arithmetic seen from three ends. The other six rows are assertions
+ *  rows 1, 4 and 5 are the same arithmetic seen from three ends. The other five rows are assertions
  *  about action validation and about Level 2, and they are asserted where those live:
  *  `ConstructionValidationTest` and `DeclarationSurfaceCoverageTest` for the three infeasible-action
  *  rows and the categorical neutral, `Level1CompatibilityTest` and `SsInventoryBenchmarkTest` for

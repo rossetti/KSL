@@ -3,7 +3,7 @@ package ksl.sdm.capture
 import ksl.modeling.decision.TransitionRecord
 import ksl.modeling.decision.TransitionSink
 
-/** STUB — Appendix E.2, §4.8.2. Sink implementations. The contract is in ksl.modeling.decision. */
+/** §4.8.2 — sink implementations. The contract lives in ksl.modeling.decision (D.19). */
 
 object NullSink : TransitionSink {
     override fun write(record: TransitionRecord) {}

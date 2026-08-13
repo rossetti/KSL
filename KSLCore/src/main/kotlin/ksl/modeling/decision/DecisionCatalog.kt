@@ -3,7 +3,7 @@ package ksl.modeling.decision
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 
-/** STUB — Appendix E.2, §4.3.1. Built only by DecisionElementBuilder. */
+/** §4.3.1 — name resolution for one element's surface. Built only by DecisionElementBuilder. */
 class DecisionCatalog internal constructor(
     val owner: ModelElement,
     private val observations: Map<String, GetValueIfc>,

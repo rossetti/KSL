@@ -4,7 +4,7 @@ import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.JointConstraint
 import ksl.modeling.decision.descriptor.TerminationSource
 
-/** STUB — Appendix E.2, §4.5. */
+/** §4.5 — the policy seam and the context a rule is given at a decision instant. */
 
 fun interface PolicyIfc {
     fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray

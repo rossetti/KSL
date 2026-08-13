@@ -3,7 +3,7 @@ package ksl.modeling.decision.descriptor
 import kotlinx.serialization.Serializable
 
 /**
- *  STUB — signatures only, per Appendix E.2 of the sequential decision making proposal.
+ *  §4.2 — the serializable description of a decision surface. Plain data: no Model reference,
  *  This package holds plain serializable data. It must not reference ksl.simulation.
  */
 

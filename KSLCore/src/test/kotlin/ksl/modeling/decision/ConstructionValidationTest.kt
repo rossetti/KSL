@@ -1,11 +1,14 @@
 package ksl.modeling.decision
 
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
+import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -513,5 +516,78 @@ class ConstructionValidationTest {
         println("the same reward source declared twice: ${e.named()} — ${e?.message}")
         assertTrue(e is IllegalArgumentException, "a duplicate term name should be refused")
         assertTrue("twice" in e.message.orEmpty())
+    }
+    // -------------------------------------------------------- epoch timing (audit finding A5)
+
+    /**
+     *  §4.1.2 — epoch timing must be declared, and its values must be usable.
+     *
+     *  Found by a pre-port audit. None of these was refused: `every(0.0)` schedules zero-delay
+     *  events forever, `every(NaN)` and `every(Infinity)` mean "never decide", `maxEpochs(0)` ends
+     *  the episode before the first decision so the run completes with an estimand of zero and no
+     *  decisions in it, and an element with **no timing at all** was built happily and never
+     *  scheduled anything. Each produces a study that finishes and says nothing went wrong.
+     *
+     *  The `every` case is the sharpest: the `epochInterval` *property* has required a positive
+     *  finite value since it was written, and the DSL wrote the backing field directly, so the
+     *  primary declaration path accepted exactly what the parameterization path refused.
+     */
+    @Test
+    fun degenerateEpochTimingIsRefusedAtTheDeclaration() {
+        fun base(b: DecisionElementBuilder, w: Widget) {
+            b.observe(w.level)
+            b.lever(w, 0..10, neutral = Neutral.Current { level.value }, alias = "L") { v -> setLevel(v.toInt()) }
+            b.reward(w.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
+            b.policy = NeutralPolicy
+        }
+
+        val cases = listOf<Pair<String, DecisionElementBuilder.(Widget) -> Unit>>(
+            "every(0.0)" to { w -> base(this, w); every(0.0) },
+            "every(-5.0)" to { w -> base(this, w); every(-5.0) },
+            "every(NaN)" to { w -> base(this, w); every(Double.NaN) },
+            "every(Infinity)" to { w -> base(this, w); every(Double.POSITIVE_INFINITY) },
+            "maxEpochs(0)" to { w -> base(this, w); every(10.0); maxEpochs(0) },
+            "maxEpochs(-3)" to { w -> base(this, w); every(10.0); maxEpochs(-3) },
+            "onCalendar(empty)" to { w -> base(this, w); onCalendar(emptyList()) },
+            "onCalendar(negative)" to { w -> base(this, w); onCalendar(listOf(-5.0, 10.0)) },
+            "onCalendar(NaN)" to { w -> base(this, w); onCalendar(listOf(Double.NaN)) },
+            "onCalendar(duplicates)" to { w -> base(this, w); onCalendar(listOf(10.0, 10.0)) },
+            "no timing declared at all" to { w -> base(this, w) }
+        )
+
+        println()
+        val accepted = mutableListOf<String>()
+        for ((label, block) in cases) {
+            val t = declaring(block)
+            println("  %-26s → %s".format(label, t.named()))
+            if (t == null) accepted += label
+            else assertTrue(t.message!!.isNotBlank(), "$label: the refusal must say something")
+        }
+        assertTrue(accepted.isEmpty(),
+            "these degenerate declarations were accepted and each produces a run that completes " +
+                "with no decisions in it and nothing to say so: $accepted")
+    }
+
+    /** The two paths must agree: what the property refuses, the DSL must refuse. */
+    @Test
+    fun theDslAndThePropertyAgreeOnEpochTiming() {
+        val model = Model("Agree")
+        val w = Widget(model, "W")
+        val e = w.decisionElement("D") {
+            observe(w.level)
+            lever(w, 0..10, neutral = Neutral.Current { level.value }, alias = "L") { v -> setLevel(v.toInt()) }
+            reward(w.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
+            every(10.0)
+            policy = NeutralPolicy
+        }
+        assertFailsWith<IllegalArgumentException> { e.epochInterval = 0.0 }
+        assertFailsWith<IllegalArgumentException> { e.maxEpochs = 0 }
+        assertNotNull(declaring { w -> 
+            observe(w.level)
+            lever(w, 0..10, neutral = Neutral.Current { level.value }, alias = "L") { v -> setLevel(v.toInt()) }
+            reward(w.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
+            policy = NeutralPolicy
+            every(0.0)
+        }, "the DSL must refuse what the property refuses")
     }
 }

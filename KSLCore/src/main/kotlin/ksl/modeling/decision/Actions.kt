@@ -1,6 +1,6 @@
 package ksl.modeling.decision
 
-/** STUB — Appendix E.2, §4.4. */
+/** §4.4 — the action pipeline: what a rule proposes, what is planned, and what is written. */
 
 sealed interface PreparedAction {
     data class Ready(val plan: ActionPlan) : PreparedAction

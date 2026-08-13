@@ -328,7 +328,11 @@ class DecisionElement internal constructor(
     internal var myMaxEpochs: Int = Int.MAX_VALUE
     var maxEpochs: Int
         get() = myMaxEpochs
-        set(value) { requireNotRunning("maxEpochs"); myMaxEpochs = value }
+        set(value) {
+            requireNotRunning("maxEpochs")
+            require(value > 0) { "maxEpochs must be > 0, but $value was assigned." }
+            myMaxEpochs = value
+        }
 
     /**
      *  Resolve the lever declared over [owner]. The owner is a lookup KEY here, not the
@@ -1176,6 +1180,15 @@ fun ModelElement.decisionElement(
 class DecisionElementBuilder internal constructor(
     private val element: DecisionElement
 ) {
+    /**
+     *  §4.1.2. Whether `every` or `onCalendar` was called.
+     *
+     *  It cannot be inferred from the element's state: `myEpochInterval` defaults to
+     *  `POSITIVE_INFINITY` and `epochKind` to `PERIODIC`, and `initialize()` schedules only when
+     *  the interval is finite — so an element with no timing declared constructs happily, never
+     *  decides, and reports nothing. That is the silent-degenerate case build() must refuse.
+     */
+    private var timingDeclared = false
     fun observe(source: ResponseIfc, unit: String? = null) = observe(source, source.name, unit)
 
     fun observe(source: ResponseIfc, alias: String, unit: String? = null) {
@@ -1388,15 +1401,39 @@ class DecisionElementBuilder internal constructor(
     }
 
     fun every(interval: Double, firstAtTimeZero: Boolean = false) {
+        // The `epochInterval` PROPERTY has required this since it was written; the DSL wrote the
+        // backing field directly and did not, so the primary declaration path accepted what the
+        // parameterization path refused. `every(0.0)` schedules zero-delay events forever;
+        // `every(NaN)` and `every(Infinity)` both mean "never decide", which is indistinguishable
+        // from declaring no timing at all.
+        require(interval.isFinite() && interval > 0.0) {
+            "The epoch interval must be finite and > 0.0, but every($interval) was declared."
+        }
         element.epochKind = EpochKind.PERIODIC
         element.myEpochInterval = interval
         element.firstAtTimeZero = firstAtTimeZero
+        timingDeclared = true
     }
 
     fun onCalendar(times: List<Double>) {
+        require(times.isNotEmpty()) {
+            "onCalendar requires at least one epoch time; an empty calendar declares an element " +
+                "that never decides."
+        }
+        val bad = times.filter { !it.isFinite() || it < 0.0 }
+        require(bad.isEmpty()) {
+            "Epoch times must be finite and non-negative; onCalendar was given $bad."
+        }
+        val duplicates = times.groupBy { it }.filterValues { it.size > 1 }.keys
+        require(duplicates.isEmpty()) {
+            "Epoch times must be distinct; onCalendar was given duplicates at $duplicates. Two " +
+                "epochs at one instant bound a zero-length interval, which is discarded " +
+                "(§4.10.2.1), so the second decision would be taken and never recorded."
+        }
         element.epochKind = EpochKind.CALENDAR
         element.calendar.clear()
         element.calendar += times.sorted()
+        timingDeclared = true
     }
 
     var epochPriority: Int
@@ -1412,7 +1449,15 @@ class DecisionElementBuilder internal constructor(
         get() = element.warmUpOrdering
         set(value) { element.warmUpOrdering = value }
 
-    fun maxEpochs(n: Int) { element.myMaxEpochs = n }
+    /**
+     *  A cap on decisions per episode. Must be positive: `maxEpochs(0)` ends the episode at the
+     *  first epoch before any decision is taken, so the run completes, reports an estimand of
+     *  zero, and contains no decisions — with nothing to say it went wrong.
+     */
+    fun maxEpochs(n: Int) {
+        require(n > 0) { "maxEpochs must be > 0, but maxEpochs($n) was declared." }
+        element.myMaxEpochs = n
+    }
     fun terminalWhen(condition: () -> Boolean) { element.terminalCondition = condition }
 
     var feasibility: FeasibilityPolicy
@@ -1434,6 +1479,11 @@ class DecisionElementBuilder internal constructor(
         require(policy != null) { "A decision element requires a policy." }
         require(element.observationDecls.isNotEmpty()) { "A decision element requires at least one observation." }
         require(element.leverDecls.isNotEmpty()) { "A decision element requires at least one lever." }
+        require(timingDeclared) {
+            "A decision element requires epoch timing: declare every(interval) or " +
+                "onCalendar(times). Without it the element is built, never schedules an epoch, " +
+                "never decides, and reports nothing."
+        }
         val declared = element.leverDecls.map { it.name }.toSet()
         for (c in element.jointConstraints) {
             for (n in c.names) {
