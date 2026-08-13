@@ -61,7 +61,7 @@ class TimeWeightedAccumulationTest {
         val model = Model("ReadOnlyArea")
         val tank = Tank(model, "T")
         val readings = mutableListOf<Triple<Double, Double, Double>>()
-        val accessor = rewardSourceFor(tank.level) { tank.time }
+        val accessor = rewardSourceFor(tank.level)
         tank.probe = {
             readings += Triple(
                 tank.time,
@@ -115,7 +115,7 @@ class TimeWeightedAccumulationTest {
             tank.level.attachModelElementObserver(object : ksl.observers.ModelElementObserver() {
                 override fun update(modelElement: ModelElement) { notifications++ }
             })
-            val accessor = rewardSourceFor(tank.level) { tank.time }
+            val accessor = rewardSourceFor(tank.level)
             tank.probe = {
                 if (flush) {
                     // KSL's own idiom, applied from the reward path.
@@ -168,7 +168,7 @@ class TimeWeightedAccumulationTest {
     fun theReadOnlyFormDoesNotDependOnWhetherTheSourceHasFlushedYet() {
         val model = Model("Ordering")
         val tank = Tank(model, "T")
-        val accessor = rewardSourceFor(tank.level) { tank.time }
+        val accessor = rewardSourceFor(tank.level)
         var beforeFlush = 0.0
         var afterFlush = 0.0
         tank.probe = {
@@ -212,7 +212,7 @@ class TimeWeightedAccumulationTest {
     fun aReadAcrossTheWarmUpDependsOnEventOrder_whichIsWhyTheBaselineIsInvalidated() {
         val model = Model("WarmUpArea")
         val tank = Tank(model, "T")
-        val accessor = rewardSourceFor(tank.level) { tank.time }
+        val accessor = rewardSourceFor(tank.level)
         val readings = mutableListOf<Pair<Double, Double>>()
         tank.probe = { if (tank.time >= 25.0) readings += tank.time to accessor.accumulated() }
         model.numberOfReplications = 1

@@ -91,30 +91,29 @@ internal class RewardBinding(val decls: List<RewardDecl>) {
  *  The `when` is the only place in the design that knows the three sources accumulate differently,
  *  which is the point of having [RewardSourceCIfc] at all.
  */
-internal fun rewardSourceFor(source: Any, now: () -> Double): RewardSourceCIfc = when (source) {
+internal fun rewardSourceFor(source: Any): RewardSourceCIfc = when (source) {
     // Checked before ResponseCIfc: a TWResponse is one, and its weights are durations.
     is TimeWeightedIfc -> object : RewardSourceCIfc {
         override val name: String = source.name
         override fun value(): Double = source.value
 
         /**
-         *  **The area banked so far, plus the area still in flight.**
+         *  **The area banked so far, plus the area still in flight** — delegated, not computed.
          *
          *  `TimeWeightedStatistic.collect(obs, time)` banks the previous value's area only when a
          *  NEW value arrives, so `weightedSum` lags by whatever has accrued since `timeOfChange`.
          *  For a quantity that is read every epoch and changes rarely — on-hand inventory, a
          *  capacity, a queue that is empty for a shift — the lag is the whole interval, and every
-         *  reward would be reported as zero until the value happened to move.
+         *  reward would be reported as zero until the value happened to move. §4.10.4's timeline
+         *  matrix found that on its first run (§8.1.4).
          *
-         *  §4.10.4's timeline matrix found this on its first run, and it is the fourth time an
-         *  assumption about a KSL statistic has survived review and failed a test (§8.1.1). Worth
-         *  noting how narrowly `RewardSourceAccessorTest` missed it: that test read `accumulated()`
-         *  after the replication ended, by which point KSL has flushed the final area, so it
-         *  asserted the right numbers for the wrong reason. It now reads mid-run.
+         *  This adapter computed `weightedSum + value * (time - timeOfChange)` by hand, because at
+         *  the time nothing in KSL exposed it. `TWResponse.withinReplicationWeightedSum` now does,
+         *  with that expression as its own definition, so P5 — reuse before building — says read it
+         *  rather than restate it. The behaviour is unchanged; what changes is that there is one
+         *  definition of "area so far" in the library instead of two that must agree (§5.1).
          */
-        override fun accumulated(): Double =
-            (source as ResponseCIfc).withinReplicationStatistic.weightedSum +
-                source.value * (now() - source.timeOfChange)
+        override fun accumulated(): Double = (source as ResponseCIfc).withinReplicationWeightedSum
     }
     is CounterCIfc -> object : RewardSourceCIfc {
         override val name: String = source.name
@@ -125,8 +124,10 @@ internal fun rewardSourceFor(source: Any, now: () -> Double): RewardSourceCIfc =
     is ResponseCIfc -> object : RewardSourceCIfc {
         override val name: String = source.name
         override fun value(): Double = source.value
-        // Unit weights, so weightedSum is the plain sum of the values observed.
-        override fun accumulated(): Double = source.withinReplicationStatistic.weightedSum
+        // Unit weights, so the weighted sum is the plain sum of the values observed. Read through
+        // the convenience accessor, which avoids the copy `withinReplicationStatistic` makes on
+        // every call — this is read once per source per epoch.
+        override fun accumulated(): Double = source.withinReplicationWeightedSum
     }
     else -> throw RewardKindException(
         "'$source' is not a reward source. A reward accumulates over a Response, a TWResponse, " +

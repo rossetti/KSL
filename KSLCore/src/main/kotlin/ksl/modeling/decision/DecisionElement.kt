@@ -1489,7 +1489,7 @@ class DecisionElementBuilder internal constructor(
             signedRate = if (sense == RewardSense.COST) -rate else rate,
             declaredRate = rate,
             sense = sense,
-            source = rewardSourceFor(source) { element.time },
+            source = rewardSourceFor(source),
             sourceRef = sourceRefFor(source)
         )
         return RewardRef(element.name, name)

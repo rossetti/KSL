@@ -77,9 +77,9 @@ class RewardSourceAccessorTest {
         val readings = mutableListOf<Triple<Double, Double, Double>>()
         s.probe = {
             readings += Triple(
-                rewardSourceFor(s.perObservation) { s.time }.accumulated(),
-                rewardSourceFor(s.timeWeighted) { s.time }.accumulated(),
-                rewardSourceFor(s.occurrences) { s.time }.accumulated()
+                rewardSourceFor(s.perObservation).accumulated(),
+                rewardSourceFor(s.timeWeighted).accumulated(),
+                rewardSourceFor(s.occurrences).accumulated()
             )
         }
         model.numberOfReplications = 1
@@ -133,7 +133,7 @@ class RewardSourceAccessorTest {
         model.numberOfReplications = 1
         model.lengthOfReplication = 3.0
         model.simulate()
-        val g: GetValueIfc = rewardSourceFor(s.occurrences) { s.time }
+        val g: GetValueIfc = rewardSourceFor(s.occurrences)
         assertEquals(3.0, g.value(), 1e-9)
     }
 }

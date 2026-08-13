@@ -73,7 +73,7 @@ class IntervalStatisticsComparisonTest {
         val series = TimeSeriesResponse(tank, periodLength = 10.0, numPeriods = 2, response = tank.level)
 
         // The reward path's accumulator, sampled at the same two instants.
-        val accessor = rewardSourceFor(tank.level) { tank.time }
+        val accessor = rewardSourceFor(tank.level)
         var areaAtStart = 0.0
         var areaAtEnd = 0.0
         tank.probe = { t -> if (t == 10.0) areaAtStart = accessor.accumulated() else areaAtEnd = accessor.accumulated() }
@@ -101,16 +101,30 @@ class IntervalStatisticsComparisonTest {
             "the reward accumulator adds the in-flight segment at both ends, so its difference is " +
                 "the exact area over the interval (§8.1.4)")
 
-        // The two KSL facilities agree with each other and not with the interval.
         assertEquals(intervalReported, seriesReported, 1e-9,
             "ResponseInterval and TimeSeriesResponse implement the same algorithm and must agree")
-        assertTrue(kotlin.math.abs(intervalReported - trueAverage) > 1e-6,
-            "expected the snapshot-difference form to report the average over " +
-                "[timeOfChange, timeOfChange] rather than over the interval; it reported " +
-                "$intervalReported against a true $trueAverage")
+
+        // **This assertion is inverted from what it was, and the inversion is the point.**
+        //
+        // It used to require the two KSL facilities to DISAGREE with the true average, because
+        // they reported over [lastChangeBefore(start), timeOfChange] rather than over the
+        // interval — the same in-flight-segment defect §8.1.4 found in the reward accumulator,
+        // present in KSL's own interval machinery. §5.1 cited that difference as the reason this
+        // subsystem accumulates rewards itself instead of reusing those facilities.
+        //
+        // KSL fixed it upstream, independently, in `c555be2` "Include the segment in progress when
+        // an interval reads a time-weighted response". All three now agree, and the justification
+        // §5.1 rested on is gone. The response is not to keep asserting a disagreement that no
+        // longer exists but to assert the agreement, and to delegate: `rewardSourceFor` now reads
+        // `TWResponse.withinReplicationWeightedSum` rather than recomputing the same expression,
+        // so there is one definition of "area so far" in the library instead of two.
+        assertEquals(trueAverage, intervalReported, 1e-9,
+            "ResponseInterval now includes the segment in progress, so it reports the average over " +
+                "the interval asked for. If this fails, the upstream fix has regressed and §5.1's " +
+                "reuse argument needs revisiting again")
         println()
-        println("  → the two KSL facilities report the average over [lastChangeBefore(10)=0, 15],")
-        println("    which is %.4f, not the average over [10, 20]".format(intervalReported))
+        println("  → all three agree: the two KSL facilities and the reward accumulator now")
+        println("    compute the same area, and the accumulator reads KSL's accessor for it")
     }
 
     /**
@@ -129,7 +143,7 @@ class IntervalStatisticsComparisonTest {
         interval.startTime = 30.0
         val intervalAvg = interval.addResponseToInterval(tank.level)
 
-        val accessor = rewardSourceFor(tank.level) { tank.time }
+        val accessor = rewardSourceFor(tank.level)
         var a30 = 0.0
         var a40 = 0.0
         tank.probe = { }
