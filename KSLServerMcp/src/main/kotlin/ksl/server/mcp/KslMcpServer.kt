@@ -82,6 +82,83 @@ object KslMcpServer {
             .joinToString(",").ifBlank { null }
 
     /**
+     * The `config` argument schema for one document family, generated from its `@Serializable`
+     * descriptor so an agent can discover the document's real shape instead of guessing against an
+     * opaque blob. Sealed choices (design kinds, solver families, cooling schedules) surface as a
+     * `oneOf` keyed by a `type` discriminator.
+     *
+     * The object and string forms are offered as `anyOf` — deliberately NOT as a `type` array
+     * holding object and string with sibling `properties` and `required`. That older shape is what
+     * broke the documented "paste a .toml" path: a json-schema to Zod converter mishandles a type
+     * union that still carries `properties`/`required`, keeping the object branch and silently
+     * dropping the other, so a TOML string was rejected by client-side input validation before it
+     * ever reached the server — which has accepted strings all along (see
+     * `KslMcpTools.configDocText`, and `ConfigDocuments.decode`, which sniffs JSON vs TOML).
+     * This is the same converter bug `ConfigSchemaGenerator.asNullable` documents and works around
+     * the same way. Do not "simplify" this back to a type array.
+     */
+    internal fun configDocumentInputSchema(documentType: String): ToolSchema {
+        val descriptor = when (documentType) {
+            "RunConfiguration" -> RunConfiguration.serializer().descriptor
+            "OptimizationRunConfiguration" -> OptimizationRunConfiguration.serializer().descriptor
+            "ExperimentConfiguration" -> ExperimentConfiguration.serializer().descriptor
+            "FitConfiguration" -> FitConfiguration.serializer().descriptor
+            else -> null
+        }
+        val generated = descriptor?.let { ConfigSchemaGenerator.schemaFor(it) }
+        return ToolSchema(
+            properties = buildJsonObject {
+                putJsonObject("config") {
+                    put("description", configDocumentDescription(documentType))
+                    putJsonArray("anyOf") {
+                        add(
+                            buildJsonObject {
+                                put("type", "object")
+                                generated?.get("properties")?.let { put("properties", it) }
+                                generated?.get("required")?.let { put("required", it) }
+                            },
+                        )
+                        add(buildJsonObject { put("type", "string") })
+                    }
+                }
+            },
+            required = listOf("config"),
+        )
+    }
+
+    /**
+     * The `config` description for a document family: what the argument accepts, and the scaffold
+     * tool that produces a correct one.
+     *
+     * The scaffold advice is load-bearing, not politeness. A control override is a full
+     * `ksl.controls.ControlData` — nine required fields — of which the engine reads only `keyName`
+     * and `value`; the rest is descriptive metadata a hand-author cannot invent. Rather than relax
+     * that published KSLCore DTO for the sake of this one use case, point authors at the template
+     * that fills it in from the live model.
+     */
+    private fun configDocumentDescription(documentType: String): String {
+        val template = when (documentType) {
+            "OptimizationRunConfiguration" -> "optimization_template"
+            "ExperimentConfiguration" -> "experiment_template"
+            "FitConfiguration" -> "fit_template"
+            else -> "run_template"
+        }
+        val controls = if (documentType == "RunConfiguration" || documentType == "OptimizationRunConfiguration") {
+            "A control override carries the model's FULL control descriptor, so copy the scaffold's " +
+                "block and change only its value; a distribution parameter (a mean, a rate) is an " +
+                "rvOverride, not a control. "
+        } else {
+            ""
+        }
+        return "A complete $documentType document — an object with the fields below, or the same " +
+            "document as a JSON or TOML string (e.g. paste the contents of a .toml file saved by a " +
+            "KSL desktop app; the server accepts TOML directly). Scaffold it with $template and edit " +
+            "that, rather than hand-authoring from scratch. $controls" +
+            "Sealed choices appear as a oneOf keyed by a type discriminator; shape guidance only — " +
+            "validate_* remains the gate."
+    }
+
+    /**
      * Registers the KSL simulation tools and guided prompts onto an existing (possibly shared) MCP
      * server, so the same surface backs either the standalone `ksl` server (via `build`) or the
      * aggregated KSLMcpSuite.
@@ -421,38 +498,10 @@ object KslMcpServer {
             outputSchema = McpResultSchemas.run,
         ) { request -> tools.runExperiment(request.arguments) }
 
-        // The real per-field schema for each document family, generated from its @Serializable
-        // descriptor (B1): sealed choices — design kinds, solver families, cooling schedules —
-        // surface as a `oneOf` keyed by a `type` discriminator, so an agent can discover the
-        // document's shape instead of guessing against an opaque blob. Kept alongside
-        // `type: [object, string]` so a JSON/TOML string is still accepted.
-        val configDocSchema = { documentType: String ->
-            val descriptor = when (documentType) {
-                "RunConfiguration" -> RunConfiguration.serializer().descriptor
-                "OptimizationRunConfiguration" -> OptimizationRunConfiguration.serializer().descriptor
-                "ExperimentConfiguration" -> ExperimentConfiguration.serializer().descriptor
-                "FitConfiguration" -> FitConfiguration.serializer().descriptor
-                else -> null
-            }
-            val generated = descriptor?.let { ConfigSchemaGenerator.schemaFor(it) }
-            ToolSchema(
-                properties = buildJsonObject {
-                    putJsonObject("config") {
-                        putJsonArray("type") { add("object"); add("string") }
-                        put(
-                            "description",
-                            "A complete $documentType document — an object with the fields below, or the same " +
-                                "document as a JSON or TOML string (e.g. paste the contents of a .toml file saved " +
-                                "by a KSL desktop app; the server accepts TOML directly). Sealed choices appear as " +
-                                "a oneOf keyed by a type discriminator; shape guidance only — validate_* remains the gate.",
-                        )
-                        generated?.get("properties")?.let { put("properties", it) }
-                        generated?.get("required")?.let { put("required", it) }
-                    }
-                },
-                required = listOf("config"),
-            )
-        }
+        // The real per-field schema for each document family (B1), including the object-or-string
+        // `anyOf` that keeps the documented "paste a .toml" path working. See
+        // configDocumentInputSchema for why the shape is what it is.
+        val configDocSchema = { documentType: String -> configDocumentInputSchema(documentType) }
 
         add(
             name = "run_config",
