@@ -1,5 +1,6 @@
 package ksl.modeling.decision.descriptor
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -123,10 +124,12 @@ sealed interface SourceRef {
 
 /** A reward source that is a `Response` or `TWResponse`. */
 @Serializable
+@SerialName("response")
 data class ResponseRef(override val name: String) : SourceRef
 
 /** A reward source that is a `Counter`. */
 @Serializable
+@SerialName("counter")
 data class CounterRef(override val name: String) : SourceRef
 
 /**
@@ -144,10 +147,12 @@ sealed interface JointConstraint {
 
 /** The named levers must sum to exactly [total] — a fixed pool that is entirely allocated. */
 @Serializable
+@SerialName("sumEquals")
 data class SumEquals(override val names: List<String>, val total: Double) : JointConstraint
 
 /** The named levers may sum to at most [total] — a ceiling that need not be reached. */
 @Serializable
+@SerialName("sumAtMost")
 data class SumAtMost(override val names: List<String>, val total: Double) : JointConstraint
 
 /**
@@ -277,7 +282,10 @@ data class DecisionSurfaceDescriptor(
     val epochs: EpochDescriptor,
     val episode: EpisodeDescriptor = EpisodeDescriptor(),
     val feasibility: FeasibilityPolicy = FeasibilityPolicy.REJECT
-)
+) {
+    /** Exists so the codecs in `DescriptorCodecs.kt` can hang `fromJson`/`fromToml` off the type. */
+    companion object
+}
 
 /** A stored description whose [SchemaVersion] this library cannot read. */
 class SchemaVersionException(message: String) : RuntimeException(message)
