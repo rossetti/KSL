@@ -359,8 +359,8 @@ class ScenarioOrchestrator {
         is ModelReference.ByJar ->
             JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build(modelConfiguration) }
         is ModelReference.ByBundleAndModelId -> {
-            require(provider is ksl.app.bundle.BundleModelProvider) {
-                "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
+            require(provider is ksl.app.bundle.BundleModelProviderIfc) {
+                "ModelReference.ByBundleAndModelId requires a BundleModelProviderIfc; got " +
                         (provider?.let { it::class.simpleName } ?: "null")
             }
             provider.provideModel(ref.bundleId, ref.modelId, modelConfiguration)

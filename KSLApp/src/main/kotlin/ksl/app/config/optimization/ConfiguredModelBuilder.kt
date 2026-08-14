@@ -18,7 +18,7 @@
 
 package ksl.app.config.optimization
 
-import ksl.app.bundle.BundleModelProvider
+import ksl.app.bundle.BundleModelProviderIfc
 import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
 import ksl.simulation.ExperimentRunParametersIfc
@@ -107,8 +107,8 @@ internal class ConfiguredModelBuilder(
                     it.build(effectiveConfig, effectiveRunParams)
                 }
             is ModelReference.ByBundleAndModelId -> {
-                require(provider is BundleModelProvider) {
-                    "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
+                require(provider is BundleModelProviderIfc) {
+                    "ModelReference.ByBundleAndModelId requires a BundleModelProviderIfc; got " +
                             (provider?.let { it::class.simpleName } ?: "null")
                 }
                 provider.provideModel(

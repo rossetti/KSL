@@ -571,12 +571,12 @@ object RunConfigurationValidator {
         path: String,
         builder: ValidationResultBuilder
     ): Model? {
-        if (provider !is ksl.app.bundle.BundleModelProvider) {
+        if (provider !is ksl.app.bundle.BundleModelProviderIfc) {
             builder.error(
                 path = path,
                 code = "BUNDLE_MODEL_PROVIDER_REQUIRED",
                 message = "ModelReference.ByBundleAndModelId(${reference.bundleId}, " +
-                        "${reference.modelId}) requires a BundleModelProvider; got " +
+                        "${reference.modelId}) requires a BundleModelProviderIfc; got " +
                         (provider?.let { it::class.simpleName } ?: "null")
             )
             return null

@@ -39,7 +39,7 @@ private val logger = KotlinLogging.logger {}
  */
 class BundleModelProvider(
     val bundles: List<LoadedBundle>
-) : ModelProviderIfc {
+) : BundleModelProviderIfc {
 
     private val byModelId: Map<String, KSLBundledModel> = buildMap {
         // Track which bundleId first claimed each modelId so a later duplicate
@@ -126,7 +126,7 @@ class BundleModelProvider(
      * [isModelProvided], which uses the flat `byModelId` lookup with
      * first-wins shadowing.
      */
-    fun isModelProvided(bundleId: String, modelId: String): Boolean =
+    override fun isModelProvided(bundleId: String, modelId: String): Boolean =
         byBundleAndModel.containsKey(bundleId to modelId)
 
     /**
@@ -138,11 +138,11 @@ class BundleModelProvider(
      * @throws IllegalArgumentException if no bundle in this provider
      * has [bundleId], or if the named bundle has no model with [modelId]
      */
-    fun provideModel(
+    override fun provideModel(
         bundleId: String,
         modelId: String,
-        modelConfiguration: Map<String, String>? = null,
-        experimentRunParameters: ExperimentRunParametersIfc? = null
+        modelConfiguration: Map<String, String>?,
+        experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = byBundleAndModel[bundleId to modelId]
             ?: throw IllegalArgumentException(
@@ -161,7 +161,7 @@ class BundleModelProvider(
      * @throws IllegalArgumentException if no bundle in this provider
      * has [bundleId], or if the named bundle has no model with [modelId]
      */
-    fun builderFor(bundleId: String, modelId: String): ModelBuilderIfc {
+    override fun builderFor(bundleId: String, modelId: String): ModelBuilderIfc {
         val model = byBundleAndModel[bundleId to modelId]
             ?: throw IllegalArgumentException(
                 "Unknown (bundleId, modelId) pair ('$bundleId', '$modelId'). " +

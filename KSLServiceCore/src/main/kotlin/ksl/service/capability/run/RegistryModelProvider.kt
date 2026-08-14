@@ -29,7 +29,7 @@ import ksl.simulation.ModelProviderIfc
  * become resolvable without rebuilding the session. A `KSLAppSession` built over
  * this provider therefore sees newly-dropped bundles.
  */
-class RegistryModelProvider(private val registry: BundleRegistry) : ModelProviderIfc {
+class RegistryModelProvider(private val registry: BundleRegistry) : ksl.app.bundle.BundleModelProviderIfc {
 
     private fun current(): BundleModelProvider = BundleModelProvider(registry.currentBundles())
 
@@ -43,4 +43,23 @@ class RegistryModelProvider(private val registry: BundleRegistry) : ModelProvide
     ): Model = current().provideModel(modelIdentifier, modelConfiguration, experimentRunParameters)
 
     override fun modelIdentifiers(): List<String> = current().modelIdentifiers()
+
+    // The bundle-pair half of the contract. The registry has always been able to answer these —
+    // current() IS a BundleModelProvider — but until this class declared the capability, a
+    // configuration saved by a desktop app (which writes modelReference.byBundleAndModelId) was
+    // rejected by the server's resolution guards for being the wrong concrete type. Declaring it
+    // is what makes ONE RunConfiguration file run in the apps and on the server alike.
+
+    override fun isModelProvided(bundleId: String, modelId: String): Boolean =
+        current().isModelProvided(bundleId, modelId)
+
+    override fun provideModel(
+        bundleId: String,
+        modelId: String,
+        modelConfiguration: Map<String, String>?,
+        experimentRunParameters: ExperimentRunParametersIfc?,
+    ): Model = current().provideModel(bundleId, modelId, modelConfiguration, experimentRunParameters)
+
+    override fun builderFor(bundleId: String, modelId: String): ksl.simulation.ModelBuilderIfc =
+        current().builderFor(bundleId, modelId)
 }
