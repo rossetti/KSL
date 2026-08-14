@@ -39,6 +39,27 @@ import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
+ * macOS: mark this process a UI accessory so it never registers a Dock tile or an app menu.
+ *
+ * This server renders report and plot images off-screen via AWT/Java2D. The first such render
+ * initializes AWT, and an unmarked process then pops a "MainKt" Dock tile that lingers for the
+ * life of the process — visible to every user who ever asks the assistant for a plot.
+ *
+ * Set in code, before anything touches AWT, so it holds on EVERY launch path: the generated
+ * `ksl-suite` launcher, `java -jar ksl-suite-mcp.jar` (started by `ServerProcessInventory`), and
+ * IDE/dev runs alike. `applicationDefaultJvmArgs` reaches only the first of those, which is why
+ * the build's matching `-D` flag is a backstop rather than the fix.
+ *
+ * Deliberately NOT `java.awt.headless=true`: that would also remove the tile, but any render path
+ * that is not fully headless-clean throws a `HeadlessException`. An accessory process keeps a full
+ * display connection, so rendering keeps working — the same trade-off the tray agent and the
+ * repo-wide test-JVM setting already make. Inert off macOS: no other toolkit reads the property.
+ */
+internal fun configureMacDesktop() {
+    System.setProperty("apple.awt.UIElement", "true")
+}
+
+/**
  * HTTP entrypoint for the KSL MCP Suite — one long-running server exposing the enabled tool surfaces
  * (simulation, textbook, source-code) on a single MCP endpoint. `main(args)` either performs a
  * client-setup command (`--configure` / `--remove`, see `SetupCli`) or starts the server.
@@ -51,6 +72,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * lazily on the first search.
  */
 fun main(args: Array<String>) {
+    configureMacDesktop()
     if ("--version" in args) {
         println(SuiteBuildInfo.version)
         return

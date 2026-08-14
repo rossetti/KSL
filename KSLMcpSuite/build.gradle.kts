@@ -46,7 +46,13 @@ dependencies {
 
 application {
     mainClass.set("ksl.server.suite.MainKt")
-    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=logback-ksl-suite-mcp.xml")
+    // The UIElement flag is a BACKSTOP for the launcher path only; the real fix is
+    // configureMacDesktop() in Main.kt, which also covers `java -jar` and IDE runs. Kept here in
+    // case a static initializer ever touches AWT before main(). Matches KSLServerTray.
+    applicationDefaultJvmArgs = listOf(
+        "-Dlogback.configurationFile=logback-ksl-suite-mcp.xml",
+        "-Dapple.awt.UIElement=true",
+    )
 }
 
 tasks.test { useJUnitPlatform() }
