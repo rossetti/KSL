@@ -37,6 +37,15 @@ import kotlin.test.assertTrue
  *  from every random variable. Two runs whose streams are at the same position produce the same
  *  draws, and the stream's own state is private (`Cg`/`Bg`/`Ig` on the MRG32k3a stream), so this
  *  is both the available check and a sufficient one.
+ *
+ *  **That reading was inert until the between-replication sub-stream advance was turned off**, and
+ *  the check silently asserted nothing for as long as it existed. `ConcurrentModelsLevel2Test`'s
+ *  mutation pass found it: with `advanceNextSubStreamOption` at its default of `true`, every stream
+ *  lands on a sub-stream boundary fixed by the replication count at the end of each replication,
+ *  so the post-run draw is blind to draws taken during it — and this test passed unchanged while
+ *  the element drew from a stream at every epoch. See the note in `build`. It is recorded here
+ *  rather than quietly fixed because it is the second time a green assertion in this suite turned
+ *  out to be measuring nothing, which is a fact about the suite a reviewer should have.
  */
 class Level2OrderingAndStreamsTest {
 
@@ -98,10 +107,28 @@ class Level2OrderingAndStreamsTest {
         m.lengthOfReplication = 120.0
         m.lengthOfReplicationWarmUp = warmUp
         // chunked runs are set through run parameters, not on Model — left out; see report
+        //
+        // Without this line the stream assertion below cannot fail. KSL advances every stream to
+        // the start of its next sub-stream at the end of each replication
+        // (`Model.kt:1339`, `advanceNextSubStreamOption` defaults to `true`), which lands both arms
+        // on a sub-stream boundary determined only by the replication count. A post-run draw then
+        // agrees no matter how many draws were taken inside the replication, so an element that
+        // consumed randomness would pass unnoticed. Measured: with the advance left on, this test
+        // passed while the element drew from a stream at every epoch.
+        //
+        // Turning it off makes the end-of-run position a function of the draws actually taken,
+        // which is what the fingerprint is supposed to read. Both arms are configured identically,
+        // so the comparison is unaffected in every other respect.
+        m.advanceNextSubStreamOption = false
         return Arm(m, shop)
     }
 
-    /** After the run, the next draw from every RV reveals whether streams are at the same place. */
+    /**
+     *  After the run, the next draw from every RV reveals whether streams are at the same place.
+     *
+     *  This is only informative because [build] turns off the between-replication sub-stream
+     *  advance; see the note there.
+     */
     private fun streamFingerprint(m: Model): List<String> =
         m.randomVariables().sortedBy { it.name }.map { "${it.name}=${"%.12f".format(it.value)}" }
 

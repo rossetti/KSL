@@ -534,13 +534,24 @@ class DecisionElement internal constructor(
     val lastTermination: TerminationSource? get() = myLastTermination
 
     /**
-     *  The priority this element's epoch events carry (§4.6.2, G.9 row 12).
+     *  The priority this element's epoch events carry (§4.6.2, G.9 row 12). Lower sorts earlier.
      *
-     *  Two elements whose epochs coincide and whose priorities are equal execute in the
-     *  order their events were scheduled, which is their declaration order. That is
-     *  deterministic and reproducible, and it is **not** a contract anyone should rely on
-     *  for correctness: an element that must act before another should say so with a
-     *  different priority rather than by being declared first.
+     *  Two elements whose epochs coincide and whose priorities **differ** run in priority order,
+     *  which is the whole point of being able to set this.
+     *
+     *  Two whose priorities are **equal** — which is what happens when both take the default —
+     *  are separated by [KSLEvent]'s tie-break on event id, so the one whose first epoch was
+     *  scheduled earlier goes first. First epochs are scheduled in `initialize`, which runs over
+     *  the model-element tree, so in practice the order follows **the order in which the elements'
+     *  owning model elements were constructed**. It does *not* follow the order of the
+     *  `decisionElement { }` declarations: this KDoc claimed it did, and
+     *  `CoincidentEpochOrderingTest` measured otherwise — reversing two declarations under
+     *  unchanged construction order changes nothing.
+     *
+     *  Either way it is deterministic and reproducible, and either way it is **not declared**, so
+     *  it is not a contract to rely on for correctness. An element that must act before another
+     *  should say so by setting this to a smaller value than the other's, which beats the tie-break
+     *  regardless of construction order.
      */
     val declaredEpochPriority: Int get() = epochPriority
 
