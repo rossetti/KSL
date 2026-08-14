@@ -251,17 +251,27 @@ class ConstructionValidationTest {
         assertEquals(0..10, element.limitsOf(element.leverRef("W")))
     }
 
-    /** `epochInterval` is a positive duration, and zero is the mistake worth catching. */
+    /**
+     *  `epochInterval` is a **finite** positive duration, and this must be the same domain
+     *  `every()` enforces — the two paths write the same field and may not disagree about a value.
+     *
+     *  They did disagree, in both directions, at different times. The pre-port audit found the DSL
+     *  accepting `every(0.0)` while this property refused `0.0`, and fixed the DSL by requiring
+     *  finite and positive. That left the property accepting `∞` while the DSL refused it, which
+     *  `ControlSurfaceTest` then found by clamping a control onto its declared upper bound. The
+     *  non-finite cases below are the half that was missing.
+     */
     @Test
-    fun aNonPositiveEpochIntervalIsRefused() {
+    fun aNonPositiveOrNonFiniteEpochIntervalIsRefused() {
         val (_, _, e) = built()
-        val zero = runCatching { e.epochInterval = 0.0 }.exceptionOrNull()
-        val negative = runCatching { e.epochInterval = -5.0 }.exceptionOrNull()
         println()
-        println("epochInterval = 0.0  : ${zero.named()} — ${zero?.message}")
-        println("epochInterval = -5.0 : ${negative.named()}")
-        assertTrue(zero is IllegalArgumentException)
-        assertTrue(negative is IllegalArgumentException)
+        for (bad in listOf(0.0, -5.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            val t = runCatching { e.epochInterval = bad }.exceptionOrNull()
+            println("epochInterval = %-9s : %s — %s".format(bad, t.named(), t?.message))
+            assertTrue(t is IllegalArgumentException,
+                "epochInterval = $bad must be refused; `every($bad)` is, and one field cannot have " +
+                    "two domains depending on which path wrote it")
+        }
         e.epochInterval = 25.0
         assertEquals(25.0, e.epochInterval)
     }

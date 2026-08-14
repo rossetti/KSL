@@ -1,5 +1,7 @@
 package ksl.modeling.decision
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.decision.descriptor.*
 import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.Response
@@ -312,11 +314,41 @@ class DecisionElement internal constructor(
         }
 
     internal var myEpochInterval: Double = Double.POSITIVE_INFINITY
+
+    /**
+     *  How often this element decides, when its epochs are periodic — the review period.
+     *
+     *  **A `@KSLControl`, so `simopt` can search it through the path it already uses** (§8). KSL
+     *  makes the same choice for an inventory policy's review period `R`, and for the same reason:
+     *  a review period is an ordinary decision variable.
+     *
+     *  The declared `lowerBound` is [Double.MIN_VALUE] rather than `0.0`, and that is not a
+     *  curiosity. A numeric control **clamps** — `Control.setPropertyFromDouble` calls
+     *  `limitToRange` — so whatever bound is declared is a value the setter will actually be handed.
+     *  Declaring `0.0` would have the clamp deliver `0.0` to a setter that refuses it. The rule this
+     *  follows is stated once and applies to every control here: **a control's declared bounds are
+     *  the exact domain of the property it writes**, and `Double.MIN_VALUE`/[Double.MAX_VALUE] are
+     *  precisely the smallest and largest values satisfying "finite and `> 0.0`".
+     *
+     *  **Applying that rule found a live disagreement.** `every()` has required *finite* and `> 0.0`
+     *  since the pre-port audit, and this setter required only `> 0.0`, so `epochInterval = ∞` was
+     *  accepted by the parameterization path and refused by the declaration path — the same defect
+     *  the audit fixed in the other direction, left half-fixed. An infinite interval means "never
+     *  decide", which is indistinguishable from declaring no timing at all. The `isFinite` check
+     *  below closes it, and a finite `upperBound` is what keeps the clamp inside the domain.
+     */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = Double.MIN_VALUE,
+        upperBound = Double.MAX_VALUE
+    )
     var epochInterval: Double
         get() = myEpochInterval
         set(value) {
             requireNotRunning("epochInterval")
-            require(value > 0.0) { "The epoch interval must be > 0.0" }
+            require(value.isFinite() && value > 0.0) {
+                "The epoch interval must be finite and > 0.0, but $value was assigned."
+            }
             myEpochInterval = value
         }
 
@@ -342,6 +374,15 @@ class DecisionElement internal constructor(
         set(value) { requireNotRunning("feasibilityPolicy"); myFeasibilityPolicy = value }
 
     internal var myMaxEpochs: Int = Int.MAX_VALUE
+
+    /**
+     *  A cap on decisions per episode.
+     *
+     *  A `@KSLControl` for the same reason as [epochInterval], and with its bound chosen by the
+     *  same rule: `lowerBound = 1.0` is the exact domain of a setter that requires `> 0`, so the
+     *  clamp can only ever deliver a value the setter accepts.
+     */
+    @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
     var maxEpochs: Int
         get() = myMaxEpochs
         set(value) {
