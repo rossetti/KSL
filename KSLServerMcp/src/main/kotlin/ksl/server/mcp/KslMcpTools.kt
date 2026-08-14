@@ -523,7 +523,7 @@ class KslMcpTools(
         val structured = buildJsonObject {
             put("resultId", resultId)
             putJsonArray("artifacts") {
-                refs.forEach { add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) }) }
+                refs.forEach { add(artifactJson(it)) }
             }
         }
         // Inline the image so a vision model can see the layout; the artifact lets the user open it.
@@ -591,7 +591,7 @@ class KslMcpTools(
             put("totalBytes", report.totalBytes)
             putJsonArray("artifacts") {
                 artifactStore.list(resultId).forEach {
-                    add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) })
+                    add(artifactJson(it))
                 }
             }
         }
@@ -1268,23 +1268,35 @@ class KslMcpTools(
         return result(summary, payload)
     }
 
+    /**
+     * One artifact reference as wire JSON. Every tool that reports artifacts goes through here so
+     * they cannot drift: `url` was originally added to `get_artifacts` alone, which left
+     * `db_compare_report` — the tool most likely to produce something a user wants to OPEN —
+     * still handing back a bare filesystem path.
+     *
+     * `url` is omitted rather than null when the store has no configured base address, so the
+     * field is simply absent for an in-process or test store.
+     */
+    private fun artifactJson(ref: ksl.service.capability.run.dto.ArtifactRef): JsonObject =
+        buildJsonObject {
+            put("name", ref.name)
+            put("mediaType", ref.mediaType)
+            put("path", ref.path)
+            ref.url?.let { put("url", it) }
+        }
+
     /** `get_artifacts` — the rendered artifacts (reports, plot images, exports) retained for a result. */
     fun getArtifacts(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val refs = artifactStore.list(resultId)
-        val structured = buildJsonObject {
-            putJsonArray("artifacts") {
-                refs.forEach {
-                    add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) })
-                }
-            }
-        }
+        val structured = buildJsonObject { putJsonArray("artifacts") { refs.forEach { add(artifactJson(it)) } } }
         val summary = if (refs.isEmpty()) {
             "No artifacts for result '$resultId'."
         } else {
             buildString {
                 appendLine("${refs.size} artifact(s) for $resultId:")
-                refs.forEach { appendLine("  - ${it.name} (${it.mediaType})") }
+                // Lead with the URL when there is one: it is the part worth handing to the user.
+                refs.forEach { appendLine("  - ${it.name} (${it.mediaType})" + (it.url?.let { u -> " -> $u" } ?: "")) }
             }.trimEnd()
         }
         return result(summary, structured)
@@ -1417,25 +1429,30 @@ class KslMcpTools(
 
     /**
      * `get_artifact` — one artifact by name. Text artifacts (HTML/Markdown/text/
-     * CSV/JSON/SVG) are returned inline as the text content; for any type the
-     * on-disk `path` is included so a local agent can open the file directly.
+     * CSV/JSON/SVG) are returned inline as the text content; every artifact also
+     * carries the on-disk `path` (usable by an agent on this machine) and, when
+     * the server knows its own address, an openable `url` to hand to the user.
      */
     fun getArtifact(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val name = arguments.string("name") ?: return error("missing required argument 'name'")
         val file = artifactStore.resolve(resultId, name)
             ?: return error("no artifact '$name' for result '$resultId'")
-        val mediaType = artifactStore.list(resultId).firstOrNull { it.name == name }?.mediaType
-            ?: "application/octet-stream"
+        val ref = artifactStore.list(resultId).firstOrNull { it.name == name }
+        val mediaType = ref?.mediaType ?: "application/octet-stream"
         val isText = mediaType.startsWith("text/") || mediaType == "application/json" || mediaType == "image/svg+xml"
         val content = if (isText) runCatching { java.nio.file.Files.readString(file) }.getOrNull() else null
         val structured = buildJsonObject {
             put("name", name)
             put("mediaType", mediaType)
             put("path", file.toString())
+            ref?.url?.let { put("url", it) }
             if (content != null) put("content", content)
         }
-        val summary = content ?: "Artifact '$name' ($mediaType) is at: $file"
+        // Even when the content is returned inline, name the link — the user usually wants to open
+        // the rendered report, not read its markup.
+        val location = ref?.url?.let { "Open it at: $it" } ?: "It is at: $file"
+        val summary = content?.let { "$it\n\n$location" } ?: "Artifact '$name' ($mediaType). $location"
         return result(summary, structured)
     }
 
@@ -1690,12 +1707,23 @@ class KslMcpTools(
                 val refs = artifactStore.list(resultId)
                 val structured = buildJsonObject {
                     putJsonArray("artifacts") {
-                        refs.forEach { add(buildJsonObject { put("name", it.name); put("mediaType", it.mediaType); put("path", it.path) }) }
+                        refs.forEach { add(artifactJson(it)) }
                     }
                 }
+                // Name the link for the file just written: this tool's whole point is producing a
+                // report someone opens, so a bare "downloadable via get_artifact" wastes a round trip.
+                val written = outcome.files.mapNotNull { f -> refs.firstOrNull { it.name == f } }
+                val links = written.mapNotNull { it.url }
                 result(
-                    "Wrote ${outcome.files.size} file(s): ${outcome.files.joinToString(", ")}. " +
-                        "${refs.size} artifact(s) now downloadable via get_artifact.",
+                    buildString {
+                        append("Wrote ${outcome.files.size} file(s): ${outcome.files.joinToString(", ")}. ")
+                        if (links.isEmpty()) {
+                            append("${refs.size} artifact(s) now downloadable via get_artifact.")
+                        } else {
+                            appendLine("Open:")
+                            links.forEach { appendLine("  $it") }
+                        }
+                    }.trimEnd(),
                     structured,
                 )
             }

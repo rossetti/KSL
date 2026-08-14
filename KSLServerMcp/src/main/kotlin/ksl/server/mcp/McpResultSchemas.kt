@@ -102,13 +102,17 @@ internal object McpResultSchemas {
             }
             putJsonObject("artifacts") {
                 put("type", "array")
-                put("description", "Server-local artifacts produced by the run (reports, bulk data, database captures): {name, mediaType, path}.")
+                put("description", "Artifacts produced by the run (reports, bulk data, database captures): {name, mediaType, path, url}. Hand the user the url.")
                 putJsonObject("items") {
                     put("type", "object")
                     putJsonObject("properties") {
                         putJsonObject("name") { put("type", "string") }
                         putJsonObject("mediaType") { put("type", "string") }
                         putJsonObject("path") { put("type", "string") }
+                        putJsonObject("url") {
+                            put("type", "string")
+                            put("description", "Openable link; absent if the server has no configured address.")
+                        }
                     }
                 }
             }
@@ -221,6 +225,10 @@ internal object McpResultSchemas {
                         putJsonObject("name") { put("type", "string") }
                         putJsonObject("mediaType") { put("type", "string") }
                         putJsonObject("path") { put("type", "string") }
+                        putJsonObject("url") {
+                            put("type", "string")
+                            put("description", "Openable link; absent if the server has no configured address.")
+                        }
                     }
                 }
             }
@@ -234,8 +242,13 @@ internal object McpResultSchemas {
             putJsonObject("name") { put("type", "string") }
             putJsonObject("mediaType") { put("type", "string") }
             putJsonObject("path") { put("type", "string") }
+            putJsonObject("url") {
+                put("type", "string")
+                put("description", "Openable link to the artifact; absent if the server has no configured address.")
+            }
             putJsonObject("content") { put("type", "string"); put("description", "Inline text for textual artifacts (HTML/Markdown/text/CSV/JSON/SVG).") }
         },
+        // url stays OPTIONAL: an in-process or test ArtifactStore has no server address to mint one.
         required = listOf("name", "mediaType", "path"),
     )
 

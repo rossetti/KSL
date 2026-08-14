@@ -28,6 +28,7 @@ import ksl.service.capability.run.BundleDirectoryWatcher
 import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
 import ksl.service.store.ArtifactStore
+import ksl.service.store.ArtifactUrls
 import ksl.service.store.ResultStore
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -50,15 +51,20 @@ fun main() {
     watcher.start(watcherScope)
 
     val resultStore = ResultStore(config.resultCacheDir(), config.cache.maxMemoryBytes, config.cache.maxDiskEntries, config.cache.maxDiskBytes)
+    val port = config.restPort()
+    val host = config.bindHost() // localhost by default (local-trust model); see ServerConfig
     // Run work (capture output, the KSL database, rendered reports/exports) lands in
     // the KSLWork workspace like the desktop apps — NOT under ~/.ksl (settings/cache only).
-    val artifactStore = ArtifactStore(config.outputRoot())
+    //
+    // The base URL makes every ArtifactRef carry an openable link to THIS server's own
+    // /results/{id}/artifacts/{name} route, which has existed all along while the refs still
+    // reported a bare filesystem path. Computed from the REST port, not the MCP one: the two
+    // servers serve their own artifacts.
+    val artifactStore = ArtifactStore(config.outputRoot(), ArtifactUrls.baseUrl(host, port))
     val service = KslRestService(
         registry, config.server.maxConcurrentJobs, resultStore, artifactStore,
         runDeadline = config.runDeadline(),
     )
-    val port = config.restPort()
-    val host = config.bindHost() // localhost by default (local-trust model); see ServerConfig
 
     val server = embeddedServer(CIO, host = host, port = port) {
         kslRestModule(service, ready = ready::get, authToken = config.authToken())

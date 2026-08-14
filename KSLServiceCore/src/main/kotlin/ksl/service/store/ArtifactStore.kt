@@ -40,8 +40,15 @@ import java.nio.file.Path
  *
  * @param root the work-output root (defaults to [ResultStore.defaultDir] for
  *   tests/in-process use); servers pass `ServerConfig.outputRoot()`.
+ * @param baseUrl the address this server is reachable at (see [ArtifactUrls.baseUrl]),
+ *   used to stamp an openable [ArtifactRef.url] on every listed artifact. Null — the
+ *   default — for in-process and test use, where there is no server to link to; the
+ *   refs then carry `path` alone, exactly as before.
  */
-class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
+class ArtifactStore(
+    private val root: Path = ResultStore.defaultDir(),
+    private val baseUrl: String? = null,
+) {
 
     /** The artifacts directory for [resultId], created on demand. */
     fun dirFor(resultId: String): Path =
@@ -79,10 +86,12 @@ class ArtifactStore(private val root: Path = ResultStore.defaultDir()) {
         return Files.walk(dir).use { walk ->
             walk.filter { Files.isRegularFile(it) }
                 .map { f ->
+                    val name = dir.relativize(f).toString().replace('\\', '/')
                     ArtifactRef(
-                        name = dir.relativize(f).toString().replace('\\', '/'),
+                        name = name,
                         mediaType = mediaTypeOf(f),
                         path = f.toString(),
+                        url = ArtifactUrls.forArtifact(baseUrl, resultId, name),
                     )
                 }
                 .sorted(compareBy { it.name })

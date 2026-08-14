@@ -32,6 +32,7 @@ import ksl.service.capability.run.BundleRegistry
 import ksl.service.config.ServerConfig
 import ksl.service.config.ServerConfigToml
 import ksl.service.store.ArtifactStore
+import ksl.service.store.ArtifactUrls
 import ksl.service.store.ResultStore
 import ksl.service.usage.UsageLevel
 import ksl.service.usage.UsageStore
@@ -95,6 +96,11 @@ private fun runServer() {
     // server is ready as soon as it is listening.
     val ready = AtomicBoolean(true)
 
+    // Hoisted out of the sim block so the HTTP layer can serve artifacts from the same store the
+    // tools write into. Stays null for a book/code-only deployment, which produces no artifacts —
+    // and the serving route is then not mounted at all.
+    var artifactStore: ArtifactStore? = null
+
     if (config.simEnabled()) {
         val registry = BundleRegistry.empty()
         ready.set(false) // not ready until the initial bundle scan completes
@@ -110,11 +116,17 @@ private fun runServer() {
             config.cache.maxDiskEntries,
             config.cache.maxDiskBytes,
         )
-        val artifactStore = ArtifactStore(config.outputRoot())
+        // The base URL is baked into the store so every artifact ref it lists carries an openable
+        // link, whichever tool produced it — rather than each call site remembering to add one.
+        val store = ArtifactStore(
+            config.outputRoot(),
+            ArtifactUrls.baseUrl(config.bindHost(), config.mcpPort()),
+        )
+        artifactStore = store
         val kslTools = KslMcpTools(
             registry,
             resultStore,
-            artifactStore,
+            store,
             maxConcurrentJobs = config.server.maxConcurrentJobs,
             runDeadline = config.runDeadline(),
         )
@@ -156,6 +168,7 @@ private fun runServer() {
         ready = ready::get,
         authToken = config.authToken(),
         usage = usageControl,
+        artifactStore = artifactStore,
     )
     Runtime.getRuntime().addShutdownHook(Thread { cleanups.forEach { runCatching { it() } } })
     server.start(wait = true)

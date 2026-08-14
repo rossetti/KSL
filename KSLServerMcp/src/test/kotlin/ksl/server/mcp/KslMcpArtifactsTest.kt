@@ -98,8 +98,38 @@ class KslMcpArtifactsTest {
         val r = tools.getArtifact(buildJsonObject { put("resultId", "res1"); put("name", "welch.html") })
         val out = structured(r)
         assertEquals("<html>welch</html>", out["content"]!!.jsonPrimitive.content, "text artifact is inlined")
-        assertEquals("<html>welch</html>", firstText(r), "summary text is the artifact body")
+        // The summary leads with the body and then names where to open it. It is no longer JUST the
+        // body: an assistant that reads only the text content would otherwise never learn the
+        // location, which is how a rendered report ends up described instead of handed over.
+        assertTrue(firstText(r).startsWith("<html>welch</html>"), "summary leads with the artifact body")
+        assertTrue(firstText(r).endsWith("welch.html"), "summary names where to open it")
         assertTrue(out["path"]!!.jsonPrimitive.content.endsWith("welch.html"), "carries the on-disk path")
+    }
+
+    @Test
+    @DisplayName("a store with a base URL puts an openable link on the artifact and in the summary")
+    fun getArtifactCarriesUrlWhenConfigured() {
+        val root = kotlin.io.path.createTempDirectory("mcp-artifact-urls")
+        val linked = ksl.service.store.ArtifactStore(root, "http://127.0.0.1:3001")
+        java.nio.file.Files.writeString(linked.dirFor("res1").resolve("report.html"), "<html>r</html>")
+        KslMcpTools(BundleRegistry.empty(), ResultStore(root.resolve("cache")), linked).use { linkedTools ->
+            val r = linkedTools.getArtifact(buildJsonObject { put("resultId", "res1"); put("name", "report.html") })
+            val out = structured(r)
+            assertEquals(
+                "http://127.0.0.1:3001/results/res1/artifacts/report.html",
+                out["url"]!!.jsonPrimitive.content,
+                "structured content carries the openable link",
+            )
+            assertTrue("http://127.0.0.1:3001" in firstText(r), "the summary shows the link to hand over")
+
+            val listed = structured(linkedTools.getArtifacts(buildJsonObject { put("resultId", "res1") }))
+            val first = listed["artifacts"]!!.jsonArray.single().jsonObject
+            assertEquals(
+                "http://127.0.0.1:3001/results/res1/artifacts/report.html",
+                first["url"]!!.jsonPrimitive.content,
+                "get_artifacts carries it too",
+            )
+        }
     }
 
     @Test

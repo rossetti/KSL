@@ -25,6 +25,8 @@ import io.ktor.server.application.call
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.request.path
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
 import io.ktor.server.response.respondTextWriter
 import io.ktor.server.routing.get
@@ -48,6 +50,7 @@ import ksl.service.config.HealthEndpoints
 import ksl.service.config.ServerAuth
 import ksl.service.config.ServerConfig
 import ksl.service.config.ServerConfigToml
+import ksl.service.store.ArtifactStore
 
 /**
  * The KSL MCP Suite serving helper: ONE long-running HTTP MCP server that aggregates a set of
@@ -111,6 +114,7 @@ object KslSuiteMcpServer {
         ready: () -> Boolean = { true },
         authToken: String? = null,
         usage: UsageControl? = null,
+        artifactStore: ArtifactStore? = null,
     ) = embeddedServer(CIO, host = host, port = port) {
         if (!authToken.isNullOrBlank()) {
             intercept(ApplicationCallPipeline.Plugins) {
@@ -141,6 +145,29 @@ object KslSuiteMcpServer {
             }
             get("/version") {
                 call.respondText(HealthEndpoints.versionJson(SUITE_NAME, SuiteBuildInfo.version), ContentType.Application.Json)
+            }
+            // Serve rendered artifacts (reports, plot images, exports) so a tool result can hand back
+            // an openable link instead of a filesystem path that only works on this machine. Mounted
+            // only when the simulation surface is enabled — a textbook-only deployment produces none.
+            //
+            // Path traversal is handled by ArtifactStore.resolve, which normalizes and confines to the
+            // result's artifacts directory and returns null for anything escaping it (a null becomes a
+            // 404 here, which is also the right answer for a name that simply does not exist).
+            //
+            // Deliberately NOT added to ServerAuth.publicPaths: when a token is configured, fetching an
+            // artifact needs the Authorization header like every other non-public route. The default
+            // deployment is loopback and open, so the link is directly clickable there.
+            if (artifactStore != null) {
+                get("/results/{resultId}/artifacts/{name...}") {
+                    val resultId = call.parameters["resultId"]!!
+                    val name = call.parameters.getAll("name")?.joinToString("/").orEmpty()
+                    val file = artifactStore.resolve(resultId, name)
+                    if (file == null) {
+                        call.respond(HttpStatusCode.NotFound)
+                    } else {
+                        call.respondFile(file.toFile())
+                    }
+                }
             }
             if (adminOps != null) {
                 // Live server status: per-capability readiness + processing totals. Gated by the

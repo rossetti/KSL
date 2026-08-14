@@ -114,14 +114,21 @@ data class BatchItemDto(
 
 /**
  * A reference to a server-local run artifact (full HTML/Markdown report, bulk
- * per-replication data, database capture). The REST transport mints a download
- * URL from [path]; the MCP transport exposes it as a resource.
+ * per-replication data, database capture).
+ *
+ * [path] is where the file sits on the server's own filesystem — useful to an
+ * agent running on that same machine, useless to anyone else. [url] is the
+ * openable link: both the MCP and REST transports serve artifacts at
+ * `<base>/runs/<resultId>/artifacts/<name>` and fill it in. It is nullable
+ * because a caller that never configured a base address (an in-process or test
+ * use of `ArtifactStore`) has no address to mint one from.
  */
 @Serializable
 data class ArtifactRef(
     val name: String,
     val mediaType: String,
     val path: String,
+    val url: String? = null,
 )
 
 /** Projection of a simulation-optimization `Solution`. */

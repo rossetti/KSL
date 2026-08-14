@@ -849,8 +849,8 @@ object KslMcpServer {
         add(
             name = "get_artifacts",
             description = "List the rendered artifacts (reports, plot images, exports) retained for a result " +
-                "(structuredContent {artifacts:[{name, mediaType, path}]}). Present the full list; fetch one " +
-                "with get_artifact.",
+                "(structuredContent {artifacts:[{name, mediaType, path, url}]}). Present the full list with " +
+                "each url, so the user can open them; fetch one with get_artifact.",
             inputSchema = resultIdOnly,
             outputSchema = McpResultSchemas.artifacts,
         ) { request -> tools.getArtifacts(request.arguments) }
@@ -954,8 +954,10 @@ object KslMcpServer {
         add(
             name = "get_artifact",
             description = "Fetch one artifact by name. Text artifacts (HTML/Markdown/text/CSV/JSON/SVG) come " +
-                "back inline as the text content; structuredContent carries {name, mediaType, path, content?} " +
-                "and the on-disk path for any type.",
+                "back inline as the text content; structuredContent carries {name, mediaType, path, url, " +
+                "content?}. Give the user the url — a rendered report is meant to be opened, and the path " +
+                "only works on the server's own machine. (If the server is token-gated, the url needs the " +
+                "same Authorization header as every other request.)",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("resultId") { put("type", "string") }
