@@ -393,9 +393,22 @@ function CmdInstall([string]$id) {
     MakeEntryPoint $id
     Say "installed $id -> $p"
 }
+# Refuse to overwrite files a live KSL process is executing from, and say which ones. The twin of
+# the bash require_no_active_processes, and the same stance as the uninstall guard: report only,
+# never kill. Proactive on purpose -- ExtractItem's IOException catch would eventually stop this
+# on Windows, but only PARTWAY THROUGH, leaving a half-replaced payload. Better to refuse first.
+function RequireNoActiveProcesses([string]$target, [string]$what) {
+    $active = @(ActiveProcessesUsing $target)
+    if ($active.Count -eq 0) { return }
+    Say "cannot $what - these processes are still using ${target}:"
+    foreach ($pr in $active) { Say ("  PID {0} {1} {2}" -f $pr.ProcessId, $pr.Name, $pr.CommandLine) }
+    Die "quit the KSL Server (and any KSL apps), and restart Codex / Claude Desktop so their KSL bridges exit, then try again."
+}
+
 function CmdUpdate([string]$id) {
     $zip = SuiteZip
     if (-not $id) {
+        RequireNoActiveProcesses $support "update the suite"
         # 'bundles' stopped existing when the shipped examples moved to examples\ in 0.3.0, so an
         # update extracted a directory that was not there and skipped the one that was: the model
         # bundles and polished layouts were never refreshed. examples\ goes to $kslHome, not
@@ -448,6 +461,7 @@ function CmdUpdate([string]$id) {
     } else {
         $p = PathOf $id
         if (-not $p) { Die "unknown id: $id" }
+        RequireNoActiveProcesses (Join-Path $support ($p -replace '/', '\')) "update $id"
         ExtractItem $zip $p; Dequarantine (Join-Path $support $p)
         PruneForeign
         MakeEntryPoint $id

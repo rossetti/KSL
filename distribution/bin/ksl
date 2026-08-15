@@ -427,9 +427,33 @@ cmd_install() {
   make_entry_point "$1"
   say "installed $1 -> $path"
 }
+# Refuse to overwrite files a live KSL process is executing from, and say which ones.
+#
+# The uninstall paths have guarded this since they were written; update did not, and overwriting is
+# the MORE damaging of the two. Deleting a jar out from under a JVM at least leaves it running on
+# the old inode; `unzip -o` truncates and rewrites the SAME inode, so the running server keeps going
+# with a jar whose contents no longer match what it loaded. The failure then surfaces much later, as
+# a NoClassDefFoundError or a corrupt class on the next lazy load, far from the cause.
+#
+# Windows was accidentally protected (it locks open files, so ExtractItem's IOException fired);
+# macOS and Linux happily overwrite and report success. Same stance as the uninstall guard:
+# report only, never kill -- the user decides what to close.
+require_no_active_processes() {
+  local target="$1" what="$2"
+  local pids; pids="$(active_processes_using "$target")"
+  [ -n "$pids" ] || return 0
+  say "cannot $what — these processes are still using $target:"
+  local pid
+  for pid in $pids; do
+    ps -o pid=,args= -p "$pid" 2>/dev/null | sed 's/^/  /' || printf '  %s\n' "$pid"
+  done
+  die "quit the KSL Server (and any KSL apps), and restart Codex / Claude Desktop so their KSL bridges exit, then try again."
+}
+
 cmd_update() {
   local zip; zip="$(suite_zip)"
   if [ -z "${1:-}" ]; then
+    require_no_active_processes "$SUPPORT" "update the suite"
     # Extract EVERYTHING, exactly as install.sh does, then relocate the two things that do not
     # live under .support. The old code named the top-level directories one by one -- and named
     # 'bundles/*', which stopped existing when the shipped examples moved to examples/ in 0.3.0.
@@ -476,6 +500,7 @@ cmd_update() {
     say "updated the whole suite to $(suite_version_of "$MANIFEST") (your workspace was not touched)"
   else
     local path; path="$(path_of "$1")"; [ -n "$path" ] || die "unknown id: $1"
+    require_no_active_processes "$SUPPORT/$path" "update $1"
     unzip -q -o "$zip" "$path/*" -d "$SUPPORT"; dequarantine "$SUPPORT/$path"
     prune_foreign
     make_entry_point "$1"

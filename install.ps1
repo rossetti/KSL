@@ -132,6 +132,23 @@ try {
     }
 
     # --- 4. unpack into the hidden support folder ---
+    # Refuse to overwrite files a live KSL process is executing from. Windows locks open files, so
+    # Expand-Archive would fail anyway -- but only PARTWAY THROUGH, leaving a half-replaced payload
+    # and an error naming a random jar rather than the cause. Check first and say what to close.
+    # Report only, never kill -- the same stance bin\ksl's uninstall guard takes.
+    $needle = $support.TrimEnd('\')
+    $active = @()
+    try {
+        $active = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
+            ($_.Name -eq "java.exe" -or $_.Name -eq "javaw.exe") -and
+            $_.CommandLine -and ($_.CommandLine -like "*$needle*")
+        })
+    } catch { $active = @() }
+    if ($active.Count -gt 0) {
+        Say "* Cannot install: these processes are still using ${support}:"
+        foreach ($pr in $active) { Say ("    PID {0} {1} {2}" -f $pr.ProcessId, $pr.Name, $pr.CommandLine) }
+        Die "quit the KSL Server (and any KSL apps), and restart Codex / Claude Desktop so their KSL bridges exit, then re-run this installer."
+    }
     Say "* Unpacking..."
     Expand-Archive -Path $zip -DestinationPath $support -Force
     # Expand-Archive -Force overwrites what the zip holds and removes nothing else, so jars dropped

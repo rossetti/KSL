@@ -109,6 +109,20 @@ prune_stale_lib() {  # $1 = the payload zip
 }
 
 # --- 4. unpack into the hidden support folder ---
+# Refuse to overwrite files a live KSL process is executing from. `unzip -o` truncates and rewrites
+# the SAME inode, so a running server keeps going with a jar whose contents no longer match what it
+# loaded, and fails much later with a corrupt class -- far from the cause. Windows locks open files
+# and so was accidentally protected; macOS and Linux overwrite and report success. Until now the
+# only protection here was a sentence in docs/releasing-suite.md, which a student never reads.
+# Report only, never kill -- the same stance bin/ksl's uninstall guard takes.
+if command -v pgrep >/dev/null 2>&1; then
+  ACTIVE="$(pgrep -f "$SUPPORT" 2>/dev/null || true)"
+  if [ -n "$ACTIVE" ]; then
+    say "* Cannot install: these processes are still using $SUPPORT:"
+    for p in $ACTIVE; do ps -o pid=,args= -p "$p" 2>/dev/null | sed 's/^/    /' || printf '    %s\n' "$p"; done
+    die "quit the KSL Server (and any KSL apps), and restart Codex / Claude Desktop so their KSL bridges exit, then re-run this installer."
+  fi
+fi
 say "* Unpacking..."
 command -v unzip >/dev/null 2>&1 || die "unzip not found"
 unzip -q -o "$ZIP" -d "$SUPPORT"
