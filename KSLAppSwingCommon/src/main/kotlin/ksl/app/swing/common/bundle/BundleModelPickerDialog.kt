@@ -56,7 +56,8 @@ import javax.swing.filechooser.FileNameExtensionFilter
  *  two-step + model-info table the Experiment / Simopt / Scenario apps use — so
  *  picking a model looks and feels identical across the apps.  The user can:
  *
- *  - Pick a bundle then a model and click **Pick** — returns [Result.Selected].
+ *  - Pick a bundle then a model and click the confirm button (labelled *Open*
+ *    unless the caller overrides it) — returns [Result.Selected].
  *  - Click **Load JAR…** to extend [BundleLibraryController] with a
  *    user-supplied JAR; the picker refreshes automatically.
  *  - Click **Cancel** (or close the window) — returns [Result.Cancelled].
@@ -82,6 +83,13 @@ object BundleModelPickerDialog {
     }
 
     /**
+     *  Default label for the confirm button.  Callers that do not pass
+     *  `confirmButtonText` get this, so changing it changes the wording in
+     *  every app that opens a model through this dialog.
+     */
+    const val DEFAULT_CONFIRM_BUTTON_TEXT: String = "Open"
+
+    /**
      *  Present the picker modally.  Returns the user's choice.  Must be called
      *  on the Swing EDT.
      *
@@ -91,13 +99,20 @@ object BundleModelPickerDialog {
      *  instance to the eventual app controller preserves any JARs loaded
      *  during picker interaction.
      *  @param dialogTitle the modal's title.  Defaults to "Pick a Model".
+     *  @param showLoadJarButton whether the dialog offers *Load JAR…* itself.
+     *  Startup pickers do (there is no menu bar yet); in-app pickers do not,
+     *  because the host app's *Bundles* menu already carries the command.
+     *  @param confirmButtonText label for the confirm button.  Defaults to
+     *  "Open"; the Single app's startup picker passes "Pick" to match the
+     *  wording its guide and screenshots document.
      */
     fun show(
         bundleLibrary: BundleLibraryController,
         dialogTitle: String = "Pick a Model",
-        showLoadJarButton: Boolean = true
+        showLoadJarButton: Boolean = true,
+        confirmButtonText: String = DEFAULT_CONFIRM_BUTTON_TEXT
     ): Result {
-        val impl = PickerDialog(bundleLibrary, dialogTitle, showLoadJarButton)
+        val impl = PickerDialog(bundleLibrary, dialogTitle, showLoadJarButton, confirmButtonText)
         impl.isVisible = true
         return impl.result
     }
@@ -110,7 +125,8 @@ object BundleModelPickerDialog {
 private class PickerDialog(
     private val bundleLibrary: BundleLibraryController,
     title: String,
-    private val showLoadJarButton: Boolean = true
+    private val showLoadJarButton: Boolean = true,
+    confirmButtonText: String = BundleModelPickerDialog.DEFAULT_CONFIRM_BUTTON_TEXT
 ) : JDialog(null as java.awt.Frame?, title, /* modal = */ true) {
 
     /** Captured choice; read by [BundleModelPickerDialog.show] after the dialog
@@ -137,7 +153,7 @@ private class PickerDialog(
         onSelect = ::onModelSelected
     )
 
-    private val pickButton = JButton(object : AbstractAction("Open") {
+    private val pickButton = JButton(object : AbstractAction(confirmButtonText) {
         override fun actionPerformed(e: java.awt.event.ActionEvent?) = onPick()
     }).apply { isEnabled = false }
 

@@ -22,6 +22,9 @@ import kotlinx.coroutines.launch
 import ksl.app.config.RunConfigurationToml
 import ksl.app.session.RunResult
 import ksl.app.notification.NotificationSeverity
+import ksl.app.swing.common.app.KslAppIcons
+import ksl.app.swing.common.app.KslDesktopApp
+import ksl.app.swing.common.bundle.BundleModelPickerDialog
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
@@ -362,6 +365,9 @@ class SingleAppFrame(
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
         preferredSize = Dimension(960, 680)
+        // Installed here rather than in the launcher so that replacement frames
+        // opened by *Open Model…* carry the same window / taskbar icons.
+        KslAppIcons.install(KslDesktopApp.SINGLE, this)
 
         jMenuBar = buildMenuBar()
 
@@ -480,6 +486,7 @@ class SingleAppFrame(
         }
         // Bundle-mode only: a *Bundles* menu mirroring the other apps —
         // *Load JAR…* extends the controller's bundle library mid-session,
+        // *Open Model…* switches the app to another loaded model, and
         // *Loaded Bundles…* summarizes what is loaded.  Builder-mode
         // launches leave [SingleAppController.bundleLibrary] null, in which
         // case the menu is omitted.
@@ -490,8 +497,16 @@ class SingleAppFrame(
                         handleLoadJar(lib)
                     }
                 }).apply {
-                    toolTipText = "Load a KSL Bundle JAR so its models become resolvable for " +
-                        "open / save."
+                    toolTipText = "Load a KSL Bundle JAR, then use Open Model… to switch to " +
+                        "one of its models."
+                })
+                add(JMenuItem(object : AbstractAction("Open Model…") {
+                    override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                        handleOpenModel(lib)
+                    }
+                }).apply {
+                    toolTipText = "Open a different model from the loaded bundles.  The window " +
+                        "reopens on the new model; unsaved overrides are discarded."
                 })
                 add(JMenuItem(object : AbstractAction("Loaded Bundles…") {
                     override fun actionPerformed(e: java.awt.event.ActionEvent?) {
@@ -557,6 +572,86 @@ class SingleAppFrame(
             is ksl.app.editor.BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }
+    }
+
+    /**
+     *  *Bundles → Open Model…* (bundle mode only).  Picks a `(bundleId,
+     *  modelId)` from the loaded bundles and reopens the app on it.
+     *
+     *  Because a controller binds its model — and the tabs are shaped by the
+     *  model's controls / RVs — at construction, switching models builds a
+     *  fresh [SingleAppController] + [SingleAppFrame] and disposes this one
+     *  rather than mutating in place.  The current overrides belong to the
+     *  outgoing model's control keys, so they are deliberately not carried
+     *  over; unsaved work is guarded first.
+     */
+    private fun handleOpenModel(bundleLibrary: ksl.app.editor.BundleLibraryController) {
+        if (!confirmSwitchAway("open a different model")) return
+        val outcome = BundleModelPickerDialog.show(
+            bundleLibrary, dialogTitle = "Open Model", showLoadJarButton = false
+        )
+        val selection = outcome as? BundleModelPickerDialog.Result.Selected ?: return
+        val next = try {
+            SingleAppController.fromBundle(
+                appName = controller.appName,
+                bundleLibrary = bundleLibrary,
+                bundleId = selection.bundleId,
+                modelId = selection.modelId
+            )
+        } catch (t: Throwable) {
+            notifications.error(
+                "Could not open ${selection.bundleId}/${selection.modelId}: " +
+                    (t.message ?: t::class.simpleName)
+            )
+            return
+        }
+        reopenWith(next).postNotice("Opened ${selection.bundleId}/${selection.modelId}")
+    }
+
+    /**
+     *  Opens a fresh frame on [next] at this frame's geometry (so switching
+     *  models doesn't reset the window size / position), then disposes this
+     *  frame.
+     *
+     *  Two orderings matter here:
+     *
+     *  1. The replacement is shown **before** this frame is disposed — with
+     *     `DISPOSE_ON_CLOSE` and no explicit exit, disposing the only window
+     *     first would end the JVM.
+     *  2. Bundle-library ownership is handed to [next] **before** the dispose
+     *     that triggers `controller.close()` — otherwise the old controller
+     *     would close the classloaders backing the model just opened.
+     */
+    private fun reopenWith(next: SingleAppController): SingleAppFrame {
+        val replacement = SingleAppFrame(next)
+        // Carry over the live geometry; this overrides the constructor's
+        // preferred size, which is meant for first launch only.
+        replacement.bounds = bounds
+        replacement.extendedState = extendedState
+        replacement.isVisible = true
+        controller.releaseBundleLibraryOwnership()
+        dispose()   // windowClosed → controller.close()
+        return replacement
+    }
+
+    /** Surfaces [message] in this frame's notification strip.  Used by the reopen
+     *  path so the outcome lands on the replacement frame, not the one being
+     *  disposed. */
+    private fun postNotice(message: String) {
+        notifications.info(message)
+    }
+
+    /**
+     *  Guard for the model-switching commands: refuses while a run is in
+     *  flight, and confirms when there are unsaved changes.  [action] completes
+     *  the sentence "Discard unsaved changes and …?".
+     */
+    private fun confirmSwitchAway(action: String): Boolean {
+        if (controller.runningFlow.value) {
+            notifications.warn("A simulation is running.  Cancel it before you $action.")
+            return false
+        }
+        return confirmDiscardIfDirty("Discard unsaved changes and $action?")
     }
 
     // ── File menu handlers ──────────────────────────────────────────────────
@@ -671,6 +766,80 @@ class SingleAppFrame(
                 // user was working on still applies.
                 notifications.error(outcome.reason)
             }
+            is SingleAppController.LoadResult.DifferentModel -> {
+                openModelForConfiguration(outcome, config, path)
+            }
+        }
+    }
+
+    /**
+     *  The configuration named a loadable model other than the session's.
+     *  Applying it here would bind that model's saved overrides to this
+     *  model's control keys, so offer the switch instead: reopen on the
+     *  referenced model and replay the load against the new controller, which
+     *  accepts it because its `sourceRef` now matches.
+     *
+     *  Declining leaves the current document untouched — the configuration is
+     *  not partially applied.
+     */
+    private fun openModelForConfiguration(
+        outcome: SingleAppController.LoadResult.DifferentModel,
+        config: ksl.app.config.RunConfiguration,
+        path: Path
+    ) {
+        val library = controller.bundleLibrary ?: return
+        val target = "${outcome.bundleId}/${outcome.modelId}"
+        if (controller.runningFlow.value) {
+            notifications.warn(
+                "${path.fileName} is for $target.  Cancel the running simulation, then open it again."
+            )
+            return
+        }
+        val choice = javax.swing.JOptionPane.showConfirmDialog(
+            this,
+            "${path.fileName} was saved for $target, not the model this window has open.\n" +
+                "Open $target and load the configuration into it?",
+            "Different Model",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.QUESTION_MESSAGE
+        )
+        if (choice != javax.swing.JOptionPane.YES_OPTION) {
+            notifications.info("Kept the current model; $target was not opened.")
+            return
+        }
+        if (!confirmDiscardIfDirty("Discard unsaved changes and open $target?")) return
+        val next = try {
+            SingleAppController.fromBundle(
+                appName = controller.appName,
+                bundleLibrary = library,
+                bundleId = outcome.bundleId,
+                modelId = outcome.modelId
+            )
+        } catch (t: Throwable) {
+            notifications.error("Could not open $target: ${t.message ?: t::class.simpleName}")
+            return
+        }
+        // Load before the frame is built so the replacement comes up already
+        // showing the configuration's values.
+        val replayed = next.loadConfiguration(config)
+        val replacement = reopenWith(next)
+        when (replayed) {
+            is SingleAppController.LoadResult.Loaded -> {
+                next.markSaved(path)
+                next.settingsStore.addRecentConfiguration(path)
+                replayed.warning?.let { replacement.notifications.warn(it) }
+                replacement.postNotice("Opened $target with ${path.fileName}")
+            }
+            // The reopen succeeded even if the replay did not; the user lands on the
+            // requested model with its defaults rather than on a half-applied document.
+            is SingleAppController.LoadResult.Rejected ->
+                replacement.notifications.error(replayed.reason)
+            is SingleAppController.LoadResult.WrongMode ->
+                replacement.notifications.error(replayed.reason)
+            is SingleAppController.LoadResult.DifferentModel ->
+                replacement.notifications.error(
+                    "${path.fileName} does not match $target after opening it."
+                )
         }
     }
 

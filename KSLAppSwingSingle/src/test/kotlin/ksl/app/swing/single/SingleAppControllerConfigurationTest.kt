@@ -655,11 +655,12 @@ class SingleAppControllerConfigurationTest {
     }
 
     @Test
-    fun `bundle mode loads a different-modelId ByBundleAndModelId with warning`() {
-        // Use the same bundleId but a fake modelId.  The bundle IS
-        // loaded (so the bundle-not-loaded rejection does NOT fire),
-        // but the (bundleId, modelId) pair does not match the
-        // session's sourceRef → load proceeds with a warning.
+    fun `bundle mode reports a different-modelId ByBundleAndModelId as DifferentModel`() {
+        // Use the same bundleId but another modelId.  The bundle IS loaded (so
+        // the bundle-not-loaded rejection does NOT fire), but the (bundleId,
+        // modelId) pair does not match the session's sourceRef.  Those overrides
+        // were written against the other model's control keys, so the load does
+        // not proceed here — the frame offers to open that model instead.
         val c = freshBundleModeController()
         val cfg = RunConfiguration(
             scenarios = listOf(
@@ -673,15 +674,16 @@ class SingleAppControllerConfigurationTest {
                 )
             )
         )
+        val before = c.runOverrides.value
         val outcome = c.loadConfiguration(cfg)
-        assertTrue(outcome is SingleAppController.LoadResult.Loaded,
-            "Mismatched modelId on a loaded bundle must Load (with warning).")
-        val warning = (outcome as SingleAppController.LoadResult.Loaded).warning
-        assertNotNull(warning, "Mismatched modelId must produce a warning.")
-        assertTrue("some-other-model-id" in warning,
-            "Warning should name the loaded modelId; was: $warning")
-        assertEquals(4, c.runOverrides.value.numberOfReplications,
-            "Overrides should still apply.")
+        assertTrue(outcome is SingleAppController.LoadResult.DifferentModel,
+            "Mismatched modelId on a loaded bundle must report DifferentModel; was: $outcome")
+        outcome as SingleAppController.LoadResult.DifferentModel
+        assertEquals(mm1BundleId, outcome.bundleId)
+        assertEquals("some-other-model-id", outcome.modelId,
+            "DifferentModel should name the model the configuration asked for.")
+        assertEquals(before, c.runOverrides.value,
+            "DifferentModel must not apply the other model's overrides.")
     }
 
     @Test

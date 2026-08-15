@@ -25,8 +25,7 @@ import ksl.app.settings.UserSettingsStore
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.appearance.AppTheme
 import ksl.app.swing.common.appearance.LookAndFeel
-import ksl.app.swing.common.app.KslAppIcons
-import ksl.app.swing.common.app.KslDesktopApp
+import ksl.app.swing.common.bundle.BundleModelPickerDialog
 import ksl.simulation.ModelBuilderIfc
 import javax.swing.SwingUtilities
 import kotlin.system.exitProcess
@@ -137,8 +136,9 @@ class KSLSingleApp(val appName: String) {
         LookAndFeel.install(theme = AppTheme.SYSTEM, appName = appName)
         SwingUtilities.invokeLater {
             val controller = resolveController() ?: return@invokeLater
+            // The frame installs the desktop icons itself, so replacement frames
+            // opened by *Open Model…* are iconified identically to this one.
             SingleAppFrame(controller).apply {
-                KslAppIcons.install(KslDesktopApp.SINGLE, this)
                 pack()
                 setLocationRelativeTo(null)
                 isVisible = true
@@ -164,31 +164,24 @@ class KSLSingleApp(val appName: String) {
         val appWorkspace = AppWorkspacePaths.appWorkspaceDir(activeWorkspace, SingleAppController.APP_FOLDER)
         val bundleLibrary = BundleLibraryController()
         bundleLibrary.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, activeWorkspace))
-        return when (val outcome = BundleModelPickerDialog.show(bundleLibrary)) {
+        // "Pick" (rather than the dialog's default "Open") keeps the startup
+        // wording the Single-app guide and its screenshots document.
+        val outcome = BundleModelPickerDialog.show(bundleLibrary, confirmButtonText = "Pick")
+        return when (outcome) {
             BundleModelPickerDialog.Result.Cancelled -> {
                 // No model — exit the JVM cleanly.  The Swing
                 // dispatch thread would otherwise keep the JVM
                 // alive even though there's no window.
                 exitProcess(0)
             }
-            is BundleModelPickerDialog.Result.Selected -> {
-                val provider = bundleLibrary.bundleProvider.value
-                    ?: error(
-                        "Internal: bundle picker returned Selected " +
-                            "(${outcome.bundleId}, ${outcome.modelId}) but the " +
-                            "bundle provider is null."
-                    )
-                val pickedBuilder = provider.builderFor(outcome.bundleId, outcome.modelId)
-                SingleAppController(
+            is BundleModelPickerDialog.Result.Selected ->
+                // Same construction path the in-session *Open Model…* uses.
+                SingleAppController.fromBundle(
                     appName = appName,
-                    modelBuilder = pickedBuilder,
                     bundleLibrary = bundleLibrary,
-                    sourceRef = ModelReference.ByBundleAndModelId(
-                        bundleId = outcome.bundleId,
-                        modelId = outcome.modelId
-                    )
+                    bundleId = outcome.bundleId,
+                    modelId = outcome.modelId
                 )
-            }
         }
     }
 

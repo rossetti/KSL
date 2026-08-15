@@ -21,13 +21,15 @@ package ksl.app.swing.single
 /**
  *  Bundle-mode entry point for the released KSL Single app: runs
  *  `kslSingleApp(...)` with an empty DSL block (no `modelBuilder(...)`
- *  call), so the launch path shows the
- *  [ksl.app.swing.single.BundleModelPickerDialog] at startup.
+ *  call), so the launch path shows the shared
+ *  [ksl.app.swing.common.bundle.BundleModelPickerDialog] at startup.
  *
  *  At launch the picker presents every model in every bundle on the JVM
  *  classpath (the KSL examples module contributes the M/M/1 and
  *  LK-Inventory bundles when compiled with the test fixtures).  *Load
- *  JAR…* inside the picker adds further bundles interactively.
+ *  JAR…* inside the picker adds further bundles interactively, and once
+ *  the window is open *Bundles → Open Model…* switches to another model
+ *  without relaunching.
  *
  *  The selected `(bundleId, modelId)` pair is persisted in saved
  *  configurations as

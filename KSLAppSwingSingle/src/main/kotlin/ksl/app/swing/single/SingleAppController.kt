@@ -150,6 +150,27 @@ class SingleAppController(
     /** Scope for EDT-confined coroutine work (event forwarding, etc.). */
     override val edtScope: CoroutineScope = CoroutineScope(Dispatchers.Swing + SupervisorJob())
 
+    /**
+     *  True while this controller is responsible for closing [bundleLibrary]
+     *  in [close].  *Open Model…* builds a successor controller against the
+     *  **same** library and transfers ownership to it via
+     *  [releaseBundleLibraryOwnership], so exactly one live controller owns
+     *  the library at a time: the outgoing controller closes without taking
+     *  the successor's classloaders down with it, and closing the last window
+     *  still closes them.
+     */
+    private var myOwnsBundleLibrary: Boolean = bundleLibrary != null
+
+    /**
+     *  Hand ownership of [bundleLibrary] to a successor controller opened on
+     *  the same library.  Call on the **outgoing** controller before closing
+     *  it; after this, its [close] leaves the library open.  No-op in builder
+     *  mode (there is no library to own).
+     */
+    internal fun releaseBundleLibraryOwnership() {
+        myOwnsBundleLibrary = false
+    }
+
     /** User-wide settings (workspace, recent list).  Real file at `~/.ksl/settings.toml`. */
     val settingsStore: UserSettingsStore = UserSettingsStore()
 
@@ -789,11 +810,21 @@ class SingleAppController(
      *    launch mode (e.g. a bundle-saved config opened by a
      *    builder-launched app, or vice versa).  The controller state
      *    is left unchanged; the [reason] explains how to relaunch.
+     *  - [DifferentModel] — bundle mode, and the configuration names a
+     *    *loaded but different* model than the session's.  The controller
+     *    state is left unchanged; the frame offers to open that model and
+     *    replay the load against the new controller.  Applying the
+     *    configuration to the current model instead would silently bind one
+     *    model's saved overrides to another model's control keys.
      */
     sealed class LoadResult {
         data class Loaded(val warning: String? = null) : LoadResult()
         data class Rejected(val reason: String) : LoadResult()
         data class WrongMode(val reason: String) : LoadResult()
+        data class DifferentModel(
+            val bundleId: String,
+            val modelId: String
+        ) : LoadResult()
     }
 
     /**
@@ -848,9 +879,10 @@ class SingleAppController(
      *    retry).  Rejects [ModelReference.Embedded] and other
      *    variants with [LoadResult.WrongMode].  A `(bundleId,
      *    modelId)` pair that resolves but does not match the
-     *    session's [sourceRef] proceeds with a warning — the
-     *    controller cannot rebind its model mid-session, but
-     *    overrides apply by name where they match.
+     *    session's [sourceRef] returns [LoadResult.DifferentModel]
+     *    without touching the editor state — a controller cannot
+     *    rebind its model, so the frame offers *Open Model…* on that
+     *    model and replays the load against the new controller.
      */
     fun loadConfiguration(config: RunConfiguration): LoadResult {
         val scenario = config.scenarios.firstOrNull()
@@ -886,9 +918,10 @@ class SingleAppController(
                 val session = sourceRef as? ModelReference.ByBundleAndModelId
                 if (session != null &&
                     (session.bundleId != ref.bundleId || session.modelId != ref.modelId)) {
-                    "Loaded reference '${ref.bundleId}/${ref.modelId}' does not match this " +
-                        "session's '${session.bundleId}/${session.modelId}'.  Overrides applied " +
-                        "to whatever names match the current model."
+                    // The configuration belongs to another model that IS loadable.  Don't
+                    // apply it here — its control keys and RV names were written against
+                    // that model.  Hand the frame what it needs to offer the switch.
+                    return LoadResult.DifferentModel(ref.bundleId, ref.modelId)
                 } else null
             }
             else -> return LoadResult.WrongMode(
@@ -1044,7 +1077,12 @@ class SingleAppController(
         // Bundle-mode only: close the substrate-owned classloaders.
         // Mirrors the close-loaded-bundles step in Scenario / Experiment /
         // Simopt.  Builder-mode leaves [bundleLibrary] null and no-ops.
-        bundleLibrary?.close()
+        // Skipped when a successor controller has taken ownership (Open
+        // Model…) — closing here would pull the classloaders out from under
+        // the model the user just opened.  See [releaseBundleLibraryOwnership].
+        if (myOwnsBundleLibrary) {
+            bundleLibrary?.close()
+        }
         // Defensive: if the user enabled "Capture stdout" and closed the
         // window without unchecking it, restore the original streams so
         // a long-lived JVM (IDE Run session) isn't left with a dangling
@@ -1054,6 +1092,36 @@ class SingleAppController(
     }
 
     companion object {
+        /**
+         * Builds a controller for the model identified by [bundleId] + [modelId] in
+         * [bundleLibrary].  Used by BOTH the bundle-mode launch path (`KSLSingleApp`) and
+         * in-session model switching (`SingleAppFrame`'s *Open Model…*), so startup and
+         * switching share one construction path.  The new controller re-probes the chosen
+         * model — its defaults, controls, and RVs — at construction.
+         *
+         * The caller keeps the same [bundleLibrary] instance across controllers; when
+         * replacing a live controller, call `releaseBundleLibraryOwnership()` on the
+         * outgoing one before closing it.
+         *
+         * @throws IllegalStateException if [bundleLibrary] currently exposes no provider
+         * (no bundles loaded).
+         */
+        fun fromBundle(
+            appName: String,
+            bundleLibrary: BundleLibraryController,
+            bundleId: String,
+            modelId: String
+        ): SingleAppController {
+            val provider = bundleLibrary.bundleProvider.value
+                ?: error("No bundle provider available to open ($bundleId, $modelId).")
+            return SingleAppController(
+                appName = appName,
+                modelBuilder = provider.builderFor(bundleId, modelId),
+                bundleLibrary = bundleLibrary,
+                sourceRef = ModelReference.ByBundleAndModelId(bundleId, modelId)
+            )
+        }
+
         /** This app's stable working-folder name under the active workspace — used for BOTH artifacts and bundle
          *  discovery so they never diverge (deriving it from the display appName would sanitize spaces to a
          *  different folder). Referenced cross-file by KSLSingleApp's bundle discovery. */

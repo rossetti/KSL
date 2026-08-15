@@ -114,7 +114,7 @@ object WelchDialogLogic {
  * OK-commit semantics: the dialog edits local widget state seeded from the
  * controller's current `OutputConfig`; **OK** pushes the whole selection in
  * one [SingleAppController.applyWelchConfig] call, **Cancel** discards.
- * Mirrors the module's `BundleModelPickerDialog` precedent.
+ * Mirrors the shared `BundleModelPickerDialog` precedent.
  */
 object WelchConfigDialog {
 

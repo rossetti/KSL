@@ -71,7 +71,7 @@ written as databases, CSVs, and reports.
 | Menu | Typical contents |
 |---|---|
 | **File** | New / Reset, Open, Recent, Save, Save As, Set Working Directory, Recent Directories, Exit |
-| **Bundles** *(bundle mode)* | Load JAR…, Loaded Bundles… |
+| **Bundles** *(bundle mode)* | Load JAR…, Open Model… *(Single, Animation)*, Loaded Bundles… |
 | **View** | Appearance (theme) |
 | **Help** | About |
 
@@ -81,6 +81,11 @@ When an app needs you to choose a model, it shows a two-step picker: choose a **
 then a **model**, with a read-only info panel summarizing that model's controls, random
 variables, responses, and run defaults. The **Loaded Bundles…** dialog lists everything
 currently loaded (and notes any duplicate copies that were ignored — newest wins).
+
+The Single and Animation apps show the same picker again from **Bundles → Open Model…**, so
+you can move to another model without restarting; the window reopens on your choice. Because
+overrides name a particular model's controls and random variables, switching starts a clean
+editor rather than carrying them over.
 
 ### Theme (Appearance)
 

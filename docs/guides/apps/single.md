@@ -76,8 +76,8 @@ The red numbers below are added for this guide; they are not part of the app.
 ![Guided tour of the Single-Model window](images/single/single-tour.png)
 
 1. **Menu bar** — *File* (reset, open, save, set working directory, exit),
-   *Bundles* (load another bundle JAR, see what's loaded), and *View* (theme).
-   See [Common UI](common-ui.md#menu-bar).
+   *Bundles* (load another bundle JAR, **open a different model**, see what's loaded),
+   and *View* (theme). See [Common UI](common-ui.md#menu-bar).
 2. **Run toolbar** — the **Simulate** button (run the model), **Cancel**,
    **Reset to Defaults**, and the **Output Name** field that names this run's
    output files and folder.
@@ -270,6 +270,7 @@ produced from a run that didn't capture it.
 | Save response **sample paths** | **Configure Response Trace…** on Run Control → **Simulate** → **Trace Report…** on Post-Run Reporting |
 | Save your setup to reuse later | **File → Save Configuration** (`Ctrl/Cmd+S`) — writes a `.toml` you can reopen |
 | Reopen a saved setup | **File → Open Configuration…** |
+| Run a **different model** | **Bundles → Open Model…** (use **Load JAR…** first if its bundle isn't loaded) |
 | Change the working directory | **File → Set Working Directory…** |
 | Switch light/dark theme | **View → Appearance** |
 | Watch the run log | Click **▲ Console** at the bottom to expand the drawer |
@@ -277,6 +278,22 @@ produced from a run that didn't capture it.
 > A **configuration** saves your *inputs*, not your *results*. Results are written as
 > reports/databases under the working directory. See
 > [Common UI](common-ui.md#configurations-vs-results).
+
+### Switching to a different model
+
+You don't have to restart the app to work on another model. **Bundles → Open Model…** shows
+the same bundle → model picker you saw at launch; choose a model and the window reopens on
+it, at the same size and position. If the model you want lives in a bundle that isn't
+loaded yet, use **Bundles → Load JAR…** first.
+
+Switching starts a clean editor on the new model: overrides belong to the model whose
+controls and random variables they name, so they are not carried across. The app asks
+before discarding unsaved changes, and refuses to switch while a simulation is running —
+cancel the run first. Save your configuration beforehand if you want to come back to it.
+
+Opening a **configuration** that was saved for another model does the same thing: the app
+tells you which model the file belongs to and offers to open it, rather than applying that
+file's overrides to whatever model happens to be loaded.
 
 ---
 
