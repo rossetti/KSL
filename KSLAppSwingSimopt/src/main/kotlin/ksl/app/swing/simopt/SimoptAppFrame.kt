@@ -38,6 +38,7 @@ import ksl.app.swing.simopt.steps.ModelStepPanel
 import ksl.app.swing.simopt.steps.ProblemStepPanel
 import ksl.app.swing.simopt.steps.ResultsStepPanel
 import ksl.app.swing.simopt.steps.RunSetupStepPanel
+import ksl.app.swing.common.bundle.post
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
@@ -344,35 +345,11 @@ class SimoptAppFrame(
                 sharedWorkspace = controller.appWorkspace.parent
             )
         ) ?: return
-        when (val result = controller.loadBundleJar(path)) {
-            is BundleLibraryController.LoadBundleResult.Loaded ->
-                notifications.info(
-                    "Loaded ${result.newBundleIds.size} bundle(s) from ${path.fileName}: " +
-                        result.newBundleIds.joinToString(", ")
-                )
-            is BundleLibraryController.LoadBundleResult.Reloaded ->
-                notifications.info(
-                    "Reloaded from disk: ${path.fileName}: " +
-                        result.bundleIds.joinToString(", ")
-                )
-            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
-                notifications.info(
-                    "Already loaded (no change): ${path.fileName}: " +
-                        result.bundleIds.joinToString(", ")
-                )
-            BundleLibraryController.LoadBundleResult.NoBundles ->
-                notifications.warn(
-                    "${path.fileName} declares no KSLModelBundle SPI entries."
-                )
-            is BundleLibraryController.LoadBundleResult.Rejected ->
-                notifications.info(
-                    "Could not load ${path.fileName}: ${result.reason}"
-                )
-            is BundleLibraryController.LoadBundleResult.Failed ->
-                notifications.error(
-                    "Could not load ${path.fileName}: ${result.reason}"
-                )
-        }
+        notifications.post(
+            ksl.app.swing.common.bundle.BundleLoadNotices.describe(
+                controller.loadBundleJar(path), path
+            )
+        )
     }
 
     // ── File-menu handlers ────────────────────────────────────────────────

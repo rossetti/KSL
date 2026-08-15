@@ -39,6 +39,11 @@ You can also add a bundle mid-session with **Bundles → Load JAR…**. Bundles 
 the [Bundle Workbench](bundle-workbench.md) desktop app or the `kslpkg` command-line tool —
 see the [Bundle Tools guide](bundle-tools.md).
 
+> **No *Bundles* menu?** An app can also be built around a single model supplied in code
+> (a developer writing their own app does this). Those builds have no bundle library, so
+> they show no *Bundles* menu and no model picker — the one model is the app. Every app in
+> the installed KSL suite is the bundle kind described above.
+
 ### The workspace (working directory)
 
 Everything an app writes — databases, CSV files, reports, saved configurations — goes

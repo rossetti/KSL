@@ -26,7 +26,9 @@ import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.appearance.ThemeMenu
+import ksl.app.notification.NotificationSeverity
 import ksl.app.swing.common.bundle.BundleJarChooser
+import ksl.app.swing.common.bundle.BundleLoadNotices
 import ksl.app.swing.common.bundle.BundleModelPickerDialog
 import ksl.app.swing.common.editor.ControlOverridesPanel
 import ksl.app.swing.common.editor.ParameterPanel
@@ -113,6 +115,15 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
         bindWorkflow()
         preferredSize = Dimension(1100, 760)
         defaultCloseOperation = DISPOSE_ON_CLOSE
+        // Closing the window closes the controller: cancels any in-flight run, closes the
+        // session, and closes the bundle classloaders this controller owns.  A model switch
+        // hands ownership to the successor first (see reopenWith), so only the last window
+        // standing actually closes the library.
+        addWindowListener(object : java.awt.event.WindowAdapter() {
+            override fun windowClosed(e: java.awt.event.WindowEvent?) {
+                runCatching { controller.close() }
+            }
+        })
         pack()
         setLocationRelativeTo(null)
     }
@@ -389,22 +400,16 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
     /** Bundles ▸ Load JAR…: load a bundle JAR into the library so its models become pickable. */
     private fun handleLoadJar() {
         val path = BundleJarChooser.choose(this, workspaceBundleDir()) ?: return
-        when (val r = runCatching { bundleLibrary.loadJar(path) }.getOrElse {
-            showError("Failed to load JAR: ${it.message}"); return
-        }) {
-            is BundleLibraryController.LoadBundleResult.Loaded ->
-                info("Loaded ${r.newBundleIds.size} bundle(s). Use Open Model… to choose one.")
-            is BundleLibraryController.LoadBundleResult.Reloaded ->
-                info("Reloaded ${r.bundleIds.size} bundle(s). Use Open Model… to choose one.")
-            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
-                info("That JAR's bundle(s) are already loaded.")
-            BundleLibraryController.LoadBundleResult.NoBundles ->
-                showError("No KSL model bundles were found in that JAR.")
-            is BundleLibraryController.LoadBundleResult.Failed ->
-                showError("Failed to load JAR: ${r.reason}")
-            is BundleLibraryController.LoadBundleResult.Rejected ->
-                showError("Rejected: ${r.reason}")
+        val outcome = runCatching { bundleLibrary.loadJar(path) }.getOrElse {
+            showError("Could not load ${path.fileName}: ${it.message}"); return
         }
+        val notice = BundleLoadNotices.describe(
+            outcome, path, followUp = "Use Open Model… to choose one."
+        )
+        // This frame reports through modal dialogs rather than a notification strip, so
+        // the severity picks the dialog: anything above INFO is an attention-getter.
+        if (notice.severity == NotificationSeverity.INFO) info(notice.message)
+        else showError(notice.message)
     }
 
     /**
@@ -426,7 +431,10 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
     }
 
     /** Opens a fresh frame on [next] at the current frame's geometry (so loading a model doesn't reset the
-     *  window size/position), then disposes this frame and closes the old controller. */
+     *  window size/position), then disposes this frame and closes the old controller.
+     *
+     *  [next] was built against the same bundle library, so ownership of it is handed over before the old
+     *  controller closes — otherwise that close would shut the classloaders backing the model just opened. */
     private fun reopenWith(next: AnimationAppController) {
         val replacement = AnimationAppFrame(next)
         // Carry over the live window geometry so the model switch is seamless; this overrides the
@@ -434,8 +442,9 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
         replacement.bounds = bounds
         replacement.extendedState = extendedState
         replacement.isVisible = true
-        dispose()
-        runCatching { controller.close() }
+        // Ownership must transfer BEFORE the dispose that closes this controller.
+        controller.releaseBundleLibraryOwnership()
+        dispose()   // windowClosed → controller.close()
     }
 
     /**

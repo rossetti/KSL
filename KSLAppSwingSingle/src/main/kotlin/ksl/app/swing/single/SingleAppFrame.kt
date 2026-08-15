@@ -25,7 +25,9 @@ import ksl.app.notification.NotificationSeverity
 import ksl.app.swing.common.app.KslAppIcons
 import ksl.app.swing.common.app.KslDesktopApp
 import ksl.app.swing.common.bundle.BundleJarChooser
+import ksl.app.swing.common.bundle.BundleLoadNotices
 import ksl.app.swing.common.bundle.BundleModelPickerDialog
+import ksl.app.swing.common.bundle.post
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
@@ -546,28 +548,7 @@ class SingleAppFrame(
      */
     private fun handleLoadJar(bundleLibrary: ksl.app.editor.BundleLibraryController) {
         val path: Path = BundleJarChooser.choose(this, workspaceBundleDir()) ?: return
-        when (val outcome = bundleLibrary.loadJar(path)) {
-            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Loaded -> {
-                notifications.info(
-                    "Loaded ${outcome.newBundleIds.size} bundle(s): " +
-                        outcome.newBundleIds.joinToString(", ")
-                )
-            }
-            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Reloaded ->
-                notifications.info(
-                    "Reloaded from disk: " + outcome.bundleIds.joinToString(", ")
-                )
-            is ksl.app.editor.BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
-                notifications.info(
-                    "Already loaded (no change): " + outcome.bundleIds.joinToString(", ")
-                )
-            ksl.app.editor.BundleLibraryController.LoadBundleResult.NoBundles ->
-                notifications.warn("$path declares no KSLModelBundle service.")
-            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Rejected ->
-                notifications.info("Could not load $path: ${outcome.reason}")
-            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Failed ->
-                notifications.error("Could not load $path: ${outcome.reason}")
-        }
+        notifications.post(BundleLoadNotices.describe(bundleLibrary.loadJar(path), path))
     }
 
     /**

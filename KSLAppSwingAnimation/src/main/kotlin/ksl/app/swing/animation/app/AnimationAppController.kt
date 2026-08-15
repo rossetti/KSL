@@ -1120,11 +1120,36 @@ class AnimationAppController(
         currentHandle?.cancel("Cancelled by user")
     }
 
+    /**
+     *  True while this controller is responsible for closing [bundleLibrary] in [close].
+     *  *Open Model…* builds a successor controller against the **same** library and hands
+     *  ownership over via [releaseBundleLibraryOwnership], so exactly one live controller
+     *  owns it: the outgoing controller closes without taking the successor's classloaders
+     *  with it, and closing the last window still closes them.  Mirrors the Single app.
+     */
+    private var myOwnsBundleLibrary: Boolean = bundleLibrary != null
+
+    /**
+     *  Hand ownership of [bundleLibrary] to a successor controller opened on the same
+     *  library.  Call on the **outgoing** controller before closing it.  No-op in builder
+     *  mode, and for the frame-created library of the no-model startup state (which this
+     *  controller never owned).
+     */
+    internal fun releaseBundleLibraryOwnership() {
+        myOwnsBundleLibrary = false
+    }
+
     override fun close() {
         currentHandle?.cancel("App closed")
         currentHandle = null
         session.close()
         edtScope.cancel()
+        // Close the bundle classloaders this controller owns.  Skipped when a successor
+        // has taken ownership (Open Model…) — closing here would pull the loaders out
+        // from under the model the user just opened.
+        if (myOwnsBundleLibrary) {
+            bundleLibrary?.close()
+        }
     }
 
     companion object {

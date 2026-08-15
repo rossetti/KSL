@@ -34,6 +34,7 @@ import ksl.app.swing.common.runcontrol.ConsoleDrawer
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
+import ksl.app.swing.common.bundle.post
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -776,28 +777,11 @@ class ExperimentAppFrame(
                 sharedWorkspace = controller.appWorkspace.parent
             )
         ) ?: return
-        when (val outcome = controller.loadBundleJar(path)) {
-            is BundleLibraryController.LoadBundleResult.Loaded -> {
-                val ids = outcome.newBundleIds.joinToString(", ")
-                notifications.info(
-                    "Loaded ${outcome.newBundleIds.size} bundle(s): $ids"
-                )
-            }
-            is BundleLibraryController.LoadBundleResult.Reloaded ->
-                notifications.info(
-                    "Reloaded from disk: " + outcome.bundleIds.joinToString(", ")
-                )
-            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
-                notifications.info(
-                    "Already loaded (no change): " + outcome.bundleIds.joinToString(", ")
-                )
-            BundleLibraryController.LoadBundleResult.NoBundles ->
-                notifications.warn("$path declares no KSLModelBundle service.")
-            is BundleLibraryController.LoadBundleResult.Rejected ->
-                notifications.info("Could not load $path: ${outcome.reason}")
-            is BundleLibraryController.LoadBundleResult.Failed ->
-                notifications.error("Could not load $path: ${outcome.reason}")
-        }
+        notifications.post(
+            ksl.app.swing.common.bundle.BundleLoadNotices.describe(
+                controller.loadBundleJar(path), path
+            )
+        )
     }
 
     // ── File menu handlers ─────────────────────────────────────────────────

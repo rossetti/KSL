@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.editor.BundleLibraryController
+import ksl.app.notification.NotificationSeverity
 import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
 import java.awt.Color
@@ -267,26 +268,22 @@ private class PickerDialog(
         val path: Path = BundleJarChooser.choose(this, jarChooserStartDir) ?: return
         // loadedBundles changes propagate to the picker and onBundlesChanged
         // automatically; here we just surface the outcome message.
-        when (val outcome = bundleLibrary.loadJar(path)) {
-            is BundleLibraryController.LoadBundleResult.Loaded ->
-                showBannerInfo("Loaded ${outcome.newBundleIds.size} bundle(s): " +
-                    outcome.newBundleIds.joinToString(", "))
-            is BundleLibraryController.LoadBundleResult.Reloaded ->
-                showBannerInfo("Reloaded from disk: " + outcome.bundleIds.joinToString(", "))
-            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
-                showBannerInfo("Already loaded (no change): " + outcome.bundleIds.joinToString(", "))
-            BundleLibraryController.LoadBundleResult.NoBundles ->
-                showBannerError("$path contains no KSL model bundle.")
-            is BundleLibraryController.LoadBundleResult.Failed ->
-                showBannerError("Could not load $path: ${outcome.reason}")
-            is BundleLibraryController.LoadBundleResult.Rejected ->
-                showBannerError("Rejected $path: ${outcome.reason}")
+        showBanner(BundleLoadNotices.describe(bundleLibrary.loadJar(path), path))
+    }
+
+    /** Paint [notice] into the banner at its own severity. */
+    private fun showBanner(notice: BundleLoadNotice) {
+        banner.foreground = when (notice.severity) {
+            NotificationSeverity.INFO -> INFO_GREY
+            NotificationSeverity.WARNING -> WARNING_AMBER
+            NotificationSeverity.ERROR -> ERROR_RED
         }
+        banner.text = notice.message
     }
 
     private fun refreshBannerForEmptyState(bundles: List<LoadedBundle>) {
         if (bundles.isEmpty()) {
-            banner.foreground = Color(0x6B, 0x6B, 0x6B)
+            banner.foreground = INFO_GREY
             banner.text = "No bundles loaded.  Click Load JAR… to load one, " +
                 "or drop a bundle JAR into your KSLWork/bundles folder."
         } else if (banner.text.isBlank()) {
@@ -294,13 +291,9 @@ private class PickerDialog(
         }
     }
 
-    private fun showBannerError(message: String) {
-        banner.foreground = Color(0xB0, 0x00, 0x20)
-        banner.text = message
-    }
-
-    private fun showBannerInfo(message: String) {
-        banner.foreground = Color(0x6B, 0x6B, 0x6B)
-        banner.text = message
+    private companion object {
+        val INFO_GREY: Color = Color(0x6B, 0x6B, 0x6B)
+        val WARNING_AMBER: Color = Color(0x8A, 0x5A, 0x00)
+        val ERROR_RED: Color = Color(0xB0, 0x00, 0x20)
     }
 }

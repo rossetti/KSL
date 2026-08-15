@@ -24,12 +24,21 @@ package ksl.app.swing.single
  *  call), so the launch path shows the shared
  *  [ksl.app.swing.common.bundle.BundleModelPickerDialog] at startup.
  *
- *  At launch the picker presents every model in every bundle on the JVM
- *  classpath (the KSL examples module contributes the M/M/1 and
- *  LK-Inventory bundles when compiled with the test fixtures).  *Load
- *  JAR…* inside the picker adds further bundles interactively, and once
- *  the window is open *Bundles → Open Model…* switches to another model
- *  without relaunching.
+ *  At launch the picker presents every model found in the app's own
+ *  `<KSLWork>/KSLSingle/bundles/`, the shared `<KSLWork>/bundles/`, and the
+ *  suite's shipped examples.  *Load JAR…* inside the picker adds further
+ *  bundles interactively, and once the window is open *Bundles → Open Model…*
+ *  switches to another model without relaunching.
+ *
+ *  **Running this from an IDE shows an empty picker, and that is expected.**
+ *  The shipped example bundles are found through
+ *  `-Dksl.builtinBundles=<install>/examples/bundles`, which only the installed
+ *  suite's generated launcher passes (see
+ *  `ksl.app.settings.WorkspaceLayout.builtinBundlesDir`).  A plain `java -cp`
+ *  or IDE run has no such property, so only the two workspace folders are
+ *  searched — and they are empty until you put something in them.  To develop
+ *  against the shipped examples, add that `-D` to the run configuration's VM
+ *  options; otherwise drop a bundle JAR into `<KSLWork>/bundles/`.
  *
  *  The selected `(bundleId, modelId)` pair is persisted in saved
  *  configurations as
