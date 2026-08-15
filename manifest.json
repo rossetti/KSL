@@ -1,7 +1,7 @@
 {
   "kslWorkLayout": 1,
   "_comment": "What install.sh / bin/ksl operate on. The suite asset URL + sha256 are filled in when a release is cut; until then use --from <local ksl-suite.zip>. 'items' is the catalog `ksl list/install/uninstall <id>` acts on: id -> a directory under the software's hidden .support/. It lists what can be added or removed INDEPENDENTLY, which is why lib/ (every app needs it) and bin/ (the manager itself) are deliberately absent. So are the shipped examples: they live at <install>/examples, OUTSIDE .support, and the installer and `ksl update` replace them wholesale every time, so there is nothing independent to add or remove. An 'examples' entry with path 'bundles' was carried here until 0.3.4 and could only ever misreport -- it named .support/bundles, which 0.3.0 emptied and install.sh deletes on sight as a leftover, so `ksl list` said examples were absent while they sat in examples/bundles, and install/uninstall acted on a directory that never exists. Per-item release URLs can be added later for independent per-app updates.",
-  "suite": { "version": "0.3.6", "asset": "https://github.com/rossetti/KSL/releases/download/suite-v0.3.6/ksl-suite.zip", "sha256": "17ce6238b91c943bebbef3cefbb4e3ad3f596ebcc1b379555c69a4c09275b66e" },
+  "suite": { "version": "0.3.7", "asset": "https://github.com/rossetti/KSL/releases/download/suite-v0.3.7/ksl-suite.zip", "sha256": "723707b8373c814ebc40d2027615f07d59e3e69ed985aad9383098db03ed86ab" },
   "items": [
     { "id": "single",       "kind": "app",     "path": "Apps/Single" },
     { "id": "scenario",     "kind": "app",     "path": "Apps/Scenario" },
