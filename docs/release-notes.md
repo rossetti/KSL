@@ -6,7 +6,7 @@ numbering, so they are kept apart here:
 - **The KSL library** — `io.github.rossetti:KSLCore`, versioned `R1.6`, `R1.5.1`, … The
   simulation engine, published to Maven. [Library releases](#library-releases-kslcore).
 - **The KSL suite** — the installable applications, servers and `kslpkg`, versioned
-  `0.3.4`, `0.3.3`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
+  `0.3.7`, `0.3.6`, … shipped as `ksl-suite.zip` and installed by the one-line installer.
   [Suite releases](#suite-releases).
 
 A suite release does not imply a library release, or the reverse. The suite can gain an
@@ -23,6 +23,68 @@ in the [README](../README.md#installing-the-ksl-applications).
 time, so it re-downloads the version you already have and reports success. Until 0.3.2,
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
+
+## 0.3.7 — installing over a running KSL
+
+*15 August 2026.* KSLCore is untouched by this release.
+
+**Installing or updating while the KSL Server was running quietly corrupted it.** The installer
+and `ksl update` unpacked straight over the shared library and server jars, and on macOS and Linux
+that overwrite succeeds: the running server keeps going with jars whose contents no longer match
+what it loaded, then fails minutes later with an error naming some unrelated class. Windows was
+accidentally safe, because it refuses to replace a file that is open. Both installers and both
+updaters now check first, list the processes still using the installation — the server, any open
+applications, and the KSL bridges your AI client started — and stop without touching anything.
+They only ever report; nothing is killed for you.
+
+**Quit the KSL Server before updating to 0.3.7.** The check ships *inside* this release, so the
+update that delivers it still runs 0.3.6's unguarded updater. From 0.3.7 on, `ksl update` enforces
+this itself. Re-running the installer is protected immediately either way — the one-liner fetches
+the current installer rather than the one on your disk.
+
+## 0.3.6 — one configuration file, and reports you can open
+
+*15 August 2026.* KSLCore is untouched by this release.
+
+**A configuration saved by a desktop application now runs on the server.** The Single and Scenario
+applications save a model reference naming the bundle and the model; the server only accepted a
+reference naming a provider id, and rejected the applications' own files. So a run configuration
+was portable in principle and not in practice. The same `.toml` now opens in the applications and
+runs on the server, which is what the format was for. If you hand-write one, remember that a
+scenario naming a bundle must also declare that bundle in `[[bundleRefs]]` — the applications write
+this for you, and the paths recorded there are not required to exist on the machine that runs it.
+
+**Reports and plots come back as links you can open.** Every rendered artifact — comparison
+reports, plot images, exports — was reported only as a file path on the server's own disk, which is
+useless to anyone not sitting at that machine and reads as broken in a chat client. Artifacts now
+carry a URL served by the KSL Server itself, on both the MCP and REST interfaces, and the
+comparison report prints the link directly.
+
+**The KSL Server no longer leaves a stray icon in the Dock.** On macOS the server registered itself
+as a regular application the first time it drew a plot, so a "MainKt" icon appeared in the Dock and
+stayed for as long as the server ran. It now runs as a background accessory, as the menu-bar agent
+already did. Plots are unaffected.
+
+**Pasting a `.toml` into the server's configuration tools works.** The tools documented that they
+accept a configuration either as structured data or as the text of a `.toml` file, but the text
+form was rejected before it ever reached the server. You can now paste the contents of a saved
+configuration straight in.
+
+**Your KSL folder explains itself.** `~/Applications/KSL` now contains a `README.md` describing
+what each part of the folder is and — the part worth knowing — that your own work lives in
+`~/Documents/KSLWork` and is never touched by an update. Alongside it, a new `skills/` folder holds
+optional instructions that help an AI assistant drive the KSL Server correctly, with a working
+example configuration to copy; see `skills/README.md`. Neither is required to use KSL.
+
+**The server also gives connected assistants better instructions**, covering how to build a run
+configuration rather than only which tool to reach for — the point where they most often went
+wrong.
+
+**Upgrading from 0.3.5 with `ksl update`? Run it twice, or just re-run the installer.** `skills/`
+and `README.md` are new items that belong beside the applications, and the code that puts them
+there ships inside 0.3.6 — so 0.3.5's updater unpacks them and leaves them out of sight. A second
+update, now running 0.3.6's code, puts them where they belong. Re-running the one-liner does it in
+one step.
 
 ## 0.3.5 — the R1.6 engine
 
