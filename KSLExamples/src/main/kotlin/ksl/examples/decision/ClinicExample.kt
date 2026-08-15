@@ -22,6 +22,16 @@ import kotlin.math.max
 class ClinicSubsystem(
     parent: ModelElement,
     exit: QObjectReceiverIfc,          // where patients go after the exam
+    /**
+     * Where to record this clinic's decisions, or `null` to record nothing.
+     *
+     * Capture must be declared when the element is built (§4.10.3) — there is no way to
+     * switch a sink on afterwards, deliberately, because a run that recorded half its
+     * decisions is worse than one that recorded none. So a model that wants a trajectory
+     * has to say so here, and an example that could not say so could not demonstrate
+     * capture at all. `OverheadBenchmarkTest` uses it to measure what capture costs.
+     */
+    private val decisionSink: ((RunProvenance) -> TransitionSink)? = null,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -60,6 +70,7 @@ class ClinicSubsystem(
             neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
         budget(t, e, total = 8.0)
 
+        decisionSink?.let { factory -> captureTo(factory) }
         every(480.0)
         policy = NeutralPolicy
     }

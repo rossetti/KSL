@@ -73,6 +73,13 @@ class SsInventory(
      * consequence stays measurable (§8.2.2).
      */
     declareOrderAsSetting: Boolean = false,
+    /**
+     * Where to record this inventory's decisions, or `null` to record nothing. Capture is
+     * declared when the element is built and cannot be switched on afterwards (§4.10.3), so a
+     * model that wants a trajectory must say so here. `OverheadBenchmarkTest` uses it to
+     * measure what capture costs per epoch.
+     */
+    private val decisionSink: ((RunProvenance) -> TransitionSink)? = null,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -195,6 +202,7 @@ class SsInventory(
             neutral = if (declareOrderAsSetting) Neutral.Current { lastOrderQuantity }
                       else Neutral.Value(0.0)
         ) { q -> placeOrder(q.toInt()) }
+        decisionSink?.let { factory -> captureTo(factory) }
         every(reviewPeriod)
         policy = NeutralPolicy
     }
