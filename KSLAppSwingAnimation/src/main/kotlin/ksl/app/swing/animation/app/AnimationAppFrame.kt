@@ -26,6 +26,7 @@ import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.appearance.ThemeMenu
+import ksl.app.swing.common.bundle.BundleJarChooser
 import ksl.app.swing.common.bundle.BundleModelPickerDialog
 import ksl.app.swing.common.editor.ControlOverridesPanel
 import ksl.app.swing.common.editor.ParameterPanel
@@ -373,9 +374,21 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     // ── Model / bundle loading (10.2) ─────────────────────────────────────────
 
+    /** Where Load JAR… opens when the user hasn't already loaded one this session: the app's own
+     *  bundles folder, else the shared one — the same layers discovery reads. */
+    private fun workspaceBundleDir(): java.nio.file.Path? {
+        val activeWorkspace = controller.settingsStore.activeWorkspace()
+        return WorkspaceLayout.preferredBundleDir(
+            appWorkspace = AppWorkspacePaths.appWorkspaceDir(
+                activeWorkspace, AnimationAppController.APP_FOLDER
+            ),
+            sharedWorkspace = activeWorkspace
+        )
+    }
+
     /** Bundles ▸ Load JAR…: load a bundle JAR into the library so its models become pickable. */
     private fun handleLoadJar() {
-        val path = chooseFile(open = true, "Load bundle JAR", "Bundle JAR (*.jar)", "jar") ?: return
+        val path = BundleJarChooser.choose(this, workspaceBundleDir()) ?: return
         when (val r = runCatching { bundleLibrary.loadJar(path) }.getOrElse {
             showError("Failed to load JAR: ${it.message}"); return
         }) {

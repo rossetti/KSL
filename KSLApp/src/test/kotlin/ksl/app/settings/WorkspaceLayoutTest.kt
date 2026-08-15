@@ -7,10 +7,12 @@ import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class WorkspaceLayoutTest {
@@ -96,5 +98,60 @@ class WorkspaceLayoutTest {
         val resolved = WorkspaceLayout.reportsDir(tempDir, "run-1", createIfMissing = true)
         assertEquals(tempDir.resolve("reports").resolve("run-1"), resolved)
         assertTrue(resolved.exists())
+    }
+
+    // ── preferredBundleDir (Load JAR… chooser start directory) ──────────────
+
+    @Test
+    @DisplayName("preferredBundleDir prefers the app's own bundles folder")
+    fun preferredBundleDirPrefersTheAppFolder(@TempDir tempDir: Path) {
+        val appWorkspace = tempDir.resolve("KSLSingle")
+        WorkspaceLayout.bundlesDir(appWorkspace, createIfMissing = true)
+        WorkspaceLayout.bundlesDir(tempDir, createIfMissing = true)
+        assertEquals(
+            appWorkspace.resolve("bundles"),
+            WorkspaceLayout.preferredBundleDir(appWorkspace, tempDir)
+        )
+    }
+
+    @Test
+    @DisplayName("preferredBundleDir falls back to the shared bundles folder")
+    fun preferredBundleDirFallsBackToShared(@TempDir tempDir: Path) {
+        val appWorkspace = tempDir.resolve("KSLSingle")   // no bundles/ created under it
+        WorkspaceLayout.bundlesDir(tempDir, createIfMissing = true)
+        assertEquals(
+            tempDir.resolve("bundles"),
+            WorkspaceLayout.preferredBundleDir(appWorkspace, tempDir)
+        )
+    }
+
+    @Test
+    @DisplayName("preferredBundleDir returns null when neither folder exists")
+    fun preferredBundleDirReturnsNullWhenNothingExists(@TempDir tempDir: Path) {
+        assertNull(WorkspaceLayout.preferredBundleDir(tempDir.resolve("KSLSingle"), tempDir))
+    }
+
+    @Test
+    @DisplayName("preferredBundleDir never offers the read-only shipped bundles folder")
+    fun preferredBundleDirExcludesTheShippedLayer(@TempDir tempDir: Path) {
+        // appBundleDirs ends with the shipped layer; the chooser start directory
+        // deliberately does not — those bundles are already discovered, and the
+        // directory belongs to the installation, not the user.
+        val shipped = tempDir.resolve("shipped-bundles")
+        shipped.createDirectories()
+        val previous = System.getProperty(WorkspaceLayout.BUILTIN_BUNDLES_PROPERTY)
+        System.setProperty(WorkspaceLayout.BUILTIN_BUNDLES_PROPERTY, shipped.toString())
+        try {
+            val appWorkspace = tempDir.resolve("KSLSingle")
+            assertEquals(shipped, WorkspaceLayout.builtinBundlesDir(),
+                "fixture check: the shipped layer should be visible to appBundleDirs")
+            assertNull(
+                WorkspaceLayout.preferredBundleDir(appWorkspace, tempDir),
+                "the shipped layer must not be offered as a Load JAR… start directory"
+            )
+        } finally {
+            if (previous == null) System.clearProperty(WorkspaceLayout.BUILTIN_BUNDLES_PROPERTY)
+            else System.setProperty(WorkspaceLayout.BUILTIN_BUNDLES_PROPERTY, previous)
+        }
     }
 }

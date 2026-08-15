@@ -38,13 +38,11 @@ import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.JButton
 import javax.swing.JDialog
-import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
-import javax.swing.filechooser.FileNameExtensionFilter
 
 /**
  *  Modal bundle-model picker shown by an app's launch path (e.g. `kslSingleApp` / `kslAnimationApp`)
@@ -105,14 +103,21 @@ object BundleModelPickerDialog {
      *  @param confirmButtonText label for the confirm button.  Defaults to
      *  "Open"; the Single app's startup picker passes "Pick" to match the
      *  wording its guide and screenshots document.
+     *  @param jarChooserStartDir where *Load JAR…* should open when the user has
+     *  not already loaded one this session — normally
+     *  `ksl.app.settings.WorkspaceLayout.preferredBundleDir`.  Ignored when
+     *  [showLoadJarButton] is false.  See [BundleJarChooser].
      */
     fun show(
         bundleLibrary: BundleLibraryController,
         dialogTitle: String = "Pick a Model",
         showLoadJarButton: Boolean = true,
-        confirmButtonText: String = DEFAULT_CONFIRM_BUTTON_TEXT
+        confirmButtonText: String = DEFAULT_CONFIRM_BUTTON_TEXT,
+        jarChooserStartDir: Path? = null
     ): Result {
-        val impl = PickerDialog(bundleLibrary, dialogTitle, showLoadJarButton, confirmButtonText)
+        val impl = PickerDialog(
+            bundleLibrary, dialogTitle, showLoadJarButton, confirmButtonText, jarChooserStartDir
+        )
         impl.isVisible = true
         return impl.result
     }
@@ -126,7 +131,8 @@ private class PickerDialog(
     private val bundleLibrary: BundleLibraryController,
     title: String,
     private val showLoadJarButton: Boolean = true,
-    confirmButtonText: String = BundleModelPickerDialog.DEFAULT_CONFIRM_BUTTON_TEXT
+    confirmButtonText: String = BundleModelPickerDialog.DEFAULT_CONFIRM_BUTTON_TEXT,
+    private val jarChooserStartDir: Path? = null
 ) : JDialog(null as java.awt.Frame?, title, /* modal = */ true) {
 
     /** Captured choice; read by [BundleModelPickerDialog.show] after the dialog
@@ -258,12 +264,7 @@ private class PickerDialog(
     }
 
     private fun onLoadJar() {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Load Bundle JAR"
-            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val path: Path = chooser.selectedFile?.toPath() ?: return
+        val path: Path = BundleJarChooser.choose(this, jarChooserStartDir) ?: return
         // loadedBundles changes propagate to the picker and onBundlesChanged
         // automatically; here we just surface the outcome message.
         when (val outcome = bundleLibrary.loadJar(path)) {

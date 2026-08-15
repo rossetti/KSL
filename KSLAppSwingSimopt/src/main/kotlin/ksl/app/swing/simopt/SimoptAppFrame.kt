@@ -332,14 +332,18 @@ class SimoptAppFrame(
     }
 
     private fun handleLoadBundleJar() {
-        // Bundle JARs are not workspace-local — use the platform default
-        // (last-used directory or home), matching the Experiment app.
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Load Bundle JAR"
-            fileFilter = FileNameExtensionFilter("JAR files (*.jar)", "jar")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val path = chooser.selectedFile.toPath()
+        // Opens at the JAR the user last loaded this session, else the app's bundles
+        // folder — the layers discovery already reads, and where the guides tell users
+        // to put their own bundles.  (This used to take the platform default on the
+        // grounds that bundle JARs are not workspace-local; a fresh JFileChooser has no
+        // last-used memory, so that only ever meant the home directory.)
+        val path = ksl.app.swing.common.bundle.BundleJarChooser.choose(
+            this,
+            ksl.app.settings.WorkspaceLayout.preferredBundleDir(
+                appWorkspace = controller.appWorkspace,
+                sharedWorkspace = controller.appWorkspace.parent
+            )
+        ) ?: return
         when (val result = controller.loadBundleJar(path)) {
             is BundleLibraryController.LoadBundleResult.Loaded ->
                 notifications.info(

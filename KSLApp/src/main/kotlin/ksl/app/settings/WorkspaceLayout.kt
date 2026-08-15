@@ -116,6 +116,20 @@ object WorkspaceLayout {
             builtinBundlesDir(),
         ).toTypedArray()
 
+    /**
+     *  Where a *Load JAR…* file chooser should open: the app's own
+     *  `<workspace>/<App>/bundles/`, else the shared `<workspace>/bundles/`, else null
+     *  (leaving the chooser at the platform default).  Both are normally created during
+     *  discovery, so the first branch usually wins.
+     *
+     *  Deliberately **not** the shipped-examples layer, unlike [appBundleDirs]: those
+     *  bundles are already discovered and the directory is read-only, so opening a
+     *  "load another one" chooser there would only invite re-loading what is loaded.
+     */
+    fun preferredBundleDir(appWorkspace: Path, sharedWorkspace: Path): Path? =
+        listOf(bundlesDir(appWorkspace), bundlesDir(sharedWorkspace))
+            .firstOrNull { it.exists() && it.isDirectory() }
+
     /** Resolves `<workspace>/output/<runId>/`, optionally creating it. */
     fun outputDir(workspace: Path, runId: String, createIfMissing: Boolean = false): Path =
         workspace.resolve("output").resolve(runId).maybeCreate(createIfMissing)

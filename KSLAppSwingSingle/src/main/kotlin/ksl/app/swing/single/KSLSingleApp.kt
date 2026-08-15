@@ -166,7 +166,11 @@ class KSLSingleApp(val appName: String) {
         bundleLibrary.discoverFromDirectories(*WorkspaceLayout.appBundleDirs(appWorkspace, activeWorkspace))
         // "Pick" (rather than the dialog's default "Open") keeps the startup
         // wording the Single-app guide and its screenshots document.
-        val outcome = BundleModelPickerDialog.show(bundleLibrary, confirmButtonText = "Pick")
+        val outcome = BundleModelPickerDialog.show(
+            bundleLibrary,
+            confirmButtonText = "Pick",
+            jarChooserStartDir = WorkspaceLayout.preferredBundleDir(appWorkspace, activeWorkspace)
+        )
         return when (outcome) {
             BundleModelPickerDialog.Result.Cancelled -> {
                 // No model — exit the JVM cleanly.  The Swing

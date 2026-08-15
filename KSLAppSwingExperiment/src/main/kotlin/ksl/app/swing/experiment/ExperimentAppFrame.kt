@@ -769,13 +769,13 @@ class ExperimentAppFrame(
     // ── Bundle loading ─────────────────────────────────────────────────────
 
     private fun handleLoadBundleJar() {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Load Bundle JAR"
-            fileSelectionMode = JFileChooser.FILES_ONLY
-            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val path: Path = chooser.selectedFile?.toPath() ?: return
+        val path: Path = ksl.app.swing.common.bundle.BundleJarChooser.choose(
+            this,
+            ksl.app.settings.WorkspaceLayout.preferredBundleDir(
+                appWorkspace = controller.appWorkspace,
+                sharedWorkspace = controller.appWorkspace.parent
+            )
+        ) ?: return
         when (val outcome = controller.loadBundleJar(path)) {
             is BundleLibraryController.LoadBundleResult.Loaded -> {
                 val ids = outcome.newBundleIds.joinToString(", ")

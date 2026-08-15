@@ -24,6 +24,7 @@ import ksl.app.session.RunResult
 import ksl.app.notification.NotificationSeverity
 import ksl.app.swing.common.app.KslAppIcons
 import ksl.app.swing.common.app.KslDesktopApp
+import ksl.app.swing.common.bundle.BundleJarChooser
 import ksl.app.swing.common.bundle.BundleModelPickerDialog
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
@@ -544,12 +545,7 @@ class SingleAppFrame(
      *  and surfaces the outcome via the notifications strip.
      */
     private fun handleLoadJar(bundleLibrary: ksl.app.editor.BundleLibraryController) {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Load Bundle JAR"
-            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val path: Path = chooser.selectedFile?.toPath() ?: return
+        val path: Path = BundleJarChooser.choose(this, workspaceBundleDir()) ?: return
         when (val outcome = bundleLibrary.loadJar(path)) {
             is ksl.app.editor.BundleLibraryController.LoadBundleResult.Loaded -> {
                 notifications.info(
@@ -572,6 +568,25 @@ class SingleAppFrame(
             is ksl.app.editor.BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }
+    }
+
+    /**
+     *  Where *Load JAR…* should open when the user hasn't loaded one yet this
+     *  session: the app's own bundles folder, else the shared one, else null.
+     *
+     *  Note this is **not** [SingleAppController.appWorkspace] — that one is
+     *  per-model (`<workspace>/KSLSingle/<modelName>/`), so it would point the
+     *  chooser inside a model's output folder.  The bundle layers hang off the
+     *  app folder itself, exactly as the launch-time discovery computes them.
+     */
+    private fun workspaceBundleDir(): Path? {
+        val activeWorkspace = controller.settingsStore.activeWorkspace()
+        return WorkspaceLayout.preferredBundleDir(
+            appWorkspace = ksl.app.session.AppWorkspacePaths.appWorkspaceDir(
+                activeWorkspace, SingleAppController.APP_FOLDER
+            ),
+            sharedWorkspace = activeWorkspace
+        )
     }
 
     /**
