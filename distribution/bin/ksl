@@ -455,6 +455,15 @@ cmd_update() {
       rm -rf "$KSL_HOME/examples"
       mv -f "$SUPPORT/examples" "$KSL_HOME/examples"
     fi
+    # Extracting the whole zip is NOT enough on its own for anything that lives in the visible
+    # root: it lands in .support and has to be moved out, exactly as install.sh moves it. Miss the
+    # move and the update reports success while leaving the previous release's copy in place --
+    # the same silent no-op the 0.3.0 examples/ miss produced, in a different disguise.
+    if [ -d "$SUPPORT/skills" ]; then
+      rm -rf "$KSL_HOME/skills"
+      mv -f "$SUPPORT/skills" "$KSL_HOME/skills"
+    fi
+    [ -f "$SUPPORT/README.md" ] && mv -f "$SUPPORT/README.md" "$KSL_HOME/README.md"
     # Adopt the manifest we just updated to, BEFORE refreshing: cmd_refresh reads the catalog,
     # and a release that adds an app must have it appear here.
     local mf; mf="$(update_manifest)"

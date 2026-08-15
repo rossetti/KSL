@@ -130,6 +130,12 @@ rm -rf "$SUPPORT/bin"
 rm -rf "$KSL_HOME/examples"
 [ -d "$SUPPORT/examples" ] && mv -f "$SUPPORT/examples" "$KSL_HOME/examples"
 
+# Same treatment, same reason: the agent skills and the software-root README are things a student is
+# told to look at, so they sit in the visible root rather than the hidden support folder.
+rm -rf "$KSL_HOME/skills"
+[ -d "$SUPPORT/skills" ] && mv -f "$SUPPORT/skills" "$KSL_HOME/skills"
+[ -f "$SUPPORT/README.md" ] && mv -f "$SUPPORT/README.md" "$KSL_HOME/README.md"
+
 # Up to 0.2.0 the shipped bundles lived at .support/bundles, and every launcher pointed there. They now
 # live in examples/, launchers are regenerated to match, and nothing reads the old path -- so an upgrade
 # left 736 KB of the PREVIOUS release's bundles sitting there, silently out of date. Harmless to run, but
@@ -176,7 +182,7 @@ cleanup_legacy() {
   local wk="$1" removed=0 p
   [ -n "$wk" ] && [ -d "$wk" ] || return 0
   grep -q '"kslWorkLayout"' "$wk/manifest.json" 2>/dev/null || return 0
-  for p in Apps lib Servers Tools bin examples Applications manifest.json VERSIONS.txt; do
+  for p in Apps lib Servers Tools bin examples skills Applications manifest.json README.md VERSIONS.txt; do
     if [ -e "$wk/$p" ]; then rm -rf "${wk:?}/$p"; removed=$((removed + 1)); fi
   done
   [ "$removed" -gt 0 ] && say "* Cleaned $removed stale software item(s) out of $wk (your bundles and work are untouched)"
@@ -192,8 +198,9 @@ if [ "$(uname)" = "Darwin" ]; then
 else
   say "  Apps       \"KSL <Name>\" in your applications menu"
 fi
-say "  Software   $KSL_HOME        (delete this folder to uninstall)"
+say "  Software   $KSL_HOME        (delete this folder to uninstall — see its README.md)"
 say "  Examples   $KSL_HOME/examples   (model bundles + animation layouts — replaced on update)"
+say "  AI skills  $KSL_HOME/skills     (help an assistant drive the KSL server — see skills/README.md)"
 say "  Your work  $WORK            (bundles, configs, output — never touched by updates)"
 say "             drop model bundle JARs into $WORK/bundles"
 say "  Servers    $SUPPORT/Servers/<name>/   (point your MCP client's config here)"

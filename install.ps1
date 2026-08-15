@@ -159,6 +159,16 @@ try {
         Remove-Item -Recurse -Force $examplesDst -ErrorAction SilentlyContinue
         Move-Item -Force $examplesSrc $examplesDst
     }
+    # Same treatment, same reason: the agent skills and the software-root README are things a student
+    # is pointed at, so they belong in the visible root rather than the hidden support folder.
+    $skillsSrc = Join-Path $support "skills"
+    $skillsDst = Join-Path $kslHome "skills"
+    if (Test-Path $skillsSrc) {
+        Remove-Item -Recurse -Force $skillsDst -ErrorAction SilentlyContinue
+        Move-Item -Force $skillsSrc $skillsDst
+    }
+    $readmeSrc = Join-Path $support "README.md"
+    if (Test-Path $readmeSrc) { Move-Item -Force $readmeSrc (Join-Path $kslHome "README.md") }
     # Up to 0.2.0 the shipped bundles lived at .support\bundles, and every launcher pointed there. They
     # now live in examples\, launchers are regenerated to match, and nothing reads the old path -- so an
     # upgrade left the PREVIOUS release's bundles sitting there, silently out of date. The payload never
@@ -213,7 +223,7 @@ function CleanupLegacy([string]$wk) {
     if (-not (Test-Path $mf)) { return }
     if (-not (Select-String -Path $mf -Pattern '"kslWorkLayout"' -Quiet -ErrorAction SilentlyContinue)) { return }
     $removed = 0
-    foreach ($p in @("Apps", "lib", "Servers", "Tools", "bin", "examples", "Applications", "manifest.json", "VERSIONS.txt")) {
+    foreach ($p in @("Apps", "lib", "Servers", "Tools", "bin", "examples", "skills", "Applications", "manifest.json", "README.md", "VERSIONS.txt")) {
         $t = Join-Path $wk $p
         if (Test-Path $t) { Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue; $removed++ }
     }
@@ -225,8 +235,9 @@ foreach ($w in @($env:KSLWORK, $work)) { CleanupLegacy $w }
 Say ""
 Say "Done."
 Say '  Apps       Start Menu -> KSL -> "KSL <Name>"    e.g. KSL Single'
-Say "  Software   $kslHome        (delete this folder to uninstall)"
+Say "  Software   $kslHome        (delete this folder to uninstall - see its README.md)"
 Say "  Examples   $kslHome\examples  (model bundles + animation layouts - replaced on update)"
+Say "  AI skills  $kslHome\skills    (help an assistant drive the KSL server - see skills\README.md)"
 Say "  Your work  $work           (bundles, configs, output - never touched by updates)"
 Say "             drop model bundle JARs into $work\bundles"
 Say "  Servers    $support\Servers\<name>\   (point your MCP client's config here)"

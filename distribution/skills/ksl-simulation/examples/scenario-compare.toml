@@ -1,0 +1,115 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  KSL scenario comparison — a ready-to-adapt template
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  A PAIRED comparison of two scenarios in ONE batch: they run with common random
+#  numbers, and `enableKSLDatabase = true` makes the MCB comparison + box/CI plots
+#  available afterward (db_compare / db_compare_report).
+#
+#  This concrete example compares 2 vs 3 pharmacists in a busy drive-through
+#  pharmacy (service ~1.7 min). To adapt it to YOUR model:
+#    1) run_template(bundleId, modelId) to get the exact numericControl descriptor
+#       for the input you want to vary, and paste it into each scenario.
+#    2) change bundleId / modelId below,
+#    3) change the two control `value`s (here 2.0 and 3.0),
+#    4) change (or delete) the [[scenarios.rvOverrides]] block — that is where a
+#       distribution parameter like a mean service time goes, NOT a control,
+#    5) run it:  run_config(this document)  →  db_compare_report(resultId, "<response>").
+#
+#  Reference: https://rossetti.github.io/KSLBook/
+# ─────────────────────────────────────────────────────────────────────────────
+
+executionMode = "SEQUENTIAL"
+
+[outputConfig]
+enableKSLDatabase = true          # required for db_compare / db_compare_report afterward
+reports = [ "HTML" ]
+analysisName = "ScenarioCompare"
+databasePolicy = "OVERWRITE"
+
+# ── Scenario 1 ───────────────────────────────────────────────────────────────
+[[scenarios]]
+name = "2 pharmacists"            # unique per scenario; becomes the experiment name
+
+[scenarios.modelReference]
+type = "byBundleAndModelId"       # or: type = "byProviderId", providerId = "<modelId>"
+bundleId = "edu.uark.ksl.book-examples"
+modelId = "DriveThroughPharmacyWithResource"
+
+[scenarios.runOverrides]
+numberOfReplications = 40
+
+# A distribution parameter (mean service time) — an RV override, NOT a control.
+[[scenarios.rvOverrides]]
+rvName = "Pharmacy:ServiceTime"
+paramName = "mean"
+value = 1.7
+
+# The control being varied. Copy this whole block from run_template's scaffold and
+# change only `value`. comment and modelName are required.
+[scenarios.controlOverrides]
+modelName = "DriveThroughPharmacyWithResource"
+
+[[scenarios.controlOverrides.numericControls]]
+controlType = "INTEGER"
+value = 2.0
+keyName = "Pharmacy:Pharmacists.initialCapacity"
+elementName = "Pharmacy:Pharmacists"
+elementId = 2
+elementType = "SResource"
+propertyName = "initialCapacity"
+comment = ""
+modelName = "DriveThroughPharmacyWithResource"
+parentElementName = "Pharmacy"
+parentElementId = 1
+parentElementType = "DriveThroughPharmacyWithResource"
+elementPath = [ "Pharmacy" ]
+
+# ── Scenario 2 (identical except the control value) ───────────────────────────
+[[scenarios]]
+name = "3 pharmacists"
+
+[scenarios.modelReference]
+type = "byBundleAndModelId"
+bundleId = "edu.uark.ksl.book-examples"
+modelId = "DriveThroughPharmacyWithResource"
+
+[scenarios.runOverrides]
+numberOfReplications = 40
+
+[[scenarios.rvOverrides]]
+rvName = "Pharmacy:ServiceTime"
+paramName = "mean"
+value = 1.7
+
+[scenarios.controlOverrides]
+modelName = "DriveThroughPharmacyWithResource"
+
+[[scenarios.controlOverrides.numericControls]]
+controlType = "INTEGER"
+value = 3.0
+keyName = "Pharmacy:Pharmacists.initialCapacity"
+elementName = "Pharmacy:Pharmacists"
+elementId = 2
+elementType = "SResource"
+propertyName = "initialCapacity"
+comment = ""
+modelName = "DriveThroughPharmacyWithResource"
+parentElementName = "Pharmacy"
+parentElementId = 1
+parentElementType = "DriveThroughPharmacyWithResource"
+elementPath = [ "Pharmacy" ]
+
+# ── Bundle the scenarios reference ────────────────────────────────────────────
+#
+#  REQUIRED whenever a scenario uses type = "byBundleAndModelId": every such bundleId must be
+#  declared here, or validation fails with SCENARIO_BUNDLE_REF_MISSING.
+#
+#  `paths` records where the bundle JAR sat on the machine that authored this file. It is NOT
+#  checked for existence — the server resolves the bundle from its own registry by bundleId — so
+#  this file still validates and runs on a machine whose path differs. Leave it as-is, or point it
+#  at your own copy; on a default install the shipped bundles are under
+#  <KSL_HOME>/examples/bundles/ (see the README next to this folder).
+[[bundleRefs]]
+bundleId = "edu.uark.ksl.book-examples"
+paths = [ "examples/bundles/book-examples.jar" ]

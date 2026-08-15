@@ -164,6 +164,21 @@ function ExtractItem([string]$zip, [string]$path, [string]$root = $null) {
         }
     } finally { $za.Dispose() }
 }
+function ExtractRootFile([string]$zip, [string]$name, [string]$root) {
+    $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        foreach ($e in $za.Entries) {
+            if ($e.FullName -ne $name) { continue }
+            $dest = Join-Path $root $name
+            try {
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
+            }
+            catch [System.IO.IOException] {
+                Die "could not replace $dest. Close any running KSL apps or servers, then try again."
+            }
+        }
+    } finally { $za.Dispose() }
+}
 function Dequarantine([string]$p) {
     if ($IsWin -and (Test-Path $p)) { Get-ChildItem -Recurse -File $p -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue }
 }
@@ -396,6 +411,14 @@ function CmdUpdate([string]$id) {
         $exDir = Join-Path $kslHome "examples"
         if (Test-Path $exDir) { Remove-Item -Recurse -Force $exDir -ErrorAction SilentlyContinue }
         ExtractItem $zip "examples" $kslHome
+        # skills\ is content too, and goes to the same visible root for the same reason. Replaced
+        # wholesale like examples\ -- there is nothing user-authored in it to preserve.
+        $skDir = Join-Path $kslHome "skills"
+        if (Test-Path $skDir) { Remove-Item -Recurse -Force $skDir -ErrorAction SilentlyContinue }
+        ExtractItem $zip "skills" $kslHome
+        # The software-root README is a top-level FILE, and ExtractItem only matches "<dir>/*",
+        # so it needs its own extraction or an update would leave last release's copy in place.
+        ExtractRootFile $zip "README.md" $kslHome
         # Replace this very script by rename, never by overwrite -- PowerShell may still
         # be reading it. Move-Item swaps the entry and leaves the running process alone.
         $t = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())

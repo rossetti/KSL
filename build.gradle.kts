@@ -513,6 +513,7 @@ val checkUpdaterCoverage by tasks.registering {
         require(dir.isDirectory) { "no assembled payload at $dir — run assembleKSLWork first" }
         val shipped = dir.listFiles()?.filter { it.isDirectory }?.map { it.name }?.sorted().orEmpty()
         require(shipped.isNotEmpty()) { "assembled payload at $dir has no directories — assembly is broken" }
+        val shippedFiles = dir.listFiles()?.filter { it.isFile }?.map { it.name }?.sorted().orEmpty()
 
         val problems = mutableListOf<String>()
         // The bash updater extracts the whole zip and relocates, so it has no list to fall out of step
@@ -522,6 +523,20 @@ val checkUpdaterCoverage by tasks.registering {
             problems += "distribution/bin/ksl: the whole-suite update no longer extracts the entire zip. " +
                 "If it has gone back to naming directories, every future payload change must remember to " +
                 "update that list."
+        }
+        // Extracting the whole zip is necessary but NOT sufficient, and assuming otherwise is what let
+        // a broken `ksl update` pass this very check: the bash updater unzips into .support, so every
+        // item belonging in the VISIBLE software root must additionally be moved out. install.sh does
+        // those moves; the updater has to do the same ones or it reports success and refreshes nothing.
+        // Verified by test 2026-08-14 -- skills/ and README.md were extracted and never relocated.
+        val visibleRootItems = (shipped + shippedFiles).filter { it !in setOf("Apps", "Servers", "Tools", "lib") }
+        for (name in visibleRootItems) {
+            if (name in setOf("manifest.json", "VERSIONS.txt")) continue
+            if (!Regex("""SUPPORT/${Regex.escape(name)}"""").containsMatchIn(shText)) {
+                problems += "distribution/bin/ksl: the payload ships $name into the visible software root, " +
+                    "but the whole-suite update never moves it out of .support, so `ksl update` will " +
+                    "report success and leave the previous release's copy in place"
+            }
         }
         // The PowerShell twin does need a list, because examples/ goes to a different root.
         val ps1Text = ps1.asFile.readText()
@@ -542,13 +557,29 @@ val checkUpdaterCoverage by tasks.registering {
                     "mentions it, so `ksl update` will silently leave it stale"
             }
         }
+        // Top-level FILES need the same check, and used to escape it. ExtractItem matches "<dir>/*"
+        // only, so a root file (README.md) is invisible to the directory sweep above and would be
+        // left at the previous release's copy forever -- the same silent-staleness failure the
+        // examples/ miss produced in 0.3.0, in a shape the guard could not see.
+        for (name in shippedFiles) {
+            // manifest.json / VERSIONS.txt are written by the installer into .support, not shipped
+            // to the software root, so they are not the updater's to refresh.
+            if (name in setOf("manifest.json", "VERSIONS.txt")) continue
+            if (!Regex("""ExtractRootFile\s+\$\w+\s+"${Regex.escape(name)}"""").containsMatchIn(ps1Text)) {
+                problems += "distribution/bin/ksl.ps1: the payload ships the root file $name but the " +
+                    "updater never extracts it, so `ksl update` will silently leave it stale"
+            }
+        }
         if (problems.isNotEmpty()) {
             throw GradleException(
                 "`ksl update` does not cover the payload it ships. The payload's top-level directories " +
                     "are ${shipped.joinToString(", ")}:\n" + problems.joinToString("\n") { "  $it" }
             )
         }
-        logger.lifecycle("ksl update covers all ${shipped.size} shipped directories (${shipped.joinToString(", ")})")
+        logger.lifecycle(
+            "ksl update covers all ${shipped.size} shipped directories (${shipped.joinToString(", ")})" +
+                if (shippedFiles.isNotEmpty()) " and ${shippedFiles.size} root file(s) (${shippedFiles.joinToString(", ")})" else "",
+        )
     }
 }
 
@@ -725,6 +756,24 @@ tasks.register("assembleKSLWork") {
         } else {
             logger.warn("assembleKSLWork: no docs/animations/layouts -- shipping without polished layouts")
         }
+
+        // Agent skills for the MCP server (Claude-family clients): instructions plus a known-good
+        // example config an assistant copies rather than authoring from scratch. Content, not
+        // plumbing, so it lands in the VISIBLE software root beside examples/ -- same treatment,
+        // same reason: a student told "the skill is in your KSL folder" must be able to find it.
+        // Deliberately NOT a manifest.json item: like examples/, it is replaced wholesale on every
+        // update, so there is nothing to install or uninstall independently.
+        val skillsSource = file("distribution/skills")
+        require(skillsSource.isDirectory) { "missing distribution/skills -- the payload would ship without agent skills" }
+        val skillsDir = root.resolve("skills").apply { mkdirs() }
+        skillsSource.copyRecursively(skillsDir, overwrite = true)
+        logger.lifecycle("assembleKSLWork: skills/ (${skillsDir.walkTopDown().count { it.isFile }} files)")
+
+        // The software root's own README -- what this folder is, what each part does, and the
+        // software-here / work-there split. Kept as a shipped file rather than only as installer
+        // output, so it is still there months later when the install messages are long gone.
+        file("distribution/home/README.md").copyTo(root.resolve("README.md"), overwrite = true)
+        logger.lifecycle("assembleKSLWork: README.md (software-root guide)")
 
         // the ksl helper (manage what's installed). Its sources live in distribution/bin/ —
         // the repo path mirrors where they land in the payload — and are copied in verbatim:

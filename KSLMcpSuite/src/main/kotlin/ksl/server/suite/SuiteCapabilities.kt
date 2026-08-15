@@ -93,11 +93,21 @@ class CodeMcpCapability(
 // instructions under a short suite preamble, so a server running only a subset advertises only those
 // surfaces. (Split out of the former single SUITE_INSTRUCTIONS block.)
 
+// Routing alone was not enough. Observed 2026-08-13: an agent followed the routing correctly and
+// still fumbled one layer down — guessing input keys, hand-authoring a config, putting a
+// distribution mean in numericControls, and approximating a comparison with repeated run_model.
+// That guidance lived only in individual tool descriptions, which some clients load late or
+// piecemeal, so it arrived after the mistake. This field is always in context, so it is the one
+// channel that reaches every client before the first call. Keep it terse for the same reason.
 internal const val SIM_INSTRUCTIONS =
-    "RUN and analyze simulation models — single runs, scenario comparisons, designed experiments, " +
-        "simulation-optimization, and distribution fitting (tools: run_model, run_experiment, " +
-        "run_optimization, fit_dataset, and more). If the user is unsure what to do, call get_started, " +
-        "which returns the live model catalog and routes to a workflow."
+    "RUN and analyze simulation models — single runs, scenario comparisons, experiments, " +
+        "optimization, and distribution fitting. Unsure what exists or what to do? call get_started; " +
+        "call describe_model before setting inputs — don't guess keys. Author a run or scenario config " +
+        "with run_template -> edit -> validate_run_config -> run_config; don't hand-write it. A " +
+        "distribution parameter (a mean, a rate) is an rvOverride, not a control. To compare alternatives " +
+        "and pick the best, run every scenario in ONE run_config batch (common random numbers), then " +
+        "db_compare / db_compare_report — don't approximate a comparison with repeated run_model. Results " +
+        "return reports and plots as artifacts (get_artifact); hand the user the link."
 
 internal const val CODE_INSTRUCTIONS =
     "SEARCH the KSL SOURCE CODE and API — for ANY question about a KSL class, function, or API, call " +

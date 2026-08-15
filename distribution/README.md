@@ -3,16 +3,23 @@
 Source assets that ship **inside** `ksl-suite.zip`. These are build inputs — nobody fetches
 them from this repo, and they are not run from here.
 
-`assembleKSLWork` copies each file below into `bin/` in the zip. The installer unpacks the
-payload into the software root's hidden `.support/`, then lifts `bin/` up next to the app
+`assembleKSLWork` copies each file below into the zip. The installer unpacks the payload into the
+software root's hidden `.support/`, then lifts the student-facing parts up next to the app
 bundles — so `distribution/bin/ksl` is the source of the `ksl` command a student runs at
 `~/Applications/KSL/bin/ksl` (Windows: `%LOCALAPPDATA%\Programs\KSL\bin\ksl`).
+
+Anything added here that lands in the payload root must ALSO be handled by both updaters
+(`bin/ksl` extracts the whole zip; `bin/ksl.ps1` names each item) or `ksl update` leaves it stale
+without saying so. The `checkUpdaterCoverage` build task enforces that for top-level directories
+**and** root files — let it catch the mistake rather than relying on this paragraph.
 
 | File | Ships as | Role |
 |---|---|---|
 | `bin/ksl` | `<KSL_HOME>/bin/ksl` | suite manager (bash, macOS/Linux) — `list` / `install` / `uninstall` / `update` / `refresh` |
 | `bin/ksl.ps1` | `<KSL_HOME>\bin\ksl.ps1` | the same, in PowerShell (Windows) |
 | `bin/ksl.cmd` | `<KSL_HOME>\bin\ksl.cmd` | shim so plain `ksl <cmd>` runs `ksl.ps1` under any execution policy |
+| `skills/` | `<KSL_HOME>/skills/` | agent skills for the MCP server (`ksl-simulation` + its example config) and their README — lifted out of `.support/` beside `examples/`, replaced wholesale on update |
+| `home/README.md` | `<KSL_HOME>/README.md` | the software root's own guide: what each folder is, and the software-here / work-there split |
 | `icons/source/` | not shipped | canonical SVG artwork for the eight desktop apps |
 | `icons/export/` | `.support/Apps/<Target>/` and the shared Swing library | reviewed PNG, ICNS, and ICO derivatives |
 
