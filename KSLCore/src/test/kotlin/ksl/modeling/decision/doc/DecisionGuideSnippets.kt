@@ -1,0 +1,245 @@
+package ksl.modeling.decision.doc
+
+import ksl.modeling.decision.ActionSearch
+import ksl.modeling.decision.DecisionContext
+import ksl.modeling.decision.DecisionElement
+import ksl.modeling.decision.ExhaustiveSearch
+import ksl.modeling.decision.GridSearch
+import ksl.modeling.decision.ManagedPolicyIfc
+import ksl.modeling.decision.Neutral
+import ksl.modeling.decision.NeutralPolicy
+import ksl.modeling.decision.PolicyIfc
+import ksl.modeling.decision.RunProvenance
+import ksl.modeling.decision.ShapeAwarePolicyIfc
+import ksl.modeling.decision.TransitionRecord
+import ksl.modeling.decision.TransitionSink
+import ksl.modeling.decision.decisionElement
+import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
+import ksl.modeling.decision.descriptor.RewardSense
+import ksl.modeling.decision.descriptor.TerminationSource
+import ksl.modeling.decision.descriptor.toJson
+import ksl.modeling.decision.descriptor.toToml
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.TWResponse
+import ksl.sdm.capture.MemorySink
+import ksl.simulation.Model
+import ksl.simulation.ModelElement
+
+/**
+ * Compile-only host for every code snippet in `docs/guides/ksl-decision.md`.
+ * Each `fun` body is a verbatim snippet (or its body); compiling this file
+ * proves every example in the guide references real public APIs.
+ *
+ * This file is not run as a test — the build only needs to compile it.
+ */
+@Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "unused")
+private object DecisionGuideSnippets {
+
+    // -- §3 Quick start: a stock room that decides how much to order ----
+
+    class StockRoom(parent: ModelElement, name: String? = null) : ModelElement(parent, name) {
+
+        val onHand = TWResponse(this, name = "${this.name}:OnHand", initialValue = 50.0)
+        val ordersPlaced = Counter(this, name = "${this.name}:Orders")
+
+        private var onOrder: Double = 0.0
+
+        /** The model's own operation. A lever writes through this; it is not decision code. */
+        fun placeOrder(quantity: Double) {
+            if (quantity <= 0.0) return
+            onOrder += quantity
+            ordersPlaced.increment()
+        }
+
+        val review: DecisionElement = decisionElement("${this.name}:Review") {
+            observe(onHand, unit = "units")                       // observation 0
+            lever(
+                this@StockRoom, limits = 0..200,
+                neutral = Neutral.Value(0.0),                     // ordering nothing IS the no-op
+                alias = "OrderQty", unit = "units"
+            ) { q -> placeOrder(q) }
+            reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
+            every(5.0)
+            policy = NeutralPolicy
+        }
+    }
+
+    fun quickStartRun() {
+        val model = Model("StockRoomDemo")
+        val room = StockRoom(model, "Room")
+        model.numberOfReplications = 10
+        model.lengthOfReplication = 500.0
+        model.simulate()
+        model.print()
+    }
+
+    // -- §4.1 Writing a rule -------------------------------------------
+
+    /** An (s, S) rule: order up to [bigS] whenever the position is at or below [s]. */
+    class OrderUpTo(private val s: Double, private val bigS: Double) : PolicyIfc {
+        override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+            val position = observation[0]
+            return if (position <= s) doubleArrayOf(bigS - position) else doubleArrayOf(0.0)
+        }
+    }
+
+    fun swapTheRule(room: StockRoom) {
+        room.review.policy = OrderUpTo(s = 20.0, bigS = 80.0)
+        room.review.policyLabel = "(20, 80)"
+    }
+
+    // -- §4.2 A rule that checks the surface it was given --------------
+
+    class CheckedOrderUpTo(private val s: Double, private val bigS: Double) : ShapeAwarePolicyIfc {
+
+        private var positionIndex = 0
+
+        override fun configure(surface: DecisionSurfaceDescriptor) {
+            require(surface.levers.size == 1) {
+                "OrderUpTo writes one quantity; this element declares ${surface.levers.size} levers."
+            }
+            positionIndex = surface.observations.indexOfFirst { it.unit == "units" }
+            require(positionIndex >= 0) { "No observation is declared in units." }
+        }
+
+        override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+            val position = observation[positionIndex]
+            return if (position <= s) doubleArrayOf(bigS - position) else doubleArrayOf(0.0)
+        }
+    }
+
+    // -- §4.3 Parameterizing without touching the model ----------------
+
+    fun parameterize(element: DecisionElement) {
+        val qty = element.leverRef("OrderQty")
+        element.narrow(qty, 0..120)                 // the experiment's limits, inside the model's
+        element.epochInterval = 2.5                 // review twice as often
+        element.maxEpochs = 100                     // cap the episode
+        val limits: IntRange = element.limitsOf(qty)
+    }
+
+    // -- §4.4 Reading the description ----------------------------------
+
+    fun readTheDescription(element: DecisionElement) {
+        val surface = element.descriptor()
+
+        for ((i, o) in surface.observations.withIndex()) {
+            println("observation $i is ${o.name} in ${o.unit ?: "unstated units"}")
+        }
+        for ((i, l) in surface.levers.withIndex()) {
+            println("action $i writes ${l.name}, a ${l.kind}, within ${l.lowerBound}..${l.upperBound}")
+        }
+
+        val json: String = surface.toJson()
+        val toml: String = surface.toToml()
+    }
+
+    // -- §4.5 Recording what happened ----------------------------------
+
+    fun captureToMemory(parent: ModelElement) {
+        val sink = MemorySink()
+        val element = parent.decisionElement("Captured") {
+            observe("Level") { 1.0 }
+            lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
+            captureTo { provenance -> sink }        // called once per experiment
+            every(5.0)
+            policy = NeutralPolicy
+        }
+        // after model.simulate()
+        for (row: TransitionRecord in sink.records) {
+            println("${row.epochIndex}: ${row.state.toList()} -> ${row.action.toList()} " +
+                "reward ${row.reward} over ${row.tau}")
+        }
+    }
+
+    /** A sink of your own. The element opens it per experiment and closes it per experiment. */
+    class CountingSink : TransitionSink {
+        var rows = 0
+            private set
+        override fun write(record: TransitionRecord) { rows++ }
+        override fun close() { println("sink closed after $rows rows") }
+    }
+
+    fun captureToYourOwnSink(parent: ModelElement) {
+        parent.decisionElement("Counted") {
+            observe("Level") { 1.0 }
+            lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
+            captureTo { provenance: RunProvenance ->
+                println("recording ${provenance.elementName} under ${provenance.policyLabel}")
+                CountingSink()
+            }
+            every(5.0)
+            policy = NeutralPolicy
+        }
+    }
+
+    // -- §4.6 Several levers under a joint constraint ------------------
+
+    class Pools(parent: ModelElement, name: String? = null) : ModelElement(parent, name) {
+        var dayStaff = 4
+            private set
+        var nightStaff = 4
+            private set
+
+        fun setDay(n: Int) { dayStaff = n }
+        fun setNight(n: Int) { nightStaff = n }
+        fun setBoth(values: DoubleArray) {
+            dayStaff = values[0].toInt(); nightStaff = values[1].toInt()
+        }
+
+        val review = decisionElement("${this.name}:Shift") {
+            observe("Demand") { 1.0 }
+            val day = lever(this@Pools, limits = 0..8, unit = "staff",
+                neutral = Neutral.Current { dayStaff.toDouble() }) { v -> setDay(v.toInt()) }
+            val night = lever(this@Pools, limits = 0..8, unit = "staff",
+                neutral = Neutral.Current { nightStaff.toDouble() }) { v -> setNight(v.toInt()) }
+            budget(day, night, total = 8.0)          // the pair must sum to exactly 8
+            batchLever(day, night) { values -> setBoth(values) }   // move both in one act
+            every(480.0)
+            policy = NeutralPolicy
+        }
+    }
+
+    // -- §4.7 A rule that scores candidates ----------------------------
+
+    class CheapestFeasible(private val search: ActionSearch = ExhaustiveSearch) : PolicyIfc {
+        override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+            val best = search.best(ctx.actions) { candidate -> candidate.sum() }
+            return best ?: ctx.neutralAction         // an empty feasible set is not an error
+        }
+    }
+
+    fun chooseASearch(): ActionSearch = GridSearch(pointsPerLever = 9)
+
+    // -- §4.8 A rule that owns a resource ------------------------------
+
+    class LoggingRule(private val path: String) : ManagedPolicyIfc {
+        override fun beforeExperiment() { println("opening $path") }
+        override fun beforeEpisode(episodeIndex: Int) { }
+        override fun onTransition(record: TransitionRecord) { }
+        override fun afterEpisode(episodeIndex: Int, source: TerminationSource) { }
+        override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray =
+            ctx.neutralAction
+        override fun afterExperiment() { }
+        override fun close() { println("closing $path") }
+    }
+
+    // -- §4.9 Comparing two rules --------------------------------------
+
+    fun compareTwoRules(build: () -> Pair<Model, DecisionElement>) {
+        val results = mutableMapOf<String, Double>()
+        for (rule in listOf<Pair<String, PolicyIfc>>(
+            "do nothing" to NeutralPolicy,
+            "(20, 80)" to OrderUpTo(20.0, 80.0)
+        )) {
+            val (model, element) = build()
+            element.policy = rule.second
+            element.policyLabel = rule.first
+            model.numberOfReplications = 30
+            model.lengthOfReplication = 500.0
+            model.simulate()
+            results[rule.first] = element.estimand.acrossReplicationStatistic.average
+        }
+        println(results)
+    }
+}

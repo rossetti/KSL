@@ -47,6 +47,7 @@ model matches your problem.
 | [`ksl-station`](ksl-station.md) *(experimental)* | **Queueing-network view** — passive stations route jobs |
 | [`ksl-agent`](ksl-agent.md) *(experimental)* | **Agent-based view** — statechart-reactive autonomous actors |
 | [`ksl-supplychain`](ksl-supplychain.md) *(experimental)* | **Multi-echelon supply-chain** domain layer |
+| [`ksl-decision`](ksl-decision.md) *(experimental)* | **Sequential decision making** — declare what a rule may see, change and be scored on, then swap rules without editing the model |
 
 These guides cross-reference each other in their §7 "See also"
 sections — if the right view isn't obvious from the table, start with

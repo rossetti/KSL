@@ -1,0 +1,542 @@
+# Using `ksl.modeling.decision`
+
+A task-oriented usage guide. For each common task, the smallest amount
+of code that does it, and the gotchas that matter in practice.
+Reference detail (parameter lists, every overload) is on the Dokka API
+pages; this guide gets you productive.
+
+> **Status: experimental.** `ksl.modeling.decision` and `ksl.sdm` are
+> released as experimental. Their public API may change in future
+> releases without notice. Pin your KSL version if you build models
+> against them for production use.
+
+## 1. What this package is for
+
+`ksl.modeling.decision` is the **sequential decision-making layer** in
+KSL. You declare, on an existing model, what a decision rule may *see*,
+what it may *change*, what it is *scored on*, and *when* it decides.
+KSL then runs the decision loop for you: at each decision epoch it
+reads the observations, hands them to your rule, validates and applies
+the action, prices the interval that just ended, and — if you asked —
+records the whole transition.
+
+Reach for it when the natural language of your model is *"every so
+often, something looks at the state and changes a setting."* Reorder
+points, staffing levels, dispatch priorities, capacities, prices.
+
+**What it does not do is choose the rule.** There is no solver here —
+no value iteration, no Q-learning, no policy gradient. This package is
+the *seam*: it makes the decision point in your model explicit,
+inspectable, swappable, and recordable, so that a rule you write (or a
+learner you train elsewhere) has somewhere to plug in. That is a
+deliberate boundary, not an omission.
+
+### How it relates to its neighbors
+
+- `ksl.simulation` supplies `ModelElement`, the lifecycle, and the
+  event calendar. A decision element **is** a `ModelElement` and obeys
+  the ordinary phases; nothing about running your model changes.
+- `ksl.modeling.variable` supplies the `Response` / `TWResponse` /
+  `Counter` your observations read and your rewards accumulate from.
+  The decision element defines **no new statistic type** — its
+  objective is published as an ordinary `Response`.
+- `ksl.simopt` is the other half of the same activity. Searching over
+  the parameters of a parameterized rule to minimize an expected cost
+  estimated by simulation *is* simulation optimization. This package
+  does not reimplement it; see §4.10 for how the two meet.
+- `ksl.sdm.capture` holds the sink implementations (`MemorySink`,
+  `NullSink`). The sink *contract* lives with its producer in
+  `ksl.modeling.decision`; only implementations live in `ksl.sdm`.
+- `ksl.modeling.decision.descriptor` is plain serializable data — the
+  machine-readable description of a decision surface, with no
+  reference to a model at all, so it can travel without one.
+
+## 2. The mental model
+
+Four declarations and one loop.
+
+**Observations** are what the rule may read. **Levers** are what it may
+write. **Rewards** are what it is scored on. **Epochs** are when it
+decides. You declare all four in one block; everything else follows.
+
+```
+      declare                          run
+   ┌───────────┐            ┌────────────────────────┐
+   │ observe   │            │ epoch fires            │
+   │ lever     │  ────────► │  read observations     │
+   │ reward    │            │  call your rule        │
+   │ every(…)  │            │  validate + apply      │
+   └───────────┘            │  price the interval    │
+                            │  record the transition │
+                            └────────────────────────┘
+```
+
+Three ideas are worth holding onto because they explain most of the
+API's shape.
+
+**Positions, not names.** An observation vector and an action vector
+are bare `DoubleArray`s. What gives entry *i* its meaning is the *i*th
+entry of the element's declared list — so **declaration order is vector
+order**, and the descriptor (§4.4) is the authority that says which is
+which. This is what lets one rule work against several models.
+
+**Doing nothing is two different acts.** A *setting* is a quantity the
+model **holds** — a capacity, a reorder point. Doing nothing means
+writing nothing, so its neutral is a **reader**:
+`Neutral.Current { capacity.toDouble() }`. A *transaction* is a
+quantity the model **does** — placing an order, dispatching a shipment.
+There is no "current order quantity", so doing nothing means acting
+with a declared amount, almost always zero:
+`Neutral.Value(0.0)`. Getting this wrong is the single most common
+modeling mistake with this package; see §6.
+
+**An action is prepared, then applied.** Validation and writing are two
+separate steps, which is what makes *"no lever is written when an
+action is rejected"* a property of the type rather than of an
+implementation. A rule that asks for something infeasible does not
+half-move your model.
+
+## 3. Quick start
+
+A stock room that reviews its inventory every five time units. It runs
+under the do-nothing rule first, which is always where to start: an arm
+that changes nothing is what tells you your model still behaves the way
+it did before you added a decision to it.
+
+```kotlin
+class StockRoom(parent: ModelElement, name: String? = null) : ModelElement(parent, name) {
+
+    val onHand = TWResponse(this, name = "${this.name}:OnHand", initialValue = 50.0)
+    val ordersPlaced = Counter(this, name = "${this.name}:Orders")
+
+    private var onOrder: Double = 0.0
+
+    /** The model's own operation. A lever writes through this; it is not decision code. */
+    fun placeOrder(quantity: Double) {
+        if (quantity <= 0.0) return
+        onOrder += quantity
+        ordersPlaced.increment()
+    }
+
+    val review: DecisionElement = decisionElement("${this.name}:Review") {
+        observe(onHand, unit = "units")                       // observation 0
+        lever(
+            this@StockRoom, limits = 0..200,
+            neutral = Neutral.Value(0.0),                     // ordering nothing IS the no-op
+            alias = "OrderQty", unit = "units"
+        ) { q -> placeOrder(q) }
+        reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
+        every(5.0)
+        policy = NeutralPolicy
+    }
+}
+```
+
+```kotlin
+val model = Model("StockRoomDemo")
+val room = StockRoom(model, "Room")
+model.numberOfReplications = 10
+model.lengthOfReplication = 500.0
+model.simulate()
+model.print()
+```
+
+Four things to notice.
+
+- **The element name is model-wide**, like every other KSL element name.
+  `decisionElement("Review")` reads as though it were a local label, and
+  it is not — a subsystem that names its element with a bare literal
+  cannot be instantiated twice. Qualify it: `"${this.name}:Review"`.
+- **The lever writes through a method the model already has.**
+  `placeOrder` is not decision code; it is the operation the model
+  performs. A lever is a permission to call it.
+- **The reward declares its sense.** `RewardSense.COST` is negated once,
+  at declaration, so everything downstream maximizes one quantity and no
+  code has to track signs.
+- **The objective appears in the standard report** as
+  `Room:Review:TotalReward`. It is an ordinary `Response`; comparison,
+  confidence intervals and databases work on it exactly as they do on
+  anything else.
+
+## 4. How do I…?
+
+### 4.1 …write a rule?
+
+Implement `PolicyIfc`. One method, one array in, one array out.
+
+```kotlin
+/** An (s, S) rule: order up to [bigS] whenever the position is at or below [s]. */
+class OrderUpTo(private val s: Double, private val bigS: Double) : PolicyIfc {
+    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+        val position = observation[0]
+        return if (position <= s) doubleArrayOf(bigS - position) else doubleArrayOf(0.0)
+    }
+}
+```
+
+Swap it in without touching the model:
+
+```kotlin
+room.review.policy = OrderUpTo(s = 20.0, bigS = 80.0)
+room.review.policyLabel = "(20, 80)"
+```
+
+`policyLabel` is what appears in a captured trajectory's provenance. Set
+it whenever you compare rules, or your recorded runs will not say which
+was which.
+
+### 4.2 …make a rule check the surface it was handed?
+
+`observation[0]` is a promise the compiler cannot keep. Implement
+`ShapeAwarePolicyIfc` and the element will hand you the descriptor once,
+before the run, so a mismatch fails at setup instead of producing
+plausible nonsense.
+
+```kotlin
+class CheckedOrderUpTo(private val s: Double, private val bigS: Double) : ShapeAwarePolicyIfc {
+
+    private var positionIndex = 0
+
+    override fun configure(surface: DecisionSurfaceDescriptor) {
+        require(surface.levers.size == 1) {
+            "OrderUpTo writes one quantity; this element declares ${surface.levers.size} levers."
+        }
+        positionIndex = surface.observations.indexOfFirst { it.unit == "units" }
+        require(positionIndex >= 0) { "No observation is declared in units." }
+    }
+
+    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+        val position = observation[positionIndex]
+        return if (position <= s) doubleArrayOf(bigS - position) else doubleArrayOf(0.0)
+    }
+}
+```
+
+### 4.3 …parameterize an experiment without editing the model?
+
+Everything an experiment chooses is settable on the element. All of it is
+**replication-initial**: set it before `simulate()`, and it is refused
+while the model is running.
+
+```kotlin
+val qty = element.leverRef("OrderQty")
+element.narrow(qty, 0..120)                 // the experiment's limits, inside the model's
+element.epochInterval = 2.5                 // review twice as often
+element.maxEpochs = 100                     // cap the episode
+val limits: IntRange = element.limitsOf(qty)
+```
+
+**Narrowing may only shrink.** The model's limits are a physical fact
+and the experiment's are a choice, so `narrow` refuses anything wider
+and leaves *both* bounds untouched when it does.
+
+`epochInterval` and `maxEpochs` are also `@KSLControl`s, so `simopt` and
+the experiment-running machinery can set them by name through the paths
+they already use.
+
+### 4.4 …find out what a model offers, in code?
+
+Ask the element for its description. It is derived from the declaration
+on demand — never authored, so it cannot go stale — and it holds no
+reference to the model, so it can be written to a file and read
+somewhere else.
+
+```kotlin
+val surface = element.descriptor()
+
+for ((i, o) in surface.observations.withIndex()) {
+    println("observation $i is ${o.name} in ${o.unit ?: "unstated units"}")
+}
+for ((i, l) in surface.levers.withIndex()) {
+    println("action $i writes ${l.name}, a ${l.kind}, within ${l.lowerBound}..${l.upperBound}")
+}
+
+val json: String = surface.toJson()
+val toml: String = surface.toToml()
+```
+
+Both codecs round-trip losslessly. TOML is the friendlier one to read
+and hand-edit; JSON is the one for tooling. `DecisionSurfaceDescriptor.fromJson`
+and `.fromToml` read them back, refusing a schema version they do not
+understand and a file that describes a surface the DSL would not have
+accepted.
+
+Note that a lever carries **two** ranges: `modelLowerLimit`/
+`modelUpperLimit` is the model's physical envelope, and
+`lowerBound`/`upperBound` is what this experiment narrowed it to. A tool
+that offers the wrong pair will propose values the run has excluded.
+
+### 4.5 …record what the rule did?
+
+Declare a sink. The element opens it once per experiment and closes it
+once per experiment — you do not manage its lifetime.
+
+```kotlin
+val sink = MemorySink()
+val element = parent.decisionElement("Captured") {
+    observe("Level") { 1.0 }
+    lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
+    captureTo { provenance -> sink }        // called once per experiment
+    every(5.0)
+    policy = NeutralPolicy
+}
+// after model.simulate()
+for (row: TransitionRecord in sink.records) {
+    println("${row.epochIndex}: ${row.state.toList()} -> ${row.action.toList()} " +
+        "reward ${row.reward} over ${row.tau}")
+}
+```
+
+A row is a complete `(state, action, reward, successor)` transition with
+the interval length `tau`, the termination flags, and — when the action
+had to be repaired or a lever had nothing to choose from — what was
+originally asked for. `terminated` and `truncated` are separate fields
+on purpose: an episode that reached a real ending and one the run length
+cut off are different things, and conflating them biases any learner
+that bootstraps from the last row.
+
+Write your own sink by implementing `TransitionSink`:
+
+```kotlin
+/** A sink of your own. The element opens it per experiment and closes it per experiment. */
+class CountingSink : TransitionSink {
+    var rows = 0
+        private set
+    override fun write(record: TransitionRecord) { rows++ }
+    override fun close() { println("sink closed after $rows rows") }
+}
+```
+
+```kotlin
+parent.decisionElement("Counted") {
+    observe("Level") { 1.0 }
+    lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
+    captureTo { provenance: RunProvenance ->
+        println("recording ${provenance.elementName} under ${provenance.policyLabel}")
+        CountingSink()
+    }
+    every(5.0)
+    policy = NeutralPolicy
+}
+```
+
+**Capture must be declared when the element is built.** There is no way
+to switch a sink on afterwards, deliberately: a run that recorded half
+its decisions is worse than one that recorded none.
+
+Capture is close to free when it is off (a reference comparison per
+epoch) and below measurement resolution when it is on — see §6.
+
+### 4.6 …decide several things at once, under a constraint?
+
+Declare several levers and a joint constraint over them. `budget` is
+"must sum to exactly"; `atMost` is "may sum to at most".
+
+```kotlin
+val review = decisionElement("${this.name}:Shift") {
+    observe("Demand") { 1.0 }
+    val day = lever(this@Pools, limits = 0..8, unit = "staff",
+        neutral = Neutral.Current { dayStaff.toDouble() }) { v -> setDay(v.toInt()) }
+    val night = lever(this@Pools, limits = 0..8, unit = "staff",
+        neutral = Neutral.Current { nightStaff.toDouble() }) { v -> setNight(v.toInt()) }
+    budget(day, night, total = 8.0)          // the pair must sum to exactly 8
+    batchLever(day, night) { values -> setBoth(values) }   // move both in one act
+    every(480.0)
+    policy = NeutralPolicy
+}
+```
+
+`lever(…)` returns a `LeverRef` — the lever's identity — and constraints
+name levers rather than the elements they write, which is what lets two
+levers write the same element.
+
+**`batchLever` is the escape hatch, and you usually do not need it.**
+The library writes multi-lever actions in a decrease-before-increase
+order, so the common budgeted case stays feasible at every intermediate
+step. What it does *not* promise is cross-lever atomicity: a pair moving
+from (4, 2) to (3, 3) under `sum == 6` passes through (3, 2) between the
+two writes, and if something in your model observes that instant it sees
+a total of 5. When that matters, declare a batch and the group moves in
+one call.
+
+### 4.7 …write a rule that scores candidates?
+
+Ask the context for the feasible set and hand it to a search.
+
+```kotlin
+class CheapestFeasible(private val search: ActionSearch = ExhaustiveSearch) : PolicyIfc {
+    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
+        val best = search.best(ctx.actions) { candidate -> candidate.sum() }
+        return best ?: ctx.neutralAction         // an empty feasible set is not an error
+    }
+}
+```
+
+`ExhaustiveSearch` walks the whole set and refuses (loudly) when it is
+continuous or too large. `GridSearch` samples a regular grid per lever;
+`SampledSearch` draws candidates at random and is the one to reach for
+when a tight joint constraint makes the feasible set a thin slice of the
+box.
+
+```kotlin
+fun chooseASearch(): ActionSearch = GridSearch(pointsPerLever = 9)
+```
+
+**A search is the expensive part of this package by two orders of
+magnitude** (§6). Its cost tracks the number of candidates the
+enumeration has to *test*, which under a joint constraint is the whole
+box rather than the feasible slice.
+
+An **empty feasible set is not an error**. Every lever takes its declared
+neutral, the row records which levers had nothing to choose from, and the
+run continues. A model whose constraint is momentarily unsatisfiable is a
+model in a tight spot, not a broken one.
+
+### 4.8 …write a rule that owns a resource?
+
+Implement `ManagedPolicyIfc` and the element will call the lifecycle
+hooks for you.
+
+```kotlin
+class LoggingRule(private val path: String) : ManagedPolicyIfc {
+    override fun beforeExperiment() { println("opening $path") }
+    override fun beforeEpisode(episodeIndex: Int) { }
+    override fun onTransition(record: TransitionRecord) { }
+    override fun afterEpisode(episodeIndex: Int, source: TerminationSource) { }
+    override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray =
+        ctx.neutralAction
+    override fun afterExperiment() { }
+    override fun close() { println("closing $path") }
+}
+```
+
+`onTransition` is where an adaptive rule learns: it is handed the same
+complete transition a sink receives.
+
+**The element closes what the element opened.** It opened the sink, so it
+closes the sink. It did not open your policy, so it does *not* close it
+at the end of an experiment — which is what lets you simulate the same
+model twice. A policy is closed only when it is *replaced*.
+
+### 4.9 …compare two rules?
+
+There is no comparison API here, because KSL already has one. Run the
+same model under each rule and compare the objective the way you compare
+any other KSL response.
+
+```kotlin
+val results = mutableMapOf<String, Double>()
+for (rule in listOf<Pair<String, PolicyIfc>>(
+    "do nothing" to NeutralPolicy,
+    "(20, 80)" to OrderUpTo(20.0, 80.0)
+)) {
+    val (model, element) = build()
+    element.policy = rule.second
+    element.policyLabel = rule.first
+    model.numberOfReplications = 30
+    model.lengthOfReplication = 500.0
+    model.simulate()
+    results[rule.first] = element.estimand.acrossReplicationStatistic.average
+}
+println(results)
+```
+
+For a real comparison use `MultipleComparisonAnalyzer` over the
+replication data, exactly as you would for any set of alternatives.
+**Always include the do-nothing arm.** A rule that reads well and loses
+to `NeutralPolicy` is the defect this package exists to make visible.
+
+### 4.10 …hand a rule's parameters to `simopt`?
+
+Write the rule as a `ModelElement` with `@set:KSLControl` properties, the
+way KSL's own inventory policies are written. The model's control walk
+finds them and `simopt` drives them through the flat inputs map it
+already uses — no adapter, and nothing in this package involved.
+
+Parameterize so the optimizer sees a **box**. A numeric control clamps
+silently, so a pair like *(s, S)* with `S > s` should be declared as
+*(s, sDelta ≥ 0)* with `S = s + sDelta`: every clamped combination is
+then feasible by construction. This is the same reparameterization KSL
+uses for `(r, S)` inventory policies.
+
+## 5. The key types at a glance
+
+| Type | What it is |
+|---|---|
+| `DecisionElement` | The `ModelElement` that runs the loop. Built by `decisionElement { }`; carries the parameterization surface |
+| `DecisionElementBuilder` | The DSL receiver: `observe`, `lever`, `reward`, `budget`/`atMost`, `batchLever`, `every`/`onCalendar`, `maxEpochs`, `terminalWhen`, `captureTo`, `policy` |
+| `PolicyIfc` | Your rule. `action(observation, ctx): DoubleArray` |
+| `ShapeAwarePolicyIfc` | A rule that is shown the descriptor once, before the run, and may refuse |
+| `ManagedPolicyIfc` | A rule with a lifetime and per-transition learning hooks |
+| `NeutralPolicy` / `FixedPolicy` | The do-nothing arm, and a constant action |
+| `LookaheadPolicy` | Template for score-and-pick rules: contribution, post-decision state, value |
+| `DecisionContext` | What a rule may know at a decision instant — time, epoch index, the feasible set, the neutral action. **Do not retain it**; it throws if read outside its own call |
+| `ActionSet` | 𝒳(*s*) as an object: `contains`, `violations`, `asSequence`, `sample` |
+| `ActionSearch` | `ExhaustiveSearch`, `GridSearch`, `SampledSearch` |
+| `Neutral.Current` / `Neutral.Value` | Doing nothing, for a setting and for a transaction |
+| `LeverRef` / `RewardRef` | Identities returned by declaration, consumed by constraints and parameterization |
+| `TransitionRecord` | One complete transition: state, action, reward, successor, termination |
+| `TransitionSink` | Write-only consumer with a lifetime. `MemorySink`, `NullSink` in `ksl.sdm.capture` |
+| `DecisionSurfaceDescriptor` | The serializable description; `toJson`/`fromJson`, `toToml`/`fromToml` |
+
+## 6. Gotchas & best practices
+
+**Declare a setting as a setting and a transaction as a transaction.**
+This is the mistake that costs the most and announces itself the least.
+Declaring an order quantity as a `Neutral.Current { lastOrderQuantity }`
+compiles, binds, and quietly re-orders last period's amount every time
+your rule "does nothing". If there is no meaningful *current value*, it
+is a transaction and its neutral is a number.
+
+**Declaration order is vector order.** Reordering two `observe` calls
+silently changes what `observation[0]` means. If a rule needs a
+particular quantity, use `ShapeAwarePolicyIfc` (§4.2) rather than a
+comment.
+
+**Qualify the element's name.** `decisionElement("Review")` inside a
+reusable subsystem makes that subsystem single-use.
+
+**Units are carried, not checked.** The library cannot know that a
+quantity you declared in `"jobs"` is really in server-units. What it
+does with a unit is refuse to sum levers measured in different things,
+name it in violation messages, and expose it to a rule that wants to
+check. That is worth declaring them for.
+
+**Start every study with the do-nothing arm.** `NeutralPolicy` is
+guaranteed to be transparent: an element under it reorders no event and
+consumes no randomness, so any difference you see is your rule's.
+
+**Two elements deciding at the same instant.** They run in
+`epochPriority` order, smaller first. If both take the default priority,
+the tie is broken by the order in which their *owning model elements*
+were constructed — deterministic and reproducible, but not something to
+rely on. If one must act first, say so with a priority.
+
+**Overhead, measured.** On a 4-processor Linux/JVM 21 machine, a decision
+epoch costs roughly **1.3–2.3 ordinary events** (about 320–620 ns);
+capture is below measurement resolution; and a candidate-scoring rule
+costs roughly **200 ns per action the enumeration tests** — which is
+73–210 events per epoch for the models measured. The epoch loop is cheap
+and the search is not. If a scoring rule is too slow, change the search
+strategy (§4.7) before changing anything else.
+
+**Everything you can set is replication-initial.** Parameterization
+setters refuse while the model is running, and a refused one changes
+nothing at all.
+
+## 7. See also
+
+- [`ksl-simulation`](ksl-simulation.md) — `Model`, `ModelElement`, the
+  lifecycle phases a decision element participates in.
+- [`ksl-modeling`](ksl-modeling.md) — `Response`, `TWResponse`,
+  `Counter`: what observations read and rewards accumulate from.
+- [`ksl-simopt-tutorial`](ksl-simopt-tutorial.md) — start here for
+  searching over a rule's parameters (§4.10).
+- [`ksl-controls`](ksl-controls.md) — how `@KSLControl` properties are
+  found and set, including the clamping behavior §4.10 warns about.
+- [`ksl-supplychain`](ksl-supplychain.md) — KSL's inventory policies,
+  which are the model this package's `simopt` seam follows.
+- `KSLExamples` — `ksl.examples.decision` holds the worked examples: a
+  clinic staffing decision, an (*s*, *S*) inventory, a multi-lever
+  shipment allocation under a joint constraint, and a value-function
+  rule.
