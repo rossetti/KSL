@@ -135,10 +135,11 @@ fun runClinicWalkthrough(reps: Int = 20): ClinicWalkthroughResult {
     println("  best by mean sys. time : $bestTime")
     println()
     if (bestProfit == bestTime) {
-        println("  They agree. 3/5 is the M/M/c optimum for this clinic — 4 staff against an")
-        println("  offered load of 2.0 at triage and 2.4 at exam is the wrong split, and")
-        println("  moving one server across is the right correction. The composite found it")
-        println("  without being told, which is the evidence that it is measuring the clinic.")
+        println("  They agree. 3/5 is the M/M/c optimum for this clinic. Triage is offered")
+        println("  6/5 = 1.2 server-units of work and exam 12/5 = 2.4, so the demand is split")
+        println("  1:2 and a 4/4 staffing is not; 3/5 is the nearest integer split that is.")
+        println("  The composite found it without being told, which is the evidence that it")
+        println("  is measuring the clinic rather than measuring itself.")
     } else {
         println("  They DISAGREE, and that is a finding rather than a formatting problem.")
         println("  One of the two is wrong and it matters which — do not proceed until you")

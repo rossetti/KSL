@@ -48,7 +48,7 @@ model matches your problem.
 | [`ksl-agent`](ksl-agent.md) *(experimental)* | **Agent-based view** — statechart-reactive autonomous actors |
 | [`ksl-supplychain`](ksl-supplychain.md) *(experimental)* | **Multi-echelon supply-chain** domain layer |
 | [`ksl-decision`](ksl-decision.md) *(experimental)* | **Sequential decision making** — declare what a rule may see, change and be scored on, then swap rules without editing the model |
-| [`ksl-decision-tutorial`](ksl-decision-tutorial.md) *(experimental)* | **Start here for decisions.** A hands-on, step-by-step tutorial: four worked models taken from "there is a decision buried in here" through a defensible comparison of rules, a trajectory on disk you can train from, and a parameter search run by `simopt`, with runnable companion code |
+| [`ksl-decision-tutorial`](ksl-decision-tutorial.md) *(experimental)* | **Start here for decisions.** A hands-on, step-by-step tutorial: three fully described systems — a stock room, a two-stage clinic and a distribution depot — taken from "there is a decision buried in here" through a defensible comparison of rules, a trajectory on disk you can train from, and a parameter search run by `simopt`, with runnable companion code |
 
 These guides cross-reference each other in their §7 "See also"
 sections — if the right view isn't obvious from the table, start with
