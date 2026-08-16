@@ -22,6 +22,12 @@ import ksl.modeling.decision.descriptor.toToml
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.TWResponse
 import ksl.sdm.capture.MemorySink
+import ksl.sdm.capture.StoredTransition
+import ksl.sdm.capture.TabularSink
+import ksl.sdm.capture.TrajectoryFile
+import ksl.modeling.decision.descriptor.LeverDomain
+import java.nio.file.Path
+import kotlin.math.floor
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -172,6 +178,57 @@ private object DecisionGuideSnippets {
             policy = NeutralPolicy
         }
     }
+
+
+    // -- §4.5 Keeping a trajectory after the run ends -------------------
+
+    private val outputDir: java.nio.file.Path = java.nio.file.Paths.get("out")
+
+    fun captureDurably(parent: ModelElement) {
+        parent.decisionElement("Recorded") {
+            observe("Level") { 1.0 }
+            lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
+            // One file per experiment, named from the provenance, so a k-rule study does not
+            // write over itself. The sink is opened and closed for you, per experiment.
+            captureTo { provenance -> TabularSink(provenance, outputDir.resolve(provenance.experimentName)) }
+            every(5.0)
+            policy = NeutralPolicy
+        }
+    }
+
+    fun readATrajectoryBack(rowsPath: Path) {
+        TrajectoryFile(rowsPath).use { trajectory ->
+            println("${trajectory.rowCount} transitions written by '${trajectory.provenance.policyLabel}'")
+
+            // What the columns cannot say, the descriptor can.
+            val lever = trajectory.descriptor.levers[0]
+            println("${lever.name} is a ${lever.domain} ${lever.kind} over ${lever.lowerBound}..${lever.upperBound}")
+            lever.levels?.let { println("its values name: $it") }
+
+            for (t: StoredTransition in trajectory.transitions()) {
+                // t.state, t.action, t.reward, t.successorState, t.terminated, t.truncated
+            }
+        }
+    }
+
+    // -- §4.12 Training a rule from captured data ----------------------
+
+    /** Fits an order-up-to level from a captured trajectory, reading only the file. */
+    fun bestOrderUpTo(rowsPath: Path): Double =
+        TrajectoryFile(rowsPath).use { trajectory ->
+            val surface = trajectory.descriptor
+            val position = surface.observations.indexOfFirst { it.name.endsWith(":Position") }
+            val lever = surface.levers[0]
+
+            val best = trajectory.transitions()
+                .groupBy { floor((it.state[position] + it.action[0]) / 5.0) * 5.0 }   // post-decision position
+                .filterValues { it.size >= 20 }                                        // ignore thin buckets
+                .maxByOrNull { (_, rows) -> rows.sumOf { it.reward } / rows.size }!!
+                .key + 2.5                                                             // bucket midpoint
+
+            // The descriptor says what a LEGAL order is; the rows do not.
+            if (lever.domain == LeverDomain.CONTINUOUS) best else Math.rint(best)
+        }
 
     // -- §4.6 Several levers under a joint constraint ------------------
 

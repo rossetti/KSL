@@ -43,7 +43,7 @@ deliberate boundary, not an omission.
 - `ksl.simopt` is the other half of the same activity. Searching over
   the parameters of a parameterized rule to minimize an expected cost
   estimated by simulation *is* simulation optimization. This package
-  does not reimplement it; see §4.11 for how the two meet.
+  does not reimplement it; see §4.12 for how the two meet.
 - `ksl.sdm.capture` holds the sink implementations (`MemorySink`,
   `NullSink`). The sink *contract* lives with its producer in
   `ksl.modeling.decision`; only implementations live in `ksl.sdm`.
@@ -327,6 +327,66 @@ its decisions is worse than one that recorded none.
 Capture is close to free when it is off (a reference comparison per
 epoch) and below measurement resolution when it is on — see §6.
 
+
+#### Keeping a trajectory after the run ends
+
+`MemorySink` is a list, which is right for a test and wrong for a study.
+`TabularSink` writes to disk instead:
+
+```kotlin
+parent.decisionElement("Recorded") {
+    observe("Level") { 1.0 }
+    lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
+    // One file per experiment, named from the provenance, so a k-rule study does not
+    // write over itself. The sink is opened and closed for you, per experiment.
+    captureTo { provenance -> TabularSink(provenance, outputDir.resolve(provenance.experimentName)) }
+    every(5.0)
+    policy = NeutralPolicy
+}
+```
+
+It leaves **two** files, and the second is not optional:
+
+- `baseline.sqlite` — the rows. A `TabularOutputFile` *is* a SQLite
+  database, so this opens in any SQL tool and reads from Python with no
+  JVM. Columns are `s_*` for the state, `a_*` for the action applied,
+  `p_*` for what the rule proposed, `sp_*` for the successor, plus
+  `rep`, `epoch`, `time`, `tau`, `reward`, `repaired`, `terminated`,
+  `truncated` and `source`.
+- `baseline.provenance.json` — which model, experiment, element and
+  policy produced the rows, **and the descriptor**.
+
+**Why the second file exists.** A row is positional. `a_Mode = 2.0`
+means nothing without the declaration saying that lever is
+`CATEGORICAL` over `["slow", "normal", "fast"]`, that it is a `SETTING`
+rather than a `TRANSACTION` — a fact about the dynamics, not
+decoration — and where its bounds are. Column names carry
+position-to-name and nothing else. Read a trajectory back with
+`TrajectoryFile`, which pairs the two and **refuses** a trajectory whose
+provenance is missing rather than guessing:
+
+```kotlin
+TrajectoryFile(rowsPath).use { trajectory ->
+    println("${trajectory.rowCount} transitions written by '${trajectory.provenance.policyLabel}'")
+
+    // What the columns cannot say, the descriptor can.
+    val lever = trajectory.descriptor.levers[0]
+    println("${lever.name} is a ${lever.domain} ${lever.kind} over ${lever.lowerBound}..${lever.upperBound}")
+    lever.levels?.let { println("its values name: $it") }
+
+    for (t: StoredTransition in trajectory.transitions()) {
+        // t.state, t.action, t.reward, t.successorState, t.terminated, t.truncated
+    }
+}
+```
+
+Two practical notes. Column names are reduced to `[A-Za-z0-9_]`, because
+`CREATE TABLE` will not take the colons KSL element names carry; two
+declarations that reduce to the same column are refused at construction,
+naming both. And nothing is stored as null — `p_*` and `unavail_*` are
+always written, with `repaired` saying whether the proposal is news, so
+there are no `NaN`s waiting in your training data.
+
 ### 4.6 …decide several things at once, under a constraint?
 
 Declare several levers and a joint constraint over them. `budget` is
@@ -474,7 +534,71 @@ dropping it would make the estimand's meaning depend on a value rather than on a
 the *descriptor* reports each rate as you wrote it, not signed, so a tool that echoes it back into a
 configuration file cannot flip a sign a second time.
 
-### 4.11 …hand a rule's parameters to `simopt`?
+### 4.11 …train a rule off-line from captured data?
+
+This is what capture is *for*, and it is three steps: **explore**,
+**learn**, **evaluate**. `OfflineTrainingDemo` runs all three; the shape
+is worth seeing whole.
+
+**Explore.** Run under a rule that varies what it does, so the file
+covers the decision space rather than one rule's habits. For an
+order-up-to family, vary the *target*:
+
+> Get this wrong and the learner will tell you. Drawing a random order
+> *quantity* on 0..120, against demand of five per epoch, ordered twelve
+> times what the model consumed — inventory ran away, post-decision
+> positions spread over thousands of units, and the fit refused with
+> *"no bucket had 20 or more rows out of 7960 transitions."* That is the
+> right refusal on the wrong data.
+
+**Learn.** The learner's whole input is a path. No `Model`, no element,
+not even the JVM that produced the data:
+
+```kotlin
+/** Fits an order-up-to level from a captured trajectory, reading only the file. */
+fun bestOrderUpTo(rowsPath: Path): Double =
+    TrajectoryFile(rowsPath).use { trajectory ->
+        val surface = trajectory.descriptor
+        val position = surface.observations.indexOfFirst { it.name.endsWith(":Position") }
+        val lever = surface.levers[0]
+
+        val best = trajectory.transitions()
+            .groupBy { floor((it.state[position] + it.action[0]) / 5.0) * 5.0 }   // post-decision position
+            .filterValues { it.size >= 20 }                                        // ignore thin buckets
+            .maxByOrNull { (_, rows) -> rows.sumOf { it.reward } / rows.size }!!
+            .key + 2.5                                                             // bucket midpoint
+
+        // The descriptor says what a LEGAL order is; the rows do not.
+        if (lever.domain == LeverDomain.CONTINUOUS) best else Math.rint(best)
+    }
+```
+
+**Evaluate.** Put the fitted rule back in the simulator and score it
+against the do-nothing arm, exactly as in §4.9. Measured, 30
+replications per arm:
+
+| rule | profit | half-width |
+|---|---|---|
+| do nothing | −9,479,766 | 95,716 |
+| learned(8) | **−5,457** | 121 |
+| hand-tuned (5, 15) | −7,093 | 95 |
+
+Two things that bit during this and will bite you:
+
+**Ask the descriptor what a legal action is.** The first version of that
+learner returned a bucket midpoint of 7.5, the rule ordered
+`7.5 − position` against an INTEGER lever, and the model refused the
+epoch outright — *"'OrderQty' = 0.5 units is not integral"*. That
+refusal is the design working, and it is the reason the domain has to
+travel with the rows. Round in `configure`, where the surface is handed
+to you.
+
+**Off-policy evaluation is the hard part, and this dodges it.** The
+learner above works because exploration covered the action space. Fitting
+from data generated by one good rule is a genuinely harder problem and
+this package does not solve it for you — it gives you the transitions.
+
+### 4.12 …hand a rule's parameters to `simopt`?
 
 Write the rule as a `ModelElement` with `@set:KSLControl` properties, the
 way KSL's own inventory policies are written. The model's control walk
@@ -505,6 +629,9 @@ uses for `(r, S)` inventory policies.
 | `LeverRef` / `RewardRef` | Identities returned by declaration, consumed by constraints and parameterization |
 | `TransitionRecord` | One complete transition: state, action, reward, successor, termination |
 | `TransitionSink` | Write-only consumer with a lifetime. `MemorySink`, `NullSink` in `ksl.sdm.capture` |
+| `TabularSink` | A durable sink: rows to a SQLite file, provenance beside it (§4.5) |
+| `TrajectoryFile` | Reads a trajectory back with no live `Model`; refuses one whose provenance is missing |
+| `StoredTransition` | One transition as read back — state, action, reward, successor, flags |
 | `DecisionSurfaceDescriptor` | The serializable description; `toJson`/`fromJson`, `toToml`/`fromToml` |
 
 ## 6. Gotchas & best practices
@@ -559,12 +686,15 @@ nothing at all.
 - [`ksl-modeling`](ksl-modeling.md) — `Response`, `TWResponse`,
   `Counter`: what observations read and rewards accumulate from.
 - [`ksl-simopt-tutorial`](ksl-simopt-tutorial.md) — start here for
-  searching over a rule's parameters (§4.11).
+  searching over a rule's parameters (§4.12).
 - [`ksl-controls`](ksl-controls.md) — how `@KSLControl` properties are
-  found and set, including the clamping behavior §4.11 warns about.
+  found and set, including the clamping behavior §4.12 warns about.
 - [`ksl-supplychain`](ksl-supplychain.md) — KSL's inventory policies,
   which are the model this package's `simopt` seam follows.
-- `KSLExamples` — `ksl.examples.decision` holds the worked examples: a
-  clinic staffing decision, an (*s*, *S*) inventory, a multi-lever
-  shipment allocation under a joint constraint, and a value-function
-  rule.
+- `KSLExamples` — `ksl.examples.decision` holds the worked models: a
+  clinic staffing decision scored on a mixed-sense profit, an (*s*, *S*)
+  inventory, a multi-lever shipment allocation under a joint constraint,
+  and a value-function rule. The two runnable walkthroughs that follow
+  this guide are `DecisionGuideDemo` (§3–§4) and `OfflineTrainingDemo`
+  (§4.11); run either one's `main` and read the output alongside the
+  section it belongs to.
