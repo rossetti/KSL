@@ -758,6 +758,10 @@ nothing at all.
   lifecycle phases a decision element participates in.
 - [`ksl-modeling`](ksl-modeling.md) — `Response`, `TWResponse`,
   `Counter`: what observations read and rewards accumulate from.
+- [`ksl-decision-tutorial`](ksl-decision-tutorial.md) — the
+  hands-on tutorial for this package: four worked models, the
+  off-line training round trip, and the `simopt` handoff. Start there
+  if you are new to it; this guide is the reference you graduate to.
 - [`ksl-simopt-tutorial`](ksl-simopt-tutorial.md) — start here for
   searching over a rule's parameters (§4.12).
 - [`ksl-controls`](ksl-controls.md) — how `@KSLControl` properties are
