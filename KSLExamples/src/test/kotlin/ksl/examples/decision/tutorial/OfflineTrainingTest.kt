@@ -1,4 +1,4 @@
-package ksl.examples.decision
+package ksl.examples.decision.tutorial
 
 import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.sdm.capture.TrajectoryFile

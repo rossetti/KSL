@@ -691,10 +691,14 @@ nothing at all.
   found and set, including the clamping behavior §4.12 warns about.
 - [`ksl-supplychain`](ksl-supplychain.md) — KSL's inventory policies,
   which are the model this package's `simopt` seam follows.
-- `KSLExamples` — `ksl.examples.decision` holds the worked models: a
-  clinic staffing decision scored on a mixed-sense profit, an (*s*, *S*)
-  inventory, a multi-lever shipment allocation under a joint constraint,
-  and a value-function rule. The two runnable walkthroughs that follow
-  this guide are `DecisionGuideDemo` (§3–§4) and `OfflineTrainingDemo`
-  (§4.11); run either one's `main` and read the output alongside the
-  section it belongs to.
+- `KSLExamples` — split in two, along the line between something you
+  might build on and something you run once to see this guide happen.
+  - `ksl.examples.decision` holds the **worked models**: a clinic
+    staffing decision scored on a mixed-sense profit, an (*s*, *S*)
+    inventory, a multi-lever shipment allocation under a joint
+    constraint, and a value-function rule.
+  - `ksl.examples.decision.tutorial` holds the **runnable
+    walkthroughs** this guide points at — `DecisionGuideDemo` for §3–§4
+    and `OfflineTrainingDemo` for §4.11. Run either one's `main` and
+    read the output beside the section it belongs to. Their fixtures
+    (`StockRoom`, `OrderUpTo`) are there to be read, not reused.

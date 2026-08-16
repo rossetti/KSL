@@ -1,4 +1,4 @@
-package ksl.examples.decision
+package ksl.examples.decision.tutorial
 
 import ksl.modeling.decision.DecisionContext
 import ksl.modeling.decision.NeutralPolicy
@@ -19,6 +19,9 @@ import kotlin.math.max
 
 /**
  * **Off-line training from captured decision processing, end to end.**
+ *
+ * Lives in `…decision.tutorial` for the same reason as its neighbour: it is a walkthrough, not a
+ * component. The learner here is deliberately the simplest thing that can be called learning.
  *
  * Three phases, and the boundary between the first two is the point of the whole exercise:
  *

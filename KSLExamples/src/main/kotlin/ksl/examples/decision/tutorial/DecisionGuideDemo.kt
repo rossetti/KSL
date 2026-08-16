@@ -1,4 +1,4 @@
-package ksl.examples.decision
+package ksl.examples.decision.tutorial
 
 import ksl.modeling.decision.DecisionContext
 import ksl.modeling.decision.DecisionElement
@@ -20,6 +20,10 @@ import ksl.utilities.random.rvariable.ExponentialRV
 
 /**
  * The runnable demonstration for `docs/guides/ksl-decision.md`.
+ *
+ * Lives in `…decision.tutorial` rather than beside the worked models: this is a fixture to be read
+ * alongside the guide, not a subsystem to build on. `StockRoom` and `OrderUpTo` exist to make the
+ * guide concrete, and are deliberately the smallest thing that shows the four declarations working.
  *
  * It is the guide's own stock-room model, wired to demand and run end to end, and it walks the
  * same four tasks the guide teaches, in order:

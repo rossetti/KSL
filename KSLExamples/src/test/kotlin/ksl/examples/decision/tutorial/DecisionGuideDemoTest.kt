@@ -1,4 +1,4 @@
-package ksl.examples.decision
+package ksl.examples.decision.tutorial
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
