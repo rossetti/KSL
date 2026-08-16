@@ -69,13 +69,34 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
 ## Steps
 
-1. **Set the version.** `kslSuiteVersion` in `gradle.properties` is the **single source of
-   truth** — the shipped jars stamp their `Implementation-Version` from it, so `/version`,
-   `/health`, the console, and the MCP `serverInfo` all report exactly this. Bump it to
-   `X.Y.Z` and commit it **wherever the work lives** — bumping it before the merge means the
+1. **Set the version, and write the notes.** `kslSuiteVersion` in `gradle.properties` is the
+   **single source of truth** — the shipped jars stamp their `Implementation-Version` from it,
+   so `/version`, `/health`, the console, and the MCP `serverInfo` all report exactly this. Bump
+   it to `X.Y.Z` and commit it **wherever the work lives** — bumping it before the merge means the
    commit that reaches `main` already carries the right version, so the tag names what the
    binaries report. Build and install from that branch to check the release before merging;
    the merge is then a fast-forward and step 2 rebuilds the same tree.
+
+   **Two documents need a per-release touch, in the same commits, on the same branch** — so the
+   commit reaching `main` carries them and the release body can link to an anchor that exists:
+
+   - **`docs/release-notes.md`** — add a section for this version above the previous one. House
+     style: `## X.Y.Z — a short subtitle naming the change`, then the date and whether KSLCore
+     moved, then a bold lead sentence per user-visible change written from the user's side (what
+     was wrong, what is different now), not from the code's. Add an **Upgrading** paragraph
+     whenever the fix cannot deliver itself — see below.
+   - **`README.md`**, the `## Release Notes` section — it carries **one blurb per cadence,
+     current only**, deliberately: a reader at the top of the repository wants to know what they
+     get by installing today, and history is one link away. Replace the suite blurb (and the
+     library blurb if KSLCore also released), and update the version examples in the intro
+     sentence. Do not append; the section grew to six stale releases once already.
+
+   > **The recurring upgrade trap.** A fix inside `bin/ksl` or `bin/ksl.ps1` does not protect the
+   > update that delivers it — the *previous* release's script runs that update. This bit 0.3.6
+   > (the new `skills/` folder was left in `.support/`) and 0.3.7 (the running-server guard did
+   > not guard its own arrival). Whenever a release touches the updater, say so in both the notes
+   > and the GitHub release body. Fixes in `install.sh` / `install.ps1` are the opposite: the
+   > one-liner fetches them from `main`, so they take effect the moment `main` is pushed.
 
 2. **Build + stamp.** From `main`, build `build/ksl-suite.zip` and write a stamped manifest to
    `build/release/manifest.json` — the version, the `suite-vX.Y.Z` asset URL, and the zip's
@@ -112,13 +133,24 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
      rendered"** means `_book/` wasn't rendered; render it, copy it into the repo root, and
      rebuild before releasing.
 
-4. **Publish the release** (uploads the zip):
+4. **Publish the release** (uploads the zip). The body is what GitHub shows on the releases tab
+   and in notification emails, so make it say what changed and carry any upgrade warning — most
+   people never open `docs/release-notes.md`. Summarise this release in a sentence or two, link
+   the section written in step 1, and repeat the upgrade trap if it applies:
 
    ```
    gh release create suite-vX.Y.Z build/ksl-suite.zip \
      --title "KSL Suite X.Y.Z" \
-     --notes "KSL apps + servers + kslpkg sharing one lib/. Install: see the README."
+     --notes "<one or two sentences on what changed>. Full notes:
+   https://github.com/rossetti/KSL/blob/main/docs/release-notes.md#xyz--<anchor>
+
+   <upgrade warning, when the release touches the updater>"
    ```
+
+   The anchor is the release-notes heading lowercased with punctuation dropped and spaces as
+   hyphens — `## 0.3.7 — installing over a running KSL` becomes
+   `#037--installing-over-a-running-ksl`. Check the link after publishing; it only resolves once
+   step 1's commit is on `main`.
 
 5. **Commit the stamped manifest** so the installers see the new version:
 
