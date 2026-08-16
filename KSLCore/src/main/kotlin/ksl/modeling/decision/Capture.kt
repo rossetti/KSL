@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import kotlinx.serialization.Serializable
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 
 /**
@@ -8,6 +9,18 @@ import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
  *  two packages would import each other and E.1's one-way layering would be a fiction.
  */
 
+/**
+ *  What produced a set of transitions: which model, which experiment, which element, which rule —
+ *  and the [descriptor] that gives the rows their meaning.
+ *
+ *  **`@Serializable` because a stored trajectory has to carry this with it.** A row is positional:
+ *  `a_Mode = 2.0` is uninterpretable without the declaration saying that lever is CATEGORICAL over
+ *  `["slow", "normal", "fast"]`, that it is a SETTING rather than a TRANSACTION, and where its
+ *  bounds are. Column names carry position-to-name and nothing else. So a durable sink writes this
+ *  object beside its rows and a reader refuses a trajectory that arrives without it — see
+ *  `ksl.sdm.capture.TabularSink`.
+ */
+@Serializable
 data class RunProvenance(
     val modelName: String,
     val experimentName: String,

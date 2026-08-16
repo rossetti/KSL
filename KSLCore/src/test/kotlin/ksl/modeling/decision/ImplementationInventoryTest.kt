@@ -136,7 +136,13 @@ class ImplementationInventoryTest {
         pkg(
             "ksl.sdm.capture",
             "NullSink" m 1,
-            "MemorySink" m 1
+            "MemorySink" m 1,
+            // Durable capture: the sink, the reader that pairs a trajectory with its provenance,
+            // and the row it hands back. The reader lives beside the writer deliberately — the
+            // file format is one contract and splitting it across packages invites them to drift.
+            "TabularSink" m 2,
+            "TrajectoryFile" m 2,
+            "StoredTransition" m 2
         )
         return out
     }
