@@ -40,18 +40,10 @@ The KSL has the following functionality:
 Who knows what the future may bring! The KSL is a complex and extremely useful library for performing Monte Carlo and discrete event
 simulation experiments.  Here is some planned and potential future functionality.
 
-- Release 1.6 is a correctness release covering interval and period statistics, entity state
-  after a terminated process, and movable resource pools — see [the release notes](docs/release-notes.md)
-- Release 1.5 is a correctness release that also adds the metalog distribution family and
-  reworks multi-objective decision analysis — see [the release notes](docs/release-notes.md)
-- Release 1.4 accomplished a significant reorganization of the repository
-  - New release and installation process
-  - A new animation framework and application
-  - MCP Servers for the code-base, application functionality, and the textbook
-- Future work is planned on 
-  - material handling, agent-based constructs, and server computing
-  - applications to surface MODA functionality
-  - constructs for sequential decision-making under uncertainty
+- material handling, agent-based constructs, and server computing
+- applications to surface MODA functionality
+- constructs for sequential decision-making under uncertainty
+- fitting of mixture distributions
 
 ## Licensing
 
@@ -204,59 +196,24 @@ To your build for the latest release.
 
 ## Release Notes
 
-The full release history lives in **[docs/release-notes.md](docs/release-notes.md)**, which
-covers two things on separate cadences: the **library** (`KSLCore`, versioned R1.6, R1.5.1, …)
-and the installable **suite** of applications and servers (versioned 0.3.4, 0.3.3, …). A
-suite release does not imply a library release, or the reverse.
+The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.6, R1.5.1, …) and
+the installable **suite** of applications and servers (versioned 0.3.8, 0.3.7, …). A suite release
+does not imply a library release, or the reverse.
 
-**Suite 0.3.5** — no application changed; the engine did. Interval and period statistics for
-time-persistent quantities — queue lengths, utilisation, number in system — were measured over
-the wrong window, and an interval containing a warm-up could report a level as though it were
-constant or a counter as a negative number. Models using a movable resource pool could hang
-forever waiting for a transporter, broken since R1.2.6. The *Warehouse AGV* and *Drone Delivery*
-animation examples now run more than one replication. Results written before 0.3.5 are not
-migrated, so re-run rather than compare across the upgrade.
+**Current suite release — 0.3.8.** The Single-Model application can open a different model without
+restarting, and a configuration saved for one model is no longer quietly applied to another — it
+tells you which model the file belongs to and offers to open it. `Load JAR…` opens where your
+bundles actually live rather than in your home directory, in every application.
 
-**Suite 0.3.4** — the Distribution app's AIC scoring option now penalises complexity instead
-of very slightly rewarding it, so a comparison that includes AIC can rank candidate
-distributions differently. Default fits are unaffected: they score on BIC, Anderson-Darling,
-Cramér-von Mises and the Q-Q correlation.
+**Current library release — R1.6.** A correctness release in three areas: interval and period
+statistics for time-weighted responses were measured over the wrong window; `MovableResourcePool`
+never woke the entities queued for it, a regression since R1.2.6; and a terminated process left its
+entity permanently unusable. Interval statistics on time-weighted responses change — see the
+release notes for how much. A drop-in for R1.5.1 unless you use the experimental
+`ksl.modeling.agent`, whose observer methods were renamed.
 
-**Suite 0.3.3** — cancelling a single design point or scenario no longer throws away results
-that had already finished, and the Experiment app no longer reports success for cancels that
-did nothing. The Scenario app's per-scenario cancel glyph is clickable again; it had been
-inert during exactly the window it exists for.
-
-**Suite 0.3.2** — `ksl update` actually updates. It had been reading the manifest cached when
-you installed, so it re-downloaded the version you already had and reported success.
-
-**Suite 0.3.1** — fixes two things 0.3.0 shipped broken: the KSL Server could not find the
-shipped example bundles, and the polished layouts were reachable only from the menu bar.
-Auto Layout also lays a circular conveyor out as a loop rather than a straight line.
-
-**Suite 0.3.0** — animations replay in a browser through the same renderer the desktop
-application uses; *Export to HTML…* writes a single self-contained page that needs no
-install; fifteen polished layouts ship with the suite and are offered in the app; and the
-shipped examples moved into a visible `KSL/examples/` folder. See the
-[gallery](https://rossetti.github.io/KSL-Animations/).
-
-**Updating an existing install:** `ksl update` works normally from 0.3.2 on. If you are still
-on 0.3.1 or earlier its updater cannot deliver its own replacement, so getting current needs
-one re-run of the installer one-liner above.
-
-**R1.6:** a correctness release in three areas. Interval and period statistics for time-weighted
-responses — `ResponseInterval`, `TimeSeriesResponse`, and anything on a `ResponseSchedule` — were
-measured over the wrong window, and an interval the warm-up fell inside was worse still, up to a
-`Counter` reporting a negative count. `MovableResourcePool` never woke the entities queued for it,
-a regression since R1.2.6 that left them waiting forever. A terminated process left its entity
-permanently unusable, where an entity whose process merely completed was reusable. Interval
-statistics on time-weighted responses change — see [the release notes](docs/release-notes.md) for
-how much. A drop-in for R1.5.1 unless you use the experimental `ksl.modeling.agent`, whose
-observer methods were renamed.
-
-**R1.5.1:** a correctness release for the information criteria. `Statistic.akaikeInfoCriterion`
-and `Statistic.hannanQuinnInfoCriterion` penalised complexity with a term that was not a
-penalty, so minimising AIC picked the most complex model on offer. Both are now the standard
-criteria, `akaikeInfoCriterionCorrected` (AICc) is new, and the Watson goodness-of-fit statistic
-regained a lost pair of parentheses. Default distribution fitting is unaffected — its scoring
-set uses BIC, which was correct.
+**Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
+refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;
+on 0.3.1 or earlier the updater cannot deliver its own replacement, so getting current needs one
+re-run of the installer one-liner above.
