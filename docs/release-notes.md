@@ -24,6 +24,49 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.3.8 — a different model, without restarting
+
+*15 August 2026.* KSLCore is untouched by this release.
+
+**The Single-Model application can now open a different model.** Until now the model you picked
+at launch was the model for as long as the application was open: the only way to run a second one
+was to quit and start again. **Bundles → Open Model…** shows the same picker you saw at startup,
+and the window reopens on your choice, at the same size and position. Every other KSL application
+could already switch models; this one now does too.
+
+Switching starts a clean editor. Overrides name a particular model's controls and random
+variables, so they are not carried across to a model that does not have them — save your
+configuration first if you want to come back to it. The application asks before discarding
+unsaved changes, and declines to switch while a simulation is running.
+
+**A configuration saved for one model is no longer applied to another.** Opening a configuration
+that belongs to a different model used to load it anyway, matching whatever names happened to
+agree and mentioning the mismatch in a notification you could easily miss. It now tells you which
+model the file was saved for and offers to open that model and load the file into it. Decline, and
+your current work is left exactly as it was.
+
+**Load JAR… opens where bundles actually live.** In every application, that file chooser started
+in your home directory every time, however many bundles you had already loaded. It now opens in
+your workspace `bundles/` folder — and, once you have loaded a JAR from somewhere else during a
+session, back in that folder instead. Bundle JARs built in a project folder and bundles kept in
+the workspace are both one step away.
+
+**Every application says the same thing about a loaded JAR.** The same outcome was worded four
+different ways across the applications, and most of them reported a JAR with no models in it by
+naming a Java interface that has nothing to do with simulation. The messages are now identical
+everywhere, name the file rather than its full path, and reserve the error styling for a load that
+actually failed.
+
+**Closing an Animation window now closes its work.** The window went away while its simulation
+session stayed open behind it. Closing it now cancels any run in progress and releases the models
+it had loaded.
+
+**`ksl update` now checks whether it can install before it downloads.** It fetched the whole
+release — around 150 MB — and only then noticed that the KSL Server was still running, or that the
+component name you typed did not exist. It checks first and stops in a second rather than after a
+download. As with any fix to the updater, the update that delivers this one still runs the old
+order; it takes effect from the update after this.
+
 ## 0.3.7 — installing over a running KSL
 
 *15 August 2026.* KSLCore is untouched by this release.
