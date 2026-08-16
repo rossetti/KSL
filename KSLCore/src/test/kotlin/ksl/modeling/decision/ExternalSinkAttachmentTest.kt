@@ -59,6 +59,13 @@ class ExternalSinkAttachmentTest {
         }
 
         override fun initialize() {
+            // `overtime` is a SETTING, so it is replication-initial and must be reset here.
+            // Leaving it out is not a harmless omission in a fixture: the model then carries the
+            // last run's lever value into the next run, and two `simulate()` calls on one model
+            // disagree for a reason that has nothing to do with what is being tested.
+            // `attachingASinkDoesNotChangeWhatTheRunProduces` found exactly that, which is the
+            // best evidence that a run-to-run comparison is worth having.
+            overtime = 0.0
             schedule(this::arrival, 3.0)
         }
 
@@ -79,6 +86,59 @@ class ExternalSinkAttachmentTest {
         m.numberOfReplications = reps
         m.lengthOfReplication = horizon
         return m to shop
+    }
+
+    // ---- Level 2: recording a run does not change it ----------------------------
+
+    /**
+     *  §16.2 — **attaching a sink changes what is recorded and nothing else.**
+     *
+     *  This is a Level-2 compatibility claim that the old design could not state, let alone check.
+     *  When capture had to be declared inside the element, "with capture" and "without capture"
+     *  were two *different models*: two constructions, two element trees, two sets of `Response`
+     *  objects. Comparing them tested that two models agreed, which is a weaker thing and confounds
+     *  the question with construction order.
+     *
+     *  External attachment makes the comparison exact. It is the **same model object**, run twice,
+     *  differing in one attach call — so any difference in the reported statistics is attributable
+     *  to capture and to nothing else. That matters because an observer that perturbs what it
+     *  observes would corrupt exactly the trajectories a learner is trained on, and the perturbation
+     *  would be invisible in the trajectory itself.
+     */
+    @Test
+    fun attachingASinkDoesNotChangeWhatTheRunProduces() {
+        val (m, shop) = model(reps = 3)
+
+        fun report(): List<String> = (m.responses.map { it as ksl.modeling.variable.ResponseCIfc } )
+            .map { r ->
+                val s = r.acrossReplicationStatistic
+                "${r.name}|${s.count}|${s.average}|${s.standardDeviation}|${s.min}|${s.max}"
+            } + m.counters.map { c ->
+                val s = c.acrossReplicationStatistic
+                "${c.name}|${s.count}|${s.average}|${s.standardDeviation}|${s.min}|${s.max}"
+            }
+
+        m.simulate()
+        val uncaptured = report()
+
+        val sink = MemorySink()
+        shop.review.attachTransitionSink(sink)
+        m.simulate()
+        val captured = report()
+
+        println()
+        println("recorded ${sink.records.size} transitions; comparing ${uncaptured.size} reported series")
+        uncaptured.zip(captured).filter { it.first != it.second }.forEach { println("  DIFFER: ${it.first} vs ${it.second}") }
+
+        assertTrue(uncaptured.isNotEmpty(), "no responses were compared, so nothing is being checked")
+        assertTrue(sink.records.isNotEmpty(),
+            "the captured arm recorded nothing, so the two arms are trivially alike and this " +
+                "measures nothing")
+        assertEquals(uncaptured, captured,
+            "the SAME model run twice, differing only in one attachTransitionSink call, must " +
+                "report identical across-replication statistics. A recorder that perturbs the run " +
+                "corrupts precisely the trajectories a learner trains on, and the trajectory " +
+                "cannot show it")
     }
 
     // ---- The headline -----------------------------------------------------------
