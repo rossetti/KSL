@@ -200,6 +200,26 @@ private object DecisionGuideSnippets {
         }
     }
 
+
+    // -- §4.10 Scoring on several things at once ------------------------
+
+    class Clinic(parent: ModelElement, name: String? = null) : ModelElement(parent, name) {
+        val queue = TWResponse(this, name = "${this.name}:Queue")
+        val treated = Counter(this, name = "${this.name}:Treated")
+        var capacity: Int = 4
+
+    val review = decisionElement("${this.name}:Shift") {
+        observe(queue)
+        val staff = lever(this@Clinic, limits = 0..8,
+            neutral = Neutral.Current { capacity.toDouble() }) { v -> capacity = v.toInt() }
+        // Every rate is a positive number in the units you think in. `sense` carries the direction.
+        reward(treated, rate = 25.0, sense = RewardSense.REWARD, alias = "Revenue")
+        reward(queue, rate = 10.0, sense = RewardSense.COST, alias = "Waiting")
+        every(480.0)
+        policy = NeutralPolicy
+    }
+    }
+
     // -- §4.7 A rule that scores candidates ----------------------------
 
     class CheapestFeasible(private val search: ActionSearch = ExhaustiveSearch) : PolicyIfc {

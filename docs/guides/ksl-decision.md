@@ -43,7 +43,7 @@ deliberate boundary, not an omission.
 - `ksl.simopt` is the other half of the same activity. Searching over
   the parameters of a parameterized rule to minimize an expected cost
   estimated by simulation *is* simulation optimization. This package
-  does not reimplement it; see §4.10 for how the two meet.
+  does not reimplement it; see §4.11 for how the two meet.
 - `ksl.sdm.capture` holds the sink implementations (`MemorySink`,
   `NullSink`). The sink *contract* lives with its producer in
   `ksl.modeling.decision`; only implementations live in `ksl.sdm`.
@@ -446,7 +446,35 @@ replication data, exactly as you would for any set of alternatives.
 **Always include the do-nothing arm.** A rule that reads well and loses
 to `NeutralPolicy` is the defect this package exists to make visible.
 
-### 4.10 …hand a rule's parameters to `simopt`?
+### 4.10 …score on several things at once?
+
+Declare several `reward` terms. They compose into one estimand, and **you never write a minus
+sign**: each rate is a positive number in the units you think in, and `sense` says which way it
+pushes. A `COST` is negated once, at declaration, so nothing downstream — not your rule, not the
+captured trajectory, not a comparison — has to track signs.
+
+```kotlin
+    val review = decisionElement("${this.name}:Shift") {
+        observe(queue)
+        val staff = lever(this@Clinic, limits = 0..8,
+            neutral = Neutral.Current { capacity.toDouble() }) { v -> capacity = v.toInt() }
+        // Every rate is a positive number in the units you think in. `sense` carries the direction.
+        reward(treated, rate = 25.0, sense = RewardSense.REWARD, alias = "Revenue")
+        reward(queue, rate = 10.0, sense = RewardSense.COST, alias = "Waiting")
+        every(480.0)
+        policy = NeutralPolicy
+    }
+```
+
+The published estimand is a profit, so **larger is better**. That convention holds for every
+element, whatever mix of terms it declares.
+
+Two things worth knowing. A term whose rate is zero stays in the description and still reports —
+dropping it would make the estimand's meaning depend on a value rather than on a declaration. And
+the *descriptor* reports each rate as you wrote it, not signed, so a tool that echoes it back into a
+configuration file cannot flip a sign a second time.
+
+### 4.11 …hand a rule's parameters to `simopt`?
 
 Write the rule as a `ModelElement` with `@set:KSLControl` properties, the
 way KSL's own inventory policies are written. The model's control walk
@@ -531,9 +559,9 @@ nothing at all.
 - [`ksl-modeling`](ksl-modeling.md) — `Response`, `TWResponse`,
   `Counter`: what observations read and rewards accumulate from.
 - [`ksl-simopt-tutorial`](ksl-simopt-tutorial.md) — start here for
-  searching over a rule's parameters (§4.10).
+  searching over a rule's parameters (§4.11).
 - [`ksl-controls`](ksl-controls.md) — how `@KSLControl` properties are
-  found and set, including the clamping behavior §4.10 warns about.
+  found and set, including the clamping behavior §4.11 warns about.
 - [`ksl-supplychain`](ksl-supplychain.md) — KSL's inventory policies,
   which are the model this package's `simopt` seam follows.
 - `KSLExamples` — `ksl.examples.decision` holds the worked examples: a

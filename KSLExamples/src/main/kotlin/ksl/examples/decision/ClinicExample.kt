@@ -2,6 +2,7 @@ package ksl.examples.decision
 
 import ksl.modeling.decision.*
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
+import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.decision.descriptor.SumEquals
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.SResource
@@ -69,6 +70,21 @@ class ClinicSubsystem(
         val e = lever(examStaff, limits = 0..10,
             neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
         budget(t, e, total = 8.0)
+
+        // What the shift review is scored on: a profit, declared as a revenue and two charges.
+        //
+        // This is a **mixed-sense** objective, and it is the one the clinic did not have before —
+        // it ran with no estimand at all. Each rate is written as a positive number in the units
+        // the modeler thinks in, and `sense` says which way it pushes; `COST` is negated once,
+        // here, so nothing downstream tracks a sign (§4.2.5).
+        //
+        // Note which term the decision actually moves. Throughput is arrival-limited, so revenue is
+        // much the same whatever the allocation; what reallocating staff changes is where patients
+        // wait. A real objective usually looks like this — several terms, of which the decision
+        // touches one — and it is worth seeing that written down rather than simplified away.
+        reward(exam.numProcessed, rate = 25.0, sense = RewardSense.REWARD, alias = "Revenue")
+        reward(triage.waitingQ.numInQ, rate = 10.0, sense = RewardSense.COST, alias = "TriageWait")
+        reward(exam.waitingQ.numInQ, rate = 10.0, sense = RewardSense.COST, alias = "ExamWait")
 
         decisionSink?.let { factory -> captureTo(factory) }
         every(480.0)
