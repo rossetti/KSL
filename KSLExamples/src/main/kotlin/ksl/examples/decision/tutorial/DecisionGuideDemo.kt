@@ -31,7 +31,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *  1. **Declare** a decision element idiomatically, on a model that already works.
  *  2. **Read** the description the element derives from that declaration.
  *  3. **Swap** the rule and compare it against the do-nothing arm — without editing the model.
- *  4. **Record** a trajectory, and show the sink's lifetime being managed for you.
+ *  4. **Record** a trajectory by attaching a sink from outside — the model says nothing about it.
  *
  * Run `main` and read the output alongside §3 and §4 of the guide.
  *
@@ -39,17 +39,16 @@ import ksl.utilities.random.rvariable.ExponentialRV
  * touched again.** Everything the study varies — the rule, its parameters, the lever's limits, how
  * often the review happens, whether anything is recorded — is set from outside on the element. A
  * modeler owns the model; whoever is running the study owns the decision.
+ *
+ * Step 4 is the sharpest case of that, and the reason this class has no capture parameter: whether
+ * a run is recorded is a property of *the run*, so the sink is attached to `review` from the
+ * demonstration and detached afterwards. A user holding a model somebody else wrote can do the
+ * same, which is the case a build-time-only `captureTo` could not serve at all.
  */
 class StockRoom(
     parent: ModelElement,
     initialOnHand: Double = 50.0,
     private val meanDemandInterval: Double = 1.0,
-    /**
-     * Where to record decisions, or `null` to record nothing. Capture is declared when the element
-     * is built and cannot be switched on afterwards, so a model that wants a trajectory says so
-     * here — see step 4.
-     */
-    private val decisionSink: ((RunProvenance) -> TransitionSink)? = null,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -104,7 +103,6 @@ class StockRoom(
         ) { q -> placeOrder(q) }
         reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
         reward(backorders, rate = 5.0, sense = RewardSense.COST, alias = "Shortage")
-        decisionSink?.let { factory -> captureTo(factory) }
         every(5.0)
         policy = NeutralPolicy
     }
@@ -120,36 +118,40 @@ class OrderUpTo(private val s: Double, private val bigS: Double) : PolicyIfc {
 }
 
 /**
- * A sink that says out loud when it is opened and closed, so step 4 can show the lifetime the
- * element manages rather than assert it.
+ * A sink that says out loud when a run starts and stops, so step 4 can show the per-experiment
+ * handshake rather than assert it.
+ *
+ * One sink object spans both runs — it is attached once — and is told about each of them
+ * separately. That is why provenance arrives at [beginExperiment] rather than at construction:
+ * the experiment name and the policy label belong to the run, not to the sink.
  */
-class AnnouncingSink(provenance: RunProvenance) : TransitionSink {
+class AnnouncingSink : TransitionSink {
     private val rows = mutableListOf<TransitionRecord>()
+
+    /** The rows of the most recent run only; each run starts a fresh list. */
     val records: List<TransitionRecord> get() = rows
 
-    var closed = false
-        private set
-
-    init {
-        opened++
-        println("      sink OPENED for ${provenance.elementName}, policy '${provenance.policyLabel}'")
+    override fun beginExperiment(provenance: RunProvenance) {
+        runsStarted++
+        rows.clear()
+        println("      run STARTED for ${provenance.elementName}, " +
+            "experiment '${provenance.experimentName}', policy '${provenance.policyLabel}'")
     }
 
     override fun write(record: TransitionRecord) { rows += record }
 
-    override fun close() {
-        closed = true
-        AnnouncingSink.closed++
-        println("      sink CLOSED after ${rows.size} rows — the element closes what the element opened")
+    override fun endExperiment() {
+        runsEnded++
+        println("      run ENDED after ${rows.size} rows — the sink stays attached for the next one")
     }
 
-    /** Counters so the demonstration's claim about lifetime can be checked, not just printed. */
+    /** Counters so the demonstration's claim about the handshake can be checked, not just printed. */
     companion object {
-        var opened = 0
+        var runsStarted = 0
             private set
-        var closed = 0
+        var runsEnded = 0
             private set
-        fun resetCounts() { opened = 0; closed = 0 }
+        fun resetCounts() { runsStarted = 0; runsEnded = 0 }
     }
 }
 
@@ -161,15 +163,18 @@ class DemoResult(
     /** The ordering rules in grid order, control excluded. */
     val orderingArms: List<String>,
     val capturedRows: Int,
-    val sinksOpened: Int,
-    val sinksClosed: Int,
+    /** How many per-experiment handshakes the attached sink was given, and how many were ended. */
+    val runsStarted: Int,
+    val runsEnded: Int,
+    /** How many sinks the element was left holding after the demonstration detached. */
+    val sinksLeftAttached: Int,
     val observationNames: List<String>,
     val leverNames: List<String>
 )
 
-private fun buildStudy(sink: ((RunProvenance) -> TransitionSink)? = null): Pair<Model, StockRoom> {
+private fun buildStudy(): Pair<Model, StockRoom> {
     val model = Model("StockRoomStudy")
-    val room = StockRoom(model, decisionSink = sink, name = "Room")
+    val room = StockRoom(model, name = "Room")
     model.numberOfReplications = 30
     model.lengthOfReplication = 2_000.0
     model.lengthOfReplicationWarmUp = 200.0
@@ -267,26 +272,39 @@ fun runDecisionGuideDemo(): DemoResult {
         println("  Widen the grid past '${best.key}' before quoting it as a recommendation.")
     }
 
-    // ---------------------------------------------------------------- 4. record, and sink lifetime
-    heading(4, "Record a trajectory — and watch the element manage the sink's lifetime")
+    // ---------------------------------------------------------------- 4. record, from outside
+    heading(4, "Record a trajectory — by attaching a sink to a model that never mentions capture")
 
-    var captured: AnnouncingSink? = null
-    val (m4, r4) = buildStudy { provenance -> AnnouncingSink(provenance).also { captured = it } }
+    val (m4, r4) = buildStudy()
     r4.review.policy = OrderUpTo(30.0, 90.0)
     r4.review.policyLabel = "(30, 90)"
     m4.numberOfReplications = 2
     m4.lengthOfReplication = 60.0
     m4.lengthOfReplicationWarmUp = 0.0
 
-    println("  simulate() once:")
+    println("  StockRoom has no capture parameter and no captureTo — look at the class. The sink")
+    println("  is attached here, from outside, the way an animation trace or a UI panel would be:")
+    println()
+
+    val captured = AnnouncingSink()
+    r4.review.attachTransitionSink(captured)
+
+    println("  simulate() once, experiment 'first':")
+    m4.experimentName = "first"
     m4.simulate()
 
     println()
-    println("  simulate() a SECOND time on the same model — a new experiment gets a new sink,")
-    println("  and the policy is NOT closed underneath it, so the second run still works:")
+    println("  simulate() a SECOND time on the same model. The SAME sink object is still attached,")
+    println("  and is handed the new run's provenance — note the experiment name change:")
+    m4.experimentName = "second"
     m4.simulate()
 
-    val rows = captured!!.records
+    val rows = captured.records
+    r4.review.detachTransitionSink(captured)
+    println()
+    println("  detached: the element now holds ${r4.review.countTransitionSinks} sinks, so a further")
+    println("  run would record nothing. Attaching and detaching is refused *during* a run, because")
+    println("  a trajectory that starts mid-episode has no predecessor state for its first row.")
     println()
     println("  The last experiment recorded ${rows.size} transitions. The first three:")
     println("      %5s %8s %8s %12s %12s %10s %10s".format(
@@ -311,8 +329,9 @@ fun runDecisionGuideDemo(): DemoResult {
         halfWidths = halfWidths,
         orderingArms = labels,
         capturedRows = rows.size,
-        sinksOpened = AnnouncingSink.opened,
-        sinksClosed = AnnouncingSink.closed,
+        runsStarted = AnnouncingSink.runsStarted,
+        runsEnded = AnnouncingSink.runsEnded,
+        sinksLeftAttached = r4.review.countTransitionSinks,
         observationNames = surface.observations.map { it.name },
         leverNames = surface.levers.map { it.name }
     )

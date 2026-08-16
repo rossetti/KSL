@@ -21,6 +21,7 @@ import ksl.modeling.decision.descriptor.toJson
 import ksl.modeling.decision.descriptor.toToml
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.TWResponse
+import ksl.sdm.capture.DecisionCapture
 import ksl.sdm.capture.MemorySink
 import ksl.sdm.capture.StoredTransition
 import ksl.sdm.capture.TabularSink
@@ -158,24 +159,58 @@ private object DecisionGuideSnippets {
         }
     }
 
-    /** A sink of your own. The element opens it per experiment and closes it per experiment. */
+    /** A sink of your own. Told when a run starts and stops; closed by whoever made it. */
     class CountingSink : TransitionSink {
         var rows = 0
             private set
+        override fun beginExperiment(provenance: RunProvenance) {
+            println("recording ${provenance.elementName} under ${provenance.policyLabel}")
+            rows = 0
+        }
         override fun write(record: TransitionRecord) { rows++ }
-        override fun close() { println("sink closed after $rows rows") }
+        override fun endExperiment() { println("$rows rows this run") }
     }
 
     fun captureToYourOwnSink(parent: ModelElement) {
         parent.decisionElement("Counted") {
             observe("Level") { 1.0 }
             lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
-            captureTo { provenance: RunProvenance ->
-                println("recording ${provenance.elementName} under ${provenance.policyLabel}")
-                CountingSink()
-            }
+            captureTo { provenance -> CountingSink() }
             every(5.0)
             policy = NeutralPolicy
+        }
+    }
+
+
+    // -- §4.5 Attaching capture from outside the model ------------------
+
+    fun attachFromOutside(model: Model, element: DecisionElement) {
+        val sink = MemorySink()
+        element.attachTransitionSink(sink)
+        model.simulate()
+        element.detachTransitionSink(sink)
+
+        println("${sink.records.size} transitions, and the model never mentioned capture")
+    }
+
+    fun captureAWholeModel(model: Model) {
+        DecisionCapture.toDirectory(model, outputDir).use {
+            model.simulate()
+        }
+    }
+
+    fun captureSomeElements(model: Model, wanted: Set<String>) {
+        val capture = DecisionCapture(model) { element ->
+            if (element.name in wanted) MemorySink() else null
+        }
+        capture.use { model.simulate() }
+    }
+
+    fun captureExternallyToDisk(model: Model) {
+        DecisionCapture.rolling(model) { provenance ->
+            TabularSink(provenance, outputDir.resolve(provenance.experimentName))
+        }.use {
+            model.simulate()
         }
     }
 

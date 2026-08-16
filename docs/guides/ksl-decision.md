@@ -45,8 +45,10 @@ deliberate boundary, not an omission.
   estimated by simulation *is* simulation optimization. This package
   does not reimplement it; see §4.12 for how the two meet.
 - `ksl.sdm.capture` holds the sink implementations (`MemorySink`,
-  `NullSink`). The sink *contract* lives with its producer in
-  `ksl.modeling.decision`; only implementations live in `ksl.sdm`.
+  `TabularSink`, `RollingSink`) and `DecisionCapture`, which attaches
+  capture to a model from outside. The sink *contract* lives with its
+  producer in `ksl.modeling.decision`; only implementations live in
+  `ksl.sdm`.
 - `ksl.modeling.decision.descriptor` is plain serializable data — the
   machine-readable description of a decision surface, with no
   reference to a model at all, so it can travel without one.
@@ -268,8 +270,10 @@ that offers the wrong pair will propose values the run has excluded.
 
 ### 4.5 …record what the rule did?
 
-Declare a sink. The element opens it once per experiment and closes it
-once per experiment — you do not manage its lifetime.
+Attach a sink. Two ways in: declare one in the element, shown here, or
+attach one from outside to a model that is already built — see *Attaching
+capture from outside the model*, below. A sink declared with `captureTo`
+is made and closed for you, once per experiment.
 
 ```kotlin
 val sink = MemorySink()
@@ -295,15 +299,22 @@ on purpose: an episode that reached a real ending and one the run length
 cut off are different things, and conflating them biases any learner
 that bootstraps from the last row.
 
-Write your own sink by implementing `TransitionSink`:
+Write your own sink by implementing `TransitionSink`. Only `write` is
+required; the two lifecycle methods are told when a run starts and stops,
+and that is where a sink learns the **provenance** — which model, which
+experiment, which rule, and the full description of the surface:
 
 ```kotlin
-/** A sink of your own. The element opens it per experiment and closes it per experiment. */
+/** A sink of your own. Told when a run starts and stops; closed by whoever made it. */
 class CountingSink : TransitionSink {
     var rows = 0
         private set
+    override fun beginExperiment(provenance: RunProvenance) {
+        println("recording ${provenance.elementName} under ${provenance.policyLabel}")
+        rows = 0
+    }
     override fun write(record: TransitionRecord) { rows++ }
-    override fun close() { println("sink closed after $rows rows") }
+    override fun endExperiment() { println("$rows rows this run") }
 }
 ```
 
@@ -311,21 +322,80 @@ class CountingSink : TransitionSink {
 parent.decisionElement("Counted") {
     observe("Level") { 1.0 }
     lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
-    captureTo { provenance: RunProvenance ->
-        println("recording ${provenance.elementName} under ${provenance.policyLabel}")
-        CountingSink()
-    }
+    captureTo { provenance -> CountingSink() }
     every(5.0)
     policy = NeutralPolicy
 }
 ```
 
-**Capture must be declared when the element is built.** There is no way
-to switch a sink on afterwards, deliberately: a run that recorded half
-its decisions is worse than one that recorded none.
+Provenance arrives once per **experiment** rather than once per sink,
+because two of its fields change between runs of the same model: the
+experiment name, and the policy label. Comparing k rules on one model
+(§4.9) is exactly that case.
 
-Capture is close to free when it is off (a reference comparison per
-epoch) and below measurement resolution when it is on — see §6.
+Capture is close to free when it is off — with no sink attached the
+element does not even build the record — and below measurement
+resolution when it is on. See §6.
+
+
+#### Attaching capture from outside the model
+
+`captureTo` writes the decision into the model, which is the wrong place
+for it if you did not write the model, or if only some of your runs
+should be recorded. Whether a run is recorded is a property of *the run*.
+
+So a sink can also be attached to an element that is already built, from
+`main()` or from a tool layer, and detached again:
+
+```kotlin
+val sink = MemorySink()
+element.attachTransitionSink(sink)
+model.simulate()
+element.detachTransitionSink(sink)
+
+println("${sink.records.size} transitions, and the model never mentioned capture")
+```
+
+Several sinks may be attached at once — a live view *and* a file — and
+each receives every record, in attachment order. Detaching does not close
+the sink: you made it, so you close it.
+
+For a whole model there is a one-liner, which finds every decision
+element and writes a trajectory per element per experiment:
+
+```kotlin
+DecisionCapture.toDirectory(model, outputDir).use {
+    model.simulate()
+}
+```
+
+`DecisionCapture` is the same shape as `AnimationCapture`: it installs on
+construction and reverses everything on `close`, so the model is left
+exactly as it was found. Give it a selector to record only some elements:
+
+```kotlin
+val capture = DecisionCapture(model) { element ->
+    if (element.name in wanted) MemorySink() else null
+}
+capture.use { model.simulate() }
+```
+
+or a per-run factory, for a durable sink that should leave one artifact
+per experiment:
+
+```kotlin
+DecisionCapture.rolling(model) { provenance ->
+    TabularSink(provenance, outputDir.resolve(provenance.experimentName))
+}.use {
+    model.simulate()
+}
+```
+
+**The one rule: not while the model is running.** Attaching or detaching
+mid-run throws. A trajectory that begins in the middle of an episode has
+no predecessor state for its first row, and a run that recorded half its
+decisions is worse than one that recorded none. Before a run, or between
+two runs, is fine — nothing is half-recorded there.
 
 
 #### Keeping a trajectory after the run ends
@@ -628,7 +698,10 @@ uses for `(r, S)` inventory policies.
 | `Neutral.Current` / `Neutral.Value` | Doing nothing, for a setting and for a transaction |
 | `LeverRef` / `RewardRef` | Identities returned by declaration, consumed by constraints and parameterization |
 | `TransitionRecord` | One complete transition: state, action, reward, successor, termination |
-| `TransitionSink` | Write-only consumer with a lifetime. `MemorySink`, `NullSink` in `ksl.sdm.capture` |
+| `TransitionSink` | Write-only consumer with a per-run lifetime. `MemorySink`, `NullSink` in `ksl.sdm.capture` |
+| `DecisionElement.attachTransitionSink` | Records an element from outside the model; `detachTransitionSink` stops it (§4.5) |
+| `DecisionCapture` | Attaches capture to a whole built model and reverses it on `close` (§4.5) |
+| `RollingSink` | Wraps a per-experiment factory, so an attached sink still leaves one artifact per run |
 | `TabularSink` | A durable sink: rows to a SQLite file, provenance beside it (§4.5) |
 | `TrajectoryFile` | Reads a trajectory back with no live `Model`; refuses one whose provenance is missing |
 | `StoredTransition` | One transition as read back — state, action, reward, successor, flags |

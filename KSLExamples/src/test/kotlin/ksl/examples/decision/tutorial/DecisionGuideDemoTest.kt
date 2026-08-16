@@ -83,22 +83,37 @@ class DecisionGuideDemoTest {
     }
 
     /**
-     *  Claim: the element opens a sink per experiment and closes it per experiment.
+     *  Claim: one externally attached sink spans both runs and is told about each of them.
      *
-     *  The demonstration simulates the same model **twice**, which is the case that matters: two
-     *  experiments must produce two opened sinks and two closed ones, and the second run must work
-     *  at all — a policy closed at the end of the first experiment would have made it fail.
+     *  The demonstration simulates the same model **twice** with a single attached sink, which is
+     *  the case that matters: an attachment outlives an experiment, so two runs must produce two
+     *  handshakes and two endings on the one object. The second run must also work at all — a
+     *  policy closed at the end of the first experiment would have made it fail.
      */
     @Test
-    fun theElementOpensAndClosesOneSinkPerExperiment() {
+    fun oneAttachedSinkIsToldAboutEachExperimentSeparately() {
         println()
-        println("sinks opened: ${demo.sinksOpened}, closed: ${demo.sinksClosed}")
-        assertEquals(2, demo.sinksOpened,
-            "the demonstration runs two experiments, so it must open two sinks — one per " +
-                "experiment is the lifetime the element promises")
-        assertEquals(demo.sinksOpened, demo.sinksClosed,
-            "every sink the element opened must be closed; a sink left open is a file handle a " +
-                "study leaks once per experiment")
+        println("runs started: ${demo.runsStarted}, ended: ${demo.runsEnded}")
+        assertEquals(2, demo.runsStarted,
+            "the demonstration runs two experiments through ONE attached sink, so the sink must " +
+                "be handed provenance twice — that is what makes the handshake per-run rather " +
+                "than per-attachment")
+        assertEquals(demo.runsStarted, demo.runsEnded,
+            "every run the sink was told about must be ended, or a durable sink never flushes")
+    }
+
+    /**
+     *  Claim: what the demonstration attaches, it detaches.
+     *
+     *  Printed as "the element now holds 0 sinks", and a printed number nobody checks is how a
+     *  demonstration starts lying. It also matters beyond tidiness: a sink left attached to a
+     *  model a caller goes on using keeps recording runs that were never meant to be recorded.
+     */
+    @Test
+    fun theDemonstrationLeavesTheModelWithNothingAttached() {
+        assertEquals(0, demo.sinksLeftAttached,
+            "step 4 attaches a sink and detaches it; if this is not zero the printed claim is " +
+                "false and the element is still capturing")
     }
 
     /** Claim: the run recorded transitions worth looking at. */

@@ -7,6 +7,7 @@ import ksl.modeling.decision.ShapeAwarePolicyIfc
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.modeling.variable.RandomVariable
+import ksl.sdm.capture.DecisionCapture
 import ksl.sdm.capture.TabularSink
 import ksl.sdm.capture.TrajectoryFile
 import ksl.simulation.Model
@@ -214,14 +215,16 @@ fun runOfflineTrainingDemo(directory: Path = Files.createTempDirectory("ksl-offl
     heading(1, "Explore — run under a random ordering rule and capture every transition")
 
     val model = Model("OfflineExplore")
+    val room = StockRoom(model, name = "Room")
+
+    // `StockRoom` says nothing about capture, so the exploration run attaches its own durable sink
+    // from out here. This is the ordinary case for off-line training: the model is the thing being
+    // studied, and whether a particular run is recorded belongs to the study.
     lateinit var sink: TabularSink
-    val room = StockRoom(
-        model,
-        decisionSink = { provenance ->
-            TabularSink(provenance, directory.resolve("explore")).also { sink = it }
-        },
-        name = "Room"
-    )
+    val capture = DecisionCapture.rolling(model) { provenance ->
+        TabularSink(provenance, directory.resolve("explore")).also { sink = it }
+    }
+
     // The policy's randomness is a RandomVariable owned by the model, so it resets per replication
     // and honours the model's stream options like everything else.
     val coin = RandomVariable(room, UniformRV(0.0, 1.0, streamNum = 77), "Room:Explore")
@@ -230,7 +233,7 @@ fun runOfflineTrainingDemo(directory: Path = Files.createTempDirectory("ksl-offl
     model.numberOfReplications = EXPLORE_REPS
     model.lengthOfReplication = RUN_LENGTH
     model.lengthOfReplicationWarmUp = WARM_UP
-    model.simulate()
+    capture.use { model.simulate() }
 
     println("  captured ${sink.rowsWritten} transitions over $EXPLORE_REPS replications")
     println("  rows:       ${sink.rowsPath.fileName}")

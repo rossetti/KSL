@@ -10,6 +10,7 @@ import ksl.modeling.variable.ResponseIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  *  The identity of a declared lever. A lever is (target, limits, domain, write), so its
@@ -626,8 +627,85 @@ class DecisionElement internal constructor(
     )
     private var pending: Pending? = null
 
-    internal var sinkFactory: ((RunProvenance) -> TransitionSink)? = null
-    private var sink: TransitionSink = ksl.sdm.capture.NullSink
+    // ---- Capture attachment (§4.8.2) --------------------------------------------
+    /**
+     *  The attached sinks, in attachment order.
+     *
+     *  A `CopyOnWriteArrayList` for the reason `ksl.utilities.observers.Emitter` uses one: a sink
+     *  that detaches itself, or a `DecisionCapture` closed from another thread, must not corrupt
+     *  an iteration in progress. Writes are rare (attachment happens between runs) and reads are
+     *  per emitted transition, which is the shape this list is for.
+     */
+    private val sinks = CopyOnWriteArrayList<TransitionSink>()
+
+    /**
+     *  Whether anything is listening (§4.8.2).
+     *
+     *  Named and used the way `ksl.animation.AnimationSink.isActive` and
+     *  `ksl.utilities.observers.Emitter.isObserved` are: the emission site checks this *before*
+     *  building the record, so with no sink attached a transition costs one `isEmpty` and no
+     *  allocation, rather than two array copies handed to an empty method.
+     */
+    val isCaptured: Boolean
+        get() = sinks.isNotEmpty()
+
+    /** How many sinks are attached. */
+    val countTransitionSinks: Int
+        get() = sinks.size
+
+    /** Whether [sink] is currently attached to this element. */
+    fun isTransitionSinkAttached(sink: TransitionSink): Boolean = sinks.contains(sink)
+
+    /**
+     *  Send this element's transitions to [sink], from now until it is detached (§4.8.2).
+     *
+     *  Attachment is external and repeatable, which is what lets a sink be added from `main()` or
+     *  from a tool layer rather than written into the element's declaration — the same freedom
+     *  `ModelElement.attachModelElementObserver` gives an observer and
+     *  `ksl.animation.AnimationCapture` gives an animation trace. Several sinks may be attached;
+     *  each receives every record, in attachment order.
+     *
+     *  **The prohibition it keeps.** A sink may not be attached or detached *while the model is
+     *  running*: a trajectory that starts at the middle of an episode has no predecessor for its
+     *  first row and is worse than no trajectory at all. That is a narrower rule than the one this
+     *  subsystem used to enforce — "declare it when the element is built" — which was strong
+     *  enough to also forbid the harmless case of attaching before a run, or between two runs, and
+     *  could only be enforced by making the API unreachable. The real invariant is that **the set
+     *  of sinks is fixed for the duration of an experiment**, and that is checkable, so it is
+     *  checked here rather than promised in prose.
+     *
+     *  The element does not own [sink]. It calls `beginExperiment`/`endExperiment` around each
+     *  run; `close()` belongs to whoever constructed it (§4.7).
+     *
+     *  @throws IllegalStateException if the model is running, or if [sink] is already attached —
+     *  a double attach would deliver every record to it twice, which no caller means.
+     */
+    fun attachTransitionSink(sink: TransitionSink) {
+        requireNotRunning("transition sink attachment")
+        check(!sinks.contains(sink)) {
+            "The sink is already attached to ${this.name}. Attaching it twice would deliver " +
+                "every transition to it twice."
+        }
+        sinks.add(sink)
+    }
+
+    /**
+     *  Stop sending transitions to [sink]. Returns whether it was attached.
+     *
+     *  Not permitted while the model is running, for the same reason attachment is not: half a
+     *  run's rows is not a shorter trajectory, it is a wrong one. The sink is *not* closed —
+     *  detaching is the reverse of attaching, and the element never owned it.
+     */
+    fun detachTransitionSink(sink: TransitionSink): Boolean {
+        requireNotRunning("transition sink detachment")
+        return sinks.remove(sink)
+    }
+
+    /** Detach every sink. Closes none of them, for the reason [detachTransitionSink] gives. */
+    fun detachAllTransitionSinks() {
+        requireNotRunning("transition sink detachment")
+        sinks.clear()
+    }
 
     internal fun bind() {
         binding = DefaultActionBinding(this)
@@ -781,6 +859,23 @@ class DecisionElement internal constructor(
             return
         }
         census.emitted++
+
+        // §4.8.2. Guard BEFORE constructing the record, the way every animation emission site does
+        // (`if (sink.isActive) sink.emit(...)`), so that with nothing listening a transition costs
+        // a couple of emptiness checks and no allocation.
+        //
+        // Placed AFTER the census, deliberately: `census` is the emission truth table of §4.10.2.1
+        // and `EmissionTruthTableTest` reads it. A gate above this line would make the accounting
+        // report zero emissions whenever no sink was attached, which is the accounting going blind
+        // rather than the emission being cheap.
+        //
+        // The record has TWO consumers and the guard must name both. A `ManagedPolicyIfc` receives
+        // `onTransition` — that is how a learning rule sees its own experience (§4.5.4.1) — and it
+        // does so whether or not anyone is capturing. Gating on `isCaptured` alone would silently
+        // stop feeding adaptive policies the moment a user removed a sink.
+        val managed = myPolicy as? ManagedPolicyIfc
+        if (!isCaptured && managed == null) return
+
         val record = TransitionRecord(
             elementName = this.name,
             replicationId = model.currentReplicationId,
@@ -797,11 +892,16 @@ class DecisionElement internal constructor(
             truncated = ending != null && ending != TerminationSource.NATURAL,
             source = ending
         )
-        sink.write(record)
+        // Attachment order. Every attached sink receives every record; a sink that throws stops
+        // the run, and that is the intended severity — a dropped training row is a silent data
+        // defect that surfaces in somebody's learner three steps later, unlike a dropped animation
+        // frame, which is why `AnimationSink` fails soft and this does not.
+        for (s in sinks) s.write(record)
+
         // The hook §4.5.4.1 declares and §8.2.9 measured was never called. It is called here:
         // a LookaheadPolicy holding a LearnableValueApproximationIfc becomes an adaptive rule by
         // forwarding this, which is one class rather than a new concept.
-        (myPolicy as? ManagedPolicyIfc)?.onTransition(record)
+        managed?.onTransition(record)
     }
 
     /**
@@ -840,20 +940,20 @@ class DecisionElement internal constructor(
         // up three times rather than leaving runs 2 and 3 to use what run 1 tore down.
         (myPolicy as? ManagedPolicyIfc)?.beforeExperiment()
 
-        // The sink is opened once per experiment, with the provenance a row needs in order to be
-        // written without a live Model (§4.8.2). The descriptor is computed here rather than
-        // stored, so it cannot be stale (§4.1.5).
-        val factory = sinkFactory
-        if (factory != null) {
-            sink = factory(
-                RunProvenance(
-                    modelName = model.name,
-                    experimentName = model.experimentName,
-                    elementName = this.name,
-                    policyLabel = policyLabel,
-                    descriptor = descriptor()
-                )
+        // Every attached sink is told the run is beginning, with the provenance a row needs in
+        // order to be written without a live Model (§4.8.2). The descriptor is computed here
+        // rather than stored, so it cannot be stale (§4.1.5), and provenance is delivered per
+        // experiment rather than per attachment because two of its fields — the experiment name
+        // and the policy label — differ between runs of one model (§4.9).
+        if (sinks.isNotEmpty()) {
+            val provenance = RunProvenance(
+                modelName = model.name,
+                experimentName = model.experimentName,
+                elementName = this.name,
+                policyLabel = policyLabel,
+                descriptor = descriptor()
             )
+            for (s in sinks) s.beginExperiment(provenance)
         }
     }
 
@@ -906,22 +1006,31 @@ class DecisionElement internal constructor(
     }
 
     override fun afterExperiment() {
-        // §4.7. The element closes what the element OPENED. It opened the sink, through the
-        // factory in beforeExperiment(), so it closes the sink. It did not open the policy — the
-        // user constructed it and assigned it — so the policy gets its per-experiment teardown
-        // here and its close() only when replaced.
+        // §4.7. The element ends what the element BEGAN. It began each attached sink's experiment
+        // in beforeExperiment(), so it ends each one here — and it does NOT close them: the sinks
+        // were constructed and attached by the caller, so closing them belongs to the caller, the
+        // way `ksl.observers.ResponseTrace` is closed by whoever constructed it. A sink that owns
+        // a per-run resource releases it in endExperiment(); `ksl.sdm.capture.RollingSink` is the
+        // case where the element's sink really is the element's to close, and it closes its own.
+        //
+        // The policy is the same story for the same reason — the user constructed it and assigned
+        // it — so the policy gets its per-experiment teardown here and its close() only when
+        // replaced.
         //
         // This used to call policy.close(), which made a second model.simulate() run against a
         // policy whose resources had been released: measured at twelve uses after close on a
         // two-run model, silently. A sweep and simulation optimization (B.5) both re-run one
         // model, so that is the ordinary case rather than an exotic one.
         //
-        // Both teardowns are attempted and a failure in one does not prevent the other.
+        // EVERY teardown is attempted and a failure in one does not prevent the others — which
+        // matters more now that there can be several sinks: a first sink that fails to flush must
+        // not leave a second one's file half-written.
         val failures = mutableListOf<Throwable>()
         runCatching { (myPolicy as? ManagedPolicyIfc)?.afterExperiment() }
             .exceptionOrNull()?.let { failures += it }
-        runCatching { sink.close() }.exceptionOrNull()?.let { failures += it }
-        sink = ksl.sdm.capture.NullSink
+        for (s in sinks) {
+            runCatching { s.endExperiment() }.exceptionOrNull()?.let { failures += it }
+        }
         if (failures.isNotEmpty()) {
             val first = failures.first()
             failures.drop(1).forEach { first.addSuppressed(it) }
@@ -1616,10 +1725,20 @@ class DecisionElementBuilder internal constructor(
     /**
      *  Where this element's transitions go (§4.8.2). The factory is called once per experiment,
      *  at `beforeExperiment()`, with the provenance a row needs to be written without a live
-     *  `Model` — which is what lets a sink be tested standalone or write from another thread.
+     *  `Model` — which is what lets a sink be tested standalone or write from another thread. The
+     *  sink it returns is opened and closed for you, per experiment.
+     *
+     *  This is the *declared* form of capture, for a model that always records. It is now one line
+     *  over the general mechanism — it attaches a [ksl.sdm.capture.RollingSink] — so it is no
+     *  longer the only way in: [DecisionElement.attachTransitionSink] adds a sink to a model that
+     *  is already built, from `main()` or from a tool layer, and
+     *  [ksl.sdm.capture.DecisionCapture] does it for every decision element in a model at once.
+     *
+     *  Calling it twice attaches two sinks and both record, which is what it reads as. It used to
+     *  overwrite, so the first declaration was silently discarded.
      */
     fun captureTo(factory: (RunProvenance) -> TransitionSink) {
-        element.sinkFactory = factory
+        element.attachTransitionSink(ksl.sdm.capture.RollingSink(factory))
     }
 
     internal fun build(): DecisionElement {

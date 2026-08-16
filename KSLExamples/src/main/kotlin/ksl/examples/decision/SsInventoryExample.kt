@@ -74,10 +74,11 @@ class SsInventory(
      */
     declareOrderAsSetting: Boolean = false,
     /**
-     * Where to record this inventory's decisions, or `null` to record nothing. Capture is
-     * declared when the element is built and cannot be switched on afterwards (§4.10.3), so a
-     * model that wants a trajectory must say so here. `OverheadBenchmarkTest` uses it to
-     * measure what capture costs per epoch.
+     * Where to record this inventory's decisions, or `null` to record nothing. This is the
+     * *declared* form of capture (§4.10.3), which is one of two: a caller holding a built model
+     * can instead attach a sink to `review` from outside, or capture every decision element at
+     * once with `DecisionCapture`. `OverheadBenchmarkTest` uses this one to measure what capture
+     * costs per epoch.
      */
     private val decisionSink: ((RunProvenance) -> TransitionSink)? = null,
     name: String? = null

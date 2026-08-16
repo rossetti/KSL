@@ -26,11 +26,12 @@ class ClinicSubsystem(
     /**
      * Where to record this clinic's decisions, or `null` to record nothing.
      *
-     * Capture must be declared when the element is built (§4.10.3) — there is no way to
-     * switch a sink on afterwards, deliberately, because a run that recorded half its
-     * decisions is worse than one that recorded none. So a model that wants a trajectory
-     * has to say so here, and an example that could not say so could not demonstrate
-     * capture at all. `OverheadBenchmarkTest` uses it to measure what capture costs.
+     * The *declared* form of capture (§4.10.3): a model that always records says so here, and
+     * the sink is made and closed per experiment. It is no longer the only form — a caller
+     * holding a built model can attach a sink to `shiftReview` directly, or capture the whole
+     * model with `DecisionCapture` — so this parameter now exists because a worked example
+     * should show the declared form, not because the declared form is compulsory.
+     * `OverheadBenchmarkTest` uses it to measure what capture costs.
      */
     private val decisionSink: ((RunProvenance) -> TransitionSink)? = null,
     name: String? = null

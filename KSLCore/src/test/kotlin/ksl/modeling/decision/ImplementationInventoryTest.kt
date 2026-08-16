@@ -142,7 +142,13 @@ class ImplementationInventoryTest {
             // file format is one contract and splitting it across packages invites them to drift.
             "TabularSink" m 2,
             "TrajectoryFile" m 2,
-            "StoredTransition" m 2
+            "StoredTransition" m 2,
+            // A fresh delegate per experiment: the per-run factory, kept as a sink rather than as
+            // a second mechanism on the element.
+            "RollingSink" m 2,
+            // External attachment (§4.8.2). The animation layer's `AnimationCapture` in decision
+            // form: install on construction, reverse on close.
+            "DecisionCapture" m 2
         )
         return out
     }
