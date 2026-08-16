@@ -451,9 +451,13 @@ require_no_active_processes() {
 }
 
 cmd_update() {
-  local zip; zip="$(suite_zip)"
+  # Every check that can refuse the update runs BEFORE the download. suite_zip fetches
+  # ~150 MB, so guarding afterwards made a user who forgot to quit the server wait out a
+  # full download to be told they should have quit it -- and an unknown id do the same for
+  # a typo.
   if [ -z "${1:-}" ]; then
     require_no_active_processes "$SUPPORT" "update the suite"
+    local zip; zip="$(suite_zip)"
     # Extract EVERYTHING, exactly as install.sh does, then relocate the two things that do not
     # live under .support. The old code named the top-level directories one by one -- and named
     # 'bundles/*', which stopped existing when the shipped examples moved to examples/ in 0.3.0.
@@ -501,6 +505,7 @@ cmd_update() {
   else
     local path; path="$(path_of "$1")"; [ -n "$path" ] || die "unknown id: $1"
     require_no_active_processes "$SUPPORT/$path" "update $1"
+    local zip; zip="$(suite_zip)"
     unzip -q -o "$zip" "$path/*" -d "$SUPPORT"; dequarantine "$SUPPORT/$path"
     prune_foreign
     make_entry_point "$1"

@@ -406,9 +406,13 @@ function RequireNoActiveProcesses([string]$target, [string]$what) {
 }
 
 function CmdUpdate([string]$id) {
-    $zip = SuiteZip
+    # Every check that can refuse the update runs BEFORE the download. SuiteZip fetches
+    # ~150 MB, so guarding afterwards made a user who forgot to quit the server wait out a
+    # full download to be told they should have quit it -- and an unknown id do the same for
+    # a typo.
     if (-not $id) {
         RequireNoActiveProcesses $support "update the suite"
+        $zip = SuiteZip
         # 'bundles' stopped existing when the shipped examples moved to examples\ in 0.3.0, so an
         # update extracted a directory that was not there and skipped the one that was: the model
         # bundles and polished layouts were never refreshed. examples\ goes to $kslHome, not
@@ -462,6 +466,7 @@ function CmdUpdate([string]$id) {
         $p = PathOf $id
         if (-not $p) { Die "unknown id: $id" }
         RequireNoActiveProcesses (Join-Path $support ($p -replace '/', '\')) "update $id"
+        $zip = SuiteZip
         ExtractItem $zip $p; Dequarantine (Join-Path $support $p)
         PruneForeign
         MakeEntryPoint $id
