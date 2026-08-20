@@ -188,6 +188,16 @@ interface EstimatedResponseIfc {
             val v1 = estimate1.variance / n1
             val v2 = estimate2.variance / n2
             val v = v1 + v2
+            if (v <= 0.0) {
+                // Both estimates are degenerate (zero sample variance), which happens whenever the
+                // response is a deterministic function of the inputs. The difference of the two
+                // averages is then known exactly, so there is no sampling error to quantify and the
+                // interval collapses to the point estimate. Without this, the Welch-Satterthwaite
+                // degrees of freedom below are 0.0/0.0 = NaN, the (dof < 1.0) clamp does not fire
+                // for NaN, and StudentT rejects it. Mirrors the guard in
+                // ksl.simopt.solvers.algorithms.isc.CleanUpProcedure.plainConfidenceInterval.
+                return Interval(d, d)
+            }
             val dofNumerator = v * v
             val dofDenominator = ((v1 * v1) / (n1 + 1.0)) + ((v2 * v2) / (n2 + 1.0))
             var dof = (dofNumerator / dofDenominator) - 2.0
