@@ -156,14 +156,14 @@ open class ConfidenceIntervalEquality(
         }
 
     override fun equals(first: Solution, second: Solution): Boolean {
-        val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
-        if (ci.upperLimit + indifferenceZone < 0.0){
-            return false
-        } else  if (ci.lowerLimit - indifferenceZone > 0.0){
-            return false
-        } else {
-            return true
-        }
+        // Delegates rather than rebuilding the interval-versus-indifference-zone test: the
+        // comparison is exactly "the difference is not resolvable beyond the indifference zone",
+        // which compareEstimatedResponses reports as 0. Delegating also picks up its handling of
+        // single-observation estimates, for which a difference interval is not defined and
+        // differenceConfidenceInterval would reject the call.
+        return EstimatedResponseIfc.compareEstimatedResponses(
+            first, second, confidenceLevel, indifferenceZone
+        ) == 0
     }
 
 }

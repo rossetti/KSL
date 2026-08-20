@@ -177,7 +177,9 @@ interface EstimatedResponseIfc {
             level: Double = DEFAULT_CONFIDENCE_LEVEL
         ): Interval {
             require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
-            //TODO I might be able to handle the case where one of the count's is one, what if variance is Double.NaN
+            // A single observation has no sample variance, so a difference interval is not defined
+            // and the call is rejected. Callers that may see single-observation estimates should
+            // go through compareEstimatedResponses, which handles those cases directly.
             require(estimate1.count >= 2.0) { "The number of observations must be greater than or equal to 2.0: $estimate1" }
             require(estimate2.count >= 2.0) { "The number of observations must be greater than or equal to 2.0: $estimate2" }
             require(estimate1.variance.isFinite()) { "The number of variance must be finite: $estimate1" }
@@ -234,7 +236,11 @@ interface EstimatedResponseIfc {
             require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
             if (estimate1.count == 1.0 && estimate2.count == 1.0) {
                 val d = estimate1.average - estimate2.average
-                if (d < indifferenceZone) {
+                // The indifference zone is a symmetric band about zero, as in the branches below
+                // that test (upperLimit + iz < 0) and (lowerLimit - iz > 0). Comparing d against
+                // +iz on both sides would report two equal single observations as "less than"
+                // for any positive indifference zone.
+                if (d < -indifferenceZone) {
                     return -1
                 } else if (d > indifferenceZone) {
                     return 1

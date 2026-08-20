@@ -309,7 +309,9 @@ class BenchmarkResultsDb @JvmOverloads constructor(
 
     /**
      *  A `MultipleComparisonAnalyzer` over one problem's final objectives (see
-     *  [mcbDataMap]); null when fewer than two solver cases have complete data.
+     *  [mcbDataMap]); null when the data cannot support a multiple comparison — fewer than
+     *  two solver cases with complete data, unequal numbers of observations across the
+     *  cases, or fewer than two observations per case.
      */
     fun mcbAnalyzer(expId: Int, problemName: String, useGaps: Boolean = false): MultipleComparisonAnalyzer? {
         val dataMap = mcbDataMap(expId, problemName, useGaps)
@@ -318,6 +320,13 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         }
         val sizes = dataMap.values.map { it.size }.toSet()
         if (sizes.size != 1) {
+            return null
+        }
+        // A single macro-replication per solver leaves no degrees of freedom: the analyzer's
+        // interval arithmetic uses (number of observations - 1), which StudentT rejects below 1.
+        // Decline the analysis rather than throwing from deep inside it, so that a study whose
+        // compute has already been spent still reports its runs.
+        if (sizes.first() < 2) {
             return null
         }
         return MultipleComparisonAnalyzer(dataMap, responseName = problemName)

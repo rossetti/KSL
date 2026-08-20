@@ -77,6 +77,42 @@ class DifferenceConfidenceIntervalTest {
     }
 
     @Test
+    @DisplayName("The indifference zone is a symmetric band for single-observation estimates")
+    fun singleObservationIndifferenceZoneIsSymmetric() {
+        val single = { avg: Double -> EstimatedResponse(NAME, avg, Double.NaN, 1.0) }
+        val a = single(5.0)
+        val b = single(5.0)
+
+        // Equal single observations are equal, whatever the indifference zone.
+        assertEquals(0, EstimatedResponseIfc.compareEstimatedResponses(a, b, LEVEL))
+        assertEquals(0, EstimatedResponseIfc.compareEstimatedResponses(a, b, LEVEL, indifferenceZone = 2.0))
+
+        // A difference strictly inside the band is not resolvable either way.
+        assertEquals(
+            0,
+            EstimatedResponseIfc.compareEstimatedResponses(single(4.0), single(5.0), LEVEL, indifferenceZone = 2.0)
+        )
+        assertEquals(
+            0,
+            EstimatedResponseIfc.compareEstimatedResponses(single(6.0), single(5.0), LEVEL, indifferenceZone = 2.0)
+        )
+
+        // Outside the band the ordering is reported, and it is antisymmetric.
+        assertEquals(
+            -1,
+            EstimatedResponseIfc.compareEstimatedResponses(single(1.0), single(5.0), LEVEL, indifferenceZone = 2.0)
+        )
+        assertEquals(
+            1,
+            EstimatedResponseIfc.compareEstimatedResponses(single(5.0), single(1.0), LEVEL, indifferenceZone = 2.0)
+        )
+
+        // With no indifference zone the sign of the difference decides.
+        assertEquals(-1, EstimatedResponseIfc.compareEstimatedResponses(single(4.0), single(5.0), LEVEL))
+        assertEquals(1, EstimatedResponseIfc.compareEstimatedResponses(single(5.0), single(4.0), LEVEL))
+    }
+
+    @Test
     @DisplayName("One zero variance reduces to the other sample's one-sample interval")
     fun oneZeroVarianceReducesToOneSampleInterval() {
         val n2 = 12.0

@@ -13,6 +13,7 @@ import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -94,12 +95,16 @@ class BenchmarkResultsDbTest {
         )
     }
 
-    private fun runExperiment(traces: Boolean, verification: Int? = null): BenchmarkSummary {
+    private fun runExperiment(
+        traces: Boolean,
+        verification: Int? = null,
+        macroReplications: Int = 2
+    ): BenchmarkSummary {
         return BenchmarkExperiment(
             name = if (traces) "tracedExp" else "plainExp",
             problems = listOf(sphereProblem("sphereA"), sphereProblem("sphereB")),
             solverCases = listOf(shcCase("shcA", 10), shcCase("shcB", 5)),
-            macroReplications = 2,
+            macroReplications = macroReplications,
             replicationBudgetPerRun = BUDGET,
             captureIterationTraces = traces,
             verificationReplications = verification,
@@ -201,6 +206,19 @@ class BenchmarkResultsDbTest {
         assertTrue(dataMap.values.all { it.size == 2 })
         val analyzer = db.mcbAnalyzer(expId, "sphereA")
         assertNotNull(analyzer)
+    }
+
+    @Test
+    @DisplayName("The MCB feed declines a single-macro-replication experiment instead of throwing")
+    fun mcbAnalyzerDeclinesSingleMacroReplication() {
+        val db = BenchmarkResultsDb("mcbSingle.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runExperiment(traces = false, macroReplications = 1))
+        // The runs are still recorded and readable -- only the comparison is declined.
+        val dataMap = db.mcbDataMap(expId, "sphereA")
+        assertEquals(setOf("shcA", "shcB"), dataMap.keys)
+        assertTrue(dataMap.values.all { it.size == 1 })
+        // One observation per case leaves no degrees of freedom for the interval arithmetic.
+        assertNull(db.mcbAnalyzer(expId, "sphereA"))
     }
 
     @Test

@@ -76,12 +76,12 @@ class DeterministicObjectiveTest {
      * Runs a hill climber to its own termination — no replication-budget criterion, so the
      * solver's own no-improvement check decides when to stop, which is the path under test.
      */
-    private fun runHillClimber(noiseScale: Double): StochasticHillClimber {
+    private fun runHillClimber(noiseScale: Double, repsPerEvaluation: Int = 10): StochasticHillClimber {
         val pd = makeProblem()
         val solver = StochasticHillClimber(
             pd, makeEvaluator(pd, noiseScale),
             maximumIterations = 100,
-            replicationsPerEvaluation = 10
+            replicationsPerEvaluation = repsPerEvaluation
         )
         solver.runAllIterations()
         return solver
@@ -103,6 +103,21 @@ class DeterministicObjectiveTest {
     @DisplayName("Control condition: the same fixture with a noisy objective completes")
     fun hillClimberCompletesOnNoisyObjective() {
         val solver = runHillClimber(noiseScale = 1.0e-3)
+        assertTrue(solver.bestSolution.isValid) {
+            "The solver did not return a valid best solution: ${solver.bestSolution}"
+        }
+        assertTrue(solver.iterationCounter > 0) {
+            "The solver did not run any iterations"
+        }
+    }
+
+    @Test
+    @DisplayName("A hill climber completes at one replication per evaluation")
+    fun hillClimberCompletesAtOneReplicationPerEvaluation() {
+        // A single observation has no sample variance, so the no-improvement check cannot form a
+        // difference interval; the comparison must fall back to the averages rather than reject
+        // the call.
+        val solver = runHillClimber(noiseScale = 1.0e-3, repsPerEvaluation = 1)
         assertTrue(solver.bestSolution.isValid) {
             "The solver did not return a valid best solution: ${solver.bestSolution}"
         }
