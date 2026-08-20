@@ -297,8 +297,40 @@ class BenchmarkResultsDb @JvmOverloads constructor(
      *  raw objective values (NaN for runs without a gap)
      */
     fun mcbDataMap(expId: Int, problemName: String, useGaps: Boolean = false): Map<String, DoubleArray> {
-        val rows = runs(expId).filter {
-            it.problemName == problemName && it.status == "COMPLETED" && it.bestValid
+        return mcbDataMap(listOf(expId), problemName, useGaps)
+    }
+
+    /**
+     *  The multiple-comparison feed for one problem pooled across several experiments — the
+     *  blocks of one study, run as separate experiments so that a long run can be checkpointed
+     *  and resumed. Solver case label mapped to the final objective values (or gaps) across the
+     *  completed, valid macro-replications of every supplied experiment, ordered by replication
+     *  number.
+     *
+     *  The experiments must be blocks of the SAME study: a (solver, macro-replication) pair may
+     *  appear at most once across them. Pooling unrelated experiments, or the same block twice,
+     *  would silently double the sample and report intervals far tighter than the data supports,
+     *  so it is rejected rather than averaged over.
+     *
+     *  @param expIds the experiment ids to pool; must not be empty
+     *  @param problemName the problem's name
+     *  @param useGaps when true the arrays hold the recorded optimality gaps instead of
+     *  raw objective values (NaN for runs without a gap)
+     */
+    fun mcbDataMap(
+        expIds: Collection<Int>,
+        problemName: String,
+        useGaps: Boolean = false
+    ): Map<String, DoubleArray> {
+        require(expIds.isNotEmpty()) { "At least one experiment id must be supplied" }
+        val idSet = expIds.toSet()
+        val rows = selectTableDataIntoDbData(::RunTableData).filter {
+            it.expId in idSet && it.problemName == problemName && it.status == "COMPLETED" && it.bestValid
+        }
+        val duplicates = rows.groupBy { it.solverLabel to it.repNum }.filterValues { it.size > 1 }
+        require(duplicates.isEmpty()) {
+            "Experiments $expIds are not disjoint blocks of one study: problem '$problemName' has " +
+                    "repeated (solver, macro-replication) pairs ${duplicates.keys}"
         }
         return rows.groupBy { it.solverLabel }.mapValues { (_, list) ->
             list.sortedBy { it.repNum }
@@ -314,7 +346,21 @@ class BenchmarkResultsDb @JvmOverloads constructor(
      *  cases, or fewer than two observations per case.
      */
     fun mcbAnalyzer(expId: Int, problemName: String, useGaps: Boolean = false): MultipleComparisonAnalyzer? {
-        val dataMap = mcbDataMap(expId, problemName, useGaps)
+        return mcbAnalyzer(listOf(expId), problemName, useGaps)
+    }
+
+    /**
+     *  A `MultipleComparisonAnalyzer` over one problem's final objectives pooled across the
+     *  blocks of one study (see the pooled [mcbDataMap]); null when the data cannot support a
+     *  multiple comparison — fewer than two solver cases with complete data, unequal numbers of
+     *  observations across the cases, or fewer than two observations per case.
+     */
+    fun mcbAnalyzer(
+        expIds: Collection<Int>,
+        problemName: String,
+        useGaps: Boolean = false
+    ): MultipleComparisonAnalyzer? {
+        val dataMap = mcbDataMap(expIds, problemName, useGaps)
         if (dataMap.size < 2) {
             return null
         }
@@ -348,20 +394,81 @@ class BenchmarkResultsDb @JvmOverloads constructor(
      *  @param numPoints the number of budget-fraction grid points in (0, 1]
      */
     fun performanceProfile(expId: Int, tau: Double, numPoints: Int = 20): List<PerformanceProfilePoint> {
+        return performanceProfile(listOf(expId), tau, numPoints)
+    }
+
+    /**
+     *  Performance-profile data pooled across the blocks of one study (see the pooled
+     *  [mcbDataMap]). The blocks must share a replication budget, since the profile's x-axis is
+     *  the fraction of that budget; pooling experiments with different budgets would put
+     *  incomparable cells on one axis.
+     *
+     *  Each problem needs one solve threshold across the whole pooled set. Problems measured
+     *  against a reference solution already carry the same basis in every block and it is used
+     *  directly. A problem with no reference is gapped against the best objective found within
+     *  its experiment, so the blocks disagree — the basis is then recomputed as the best across
+     *  every pooled run of that problem, which is the value a single unblocked run would have
+     *  recorded. With one experiment there is nothing to disagree with, so a single-experiment
+     *  profile is unchanged.
+     *
+     *  @param expIds the experiment ids to pool; must not be empty
+     *  @param tau the solve tolerance above the gap basis; must be non-negative
+     *  @param numPoints the number of budget-fraction grid points in (0, 1]
+     */
+    fun performanceProfile(
+        expIds: Collection<Int>,
+        tau: Double,
+        numPoints: Int = 20
+    ): List<PerformanceProfilePoint> {
+        require(expIds.isNotEmpty()) { "At least one experiment id must be supplied" }
         require(tau >= 0.0) { "tau must be >= 0.0" }
         require(numPoints >= 1) { "numPoints must be >= 1" }
-        val experiment = experiments().firstOrNull { it.expId == expId } ?: return emptyList()
-        val budget = experiment.replicationBudgetPerRun.toDouble()
-        val problemByName = problems(expId).associateBy { it.problemName }
-        val tracesByRun = traces(expId).groupBy { it.runId }
+        val idSet = expIds.toSet()
+        val pooled = experiments().filter { it.expId in idSet }
+        if (pooled.isEmpty()) return emptyList()
+        val budgets = pooled.map { it.replicationBudgetPerRun }.toSet()
+        require(budgets.size == 1) {
+            "Experiments $expIds do not share a replication budget (found $budgets); the profile's " +
+                    "budget fraction would not be comparable across them"
+        }
+        val budget = budgets.first().toDouble()
+        val allRuns = selectTableDataIntoDbData(::RunTableData).filter { it.expId in idSet }
+        val problemRows = selectTableDataIntoDbData(::ProblemTableData).filter { it.expId in idSet }
+        val runIds = allRuns.map { it.runId }.toSet()
+        val tracesByRun = selectTableDataIntoDbData(::IterationTraceTableData)
+            .filter { it.runId in runIds }
+            .groupBy { it.runId }
+
+        // one threshold per problem across the whole pooled set
+        val orientationByProblem = mutableMapOf<String, Double>()
+        val thresholdByProblem = mutableMapOf<String, Double>()
+        for ((problemName, rows) in problemRows.groupBy { it.problemName }) {
+            val orientation = if (rows.first().optimizationType == "MAXIMIZE") -1.0 else 1.0
+            orientationByProblem[problemName] = orientation
+            val bases = rows.mapNotNull { it.gapBasisObjective }.toSet()
+            val basis = when {
+                bases.isEmpty() -> null
+                bases.size == 1 -> bases.first()
+                else -> {
+                    require(rows.all { it.gapType == "BEST_FOUND" }) {
+                        "Problem '$problemName' is measured against a reference solution but the " +
+                                "pooled experiments $expIds disagree on its basis $bases"
+                    }
+                    allRuns.filter { it.problemName == problemName && it.status == "COMPLETED" && it.bestValid }
+                        .minOfOrNull { orientation * it.bestObjective }
+                        ?.let { it * orientation }
+                }
+            }
+            if (basis != null) {
+                thresholdByProblem[problemName] = orientation * basis + tau
+            }
+        }
+
         val solveFractions = mutableListOf<Pair<String, Double?>>()
-        for (run in runs(expId)) {
+        for (run in allRuns) {
             if (run.status != "COMPLETED") continue
-            val problem = problemByName[run.problemName] ?: continue
-            val basis = problem.gapBasisObjective ?: continue
+            val threshold = thresholdByProblem[run.problemName] ?: continue
             val trace = tracesByRun[run.runId] ?: continue
-            val orientation = if (problem.optimizationType == "MAXIMIZE") -1.0 else 1.0
-            val threshold = orientation * basis + tau
             val solvedAt = trace.sortedBy { it.iteration }
                 .firstOrNull { it.bestPenalizedObjective <= threshold }
                 ?.cumulativeReplications

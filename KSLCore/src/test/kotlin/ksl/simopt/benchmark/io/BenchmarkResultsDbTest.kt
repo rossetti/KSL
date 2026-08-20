@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -98,13 +99,16 @@ class BenchmarkResultsDbTest {
     private fun runExperiment(
         traces: Boolean,
         verification: Int? = null,
-        macroReplications: Int = 2
+        macroReplications: Int = 2,
+        range: IntRange = 1..macroReplications,
+        name: String = if (traces) "tracedExp" else "plainExp"
     ): BenchmarkSummary {
         return BenchmarkExperiment(
-            name = if (traces) "tracedExp" else "plainExp",
+            name = name,
             problems = listOf(sphereProblem("sphereA"), sphereProblem("sphereB")),
             solverCases = listOf(shcCase("shcA", 10), shcCase("shcB", 5)),
             macroReplications = macroReplications,
+            macroReplicationRange = range,
             replicationBudgetPerRun = BUDGET,
             captureIterationTraces = traces,
             verificationReplications = verification,
@@ -245,5 +249,74 @@ class BenchmarkResultsDbTest {
         // an untraced experiment yields no profile data
         val plainId = db.saveSummary(runExperiment(traces = false))
         assertTrue(db.performanceProfile(plainId, tau = 5.0).isEmpty())
+    }
+
+    @Test
+    @DisplayName("A study run in blocks pools to the same MCB feed as the same study run whole")
+    fun blockedStudyPoolsToTheWholeStudyMcbFeed() {
+        val db = BenchmarkResultsDb("mcbPooled.db", tempDir).also { openDatabases += it }
+        val whole = db.saveSummary(runExperiment(traces = false, macroReplications = 4, name = "whole"))
+        val block1 = db.saveSummary(
+            runExperiment(traces = false, macroReplications = 4, range = 1..2, name = "block1")
+        )
+        val block2 = db.saveSummary(
+            runExperiment(traces = false, macroReplications = 4, range = 3..4, name = "block2")
+        )
+
+        val wholeFeed = db.mcbDataMap(whole, "sphereA")
+        val pooledFeed = db.mcbDataMap(listOf(block1, block2), "sphereA")
+        assertEquals(wholeFeed.keys, pooledFeed.keys)
+        for ((label, values) in wholeFeed) {
+            assertEquals(values.toList(), pooledFeed.getValue(label).toList()) {
+                "Pooled feed differs for solver $label"
+            }
+        }
+
+        // and the analyzer sees all four observations, not two of them twice
+        val analyzer = db.mcbAnalyzer(listOf(block1, block2), "sphereA")
+        assertNotNull(analyzer)
+        assertTrue(pooledFeed.values.all { it.size == 4 }) {
+            "Expected four pooled observations per solver, got ${pooledFeed.mapValues { it.value.size }}"
+        }
+    }
+
+    @Test
+    @DisplayName("Pooling the same block twice is rejected rather than silently doubling the sample")
+    fun poolingOverlappingBlocksIsRejected() {
+        val db = BenchmarkResultsDb("mcbOverlap.db", tempDir).also { openDatabases += it }
+        val block1 = db.saveSummary(
+            runExperiment(traces = false, macroReplications = 4, range = 1..2, name = "block1")
+        )
+        val alsoBlock1 = db.saveSummary(
+            runExperiment(traces = false, macroReplications = 4, range = 1..2, name = "block1Again")
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            db.mcbDataMap(listOf(block1, alsoBlock1), "sphereA")
+        }
+    }
+
+    @Test
+    @DisplayName("A blocked study's performance profile matches the whole study's")
+    fun blockedStudyPoolsToTheWholeStudyProfile() {
+        val db = BenchmarkResultsDb("profilePooled.db", tempDir).also { openDatabases += it }
+        val whole = db.saveSummary(runExperiment(traces = true, macroReplications = 4, name = "whole"))
+        val block1 = db.saveSummary(
+            runExperiment(traces = true, macroReplications = 4, range = 1..2, name = "block1")
+        )
+        val block2 = db.saveSummary(
+            runExperiment(traces = true, macroReplications = 4, range = 3..4, name = "block2")
+        )
+
+        // These problems have no reference solution, so each experiment recorded its own
+        // best-found basis and the blocks disagree; the pooled profile must recompute the basis
+        // across every pooled run rather than use one block's.
+        val wholeProfile = db.performanceProfile(whole, tau = 1.0).sortedWith(
+            compareBy({ it.solverLabel }, { it.budgetFraction })
+        )
+        val pooledProfile = db.performanceProfile(listOf(block1, block2), tau = 1.0).sortedWith(
+            compareBy({ it.solverLabel }, { it.budgetFraction })
+        )
+        assertEquals(wholeProfile, pooledProfile)
+        assertTrue(wholeProfile.isNotEmpty()) { "The profile fixture produced no points" }
     }
 }
