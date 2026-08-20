@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Clock
 import ksl.simopt.evaluator.EvaluationRequest
+import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
@@ -19,8 +20,8 @@ import ksl.simopt.solvers.concurrent.MemberStatus
 import ksl.simopt.solvers.concurrent.SolutionConfirmation
 import ksl.simopt.solvers.concurrent.SolverFactoryIfc
 import ksl.simopt.solvers.concurrent.SolverMemberResult
+import ksl.simopt.solvers.concurrent.MemberEvaluatorFactoryIfc
 import ksl.simopt.solvers.concurrent.SolverMemberTask
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
@@ -42,10 +43,16 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *     stops the solver); the solver-internal convergence fallbacks that live behind the
  *     criterion slot are superseded, which is the intended equal-effort semantics.
  *  2. **Common starting points.** For each (problem, macro-replication), one starting
- *     point is pre-drawn on the launching thread from the experiment's stream and
- *     shared by every solver case — solvers race from common starts and macro-reps vary
- *     the start. Each cell receives its own copy. Population-based solvers that ignore
- *     starting points simply ignore them.
+ *     point is pre-drawn on the launching thread and shared by every solver case —
+ *     solvers race from common starts and macro-reps vary the start. Each cell receives
+ *     its own copy. Population-based solvers that ignore starting points simply ignore
+ *     them. The draw is addressed **absolutely** by (problem position, macro-replication):
+ *     the problem at position p draws from stream p + 1 of the experiment's provider, and
+ *     macro-replication r takes sub-stream r - 1 of it. A starting point therefore does not
+ *     depend on how many draws preceded it, which is what makes [macroReplicationRange]
+ *     compose and makes a repeated run reproduce. Widening a study's macro-replications, or
+ *     appending a problem, leaves every existing draw where it was; inserting a problem
+ *     shifts the positions after it, and with them their streams.
  *  3. **Confirmation (optional).** After all of a problem's cells complete, the best
  *     solutions are re-evaluated under common random numbers via a dedicated evaluator
  *     (provisioned as an extra member, so it has its own stream block) and the winner is
@@ -67,6 +74,13 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param problems the problem cases; names must be unique
  *  @param solverCases the solver configurations; labels must be unique
  *  @param macroReplications the number of macro-replications per (problem, solver) pair
+ *  in the study this experiment belongs to; it fixes the addressing of starting points,
+ *  so blocks of one study must all declare the same value
+ *  @param macroReplicationRange which of those macro-replications THIS experiment runs.
+ *  Defaults to all of them. Running a study as several experiments over disjoint
+ *  sub-ranges is cell-for-cell identical to running it as one, which is how a long study
+ *  is checkpointed: each block is saved on completion and a resumed run skips the blocks
+ *  already present
  *  @param replicationBudgetPerRun the per-cell replication budget
  *  @param confirmation confirmation-stage options; null disables confirmation
  *  @param captureIterationTraces when true, every cell solver's per-iteration progress
@@ -89,6 +103,7 @@ class BenchmarkExperiment(
     val problems: List<ProblemCase>,
     val solverCases: List<SolverCase>,
     val macroReplications: Int,
+    val macroReplicationRange: IntRange = 1..macroReplications,
     val replicationBudgetPerRun: Int,
     val confirmation: ConfirmationOptions? = ConfirmationOptions(),
     val captureIterationTraces: Boolean = false,
@@ -111,6 +126,10 @@ class BenchmarkExperiment(
             "Solver case labels must be unique; got $labels"
         }
         require(macroReplications >= 1) { "macroReplications must be >= 1" }
+        require(!macroReplicationRange.isEmpty()) { "macroReplicationRange must not be empty" }
+        require(macroReplicationRange.first >= 1 && macroReplicationRange.last <= macroReplications) {
+            "macroReplicationRange $macroReplicationRange must lie within 1..$macroReplications"
+        }
         require(replicationBudgetPerRun >= 1) { "replicationBudgetPerRun must be >= 1" }
         require(verificationReplications == null || verificationReplications >= 1) {
             "verificationReplications must be >= 1 when specified"
@@ -118,7 +137,10 @@ class BenchmarkExperiment(
         require(numWorkers == null || numWorkers > 0) { "numWorkers must be > 0 when specified" }
     }
 
-    private val myExperimentStream: RNStreamIfc = experimentStreamProvider.rnStream(1)
+    private val myExperimentStreamProvider: RNStreamProviderIfc = experimentStreamProvider
+
+    /** The macro-replications this experiment runs, in order. */
+    private val myRepNumbers: List<Int> = macroReplicationRange.toList()
     private val myTraces = java.util.concurrent.ConcurrentHashMap<String, MutableList<IterationTracePoint>>()
     private val mySolverConfigurations = java.util.concurrent.ConcurrentHashMap<String, Map<String, String>>()
 
@@ -127,18 +149,20 @@ class BenchmarkExperiment(
      *  concurrently, awaits them in cell order, runs the optional confirmation stage,
      *  computes gaps, and records everything.
      *
-     *  May be called once per instance; the experiment stream advances as starting
-     *  points are drawn, so a second call would not reproduce the first.
+     *  Repeatable: starting points are addressed absolutely by (problem, macro-replication)
+     *  rather than drawn in sequence, so a second call reproduces the first.
      */
     fun run(): BenchmarkSummary {
-        logger.info { "Benchmark experiment '$name': ${problems.size} problems x ${solverCases.size} solver cases x $macroReplications reps, budget $replicationBudgetPerRun" }
+        logger.info { "Benchmark experiment '$name': ${problems.size} problems x ${solverCases.size} solver cases x macro-replications $macroReplicationRange of $macroReplications, budget $replicationBudgetPerRun" }
         val startTime = Clock.System.now()
-        val problemResults = problems.map { runProblem(it) }
+        val problemResults = problems.mapIndexed { problemIndex, problemCase ->
+            runProblem(problemIndex, problemCase)
+        }
         val endTime = Clock.System.now()
         logger.info { "Benchmark experiment '$name' complete" }
         return BenchmarkSummary(
             experimentName = name,
-            macroReplications = macroReplications,
+            macroReplications = myRepNumbers.size,
             replicationBudgetPerRun = replicationBudgetPerRun,
             confirmation = confirmation,
             verificationReplications = verificationReplications,
@@ -151,25 +175,41 @@ class BenchmarkExperiment(
         )
     }
 
-    private fun runProblem(problemCase: ProblemCase): ProblemBenchmarkResult {
+    private fun runProblem(problemIndex: Int, problemCase: ProblemCase): ProblemBenchmarkResult {
         logger.info { "Benchmark '$name': running problem '${problemCase.name}'" }
         val problemDefinition = problemCase.problemDefinitionFactory()
-        val evaluatorFactory = problemCase.evaluatorFactoryProvider(problemDefinition)
-        // one common starting point per macro-replication, pre-drawn on this thread
-        val startingPoints: List<InputMap> = List(macroReplications) {
-            problemDefinition.startingPoint(myExperimentStream)
+        // A member's stream block is derived from the index it is created with, and the runner
+        // numbers members by their position in ITS task list -- which shrinks when only part of
+        // the study runs. Remap those positions onto study-wide member numbers so that a cell's
+        // streams depend on (solver, macro-replication) rather than on which block it ran in.
+        // For the full range this mapping is the identity, so an unblocked run is unchanged.
+        val evaluatorFactory = StudyIndexedEvaluatorFactory(
+            problemCase.evaluatorFactoryProvider(problemDefinition),
+            ::studyMemberIndex
+        )
+        // One common starting point per macro-replication, pre-drawn on this thread and
+        // addressed absolutely: this problem draws from its own stream, and macro-replication
+        // r sits on sub-stream r - 1 of it. The point for (problem, r) therefore depends only
+        // on (problem, r) -- not on how many problems or replications came before -- so
+        // disjoint macroReplicationRange blocks reproduce the same points a whole run would
+        // give, and adding a problem does not perturb any other problem's starts.
+        val startingPointStream = myExperimentStreamProvider.rnStream(problemIndex + 1)
+        val startingPoints: Map<Int, InputMap> = myRepNumbers.associateWith { repNum ->
+            startingPointStream.resetStartStream()
+            startingPointStream.advanceSubStreams((repNum - 1).toLong())
+            problemDefinition.startingPoint(startingPointStream)
         }
         // cells in deterministic order: solver case major, macro-replication minor
         val tasks = mutableListOf<SolverMemberTask>()
         for (solverCase in solverCases) {
-            for (repNum in 1..macroReplications) {
+            for (repNum in myRepNumbers) {
                 val cellLabel = "${problemCase.name}_${solverCase.label}_r$repNum"
                 tasks.add(
                     SolverMemberTask(
                         solverFactory = budgeted(problemDefinition, solverCase),
                         label = cellLabel,
                         // a private copy: starting points are shared across cells by value
-                        startingPoint = problemDefinition.toInputMap(startingPoints[repNum - 1].toMutableMap()),
+                        startingPoint = problemDefinition.toInputMap(startingPoints.getValue(repNum).toMutableMap()),
                         innerSolverDecorator = cellSolverDecorator?.let { decorator ->
                             { solver, _ -> decorator(solver, problemCase.name, solverCase.label, repNum) }
                         }
@@ -191,7 +231,7 @@ class BenchmarkExperiment(
         var verification: Solution? = null
         val candidates = memberResults.filter { it.isSuccess && it.bestSolution.isValid }.map { it.bestSolution }
         if (candidates.isNotEmpty() && (confirmation != null || verificationReplications != null)) {
-            val extraEvaluator = evaluatorFactory.createEvaluator(tasks.size)
+            val extraEvaluator = evaluatorFactory.createEvaluator(CONFIRMATION_MEMBER)
             try {
                 if (confirmation != null) {
                     confirmationOutcome = SolutionConfirmation.confirmBest(
@@ -217,7 +257,7 @@ class BenchmarkExperiment(
                     }
                 }
             } finally {
-                evaluatorFactory.release(tasks.size, extraEvaluator, true)
+                evaluatorFactory.release(CONFIRMATION_MEMBER, extraEvaluator, true)
             }
         }
         return recordProblem(
@@ -270,10 +310,41 @@ class BenchmarkExperiment(
         }
     }
 
+    /**
+     *  The study-wide member number for a task at [taskIndex] in this experiment's task list.
+     *  Tasks are ordered solver-case major, macro-replication minor, so the study-wide number is
+     *  the position the same cell would occupy if the whole study ran as one experiment.
+     */
+    private fun studyMemberIndex(taskIndex: Int): Int {
+        if (taskIndex == CONFIRMATION_MEMBER) {
+            // one past the last study member, so it never collides with a cell
+            return solverCases.size * macroReplications
+        }
+        val solverIndex = taskIndex / myRepNumbers.size
+        val repNum = myRepNumbers[taskIndex % myRepNumbers.size]
+        return solverIndex * macroReplications + (repNum - 1)
+    }
+
+    /**
+     *  Presents a member-evaluator factory under study-wide member numbering. See
+     *  [studyMemberIndex]; the sentinel [CONFIRMATION_MEMBER] addresses the confirmation and
+     *  verification evaluator.
+     */
+    private class StudyIndexedEvaluatorFactory(
+        private val inner: MemberEvaluatorFactoryIfc,
+        private val studyIndexOf: (Int) -> Int
+    ) : MemberEvaluatorFactoryIfc {
+        override fun createEvaluator(memberIndex: Int): EvaluatorIfc =
+            inner.createEvaluator(studyIndexOf(memberIndex))
+
+        override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) =
+            inner.release(studyIndexOf(memberIndex), evaluator, reusable)
+    }
+
     private fun recordProblem(
         problemCase: ProblemCase,
         problemDefinition: ProblemDefinition,
-        startingPoints: List<InputMap>,
+        startingPoints: Map<Int, InputMap>,
         memberResults: List<SolverMemberResult>,
         confirmationOutcome: ConfirmationOutcome?,
         verification: Solution?
@@ -296,8 +367,8 @@ class BenchmarkExperiment(
             gapType = if (gapBasis != null) GapType.BEST_FOUND else null
         }
         val runs = memberResults.mapIndexed { cellIndex, member ->
-            val solverCase = solverCases[cellIndex / macroReplications]
-            val repNum = (cellIndex % macroReplications) + 1
+            val solverCase = solverCases[cellIndex / myRepNumbers.size]
+            val repNum = myRepNumbers[cellIndex % myRepNumbers.size]
             val best = member.bestSolution
             val isBestValid = member.isSuccess && best.isValid
             val completed = member.solverResult as? SolverResult.Completed
@@ -313,7 +384,7 @@ class BenchmarkExperiment(
                 repNum = repNum,
                 cellLabel = member.label,
                 status = member.status,
-                startingPoint = startingPoints[repNum - 1].toMap(),
+                startingPoint = startingPoints.getValue(repNum).toMap(),
                 bestInputs = best.inputMap.toMap(),
                 bestObjective = best.average,
                 bestPenalizedObjective = best.penalizedObjFncValue,
@@ -347,6 +418,12 @@ class BenchmarkExperiment(
     }
 
     companion object {
+        /**
+         *  Addresses the dedicated confirmation and verification evaluator rather than a cell.
+         *  Negative so it can never be a task-list position.
+         */
+        private const val CONFIRMATION_MEMBER: Int = -1
+
         val logger: KLogger = KotlinLogging.logger {}
     }
 }
