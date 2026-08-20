@@ -105,7 +105,17 @@ class PooledMemberEvaluatorFactory(
         }
     }
 
-    private fun buildFreshModel(): Model {
+    // Model construction is serialized. A model builder is ordinary user code that runs once per
+    // fresh model, and members build theirs on worker threads, so without this several builders
+    // run at the same time and any state they share is contended. The known case is that a
+    // free-standing random variable -- the documented way to give a model its randomness --
+    // consults the shared default stream provider, whose thread safety this no longer depends on
+    // but which is not the only thing a builder might touch. Construction is a small, one-off
+    // part of a member's life and models are pooled and reused, so the serialization costs
+    // little and buys determinism that does not rest on assumptions about the builder.
+    private val myBuildLock = Any()
+
+    private fun buildFreshModel(): Model = synchronized(myBuildLock) {
         val model = modelBuilder.build(modelConfiguration, baseRunParameters)
         silenceModelReporting(model)
         if (myValidatedFirstModel.compareAndSet(false, true)) {

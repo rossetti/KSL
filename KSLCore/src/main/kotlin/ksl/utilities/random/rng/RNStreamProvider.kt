@@ -51,12 +51,25 @@ class RNStreamProvider(
             field = value
         }
 
+    // Guards the factory and the provided-stream list. A provider is shared by every random
+    // variable that does not name its own, so it can be reached from more than one thread --
+    // building models concurrently is the common case. Without this, two threads growing the
+    // list at once can each land at a different index, and since a stream's NUMBER is its
+    // position in the list, a variable that asked for stream 1 could report stream 6 and be
+    // bound to the wrong stream. The lock covers construction and lookup only; drawing numbers
+    // from a stream never touches it.
+    private val myLock = Any()
+
     private val myStreamFactory: RNStreamFactory = RNStreamFactory()
 
     private val myStreams: MutableList<RNStreamIfc> = ArrayList()
 
+    /**
+     *  A snapshot of the streams provided so far. It is a copy, so iterating it while another
+     *  thread asks for a new stream is safe; a stream provided after the call is not included.
+     */
     override val streams: Iterator<RNStreamIfc>
-        get() = myStreams.iterator()
+        get() = synchronized(myLock) { myStreams.toList() }.iterator()
 
     override val defaultStreamNumber: Int = defaultStreamNum
 
@@ -65,7 +78,7 @@ class RNStreamProvider(
 //        defaultRNStream()
     }
 
-    override fun nextRNStream(): RNStreamIfc {
+    override fun nextRNStream(): RNStreamIfc = synchronized(myLock) {
         val stream = myStreamFactory.nextStream() as RNStreamFactory.RNStream
         myStreams.add(stream)
         if (myStreams.size > streamNumberWarningLimit) {
@@ -77,9 +90,9 @@ class RNStreamProvider(
         return stream
     }
 
-    override fun lastRNStreamNumber() : Int = myStreams.size
+    override fun lastRNStreamNumber() : Int = synchronized(myLock) { myStreams.size }
 
-    override fun rnStream(streamNum: Int): RNStreamIfc {
+    override fun rnStream(streamNum: Int): RNStreamIfc = synchronized(myLock) {
         if (streamNum == 0) {
             //logger.info { "RNStreamProvider($name) : requested next stream."}
             return nextRNStream()
@@ -105,18 +118,17 @@ class RNStreamProvider(
         }
     }
 
-    override fun streamNumber(stream: RNStreamIfc): Int {
-        return if (myStreams.indexOf(stream) == -1) {
-            -1
-        } else myStreams.indexOf(stream) + 1
+    override fun streamNumber(stream: RNStreamIfc): Int = synchronized(myLock) {
+        val index = myStreams.indexOf(stream)
+        if (index == -1) -1 else index + 1
     }
 
-    override fun advanceStreamMechanism(n: Int) {
+    override fun advanceStreamMechanism(n: Int) = synchronized(myLock) {
         logger.debug { "RNStreamProvider($name) : advancing stream mechanism by $n"}
         myStreamFactory.advanceSeeds(n)
     }
 
-    override fun resetRNStreamSequence() {
+    override fun resetRNStreamSequence() = synchronized(myLock) {
         myStreams.clear()
         myStreamFactory.resetFactorySeed()
         logger.debug { "RNStreamProvider($name) : cleared streams and reset random number stream sequence to factory initial seeds"}
@@ -128,8 +140,8 @@ class RNStreamProvider(
      *
      * @return an array holding the initial seed values
      */
-    fun defaultInitialSeed(): LongArray {
-        return myStreamFactory.defaultInitialFactorySeed()
+    fun defaultInitialSeed(): LongArray = synchronized(myLock) {
+        myStreamFactory.defaultInitialFactorySeed()
     }
 
     /**
@@ -137,8 +149,8 @@ class RNStreamProvider(
      *
      * @return the array of seed values for the current state
      */
-    fun currentSeed(): LongArray {
-        return myStreamFactory.getFactorySeed()
+    fun currentSeed(): LongArray = synchronized(myLock) {
+        myStreamFactory.getFactorySeed()
     }
 
     /**
@@ -152,7 +164,7 @@ class RNStreamProvider(
      *
      * @param seed the seeds
      */
-    fun initialSeed(seed: LongArray = longArrayOf(12345, 12345, 12345, 12345, 12345, 12345)) {
+    fun initialSeed(seed: LongArray = longArrayOf(12345, 12345, 12345, 12345, 12345, 12345)) = synchronized(myLock) {
         myStreamFactory.setFactorySeed(seed)
         logger.debug { "RNStreamProvider($name) : setting the initial seed to ${seed.contentToString()}"}
     }
