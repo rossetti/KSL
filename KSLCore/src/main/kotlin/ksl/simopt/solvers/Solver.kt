@@ -555,7 +555,45 @@ abstract class Solver(
      *   equivalent, and 1 if the first is larger than the second solution.
      */
     override fun compare(first: Solution, second: Solution): Int {
-        return solutionComparer?.compare(first, second) ?: first.compareTo(second)
+        val (a, b) = atCommonEvaluation(first, second)
+        return solutionComparer?.compare(a, b) ?: a.compareTo(b)
+    }
+
+    /**
+     *  Restamps two solutions onto a common evaluation number, the later of the two, and returns
+     *  them in the order supplied.
+     *
+     *  A dynamic penalty scales a violation by a factor that grows with the evaluation number, so
+     *  that a search may roam infeasible early and is pushed toward feasibility later. That factor
+     *  belongs to the moment of comparison, not to the moment either solution happened to be
+     *  evaluated. Judging an incumbent at the clock it was born with against a challenger at the
+     *  current one penalizes the challenger harder for the same violation, by the ratio of the two
+     *  clocks, and the effect compounds: while the incumbent stands its clock does not advance, so
+     *  the bar rises against every later candidate and more effort makes matters worse rather than
+     *  better. A search started outside the feasible region can be frozen on its starting point.
+     *
+     *  Using the later of the two clocks needs no solver state, is right when two archived
+     *  solutions are compared, and keeps the intended semantics: late comparisons are stricter
+     *  about feasibility than early ones, but both sides of any one comparison meet the same
+     *  standard. Restamping is free for a solution already at that number.
+     */
+    protected fun atCommonEvaluation(first: Solution, second: Solution): Pair<Solution, Solution> {
+        val evaluationNumber = maxOf(first.evaluationNumber, second.evaluationNumber)
+        return first.atEvaluation(evaluationNumber) to second.atEvaluation(evaluationNumber)
+    }
+
+    /**
+     *  The difference between two solutions' penalized objective function values, both judged at
+     *  a common evaluation number. See [atCommonEvaluation] for why the clock has to be shared.
+     *
+     *  Solvers that decide by the size of a difference rather than by its sign -- an acceptance
+     *  probability, say -- need this rather than subtracting the two penalized values directly,
+     *  because a difference inflated by mismatched clocks does not merely mislead about which
+     *  solution is better; it distorts by how much.
+     */
+    protected fun penalizedDifference(first: Solution, second: Solution): Double {
+        val (a, b) = atCommonEvaluation(first, second)
+        return a.penalizedObjFncValue - b.penalizedObjFncValue
     }
 
 //    /**

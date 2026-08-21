@@ -275,7 +275,11 @@ class SimulatedAnnealing @JvmOverloads constructor(
         // evaluate the point to get the next solution
         val nextSolution = requestEvaluation(nextPoint)
         // calculate the cost difference
-        costDifference = nextSolution.penalizedObjFncValue - currentSolution.penalizedObjFncValue
+        // Judged at a common evaluation number: with a dynamic penalty the two solutions carry
+        // different clocks, and here the SIZE of the difference sets the acceptance probability,
+        // so a clock-inflated difference would make acceptance exponentially unlikely rather
+        // than merely getting the sign wrong.
+        costDifference = penalizedDifference(nextSolution, currentSolution)
         // if the cost difference is negative, it is automatically an acceptance
         if (costDifference < 0.0) {
             // no need to generate a random variate
