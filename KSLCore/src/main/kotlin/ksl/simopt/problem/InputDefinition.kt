@@ -123,10 +123,19 @@ class InputDefinition @JvmOverloads constructor(
         }
 
     /**
-     *  An input variable is considered integer ordered if it can only take on integer values.
-     *  The granularity of a variable must be equal to 1.0 for it to be integer-ordered.
+     *  True when this variable's values are spaced exactly one apart, which requires a
+     *  granularity of exactly 1.0.
+     *
+     *  Note that this is STRICTER than the usual meaning of "integer-ordered" in the
+     *  discrete-optimization-via-simulation literature, where it is enough that the feasible
+     *  values be integers. A variable with granularity 5.0 over the range 30 to 100 takes only
+     *  integer values and is integer-ordered in that looser sense, but it is not unit-spaced and
+     *  this property is false for it.
+     *
+     *  The distinction is not academic: the solvers that require this property step one unit
+     *  along a coordinate at a time, in the variable's own units, so a coarser spacing would put
+     *  every step between feasible values rather than on them.
      */
-    @Suppress("unused")
     val isIntegerOrdered: Boolean
         get() = KSLMath.equal(granularity, 1.0)
 

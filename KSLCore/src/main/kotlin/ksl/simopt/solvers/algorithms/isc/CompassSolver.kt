@@ -207,7 +207,7 @@ class CompassSolver @JvmOverloads constructor(
 
     init {
         require(problemDefinition.isIntegerOrdered) {
-            "COMPASS requires that the problem definition be integer ordered!"
+            problemDefinition.integerOrderedRequirementMessage("COMPASS")
         }
         require(sampleSize >= 1) { "The MPA sample size must be >= 1" }
         require(pruneEvery >= 1) { "pruneEvery must be >= 1" }

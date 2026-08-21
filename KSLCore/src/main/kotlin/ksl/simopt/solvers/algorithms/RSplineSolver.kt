@@ -70,7 +70,9 @@ class RSplineSolver @JvmOverloads constructor(
     replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
-        require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
+        require(problemDefinition.isIntegerOrdered) {
+            problemDefinition.integerOrderedRequirementMessage("R-SPLINE")
+        }
     }
 
     /**

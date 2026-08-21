@@ -253,8 +253,9 @@ class ProblemDefinition @JvmOverloads constructor(
         get() = myInputDefinitions.values.toList()
 
     /**
-     *  A problem definition is considered integer-ordered if its input
-     *  variables are all integer-ordered.
+     *  A problem definition is considered integer-ordered if every one of its input variables is
+     *  integer-ordered, meaning unit-spaced. See `ksl.simopt.problem.InputDefinition.isIntegerOrdered`
+     *  for why this is stricter than integer-valued.
      */
     val isIntegerOrdered: Boolean
         get() {
@@ -263,6 +264,35 @@ class ProblemDefinition @JvmOverloads constructor(
             }
             return true
         }
+
+    /**
+     *  The input variables that keep this problem from being integer-ordered, with the
+     *  granularity each one carries. Empty when the problem is integer-ordered.
+     */
+    val nonIntegerOrderedInputs: List<InputDefinition>
+        get() = myInputDefinitions.values.filter { !it.isIntegerOrdered }
+
+    /**
+     *  Explains why a solver that requires an integer-ordered problem cannot take this one, by
+     *  naming the offending inputs and their granularities.
+     *
+     *  A solver's requirement check reports the property that failed; on a problem with many
+     *  inputs that leaves the reader to find which one is at fault. This supplies the answer.
+     *
+     *  @param solverName the name to attribute the requirement to, e.g. "R-SPLINE"
+     */
+    fun integerOrderedRequirementMessage(solverName: String): String {
+        val offenders = nonIntegerOrderedInputs
+        if (offenders.isEmpty()) {
+            return "$solverName requires an integer-ordered problem definition."
+        }
+        val listed = offenders.joinToString(", ") { "'${it.name}' (granularity ${it.granularity})" }
+        return "$solverName requires every input to be unit-spaced, because it moves one unit " +
+            "along a coordinate at a time. ${offenders.size} of ${myInputDefinitions.size} " +
+            "inputs are not: $listed. Note that a granularity of 0.0 means continuous and any " +
+            "other value means a grid coarser or finer than the unit lattice; either way such a " +
+            "problem cannot be searched by unit steps."
+    }
 
     private val myLinearConstraints = mutableListOf<LinearConstraint>()
 

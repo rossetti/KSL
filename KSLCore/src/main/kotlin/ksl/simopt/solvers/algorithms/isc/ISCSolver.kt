@@ -122,7 +122,7 @@ class ISCSolver @JvmOverloads constructor(
 
     init {
         require(problemDefinition.isIntegerOrdered) {
-            "ISC requires that the problem definition be integer ordered (its COMPASS local phase assumes an integer lattice)!"
+            problemDefinition.integerOrderedRequirementMessage("ISC (its COMPASS local phase)")
         }
         require(deltaC >= 0.0) { "deltaC must be >= 0" }
         require(deltaL >= 0.0) { "deltaL must be >= 0" }
