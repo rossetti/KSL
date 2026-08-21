@@ -153,29 +153,44 @@ open class DMarkovChain(
      *  returns the number of transitions required to reach the desired state
      *  for the first time.
      *
+     *  The chain is advanced from its stream, so consecutive calls are independent
+     *  observations rather than repetitions of the same walk. The property
+     *  [initialState] is left as it was found; [state] is left at [desiredState].
+     *
      *  The desired state may be unreachable from the starting state. The transition limit
      *  [transitionLimit] represents the maximum number of transitions allowed
-     *  before returning. By default, this is 10000. The transition count
-     *  will be Int.MAX_VALUE in this case, essentially infinity.
+     *  before returning. By default, this is 10000. **The return value is
+     *  Int.MAX_VALUE in that case**, standing in for infinity. It is a sentinel, not a
+     *  count: a caller that averages it without checking will get a meaningless number.
      *
-     *  @return the returned value represents one observation of the first passage
-     *  time from the starting state to the desired state.
+     *  @return one observation of the first passage time from the starting state to the
+     *  desired state, or Int.MAX_VALUE if the transition limit was reached first.
      */
     fun countTransitionsUntil(
         startState: Int,
         desiredState: Int,
         transitionLimit: Int = 10000
     ): Int {
-        initialState = startState
-        reset()
-        var n = 0
-        do {
-            n++
-            if (n == transitionLimit){
-                return Int.MAX_VALUE
-            }
-        } while (nextState() != desiredState)
-        return n
+        require(myStates.hasElement(desiredState)) { "The desired state, $desiredState is not a valid state" }
+        require(transitionLimit > 0) { "The transition limit must be > 0" }
+        // Reaching the desired state requires setting the chain's starting point, which is a
+        // property of the chain rather than of this observation. Restore it, so that sampling a
+        // first passage time does not silently redefine where reset() returns to.
+        val previousInitialState = initialState
+        try {
+            initialState = startState
+            reset()
+            var n = 0
+            do {
+                n++
+                if (n == transitionLimit){
+                    return Int.MAX_VALUE
+                }
+            } while (nextState() != desiredState)
+            return n
+        } finally {
+            initialState = previousInitialState
+        }
     }
 
     /**
@@ -185,8 +200,12 @@ open class DMarkovChain(
      *
      *  The desired state may be unreachable from the starting state. The transition limit
      *  [transitionLimit] represents the maximum number of transitions allowed
-     *  before returning. By default, this is 10000. The transition count
-     *  will be Int.MAX_VALUE in this case, essential infinity.
+     *  before returning. By default, this is 10000.
+     *
+     *  **If that limit is reached the returned frequency is not usable.** Collection stops at
+     *  the first such observation, so the frequency holds fewer than [sampleSize] observations
+     *  and one of them is Int.MAX_VALUE. Any average taken from it is meaningless. Check the
+     *  largest observed value before using the result.
      */
     fun firstPassageFrequency(
         sampleSize: Int,
