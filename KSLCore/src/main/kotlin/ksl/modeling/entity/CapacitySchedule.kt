@@ -549,6 +549,10 @@ class CapacitySchedule @JvmOverloads constructor(
     override fun clearSchedule() {
         require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
         myItems.clear()
+        // The length is the total of the item durations, so an empty schedule has length zero.
+        // Leaving it accumulated would place the next item added at the end of the schedule that
+        // was just removed, which is far enough into the future to never occur.
+        scheduleLength = 0.0
     }
 
     override fun toString(): String {
