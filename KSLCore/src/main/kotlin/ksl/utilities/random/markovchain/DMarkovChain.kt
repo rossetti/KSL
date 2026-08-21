@@ -26,6 +26,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
 import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.StateFrequency
 
 
 /**
@@ -117,6 +118,54 @@ open class DMarkovChain(
     override fun generate(): Double {
         state = KSLRandom.discreteInverseCDF(myStates, myCDFs[state - 1], rnStream)
         return state.toDouble()
+    }
+
+    /**
+     *  The structure and exact properties of this chain: its communicating classes, whether it
+     *  is irreducible, its stationary distribution, absorption times, and so on. None of that
+     *  needs randomness, so it lives on a separate object that holds no stream.
+     *
+     *  For example, `chain.dtmc.steadyStateDistribution` gives the long-run proportion of
+     *  transitions spent in each state exactly, rather than estimating it by simulating.
+     */
+    val dtmc: DTMC by lazy { DTMC(myTransProb) }
+
+    /**
+     *  Generates [numTransitions] transitions and returns the states visited, in order. The
+     *  chain is left in the last state generated.
+     */
+    fun generateStates(numTransitions: Int): IntArray {
+        require(numTransitions > 0) { "The number of transitions must be > 0" }
+        return IntArray(numTransitions) { nextState() }
+    }
+
+    /**
+     *  Generates [numTransitions] transitions and tabulates the states visited. The returned
+     *  frequency also holds the observed transition counts, so its `transitionProportions`
+     *  estimates this chain's transition matrix from the path just simulated.
+     */
+    fun stateFrequency(numTransitions: Int): StateFrequency {
+        require(numTransitions > 0) { "The number of transitions must be > 0" }
+        val f = StateFrequency(numStates, name = "$name state frequency")
+        repeat(numTransitions) { f.collect(f.state(nextState() - 1)) }
+        return f
+    }
+
+    /**
+     *  Draws a state from [distribution] using this chain's stream and makes it the current
+     *  state, so that a path can begin from an initial distribution rather than from a fixed
+     *  state. The property [initialState] is not changed, so a later call to [reset] still
+     *  returns where it always did.
+     *
+     *  @param distribution one probability per state, in state order, summing to one
+     *  @return the state drawn
+     */
+    fun sampleStateFrom(distribution: DoubleArray): Int {
+        require(distribution.size == numStates) {
+            "The distribution had ${distribution.size} elements but the chain has $numStates states"
+        }
+        state = KSLRandom.discreteInverseCDF(myStates, KSLRandom.makeCDF(distribution), rnStream)
+        return state
     }
 
     /**

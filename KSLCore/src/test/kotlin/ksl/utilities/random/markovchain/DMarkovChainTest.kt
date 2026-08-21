@@ -223,4 +223,53 @@ class DMarkovChainTest {
             )
         }
     }
+
+    // ---- generating and tabulating a path -----------------------------------------------
+
+    @Test
+    @DisplayName("Generating a path returns the states visited, in order")
+    fun generatingAPathReturnsTheStatesVisited() {
+        val mc = chain(alternating)
+        assertContentEquals(intArrayOf(2, 1, 2, 1), mc.generateStates(4))
+        assertFailsWith<IllegalArgumentException> { mc.generateStates(0) }
+    }
+
+    @Test
+    @DisplayName("A tabulated path recovers the transition matrix it was generated from")
+    fun aTabulatedPathRecoversTheTransitionMatrix() {
+        // StateFrequency counts transitions as well as visits, so the path can be used to
+        // estimate the matrix that produced it.
+        val mc = chain(irreducible)
+        val f = mc.stateFrequency(200_000)
+        assertEquals(200_000.0, f.totalCount)
+        val estimated = f.transitionProportions
+        for (i in 0..2) {
+            for (j in 0..2) {
+                assertTrue(
+                    abs(estimated[i][j] - irreducible[i][j]) < 0.01,
+                    "row ${i + 1} column ${j + 1}: estimated ${estimated[i][j]}, actual ${irreducible[i][j]}"
+                )
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("A path can start from a distribution instead of a fixed state")
+    fun aPathCanStartFromADistribution() {
+        val mc = chain(irreducible, initialState = 1)
+        // A degenerate distribution has only one possible answer, so this is checkable.
+        assertEquals(3, mc.sampleStateFrom(doubleArrayOf(0.0, 0.0, 1.0)))
+        assertEquals(3, mc.state)
+        assertEquals(1, mc.initialState, "drawing a starting state must not redefine reset()")
+        assertFailsWith<IllegalArgumentException> { mc.sampleStateFrom(doubleArrayOf(0.5, 0.5)) }
+    }
+
+    @Test
+    @DisplayName("The chain exposes its own exact properties without simulating them")
+    fun theChainExposesItsOwnExactProperties() {
+        val mc = chain(irreducible)
+        val pi = mc.dtmc.steadyStateDistribution
+        assertTrue(abs(pi[0] - 238.0 / 854.0) < 1.0E-9)
+        assertTrue(mc.dtmc.isIrreducible)
+    }
 }

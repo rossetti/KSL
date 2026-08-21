@@ -39,7 +39,7 @@ your time in `rng` and `rvariable`.
 | `random.rng` | The pseudo-random number engine: streams of U(0,1) values. | `RNStreamProvider`, `RNStreamIfc` |
 | `random.rvariable` | Random variables that transform U(0,1) into variates. | `KSLRandom`, `RVariableIfc`, the `*RV` classes |
 | `random.robj` | Random *objects*: sampling/permuting populations and collections. | `DPopulation`, `DEmpiricalList`, `RList` |
-| `random.markovchain` | Discrete-state Markov chains. | `DMarkovChain` |
+| `random.markovchain` | Discrete-state Markov chains: simulate one, or compute its exact properties. | `DMarkovChain`, `DTMC` |
 | `random.mcmc` | Markov-chain Monte Carlo. | MCMC samplers |
 
 ### How it relates to its neighbors
@@ -374,7 +374,26 @@ Discrete: `BernoulliRV`, `BinomialRV`, `GeometricRV`, `NegativeBinomialRV`,
 from collections), `RMap`, `BernoulliPicker`.
 
 **Markov chains (`random.markovchain`)** — `DMarkovChain` (generate state
-sequences from a transition matrix), `TwoStateMarkovChain`.
+sequences from a transition matrix), `TwoStateMarkovChain`, and `DTMC`.
+
+`DTMC` answers questions *about* a transition matrix rather than sampling from
+it, so it holds no stream: a stationary distribution or an expected absorption
+time is a property of the matrix, not of a path. It covers structure —
+`communicatingClasses`, `isIrreducible`, `period`, `absorbingStates`,
+`recurrentStates` / `transientStates`, `isReachable` — and exact results —
+`steadyStateDistribution`, `nStepTransitionMatrix`, `fundamentalMatrix`,
+`expectedAbsorptionTimes`, `absorptionProbabilities`, `meanFirstPassageTimes`.
+
+Results with a structural precondition check it and fail with the reason: a
+stationary distribution is unique only for an irreducible chain, and the
+absorbing-chain results need every recurrent state to be absorbing. A
+`DMarkovChain` holds one and exposes it, so `chain.dtmc.steadyStateDistribution`
+gives exactly what a long simulation of that chain estimates.
+
+`DMarkovChain` itself gained `generateStates` and `stateFrequency` for producing
+and tabulating a path — the frequency's `transitionProportions` estimates the
+matrix back out of it — and `sampleStateFrom` to begin a path from an initial
+distribution rather than a fixed state.
 
 **Supporting interfaces** — `RandomIfc`, `SampleIfc` (the `sample` family),
 `ParametersIfc`. Implement these when you build your own generators.
