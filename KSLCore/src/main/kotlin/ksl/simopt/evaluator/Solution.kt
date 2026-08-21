@@ -184,7 +184,10 @@ data class Solution(
         val alpha = 1.0 - overallCILevel
         val responses = responseEstimatesMap
         val k = problemDefinition.responseConstraints.size
-        val level = 1.0 - (alpha / k)
+        // An unconstrained problem has nothing to correct for; dividing by k would give an
+        // infinite level. The loop below does not execute in that case, but a level of negative
+        // infinity is not a value to compute and carry.
+        val level = if (k == 0) overallCILevel else 1.0 - (alpha / k)
         for (rc in problemDefinition.responseConstraints){
             if (responses.containsKey(rc.responseName)) {
                 val estimatedResponse = responses[rc.responseName]!!
@@ -213,10 +216,15 @@ data class Solution(
         val alpha = 1.0 - overallCILevel
         val responses = responseEstimatesMap
         val k = problemDefinition.responseConstraints.size
-        val level = 1.0 - (alpha / k)
+        val level = if (k == 0) overallCILevel else 1.0 - (alpha / k)
         for (rc in problemDefinition.responseConstraints) {
             if (responses.containsKey(rc.responseName)) {
                 val estimatedResponse = responses[rc.responseName]!!
+                if (estimatedResponse.count < 2.0) {
+                    // no sample variance, so the upper limit is unbounded rather than absent
+                    intervals.add(Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY))
+                    continue
+                }
                 intervals.add(rc.oneSidedUpperResponseInterval(estimatedResponse, level))
             }
         }

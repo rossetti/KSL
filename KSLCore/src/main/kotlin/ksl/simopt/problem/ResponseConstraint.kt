@@ -186,8 +186,20 @@ class ResponseConstraint(
         estimatedResponse: EstimatedResponse,
         confidenceLevel: Double
     ) : Boolean {
-        return feasibilityChecker?.isFeasible(this, estimatedResponse,
-            confidenceLevel) ?: (oneSidedUpperResponseInterval(estimatedResponse, confidenceLevel).upperLimit <= 0.0)
+        feasibilityChecker?.let {
+            return it.isFeasible(this, estimatedResponse, confidenceLevel)
+        }
+        // A single observation carries no sample variance, so no confidence interval exists for
+        // it and the constraint cannot be shown to hold. "Not shown" is the answer the method's
+        // contract already gives when an interval contains zero, and it is the answer here.
+        //
+        // Throwing was not: one replication per evaluation is a legal configuration, and the
+        // default ranking of solutions reaches this test on every comparison, so a search
+        // configured that way failed when it was asked for its answer rather than while it ran.
+        if (estimatedResponse.count < 2.0) {
+            return false
+        }
+        return oneSidedUpperResponseInterval(estimatedResponse, confidenceLevel).upperLimit <= 0.0
     }
 
     /**
