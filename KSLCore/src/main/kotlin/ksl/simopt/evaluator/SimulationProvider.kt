@@ -222,12 +222,55 @@ class SimulationProvider internal constructor(
                 // get the data from the simulation
                 val data = replicationData[name]!!
                 // compute the estimates from the replication data
-                val estimatedResponse = EstimatedResponse(name, data)
+                val estimatedResponse = estimateResponse(name, data, modelInputs)
                 // place the estimate in the response map
                 responseMap.add(estimatedResponse)
             }
             // return the responses for the request
             return responseMap
+        }
+
+        /**
+         *  Estimates one response from its per-replication values, explaining the design point
+         *  and the response involved when the values cannot be summarized.
+         *
+         *  The bare failure is a hard one to act on. A response that is never observed during a
+         *  replication has no average, and the resulting NaN is rejected several frames away from
+         *  anything identifying which response it was or what was being simulated. That happens
+         *  for real reasons rather than only broken ones: a design point can legitimately leave a
+         *  class of entity entirely unserved, and then a response conditioned on being served has
+         *  nothing to average. The design point is what the reader needs, so it is reported.
+         */
+        private fun estimateResponse(
+            name: String,
+            data: DoubleArray,
+            modelInputs: ModelInputs
+        ): EstimatedResponse {
+            return try {
+                EstimatedResponse(name, data)
+            } catch (e: IllegalArgumentException) {
+                val unobserved = data.count { it.isNaN() }
+                val diagnosis = when {
+                    data.isEmpty() ->
+                        "It has no replication values at all."
+                    unobserved == data.size ->
+                        "It was never observed in any of the ${data.size} replications, so it has " +
+                            "no average. A response is unobserved when nothing ever assigns it a " +
+                            "value during a replication -- for example a quantity conditioned on " +
+                            "an event that this design point makes impossible."
+                    unobserved > 0 ->
+                        "It was not observed in $unobserved of ${data.size} replications, so those " +
+                            "replications contribute no value and the average is undefined."
+                    else ->
+                        "Its replication values are ${data.joinToString(limit = 10)}."
+                }
+                throw IllegalArgumentException(
+                    "Could not estimate the response '$name' of model " +
+                        "'${modelInputs.modelIdentifier}'. $diagnosis ${e.message} " +
+                        "The design point was ${modelInputs.inputs}.",
+                    e
+                )
+            }
         }
 
         /**
