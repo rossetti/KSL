@@ -41,8 +41,23 @@ abstract class RVariable(
      */
     protected open val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
+    /*
+     * The number this variable was built with. A provider serves an antithetic stream as a
+     * derived copy that it does not itself hold, so asking the provider to name that stream
+     * cannot work -- it reports "not mine" as -1. Since the number is carried across whenever a
+     * variable is copied onto another provider (a model rebinding a supplied source does exactly
+     * that), a -1 was consumed as a request and landed on antithetic stream 1 instead of the one
+     * asked for. Remembering what was requested makes the number round-trip.
+     */
+    private val myRequestedStreamNumber: Int = streamNum
+
     override val streamNumber: Int
-        get() = streamProvider.streamNumber(rnStream)
+        get() = if (myRequestedStreamNumber != 0) {
+            myRequestedStreamNumber
+        } else {
+            // zero means "the next stream", so the number is only known once one has been served
+            streamProvider.streamNumber(rnStream)
+        }
 
     /**
      *  An instance of the random variable with the stream provided

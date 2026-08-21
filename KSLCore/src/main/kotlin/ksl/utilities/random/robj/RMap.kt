@@ -18,8 +18,16 @@ class RMap<K, V>(
 
     private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
+    // The number this was built with. A provider serves an antithetic stream as a derived copy
+    // it does not hold, so it cannot name that stream and reports -1; since the number is what
+    // gets carried when a variable is copied onto another provider, a -1 silently became a
+    // request for antithetic stream 1. Zero means "the next stream", which is only known once
+    // one has been served, so that case still asks the provider.
+    private val myRequestedStreamNumber: Int = streamNum
+
     override val streamNumber: Int
-        get() = streamProvider.streamNumber(rnStream)
+        get() = if (myRequestedStreamNumber != 0) myRequestedStreamNumber
+                else streamProvider.streamNumber(rnStream)
 
     private val myList: List<K>
 
@@ -90,8 +98,16 @@ class REmpiricalMap<K, V>(
 
     private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
+    // The number this was built with. A provider serves an antithetic stream as a derived copy
+    // it does not hold, so it cannot name that stream and reports -1; since the number is what
+    // gets carried when a variable is copied onto another provider, a -1 silently became a
+    // request for antithetic stream 1. Zero means "the next stream", which is only known once
+    // one has been served, so that case still asks the provider.
+    private val myRequestedStreamNumber: Int = streamNum
+
     override val streamNumber: Int
-        get() = streamProvider.streamNumber(rnStream)
+        get() = if (myRequestedStreamNumber != 0) myRequestedStreamNumber
+                else streamProvider.streamNumber(rnStream)
 
     init {
         require(map.isNotEmpty()) { "The supplied map must have at least 1 element." }
