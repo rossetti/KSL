@@ -318,6 +318,133 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.6.1
+
+*TBD.* A correctness release for simulation optimization, the random-number stream provider and
+capacity schedules. Nothing is removed and no signature changed, so it is a drop-in replacement
+for R1.6 — but several fixes correct behaviour that was silently wrong rather than loudly broken,
+so numbers move. The three worth knowing about before upgrading are the comparison of penalized
+solutions, the stream a variable is bound to when it was built antithetic, and a capacity
+schedule that is configured more than once.
+
+Almost all of it was found by using the library hard: instrumenting a call-center model and
+running a benchmarking study end to end surfaced defects that the test suites did not.
+
+### Fixed
+
+- **A search on a constrained problem could never displace its starting point.** A dynamic
+  penalty scales a constraint violation by the solution's own evaluation number, and an incumbent
+  keeps the number it was born with while every challenger carries the current, larger one. The
+  same violation was therefore penalized harder on the challenger, by the ratio of the two
+  clocks — and because nothing displaced the incumbent, its clock never advanced and the bar rose
+  against every later candidate. **More budget made it worse.** Both operands are now judged at
+  the later of the two evaluation numbers, which is the multiplier the penalty intends and the
+  same standard for both sides. Simulated annealing decides with its own Metropolis rule on
+  penalized values and had the same defect at a different site; it is fixed too. Unconstrained
+  problems are unaffected — the penalty is zero at every clock.
+- **A random variable built on an antithetic stream was bound to the wrong one.** A provider
+  names a stream by its position in the list it holds, and it serves an antithetic stream as a
+  derived copy it does not hold — so asking for the number of an antithetic stream returned −1.
+  Since the number is what gets carried when a variable is rebound onto a model's own provider, a
+  variable built on antithetic stream 3 was silently rebound onto antithetic stream 1: measured,
+  its draws matched antithetic 1 exactly. **Anyone using antithetic variates got the wrong
+  pairing, with no error and no warning.** A variable now remembers the number it was built with.
+  Applies to `RVariable`, `MVRVariable`, `RMap`, `RList`, `DPopulation`, `DEmpiricalList`,
+  `BernoulliPicker`, `CaseBootstrapSampler` and `MetropolisHastings1D`.
+- **A capacity schedule configured a second time did nothing at all.** A schedule's length is the
+  total of its item durations, and an item's start time is the schedule length when it is added.
+  Clearing the items emptied the list but left the length at whatever the removed items summed
+  to, so the next item added started where the deleted schedule had ended. Assigning
+  `capacityScheduleData` a second time — which clears and re-adds — therefore produced a schedule
+  whose first capacity change was due only after the previous schedule would have finished:
+  within any replication no change occurred and the resource sat at its initial capacity for the
+  whole run. Nothing threw and nothing warned. A schedule configured **once** at construction was
+  always correct, which is why this survived; it broke exactly where a schedule is rebuilt from a
+  property setter — a staffing control, a scenario sweep, a simulation-optimization input — and
+  there the second assignment is the one carrying the design point being evaluated.
+- **Concurrent model building could bind a variable to the wrong stream.** `RNStreamProvider` was
+  not thread-safe. Two threads growing its list at once can each land at a different index, and a
+  stream's number is its position in that list, so a variable that asked for stream 1 could report
+  stream 6. Construction and lookup are now guarded, and `streams` returns a snapshot. The pooled
+  member-evaluator factory also serializes `modelBuilder.build(...)`, since a builder is user code
+  that may share more than streams.
+- **A deterministic response made a comparison throw.** Comparing two estimates whose sample
+  variances are both zero — which happens whenever a response is a deterministic function of the
+  inputs — gave Welch–Satterthwaite degrees of freedom of `0.0/0.0`. The clamp that guards a
+  too-small value does not fire for NaN, and Student-t rejected it. The difference of two exactly
+  known averages has no sampling error, so the interval now collapses to the point estimate.
+- **A single-observation estimate threw where it should have been reported as inconclusive.** Two
+  places: comparing two estimates, and testing whether a solution satisfies a response
+  constraint. One observation carries no sample variance, so no confidence interval exists — the
+  answer is that nothing has been shown, which is what these methods already return when an
+  interval contains zero. Feasibility ranking is the ordinary path (`bestSolution` ranks
+  feasibility first), so a search configured with one replication per evaluation on a constrained
+  problem failed at the moment it was asked for its answer rather than while it ran.
+- **An indifference zone was applied asymmetrically.** For two single-observation estimates the
+  difference was compared against the zone on one side only, so two equal observations were
+  reported as "less than" for any positive indifference zone. The zone is now the symmetric band
+  about zero that the other branches already used.
+- **Sampling a first passage time moved the chain's starting point.** `countTransitionsUntil` has
+  to move the start to take its observation and left it moved, so a later `reset()` returned to
+  wherever the last sample happened to begin rather than where the caller had set it. Anything
+  mixing sampled first-passage times with manual `nextState()` walking was quietly wrong.
+
+### Things that change results
+
+- Any solver on a **constrained** problem, and the direction is toward feasibility. On a
+  stochastic-activity-network problem where no solver had reached the feasible region — the
+  confirmed winner violated a deadline of 5 by more than 12 — every solver now returns feasible
+  answers, and a hill climber that had not left its starting point at 100,000 replications now
+  works its way in. On a 24-problem synthetic grid at 30 macro-replications, feasibility on the
+  constrained problems under medium noise now runs 47–97% by solver.
+- Any model using **antithetic** random variables, which were previously paired against the wrong
+  stream.
+- Any **benchmark experiment**: starting points are now addressed by absolute macro-replication
+  number, so which point a cell draws no longer depends on how the run was sliced.
+- Any model whose **capacity schedule is configured more than once**, which previously ran at its
+  initial capacity throughout.
+- Anything mixing sampled **first passage times** with manual chain walking.
+
+### New
+
+- **`DTMC`** — a discrete-time Markov chain that reports its own exact properties rather than
+  estimating them: n-step transition matrices, reachability, recurrence and transience, period,
+  absorbing states, the fundamental matrix, expected absorption times, absorption probabilities
+  and mean first-passage times. `DMarkovChain` gains state generation, state-frequency collection
+  and sampling from a supplied distribution.
+- **`BenchmarkExperiment.macroReplicationRange`** — a study can run its macro-replications in
+  blocks. Because cells address their randomness by absolute macro-replication number, running
+  1..10 today and 11..30 tomorrow gives the same result as running 1..30 at once, which is what
+  makes a long study survivable.
+- **Collection-taking overloads of `mcbDataMap`, `mcbAnalyzer` and `performanceProfile`** on
+  `BenchmarkResultsDb`, so a study run in blocks can be analyzed whole. Duplicate blocks are
+  rejected and a gap basis is recomputed when blocks disagree.
+- **`ProblemDefinition.nonIntegerOrderedInputs`** and `integerOrderedRequirementMessage`.
+
+### Diagnostics
+
+Three failures that named a rule but not the cause now name the cause.
+
+- R-SPLINE, COMPASS and ISC refuse a problem whose inputs are not unit-spaced. The refusal now
+  names the offending inputs and their granularities. Note that the property tested is stricter
+  than "integer-ordered" in the usual sense: a variable ranging over 30, 35, … 100 takes only
+  integer values and is still refused, because these solvers step one unit along a coordinate at
+  a time.
+- A response that cannot be summarized now reports which response, in which model, how many
+  replications left it unobserved, why that happens, and the design point that produced it.
+  A response conditioned on an event is well defined over most of a feasible region and undefined
+  in a corner of it, and a search that explores corners will find that corner.
+
+### Compatibility
+
+**A drop-in replacement for R1.6.** Nothing removed, no signature changed, no deprecation. The
+whole 25-module build compiles and passes against it — 4,869 tests across 23 modules — and the
+shipped examples that touch the changed surface were executed, not merely compiled.
+
+If you have recorded results from R1.6 that you intend to compare against new ones, read
+*Things that change results* first: several of the fixes correct behaviour that produced
+plausible numbers rather than obvious failures.
+
 ## R1.6
 
 *9 August 2026.* A correctness release in three areas: interval and period statistics, entity
