@@ -239,8 +239,13 @@ class BenchmarkExperiment(
                     )
                 }
                 if (verificationReplications != null) {
+                    // When confirmation is disabled the candidates are ranked here instead, and
+                    // members finish at different clocks; rank them all at the furthest one so a
+                    // rising penalty applies equally, rather than defending a candidate that
+                    // happened to stop early with a smaller multiplier.
+                    val selectionClock = candidates.maxOf { it.evaluationNumber }
                     val winningPoint = confirmationOutcome?.winner
-                        ?: candidates.minByOrNull { it.penalizedObjFncValue }
+                        ?: candidates.minByOrNull { it.atEvaluation(selectionClock).penalizedObjFncValue }
                     if (winningPoint != null) {
                         val modelInputs = ModelInputs(
                             modelIdentifier = problemDefinition.modelIdentifier,
