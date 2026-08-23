@@ -129,15 +129,30 @@ fresh models. You can also assemble it by hand (§4).
   to its constraint and ramps with the iteration counter; a *memoryful* penalty
   (the Park & Kim Penalty-Function-with-Memory, §8) additionally sharpens as a
   re-sampled point accumulates evidence of infeasibility.
+- **Comparisons are made at a common penalty clock.** The multiplier grows with the
+  evaluation number, so the penalized value of a point is only meaningful alongside
+  another value computed at the same multiplier. `Solver.compare` therefore re-stamps
+  both operands to the later of their two evaluation numbers before comparing them:
+  a rising multiplier means late comparisons are stricter about feasibility than
+  early ones, but both sides of any one comparison face the same standard. Without
+  that, an incumbent would be judged at the multiplier it was born with while every
+  challenger carried the current, larger one — the same violation penalized harder on
+  the challenger, by the ratio of the two clocks. Since nothing displaced the
+  incumbent its clock never advanced, so the bar rose against every later candidate
+  and **more budget made it worse**. Simulated annealing decides with its own
+  Metropolis rule on penalized values and goes through the same common-clock
+  difference. Unconstrained problems are unaffected: the penalty is zero at every
+  clock.
 - **The reported answer is chosen feasibility-first, not by the penalized
-  objective.** Because the penalty multiplier grows with the iteration counter, the
-  penalized value of a point found early isn't comparable to one found late. So
-  `solver.bestSolution` — the recommended answer — is selected by a
+  objective.** Even with comparisons made at a common clock, the penalized value is a
+  *search* key — it deliberately trades objective against violation, at an exchange
+  rate that rises over the run. The recommended answer should not depend on when a
+  point happened to be found, so `solver.bestSolution` is selected by a
   clock-independent `FeasibilityFirstComparator`: a solution you're statistically
   confident is response-feasible outranks one you're not; feasible solutions then
-  compare on the raw objective and infeasible ones on total violation. The
-  penalized objective is a *within-iteration* search key only (exposed as the
-  protected `penalizedIncumbent`).
+  compare on the raw objective and infeasible ones on total violation. The penalized
+  objective remains the within-iteration search key (exposed as the protected
+  `penalizedIncumbent`).
 - **Two kinds of feasibility.** *Input* feasibility (ranges + linear + functional
   constraints) is deterministic and can be checked before simulating; *response*
   feasibility (`E[G(x)] ≤ c`) is statistical and tested with confidence intervals
@@ -145,11 +160,21 @@ fresh models. You can also assemble it by hand (§4).
   filtered up front; response constraints are penalized.
 - **Granularity picks the lattice.** An input's `granularity` is the decision
   precision; `granularity = 1.0` makes it **integer-ordered**, which R-SPLINE,
-  ISC, and COMPASS all require (§5).
+  ISC, and COMPASS all require (§5). Those three need granularity *exactly* 1
+  rather than merely whole-number values — they step one unit per coordinate, so a
+  coarser grid puts every step between feasible values and the problem is refused,
+  naming the offending input.
 - **Replications are the noise/cost dial.** How many replications a solver
   requests per point is a *strategy* (`ReplicationPerEvaluationIfc` —
   `FixedReplicationsPerEvaluation` or a growth schedule), not a constant. More
-  replications → tighter estimate → more simulation cost.
+  replications → tighter estimate → more simulation cost. One replication per
+  evaluation is permitted, and is a reasonable choice when evaluations are expensive
+  and you want the search to move quickly on thin information — but a single
+  observation carries no sample variance, so nothing can be concluded from it with
+  confidence. A response constraint tested at one observation is reported as **not
+  shown to hold** rather than as satisfied, which means a search run that way ranks
+  every solution as not-demonstrably-feasible and falls back to comparing violations.
+  If you want feasibility decided, give the evaluation at least two replications.
 - **Don't trust one point estimate.** `bestSolutions` is a bounded, penalized-
   objective-ordered set; `possiblyBest()` screens it down to solutions that are
   *statistically indistinguishable* from the best. The benchmark harness's

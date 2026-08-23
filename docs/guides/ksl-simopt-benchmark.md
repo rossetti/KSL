@@ -335,6 +335,7 @@ BenchmarkExperiment(
     problems = ...,                          // List<ProblemCase>, unique names
     solverCases = ...,                       // List<SolverCase>, unique labels
     macroReplications = 10,
+    macroReplicationRange = 1..10,           // default: all of them; a sub-range runs one block
     replicationBudgetPerRun = 3000,
     confirmation = ConfirmationOptions(topK = 3, replicationsPerCandidate = 50), // default; null disables
     captureIterationTraces = false,          // opt-in per-iteration progress capture
@@ -360,6 +361,34 @@ The fields of `BenchmarkRunResult` worth knowing: `status`
 
 Failures are isolated: a cell whose solver throws records `FAILED` with the
 problem's bad solution and the error message; sibling cells are unaffected.
+
+### 7.1 Running a long study in blocks
+
+A study that takes a weekend is a study that must not be interrupted — unless it can
+be resumed. `macroReplicationRange` runs one block of the macro-replications and
+leaves the rest for later:
+
+```kotlin
+// today
+BenchmarkExperiment(name = "study", macroReplications = 30,
+                    macroReplicationRange = 1..10, /* … */).run()
+// tomorrow, same everything else
+BenchmarkExperiment(name = "study", macroReplications = 30,
+                    macroReplicationRange = 11..30, /* … */).run()
+```
+
+**The result is identical to running 1..30 at once.** Each cell addresses its
+randomness by its **absolute** macro-replication number — where that cell would sit
+if the whole study ran as one experiment — so a starting point does not depend on how
+the run happened to be sliced. `macroReplications` stays at the study's full size in
+every block; only the range changes. Positions are assigned by a problem's index in
+the list, so appending a problem to a study already partly run is safe while
+inserting one is not.
+
+Each block is saved as its own experiment row. Give the blocks distinct names if you
+want them distinguishable in the database, and pool them for analysis with the
+collection-taking overloads in §8.4. The confirmation and verification stages run per
+block, on the runs that block contains.
 
 ## 8. The results database
 
@@ -584,6 +613,12 @@ val analyzer = db.mcbAnalyzer(expId, "LKInventory")  // MultipleComparisonAnalyz
 // fraction, the fraction of cells that reached the gap basis + tau by that fraction of
 // the budget. Returns List<PerformanceProfilePoint>(solverLabel, budgetFraction, fractionSolved).
 val profile = db.performanceProfile(expId, tau = 2.0, numPoints = 10)
+
+// All three also take a COLLECTION of experiment ids, which is how a study run in
+// blocks (§7.1) is analyzed whole — no single experiment holds all of a problem's
+// macro-replications:
+val pooled = db.mcbAnalyzer(listOf(1, 3), "LKInventory")
+val pooledProfile = db.performanceProfile(listOf(1, 3), tau = 2.0, numPoints = 10)
 ```
 
 - `mcbDataMap` / `mcbAnalyzer` answer *"which solver is best on this problem, with
@@ -593,6 +628,15 @@ val profile = db.performanceProfile(expId, tau = 2.0, numPoints = 10)
 - `performanceProfile` answers *"which solver reaches good solutions fastest,
   across the whole problem set?"* It requires captured traces and a gap basis;
   runs missing either are skipped.
+- **Pooling across blocks.** The collection-taking forms combine the experiments you
+  name. They reject a repeated macro-replication rather than counting it twice, and
+  they require the pooled experiments to share a replication budget — a profile's
+  budget fraction is meaningless otherwise. Blocks can also disagree on a problem's
+  gap basis, and what happens then depends on which basis it is: under `BEST_FOUND`
+  each block has its own best, so the basis is **recomputed over the pooled runs**;
+  under `KNOWN_OPTIMUM` or `BEST_KNOWN` the basis is a fixed reference and blocks
+  disagreeing on it means they are not blocks of the same study, so the call
+  **fails** rather than quietly picking one.
 
 ### 8.5 Generic SQL, DataFrame, and Excel access
 
@@ -737,11 +781,14 @@ grid was dominated entirely by the RQ problem's 80 ms replications.
 
 ## 12. Caveats and good practice
 
-- **R-SPLINE** requires integer-ordered problems (granularity-1 inputs), and
-  currently has a robustness bug on **1-dimensional** problems (it can fail
-  with "The Euclidean norm must be greater than zero" from some starting
-  points). The harness isolates and records such failures per cell; a fix is
-  tracked separately. All shipped problems of dimension ≥ 2 are unaffected.
+- **R-SPLINE** requires integer-ordered problems, and the requirement is stricter
+  than the name suggests: the granularity must be exactly 1, not merely a grid of
+  whole numbers. R-SPLINE steps one unit along a coordinate at a time in the
+  variable's own units, so a variable with granularity 5 — integer-valued, but
+  coarser than the unit lattice — is refused, as it is by COMPASS and ISC. The
+  refusal names the offending inputs and their granularities. (A zero-pseudo-gradient
+  crash on one-dimensional problems, reported in earlier releases, is fixed and
+  regression-tested; R-SPLINE runs 1-D problems normally.)
 - **Solver-internal convergence checks are superseded** by the budget
   criterion (deliberately — see §2, policy 1). If you specifically want to study
   early-stopping behavior, that is a different experimental design than

@@ -121,7 +121,7 @@ The line marked **oracle** is the seam that unifies the two problem types. A sol
 ### 1.6 A few words you will need
 
 - **Decision variable / input.** One thing you control, e.g. `x1` or `reorderPoint`. It has a **range** `[lower, upper]` and a **granularity**.
-- **Granularity.** The step size of a decision variable. `granularity = 1.0`makes a variable **integer-ordered** (it can only take whole-number values), which some solvers (R-SPLINE, COMPASS, ISC) require.
+- **Granularity.** The step size of a decision variable. `granularity = 1.0` makes a variable **integer-ordered**, which some solvers (R-SPLINE, COMPASS, ISC) require. Note that those solvers need granularity *exactly* 1, not merely whole-number values: they move one unit per coordinate, so a coarser grid — say a variable bought in blocks of five — would put every step between feasible values, and they decline the problem.
 - **Objective response.** The named simulation output you are optimizing.
 - **Response name.** The name of any simulation output the problem refers to (the objective, or a response used in a constraint).
 - **Replication.** One statistical observation of the outputs at a point.
@@ -707,7 +707,7 @@ val experiment = BenchmarkExperiment(
 )
 ```
 
-We hand-pick the solver cases instead of using `standardSolverCases()`, because the newsvendor is **one-dimensional** and R-SPLINE (part of the standard set) currently has a known issue on 1-D problems. **Matching the solver set to the problem is itself part of designing a fair study.** (If you do include R-SPLINE on a 1-D problem, the harness isolates and records the failure per cell rather than crashing — see Part V.)
+We hand-pick the solver cases instead of using `standardSolverCases()` to keep this first study small and quick to read. **Matching the solver set to the problem is itself part of designing a fair study** — a solver that cannot take a problem's inputs should not be in its roster, and a solver whose cost is not measured in replications cannot be compared on an equal replication budget. Neither applies here: every solver in the standard set can run this problem, so adding them back is a one-line change once you want the fuller picture.
 
 ### 4.6 Recap
 
@@ -753,7 +753,7 @@ val expId = db.saveSummary(summary)
 One `BenchmarkExperiment` handles all three problems and both problem types uniformly. Two things to expect when you run it:
 
 - **The (r, Q) cells dominate the wall-clock time** — the discrete-event simulation is where the minutes go, while the synthetic problems are nearly instant. This is the real texture of simulation-optimization studies.
-- **R-SPLINE cells on the 1-D newsvendor may report** `status = FAILED`**.** That is the harness doing its job: a failing cell is isolated and recorded, never crashing the study. Every other cell is unaffected.
+- **A cell that fails is isolated and recorded, never fatal to the study.** You should see none here, but when a solver does fail on a problem — a bad pairing, a numerical edge case — the harness records `status = FAILED` for that cell with its error message and carries on. Every other cell is unaffected, and the anomaly screen lists the failures rather than letting them pass unnoticed.
 
 ### 5.3 Reading the results
 
@@ -791,7 +791,7 @@ The full schema — eight tables, every field, and what each one lets you analyz
 - **Input keys and response names must match the model exactly.** For a DEDS problem, an input name is a control key (`elementName.propertyName`) and a response name is a response's own name. Pin the correspondence with `validateProblemDefinition` in a test, as in Part III.
 - **The model identifier must equal the built model's name** (Type 2) or the oracle's identifier (Type 1). Requests are routed by it.
 - **Builders must return fresh, independent instances** — a new `Model` per `ModelBuilderIfc` call, a new response function per `ResponseFunctionBuilderIfc`call — with all random streams acquired at construction.
-- **R-SPLINE, COMPASS, and ISC require integer-ordered inputs** (`granularity = 1.0`), and R-SPLINE currently has a known issue on 1-D problems.
+- **R-SPLINE, COMPASS, and ISC require integer-ordered inputs** — and the requirement is stricter than it sounds. It is not enough that a variable's values be whole numbers: the granularity must be exactly `1.0`, because these solvers step one unit along a coordinate at a time in the variable's own units. A variable ranging over 30, 35, … 100 takes only integer values and is still refused; the refusal names the offending input and its granularity.
 - **Do not crown a winner from one point estimate.** On noisy problems the best-looking estimate is partly the luckiest. Use the benchmark's confirmation and verification stages, or `solver.bestSolutions.possiblyBest()`.
 - **When maximizing, read the right number.** `asString()` prints the raw average; the penalized value is sign-flipped internally (Part IV).
 
