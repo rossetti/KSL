@@ -186,18 +186,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.6"
+version = "R1.6.1"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.6")
+api("io.github.rossetti:KSLCore:R1.6.1")
 ```
 To your build for the latest release.
 
 ## Release Notes
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
-things released on separate cadences: the **library** (`KSLCore`, versioned R1.6, R1.5.1, …) and
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.6.1, R1.6, …) and
 the installable **suite** of applications and servers (versioned 0.3.8, 0.3.7, …). A suite release
 does not imply a library release, or the reverse.
 
@@ -206,12 +206,16 @@ restarting, and a configuration saved for one model is no longer quietly applied
 tells you which model the file belongs to and offers to open it. `Load JAR…` opens where your
 bundles actually live rather than in your home directory, in every application.
 
-**Current library release — R1.6.** A correctness release in three areas: interval and period
-statistics for time-weighted responses were measured over the wrong window; `MovableResourcePool`
-never woke the entities queued for it, a regression since R1.2.6; and a terminated process left its
-entity permanently unusable. Interval statistics on time-weighted responses change — see the
-release notes for how much. A drop-in for R1.5.1 unless you use the experimental
-`ksl.modeling.agent`, whose observer methods were renamed.
+**Current library release — R1.6.1.** A correctness release for simulation optimization, the
+random-number stream provider and capacity schedules. Three fixes matter before you upgrade,
+because each was silently wrong rather than loudly broken: a search on a **constrained** problem
+could never displace its starting point, since an incumbent was compared against challengers at a
+smaller penalty multiplier than they carried — more budget made it worse; a random variable built
+on an **antithetic** stream was bound to a different one, so anyone using antithetic variates got
+the wrong pairing; and a **capacity schedule configured a second time** did nothing at all,
+leaving the resource at its initial capacity for the whole run. Results change in all three cases
+— see the release notes for who is affected. A drop-in for R1.6: nothing removed, no signature
+changed.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;
