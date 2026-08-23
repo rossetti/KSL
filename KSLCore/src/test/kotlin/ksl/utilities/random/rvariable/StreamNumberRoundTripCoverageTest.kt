@@ -98,8 +98,8 @@ class StreamNumberRoundTripCoverageTest {
     fun metropolisHastingsRoundTrips() {
         val target = FunctionIfc { x -> if (x in 0.0..1.0) 1.0 else 0.0 }
         val proposal = object : ProposalFunction1DIfc {
-            override fun proposalRatio(currentX: Double, proposedX: Double): Double = 1.0
-            override fun generateProposedGivenCurrent(currentX: Double): Double = currentX
+            override fun proposalRatio(current: Double, proposed: Double): Double = 1.0
+            override fun generateProposedGivenCurrent(current: Double): Double = current
         }
         checkRoundTrip("MetropolisHastings1D") { streamNum, provider ->
             MetropolisHastings1D(0.5, target, proposal, streamNum, provider).streamNumber
