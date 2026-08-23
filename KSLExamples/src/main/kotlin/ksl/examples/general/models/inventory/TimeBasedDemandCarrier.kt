@@ -1,5 +1,7 @@
 package ksl.examples.general.models.inventory
 
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -10,6 +12,14 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * shipping-time random variable; [transport] schedules delivery that far into the future. A
  * destination with no registered time is delivered immediately when [immediateDeliveryAllowed] is
  * true. Used as the DC-to-base transport link in [TwoEchelonModel].
+ *
+ * Each shipping time is wrapped in a [RandomVariable] rather than held as the supplied
+ * [RVariableIfc]. That wrapping is what makes the carrier reproducible, and it is not optional:
+ * a [RandomVariable] re-homes its source onto the owning model's own stream provider and is reset
+ * by the model between replications and runs, while a bare [RVariableIfc] keeps the stream it was
+ * constructed with -- one drawn from the global default provider and shared by every model built
+ * in the JVM. Held bare, this carrier's stream is never rewound and is drawn from concurrently by
+ * every model running at once, so the same design yields a slightly different answer on every run.
  */
 class TimeBasedDemandCarrier(
     parent: ModelElement,
@@ -28,18 +38,20 @@ class TimeBasedDemandCarrier(
 
     var immediateDeliveryAllowed = true
 
-    private val myShippingTimes = mutableMapOf<InventoryReceiverIfc, RVariableIfc>()
-    val shippingTimes: Map<InventoryReceiverIfc, RVariableIfc>
+    private val myShippingTimes = mutableMapOf<InventoryReceiverIfc, RandomVariable>()
+    val shippingTimes: Map<InventoryReceiverIfc, RandomVariableCIfc>
         get() = myShippingTimes
 
     init {
         if (shippingTimesMap != null) {
-            myShippingTimes.putAll(shippingTimesMap)
+            for ((demandReceiver, shippingTime) in shippingTimesMap) {
+                addShippingTime(demandReceiver, shippingTime)
+            }
         }
     }
 
     fun addShippingTime(demandReceiver: InventoryReceiverIfc, shippingTime: RVariableIfc) {
-        myShippingTimes[demandReceiver] = shippingTime
+        myShippingTimes[demandReceiver] = RandomVariable(this, shippingTime)
     }
 
     override fun transport(demand: DemandCreator.Demand) {
