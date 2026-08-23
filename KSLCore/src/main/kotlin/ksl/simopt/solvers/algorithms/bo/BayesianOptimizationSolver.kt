@@ -197,7 +197,7 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
     private fun trimArchiveIfNeeded() {
         val cap = maxArchiveSize ?: return
         if (archive.size <= cap) return
-        val kept = archive.sortedWith(comparator).take(cap)
+        val kept = orderedBestFirst(archive).take(cap)
         archive.clear()
         archive.addAll(kept)
     }

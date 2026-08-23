@@ -231,8 +231,7 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
      *  Orders the supplied solutions best-first using the solver's [compare] (minimization of the
      *  penalized objective by default).
      */
-    private fun bestFirst(solutions: List<Solution>): List<Solution> =
-        solutions.sortedWith { a, b -> compare(a, b) }
+    private fun bestFirst(solutions: List<Solution>): List<Solution> = orderedBestFirst(solutions)
 
     override fun initializeIterations() {
         solutionChecker.clear()

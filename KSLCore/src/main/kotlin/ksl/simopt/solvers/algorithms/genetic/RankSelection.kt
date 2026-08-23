@@ -36,7 +36,7 @@ class RankSelection(
     ): List<Solution> {
         require(population.isNotEmpty()) { "The population must not be empty for selection" }
         require(numToSelect > 0) { "The number to select must be greater than 0" }
-        val ranked = population.sortedWith { a, b -> solver.compare(a, b) }
+        val ranked = solver.orderedBestFirst(population)
         val n = ranked.size
         // Cumulative selection probabilities by rank (rank 0 == best).
         val cumulative = DoubleArray(n)

@@ -596,6 +596,51 @@ abstract class Solver(
         return a.penalizedObjFncValue - b.penalizedObjFncValue
     }
 
+    /**
+     *  A comparator that judges every solution at ONE evaluation number, and is therefore safe to
+     *  sort with.
+     *
+     *  [compare] deliberately judges each PAIR at the later of that pair's two clocks, which is
+     *  right for a single comparison and is what stops an incumbent being defended by a smaller
+     *  penalty multiplier than its challengers carry. It is not a total order: three solutions can
+     *  be compared at three different multipliers, and the ordering they imply can contain a
+     *  cycle. A `Comparator` with a cycle breaks the contract sorting requires, and the result is
+     *  undefined -- it may throw, or it may silently return an order the comparator itself
+     *  disagrees with.
+     *
+     *  So ordering a collection is a different operation from comparing a pair, and needs a fixed
+     *  clock. Use this to sort; use [compare] to decide between two.
+     *
+     *  @param evaluationNumber the clock every solution is judged at
+     */
+    fun comparatorAt(evaluationNumber: Int): Comparator<Solution> = Comparator { first, second ->
+        val a = first.atEvaluation(evaluationNumber)
+        val b = second.atEvaluation(evaluationNumber)
+        solutionComparer?.compare(a, b) ?: a.compareTo(b)
+    }
+
+    /**
+     *  Orders solutions best-first at a single clock -- the latest any of them carries -- so that
+     *  the ordering is a genuine total order.
+     *
+     *  The returned list holds the ORIGINAL solutions, not restamped copies: a solution's
+     *  evaluation number takes part in its equality, so handing back copies would break callers
+     *  that match a sorted element against one they already hold.
+     *
+     *  **One caveat this cannot remove.** Fixing the clock makes the ORDERING well defined given a
+     *  well-behaved [solutionComparer]. A comparer that is itself intransitive stays intransitive:
+     *  `PenalizedObjectiveFunctionConfidenceIntervalComparator` reports two solutions as equal
+     *  when a confidence interval on their difference contains the indifference zone, and
+     *  "statistically indistinguishable" is famously not transitive — a ties with b, b ties with
+     *  c, and a is clearly better than c. Nothing in the library installs it, but it is public and
+     *  can be set as [solutionComparer], and then this ordering inherits the problem. Use such a
+     *  comparer to decide between two candidates, not to rank a population.
+     */
+    fun orderedBestFirst(solutions: List<Solution>): List<Solution> {
+        if (solutions.size <= 1) return solutions
+        return solutions.sortedWith(comparatorAt(solutions.maxOf { it.evaluationNumber }))
+    }
+
 //    /**
 //     *  This comparator is used to compare a new current solution to the previous best solution within
 //     *  the updateBestSolution() function. The default behavior is to use a confidence interval

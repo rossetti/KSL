@@ -155,10 +155,10 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
     /** A read-only, best-first view of the current population. */
     @Suppress("unused")
     val population: List<Solution>
-        get() = myPopulation.sortedWith { a, b -> compare(a, b) }
+        get() = orderedBestFirst(myPopulation)
 
     private fun bestFirst(solutions: List<Solution>): List<Solution> =
-        solutions.sortedWith { a, b -> compare(a, b) }
+        orderedBestFirst(solutions)
 
     private fun identifyNiches(pop: List<Solution>): NicheResult =
         nicheIdentifier.identify(pop, problemDefinition) { a, b -> compare(a, b) }
