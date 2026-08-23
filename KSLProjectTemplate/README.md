@@ -26,7 +26,7 @@ src/main/kotlin/work/
 Update the KSL release in `build.gradle.kts` when new versions ship:
 
 ```kotlin
-api("io.github.rossetti:KSLCore:R1.4")
+api("io.github.rossetti:KSLCore:R1.6.1")
 ```
 
 ## Run it from the IDE
