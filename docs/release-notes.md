@@ -320,12 +320,13 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.6.1
 
-*TBD.* A correctness release for simulation optimization, the random-number stream provider and
-capacity schedules. Nothing is removed and no signature changed, so it is a drop-in replacement
-for R1.6 — but several fixes correct behaviour that was silently wrong rather than loudly broken,
-so numbers move. The three worth knowing about before upgrading are the comparison of penalized
-solutions, the stream a variable is bound to when it was built antithetic, and a capacity
-schedule that is configured more than once.
+*23 August 2026.* A correctness release for simulation optimization, the random-number stream
+provider and capacity schedules, with one addition — a discrete-time Markov chain that computes
+its own exact properties. Nothing is removed and no signature changed, so it is a drop-in
+replacement for R1.6 — but several fixes correct behaviour that was silently wrong rather than
+loudly broken, so numbers move. The three worth knowing about before upgrading are the
+comparison of penalized solutions, the stream a variable is bound to when it was built
+antithetic, and a capacity schedule that is configured more than once.
 
 Almost all of it was found by using the library hard: instrumenting a call-center model and
 running a benchmarking study end to end surfaced defects that the test suites did not.
