@@ -202,7 +202,7 @@ class SolverPortfolio @JvmOverloads constructor(
         val completed = myMemberResults.count { it.isSuccess }
         val bestIndex = myMemberResults
             .filter { it.isSuccess }
-            .minByOrNull { it.bestSolution.penalizedObjFncValue }
+            .minByOrNull { it.bestSolution.recordedPenalizedObjFncValue }
             ?.memberIndex ?: -1
         return mapOf(
             "numMembers" to members.size.toDouble(),

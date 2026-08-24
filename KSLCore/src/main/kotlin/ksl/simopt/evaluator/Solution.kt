@@ -130,7 +130,7 @@ data class Solution(
      */
     @Suppress("unused")
     val penalizedObjFuncComparator: Comparator<Solution>
-        get() = compareBy<Solution> { it.penalizedObjFncValue }
+        get() = compareBy<Solution> { it.recordedPenalizedObjFncValue }
 
     /**
      *  The total penalty associated with violating the response constraints
@@ -163,8 +163,32 @@ data class Solution(
      *  The penalized objective function.  That is, the estimated objective function plus
      *  the total penalty associated with violating the constraints.
      */
-    val penalizedObjFncValue: Double
+    /**
+     *  The penalized objective function value **as recorded** — computed at this solution's own
+     *  [evaluationNumber].
+     *
+     *  The penalized objective is not a property of a solution; it is a property of a solution and
+     *  a clock. With a dynamic penalty, `f + M0 * k * v` at `k = 1` and at `k = 500` differ by five
+     *  hundred times on the violation term, so two solutions read at their own clocks are values of
+     *  two different objective functions.
+     *
+     *  Use this for REPORTING — a database column, a trace, a log line — where the value wanted is
+     *  the one the solution carried. For any decision taken over more than one solution use
+     *  [penalizedObjFncValueAt] or a [SolutionScorer], and for choosing what to report prefer
+     *  [FeasibilityFirstComparator], which is clock-independent by construction.
+     */
+    val recordedPenalizedObjFncValue: Double
         get() = problemDefinition.penalizedObjFncValue(this)
+
+    @Deprecated(
+        message = "Reads the penalized value without naming a clock, which is what allowed " +
+            "solutions from different iterations to be compared as though they belonged to the " +
+            "same subproblem. Use penalizedObjFncValueAt(k) or a SolutionScorer for decisions, " +
+            "recordedPenalizedObjFncValue for reporting.",
+        replaceWith = ReplaceWith("recordedPenalizedObjFncValue")
+    )
+    val penalizedObjFncValue: Double
+        get() = recordedPenalizedObjFncValue
 
     /**
      *  The value of the penalized objective function but rounded to the problem's
@@ -232,7 +256,7 @@ data class Solution(
     }
 
     override fun compareTo(other: Solution): Int {
-        return penalizedObjFncValue.compareTo(other.penalizedObjFncValue)
+        return recordedPenalizedObjFncValue.compareTo(other.recordedPenalizedObjFncValue)
     }
 
     /**
@@ -249,7 +273,7 @@ data class Solution(
      *  values of different objective functions. See [ksl.simopt.evaluator.SolutionScorer].
      */
     fun penalizedObjFncValueAt(evaluationNumber: Int): Double =
-        atEvaluation(evaluationNumber).penalizedObjFncValue
+        atEvaluation(evaluationNumber).recordedPenalizedObjFncValue
 
     fun atEvaluation(evaluationNumber: Int): Solution =
         if (this.evaluationNumber == evaluationNumber) this
@@ -279,7 +303,7 @@ data class Solution(
     }
 
     fun asString(): String {
-        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = ${estimatedObjFnc.average} : 95%ci = ${estimatedObjFnc.confidenceInterval()} : : penalizedObjFnc = $penalizedObjFncValue : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
+        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = ${estimatedObjFnc.average} : 95%ci = ${estimatedObjFnc.confidenceInterval()} : : penalizedObjFnc = $recordedPenalizedObjFncValue : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
     }
 
     override fun toString(): String {
@@ -290,7 +314,7 @@ data class Solution(
 
             appendLine("  Objectives:")
             appendLine("    Estimated = $estimatedObjFncValue")
-            appendLine("    Penalized = $penalizedObjFncValue")
+            appendLine("    Penalized = $recordedPenalizedObjFncValue")
             appendLine("    Granular  = $granularObjFncValue")
             appendLine("    Penalty   = $penaltyFncValue")
 
@@ -404,7 +428,7 @@ data class Solution(
 @Suppress("unused")
 object PenalizedObjectiveFunctionComparator : Comparator<Solution> {
     override fun compare(first: Solution, second: Solution): Int {
-        return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
+        return first.recordedPenalizedObjFncValue.compareTo(second.recordedPenalizedObjFncValue)
     }
 }
 
@@ -461,7 +485,7 @@ class PenalizedObjectiveFunctionConfidenceIntervalComparator(
 
     override fun compare(first: Solution, second: Solution): Int {
         if (!first.isValid || !second.isValid) {
-            return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
+            return first.recordedPenalizedObjFncValue.compareTo(second.recordedPenalizedObjFncValue)
         }
         return EstimatedResponseIfc.compareEstimatedResponses(first, second, confidenceLevel, indifferenceZone)
     }

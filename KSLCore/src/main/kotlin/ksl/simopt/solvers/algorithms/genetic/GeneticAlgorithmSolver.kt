@@ -319,7 +319,7 @@ class GeneticAlgorithmSolver @JvmOverloads constructor(
                 "diversity" to Double.NaN
             )
         }
-        val fitness = myPopulation.map { it.penalizedObjFncValue }
+        val fitness = myPopulation.map { it.recordedPenalizedObjFncValue }
         return linkedMapOf(
             "populationSize" to myPopulation.size.toDouble(),
             "bestFitness" to fitness.min(),

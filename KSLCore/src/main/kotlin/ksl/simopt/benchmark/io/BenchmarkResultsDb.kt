@@ -182,7 +182,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                         candidateNum = index + 1,
                         inputsJson = toJson(solution.inputMap.toMap()),
                         objective = solution.average,
-                        penalizedObjective = solution.penalizedObjFncValue,
+                        penalizedObjective = solution.recordedPenalizedObjFncValue,
                         numReplications = solution.count,
                         isWinner = solution.inputMap == outcome.winner.inputMap
                     )

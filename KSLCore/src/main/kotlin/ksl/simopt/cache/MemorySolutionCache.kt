@@ -112,8 +112,8 @@ class MemorySolutionCache(
                 return requestData
             }
             // or remove the first infinite or bad constrained solution
-            if (solution.penalizedObjFncValue.isNaN() || solution.penalizedObjFncValue.isInfinite()
-                || solution.penalizedObjFncValue == Double.MAX_VALUE
+            if (solution.recordedPenalizedObjFncValue.isNaN() || solution.recordedPenalizedObjFncValue.isInfinite()
+                || solution.recordedPenalizedObjFncValue == Double.MAX_VALUE
             ) {
                 return requestData
             }
@@ -129,7 +129,7 @@ class MemorySolutionCache(
         var max = Double.NEGATIVE_INFINITY
         var candidate: ModelInputs? = null
         for ((inputMap, solution) in map) {
-            val possibleMax = solution.penalizedObjFncValue
+            val possibleMax = solution.recordedPenalizedObjFncValue
             if (possibleMax > max) {
                 candidate = inputMap
                 max = possibleMax

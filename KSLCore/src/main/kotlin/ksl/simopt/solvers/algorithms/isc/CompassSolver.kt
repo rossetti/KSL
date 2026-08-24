@@ -362,7 +362,7 @@ class CompassSolver @JvmOverloads constructor(
     override fun extractSolverSpecificState(): Map<String, Double> = linkedMapOf(
         "compassIteration" to compassIteration.toDouble(),
         "visitedCount" to visited.size.toDouble(),
-        "sampleBestObjFnc" to (if (::sampleBest.isInitialized) sampleBest.penalizedObjFncValue else Double.NaN),
+        "sampleBestObjFnc" to (if (::sampleBest.isInitialized) sampleBest.recordedPenalizedObjFncValue else Double.NaN),
         "sampleBestReplications" to (if (::sampleBest.isInitialized) sampleBest.count else Double.NaN)
     )
 

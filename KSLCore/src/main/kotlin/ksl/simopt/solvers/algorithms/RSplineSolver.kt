@@ -480,7 +480,7 @@ class RSplineSolver @JvmOverloads constructor(
         // The full simplex has been evaluated. Thus, the gradients can be computed.
         val gradients = DoubleArray(simplexData.sortedFractionIndices.size)
         for ((i, indexValue) in simplexData.sortedFractionIndices.withIndex()) {
-            gradients[indexValue] = results[i + 1].penalizedObjFncValue - results[i].penalizedObjFncValue
+            gradients[indexValue] = results[i + 1].recordedPenalizedObjFncValue - results[i].recordedPenalizedObjFncValue
         }
         if (KSLArrays.euclideanNorm(gradients) == 0.0) {
             // An exactly-zero interpolated gradient carries no direction information: at

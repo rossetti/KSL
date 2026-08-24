@@ -391,7 +391,7 @@ class BenchmarkExperiment(
                 startingPoint = startingPoints.getValue(repNum).toMap(),
                 bestInputs = best.inputMap.toMap(),
                 bestObjective = best.average,
-                bestPenalizedObjective = best.penalizedObjFncValue,
+                bestPenalizedObjective = best.recordedPenalizedObjFncValue,
                 isBestValid = isBestValid,
                 isInputFeasible = best.isInputFeasible(),
                 responseConstraintViolation = best.responseConstraintViolationPenalty,

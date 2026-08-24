@@ -250,7 +250,7 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
         "nicheCount" to myNiches.count.toDouble(),
         "nicheRadius" to myNiches.radius,
         "generationsSinceImprovement" to generationsSinceImprovement.toDouble(),
-        "bestObjFnc" to (myPopulation.firstOrNull()?.penalizedObjFncValue ?: Double.NaN)
+        "bestObjFnc" to (myPopulation.firstOrNull()?.recordedPenalizedObjFncValue ?: Double.NaN)
     )
 
     override fun toString(): String {

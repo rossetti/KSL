@@ -381,11 +381,11 @@ class ParticleSwarmSolver @JvmOverloads constructor(
                 "avgSpeed" to Double.NaN
             )
         }
-        val fitness = mySwarm.map { it.currentSolution.penalizedObjFncValue }
+        val fitness = mySwarm.map { it.currentSolution.recordedPenalizedObjFncValue }
         return linkedMapOf(
             "swarmSize" to mySwarm.size.toDouble(),
             "inertia" to inertiaSchedule.nextInertia(iterationCounter),
-            "gBestFitness" to currentSolution.penalizedObjFncValue,
+            "gBestFitness" to currentSolution.recordedPenalizedObjFncValue,
             "avgFitness" to fitness.average(),
             "swarmDiameter" to normalizedSwarmDiameter(),
             "avgSpeed" to averageSpeed()

@@ -104,7 +104,7 @@ data class SolverStateSnapshot(
     val bestSolutionSoFar: Solution,
     val currentSolution: Solution,
     val estimatedObjFncValue: Double = bestSolutionSoFar.estimatedObjFncValue,
-    val penalizedObjFncValue: Double = bestSolutionSoFar.penalizedObjFncValue,
+    val penalizedObjFncValue: Double = bestSolutionSoFar.recordedPenalizedObjFncValue,
     val solverSpecificState: Map<String, Double>? = null
 )
 
@@ -593,7 +593,7 @@ abstract class Solver(
      */
     protected fun penalizedDifference(first: Solution, second: Solution): Double {
         val (a, b) = atCommonEvaluation(first, second)
-        return a.penalizedObjFncValue - b.penalizedObjFncValue
+        return a.recordedPenalizedObjFncValue - b.recordedPenalizedObjFncValue
     }
 
     /**
@@ -1150,7 +1150,7 @@ abstract class Solver(
             this@Solver.initializeIterations()
             if (::myInitialSolution.isInitialized) {
                 val solution = myInitialSolution
-                logger.debug { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
+                logger.debug { "Initialized solver $name : penalized objective function value: ${solution.recordedPenalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
             lifeCycleEmitter.emit(SolverStatus.INITIALIZED)
@@ -1195,7 +1195,7 @@ abstract class Solver(
                 iterationEmitter.emit(snapshot)
             }
 
-            logger.debug { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.penalizedObjFncValue}" }
+            logger.debug { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.recordedPenalizedObjFncValue}" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
         }
