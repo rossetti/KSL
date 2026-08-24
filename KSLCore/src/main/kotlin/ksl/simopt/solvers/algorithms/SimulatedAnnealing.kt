@@ -2,6 +2,7 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.SolutionScorer
 import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
 import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.SolutionChecker
@@ -253,7 +254,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         // The already-evaluated baseline serves as the starting point's solution.
         byInput[startSolution.inputMap] = startSolution
         val estimatedTemp = InitialTemperatureEstimator.estimateFromChain(
-            chain, byInput, targetAcceptanceProbability
+            chain, byInput, targetAcceptanceProbability, scorerNow
         )
 
         // Reset the tracker's current solution back to the true initial point so the optimization
@@ -478,7 +479,10 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
             // Fallback covers the (unlikely) all-improving walk and unusable evaluations.
             return InitialTemperatureEstimator.estimateFromChain(
-                chain, byInput, targetAcceptanceProbability
+                chain, byInput, targetAcceptanceProbability,
+                // this path evaluates the whole chain in one request, so the clock is already
+                // common; naming it keeps that a property of the code rather than a coincidence
+                SolutionScorer(evaluator.evaluationClock)
             ) ?: defaultInitialTemperature
         }
     }

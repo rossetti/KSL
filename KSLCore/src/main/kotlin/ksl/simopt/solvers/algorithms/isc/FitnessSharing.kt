@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms.isc
 
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.SolutionScorer
 
 /**
  *  A population member's shared (niche-discounted) fitness.
@@ -31,7 +32,11 @@ class FitnessSharing {
     /**
      *  Computes the shared fitness of every member of [population] given the identified [niches].
      */
-    fun share(population: List<Solution>, niches: NicheResult): List<SharedFitness> {
+    fun share(
+        population: List<Solution>,
+        niches: NicheResult,
+        scorer: SolutionScorer
+    ): List<SharedFitness> {
         // Map each niche member to its niche size.
         val sizeByInput = HashMap<Any, Int>()
         for (niche in niches.niches) {
@@ -43,7 +48,7 @@ class FitnessSharing {
         val nonNichedSize = nonNiched.size.coerceAtLeast(1)
         return population.map { s ->
             val m = sizeByInput[s.inputMap] ?: nonNichedSize
-            val f = s.penalizedObjFncValue
+            val f = scorer.score(s)
             val shared = if (f < 0.0) f / m else f * m
             val variance = scaledVariance(s, m)
             SharedFitness(s, shared, variance, m)

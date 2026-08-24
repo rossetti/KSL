@@ -133,7 +133,11 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
 
     private var myPopulation: MutableList<Solution> = mutableListOf()
     private var myNiches: NicheResult = NicheResult(emptyList(), 0.0, 0)
-    private var lastBestValue: Double = Double.POSITIVE_INFINITY
+    // The best solution as of the last improvement, not its penalized VALUE. A stored value is
+    // read at the clock it was stored at and compared against one read now, and under a rising
+    // multiplier an unchanged infeasible incumbent's value climbs on its own -- so the comparison
+    // sees movement the search did not make.
+    private var lastBest: Solution? = null
 
     /** The current generation index (0 after initialization). */
     var currentGeneration: Int = 0
@@ -178,7 +182,7 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
         val best = myPopulation.first()
         myInitialSolution = best
         currentSolution = best
-        lastBestValue = best.penalizedObjFncValue
+        lastBest = best
         logger.info { "Solver: $name : NGA initialized with population ${myPopulation.size}, niches ${myNiches.count}" }
     }
 
@@ -187,7 +191,7 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
         currentGeneration++
         // Niches for this generation (selection + mating restriction).
         myNiches = identifyNiches(myPopulation)
-        val shared = fitnessSharing.share(myPopulation, myNiches)
+        val shared = fitnessSharing.share(myPopulation, myNiches, scorerNow)
         val groups = grouping.group(shared)
         val weighted = ranking.selectionProbabilities(groups)
         val parents = sampling.sample(weighted, populationSize, rnStream)
@@ -225,8 +229,12 @@ class NichingGeneticAlgorithmSolver @JvmOverloads constructor(
 
         val best = myPopulation.first()
         currentSolution = best
-        if (best.penalizedObjFncValue < lastBestValue - solutionPrecision) {
-            lastBestValue = best.penalizedObjFncValue
+        val scorer = scorerNow
+        val previousBest = lastBest
+        if (previousBest == null ||
+            scorer.score(best) < scorer.score(previousBest) - solutionPrecision
+        ) {
+            lastBest = best
             generationsSinceImprovement = 0
         } else {
             generationsSinceImprovement++

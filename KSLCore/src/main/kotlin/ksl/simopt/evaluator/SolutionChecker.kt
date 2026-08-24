@@ -120,7 +120,15 @@ class PenalizedObjectiveFunctionEquality(
     }
 
     override fun equals(first: Solution, second: Solution): Boolean {
-        return KSLMath.equal(first.penalizedObjFncValue, second.penalizedObjFncValue, solutionPrecision)
+        // Judge both at one clock. The same design evaluated at two different iterations carries
+        // two different penalized values, so reading each at its own clock reports a solution as
+        // unequal to itself and a convergence check built on it can never fire.
+        val clock = maxOf(first.evaluationNumber, second.evaluationNumber)
+        return KSLMath.equal(
+            first.penalizedObjFncValueAt(clock),
+            second.penalizedObjFncValueAt(clock),
+            solutionPrecision
+        )
     }
 }
 

@@ -401,7 +401,7 @@ abstract class Solver(
      *  and the previous solution's penalized objective function value.
      */
     val penalizedSolutionGap: Double
-        get() = currentSolution.penalizedObjFncValue - previousSolution.penalizedObjFncValue
+        get() = penalizedDifference(currentSolution, previousSolution)
 
     /**
      *  The difference between the current solution's unpenalized objective function value

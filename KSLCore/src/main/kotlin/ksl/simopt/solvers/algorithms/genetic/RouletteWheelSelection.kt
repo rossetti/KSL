@@ -22,7 +22,11 @@ class RouletteWheelSelection : SelectionOperatorIfc {
         require(numToSelect > 0) { "The number to select must be greater than 0" }
         val rnStream = solver.rnStream
         val n = population.size
-        val fitness = DoubleArray(n) { population[it].penalizedObjFncValue }
+        // One clock for the whole population. A GA population is rebuilt each generation from
+        // elites plus offspring, so it mixes solutions stamped at different clocks; reading each
+        // at its own would give a carried-over infeasible elite a smaller multiplier than the
+        // offspring it competes with, overstating its fitness generation after generation.
+        val fitness = solver.scorerNow.scores(population)
         val worst = fitness.max()
         // Windowed weights: better (smaller) objective -> larger weight; worst -> 0.
         val cumulative = DoubleArray(n)

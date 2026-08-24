@@ -7,6 +7,7 @@ import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.ParallelEvaluationOptions
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.SolutionScorer
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
@@ -196,6 +197,14 @@ class InitialTemperatureEstimationTest {
     private fun point(q: Double, r: Double): InputMap =
         pd.toInputMap(mutableMapOf(Q_NAME to q, R_NAME to r))
 
+    /**
+     * The estimator scores a whole walk at one clock, so the tests supply one too. The walk's
+     * points are all stamped at the same iteration here, which is what makes the expected values
+     * below plain differences of the recorded penalized values.
+     */
+    private fun scorerFor(solutions: Map<InputMap, Solution>): SolutionScorer =
+        SolutionScorer(solutions.values.maxOfOrNull { it.evaluationNumber } ?: 0)
+
     private fun solution(inputMap: InputMap, value: Double): Solution =
         Solution(inputMap, EstimatedResponse(OBJ_FN, value, 0.0, 2.0), emptyList(), 0)
 
@@ -218,7 +227,7 @@ class InitialTemperatureEstimationTest {
         val diffs = values.zipWithNext { p, n -> n - p }.filter { it > 0.0 }
         val expected = -(diffs.sum() / diffs.size) / ln(TARGET_PROB)
 
-        val estimate = InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB)
+        val estimate = InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB, scorerFor(solutions))
         assertEquals(expected, estimate!!, 1e-12)
     }
 
@@ -234,7 +243,7 @@ class InitialTemperatureEstimationTest {
             b to solution(b, 3.0),
             c to solution(c, 1.0)
         )
-        assertNull(InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB))
+        assertNull(InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB, scorerFor(solutions)))
     }
 
     @Test
@@ -255,7 +264,7 @@ class InitialTemperatureEstimationTest {
         // Usable segments: (a) alone before the gap, then (c, d): only diff is 5 - 2 = 3.
         val cd = solutions.getValue(d).penalizedObjFncValue - solutions.getValue(c).penalizedObjFncValue
         val expected = -cd / ln(TARGET_PROB)
-        val estimate = InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB)
+        val estimate = InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB, scorerFor(solutions))
         assertEquals(expected, estimate!!, 1e-12)
     }
 
@@ -269,6 +278,6 @@ class InitialTemperatureEstimationTest {
             a to pd.badSolution(),
             b to pd.badSolution()
         )
-        assertNull(InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB))
+        assertNull(InitialTemperatureEstimator.estimateFromChain(chain, solutions, TARGET_PROB, scorerFor(solutions)))
     }
 }

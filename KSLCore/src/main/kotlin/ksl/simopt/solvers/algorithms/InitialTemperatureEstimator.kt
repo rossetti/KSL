@@ -22,6 +22,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.SolutionScorer
 import ksl.simopt.problem.InputMap
 import ksl.utilities.random.rng.RNStreamIfc
 import kotlin.math.ln
@@ -95,7 +96,8 @@ internal object InitialTemperatureEstimator {
     fun estimateFromChain(
         chain: List<InputMap>,
         solutionsByInput: Map<InputMap, Solution>,
-        targetAcceptanceProbability: Double
+        targetAcceptanceProbability: Double,
+        scorer: SolutionScorer
     ): Double? {
         require(targetAcceptanceProbability > 0.0 && targetAcceptanceProbability < 1.0) {
             "Target probability must be strictly between 0 and 1"
@@ -116,7 +118,12 @@ internal object InitialTemperatureEstimator {
                 havePrevious = false
                 continue
             }
-            val value = solution.penalizedObjFncValue
+            // Every point on the walk is scored at ONE clock. The walk evaluates its points in
+            // sequence, so each arrives stamped a step later than the last; differencing them at
+            // their own clocks inflates the gaps by the penalty's growth rather than by anything
+            // about the designs, and here the size of the gap IS the output -- it sets the whole
+            // acceptance schedule.
+            val value = scorer.score(solution)
             if (!value.isFinite()) {
                 logger.warn { "Temperature calibration: non-finite objective at walk point; skipping. Point: ${point.inputValues.joinToString()}" }
                 havePrevious = false
