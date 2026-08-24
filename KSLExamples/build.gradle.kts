@@ -53,6 +53,12 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    // The opt-in example sweeps (ksl.examples.release.*) gate themselves on this property, and
+    // Gradle does not pass -D from its own JVM to the test JVM. Without this forwarding the
+    // invocation those tests document -- ./gradlew :KSLExamples:test -Dksl.runExamples=true --
+    // silently skips them and Gradle reports "no tests found", which reads like an absent gate
+    // rather than an un-cast one.
+    System.getProperty("ksl.runExamples")?.let { systemProperty("ksl.runExamples", it) }
 }
 
 // Produces the slim, distributable "KSL Book Examples" bundle JAR — a manifest

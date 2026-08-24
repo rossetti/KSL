@@ -405,8 +405,15 @@ class BenchmarkExperiment(
                 errorMessage = member.error?.message
             )
         }
+        // With confirmation disabled this is where the reported winner is chosen, and the members
+        // it chooses between finish at different clocks. Rank them all at the furthest one so a
+        // rising penalty applies equally, rather than favouring whichever member stopped earliest
+        // and so carries the smallest multiplier on its violations.
+        val reportingClock = validBests.maxOfOrNull { it.bestSolution.evaluationNumber } ?: 0
         val winner = confirmationOutcome?.winner
-            ?: validBests.minByOrNull { it.bestSolution.penalizedObjFncValue }?.bestSolution
+            ?: validBests.minByOrNull {
+                it.bestSolution.atEvaluation(reportingClock).penalizedObjFncValue
+            }?.bestSolution
         return ProblemBenchmarkResult(
             problemName = problemCase.name,
             tags = problemCase.tags,

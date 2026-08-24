@@ -54,6 +54,15 @@ class ExposedExamplesRunTest {
             "ksl.examples.general.simopt.BayesianOptimizationSolverTestingKt" to
                 "BO's surrogate fit is cubic in evaluated points and can run for many minutes; " +
                 "BO ran in the release's own eight-solver smoke instead"
+            ,
+            "ksl.examples.book.chapter11.CESolverExampleKt" to
+                "owned by SlowExamplesRunTest; measured at 292 s, far past this gate's 180 s budget",
+            "ksl.examples.book.chapter11.SARestartSolverExampleKt" to
+                "owned by SlowExamplesRunTest; measured at 347 s, far past this gate's 180 s budget",
+            "ksl.examples.general.simopt.CrossEntropySolverTestingKt" to
+                "owned by SlowExamplesRunTest; measured at 294 s, far past this gate's 180 s budget",
+            "ksl.examples.general.simopt.PilotStudyKt" to
+                "owned by SlowExamplesRunTest; measured at 734 s, four times this gate's 180 s budget"
         )
 
         /**
@@ -61,19 +70,15 @@ class ExposedExamplesRunTest {
          * capacity schedule and has a `main`, minus the exclusions above.
          */
         val EXPOSED: List<String> = listOf(
-            "ksl.examples.book.chapter11.CESolverExampleKt",
-            "ksl.examples.book.chapter11.SARestartSolverExampleKt",
             "ksl.examples.general.misc.TestResourceScheduleKt",
             "ksl.examples.general.models.ProposedModel2Kt",
             "ksl.examples.general.models.inventory.TwoEchelonOptProblemKt",
             "ksl.examples.general.models.station.StationNetworkWithShiftKt",
             "ksl.examples.general.models.station.StemFairEnhancedStationKt",
             "ksl.examples.general.simopt.BenchmarkDemoKt",
-            "ksl.examples.general.simopt.CrossEntropySolverTestingKt",
             "ksl.examples.general.simopt.GeneticAlgorithmSolverTestingKt",
             "ksl.examples.general.simopt.MakeProblemDefinitionsKt",
             "ksl.examples.general.simopt.ParticleSwarmSolverTestingKt",
-            "ksl.examples.general.simopt.PilotStudyKt",
             "ksl.examples.general.simopt.RSPLINESolverTestingKt",
             "ksl.examples.general.simopt.RSplineSolverExampleKt",
             "ksl.examples.general.simopt.SimulatedAnnealingSolverTestingKt",
