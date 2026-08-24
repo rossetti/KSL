@@ -186,18 +186,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.6.1"
+version = "R1.6.2"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.6.1")
+api("io.github.rossetti:KSLCore:R1.6.2")
 ```
 To your build for the latest release.
 
 ## Release Notes
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
-things released on separate cadences: the **library** (`KSLCore`, versioned R1.6.1, R1.6, …) and
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.6.2, R1.6.1, …) and
 the installable **suite** of applications and servers (versioned 0.3.8, 0.3.7, …). A suite release
 does not imply a library release, or the reverse.
 
@@ -206,16 +206,19 @@ restarting, and a configuration saved for one model is no longer quietly applied
 tells you which model the file belongs to and offers to open it. `Load JAR…` opens where your
 bundles actually live rather than in your home directory, in every application.
 
-**Current library release — R1.6.1.** A correctness release for simulation optimization, the
-random-number stream provider and capacity schedules. Three fixes matter before you upgrade,
-because each was silently wrong rather than loudly broken: a search on a **constrained** problem
-could never displace its starting point, since an incumbent was compared against challengers at a
-smaller penalty multiplier than they carried — more budget made it worse; a random variable built
-on an **antithetic** stream was bound to a different one, so anyone using antithetic variates got
-the wrong pairing; and a **capacity schedule configured a second time** did nothing at all,
-leaving the resource at its initial capacity for the whole run. Results change in all three cases
-— see the release notes for who is affected. A drop-in for R1.6: nothing removed, no signature
-changed.
+**Current library release — R1.6.2.** A correctness release for simulation optimization, almost
+entirely about one thing: the penalty multiplier is a property of the search, not of a solution,
+and a dozen places read it as though it were. The one to know before upgrading is that a
+**benchmark could report a solution its own solvers had rejected** — the confirmation stage ranked
+candidates by penalized objective, so a cheap infeasible design beat a feasible one whenever the
+penalty was smaller than the objective gap. On a call-center model the penalty standing against an
+8,000-unit gap was 8.5, and the reported design violated four constraints while feasible ones sat
+in the same candidate list. Reported answers on **constrained** problems are now chosen
+feasibility-first and will change; where the old answer was infeasible the new one usually has a
+worse objective, which is the correction rather than a regression. Bayesian optimization also
+searches differently: its surrogate was being fitted to targets that drifted with the iteration
+counter. `Solution.penalizedObjFncValue` is deprecated in favour of `recordedPenalizedObjFncValue`
+and `penalizedObjFncValueAt(k)`. A drop-in for R1.6.1: nothing removed, no signature broken.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;

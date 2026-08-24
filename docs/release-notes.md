@@ -318,6 +318,123 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.6.2
+
+*24 August 2026.* A correctness release for simulation optimization, almost entirely about one
+thing: **the penalty multiplier is a property of the search, not of a solution**, and a dozen
+places read it as though it were. R1.6.1 fixed the first instance found; this release fixes the
+family, and adds a guard so the next one cannot be written without someone noticing.
+
+Nothing is removed and no signature is broken, so it is a drop-in replacement for R1.6.1 — but
+this release changes **what a benchmark reports** on a constrained problem, and it changes how
+Bayesian optimization searches. Numbers move, and on constrained problems they should: the
+previous answers could be infeasible.
+
+Found the same way as R1.6.1 — by running a benchmarking study end to end and reading what came
+out, rather than by the test suites.
+
+### Fixed
+
+- **A benchmark could report a solution its own solvers had rejected.** Each member of a
+  concurrent run hands the confirmation stage its `Solver.bestSolution`, which is chosen
+  feasibility-first. Confirmation then re-ranked those candidates by *penalized objective* — the
+  quantity the library's own documentation calls a search incumbent and "NOT the reported answer" —
+  and a cheap infeasible design beats a feasible one whenever the penalty is smaller than the
+  objective gap. On a call-center model the penalty standing against an 8,000-unit gap was 8.5, and
+  the reported design violated four constraints, one of them by 4.5 standard deviations, while
+  feasible designs the solvers had already found sat in the same candidate list. Confirmation and
+  both reporting fallbacks now select with `FeasibilityFirstComparator`, so every path that names a
+  reported answer names it the same way.
+- **A comparator that is not a total order was being sorted with.** Judging each *pair* at the
+  later of its two evaluation numbers is right for one comparison and is what R1.6.1 introduced.
+  It is not transitive: three solutions can be compared at three different multipliers and imply a
+  cycle. Five solver sites *sorted* with it — the genetic algorithm ordering its population, rank
+  selection, the niching variant, and Bayesian optimization trimming its archive — and Java's sort
+  throws `Comparison method violates its general contract!` once a list reaches 32 elements. It
+  surfaced on a problem with a deterministic objective, where ordering is decided by the penalty
+  term alone. Ordering now goes through `orderedBestFirst`, which fixes one clock for the whole
+  sort; pairwise comparison is unchanged.
+- **Park–Kim penalty-with-memory silently stopped being itself at the moment it chose the
+  answer.** The confirmation stage re-simulates on a dedicated evaluator, and disables caching
+  because it uses common random numbers — so penalty memory was folded from an empty prior and the
+  confirmed solutions arrived with a single visit, below the two PFM requires. It degraded to its
+  memoryless fallback, evaluated at that evaluator's clock of 1. A run configured for PFM searched
+  under PFM and selected its winner under a different penalty function. The search's memory is now
+  carried onto the confirmed solutions rather than rebuilt.
+- **Bayesian optimization was fitting its surrogate to a moving target.** Both the Gaussian process
+  and its hyperparameters were fitted to the archive's penalized values read at each point's own
+  clock. The archive spans the whole run, so the same design entered training as attractive when
+  found early and ruinous when found late, and the GP interpolated between the two as though the
+  difference were spatial. The surrogate was partly learning the iteration counter. It is now
+  fitted at one clock, at no cost — both fits already ran every iteration. The incumbent that
+  acquisition must beat is now drawn from the confidently-feasible observed points, so improvement
+  means improvement on the answer the run will report.
+- **Kim's comparison-with-a-standard put a term in its statistic whose variance it did not
+  model.** The ISC local-optimality test built `Z` from *penalized* differences while taking `S²`
+  from the raw objective's sampling error. The penalty is a function of the estimated responses and
+  is therefore itself random; its variance being absent from `S²` narrows the continuation region
+  and inflates the error rate rather than merely blurring the decision. Feasibility is now settled
+  first and deterministically — a feasible neighbour beats an infeasible standard outright, an
+  infeasible neighbour cannot displace a feasible standard, and with nothing feasible the
+  comparison falls back to least violation — and the sequential test runs only among
+  confidently-feasible systems, comparing raw objectives against the variance those objectives
+  actually have.
+- **A genetic algorithm weighted carried-over elites and fresh offspring under different
+  multipliers.** A population rebuilt each generation from elites plus offspring mixes solutions
+  stamped at different clocks. Roulette-wheel selection and ISC's fitness sharing read each at its
+  own, so an infeasible elite carried a smaller multiplier than the offspring it competed with and
+  was over-selected, generation after generation. The niching variant's stagnation trigger compared
+  a value stored at one iteration against one read now — and under a rising multiplier an unchanged
+  infeasible incumbent's value climbs on its own, so the trigger saw movement the search had not
+  made. All three now score at one clock.
+- **Simulated annealing's initial temperature was calibrated on inflated differences.** The
+  temperature is estimated from differences between consecutive points of a random walk, and each
+  point arrives stamped a step later than the last. The gaps were inflated by the penalty's growth
+  rather than by anything about the designs — and here the size of the gap *is* the output: it sets
+  the entire acceptance schedule. Affects the auto-calibrating configuration only; the default
+  fixed temperature was never involved.
+- **A convergence check could never fire.** `PenalizedObjectiveFunctionEquality` compared two
+  solutions at their own clocks, so the same design evaluated at two iterations compared unequal to
+  itself.
+- **An example model was not reproducible run to run.** `TimeBasedDemandCarrier` (KSLExamples) held
+  its shipping time as a bare `RVariableIfc` rather than wrapping it in a `RandomVariable`, so it
+  was never re-homed onto the model's own stream provider and never reset between replications.
+  Every model in the JVM shared one stream for shipping times and nothing rewound it: run in
+  sequence each simulation left it advanced, and run concurrently they drew from it at once. Two
+  runs of a 24-cell benchmark grid over `TwoEchelonModel` agreed on none of their 24 objectives;
+  they now agree on all of them.
+
+### Changed
+
+- `Solution.penalizedObjFncValue` is **deprecated**. It reads the penalized value without naming a
+  clock, which is what allowed solutions from different iterations to be compared as though they
+  belonged to the same subproblem. Use `recordedPenalizedObjFncValue` for reporting — a database
+  column, a trace, a log line — and `penalizedObjFncValueAt(k)` or the new `SolutionScorer` for any
+  decision taken over more than one solution.
+- New `SolutionScorer` scores a collection at one clock and exposes a comparator that is a genuine
+  total order. `Solver` gains `currentEvaluationClock`, `scorerNow` and `scorerAt(k)`, taking the
+  clock from the evaluator rather than deriving it from whichever solutions are in hand.
+- `EvaluatorIfc.evaluationClock` exposes the authoritative clock, defaulted to
+  `totalEvaluatorCalls` so existing implementors are unaffected.
+- `ConfirmationOptions` gains `recommendationCILevel` (default 0.99) and
+  `ComparisonWithStandardProcedure` gains `feasibilityCILevel` (default 0.99), both matching
+  `Solver.recommendationCILevel` so that every stage agrees about what counts as feasible.
+- `FitnessSharing.share` and `InitialTemperatureEstimator.estimateFromChain` now take a
+  `SolutionScorer`, because neither could otherwise know which clock to score at.
+
+### What moves
+
+Worth checking against your own results before upgrading:
+
+- **Reported best solutions on constrained problems change**, because they are now chosen
+  feasibility-first. Where the old answer was infeasible the new one will usually have a worse
+  objective — that is the correction, not a regression.
+- **Bayesian optimization searches differently.** Measured on a five-problem discrete-event grid,
+  8 of 15 cells moved; the one problem with a consistent signal improved on all three replications.
+- **Genetic algorithms and the niching variant change** if configured with roulette-wheel selection
+  or fitness sharing; both are unaffected under the default tournament selection.
+- **Simulated annealing changes** only under the auto-calibrating temperature configuration.
+
 ## R1.6.1
 
 *23 August 2026.* A correctness release for simulation optimization, the random-number stream
