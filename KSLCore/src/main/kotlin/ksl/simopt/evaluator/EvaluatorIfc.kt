@@ -57,6 +57,18 @@ interface EvaluatorIfc {
     }
 
     /**
+     *  The evaluator's current clock — the number of evaluation batches issued since the last
+     *  reset, and the value stamped on the solutions of the next batch. This is the authoritative
+     *  clock for scoring a collection of solutions; deriving one from whatever solutions happen to
+     *  be in hand makes the clock a function of the collection.
+     *
+     *  The default is [totalEvaluatorCalls], which coincides with the clock for evaluators that
+     *  never reset it.
+     */
+    val evaluationClock: Int
+        get() = totalEvaluatorCalls
+
+    /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present or allowed) or via evaluations by the simulation oracle.
      *  The CRN option is applied to the set of requests and does not permit

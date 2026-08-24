@@ -240,6 +240,17 @@ data class Solution(
      *  it is being used for selection. The simulation estimates and [id] are unchanged; only the
      *  penalty clock advances. Returns this instance when it is already at that iteration.
      */
+    /**
+     *  The penalized objective function value judged at the supplied [evaluationNumber] rather
+     *  than at this solution's own.
+     *
+     *  Prefer this wherever more than one solution is being compared, scored, or fitted: the
+     *  penalty multiplier is iteration-relative, so values read at each solution's own clock are
+     *  values of different objective functions. See [ksl.simopt.evaluator.SolutionScorer].
+     */
+    fun penalizedObjFncValueAt(evaluationNumber: Int): Double =
+        atEvaluation(evaluationNumber).penalizedObjFncValue
+
     fun atEvaluation(evaluationNumber: Int): Solution =
         if (this.evaluationNumber == evaluationNumber) this
         else copy(evaluationNumber = evaluationNumber)

@@ -614,10 +614,34 @@ abstract class Solver(
      *  @param evaluationNumber the clock every solution is judged at
      */
     fun comparatorAt(evaluationNumber: Int): Comparator<Solution> = Comparator { first, second ->
-        val a = first.atEvaluation(evaluationNumber)
-        val b = second.atEvaluation(evaluationNumber)
+        val scorer = SolutionScorer(evaluationNumber)
+        val a = scorer.at(first)
+        val b = scorer.at(second)
         solutionComparer?.compare(a, b) ?: a.compareTo(b)
     }
+
+    /**
+     *  The clock this solver's decisions should be taken at: the evaluator's own.
+     *
+     *  Prefer this to deriving a clock from whatever solutions are in hand. `maxOf` over a
+     *  collection is a reasonable fallback where no evaluator is in scope, but it makes the clock
+     *  a function of the collection, so the same solution can be scored differently depending on
+     *  what it is being scored beside.
+     */
+    val currentEvaluationClock: Int
+        get() = evaluator.evaluationClock
+
+    /**
+     *  A scorer at [currentEvaluationClock]. Use it for any decision taken over more than one
+     *  solution — population fitness, an archive fitted to a surrogate, an incumbent compared
+     *  against a challenger — so that the whole decision sits inside one subproblem of the penalty
+     *  sequence. See [ksl.simopt.evaluator.SolutionScorer].
+     */
+    val scorerNow: SolutionScorer
+        get() = SolutionScorer(currentEvaluationClock)
+
+    /** A scorer at an explicit clock. */
+    fun scorerAt(evaluationNumber: Int): SolutionScorer = SolutionScorer(evaluationNumber)
 
     /**
      *  Orders solutions best-first at a single clock -- the latest any of them carries -- so that

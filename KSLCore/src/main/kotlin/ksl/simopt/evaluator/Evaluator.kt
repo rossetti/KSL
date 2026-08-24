@@ -45,6 +45,9 @@ class Evaluator @JvmOverloads constructor(
     // One-time guard for the memoryful-penalty-without-cache warning (see checkMemoryPenaltyRegime).
     private var myMemoryPenaltyWarningIssued: Boolean = false
 
+    override val evaluationClock: Int
+        get() = myEvaluationClock
+
     override fun resetEvaluationClock() {
         EvaluatorIfc.logger.trace { "Resetting the evaluation clock" }
         myEvaluationClock = 0
