@@ -182,4 +182,63 @@ class ComparisonWithStandardProcedureTest {
         assertFalse(result.standardIsBest, "the less-violating system must be preferred")
         assertEquals(alternative.inputMap, result.winner.inputMap)
     }
+
+    // ---------------------------------------------------------------------------------------
+    // Degenerate variance (see varianceOf: a zero variance is used, a missing one is reported)
+    // ---------------------------------------------------------------------------------------
+
+    /** A system whose objective carries an explicit [variance] over [count] observations. */
+    private fun withVariance(x: Double, fx: Double, variance: Double, count: Double): Solution =
+        Solution(pd.toInputMap(doubleArrayOf(x)), EstimatedResponse("y", fx, variance, count), emptyList(), 1)
+
+    @Test
+    @DisplayName("Deterministic systems decide at the first stage without further sampling")
+    fun zeroVarianceDecidesImmediately() {
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = withVariance(x = 5.0, fx = 10.0, variance = 0.0, count = 10.0)
+        val better = withVariance(x = 4.0, fx = 1.0, variance = 0.0, count = 10.0)
+
+        // With S^2 = 0 the continuation region collapses to zero, so the sign of the difference
+        // settles it at once: sampling a system with no noise cannot change the answer.
+        val result = proc.run(
+            standard, listOf(better),
+            { error("a deterministic comparison must not spend a replication") },
+            { _, _ -> error("a deterministic comparison must not spend a replication") }
+        )
+
+        assertFalse(result.standardIsBest)
+        assertEquals(better.inputMap, result.winner.inputMap)
+    }
+
+    @Test
+    @DisplayName("A deterministic standard survives a deterministic but worse alternative")
+    fun zeroVarianceKeepsTheBetterStandard() {
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = withVariance(x = 5.0, fx = 1.0, variance = 0.0, count = 10.0)
+        val worse = withVariance(x = 4.0, fx = 10.0, variance = 0.0, count = 10.0)
+
+        val result = proc.run(
+            standard, listOf(worse),
+            { error("a deterministic comparison must not spend a replication") },
+            { _, _ -> error("a deterministic comparison must not spend a replication") }
+        )
+
+        assertTrue(result.standardIsBest)
+        assertEquals(standard.inputMap, result.winner.inputMap)
+    }
+
+    @Test
+    @DisplayName("A system with too few observations is reported, not given an invented variance")
+    fun missingVarianceIsReported() {
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = withVariance(x = 5.0, fx = 10.0, variance = Double.NaN, count = 1.0)
+        val alternative = withVariance(x = 4.0, fx = 1.0, variance = 4.0, count = 10.0)
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            proc.run(standard, listOf(alternative), deterministicSampler(emptyMap()), ::mergeSolutions)
+        }
+        assertTrue(error.message!!.contains("sample variance is undefined")) {
+            "the message must name the cause, was: ${error.message}"
+        }
+    }
 }

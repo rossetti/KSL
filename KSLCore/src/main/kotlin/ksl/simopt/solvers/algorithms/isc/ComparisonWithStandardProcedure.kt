@@ -237,9 +237,42 @@ class ComparisonWithStandardProcedure(
      */
     internal fun differenceVariance(a: Solution, b: Solution): Double = varianceOf(a) + varianceOf(b)
 
+    /**
+     *  The system's sample variance, used as-is — **including when it is zero**.
+     *
+     *  A zero variance collapses the continuation region to `a_i(r) = 0`, and the procedure then
+     *  decides at the first stage on the sign of the difference. That is the correct answer for a
+     *  deterministic system: the region exists to absorb sampling error, and there is none to
+     *  absorb, so the observed difference IS the true difference and no replication need be spent
+     *  confirming it.
+     *
+     *  An earlier version substituted `1.0` for a zero or missing variance. That is not
+     *  scale-free, and the same constant fails in opposite directions depending on the response's
+     *  units: against a dollar-scale objective (`S² ~ 10⁶`) it is negligible and collapses the
+     *  region anyway, while against a proportion (`S² ~ 10⁻⁴`) it is four orders of magnitude too
+     *  large and pushes the crossing point past any usable replication cap — silently turning a
+     *  sequential procedure into one that always runs to [maxReplications].
+     *
+     *  **The residual risk, deliberately accepted.** A genuinely stochastic system can report an
+     *  exactly zero sample variance — integer-valued output, coarse rounding, or a response that
+     *  happens to be constant across the first stage. There the collapsed region decides on the
+     *  sign of a *noisy* difference with none of the protection Kim's procedure advertises. One
+     *  sample cannot distinguish that from true determinism, so it is a sample-size question, and
+     *  [n0] is the parameter that governs it: size the first stage for the response's granularity.
+     *
+     *  A missing variance is a different matter and is not defended against here. It means fewer
+     *  than two observations, which violates this procedure's own `n0 >= 2` precondition, so it is
+     *  reported rather than papered over with an invented number.
+     */
     private fun varianceOf(s: Solution): Double {
         val v = s.estimatedObjFnc.variance
-        return if (v.isNaN() || v <= 0.0) 1.0 else v
+        require(!v.isNaN()) {
+            "The system at ${s.inputMap.inputValues.joinToString(prefix = "[", postfix = "]")} " +
+                "carries ${s.count.toInt()} observation(s), so its sample variance is undefined. " +
+                "The comparison-with-a-standard procedure requires at least n0 = $n0 observations " +
+                "per system before its first stage."
+        }
+        return v
     }
 
     companion object {
