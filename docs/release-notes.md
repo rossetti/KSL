@@ -379,6 +379,22 @@ out, rather than by the test suites.
   comparison falls back to least violation — and the sequential test runs only among
   confidently-feasible systems, comparing raw objectives against the variance those objectives
   actually have.
+- **A zero sample variance made the same ISC test run to its replication cap.** Where a system's
+  first-stage variance came out zero or could not be computed, the local-optimality test
+  substituted `1.0`. A zero variance is not a problem to be papered over — it collapses the
+  continuation region, and the procedure then decides at the first stage on the sign of the
+  difference, which is the right answer for a deterministic system because there is no sampling
+  error left to absorb. And `1.0` is not scale-free: against a dollar-scale objective it is
+  negligible and collapses the region anyway, while against a **proportion** it is four orders of
+  magnitude too large, pushing the decision boundary out to roughly 38,000 replications and
+  silently turning a sequential procedure into one that always runs to `maxReplications`. The
+  computed variance is now used as it stands. A *missing* variance — fewer than two observations,
+  which violates the procedure's own `n0 >= 2` precondition — is reported with the offending
+  design point rather than given an invented number. One case is deliberately left standing and
+  documented: a genuinely stochastic response can report an exactly zero sample variance when its
+  output is integer-valued, coarsely rounded, or constant across the first stage, and there the
+  collapsed region decides on a noisy difference. No single sample can tell that from true
+  determinism, so it is a first-stage sizing question and `n0` is the parameter that governs it.
 - **A genetic algorithm weighted carried-over elites and fresh offspring under different
   multipliers.** A population rebuilt each generation from elites plus offspring mixes solutions
   stamped at different clocks. Roulette-wheel selection and ISC's fitness sharing read each at its
@@ -433,6 +449,11 @@ Worth checking against your own results before upgrading:
   8 of 15 cells moved; the one problem with a consistent signal improved on all three replications.
 - **Genetic algorithms and the niching variant change** if configured with roulette-wheel selection
   or fitness sharing; both are unaffected under the default tournament selection.
+- **ISC and COMPASS change on constrained problems**, in two ways. Feasibility now decides the
+  local-optimality test before the objective does, so a centre can be displaced by a feasible
+  neighbour it previously beat on a penalized comparison. And where a first-stage variance came
+  out zero the test no longer runs to its replication cap, so runs get shorter — noticeably so on
+  proportion-scale responses. Unconstrained problems are unaffected by the first change.
 - **Simulated annealing changes** only under the auto-calibrating temperature configuration.
 
 ## R1.6.1
