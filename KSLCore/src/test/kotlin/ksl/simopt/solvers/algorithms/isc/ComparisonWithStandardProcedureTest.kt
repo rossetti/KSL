@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
@@ -105,5 +106,80 @@ class ComparisonWithStandardProcedureTest {
             "finalStandard must carry the standard, distinct from the winning alternative")
         assertTrue(result.finalStandard.count >= standard.count,
             "the standard's accumulated replications must be preserved, not discarded")
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Feasibility screening (see the class KDoc: feasibility is settled before the test)
+    // ---------------------------------------------------------------------------------------
+
+    /** A problem with one response constraint, `usage <= 10`. */
+    private fun constrainedProblem(): ProblemDefinition {
+        val cpd = ProblemDefinition(
+            problemName = "ISCConstrainedTestProblem",
+            modelIdentifier = "ISCTestModel",
+            objFnResponseName = "y",
+            inputNames = listOf("x1"),
+            responseNames = listOf("usage")
+        )
+        cpd.inputVariable("x1", lowerBound = 0.0, upperBound = 100.0, granularity = 1.0)
+        cpd.responseConstraint("usage", rhsValue = 10.0, inequalityType = IscTestSupport.LE)
+        return cpd
+    }
+
+    /** A solution at objective [fx] whose constrained response sits at [usage]. */
+    private fun constrained(cpd: ProblemDefinition, x: Double, fx: Double, usage: Double): Solution {
+        val inputMap = cpd.toInputMap(doubleArrayOf(x))
+        val objective = EstimatedResponse("y", fx, 1.0, 30.0)
+        val response = EstimatedResponse("usage", usage, 1.0, 30.0)
+        return Solution(inputMap, objective, listOf(response), 1)
+    }
+
+    /** The procedure must reach a decision on feasibility alone, without spending a replication. */
+    private fun refuseToSample(): (InputMap) -> Solution =
+        { error("the procedure must decide on feasibility without sampling") }
+
+    private fun refuseToMerge(): (Solution, Solution) -> Solution =
+        { _, _ -> error("the procedure must decide on feasibility without sampling") }
+
+    @Test
+    @DisplayName("An infeasible alternative cannot displace a feasible standard, however good its objective")
+    fun infeasibleAlternativeCannotDisplaceAFeasibleStandard() {
+        val cpd = constrainedProblem()
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = constrained(cpd, x = 5.0, fx = 100.0, usage = 1.0)   // feasible, poor objective
+        val alternative = constrained(cpd, x = 4.0, fx = 1.0, usage = 50.0) // infeasible, superb objective
+
+        val result = proc.run(standard, listOf(alternative), refuseToSample(), refuseToMerge())
+
+        assertTrue(result.standardIsBest, "a feasible standard must survive an infeasible challenger")
+        assertEquals(standard.inputMap, result.winner.inputMap)
+    }
+
+    @Test
+    @DisplayName("A feasible alternative beats an infeasible standard, however good the standard's objective")
+    fun feasibleAlternativeBeatsAnInfeasibleStandard() {
+        val cpd = constrainedProblem()
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = constrained(cpd, x = 5.0, fx = 1.0, usage = 50.0)      // infeasible, superb objective
+        val alternative = constrained(cpd, x = 4.0, fx = 100.0, usage = 1.0)  // feasible, poor objective
+
+        val result = proc.run(standard, listOf(alternative), refuseToSample(), refuseToMerge())
+
+        assertFalse(result.standardIsBest, "an infeasible standard must yield to a feasible neighbour")
+        assertEquals(alternative.inputMap, result.winner.inputMap)
+    }
+
+    @Test
+    @DisplayName("With nothing feasible the least total violation wins")
+    fun leastViolationWinsWhenNothingIsFeasible() {
+        val cpd = constrainedProblem()
+        val proc = ComparisonWithStandardProcedure(alpha = 0.05, delta = 1.0, n0 = 10)
+        val standard = constrained(cpd, x = 5.0, fx = 1.0, usage = 90.0)      // badly infeasible
+        val alternative = constrained(cpd, x = 4.0, fx = 100.0, usage = 20.0) // less infeasible
+
+        val result = proc.run(standard, listOf(alternative), refuseToSample(), refuseToMerge())
+
+        assertFalse(result.standardIsBest, "the less-violating system must be preferred")
+        assertEquals(alternative.inputMap, result.winner.inputMap)
     }
 }

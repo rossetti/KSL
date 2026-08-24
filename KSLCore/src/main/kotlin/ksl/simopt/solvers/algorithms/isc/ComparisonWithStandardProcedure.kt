@@ -51,23 +51,40 @@ data class StandardComparisonResult(
  *  walk never terminates, which is why COMPASS uses it only when `δ_L > 0` (see the ISC degraded-mode
  *  documentation).
  *
+ *  **Feasibility is settled before the test, not inside it.** Systems are screened with
+ *  [ksl.simopt.evaluator.Solution.isResponseConstraintFeasible] at [feasibilityCILevel], following the
+ *  same ordering `FeasibilityFirstComparator` applies: a confidently-feasible neighbour beats an
+ *  infeasible standard outright, an infeasible neighbour cannot displace a feasible standard, and
+ *  when nothing is confidently feasible the comparison falls back to least total violation with no
+ *  statistical claim attached. Only among confidently-feasible systems does the sequential test run,
+ *  and there it compares raw objectives against a variance built from the objective's own sampling
+ *  error. An earlier version compared PENALIZED objectives against that same variance, which placed a
+ *  term in `Z` whose variance is absent from `S²` -- narrowing the continuation region and inflating
+ *  the error rate rather than merely blurring the decision -- and did so at whatever clocks the two
+ *  systems had drifted to as alternatives were eliminated at different rates.
+ *
  *  @param alpha the overall error probability; must be in (0,1)
  *  @param delta the indifference-zone parameter `δ_L`; must be positive
  *  @param n0 the first-stage sample size per system; must be at least 2
  *  @param c the comparison-constant flag from Kim (2005); only `c = 1` is supported
  *  @param maxReplications a hard cap on replications per system, guaranteeing termination even if the
  *  boundary has not forced a decision; must be at least [n0]
+ *  @param feasibilityCILevel the confidence used by the response-feasibility screen; must be in (0,1)
  */
 class ComparisonWithStandardProcedure(
     var alpha: Double = DEFAULT_ALPHA,
     var delta: Double,
     var n0: Int = DEFAULT_N0,
     var c: Int = 1,
-    var maxReplications: Int = DEFAULT_MAX_REPLICATIONS
+    var maxReplications: Int = DEFAULT_MAX_REPLICATIONS,
+    var feasibilityCILevel: Double = DEFAULT_FEASIBILITY_CI_LEVEL
 ) {
 
     init {
         require(alpha > 0.0 && alpha < 1.0) { "alpha must be in (0,1)" }
+        require(feasibilityCILevel > 0.0 && feasibilityCILevel < 1.0) {
+            "feasibilityCILevel must be in (0,1)"
+        }
         require(delta > 0.0) { "delta must be positive (the comparison-with-a-standard test degenerates at delta = 0)" }
         require(n0 >= 2) { "n0 must be at least 2" }
         require(c == 1) { "only c = 1 (single comparison constant) is supported" }
@@ -106,13 +123,49 @@ class ComparisonWithStandardProcedure(
         if (alternatives.isEmpty()) {
             return StandardComparisonResult(true, standard, standard, mapOf(standard.inputMap to standard.count.toInt()))
         }
-        val k = alternatives.size
+        // Feasibility is settled first, and deterministically, exactly as
+        // FeasibilityFirstComparator orders solutions. The sequential test compares OBJECTIVES
+        // against a variance built from the objective's own sampling error, so it is meaningful
+        // only between systems that are confidently feasible. Mixing a penalty term into the
+        // numerator -- as this procedure used to -- puts a quantity in Z whose variance is absent
+        // from S^2, which narrows the continuation region and inflates the error rate rather than
+        // merely blurring the decision.
+        val stdFeasible = standard.isResponseConstraintFeasible(feasibilityCILevel)
+        val feasibleAlternatives = alternatives.filter { it.isResponseConstraintFeasible(feasibilityCILevel) }
+
+        if (!stdFeasible) {
+            // A confidently-feasible neighbour beats an infeasible standard outright: no amount of
+            // objective advantage makes an infeasible centre preferable to a feasible one.
+            if (feasibleAlternatives.isNotEmpty()) {
+                val best = feasibleAlternatives.minByOrNull { it.estimatedObjFncValue }!!
+                return StandardComparisonResult(false, best, standard, observationsOf(standard, alternatives))
+            }
+            // Nothing here is confidently feasible. Order by violation, as FeasibilityFirstComparator
+            // does, and make no statistical claim: the objective is not the operative criterion yet,
+            // so the sequential test has nothing meaningful to test.
+            val leastViolation = alternatives.minByOrNull { it.responseConstraintViolationPenalty }!!
+            return if (leastViolation.responseConstraintViolationPenalty <
+                standard.responseConstraintViolationPenalty
+            ) {
+                StandardComparisonResult(false, leastViolation, standard, observationsOf(standard, alternatives))
+            } else {
+                StandardComparisonResult(true, standard, standard, observationsOf(standard, alternatives))
+            }
+        }
+
+        // The standard is feasible, so an infeasible neighbour cannot displace it and is dropped
+        // without consuming replications on a comparison whose answer is already settled.
+        if (feasibleAlternatives.isEmpty()) {
+            return StandardComparisonResult(true, standard, standard, observationsOf(standard, alternatives))
+        }
+
+        val k = feasibleAlternatives.size
         val beta = alpha / k
         val etaVal = eta(beta)
         val hSquared = 2.0 * etaVal * (n0 - 1)
 
         var std = standard
-        val alts = alternatives.toMutableList()
+        val alts = feasibleAlternatives.toMutableList()
         // First-stage variance of the difference S^2_i (Kim 2005; ISC appendix eq. 9). COMPASS
         // evaluates neighbors independently (no CRN), so the difference variance is the SUM of the
         // two per-system variances, not their max.
@@ -126,7 +179,8 @@ class ComparisonWithStandardProcedure(
             while (iterator.hasNext()) {
                 val i = iterator.next()
                 val r = minOf(std.count, alts[i].count).toInt()
-                val z = (alts[i].penalizedObjFncValue - std.penalizedObjFncValue) * r // Z_i(r) ~ r * mean diff
+                // Raw, orientation-adjusted objectives: the same quantity sVar is built from.
+                val z = (alts[i].estimatedObjFncValue - std.estimatedObjFncValue) * r // Z_i(r) ~ r * mean diff
                 val a = max(0.0, hSquared * sVar[i] / (2.0 * delta) - (delta / 2.0) * r)
                 if (z < -a) {
                     winnerAlt = alts[i] // alternative significantly better than the standard
@@ -135,7 +189,7 @@ class ComparisonWithStandardProcedure(
                     iterator.remove() // alternative significantly worse: eliminate
                 } else if (r >= maxReplications) {
                     // Forced decision at the cap: keep the standard unless the alternative is better.
-                    if (alts[i].penalizedObjFncValue < std.penalizedObjFncValue) {
+                    if (alts[i].estimatedObjFncValue < std.estimatedObjFncValue) {
                         winnerAlt = alts[i]
                         break
                     } else {
@@ -157,6 +211,8 @@ class ComparisonWithStandardProcedure(
 
         val observations = LinkedHashMap<InputMap, Int>()
         observations[std.inputMap] = std.count.toInt()
+        // every alternative is reported, those dropped on feasibility at the count they arrived with
+        for (alternative in alternatives) observations[alternative.inputMap] = alternative.count.toInt()
         for (i in 0 until k) observations[alts[i].inputMap] = alts[i].count.toInt()
 
         return if (winnerAlt == null) {
@@ -164,6 +220,14 @@ class ComparisonWithStandardProcedure(
         } else {
             StandardComparisonResult(false, winnerAlt, std, observations)
         }
+    }
+
+    /** Replication counts for every system, used when the procedure returns before sampling. */
+    private fun observationsOf(standard: Solution, alternatives: List<Solution>): Map<InputMap, Int> {
+        val observations = LinkedHashMap<InputMap, Int>()
+        observations[standard.inputMap] = standard.count.toInt()
+        for (alternative in alternatives) observations[alternative.inputMap] = alternative.count.toInt()
+        return observations
     }
 
     /**
@@ -181,6 +245,13 @@ class ComparisonWithStandardProcedure(
     companion object {
         /** Default overall error probability. */
         const val DEFAULT_ALPHA: Double = 0.05
+
+        /**
+         * Default confidence for the response-feasibility screen, matching
+         * `Solver.recommendationCILevel` so that the local-optimality test and the reported answer
+         * agree about which systems count as feasible.
+         */
+        const val DEFAULT_FEASIBILITY_CI_LEVEL: Double = 0.99
 
         /** Default first-stage sample size. */
         const val DEFAULT_N0: Int = 10
