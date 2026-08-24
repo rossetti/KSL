@@ -206,7 +206,12 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
         val gp = surrogate as? GaussianProcessModel ?: return
         if (archive.isEmpty()) return
         val points = archive.map { it.inputMap.inputValues }
-        val means = DoubleArray(archive.size) { archive[it].penalizedObjFncValue }
+        // One clock for the whole archive. The archive accumulates across the entire run, so
+        // reading each point's own penalized value would train on targets that drift with the
+        // iteration counter: the same design entered as attractive when it was found early and as
+        // ruinous when found late, and the GP would interpolate between the two as though the
+        // difference were spatial rather than temporal.
+        val means = scorerNow.scores(archive)
         val noiseVars = DoubleArray(archive.size) { noiseVarianceOf(archive[it]) }
         hyperparameterFitter.fit(gp, points, means, noiseVars, rnStream)
     }
@@ -214,7 +219,8 @@ class BayesianOptimizationSolver @JvmOverloads constructor(
     private fun fitSurrogate() {
         if (archive.isEmpty()) return
         val points = archive.map { it.inputMap.inputValues }
-        val means = DoubleArray(archive.size) { archive[it].penalizedObjFncValue }
+        // one clock for the whole archive -- see fitHyperparameters
+        val means = scorerNow.scores(archive)
         val noiseVars = DoubleArray(archive.size) { noiseVarianceOf(archive[it]) }
         surrogate.fit(points, means, noiseVars)
     }
