@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.FeasibilityFirstComparator
 import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
@@ -38,19 +39,22 @@ object SolutionConfirmation {
     val logger: KLogger = KotlinLogging.logger {}
 
     /**
-     * Ranks the candidates by penalized objective value, takes the top candidates per
-     * the options, re-evaluates their distinct input points in one CRN request (no
-     * caching), and returns the winner by confirmed penalized objective value.
+     * Ranks the candidates feasibility-first, takes the top candidates per the options,
+     * re-evaluates their distinct input points in one CRN request (no caching), and returns the
+     * winner by the same rule applied to the confirmed estimates.
      *
      * Invalid candidates (failed members) are excluded from ranking when at least one
      * valid candidate exists. When the finalists collapse to a single distinct input
      * point, no evaluation is performed and the best candidate is returned as-is.
      *
-     * Every ranking here is taken at one clock, the furthest any candidate reached, and the
-     * confirmed solutions carry the search's penalty state rather than the confirmation
-     * evaluator's: confirmation supplies the estimates, not the penalty regime. The returned
-     * solutions are stamped accordingly, so the penalized value a caller records is the value
-     * the winner was actually chosen on.
+     * Selection uses [ksl.simopt.evaluator.FeasibilityFirstComparator], the same rule
+     * `Solver.bestSolution` uses to choose what a solver recommends, so the benchmark and the
+     * solvers agree about what "best" means. It is clock-independent, which is what cross-member,
+     * cross-iteration selection requires; the penalized objective is a within-iteration search key
+     * and is deliberately not used here.
+     *
+     * The confirmed solutions still carry the search's penalty state rather than the confirmation
+     * evaluator's, so any penalized value a caller records remains meaningful.
      *
      * @param candidates the candidate solutions (typically the member bests), not empty
      * @param evaluator the evaluator used for the confirmation request
@@ -65,15 +69,18 @@ object SolutionConfirmation {
     ): ConfirmationOutcome {
         require(candidates.isNotEmpty()) { "At least one candidate solution is required" }
         val usable = candidates.filter { it.isValid }.ifEmpty { candidates }
-        // Every ranking in this function is taken at one clock -- the furthest the search
-        // reached. Members finish at different clocks, so ranking each candidate at its own
-        // would judge them under unequal penalties; and the confirmation evaluator below is
-        // newly constructed, so its solutions arrive at evaluation number 1, the weakest
-        // penalty of the whole run. Neither is the basis on which the run's final decision
-        // should be made.
+        // Confirmation selects the REPORTED answer across members and across iterations, which is
+        // what FeasibilityFirstComparator exists for: it prefers a solution we are confident is
+        // response-feasible, ranks feasibles by their raw objective, and never reads the penalized
+        // objective -- whose multiplier is iteration-relative and therefore not comparable between
+        // solutions found at different times. The candidates arriving here are already each
+        // member's feasibility-first `Solver.bestSolution`; ranking them by penalized objective
+        // discarded that guarantee and let a cheap infeasible candidate beat a feasible one
+        // whenever the penalty was smaller than the objective gap.
+        val recommendationComparator = FeasibilityFirstComparator(options.recommendationCILevel)
         val selectionClock = candidates.maxOf { it.evaluationNumber }
         val finalists = usable
-            .sortedBy { it.atEvaluation(selectionClock).penalizedObjFncValue }
+            .sortedWith(recommendationComparator)
             .take(options.topK)
         val distinctInputs = finalists.map { it.inputMap }.distinct()
         if (distinctInputs.size <= 1) {
@@ -118,7 +125,7 @@ object SolutionConfirmation {
                 penaltyMemory = priorMemory[solution.inputMap] ?: solution.penaltyMemory
             )
         }
-        val winner = restamped.minByOrNull { it.penalizedObjFncValue }
+        val winner = restamped.minWithOrNull(recommendationComparator)
             ?: finalists.first()
         logger.debug { "Confirmation of ${distinctInputs.size} finalists complete" }
         return ConfirmationOutcome(

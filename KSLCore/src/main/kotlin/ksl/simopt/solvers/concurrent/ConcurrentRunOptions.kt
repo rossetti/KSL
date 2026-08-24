@@ -14,11 +14,20 @@ package ksl.simopt.solvers.concurrent
  */
 data class ConfirmationOptions(
     val topK: Int = 3,
-    val replicationsPerCandidate: Int = 50
+    val replicationsPerCandidate: Int = 50,
+    /**
+     * The overall confidence used when testing response-constraint feasibility during selection,
+     * matching `Solver.recommendationCILevel` so that confirmation and the solvers agree about
+     * which solutions count as feasible.
+     */
+    val recommendationCILevel: Double = 0.99
 ) {
     init {
         require(topK >= 1) { "topK must be >= 1" }
         require(replicationsPerCandidate >= 1) { "replicationsPerCandidate must be >= 1" }
+        require(recommendationCILevel > 0.0 && recommendationCILevel < 1.0) {
+            "recommendationCILevel must be in (0,1)"
+        }
     }
 }
 

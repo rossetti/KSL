@@ -6,6 +6,7 @@ import kotlinx.datetime.Clock
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.FeasibilityFirstComparator
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
@@ -239,13 +240,11 @@ class BenchmarkExperiment(
                     )
                 }
                 if (verificationReplications != null) {
-                    // When confirmation is disabled the candidates are ranked here instead, and
-                    // members finish at different clocks; rank them all at the furthest one so a
-                    // rising penalty applies equally, rather than defending a candidate that
-                    // happened to stop early with a smaller multiplier.
-                    val selectionClock = candidates.maxOf { it.evaluationNumber }
+                    // With confirmation disabled the winner to verify is chosen here instead.
+                    // Use the same feasibility-first rule confirmation and Solver.bestSolution use,
+                    // so every path that names a reported answer names it the same way.
                     val winningPoint = confirmationOutcome?.winner
-                        ?: candidates.minByOrNull { it.atEvaluation(selectionClock).penalizedObjFncValue }
+                        ?: candidates.minWithOrNull(FeasibilityFirstComparator())
                     if (winningPoint != null) {
                         val modelInputs = ModelInputs(
                             modelIdentifier = problemDefinition.modelIdentifier,
@@ -405,15 +404,14 @@ class BenchmarkExperiment(
                 errorMessage = member.error?.message
             )
         }
-        // With confirmation disabled this is where the reported winner is chosen, and the members
-        // it chooses between finish at different clocks. Rank them all at the furthest one so a
-        // rising penalty applies equally, rather than favouring whichever member stopped earliest
-        // and so carries the smallest multiplier on its violations.
-        val reportingClock = validBests.maxOfOrNull { it.bestSolution.evaluationNumber } ?: 0
+        // With confirmation disabled this is where the REPORTED winner is chosen. The members it
+        // chooses between each already carry a feasibility-first Solver.bestSolution; select among
+        // them by the same rule rather than by the penalized objective, whose multiplier is
+        // iteration-relative and so is not comparable between members that finished at different
+        // times. See SolutionConfirmation.confirmBest for the same rule on the confirmation path.
+        val recommendationComparator = FeasibilityFirstComparator()
         val winner = confirmationOutcome?.winner
-            ?: validBests.minByOrNull {
-                it.bestSolution.atEvaluation(reportingClock).penalizedObjFncValue
-            }?.bestSolution
+            ?: validBests.map { it.bestSolution }.minWithOrNull(recommendationComparator)
         return ProblemBenchmarkResult(
             problemName = problemCase.name,
             tags = problemCase.tags,
