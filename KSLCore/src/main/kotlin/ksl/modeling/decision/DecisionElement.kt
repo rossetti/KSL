@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  *  not: a ref reads "lever `staff` of element `Review`", which is what B.12's late binding
  *  would want to resolve against a freshly built model.
  */
+@ConsistentCopyVisibility
 data class LeverRef internal constructor(val elementName: String, val declaredName: String)
 
 /**
@@ -41,6 +42,7 @@ data class LeverRef internal constructor(val elementName: String, val declaredNa
  *  that the lever/reward pair has produced the same defect on both sides five times, and
  *  fixing one of them alone is how that keeps happening.
  */
+@ConsistentCopyVisibility
 data class RewardRef internal constructor(val elementName: String, val declaredName: String)
 
 /**
