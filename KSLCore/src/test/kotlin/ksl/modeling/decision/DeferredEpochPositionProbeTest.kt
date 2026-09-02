@@ -10,26 +10,33 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- *  **Open issue O1 of the event-triggered OOD, measured.**
+ *  **Where a decision lands within an instant, by the route it arrives on.**
  *
- *  ADR-T2 says an activation causes an epoch "at the current time with the element's epoch priority".
- *  That is precise about priority and silent about the resulting *position* relative to model events
- *  already at that instant, and §18.3 of that document says the answer is empirical and should be had
- *  before any trigger work is planned, because a bad answer changes ADR-T2.
+ *  `requestDecision` promises an epoch "at the current time" and the element's epoch priority orders
+ *  it — which is precise about priority and silent about the resulting *position* relative to model
+ *  events already at that instant. That position is observable, it is not obvious, and a modeler
+ *  comparing a periodic review against a decision taken some other way needs to know whether the two
+ *  land in the same place. This measures it.
  *
- *  This is that measurement. It does not need a trigger subsystem: the three routes a decision can
- *  reach an instant by all exist today.
+ *  Three routes, all of which exist today:
  *
  *  1. **Scheduled** — an event placed at the instant in advance, with the epoch priority. This is what
- *     the old element-owned epoch was, reconstructed, and what a periodic review is.
+ *     a periodic review is, and what the element's own epoch was before it stopped owning its timing.
  *  2. **Deferred** — `requestDecision` from inside an event at that instant, which posts a zero-delay
- *     event. This is what a trigger would use under ADR-T2.
- *  3. **Condition-scanned** — a `ConditionalAction` that calls `requestDecision` from the executive's
- *     C phase. This is what a trigger would use if detection lived in the scan, which is what
- *     ADR-T2's "third provenance with stronger quiescence" contemplates.
+ *     event.
+ *  3. **Condition-scanned** — a `ConditionalAction` calling `requestDecision` from the executive's C
+ *     phase, which runs only once the calendar's next event is strictly later.
  *
- *  Every arm decides at the same *time*. The question is where each lands among the model's own events
- *  at that time, and whether the three agree.
+ *  Every arm decides at the same *time*. The findings are printed rather than pinned, because the
+ *  point is to have them written down as fact: priority is honoured in every route; a deferred epoch
+ *  always loses an equal-priority tie-break, because it is created during the instant and its event id
+ *  is therefore later than anything queued in advance; and the condition scan lands after every model
+ *  event at the instant, which is a stronger quiescence than either of the others gives.
+ *
+ *  Route 3 is measured but unused: nothing in KSL produces a decision that way, and
+ *  `Executive.register` is `internal`, so nothing outside KSLCore could. It is here because the bound
+ *  it establishes — how late a decision at an instant can possibly be — is worth knowing, and because
+ *  the test will fail if the executive's phasing ever moves underneath any of these claims.
  */
 class DeferredEpochPositionProbeTest {
 

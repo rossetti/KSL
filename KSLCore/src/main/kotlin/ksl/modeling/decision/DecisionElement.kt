@@ -765,9 +765,10 @@ class DecisionElement internal constructor(
      *  Ask for a decision at the current time, taken in an event of the element's own.
      *
      *  The epoch runs after the caller's event action completes, so the model is between events when
-     *  the state is read and R2b's warrant is not required of the caller. This is the form a trigger
-     *  uses, and it is the repair for a lever write that wants a decision as a consequence of a
-     *  decision: **it is re-entrancy-safe by construction**, because it only schedules.
+     *  the state is read and R2b's warrant is not required of the caller. Use it wherever a caller
+     *  cannot vouch for the state it is calling from, or wherever nothing is waiting for the answer.
+     *  It is also the repair for a lever write that wants a decision as a consequence of a decision:
+     *  **it is re-entrancy-safe by construction**, because it only schedules.
      *
      *  The guarantee is real but weaker than a scheduled epoch's was: a zero-delay event lands at the
      *  current time *later in the event order*, not at the end of the instant, so events already

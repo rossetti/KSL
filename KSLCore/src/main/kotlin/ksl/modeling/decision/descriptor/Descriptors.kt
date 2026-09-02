@@ -111,9 +111,12 @@ enum class TerminationSource { NATURAL, MAX_EPOCHS, RUN_LENGTH, MODEL_STOPPED, P
  *  events. Weaker than a scheduled epoch's guarantee — such an event lands at the current time later
  *  in the event order, not at the end of the instant — but it is a guarantee rather than a warrant.
  *
- *  An enum rather than a boolean because a third provenance with stronger quiescence is anticipated:
- *  a decision executed from the executive's condition-scan phase, which the event-triggered work may
- *  want. Widening a published field later is the thing this avoids.
+ *  An enum rather than a boolean because a third position is real and measured, not merely possible.
+ *  `DeferredEpochPositionProbeTest` shows a decision requested from the executive's condition-scan
+ *  phase landing after *every* model event at the instant, where a deferred one lands among them by
+ *  priority — stronger quiescence, and a fact about the executive rather than about any subsystem.
+ *  Nothing currently produces it, so there is no third value; widening a published field later is the
+ *  thing this shape avoids if something ever does.
  */
 enum class EpochProvenance { IMMEDIATE, DEFERRED }
 
