@@ -606,6 +606,14 @@ class DecisionElement internal constructor(
         }
     }
 
+    private fun requireRunning(what: String) {
+        check(model.isRunning) {
+            "Attempted to call '$what' on ${this.name} while the simulation was not running. " +
+                "A decision is taken during a replication, from a caller that is inside an event " +
+                "action; there is no state to decide against outside one."
+        }
+    }
+
     // ---- Runtime ----------------------------------------------------------------
     internal lateinit var binding: DefaultActionBinding
     private lateinit var ctx: MutableDecisionContext
@@ -716,10 +724,117 @@ class DecisionElement internal constructor(
     }
 
     private inner class EpochAction : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) = runEpoch()
+        override fun action(event: KSLEvent<Nothing>) = runGuarded("scheduled", scheduleNext = true)
     }
 
     private val epochAction = EpochAction()
+
+    /**
+     *  S§C.11.3 — the deferred entry point's event. The caller's reason travels as the event's
+     *  message rather than in a field, so two deferrals outstanding at one instant cannot overwrite
+     *  each other's reason.
+     */
+    private inner class DeferredDecisionAction : EventAction<String>() {
+        override fun action(event: KSLEvent<String>) =
+            runGuarded(event.message ?: "deferred", scheduleNext = false)
+    }
+
+    private val deferredAction = DeferredDecisionAction()
+
+    // ---- The invocation contract (S§C.11) ---------------------------------------
+
+    private var inDecision: Boolean = false
+    private var myLastDecisionReason: String = ""
+    private var myIgnoredAfterEpisodeEnd: Int = 0
+
+    /** The reason given to the most recent decision this element took. */
+    val lastDecisionReason: String get() = myLastDecisionReason
+
+    /**
+     *  How many transitions this element discarded because they had no duration (S§C.11.2).
+     *
+     *  Two decisions at one instant bound a zero-length interval, which is discarded because a row
+     *  with no duration carries no information and dividing by its `tau` is a division by zero. That
+     *  is not an error — two demands arriving together, each triggering a review, is a correct model
+     *  — but it *is* lossy: the earlier decision's action was applied and its transition is never
+     *  recorded. A non-zero count says the trajectory is lossy at those points and the modeler judges
+     *  whether it matters.
+     *
+     *  Readable rather than published: this subsystem adds nothing to a model's report (§10.6).
+     */
+    val discardedZeroLengthCount: Int get() = census.zeroLength
+
+    /** How many decision requests arrived after the episode had already ended (see [decide]). */
+    val ignoredAfterEpisodeEndCount: Int get() = myIgnoredAfterEpisodeEnd
+
+    /**
+     *  Take a decision now, on behalf of [reason].
+     *
+     *  **The caller owns the timing** (S§C.0). A modeler calls this at the point a decision is due —
+     *  from an event action, or from a point in an entity's process — and the element runs the epoch
+     *  algorithm synchronously against the state it finds.
+     *
+     *  **R2b — the caller warrants a consistent state.** The model is *not* guaranteed to be between
+     *  events here, because the caller chose the moment. A call made partway through the caller's own
+     *  update hands the policy a state no observer of the finished system would ever see, and that
+     *  state is also written into the trajectory. Finish the update, then decide. S§C.11.4 works four
+     *  examples of what going wrong looks like; the shortest statement of the rule is Example 1's.
+     *
+     *  When in doubt, or when nobody is waiting for the answer, prefer [requestDecision].
+     *
+     *  Two calls at one instant are permitted and the second discards a zero-length transition; see
+     *  [discardedZeroLengthCount]. A call arriving after the episode has already ended is **ignored**
+     *  rather than obeyed — the decision sequence has finished, and applying an action after it would
+     *  be the mistake step 5 of the epoch algorithm exists to prevent — and is counted by
+     *  [ignoredAfterEpisodeEndCount].
+     *
+     *  @throws IllegalStateException if the model is not running.
+     *  @throws ReentrantDecisionException if a decision is already in progress on this element.
+     */
+    fun decide(reason: String) {
+        requireRunning("decide")
+        runGuarded(reason, scheduleNext = false)
+    }
+
+    /**
+     *  Ask for a decision at the current time, taken in an event of the element's own.
+     *
+     *  The epoch runs after the caller's event action completes, so the model is between events when
+     *  the state is read and R2b's warrant is not required of the caller. This is the form a trigger
+     *  uses, and it is the repair for a lever write that wants a decision as a consequence of a
+     *  decision: **it is re-entrancy-safe by construction**, because it only schedules.
+     *
+     *  The guarantee is real but weaker than a scheduled epoch's was: a zero-delay event lands at the
+     *  current time *later in the event order*, not at the end of the instant, so events already
+     *  queued at this time with lower ids still run first.
+     *
+     *  @throws IllegalStateException if the model is not running.
+     */
+    fun requestDecision(reason: String) {
+        requireRunning("requestDecision")
+        deferredAction.schedule(0.0, message = reason, priority = epochPriority)
+    }
+
+    /**
+     *  The single door every entry point goes through, so that the re-entrancy refusal cannot be
+     *  bypassed by adding a new one. The guard spans the **whole** algorithm rather than the apply
+     *  step alone: a call from inside an observation read, or from the policy itself, would corrupt
+     *  the decision context's staleness generation as well as the pending transition.
+     */
+    private fun runGuarded(reason: String, scheduleNext: Boolean) {
+        if (inDecision) throw ReentrantDecisionException(this.name, reason)
+        if (myLastTermination != null) {
+            myIgnoredAfterEpisodeEnd++
+            return
+        }
+        inDecision = true
+        try {
+            myLastDecisionReason = reason
+            runEpoch(scheduleNext)
+        } finally {
+            inDecision = false
+        }
+    }
 
     private fun readObservations(): DoubleArray =
         DoubleArray(observationDecls.size) { observationDecls[it].source.value }
@@ -728,7 +843,7 @@ class DecisionElement internal constructor(
     internal fun neutralAction(): DoubleArray =
         DoubleArray(leverDecls.size) { leverDecls[it].neutralValue() }
 
-    private fun runEpoch() {
+    private fun runEpoch(scheduleNext: Boolean) {
         // Step 1 — observe. ONE read, serving both the successor state of the transition that is
         // completing and the state of the decision about to be made: a catalog entry backed by a
         // computed lambda need not be pure, so reading twice could disagree with itself.
@@ -802,7 +917,7 @@ class DecisionElement internal constructor(
             time, myEpochCount)
         myEpochCount++
         lastEpochTime = time
-        scheduleNextEpoch()
+        if (scheduleNext) scheduleNextEpoch()
     }
 
     /**
@@ -1005,6 +1120,18 @@ class DecisionElement internal constructor(
             emitPending(readObservations(), reward, TerminationSource.RUN_LENGTH)
         }
         publishEstimand(myLastTermination ?: TerminationSource.RUN_LENGTH)
+
+        // S§C.11 / plan step 8. With timing owned by the caller, an element that is never called
+        // simply reports nothing, which is the silent failure `build()`'s timing refusal used to
+        // catch. Warn rather than throw: zero decisions is a legitimate outcome — a condition that
+        // never held — and refusing it would make a correct model fail.
+        if (myEpochCount == 0) {
+            ModelElement.logger.warn {
+                "Decision element '${this.name}' took no decisions in replication " +
+                    "${model.currentReplicationId}. If that is not intended, nothing is calling " +
+                    "decide(reason) or requestDecision(reason) on it."
+            }
+        }
     }
 
     override fun afterExperiment() {
@@ -1747,11 +1874,12 @@ class DecisionElementBuilder internal constructor(
         require(policy != null) { "A decision element requires a policy." }
         require(element.observationDecls.isNotEmpty()) { "A decision element requires at least one observation." }
         require(element.leverDecls.isNotEmpty()) { "A decision element requires at least one lever." }
-        require(timingDeclared) {
-            "A decision element requires epoch timing: declare every(interval) or " +
-                "onCalendar(times). Without it the element is built, never schedules an epoch, " +
-                "never decides, and reports nothing."
-        }
+        // S§C.0 / plan step 8. The refusal that stood here required epoch timing, on the ground
+        // that an element without it "never schedules an epoch, never decides, and reports nothing".
+        // With the caller owning the timing that is no longer a defect in the declaration: an element
+        // is *supposed* to declare none and be driven by decide(reason). The silent-failure hazard the
+        // refusal guarded is real and is now caught where it can actually be observed -- the zero-epoch
+        // diagnostic in replicationEnded() -- rather than guessed at from the declaration.
         val declared = element.leverDecls.map { it.name }.toSet()
         for (c in element.jointConstraints) {
             for (n in c.names) {

@@ -99,6 +99,7 @@ class ImplementationInventoryTest {
             "BindingException" m 1,
             "AmbiguousLeverException" m 1,
             "NarrowingException" m 1,
+            "ReentrantDecisionException" m 1,
             "RewardKindException" m 1,
             "NotDeclarableYetException" m 1,
             "StaleDecisionContextException" m 1

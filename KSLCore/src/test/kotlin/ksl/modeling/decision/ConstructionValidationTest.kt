@@ -561,8 +561,12 @@ class ConstructionValidationTest {
             "onCalendar(empty)" to { w -> base(this, w); onCalendar(emptyList()) },
             "onCalendar(negative)" to { w -> base(this, w); onCalendar(listOf(-5.0, 10.0)) },
             "onCalendar(NaN)" to { w -> base(this, w); onCalendar(listOf(Double.NaN)) },
-            "onCalendar(duplicates)" to { w -> base(this, w); onCalendar(listOf(10.0, 10.0)) },
-            "no timing declared at all" to { w -> base(this, w) }
+            "onCalendar(duplicates)" to { w -> base(this, w); onCalendar(listOf(10.0, 10.0)) }
+            // "no timing declared at all" was a case here and is no longer degenerate (S§C.0):
+            // declaring no timing is the shape an element driven by decide(reason) has. The silent
+            // failure it guarded -- a run that completes with no decisions and nothing to say so --
+            // is now reported where it can actually be observed, by the zero-epoch diagnostic in
+            // replicationEnded(), rather than guessed at from the declaration.
         )
 
         println()

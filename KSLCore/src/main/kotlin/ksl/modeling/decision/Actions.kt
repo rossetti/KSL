@@ -154,3 +154,32 @@ class NotDeclarableYetException(
     "`$form` is specified in $section and is not implemented yet; it is scheduled for $milestone. " +
         "It fails here, at the declaration, rather than later at the point of use."
 )
+
+/**
+ *  S§C.11.1 — thrown when `decide` is entered while a decision is already in progress.
+ *
+ *  The failure this prevents is silent rather than loud, which is why it is refused rather than
+ *  tolerated. A nested decision runs the whole seven-step algorithm, applies an action to the model,
+ *  and installs its own pending transition; control then returns to the outer call, which overwrites
+ *  that pending with its own. The nested decision is applied and **never recorded**, the epoch count
+ *  advances twice for one recorded row, and the epoch indices in the trajectory stop corresponding to
+ *  the decisions that occurred. Nothing throws and nothing is visibly wrong.
+ *
+ *  The usual cause is named in the message rather than left to be discovered: a lever's declared write
+ *  function is arbitrary modeler code, and applying an action runs it, so a write that reaches back
+ *  into `decide` closes the loop. The repair is `requestDecision`, which only schedules — see
+ *  S§C.11.4 Example 3.
+ */
+class ReentrantDecisionException(
+    val elementName: String,
+    val reason: String
+) : IllegalStateException(
+    "A decision was requested on '$elementName' with reason \"$reason\" while a decision was already " +
+        "in progress. A decision may not be taken from inside another one: the nested decision would " +
+        "be applied to the model and never recorded, and the trajectory's epoch indices would stop " +
+        "corresponding to the decisions that occurred. The usual cause is a lever's write function " +
+        "reaching back into decide() while the outer decision is applying its action. If a decision " +
+        "as a consequence of a decision is what you mean, call requestDecision(reason) instead: it " +
+        "schedules the epoch for after the current one returns, and is re-entrancy-safe by " +
+        "construction."
+)
