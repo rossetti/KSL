@@ -55,26 +55,80 @@ deliberate boundary, not an omission.
 
 ## 2. The mental model
 
-Four declarations and one loop.
+Three declarations, one call, and one loop.
 
 **Observations** are what the rule may read. **Levers** are what it may
-write. **Rewards** are what it is scored on. **Epochs** are when it
-decides. You declare all four in one block; everything else follows.
+write. **Rewards** are what it is scored on. You declare those three in
+one block. **When** the decision happens is not declared at all — *you*
+call `decide(reason)` at the point a decision is due.
 
 ```
-      declare                          run
-   ┌───────────┐            ┌────────────────────────┐
-   │ observe   │            │ epoch fires            │
-   │ lever     │  ────────► │  read observations     │
-   │ reward    │            │  call your rule        │
-   │ every(…)  │            │  validate + apply      │
-   └───────────┘            │  price the interval    │
-                            │  record the transition │
-                            └────────────────────────┘
+      declare                  you call                 the element runs
+   ┌───────────┐            ┌──────────────┐        ┌────────────────────────┐
+   │ observe   │            │ decide(why)  │        │  read observations     │
+   │ lever     │  ────────► │      or      │ ─────► │  call your rule        │
+   │ reward    │            │ requestDeci- │        │  validate + apply      │
+   └───────────┘            │ sion(why)    │        │  price the interval    │
+                            └──────────────┘        │  record the transition │
+                                                    └────────────────────────┘
 ```
 
-Three ideas are worth holding onto because they explain most of the
-API's shape.
+That the caller owns the timing is the one thing to understand before
+anything else here makes sense, so §2.1 is about it.
+
+### 2.1 You decide when a decision happens
+
+The element does not schedule anything. It has no review period, no
+calendar, and no opinion about when it should be consulted. A decision
+happens because something in your model calls `decide(reason)`.
+
+This is less of a change than it sounds. Without this package you
+already write the decision at the point it is due — reading what you
+need, changing what you mean to change. All that moves into the element
+is the *rule* and the bookkeeping around it: a swappable policy, reward
+accrued over the interval between decisions, a recorded trajectory, and
+an estimand the comparison machinery already understands. Where the
+decision happens stays yours.
+
+**A periodic review** is an ordinary permanent entity, or an ordinary
+event action:
+
+```kotlin
+private inner class Reviewer : Entity() {
+    val reviewProcess = process {
+        while (model.isRunning) {
+            delay(reviewPeriod)
+            review.decide("periodic")
+        }
+    }
+}
+```
+
+**A review triggered by the system** is a call at the point the system
+changed:
+
+```kotlin
+val demandProcess = process {
+    applyDemand(demandSize.value)
+    if (inventoryPosition <= reorderPoint) review.decide("reorder point")
+}
+```
+
+Timed and state-triggered reviews are the same thing — a call at a
+point in a process — which is why the package needs no vocabulary for
+either. `ksl.examples.decision.PeriodicReview` is a five-line driver
+for the common case; it is an example rather than library API, on
+purpose.
+
+**Two entry points.** `decide(reason)` decides *now*, inside your
+event. `requestDecision(reason)` schedules the epoch into an event of
+the element's own, so it happens after your event action finishes.
+Prefer the first where you control the call site and can vouch for the
+state; prefer the second where you cannot, or where nobody is waiting
+for the answer. §6 says why that choice matters.
+
+Three more ideas are worth holding onto because they explain most of
+the API's shape.
 
 **Positions, not names.** An observation vector and an action vector
 are bare `DoubleArray`s. What gives entry *i* its meaning is the *i*th
@@ -230,7 +284,7 @@ val limits: IntRange = element.limitsOf(qty)
 and the experiment's are a choice, so `narrow` refuses anything wider
 and leaves *both* bounds untouched when it does.
 
-`epochInterval` and `maxEpochs` are also `@KSLControl`s, so `simopt` and
+`maxEpochs` is also a `@KSLControl`, so `simopt` and
 the experiment-running machinery can set them by name through the paths
 they already use.
 
@@ -679,7 +733,8 @@ uses for `(r, S)` inventory policies.
 | Type | What it is |
 |---|---|
 | `DecisionElement` | The `ModelElement` that runs the loop. Built by `decisionElement { }`; carries the parameterization surface |
-| `DecisionElementBuilder` | The DSL receiver: `observe`, `lever`, `reward`, `budget`/`atMost`, `batchLever`, `every`/`onCalendar`, `maxEpochs`, `terminalWhen`, `captureTo`, `policy` |
+| `DecisionElementBuilder` | The DSL receiver: `observe`, `lever`, `reward`, `budget`/`atMost`, `batchLever`, `maxEpochs`, `terminalWhen`, `captureTo`, `policy` |
+| `DecisionElement.decide` / `.requestDecision` | How a decision happens: you call one of them (§2.1) |
 | `PolicyIfc` | Your rule. `action(observation, ctx): DoubleArray` |
 | `ShapeAwarePolicyIfc` | A rule that is shown the descriptor once, before the run, and may refuse |
 | `ManagedPolicyIfc` | A rule with a lifetime and per-transition learning hooks |
@@ -701,6 +756,48 @@ uses for `(r, S)` inventory policies.
 | `DecisionSurfaceDescriptor` | The serializable description; `toJson`/`fromJson`, `toToml`/`fromToml` |
 
 ## 6. Gotchas & best practices
+
+**Finish the update, then decide.** You choose where `decide` is
+called, and the model is *not* guaranteed to be between events there —
+it is wherever your code is. Calling it partway through your own update
+hands the rule a state no observer of the finished system would ever
+see, and that state is also written into the trajectory, where it will
+train whatever you fit later. The failure is quiet: on-hand decremented,
+inventory position not yet recomputed, the rule reads the stale position
+and declines to order — every time, on every crossing.
+
+There is nothing the library can check here. It cannot know when your
+update is finished. Three habits cover it:
+
+- **Call last.** Where the decision belongs to a handler that changes
+  state, put the call after the last line of the update.
+- **Prefer a reviewer.** A permanent entity that wakes, looks and calls
+  is not the thing that changed anything, so there is no half-finished
+  update to be inside of.
+- **When in doubt, defer.** `requestDecision(reason)` moves the epoch
+  into its own event, so the model is between events when the state is
+  read. Weaker than it sounds — a zero-delay event lands at the current
+  time later in the event order, not at the end of the instant — but
+  stronger than any promise a call site can make.
+
+Keep the position **fixed**: whatever point in the handler you choose,
+use it at every call site for that element. A trajectory half of whose
+rows were read before the demand and half after has a state column that
+means two different things, and nothing downstream can separate them.
+`ksl.examples.decision.CallSiteExamples` works all of this as running
+code, including what each mistake actually costs.
+
+**A decision as a consequence of a decision.** A lever's write function
+is your code, so it can reach back into `decide` — and that is refused,
+because the nested decision would be applied to the model and never
+recorded. Use `requestDecision` instead: it only schedules, so it
+cannot re-enter.
+
+It is **re-entrancy-safe and not termination-safe**, and the difference
+matters. A write that *always* asks for another decision asks forever,
+all at the same instant, because a zero-delay event lands at the current
+time. The guard is yours to write. `maxEpochs` is the only thing that
+bounds it otherwise, which is why it is still there.
 
 **Declare a setting as a setting and a transaction as a transaction.**
 This is the mistake that costs the most and announces itself the least.

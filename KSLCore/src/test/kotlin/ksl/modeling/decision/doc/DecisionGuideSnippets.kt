@@ -30,6 +30,9 @@ import ksl.sdm.capture.TrajectoryFile
 import ksl.modeling.decision.descriptor.LeverDomain
 import java.nio.file.Path
 import kotlin.math.floor
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.variable.RandomVariable
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -40,6 +43,47 @@ import ksl.simulation.ModelElement
  *
  * This file is not run as a test — the build only needs to compile it.
  */
+/**
+ * Host for §2.1's two snippets, which are process-view code and so need a `ProcessModel` around
+ * them. They are the guide's answer to "then who decides when a decision happens": a permanent
+ * entity whose process *is* the review loop, and a call at the point the system changed.
+ */
+@Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "unused")
+private class DecisionTimingSnippets(parent: ModelElement) : ProcessModel(parent, null) {
+
+    private val reviewPeriod = 5.0
+    private val reorderPoint = 20.0
+    private val demandSize = RandomVariable(this, ExponentialRV(1.0, streamNum = 31))
+    private val onHand = TWResponse(this, name = "OnHand", initialValue = 50.0)
+    private val inventoryPosition: Double get() = onHand.value
+
+    private fun applyDemand(q: Double) { if (onHand.value >= q) onHand.decrement(q) }
+
+    val review: DecisionElement = decisionElement("Review") {
+        observe("Position") { inventoryPosition }
+        lever(this@DecisionTimingSnippets, 0.0..200.0, neutral = Neutral.Value(0.0)) { q ->
+            onHand.increment(q)
+        }
+        policy = NeutralPolicy
+    }
+
+    private inner class Reviewer : Entity() {
+        val reviewProcess = process {
+            while (model.isRunning) {
+                delay(reviewPeriod)
+                review.decide("periodic")
+            }
+        }
+    }
+
+    private inner class Demand : Entity() {
+        val demandProcess = process {
+            applyDemand(demandSize.value)
+            if (inventoryPosition <= reorderPoint) review.decide("reorder point")
+        }
+    }
+}
+
 @Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "unused")
 private object DecisionGuideSnippets {
 

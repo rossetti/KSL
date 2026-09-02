@@ -45,9 +45,10 @@ This package makes it explicit. You declare, on the model you already have, four
 | `observe` | what may the rule **see**? |
 | `lever` | what may it **change**? |
 | `reward` | what is it **scored on**? |
-| `every` / `onCalendar` | **when** does it decide? |
 
-KSL then runs the loop: at each decision epoch it reads the observations, hands them to your rule, validates and applies the action, prices the interval that just ended, and — if you asked — records the whole transition.
+**When** it decides is not declared. Your model calls `decide(reason)` at the point a decision is due — from an event action, or from a point in a process — which is the same place you would have written the decision by hand without this package at all.
+
+KSL then runs the loop: at each call it reads the observations, hands them to your rule, validates and applies the action, prices the interval that just ended, and — if you asked — records the whole transition.
 
 ### 1.2 What it deliberately does not do
 
@@ -58,7 +59,7 @@ That boundary is why this tutorial ends where it does. Parts II–IV teach you t
 ### 1.3 The loop, and where your code goes
 
 ```
-        every(interval) fires
+        you call decide(reason)
                 |
                 v
     +---------------------------+
@@ -681,11 +682,11 @@ Being a `ModelElement` is what puts the parameters in front of the model's contr
 ```
     OrderRule.s
     OrderRule.sDelta
-    Room:Review.epochInterval
     Room:Review.maxEpochs
+    Room:Review:Reviewer.interval
 ```
 
-Two belong to the rule. **Two belong to the decision element** — *when* it decides is a parameter too, so "how often should we review?" is a question a search can be asked.
+Two belong to the rule. One belongs to the decision element. **And one belongs to the reviewer** — the caller that decides when reviews happen — because *when* to decide is a parameter too, so "how often should we review?" is still a question a search can be asked. It is a parameter of whatever schedules the reviews rather than of the element, since the element no longer owns its timing; `simopt` reaches it through the same path either way.
 
 ### 6.2 Parameterize so the optimizer sees a box
 
@@ -796,7 +797,8 @@ The models used by Parts III and IV are `ClinicExample.kt` and `ShipmentAllocati
 
 ## Appendix B — glossary
 
-- **Decision epoch** — an instant at which the rule is consulted. Declared with `every(interval)` or `onCalendar(times)`.
+- **Decision epoch** — an instant at which the rule is consulted. Not declared: it happens because something in your model called `decide(reason)` (or `requestDecision(reason)`).
+- **Call site** — where in your model that call sits. It is part of the model, and putting it partway through an update hands the rule a state no finished system would show. See §6 of the guide, and `ksl.examples.decision.CallSiteExamples`.
 - **Observation** — a quantity the rule may read. Declaration order is vector order.
 - **Lever** — a quantity the rule may write, through a method the model already has.
 - **Setting / transaction** — a lever the model *holds* versus one the model *does*; they have different neutrals.
