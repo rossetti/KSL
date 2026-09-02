@@ -48,7 +48,9 @@ This package makes it explicit. You declare, on the model you already have, four
 
 **When** it decides is not declared. Your model calls `decide(reason)` at the point a decision is due — from an event action, or from a point in a process — which is the same place you would have written the decision by hand without this package at all.
 
-For the common case — a review on a fixed period — `PeriodicDecisionElement` packages the element and the event that reviews it into one construction, which is what the models in Parts II and IV use. This tutorial shows the declaration and the call separately because seeing them apart is what makes the packaged form legible; `ksl.examples.decision.SsInventory` carries both wirings side by side and a test asserts they produce the same run.
+That call site is yours, and it comes with one obligation: **finish the update, then decide.** The model is not guaranteed to be between events wherever you call, so calling partway through your own update hands the rule a state no observer of the finished system would ever see — and writes it into the trajectory. Nothing in the library can check this. §6 of the guide gives the three habits that cover it, and `ksl.examples.decision.CallSiteExamples` runs each mistake and measures what it costs.
+
+For the common case — a review on a fixed period — `PeriodicDecisionElement` packages the element and the event that reviews it into one construction, which is what the models in Parts II and IV use. It also discharges that obligation for you: its review runs in an event of its own and changes nothing itself, so there is no half-finished update to be inside of. This tutorial shows the declaration and the call separately because seeing them apart is what makes the packaged form legible; `ksl.examples.decision.SsInventory` carries both wirings side by side and a test asserts they produce the same run.
 
 KSL then runs the loop: at each call it reads the observations, hands them to your rule, validates and applies the action, prices the interval that just ended, and — if you asked — records the whole transition.
 

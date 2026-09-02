@@ -759,6 +759,48 @@ silently, so a pair like *(s, S)* with `S > s` should be declared as
 then feasible by construction. This is the same reparameterization KSL
 uses for `(r, S)` inventory policies.
 
+### 4.13 …review whenever the system changes, rather than on a period?
+
+Call `decide` where the state changes. There is no trigger construct, no
+condition to declare, and nothing to switch on.
+
+```kotlin
+private fun demandArrives(event: KSLEvent<Nothing>) {
+    applyDemand(demandSize.value)
+    decisions.decide("demand")
+}
+```
+
+**Note what is not there: a threshold.** The model does not test whether
+the position has fallen past the reorder point. It says the position
+moved, and the *rule* decides whether that warrants an order — declining
+by ordering nothing, which is a declared act (`Neutral.Value(0.0)`), not
+an abstention. The reorder point stays in the policy, which is where a
+parameter of the rule belongs, and where `simopt` can search it.
+
+This is continuous review, and it is worth knowing what it costs.
+Measured on `ksl.examples.decision.SsInventory`, which carries both
+wirings, over three replications of 5 000 time units with unit demand at
+rate 1 and a five-unit review period:
+
+| Wiring | epochs / replication | cost | wall clock |
+|---|---|---|---|
+| review every 5.0 | 1 000 | 11.92 | 3 ms |
+| review on every demand | 4 845 | 11.74 | 9 ms |
+
+Reviewing on every change costs about five times the epochs and, on this
+model — where decisions are a large share of the work — three times the
+wall clock. It is also **cheaper**, and must be: it sees every crossing
+the periodic arm sees and some it misses. Whether that trade is worth it
+is a modelling judgement, and the point is that you can simply make it.
+
+Two consequences worth expecting. Your trajectory grows in proportion,
+and most rows will record a decision that declined to act — which is
+signal for anything you fit later, not waste, since a trajectory of
+crossings only never shows the states where the rule correctly did
+nothing. And the review happens wherever you put the call, so §6's
+obligation applies with full force: finish the update, then decide.
+
 ## 5. The key types at a glance
 
 | Type | What it is |
@@ -818,6 +860,24 @@ rows were read before the demand and half after has a state column that
 means two different things, and nothing downstream can separate them.
 `ksl.examples.decision.CallSiteExamples` works all of this as running
 code, including what each mistake actually costs.
+
+**A rule may not schedule events.** A `PolicyIfc` reads the model and
+returns an action; it may not change the model, and scheduling is
+changing it. Whatever it scheduled would land in an interval no
+transition attributes, and the run would stop being reproducible from
+its declared inputs. This is checked, not merely asked for: a rule that
+schedules during the call gets a `PolicyScheduledEventException`. If a
+rule wants the model to do something, that is what a lever is for —
+declared, validated, applied in a defined order, and recorded.
+
+**Two `decide` calls at one instant cost you a row.** They are allowed,
+and sometimes right — two demands arriving together, each triggering a
+review, is a correct model. But the interval between them has no
+duration, and a row with no duration carries no information, so it is
+discarded: the earlier decision's action is applied and never recorded.
+`element.discardedZeroLengthCount` counts it, so the loss is visible
+rather than silent. `requestDecision` does not have this problem —
+several requests at one instant become one decision naming them all.
 
 **A decision as a consequence of a decision.** A lever's write function
 is your code, so it can reach back into `decide` — and that is refused,

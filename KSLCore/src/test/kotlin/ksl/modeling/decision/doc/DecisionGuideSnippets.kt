@@ -34,6 +34,7 @@ import kotlin.math.floor
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.variable.RandomVariable
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -80,6 +81,12 @@ private class StockRoom(parent: ModelElement) : ProcessModel(parent, null) {
         observe(position)
         lever(this@StockRoom, 0..200, neutral = Neutral.Value(0.0)) { q -> placeOrder(q) }
         policy = NeutralPolicy
+    }
+
+    /** §4.13 — continuous review: no condition, no threshold, just a call where the state moved. */
+    private fun demandArrives(event: KSLEvent<Nothing>) {
+        applyDemand(demandSize.value)
+        decisions.decide("demand")
     }
 
     private inner class Reviewer : Entity() {
