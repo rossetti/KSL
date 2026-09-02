@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.modeling.decision.descriptor.EpochProvenance
 import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.modeling.decision.descriptor.LeverKind
 import ksl.modeling.decision.descriptor.RewardSense
@@ -117,6 +118,16 @@ class TabularSinkTest {
                 "the rule asked for (2, 3) at every epoch and both levers accept it")
             assertTrue(rows.any { it.truncated }, "the run length cuts an episode off, so some row " +
                 "must be marked truncated — otherwise the flag is not being carried")
+
+            // S§C.11.3 — the two fields that let a stranger interpret where a row's state came
+            // from must survive the round trip. They are TEXT columns, so a silent failure here is
+            // an empty string rather than a wrong number, which no other assertion would catch.
+            assertTrue(rows.all { it.reason.isNotBlank() },
+                "every row must carry the reason of the epoch that opened its interval; a blank " +
+                    "one means the column was written but not read, or not written at all")
+            assertEquals(setOf(EpochProvenance.DEFERRED), rows.map { it.provenance }.toSet(),
+                "this element is driven by its own scheduled epochs, so every row's state was read " +
+                    "in an event of the element's own")
 
             // state and successor must actually differ somewhere, or the round trip would pass
             // with the two column families swapped and nobody would know.

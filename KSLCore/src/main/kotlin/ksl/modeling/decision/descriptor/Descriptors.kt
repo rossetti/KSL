@@ -97,6 +97,27 @@ enum class FeasibilityPolicy { REJECT, CLAMP_THEN_REJECT }
 enum class TerminationSource { NATURAL, MAX_EPOCHS, RUN_LENGTH, MODEL_STOPPED, POLICY_ERROR }
 
 /**
+ *  Where the state on a transition row was read (S§C.11.3).
+ *
+ *  A decision element no longer owns its timing: a modeler calls `decide(reason)` at a point they
+ *  choose, or `requestDecision(reason)` to have the epoch taken in an event of the element's own.
+ *  The two differ in a way a consumer of the trajectory cannot otherwise recover, and it is exactly
+ *  the way that matters to a consumer.
+ *
+ *  [IMMEDIATE] — the state was read at the caller's call site. The model was inside some other event
+ *  action at the time, so the caller warranted the state's consistency (R2b); the library did not.
+ *
+ *  [DEFERRED] — the state was read in the element's own zero-delay event, so the model was between
+ *  events. Weaker than a scheduled epoch's guarantee — such an event lands at the current time later
+ *  in the event order, not at the end of the instant — but it is a guarantee rather than a warrant.
+ *
+ *  An enum rather than a boolean because a third provenance with stronger quiescence is anticipated:
+ *  a decision executed from the executive's condition-scan phase, which the event-triggered work may
+ *  want. Widening a published field later is the thing this avoids.
+ */
+enum class EpochProvenance { IMMEDIATE, DEFERRED }
+
+/**
  *  How decision epochs are scheduled: [PERIODIC] at a fixed interval, or on a declared [CALENDAR]
  *  of instants. Event-triggered epochs — deciding *when a queue exceeds five* — are future work,
  *  and this enum is where a third kind would go.

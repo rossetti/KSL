@@ -27,6 +27,21 @@ fun interface PolicyIfc {
 interface DecisionContext {
 
     // ---- When the decision is happening.
+    /**
+     *  Why this decision is being taken — the label its caller gave to `decide` or
+     *  `requestDecision` (S§C.11.3, D6).
+     *
+     *  A rule serving an element that is called from several places behaves differently depending on
+     *  which one is asking: ordering up to S on a stockout is not the same act as topping up at a
+     *  scheduled review, even though the surface is identical. Before this, nothing distinguished
+     *  them.
+     *
+     *  Epoch-scoped, so it is subject to the staleness discipline like every other member that means
+     *  something different at the next epoch. Defaulted so that no existing implementation of this
+     *  interface breaks.
+     */
+    val reason: String get() = ""
+
     val simulationTime: Double
     val intervalSinceLastEpoch: Double
     val remainingRunLength: Double

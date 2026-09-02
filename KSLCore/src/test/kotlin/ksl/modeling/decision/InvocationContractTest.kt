@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.modeling.decision.descriptor.EpochProvenance
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.decision.descriptor.TerminationSource
 import ksl.modeling.variable.TWResponse
@@ -192,16 +193,60 @@ class InvocationContractTest {
     // ---- 3. Deferring changes nothing but the moment ---------------------------
 
     @Test
-    @DisplayName("A deferred decision at a quiescent instant records what an immediate one records")
-    fun deferredMatchesImmediateAtAQuiescentInstant() {
+    @DisplayName("A deferred decision records what an immediate one records, except its provenance")
+    fun deferredMatchesImmediateExceptProvenance() {
         val immediate = runArm(times = listOf(5.0, 10.0), deferred = false)
         val deferred = runArm(times = listOf(5.0, 10.0), deferred = true)
 
         assertEquals(immediate.policy.decisions, deferred.policy.decisions)
-        assertEquals(
-            immediate.sink.records, deferred.sink.records,
-            "deferral moves the epoch into its own event; it must not change what the epoch records"
-        )
+        assertEquals(immediate.sink.records.size, deferred.sink.records.size)
+
+        // Deferral moves the epoch into an event of the element's own. At a quiescent instant that
+        // must change nothing the epoch measures -- same state, same action, same reward, same
+        // interval -- because otherwise "defer when in doubt" would be advice to change your answer.
+        for ((i, d) in deferred.sink.records.withIndex()) {
+            val m = immediate.sink.records[i]
+            assertEquals(m.epochIndex, d.epochIndex)
+            assertEquals(m.time, d.time)
+            assertEquals(m.tau, d.tau)
+            assertEquals(m.reward, d.reward)
+            assertEquals(m.state.toList(), d.state.toList())
+            assertEquals(m.action.toList(), d.action.toList())
+            assertEquals(m.successorState.toList(), d.successorState.toList())
+            assertEquals(m.reason, d.reason)
+
+            // The one field that must differ is the one that exists to record the difference. A
+            // consumer wanting only states the library guaranteed consistent filters on this.
+            assertEquals(EpochProvenance.IMMEDIATE, m.provenance)
+            assertEquals(EpochProvenance.DEFERRED, d.provenance)
+        }
+    }
+
+    @Test
+    @DisplayName("The caller's reason reaches the record and the policy's context")
+    fun reasonReachesTheRecordAndTheContext() {
+        lateinit var seen: MutableList<String>
+        val model = Model("Invocation")
+        val tank = Tank(model, "T")
+        val driver = Driver(model, listOf(5.0, 10.0))
+        val sink = MemorySink()
+        seen = mutableListOf()
+        val e = tank.decisionElement("D") {
+            observe(tank.level)
+            lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> tank.setting = v }
+            reward(tank.level, rate = 1.0, sense = RewardSense.COST)
+            captureTo { sink }
+            policy = PolicyIfc { _, ctx -> seen += ctx.reason; doubleArrayOf(1.0) }
+        }
+        driver.element = e
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+        model.simulate()
+
+        assertEquals(listOf("driven", "driven"), seen, "the rule is told why it is being consulted")
+        assertTrue(sink.records.isNotEmpty())
+        assertTrue(sink.records.all { it.reason == "driven" },
+            "every row carries the reason of the epoch that OPENED its interval")
     }
 
     // ---- 4. The guards around the entry points ---------------------------------

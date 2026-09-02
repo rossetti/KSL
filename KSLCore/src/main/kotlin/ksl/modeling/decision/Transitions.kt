@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.modeling.decision.descriptor.EpochProvenance
 import ksl.modeling.decision.descriptor.TerminationSource
 
 /**
@@ -56,7 +57,24 @@ class TransitionRecord(
     val terminated: Boolean,
     val truncated: Boolean,
     /** WHY it ended, not just that it did (§4.6.3). */
-    val source: TerminationSource? = null
+    val source: TerminationSource? = null,
+    /**
+     *  Why the decision at the START of this interval was taken — the label its caller supplied.
+     *
+     *  The *starting* epoch's, not the closing one's, because everything else on this row that
+     *  describes a decision — [state], [action], [proposedAction] — belongs to that epoch. A row whose
+     *  reason described a different decision from its action would be worse than a row with no reason.
+     */
+    val reason: String = "",
+    /**
+     *  Where [state] was read: at the caller's call site, or in the element's own deferred event.
+     *
+     *  Recorded rather than left to be inferred. Under caller-owned timing the interval length is
+     *  very nearly a giveaway for which entry point was used, and inference from a near-giveaway is
+     *  how a subtle bias enters a learner. A consumer that wants only states the library guaranteed
+     *  consistent filters on `DEFERRED`; one that does not, at least knows its dataset is mixed.
+     */
+    val provenance: EpochProvenance = EpochProvenance.IMMEDIATE
 ) {
     /** True iff the rule's request was repaired or overridden before it was applied. */
     val wasRepaired: Boolean get() = proposedAction != null
@@ -77,7 +95,9 @@ class TransitionRecord(
             successorState.contentEquals(other.successorState) &&
             terminated == other.terminated &&
             truncated == other.truncated &&
-            source == other.source
+            source == other.source &&
+            reason == other.reason &&
+            provenance == other.provenance
     }
 
     override fun hashCode(): Int {
@@ -95,6 +115,8 @@ class TransitionRecord(
         r = 31 * r + terminated.hashCode()
         r = 31 * r + truncated.hashCode()
         r = 31 * r + (source?.hashCode() ?: 0)
+        r = 31 * r + reason.hashCode()
+        r = 31 * r + provenance.hashCode()
         return r
     }
 
@@ -104,7 +126,8 @@ class TransitionRecord(
             "proposedAction=${proposedAction?.toList()}, " +
             "leverUnavailable=${leverUnavailable?.toList()}, reward=$reward, " +
             "successorState=${successorState.toList()}, terminated=$terminated, " +
-            "truncated=$truncated, source=$source)"
+            "truncated=$truncated, source=$source, reason=$reason, " +
+            "provenance=$provenance)"
 }
 
 private fun DoubleArray?.contentEqualsNullable(other: DoubleArray?): Boolean =

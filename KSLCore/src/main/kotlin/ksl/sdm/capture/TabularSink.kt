@@ -2,6 +2,7 @@ package ksl.sdm.capture
 
 import kotlinx.serialization.json.Json
 import ksl.modeling.decision.RunProvenance
+import ksl.modeling.decision.descriptor.EpochProvenance
 import ksl.modeling.decision.TransitionRecord
 import ksl.modeling.decision.TransitionSink
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
@@ -117,6 +118,8 @@ class TabularSink(
         row.setNumeric("terminated", flag(record.terminated))
         row.setNumeric("truncated", flag(record.truncated))
         row.setText("source", record.source?.name ?: "")
+        row.setText("reason", record.reason)
+        row.setText("provenance", record.provenance.name)
 
         file.writeRow(row)
         written++
@@ -160,6 +163,12 @@ class TabularSink(
         for (o in descriptor.observations) put(successorCol(o.name), DataType.NUMERIC, "successor ${o.name}")
         for (n in listOf("terminated", "truncated")) put(n, DataType.NUMERIC, n)
         put("source", DataType.TEXT, "source")
+        // S§C.11.3. Both belong to the epoch that OPENED the interval, and both are recorded
+        // rather than left to be inferred: under caller-owned timing the interval length is
+        // nearly a giveaway for which entry point was used, and inferring from a near-giveaway
+        // is how a subtle bias enters a learner.
+        put("reason", DataType.TEXT, "reason")
+        put("provenance", DataType.TEXT, "provenance")
         return cols
     }
 
@@ -237,7 +246,12 @@ class TrajectoryFile(rowsPath: Path) : AutoCloseable {
                 successorState = DoubleArray(obs.size) { r.getNumeric(TabularSink.successorCol(obs[it])) },
                 terminated = r.getNumeric("terminated") != 0.0,
                 truncated = r.getNumeric("truncated") != 0.0,
-                repaired = r.getNumeric("repaired") != 0.0
+                repaired = r.getNumeric("repaired") != 0.0,
+                reason = r.getText("reason") ?: "",
+                provenance = r.getText("provenance")
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { EpochProvenance.valueOf(it) }
+                    ?: EpochProvenance.IMMEDIATE
             )
         }
     }
@@ -257,5 +271,9 @@ class StoredTransition(
     val successorState: DoubleArray,
     val terminated: Boolean,
     val truncated: Boolean,
-    val repaired: Boolean
+    val repaired: Boolean,
+    /** Why the decision that opened this interval was taken. */
+    val reason: String = "",
+    /** Where the state on this row was read (S§C.11.3). */
+    val provenance: EpochProvenance = EpochProvenance.IMMEDIATE
 )

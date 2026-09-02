@@ -633,7 +633,11 @@ class DecisionElement internal constructor(
         /** Which levers had an empty feasible set at the decision (§4.4.6.3). */
         val unavailable: BooleanArray?,
         val time: Double,
-        val epochIndex: Int
+        val epochIndex: Int,
+        /** The label the caller gave the decision that opened this interval (S§C.11.3). */
+        val reason: String,
+        /** Where that decision's state was read. */
+        val provenance: EpochProvenance
     )
     private var pending: Pending? = null
 
@@ -724,7 +728,8 @@ class DecisionElement internal constructor(
     }
 
     private inner class EpochAction : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) = runGuarded("scheduled", scheduleNext = true)
+        override fun action(event: KSLEvent<Nothing>) =
+            runGuarded("scheduled", EpochProvenance.DEFERRED, scheduleNext = true)
     }
 
     private val epochAction = EpochAction()
@@ -736,7 +741,7 @@ class DecisionElement internal constructor(
      */
     private inner class DeferredDecisionAction : EventAction<String>() {
         override fun action(event: KSLEvent<String>) =
-            runGuarded(event.message ?: "deferred", scheduleNext = false)
+            runGuarded(event.message ?: "deferred", EpochProvenance.DEFERRED, scheduleNext = false)
     }
 
     private val deferredAction = DeferredDecisionAction()
@@ -793,7 +798,7 @@ class DecisionElement internal constructor(
      */
     fun decide(reason: String) {
         requireRunning("decide")
-        runGuarded(reason, scheduleNext = false)
+        runGuarded(reason, EpochProvenance.IMMEDIATE, scheduleNext = false)
     }
 
     /**
@@ -821,7 +826,7 @@ class DecisionElement internal constructor(
      *  step alone: a call from inside an observation read, or from the policy itself, would corrupt
      *  the decision context's staleness generation as well as the pending transition.
      */
-    private fun runGuarded(reason: String, scheduleNext: Boolean) {
+    private fun runGuarded(reason: String, provenance: EpochProvenance, scheduleNext: Boolean) {
         if (inDecision) throw ReentrantDecisionException(this.name, reason)
         if (myLastTermination != null) {
             myIgnoredAfterEpisodeEnd++
@@ -830,7 +835,7 @@ class DecisionElement internal constructor(
         inDecision = true
         try {
             myLastDecisionReason = reason
-            runEpoch(scheduleNext)
+            runEpoch(reason, provenance, scheduleNext)
         } finally {
             inDecision = false
         }
@@ -843,7 +848,7 @@ class DecisionElement internal constructor(
     internal fun neutralAction(): DoubleArray =
         DoubleArray(leverDecls.size) { leverDecls[it].neutralValue() }
 
-    private fun runEpoch(scheduleNext: Boolean) {
+    private fun runEpoch(reason: String, provenance: EpochProvenance, scheduleNext: Boolean) {
         // Step 1 — observe. ONE read, serving both the successor state of the transition that is
         // completing and the state of the decision about to be made: a catalog entry backed by a
         // computed lambda need not be pure, so reading twice could disagree with itself.
@@ -880,7 +885,7 @@ class DecisionElement internal constructor(
         // Step 6 — decide and act. The context is open only for the duration of the call:
         // reading it afterwards throws rather than answering about a later epoch (§4.5.3).
         // `finally`, so a rule that throws still leaves no live context behind.
-        val view = ctx.open(time, time - lastEpochTime, myEpochCount)
+        val view = ctx.open(time, time - lastEpochTime, myEpochCount, reason)
         val action = try {
             myPolicy.action(s, view)
         } catch (e: Throwable) {
@@ -914,7 +919,7 @@ class DecisionElement internal constructor(
         val appliedVector = applied.applied
         val proposed = if (action.contentEquals(appliedVector)) null else action.copyOf()
         pending = Pending(s, appliedVector.copyOf(), proposed, applied.unavailable?.copyOf(),
-            time, myEpochCount)
+            time, myEpochCount, reason, provenance)
         myEpochCount++
         lastEpochTime = time
         if (scheduleNext) scheduleNextEpoch()
@@ -1007,7 +1012,12 @@ class DecisionElement internal constructor(
             successorState = successor,
             terminated = ending == TerminationSource.NATURAL,
             truncated = ending != null && ending != TerminationSource.NATURAL,
-            source = ending
+            source = ending,
+            // From `p`, not from the epoch closing this interval: everything else on the row that
+            // describes a decision -- state, action, proposedAction -- belongs to the epoch that
+            // OPENED it (T12).
+            reason = p.reason,
+            provenance = p.provenance
         )
         // Attachment order. Every attached sink receives every record; a sink that throws stops
         // the run, and that is the intended severity — a dropped training row is a silent data
@@ -1391,6 +1401,8 @@ internal class MutableDecisionContext(private val element: DecisionElement) {
         private set
     var epochIndex: Int = 0
         private set
+    var reason: String = ""
+        private set
 
     val owner: DecisionElement get() = element
 
@@ -1399,12 +1411,13 @@ internal class MutableDecisionContext(private val element: DecisionElement) {
     }
 
     /** Mint the view for this decision. */
-    internal fun open(now: Double, sinceLast: Double, index: Int): DecisionContext {
+    internal fun open(now: Double, sinceLast: Double, index: Int, why: String): DecisionContext {
         generation++
         live = generation
         simulationTime = now
         intervalSinceLastEpoch = sinceLast
         epochIndex = index
+        reason = why
         return EpochContext(this, generation)
     }
 
@@ -1437,6 +1450,8 @@ internal class EpochContext(
         get() { live("intervalSinceLastEpoch"); return state.intervalSinceLastEpoch }
     override val epochIndex: Int
         get() { live("epochIndex"); return state.epochIndex }
+    override val reason: String
+        get() { live("reason"); return state.reason }
     override val remainingRunLength: Double
         get() { live("remainingRunLength"); return element.model.lengthOfReplication - state.simulationTime }
     override val replicationId: Int
