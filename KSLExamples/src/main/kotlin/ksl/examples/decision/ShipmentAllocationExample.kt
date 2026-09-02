@@ -41,7 +41,7 @@ import kotlin.math.min
 class ShipmentDepot(
     parent: ModelElement,
     initialStock: Int = 20,
-    val reviewPeriod: Double = 10.0,
+    reviewPeriod: Double = 10.0,
     // The truck is the ENVELOPE and is deliberately slack: the binding constraint is meant
     // to be stock, which is the state-dependent one. Resupply arrives in lumps at 1.833
     // per unit time against demand of 1.8, so the system is barely stable and stock is
@@ -113,7 +113,21 @@ class ShipmentDepot(
         private set
 
     // ---- The decision ------------------------------------------------------------
-    val allocation: DecisionElement = decisionElement("Allocation") {
+
+    /**
+     *  The depot allocates on a period, so it says so in one construction.
+     *
+     *  `PeriodicDecisionElement` owns the element **and** the event that reviews it. The interval is
+     *  checked where it is given, so a depot that never allocates cannot be built; the review runs in
+     *  an event of its own and changes nothing itself, so the state the rule reads is consistent
+     *  without this model having to be careful about where it calls from; and the period is a
+     *  `@KSLControl` on a named type, so a study can search it.
+     *
+     *  A model that allocated on a *condition* rather than a period would drop this and call
+     *  `allocation.decide(reason)` at the point the condition holds — the composite is a convenience
+     *  over that door, not a different way in.
+     */
+    private val reviews = PeriodicDecisionElement(this, reviewPeriod, name = "Allocation") {
         // 0..2 the backlogs, 3 the stock. A policy needs all four under either design;
         // under the old one it needs them to RE-DERIVE the feasible set for itself.
         for (i in regionNames.indices) {
@@ -152,7 +166,18 @@ class ShipmentDepot(
         }
 
         policy = NeutralPolicy
-    }.reviewEvery(this, reviewPeriod)
+    }
+
+    /** The element itself: assign the rule here, narrow a lever here, attach a sink here. */
+    val allocation: DecisionElement get() = reviews.element
+
+    /**
+     *  How often the depot allocates.
+     *
+     *  Read from the reviewer rather than stored beside it, so that a study which moves the period
+     *  through the control cannot leave this reporting the value it was built with.
+     */
+    val reviewPeriod: Double get() = reviews.interval
 
     override fun initialize() {
         overShipmentsAbsorbed = 0
