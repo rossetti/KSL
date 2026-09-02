@@ -11,7 +11,7 @@ import ksl.modeling.station.SResource
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
-import ksl.sdm.capture.MemorySink
+import ksl.modeling.decision.capture.MemorySink
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement

@@ -6,7 +6,7 @@ import ksl.modeling.decision.descriptor.TerminationSource
 /**
  *  §4.8.3. The atom of recorded experience.
  *
- *  It lives here, with the element that PRODUCES it, rather than in ksl.sdm.capture,
+ *  It lives here, with the element that PRODUCES it, rather than in ksl.modeling.decision.capture,
  *  which consumes it. ManagedPolicyIfc.onTransition takes one, and a policy interface
  *  cannot depend on the capture package without inverting the layering of E.1.
  *

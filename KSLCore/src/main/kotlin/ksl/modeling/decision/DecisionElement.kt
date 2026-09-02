@@ -1147,7 +1147,7 @@ class DecisionElement internal constructor(
         // in beforeExperiment(), so it ends each one here — and it does NOT close them: the sinks
         // were constructed and attached by the caller, so closing them belongs to the caller, the
         // way `ksl.observers.ResponseTrace` is closed by whoever constructed it. A sink that owns
-        // a per-run resource releases it in endExperiment(); `ksl.sdm.capture.RollingSink` is the
+        // a per-run resource releases it in endExperiment(); `RollingSink` is the
         // case where the element's sink really is the element's to close, and it closes its own.
         //
         // The policy is the same story for the same reason — the user constructed it and assigned
@@ -1825,16 +1825,16 @@ class DecisionElementBuilder internal constructor(
      *  sink it returns is opened and closed for you, per experiment.
      *
      *  This is the *declared* form of capture, for a model that always records. It is now one line
-     *  over the general mechanism — it attaches a [ksl.sdm.capture.RollingSink] — so it is no
+     *  over the general mechanism — it attaches a [RollingSink] — so it is no
      *  longer the only way in: [DecisionElement.attachTransitionSink] adds a sink to a model that
      *  is already built, from `main()` or from a tool layer, and
-     *  [ksl.sdm.capture.DecisionCapture] does it for every decision element in a model at once.
+     *  [ksl.modeling.decision.capture.DecisionCapture] does it for every decision element in a model at once.
      *
      *  Calling it twice attaches two sinks and both record, which is what it reads as. It used to
      *  overwrite, so the first declaration was silently discarded.
      */
     fun captureTo(factory: (RunProvenance) -> TransitionSink) {
-        element.attachTransitionSink(ksl.sdm.capture.RollingSink(factory))
+        element.attachTransitionSink(RollingSink(factory))
     }
 
     internal fun build(): DecisionElement {

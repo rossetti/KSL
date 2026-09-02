@@ -4,7 +4,7 @@ import ksl.modeling.decision.ActionApplicationException
 import ksl.modeling.decision.DecisionContext
 import ksl.modeling.decision.PolicyIfc
 import ksl.modeling.decision.ReentrantDecisionException
-import ksl.sdm.capture.MemorySink
+import ksl.modeling.decision.capture.MemorySink
 import ksl.simulation.Model
 import org.junit.jupiter.api.DisplayName
 import kotlin.test.Test

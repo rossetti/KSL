@@ -3,11 +3,11 @@ package ksl.modeling.decision
 import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
-import ksl.sdm.capture.DecisionCapture
-import ksl.sdm.capture.MemorySink
-import ksl.sdm.capture.RollingSink
-import ksl.sdm.capture.TabularSink
-import ksl.sdm.capture.decisionElements
+import ksl.modeling.decision.capture.DecisionCapture
+import ksl.modeling.decision.capture.MemorySink
+import ksl.modeling.decision.RollingSink
+import ksl.modeling.decision.capture.TabularSink
+import ksl.modeling.decision.capture.decisionElements
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -455,7 +455,7 @@ class ExternalSinkAttachmentTest {
         val rows = files.filter { it.endsWith(".sqlite") }
         assertEquals(2, rows.size)
         for (f in rows) {
-            ksl.sdm.capture.TrajectoryFile(dir.resolve(f)).use { t ->
+            ksl.modeling.decision.capture.TrajectoryFile(dir.resolve(f)).use { t ->
                 assertTrue(t.rowCount > 0, "$f is empty, so the capture attached but never wrote")
             }
         }
@@ -580,7 +580,7 @@ class ExternalSinkAttachmentTest {
             "the SECOND captureTo must record too; it used to overwrite the first, so one of two " +
                 "declarations silently did nothing")
         assertEquals(2, written.size, "the first captureTo still leaves its two files: $written")
-        ksl.sdm.capture.TrajectoryFile(dir.resolve("run1.sqlite")).use { t ->
+        ksl.modeling.decision.capture.TrajectoryFile(dir.resolve("run1.sqlite")).use { t ->
             assertEquals(counted.records.size.toLong(), t.rowCount,
                 "both sinks saw the same rows, which is what 'every sink gets every record' means")
         }

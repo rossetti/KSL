@@ -6,8 +6,8 @@ import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.modeling.decision.descriptor.LeverKind
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
-import ksl.sdm.capture.TabularSink
-import ksl.sdm.capture.TrajectoryFile
+import ksl.modeling.decision.capture.TabularSink
+import ksl.modeling.decision.capture.TrajectoryFile
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import java.nio.file.Files

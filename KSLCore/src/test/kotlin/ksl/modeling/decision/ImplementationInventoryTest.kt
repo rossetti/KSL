@@ -87,12 +87,17 @@ class ImplementationInventoryTest {
             "LearnableValueApproximationIfc" m 2,
             "LookaheadPolicy" m 1,
             // The capture CONTRACT lives with its producer; only implementations live in
-            // ksl.sdm.capture (E.1, D.19). M1 since §7.1.1: §4.10.2 step 4 emits, and §4.10.4's
+            // ksl.modeling.decision.capture (E.1, D.19). M1 since §7.1.1: §4.10.2 step 4 emits, and §4.10.4's
             // acceptance matrix asserts what it emits, so M1 cannot be tested without them.
             // `RunProvenance` stays M3 — it is wiring for durable sinks, not for the loop.
             "TransitionRecord" m 1,
             "RunProvenance" m 1,
             "TransitionSink" m 1,
+            // A decorator over that contract rather than a destination: it makes a fresh delegate
+            // per experiment and closes it, which IS the beginExperiment/endExperiment protocol.
+            // It sat among the implementations until the layering guard was taught to see
+            // fully-qualified references and found the DSL reaching downstream for it.
+            "RollingSink" m 2,
             // Exceptions (E.3).
             "ActionValidationException" m 1,
             "ActionApplicationException" m 1,
@@ -135,9 +140,9 @@ class ImplementationInventoryTest {
             "RewardSense" m 1
         )
 
-        // ---- ksl.sdm.capture — implementations only.
+        // ---- ksl.modeling.decision.capture — implementations only.
         pkg(
-            "ksl.sdm.capture",
+            "ksl.modeling.decision.capture",
             "NullSink" m 1,
             "MemorySink" m 1,
             // Durable capture: the sink, the reader that pairs a trajectory with its provenance,
@@ -146,9 +151,6 @@ class ImplementationInventoryTest {
             "TabularSink" m 2,
             "TrajectoryFile" m 2,
             "StoredTransition" m 2,
-            // A fresh delegate per experiment: the per-run factory, kept as a sink rather than as
-            // a second mechanism on the element.
-            "RollingSink" m 2,
             // External attachment (§4.8.2). The animation layer's `AnimationCapture` in decision
             // form: install on construction, reverse on close.
             "DecisionCapture" m 2

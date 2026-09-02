@@ -1,7 +1,7 @@
 package ksl.examples.decision.tutorial
 
 import ksl.modeling.decision.descriptor.LeverDomain
-import ksl.sdm.capture.TrajectoryFile
+import ksl.modeling.decision.capture.TrajectoryFile
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals

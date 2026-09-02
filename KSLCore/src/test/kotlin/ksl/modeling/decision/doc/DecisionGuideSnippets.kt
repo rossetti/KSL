@@ -23,11 +23,11 @@ import ksl.modeling.decision.descriptor.toJson
 import ksl.modeling.decision.descriptor.toToml
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.TWResponse
-import ksl.sdm.capture.DecisionCapture
-import ksl.sdm.capture.MemorySink
-import ksl.sdm.capture.StoredTransition
-import ksl.sdm.capture.TabularSink
-import ksl.sdm.capture.TrajectoryFile
+import ksl.modeling.decision.capture.DecisionCapture
+import ksl.modeling.decision.capture.MemorySink
+import ksl.modeling.decision.capture.StoredTransition
+import ksl.modeling.decision.capture.TabularSink
+import ksl.modeling.decision.capture.TrajectoryFile
 import ksl.modeling.decision.descriptor.LeverDomain
 import java.nio.file.Path
 import kotlin.math.floor

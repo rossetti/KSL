@@ -7,9 +7,9 @@ import ksl.modeling.decision.ShapeAwarePolicyIfc
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.modeling.variable.RandomVariable
-import ksl.sdm.capture.DecisionCapture
-import ksl.sdm.capture.TabularSink
-import ksl.sdm.capture.TrajectoryFile
+import ksl.modeling.decision.capture.DecisionCapture
+import ksl.modeling.decision.capture.TabularSink
+import ksl.modeling.decision.capture.TrajectoryFile
 import ksl.simulation.Model
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.UniformRV

@@ -1,4 +1,4 @@
-package ksl.sdm.capture
+package ksl.modeling.decision.capture
 
 import kotlinx.serialization.json.Json
 import ksl.modeling.decision.RunProvenance

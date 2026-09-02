@@ -5,7 +5,7 @@ import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 
 /**
  *  §4.8.2. The capture CONTRACT lives with the element that produces
- *  records; ksl.sdm.capture provides implementations. Dependency inversion: without it the
+ *  records; ksl.modeling.decision.capture provides implementations. Dependency inversion: without it the
  *  two packages would import each other and E.1's one-way layering would be a fiction.
  */
 
@@ -18,7 +18,7 @@ import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
  *  `["slow", "normal", "fast"]`, that it is a SETTING rather than a TRANSACTION, and where its
  *  bounds are. Column names carry position-to-name and nothing else. So a durable sink writes this
  *  object beside its rows and a reader refuses a trajectory that arrives without it — see
- *  `ksl.sdm.capture.TabularSink`.
+ *  `ksl.modeling.decision.capture.TabularSink`.
  */
 @Serializable
 data class RunProvenance(
@@ -52,7 +52,7 @@ data class RunProvenance(
  *  Whoever constructed it. [endExperiment] is the flush point and the element calls it; [close] is
  *  ownership and the element does not. This follows `ksl.observers.ResponseTrace`, which is
  *  `AutoCloseable`, is constructed by the user, and is closed by the user. The one sink the element
- *  does own is one it created itself, which is what `ksl.sdm.capture.RollingSink` is for.
+ *  does own is one it created itself, which is what [RollingSink] is for.
  */
 interface TransitionSink : AutoCloseable {
     /**
@@ -74,3 +74,74 @@ interface TransitionSink : AutoCloseable {
     override fun close() {}
 }
 
+/**
+ *  Moved here from the implementations package, because it is not one.
+ *
+ *  `NullSink`, `MemorySink` and `TabularSink` are about *where rows go* — destinations, and genuinely
+ *  implementations. This is about a sink's *lifetime*: it makes a fresh delegate per experiment and
+ *  closes it, which is the `beginExperiment`/`endExperiment` protocol [TransitionSink] already
+ *  defines. It is a decorator over the contract with no knowledge of any destination, and it belongs
+ *  beside the contract.
+ *
+ *  It also had to move. `captureTo` in the declaration DSL attaches one, so while this lived
+ *  downstream the element referred to the implementations package by fully-qualified name — a real
+ *  compile-time dependency in both directions, and exactly the cycle §7.2 claims is inverted. The
+ *  layering test could not see it, because it inspected imports and a qualified name is not one.
+ *
+
+ *  A sink that makes a **fresh delegate for every experiment** and closes it when that experiment
+ *  ends (§4.8.2).
+ *
+ *  ### What it is for
+ *
+ *  A durable sink writes an artifact, and an artifact belongs to one run. `TabularSink` names its
+ *  file from the provenance — which carries the experiment name — precisely so that §4.9's k-rule
+ *  comparison, which runs one model k times under k policies, leaves k trajectories instead of
+ *  overwriting one. A single long-lived `TabularSink` attached across those k runs cannot do that:
+ *  its file was chosen before the first run.
+ *
+ *  So the per-experiment factory survives — as a sink, rather than as a second mechanism on the
+ *  element. `DecisionElement` has exactly one way to be captured (attach a sink), and "a new file
+ *  each run" is an ordinary decorator over it, the way `ksl.animation` layers
+ *  `ReplicationSelectingSink` and `WindowedAnimationSink` over its base sinks. `captureTo` in the
+ *  builder DSL is one line that attaches one of these.
+ *
+ *  ### Ownership
+ *
+ *  This sink DID construct its delegate, so this sink closes it — at `endExperiment`, not at
+ *  `close`, because the delegate's life is the run's. [close] is idempotent and releases a
+ *  delegate only if a run was cut short before `endExperiment` arrived.
+ */
+class RollingSink(
+    private val factory: (RunProvenance) -> TransitionSink
+) : TransitionSink {
+
+    private var current: TransitionSink? = null
+
+    /** The delegate for the run in progress, or null between runs. For tests and diagnostics. */
+    val delegate: TransitionSink?
+        get() = current
+
+    override fun beginExperiment(provenance: RunProvenance) {
+        // A previous run that ended abnormally could leave one behind; releasing it here is the
+        // difference between a leaked file handle per run and a leaked file handle.
+        current?.let { runCatching { it.close() } }
+        current = factory(provenance)
+    }
+
+    override fun write(record: TransitionRecord) {
+        current?.write(record)
+    }
+
+    override fun endExperiment() {
+        val d = current
+        current = null
+        d?.close()
+    }
+
+    override fun close() {
+        val d = current
+        current = null
+        d?.close()
+    }
+}

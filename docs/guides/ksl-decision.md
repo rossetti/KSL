@@ -5,7 +5,7 @@ of code that does it, and the gotchas that matter in practice.
 Reference detail (parameter lists, every overload) is on the Dokka API
 pages; this guide gets you productive.
 
-> **Status: experimental.** `ksl.modeling.decision` and `ksl.sdm` are
+> **Status: experimental.** `ksl.modeling.decision` and `ksl.modeling.decision.capture` are
 > released as experimental. Their public API may change in future
 > releases without notice. Pin your KSL version if you build models
 > against them for production use.
@@ -44,11 +44,11 @@ deliberate boundary, not an omission.
   the parameters of a parameterized rule to minimize an expected cost
   estimated by simulation *is* simulation optimization. This package
   does not reimplement it; see §4.12 for how the two meet.
-- `ksl.sdm.capture` holds the sink implementations (`MemorySink`,
+- `ksl.modeling.decision.capture` holds the sink implementations (`MemorySink`,
   `TabularSink`, `RollingSink`) and `DecisionCapture`, which attaches
   capture to a model from outside. The sink *contract* lives with its
   producer in `ksl.modeling.decision`; only implementations live in
-  `ksl.sdm`.
+  `ksl.modeling.decision.capture`.
 - `ksl.modeling.decision.descriptor` is plain serializable data — the
   machine-readable description of a decision surface, with no
   reference to a model at all, so it can travel without one.
@@ -820,7 +820,7 @@ obligation applies with full force: finish the update, then decide.
 | `Neutral.Current` / `Neutral.Value` | Doing nothing, for a setting and for a transaction |
 | `LeverRef` / `RewardRef` | Identities returned by declaration, consumed by constraints and parameterization |
 | `TransitionRecord` | One complete transition: state, action, reward, successor, termination |
-| `TransitionSink` | Write-only consumer with a per-run lifetime. `MemorySink`, `NullSink` in `ksl.sdm.capture` |
+| `TransitionSink` | Write-only consumer with a per-run lifetime. `MemorySink`, `NullSink` in `ksl.modeling.decision.capture` |
 | `DecisionElement.attachTransitionSink` | Records an element from outside the model; `detachTransitionSink` stops it (§4.5) |
 | `DecisionCapture` | Attaches capture to a whole built model and reverses it on `close` (§4.5) |
 | `RollingSink` | Wraps a per-experiment factory, so an attached sink still leaves one artifact per run |

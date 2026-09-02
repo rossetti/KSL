@@ -1,6 +1,7 @@
-package ksl.sdm.capture
+package ksl.modeling.decision.capture
 
 import ksl.modeling.decision.DecisionElement
+import ksl.modeling.decision.RollingSink
 import ksl.modeling.decision.TransitionSink
 import ksl.simulation.Model
 import java.io.Closeable

@@ -16,9 +16,9 @@ import ksl.modeling.decision.descriptor.SumEquals
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.TWResponse
 import ksl.examples.decision.tutorial.BuildStockRoomDecisionModel
-import ksl.sdm.capture.DecisionCapture
-import ksl.sdm.capture.MemorySink
-import ksl.sdm.capture.TrajectoryFile
+import ksl.modeling.decision.capture.DecisionCapture
+import ksl.modeling.decision.capture.MemorySink
+import ksl.modeling.decision.capture.TrajectoryFile
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simulation.Model

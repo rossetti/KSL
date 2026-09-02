@@ -7,7 +7,7 @@ import ksl.modeling.decision.PolicyIfc
 import ksl.modeling.decision.RunProvenance
 import ksl.modeling.decision.TransitionSink
 import ksl.modeling.station.StationNetwork
-import ksl.sdm.capture.MemorySink
+import ksl.modeling.decision.capture.MemorySink
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV

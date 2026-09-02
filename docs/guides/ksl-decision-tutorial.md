@@ -8,7 +8,7 @@ A hands-on, step-by-step introduction to the KSL's sequential decision-making la
 >
 > For the theory, the standard sources are Powell, *Approximate Dynamic Programming* (2011) and Sutton & Barto, *Reinforcement Learning* (2018). This tutorial does not replace them — it gets you to the point where the API stops being the obstacle.
 
-> **Status: experimental.** `ksl.modeling.decision` and `ksl.sdm` are released as experimental. Their public API may change in future releases without notice. Pin your KSL version if you build models against them for production use.
+> **Status: experimental.** `ksl.modeling.decision` and `ksl.modeling.decision.capture` are released as experimental. Their public API may change in future releases without notice. Pin your KSL version if you build models against them for production use.
 
 Every code example here is a real, compiled, runnable file. They live under `KSLExamples`, in the package `ksl.examples.decision.tutorial`, and are listed in [Appendix A](#appendix-a--the-companion-files-and-how-to-run-them). If you have the KSL open in IntelliJ IDEA, run any of them by clicking the green arrow next to its `main` function.
 

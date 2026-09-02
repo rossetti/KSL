@@ -156,7 +156,7 @@ class DeclarationSurfaceCoverageTest {
         results["captureTo"] = probe("`captureTo(...)` trajectory sink (§4.8)") {
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                captureTo { ksl.sdm.capture.NullSink }
+                captureTo { ksl.modeling.decision.capture.NullSink }
                 policy = NeutralPolicy }
         }
         results["terminalWhen"] = probe("`terminalWhen { ... }` episode ending (§4.6.3)") {

@@ -4,7 +4,7 @@ import ksl.modeling.decision.descriptor.EpochProvenance
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.decision.descriptor.TerminationSource
 import ksl.modeling.variable.TWResponse
-import ksl.sdm.capture.MemorySink
+import ksl.modeling.decision.capture.MemorySink
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
