@@ -100,6 +100,8 @@ class ImplementationInventoryTest {
             "AmbiguousLeverException" m 1,
             "NarrowingException" m 1,
             "ReentrantDecisionException" m 1,
+            "RunawayDecisionRequestException" m 1,
+            "PolicyScheduledEventException" m 1,
             "RewardKindException" m 1,
             "NotDeclarableYetException" m 1,
             "StaleDecisionContextException" m 1

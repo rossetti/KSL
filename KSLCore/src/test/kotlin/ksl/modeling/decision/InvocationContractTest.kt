@@ -249,6 +249,170 @@ class InvocationContractTest {
             "every row carries the reason of the epoch that OPENED its interval")
     }
 
+    // ---- 3b. The request queue (D9-D11) ----------------------------------------
+
+    /** Asks for a decision several times at one instant, through the deferred entry point. */
+    private class Requester(
+        parent: ModelElement,
+        private val at: Double,
+        private val reasons: List<String>
+    ) : ModelElement(parent, "Requester") {
+        lateinit var element: DecisionElement
+        private inner class Fire : EventAction<Nothing>() {
+            override fun action(event: KSLEvent<Nothing>) {
+                for (r in reasons) element.requestDecision(r)
+            }
+        }
+        override fun initialize() { Fire().schedule(at) }
+    }
+
+    private fun requesting(reasons: List<String>): Triple<DecisionElement, CountingPolicy, MemorySink> {
+        val model = Model("Requests")
+        val tank = Tank(model, "T")
+        val requester = Requester(model, 5.0, reasons)
+        val sink = MemorySink()
+        val policy = CountingPolicy()
+        val e = tank.decisionElement("D") {
+            observe(tank.level)
+            lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> tank.setting = v }
+            reward(tank.level, rate = 1.0, sense = RewardSense.COST)
+            captureTo { sink }
+            this.policy = policy
+        }
+        requester.element = e
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+        model.simulate()
+        return Triple(e, policy, sink)
+    }
+
+    @Test
+    @DisplayName("Several requests at one instant produce one decision, naming them all")
+    fun requestsAtOneInstantCollapseToOneDecision() {
+        val (e, policy, sink) = requesting(listOf("stockout", "shift change", "manual"))
+
+        // A deferred request is not a decision; it is a request for one, at the next moment the
+        // model is between events. Three requests name the same moment and describe the same state.
+        assertEquals(1, policy.decisions, "three requests at one instant are one decision")
+        assertEquals(3, e.deferredRequestCount, "and all three are counted as requests")
+
+        // The reasons travel together, in request order, so the row says why it happened -- all of it.
+        assertEquals("stockout, shift change, manual", e.lastDecisionReason)
+        assertTrue(sink.records.all { it.reason == "stockout, shift change, manual" })
+
+        // The gate for this phase: an arm that only ever defers loses no rows at all. Before the
+        // queue, three requests were three epochs and two discarded transitions.
+        assertEquals(0, e.discardedZeroLengthCount,
+            "deferring must not lose a row; that is the whole point of collapsing the requests")
+    }
+
+    @Test
+    @DisplayName("The same reason asked for twice appears once, and is counted twice")
+    fun duplicateReasonsAreDeduplicatedButCounted() {
+        val (e, policy, _) = requesting(listOf("stockout", "stockout"))
+        assertEquals(1, policy.decisions)
+        assertEquals(2, e.deferredRequestCount, "both requests happened")
+        assertEquals("stockout", e.lastDecisionReason,
+            "and the label describes the decision, not how many callers asked for it")
+    }
+
+    @Test
+    @DisplayName("A write that always asks for another decision is diagnosed, not left to run")
+    fun aSelfRetriggeringRequestIsDiagnosed() {
+        val model = Model("Runaway")
+        val tank = Tank(model, "T")
+        val driver = Driver(model, listOf(5.0))
+        lateinit var self: DecisionElement
+        val e = tank.decisionElement("D") {
+            observe(tank.level)
+            lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v ->
+                tank.setting = v
+                self.requestDecision("again")     // unconditionally: the fault of Reference I
+            }
+            policy = CountingPolicy()
+        }
+        self = e
+        driver.element = e
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+
+        val thrown = assertFailsWith<RunawayDecisionRequestException> { model.simulate() }
+        println()
+        println(thrown.message)
+
+        assertEquals("D", thrown.elementName)
+        assertEquals(5.0, thrown.time, "the clock never moved, which is what makes it a runaway")
+        assertEquals(listOf("again"), thrown.stillPending)
+        assertTrue(thrown.drains >= MAX_DRAINS_PER_INSTANT)
+        // The point of the cap is the diagnosis, not the bound. maxEpochs bounded this before, at
+        // Int.MAX_VALUE -- which announced the fault as a hang rather than as a sentence.
+        assertTrue(thrown.message!!.contains("requestDecision"),
+            "the message must name the mechanism, not just the count")
+    }
+
+    @Test
+    @DisplayName("Pending requests are visible before they are answered")
+    fun pendingRequestsAreInspectable() {
+        val model = Model("Pending")
+        val tank = Tank(model, "T")
+        val seen = mutableListOf<List<String>>()
+        lateinit var self: DecisionElement
+        val watcher = object : ModelElement(model, "Watcher") {
+            private inner class Fire : EventAction<Nothing>() {
+                override fun action(event: KSLEvent<Nothing>) {
+                    self.requestDecision("a")
+                    self.requestDecision("b")
+                    seen += self.pendingRequests       // asked for, not yet answered
+                }
+            }
+            override fun initialize() { Fire().schedule(5.0) }
+        }
+        val e = tank.decisionElement("D") {
+            observe(tank.level)
+            lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> tank.setting = v }
+            policy = NeutralPolicy
+        }
+        self = e
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+        model.simulate()
+
+        assertEquals(listOf(listOf("a", "b")), seen)
+        assertEquals(emptyList(), e.pendingRequests, "and the queue is empty once they are answered")
+    }
+
+    // ---- 3c. The policy may not schedule (R2's third clause) --------------------
+
+    @Test
+    @DisplayName("A rule that schedules an event is refused")
+    fun aPolicyThatSchedulesIsRefused() {
+        val model = Model("Scheduling")
+        val tank = Tank(model, "T")
+        val driver = Driver(model, listOf(5.0))
+        val scheduler = object : ModelElement(model, "Scheduler") {
+            private inner class Nothing2 : EventAction<Nothing>() {
+                override fun action(event: KSLEvent<Nothing>) {}
+            }
+            fun scheduleSomething() { Nothing2().schedule(1.0) }
+        }
+        val e = tank.decisionElement("D") {
+            observe(tank.level)
+            lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> tank.setting = v }
+            // A rule that wants the model to do something says so through a lever. Scheduling from
+            // inside the call puts an effect into an interval no transition attributes.
+            policy = PolicyIfc { _, _ -> scheduler.scheduleSomething(); doubleArrayOf(1.0) }
+        }
+        driver.element = e
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+
+        val thrown = assertFailsWith<PolicyScheduledEventException> { model.simulate() }
+        println()
+        println(thrown.message)
+        assertEquals("D", thrown.elementName)
+        assertEquals(1L, thrown.eventsScheduled)
+    }
+
     // ---- 4. The guards around the entry points ---------------------------------
 
     @Test

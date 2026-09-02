@@ -120,9 +120,16 @@ either. `ksl.examples.decision.PeriodicReview` is a five-line driver
 for the common case; it is an example rather than library API, on
 purpose.
 
-**Two entry points.** `decide(reason)` decides *now*, inside your
-event. `requestDecision(reason)` schedules the epoch into an event of
-the element's own, so it happens after your event action finishes.
+**Two entry points, and they mean different things.**
+`decide(reason)` decides *now*, inside your event: *n* calls at one
+instant are *n* decisions, which is sometimes exactly right — two
+demands arriving together, each triggering a review, is a correct model.
+`requestDecision(reason)` asks for *a decision at the next quiescent
+point*: it schedules the epoch into an event of the element's own, and
+**several requests at one instant produce one decision** whose reason
+names them all. They describe the same state, and there is one surface
+and one rule, so there is nothing to make several decisions about.
+
 Prefer the first where you control the call site and can vouch for the
 state; prefer the second where you cannot, or where nobody is waiting
 for the answer. §6 says why that choice matters.
@@ -796,8 +803,10 @@ cannot re-enter.
 It is **re-entrancy-safe and not termination-safe**, and the difference
 matters. A write that *always* asks for another decision asks forever,
 all at the same instant, because a zero-delay event lands at the current
-time. The guard is yours to write. `maxEpochs` is the only thing that
-bounds it otherwise, which is why it is still there.
+time. The guard is yours to write — but you will be told: asking for a
+decision during the decision that answered you, over and over with the
+clock standing still, is refused with a
+`RunawayDecisionRequestException` naming what is still pending.
 
 **Declare a setting as a setting and a transaction as a transaction.**
 This is the mistake that costs the most and announces itself the least.

@@ -183,3 +183,51 @@ class ReentrantDecisionException(
         "schedules the epoch for after the current one returns, and is re-entrancy-safe by " +
         "construction."
 )
+
+/** How many drains one instant may take before a self-retriggering request is called a runaway. */
+const val MAX_DRAINS_PER_INSTANT: Int = 1000
+
+/**
+ *  D11 — thrown when deferred requests keep arriving during the decisions that answer them.
+ *
+ *  A lever's write function may legitimately ask for a follow-up decision; `requestDecision` exists
+ *  partly for that, and it cannot re-enter because it only schedules. What it is not is
+ *  termination-safe: a write that asks *every* time asks forever, all at the same instant, because a
+ *  zero-delay event lands at the current time. Before this the only bound was `maxEpochs`, so the
+ *  fault announced itself as a hang and a billion-decision counter rather than as a diagnosis.
+ *
+ *  The shape is `ConditionalActionProcessor`'s, and for the identical reason: work that re-triggers
+ *  itself while the clock stands still needs a cap and a name.
+ */
+class RunawayDecisionRequestException(
+    val elementName: String,
+    val time: Double,
+    val drains: Int,
+    val stillPending: List<String>
+) : IllegalStateException(
+    "Decision element '$elementName' has drained its request queue $drains times at time $time " +
+        "without the clock advancing, and $stillPending is still pending. Something asks for a " +
+        "decision every time a decision is taken -- most often a lever's write function calling " +
+        "requestDecision unconditionally. requestDecision cannot re-enter, because it only " +
+        "schedules, but it will not stop on its own: the guard belongs to the caller."
+)
+
+/**
+ *  Thrown when a policy schedules an event during the call that asked it for an action.
+ *
+ *  R2 says the policy call neither advances the clock nor schedules events of its own, and until now
+ *  nothing checked it. A rule that schedules is running simulation from inside a decision: whatever it
+ *  scheduled lands in an interval no transition attributes, and the run stops being reproducible from
+ *  its declared inputs. A rule that wants the model to do something says so through a lever.
+ */
+class PolicyScheduledEventException(
+    val elementName: String,
+    val policyLabel: String,
+    val eventsScheduled: Long
+) : IllegalStateException(
+    "The rule '$policyLabel' on decision element '$elementName' scheduled $eventsScheduled event(s) " +
+        "while it was being asked for an action. A policy may read the model and return an action; " +
+        "it may not change the model, and scheduling is changing it. Whatever the rule wanted to " +
+        "happen should be a lever, so that it is validated, applied in a defined order, and recorded " +
+        "in the transition."
+)

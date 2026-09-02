@@ -55,7 +55,7 @@ class NoTimingConceptTest {
     }
 
     @Test
-    @DisplayName("The element schedules exactly one thing: the epoch a caller deferred")
+    @DisplayName("The element schedules nothing but the epoch a caller deferred")
     fun theOnlyScheduledThingIsTheDeferredEpoch() {
         val sites = mutableListOf<String>()
         for (f in decisionSources()) {
@@ -65,12 +65,15 @@ class NoTimingConceptTest {
                 if (Regex("\\bschedule\\s*\\(").containsMatchIn(code)) sites += "${f.name}:${n + 1}  $code"
             }
         }
-        // One call, in requestDecision. If a second appears, the element has started deciding when
-        // something happens again, whatever the surrounding names say.
-        assertEquals(1, sites.size,
-            "the decision package should schedule exactly one event -- the zero-delay epoch that " +
-                "requestDecision defers -- and it schedules ${sites.size}: ${sites.joinToString("; ")}")
-        assertTrue(sites.single().contains("deferredAction"),
-            "the one scheduled event must be the deferred epoch, and it is: ${sites.single()}")
+        // Every site must be the deferred epoch. There is more than one because draining a request
+        // queue opens the drain and re-opens it when a request arrived during one -- but they are the
+        // same event, and nothing else is scheduled. A site that is not `deferredAction` means the
+        // element has started deciding when something happens again, whatever the surrounding names
+        // say.
+        assertTrue(sites.isNotEmpty(), "the deferred epoch must still be scheduled somewhere")
+        val foreign = sites.filterNot { it.contains("deferredAction") }
+        assertTrue(foreign.isEmpty(),
+            "the decision package should schedule nothing but the deferred epoch, and it also " +
+                "schedules: ${foreign.joinToString("; ")}")
     }
 }

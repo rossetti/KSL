@@ -683,12 +683,28 @@ class DecisionElement internal constructor(
      *  message rather than in a field, so two deferrals outstanding at one instant cannot overwrite
      *  each other's reason.
      */
-    private inner class DeferredDecisionAction : EventAction<String>() {
-        override fun action(event: KSLEvent<String>) =
-            runGuarded(event.message ?: "deferred", EpochProvenance.DEFERRED)
+    /**
+     *  Drains the request queue (D9). One event, however many requests were made at this instant.
+     */
+    private inner class DeferredDecisionAction : EventAction<Nothing>() {
+        override fun action(event: KSLEvent<Nothing>) = drainRequests()
     }
 
     private val deferredAction = DeferredDecisionAction()
+
+    /**
+     *  Reasons requested since the last drain, in request order and without duplicates.
+     *
+     *  A `LinkedHashSet` rather than a list: two callers asking for the same thing describe the same
+     *  state, and a label that repeated the reason would say something about the callers rather than
+     *  about the decision. How many times it was asked for is [deferredRequestCount], which is kept
+     *  separately so that the duplication is visible without being in the record.
+     */
+    private val requestQueue = LinkedHashSet<String>()
+    private var myDeferredRequests: Int = 0
+    private var drainOutstanding: Boolean = false
+    private var drainInstant: Double = Double.NaN
+    private var drainsThisInstant: Int = 0
 
     // ---- The invocation contract (S§C.11) ---------------------------------------
 
@@ -761,7 +777,57 @@ class DecisionElement internal constructor(
      */
     fun requestDecision(reason: String) {
         requireRunning("requestDecision")
-        deferredAction.schedule(0.0, message = reason, priority = epochPriority)
+        // Nothing to defer to: the decision sequence has finished. Counted like an immediate call
+        // made at the same point, rather than scheduling an event that is then ignored.
+        if (myLastTermination != null) { myIgnoredAfterEpisodeEnd++; return }
+        myDeferredRequests++
+        requestQueue += reason
+        if (!drainOutstanding) {
+            drainOutstanding = true
+            deferredAction.schedule(0.0, priority = epochPriority)
+        }
+    }
+
+    /** The reasons requested and not yet decided on, in request order. */
+    val pendingRequests: List<String> get() = requestQueue.toList()
+
+    /** How many deferred requests have been made this replication, duplicates included. */
+    val deferredRequestCount: Int get() = myDeferredRequests
+
+    /**
+     *  D9 / D11 — take one decision for every request outstanding at this instant.
+     *
+     *  A deferred request is not a decision; it is a request for one, at the next moment the model is
+     *  between events. Several requests name the same moment and describe the same state, and this
+     *  element has one surface, one rule and one action vector — so there is nothing to make several
+     *  decisions *about*, and one decision answers all of them. Their reasons travel together onto the
+     *  row. A modeler who wants several decisions at one instant calls `decide` that many times, which
+     *  is what it is for.
+     */
+    private fun drainRequests() {
+        drainOutstanding = false
+        if (requestQueue.isEmpty()) return
+
+        if (time != drainInstant) { drainInstant = time; drainsThisInstant = 0 }
+        drainsThisInstant++
+
+        val batch = requestQueue.toList()
+        requestQueue.clear()
+        runGuarded(batch.joinToString(", "), EpochProvenance.DEFERRED)
+
+        // Something asked for a decision DURING the decision. Once is ordinary — a lever write may
+        // legitimately want a follow-up. Doing it every time is the runaway of Reference I, which
+        // used to be bounded only by maxEpochs and so announced itself as a hang rather than as a
+        // fault. The clock has not moved, so the count is a count of self-retriggering.
+        if (requestQueue.isNotEmpty()) {
+            if (drainsThisInstant >= MAX_DRAINS_PER_INSTANT) {
+                throw RunawayDecisionRequestException(
+                    this.name, time, drainsThisInstant, requestQueue.toList()
+                )
+            }
+            drainOutstanding = true
+            deferredAction.schedule(0.0, priority = epochPriority)
+        }
     }
 
     /**
@@ -830,6 +896,11 @@ class DecisionElement internal constructor(
         // reading it afterwards throws rather than answering about a later epoch (§4.5.3).
         // `finally`, so a rule that throws still leaves no live context behind.
         val view = ctx.open(time, time - lastEpochTime, myEpochCount, reason)
+        // R2's third clause says the policy call "neither advances the clock nor schedules events of
+        // its own", and nothing enforced it. A rule that schedules is doing simulation from inside a
+        // decision: its effects land in an interval nobody attributed, and §10.4's reproducibility
+        // argument quietly stops holding. Two long reads is the whole cost of knowing.
+        val scheduledBefore = executive.numEventsScheduled
         val action = try {
             myPolicy.action(s, view)
         } catch (e: Throwable) {
@@ -837,6 +908,11 @@ class DecisionElement internal constructor(
             throw e
         } finally {
             ctx.close()
+        }
+        if (executive.numEventsScheduled != scheduledBefore) {
+            throw PolicyScheduledEventException(
+                this.name, policyLabel, executive.numEventsScheduled - scheduledBefore
+            )
         }
         // The plan that was actually applied. §4.8.3: a transition records what was WRITTEN, not
         // what was asked for. The two differ whenever CLAMP_THEN_REJECT repaired the request or a
@@ -1017,6 +1093,11 @@ class DecisionElement internal constructor(
         pending = null
         accruedReward = 0.0
         estimandPublished = false
+        requestQueue.clear()
+        myDeferredRequests = 0
+        drainOutstanding = false
+        drainInstant = Double.NaN
+        drainsThisInstant = 0
         // §4.10.3: initialize() must NOT read reward sources. It runs in model-element
         // construction order, so reading a sibling's accumulated value here would make the
         // baseline depend on declaration order. It starts invalid and is taken at the first
