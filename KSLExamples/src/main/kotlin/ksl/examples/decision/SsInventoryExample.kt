@@ -55,13 +55,31 @@ object DemandRates {
  * The decision element declares one lever — the order quantity — and one observation, the
  * inventory position. What that reveals about the design is the subject of §8.2.
  */
+/** How [SsInventory] decides *when* to review. */
+enum class ReviewWiring {
+    /** A `PeriodicDecisionElement`: the element and its review in one construction. */
+    COMPOSED,
+
+    /** Declare the element, then attach a caller. The general mechanism, written out. */
+    ASSEMBLED,
+
+    /**
+     *  No period at all: review wherever the position moves.
+     *
+     *  This is continuous review, and it is worth seeing how little it takes. There is no condition
+     *  and no threshold in the model — the reorder point stays in the rule, where it belongs, and
+     *  the model merely says the state changed.
+     */
+    PER_DEMAND
+}
+
 class SsInventory(
     parent: ModelElement,
     initialOnHand: Int = 60,
     private val leadTime: Double = 2.0,
     private val reviewPeriod: Double = 5.0,
     /**
-     *  Which wiring the review uses. Both are kept because the contrast is the lesson.
+     *  Which wiring the review uses. All three are kept because the contrast is the lesson.
      *
      *  `true` — a [ksl.modeling.decision.PeriodicDecisionElement], which owns the element *and* the
      *  event that reviews it. One construction, the interval checked where it is given, a call site
@@ -73,9 +91,11 @@ class SsInventory(
      *  inside a process — and seeing it here is what makes the composite legible as a convenience
      *  over a door rather than as the only way in.
      *
-     *  The two produce the same trajectory; `SsInventoryBenchmarkTest` asserts it.
+     *  The first two produce the same trajectory; `SsInventoryBenchmarkTest` asserts it. The third
+     *  is a different policy of *when to look*, not a different wiring of the same one, and the same
+     *  test measures what it costs.
      */
-    private val composedReview: Boolean = true,
+    private val reviewWiring: ReviewWiring = ReviewWiring.COMPOSED,
     private val rateFunction: PiecewiseConstantRateFunction = DemandRates.stationary,
     maxOrder: Int = 200,
     /**
@@ -127,6 +147,12 @@ class SsInventory(
     private fun demandArrival(generator: EventGeneratorIfc) {
         myDemandCount.increment()
         if (myOnHand.value >= 1.0) myOnHand.decrement(1.0) else myBackorder.increment(1.0)
+        // Continuous review, and note what it is not: there is no condition here and no threshold.
+        // The model says "the position moved, take a look"; the RULE decides whether that warrants an
+        // order, and declining is `Neutral.Value(0.0)` -- ordering nothing, which is a declared act.
+        // The reorder point never leaves the policy, which is the thing a trigger mechanism was
+        // supposed to be needed for.
+        if (reviewWiring == ReviewWiring.PER_DEMAND) review.decide("demand")
     }
 
     // ---- What a rule may know about demand ---------------------------------------
@@ -232,15 +258,17 @@ class SsInventory(
      *  under the composite the period belongs to the reviewer -- which is where it belongs.
      */
     private val reviews: PeriodicDecisionElement? =
-        if (composedReview) {
+        if (reviewWiring == ReviewWiring.COMPOSED) {
             PeriodicDecisionElement(
                 this, reviewPeriod, name = "${this.name}:Reviewer",
                 elementName = "${this.name}:Review", declaration = declaration
             )
         } else null
 
-    val review: DecisionElement =
-        reviews?.element ?: decisionElement("${this.name}:Review", declaration).reviewEvery(this, reviewPeriod)
+    val review: DecisionElement = reviews?.element
+        ?: decisionElement("${this.name}:Review", declaration).let {
+            if (reviewWiring == ReviewWiring.ASSEMBLED) it.reviewEvery(this, reviewPeriod) else it
+        }
 
     override fun initialize() {
         lastOrderQuantity = 0.0

@@ -26,6 +26,65 @@ import kotlin.test.assertTrue
 class SsInventoryBenchmarkTest {
 
     /**
+     *  **Is a trigger mechanism needed at all?**
+     *
+     *  The event-triggered analysis was written before the decoupling and assumed a state-triggered
+     *  decision needed machinery to notice a condition and produce an epoch at the crossing. Its one
+     *  argument against simply letting the modeler call `decide` was that the reorder point is a
+     *  *policy* parameter, so a condition in model code puts the rule back in the model.
+     *
+     *  That argument does not survive the decoupling. The model does not test a threshold; it says
+     *  the position moved. The rule applies the reorder point and declines by ordering nothing, which
+     *  is a declared act. So continuous review costs one line at the point the state changes, and the
+     *  question is no longer *how do we detect* but *what does reviewing that often cost*.
+     *
+     *  Measured here rather than argued: epochs, cost, and wall-clock for a review every five units
+     *  against a review on every demand, same rule, same streams.
+     */
+    @Test
+    @DisplayName("What continuous review costs, against a period")
+    fun whatContinuousReviewCosts() {
+        class Arm(val label: String, val epochs: Int, val cost: Double, val millis: Long)
+
+        fun arm(label: String, wiring: ReviewWiring): Arm {
+            val model = Model("Cost-$label")
+            val inv = SsInventory(model, reviewWiring = wiring, name = "Inv")
+            model.numberOfReplications = 3
+            model.lengthOfReplication = 5_000.0
+            model.lengthOfReplicationWarmUp = 1_000.0
+            inv.review.policy = SsPolicy(2, 10)
+            val t0 = System.nanoTime()
+            model.simulate()
+            val ms = (System.nanoTime() - t0) / 1_000_000
+            return Arm(label, inv.review.epochCount, costOf(model, "Inv").total, ms)
+        }
+
+        val periodic = arm("every 5.0", ReviewWiring.COMPOSED)
+        val continuous = arm("every demand", ReviewWiring.PER_DEMAND)
+
+        println()
+        println("=== Is a trigger mechanism needed? Continuous review by calling decide() ===")
+        println("  %-14s %9s %12s %9s".format("wiring", "epochs/rep", "cost", "ms"))
+        for (a in listOf(periodic, continuous)) {
+            println("  %-14s %9d %12.4f %9d".format(a.label, a.epochs, a.cost, a.millis))
+        }
+        println()
+        println("  epochs   x%.1f".format(continuous.epochs.toDouble() / periodic.epochs))
+        println("  runtime  x%.2f".format(continuous.millis.toDouble() / maxOf(periodic.millis, 1L)))
+        println("  cost     %+.2f%%".format(100.0 * (continuous.cost - periodic.cost) / periodic.cost))
+        println()
+
+        // The model reviews roughly five times as often, since demand is unit-sized at rate 1.0 and
+        // the period is 5.0. If that is affordable, a mechanism whose whole purpose is to review LESS
+        // often has to justify itself on something other than necessity.
+        assertTrue(continuous.epochs > periodic.epochs * 3,
+            "continuous review must actually review more often, or this measures nothing")
+        assertTrue(continuous.cost <= periodic.cost,
+            "reviewing more often cannot make an (s, S) rule worse: it sees every crossing the " +
+                "periodic arm sees, and some it misses")
+    }
+
+    /**
      *  The two wirings of `SsInventory` are the same model.
      *
      *  `composedReview = true` puts the element inside a `PeriodicDecisionElement`; `false` declares
@@ -39,7 +98,7 @@ class SsInventoryBenchmarkTest {
     fun bothWiringsAgree() {
         fun wired(composed: Boolean): Model {
             val model = Model("Wiring-$composed")
-            val inv = SsInventory(model, composedReview = composed, name = "Inv")
+            val inv = SsInventory(model, reviewWiring = if (composed) ReviewWiring.COMPOSED else ReviewWiring.ASSEMBLED, name = "Inv")
             model.numberOfReplications = 5
             model.lengthOfReplication = 1_000.0
             inv.review.policy = SsPolicy(2, 10)
