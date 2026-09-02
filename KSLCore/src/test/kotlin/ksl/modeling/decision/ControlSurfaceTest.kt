@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.variable.TWResponse
@@ -53,9 +54,8 @@ class ControlSurfaceTest {
                 lever(this@Station, 0.0..10.0, neutral = Neutral.Value(0.0), alias = "L$i") { v -> setting = v }
             }
             reward(level, rate = 1.0, sense = ksl.modeling.decision.descriptor.RewardSense.COST, alias = "R")
-            every(10.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, 10.0)
     }
 
     private fun keysOf(m: Model, element: String) =
@@ -76,7 +76,7 @@ class ControlSurfaceTest {
         println()
         println("controls on a decision element: $keys")
 
-        assertEquals(listOf("A:Review.epochInterval", "A:Review.maxEpochs"), keys,
+        assertEquals(listOf("A:Review.maxEpochs"), keys,
             "the epoch interval is a review period, which KSL already treats as a decision " +
                 "variable, and the episode cap is the other box-constrained scalar the element " +
                 "owns. Anything else appearing here should be argued for, not acquired")
@@ -90,11 +90,11 @@ class ControlSurfaceTest {
      *  were outside the setter's domain, the clamp would hand the setter a value it rejects and a
      *  numeric control write would throw — which KSL documents that numeric controls do not do.
      *
-     *  It is checked against the **declaration's** domain rather than the setter's, because the two
-     *  must agree and this is where a disagreement shows up. It already caught one: the control's
-     *  default upper bound of `+∞` clamped onto an infinite epoch interval, which `every()` refuses
-     *  and the property setter then accepted. Both were fixed; this assertion is what would have
-     *  found it earlier and is what will find the next one.
+     *  It already caught one, on a control that no longer exists: the default upper bound of `+∞`
+     *  clamped onto an infinite epoch interval, which the declaration refused and the property
+     *  setter then accepted. Both were fixed. Epoch timing has since left the element entirely
+     *  (S§C.0), so the rule is now carried by `maxEpochs` — and by the review period, which is a
+     *  control of the caller that schedules reviews. This assertion is what will find the next one.
      */
     @Test
     fun everyControlBoundIsAValueItsOwnSetterAccepts() {
@@ -117,18 +117,16 @@ class ControlSurfaceTest {
             }
         }
 
-        // And the clamp landed on a value the DECLARATION would also accept, not merely one the
-        // setter tolerates. `every()` requires finite and > 0; a clamp onto ±∞ would mean "never
-        // decide", which is what declaring no timing at all means and is refused there.
-        assertTrue(s.review.epochInterval.isFinite() && s.review.epochInterval > 0.0,
-            "a clamped epoch interval must be finite and positive, because that is what `every()` " +
-                "accepts and the two paths may not disagree about the same value")
+        // And the clamp landed on a value the setter would also accept, not merely one the control
+        // path tolerates. R16's rule is unchanged; only its subject is. It used to be carried by
+        // epochInterval, whose domain was "finite and > 0.0" and whose bounds were therefore
+        // Double.MIN_VALUE and Double.MAX_VALUE. Timing left the element (S§C.0), so the claim now
+        // rides on the one scalar that remains a genuine decision variable.
         assertTrue(s.review.maxEpochs > 0, "a clamped episode cap is still a legal one")
 
         // The bounds themselves are the domain, stated so a change to either is a visible change.
-        val interval = controls.control("A:Review.epochInterval")!!
-        assertEquals(Double.MIN_VALUE, interval.lowerBound, "the smallest value `> 0.0` admits")
-        assertEquals(Double.MAX_VALUE, interval.upperBound, "the largest FINITE value, not +∞")
+        val cap = controls.control("A:Review.maxEpochs")!!
+        assertEquals(1.0, cap.lowerBound, "the smallest value a cap of `> 0` admits")
     }
 
     /**
@@ -153,20 +151,21 @@ class ControlSurfaceTest {
     fun naNIsTheOneValueTheClampDoesNotCoverAndItIsRefusedRatherThanAccepted() {
         val m = Model("Nan")
         val s = Station(m, "A")
-        val c = m.controls().control("A:Review.epochInterval")!!
-        val before = s.review.epochInterval
+        val c = m.controls().control("A:Review.maxEpochs")!!
+        val before = s.review.maxEpochs
 
-        val t = assertFailsWith<java.lang.reflect.InvocationTargetException> { c.value = Double.NaN }
-        val cause = t.cause
+        // The corner is CLOSED EARLIER than it used to be, and that is the finding worth keeping.
+        // Against the old DOUBLE control, NaN slipped past `limitToRange` -- every comparison with
+        // NaN is false -- reached the setter, and surfaced wrapped in an InvocationTargetException
+        // with the real message on the cause. An INTEGER control has to round before it can write,
+        // and rounding NaN is refused outright, so the value never reaches the setter at all.
+        val t = assertFailsWith<IllegalArgumentException> { c.value = Double.NaN }
         println()
-        println("NaN through the control path: ${t::class.simpleName} caused by " +
-            "${cause?.let { it::class.simpleName }} — ${cause?.message}")
+        println("NaN through the control path: ${t::class.simpleName} — ${t.message}")
 
-        assertTrue(cause is IllegalArgumentException,
-            "the real refusal must be the setter's own, not something the reflection layer invented")
-        assertTrue(cause.message!!.contains("finite and > 0.0") && cause.message!!.contains("NaN"),
-            "and it must still say what was wrong, and with what value: ${cause.message}")
-        assertEquals(before, s.review.epochInterval,
+        assertTrue(t.message!!.contains("NaN"),
+            "and it must still say what was wrong, and with what value: ${t.message}")
+        assertEquals(before, s.review.maxEpochs,
             "the refused write changed nothing, which is §4.1.3.1's rule and does not stop " +
                 "applying because the caller came through a control")
     }
@@ -181,7 +180,7 @@ class ControlSurfaceTest {
         // Reach in from inside a decision, which is the one place user code runs mid-replication.
         val probe = Station(m, "B")
         probe.review.policy = PolicyIfc { _, _ ->
-            if (caught == null) caught = runCatching { s.review.epochInterval = 3.0 }.exceptionOrNull()
+            if (caught == null) caught = runCatching { s.review.maxEpochs = 3 }.exceptionOrNull()
             doubleArrayOf(0.0)
         }
         m.numberOfReplications = 1
@@ -264,9 +263,8 @@ class ControlSurfaceTest {
             decisionElement("${this.name}:Review") {
                 observe(level)
                 lever(this@Shop, 0.0..200.0, neutral = Neutral.Value(0.0), alias = "L") { v -> setting = v }
-                every(10.0)
                 policy = rule
-            }
+            }.reviewEvery(this, 10.0)
         }
     }
 

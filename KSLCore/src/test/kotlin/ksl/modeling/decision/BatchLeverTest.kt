@@ -155,7 +155,6 @@ class BatchLeverTest {
             bld.observe(p.load)
             val ra = bld.lever(p, 0..6, neutral = Neutral.Current { a.toDouble() }, alias = "A") { v -> setA(v.toInt()) }
             val rb = bld.lever(p, 0..6, neutral = Neutral.Current { this.b.toDouble() }, alias = "B") { v -> setB(v.toInt()) }
-            bld.every(10.0)
             bld.policy = NeutralPolicy
             return ra to rb
         }

@@ -54,13 +54,17 @@ class CoincidentEpochOrderingTest {
         val level = TWResponse(this, name = "${this.name}:Level", initialValue = 1.0)
         var setting: Double = 0.0
 
+        /** Asks for a decision at the current instant, through the deferred entry point. */
+        fun review() = review.requestDecision("review")
+
+        lateinit var review: DecisionElement
+
         fun declare(priority: Int? = null) {
             val me = this.name
-            decisionElement("${this.name}:Review") {
+            review = decisionElement("${this.name}:Review") {
                 observe(level)
                 lever(this@Unit, 0.0..10.0, neutral = Neutral.Current { setting },
                     alias = "L") { v -> setting = v }
-                every(10.0)
                 if (priority != null) epochPriority = priority
                 policy = PolicyIfc { _, _ -> trace += me; doubleArrayOf(1.0) }
             }
@@ -79,6 +83,29 @@ class CoincidentEpochOrderingTest {
      *  @param aPriority explicit epoch priority for A, or `null` to take the default
      *  @param bPriority explicit epoch priority for B, or `null` to take the default
      */
+    /**
+     *  Asks both units for a decision at each coincident instant.
+     *
+     *  Through `requestDecision`, deliberately: what survives of R15 once the element no longer
+     *  owns its timing is the ordering of two *deferred* epochs at one instant. Both post a
+     *  zero-delay event, and the executive orders those by `epochPriority` and then by event id.
+     *  An immediate `decide` would order by nothing but the order the caller happened to write,
+     *  which is the caller's own business and not a property of this subsystem.
+     */
+    private class Coincide(
+        parent: ModelElement,
+        private val first: Unit,
+        private val second: Unit,
+        private val times: List<Double>
+    ) : ModelElement(parent, "Coincide") {
+        private inner class Fire : EventAction<Nothing>() {
+            override fun action(event: KSLEvent<Nothing>) {
+                first.review(); second.review()
+            }
+        }
+        override fun initialize() { for (t in times) Fire().schedule(t) }
+    }
+
     private fun order(
         constructAFirst: Boolean,
         declareAFirst: Boolean = constructAFirst,
@@ -93,6 +120,9 @@ class CoincidentEpochOrderingTest {
         else { b = Unit(model, "B", trace); a = Unit(model, "A", trace) }
         if (declareAFirst) { a.declare(aPriority); b.declare(bPriority) }
         else { b.declare(bPriority); a.declare(aPriority) }
+        // The requests are made in a fixed order every time, so anything that varies below varies
+        // for a reason other than the order they were asked in.
+        Coincide(model, a, b, listOf(10.0, 20.0))
         model.numberOfReplications = 1
         model.lengthOfReplication = 25.0          // epochs at 10 and 20, both coincident
         model.simulate()
@@ -109,44 +139,39 @@ class CoincidentEpochOrderingTest {
     }
 
     /**
-     *  The measurement risk 8 asked for: at equal priority, is the order declared or incidental?
+     *  What R15 becomes once the element does not own its timing.
      *
-     *  It is incidental, and it is incidental to something less visible than the first guess.
-     *  Swapping the two `decisionElement` declarations changes nothing; swapping the construction
-     *  of the two subsystems that own them swaps the decisions.
+     *  The old finding was that at equal priorities the order followed the *construction* order of
+     *  the subsystems that owned the elements -- deterministic, reproducible, and invisible at every
+     *  site that could have cared. It no longer can: both elements are asked in an order the caller
+     *  writes down, so at equal priorities the order is the order they were asked in, whichever way
+     *  the subsystems were built or declared.
+     *
+     *  That is a strictly better position than the one §10.7 had to document, and it is the half of
+     *  R15 worth keeping a test for.
      */
     @Test
-    fun atEqualPrioritiesTheOrderFollowsConstructionOrderAndNotTheDeclarations() {
+    fun atEqualPrioritiesTheOrderFollowsTheOrderTheDecisionsWereRequested() {
         println()
         val builtABDeclaredAB = pair(order(constructAFirst = true, declareAFirst = true))
         val builtABDeclaredBA = pair(order(constructAFirst = true, declareAFirst = false))
         val builtBADeclaredAB = pair(order(constructAFirst = false, declareAFirst = true))
         val builtBADeclaredBA = pair(order(constructAFirst = false, declareAFirst = false))
 
-        println("PROBE-10.7 default priorities on both elements")
-        println("    built A,B  declared A,B → decided ${builtABDeclaredAB.joinToString(", ")}")
-        println("    built A,B  declared B,A → decided ${builtABDeclaredBA.joinToString(", ")}")
-        println("    built B,A  declared A,B → decided ${builtBADeclaredAB.joinToString(", ")}")
-        println("    built B,A  declared B,A → decided ${builtBADeclaredBA.joinToString(", ")}")
+        println("PROBE-10.7 default priorities on both elements, both asked A then B")
+        println("    built A,B declared A,B -> ${builtABDeclaredAB.joinToString(", ")}")
+        println("    built A,B declared B,A -> ${builtABDeclaredBA.joinToString(", ")}")
+        println("    built B,A declared A,B -> ${builtBADeclaredAB.joinToString(", ")}")
+        println("    built B,A declared B,A -> ${builtBADeclaredBA.joinToString(", ")}")
 
-        // Reproducible. If this fails the subsystem is non-deterministic and every Level-1 and
-        // Level-2 guarantee elsewhere in this suite is void, so it is checked before anything else.
-        assertEquals(builtABDeclaredAB, pair(order(constructAFirst = true, declareAFirst = true)),
-            "the tie-break must at least be reproducible across identical runs")
-
-        // Declaration order is NOT what decides it. Both rows built A-then-B agree.
-        assertEquals(builtABDeclaredAB, builtABDeclaredBA,
-            "reversing the two decisionElement declarations changed the decision order, which " +
-                "would mean the tie follows the declarations after all — the KDoc on " +
-                "declaredEpochPriority used to say exactly that and this is what refuted it")
-
-        // Construction order IS. The two pairs disagree, so something incidental is load-bearing.
-        assertEquals(listOf("A", "B"), builtABDeclaredAB)
-        assertEquals(listOf("B", "A"), builtBADeclaredAB)
-        assertEquals(builtBADeclaredAB, builtBADeclaredBA)
-        assertNotEquals(builtABDeclaredAB, builtBADeclaredAB,
-            "if these agreed, coincident order would be independent of everything incidental and " +
-                "§10.7's original claim would have been right after all")
+        // A is asked first in every arm, so A decides first in every arm -- and neither the
+        // construction order nor the declaration order shows through any more.
+        for (arm in listOf(builtABDeclaredAB, builtABDeclaredBA, builtBADeclaredAB, builtBADeclaredBA)) {
+            assertEquals(listOf("A", "B"), arm,
+                "at equal priorities the order must follow the order the decisions were requested; " +
+                    "if construction order still showed through, the incidental dependency §10.7 " +
+                    "had to document would have survived the decoupling")
+        }
     }
 
     /**

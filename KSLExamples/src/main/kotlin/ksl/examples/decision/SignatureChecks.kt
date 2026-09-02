@@ -24,7 +24,8 @@ private class Checks(parent: ModelElement) {
 
     // Claim: parameterization setters are ordinary properties.
     fun parameters() {
-        e.epochInterval = 240.0
+        // epochInterval was here. The element no longer owns its timing, so there is no interval on
+        // it to set; a caller schedules the reviews and owns whatever period it uses.
         e.maxEpochs = 100
         e.feasibilityPolicy = FeasibilityPolicy.CLAMP_THEN_REJECT
     }

@@ -308,49 +308,6 @@ class DecisionElement internal constructor(
             myPolicy = value
             superseded?.close()
         }
-
-    internal var myEpochInterval: Double = Double.POSITIVE_INFINITY
-
-    /**
-     *  How often this element decides, when its epochs are periodic — the review period.
-     *
-     *  **A `@KSLControl`, so `simopt` can search it through the path it already uses** (§8). KSL
-     *  makes the same choice for an inventory policy's review period `R`, and for the same reason:
-     *  a review period is an ordinary decision variable.
-     *
-     *  The declared `lowerBound` is [Double.MIN_VALUE] rather than `0.0`, and that is not a
-     *  curiosity. A numeric control **clamps** — `Control.setPropertyFromDouble` calls
-     *  `limitToRange` — so whatever bound is declared is a value the setter will actually be handed.
-     *  Declaring `0.0` would have the clamp deliver `0.0` to a setter that refuses it. The rule this
-     *  follows is stated once and applies to every control here: **a control's declared bounds are
-     *  the exact domain of the property it writes**, and `Double.MIN_VALUE`/[Double.MAX_VALUE] are
-     *  precisely the smallest and largest values satisfying "finite and `> 0.0`".
-     *
-     *  **Applying that rule found a live disagreement.** `every()` has required *finite* and `> 0.0`
-     *  since the pre-port audit, and this setter required only `> 0.0`, so `epochInterval = ∞` was
-     *  accepted by the parameterization path and refused by the declaration path — the same defect
-     *  the audit fixed in the other direction, left half-fixed. An infinite interval means "never
-     *  decide", which is indistinguishable from declaring no timing at all. The `isFinite` check
-     *  below closes it, and a finite `upperBound` is what keeps the clamp inside the domain.
-     */
-    @set:KSLControl(
-        controlType = ControlType.DOUBLE,
-        lowerBound = Double.MIN_VALUE,
-        upperBound = Double.MAX_VALUE
-    )
-    var epochInterval: Double
-        get() = myEpochInterval
-        set(value) {
-            requireNotRunning("epochInterval")
-            require(value.isFinite() && value > 0.0) {
-                "The epoch interval must be finite and > 0.0, but $value was assigned."
-            }
-            myEpochInterval = value
-        }
-
-    internal var epochKind: EpochKind = EpochKind.PERIODIC
-    internal var firstAtTimeZero: Boolean = false
-    internal val calendar = mutableListOf<Double>()
     internal var epochPriority: Int = KSLEvent.MEDIUM_LOW_PRIORITY
 
     /**
@@ -374,9 +331,12 @@ class DecisionElement internal constructor(
     /**
      *  A cap on decisions per episode.
      *
-     *  A `@KSLControl` for the same reason as [epochInterval], and with its bound chosen by the
-     *  same rule: `lowerBound = 1.0` is the exact domain of a setter that requires `> 0`, so the
-     *  clamp can only ever deliver a value the setter accepts.
+     *  A `@KSLControl`, so `simopt` can search it through the path it already uses, with its bound
+     *  chosen by R16's rule: `lowerBound = 1.0` is the exact domain of a setter that requires
+     *  `> 0`, so the clamp can only ever deliver a value the setter accepts.
+     *
+     *  It matters more than it used to. The caller now decides how often a decision is taken, so a
+     *  runaway caller is bounded by nothing else.
      */
     @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
     var maxEpochs: Int
@@ -611,8 +571,6 @@ class DecisionElement internal constructor(
     internal lateinit var binding: DefaultActionBinding
     private lateinit var ctx: MutableDecisionContext
     private var lastEpochTime: Double = 0.0
-    private var calendarIndex: Int = 0
-
     internal lateinit var rewards: RewardBinding
         private set
 
@@ -720,13 +678,6 @@ class DecisionElement internal constructor(
         rewards = RewardBinding(rewardDecls.toList())
     }
 
-    private inner class EpochAction : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) =
-            runGuarded("scheduled", EpochProvenance.DEFERRED, scheduleNext = true)
-    }
-
-    private val epochAction = EpochAction()
-
     /**
      *  S§C.11.3 — the deferred entry point's event. The caller's reason travels as the event's
      *  message rather than in a field, so two deferrals outstanding at one instant cannot overwrite
@@ -734,7 +685,7 @@ class DecisionElement internal constructor(
      */
     private inner class DeferredDecisionAction : EventAction<String>() {
         override fun action(event: KSLEvent<String>) =
-            runGuarded(event.message ?: "deferred", EpochProvenance.DEFERRED, scheduleNext = false)
+            runGuarded(event.message ?: "deferred", EpochProvenance.DEFERRED)
     }
 
     private val deferredAction = DeferredDecisionAction()
@@ -791,7 +742,7 @@ class DecisionElement internal constructor(
      */
     fun decide(reason: String) {
         requireRunning("decide")
-        runGuarded(reason, EpochProvenance.IMMEDIATE, scheduleNext = false)
+        runGuarded(reason, EpochProvenance.IMMEDIATE)
     }
 
     /**
@@ -819,7 +770,7 @@ class DecisionElement internal constructor(
      *  step alone: a call from inside an observation read, or from the policy itself, would corrupt
      *  the decision context's staleness generation as well as the pending transition.
      */
-    private fun runGuarded(reason: String, provenance: EpochProvenance, scheduleNext: Boolean) {
+    private fun runGuarded(reason: String, provenance: EpochProvenance) {
         if (inDecision) throw ReentrantDecisionException(this.name, reason)
         if (myLastTermination != null) {
             myIgnoredAfterEpisodeEnd++
@@ -828,7 +779,7 @@ class DecisionElement internal constructor(
         inDecision = true
         try {
             myLastDecisionReason = reason
-            runEpoch(reason, provenance, scheduleNext)
+            runEpoch(reason, provenance)
         } finally {
             inDecision = false
         }
@@ -841,7 +792,7 @@ class DecisionElement internal constructor(
     internal fun neutralAction(): DoubleArray =
         DoubleArray(leverDecls.size) { leverDecls[it].neutralValue() }
 
-    private fun runEpoch(reason: String, provenance: EpochProvenance, scheduleNext: Boolean) {
+    private fun runEpoch(reason: String, provenance: EpochProvenance) {
         // Step 1 — observe. ONE read, serving both the successor state of the transition that is
         // completing and the state of the decision about to be made: a catalog entry backed by a
         // computed lambda need not be pure, so reading twice could disagree with itself.
@@ -915,7 +866,6 @@ class DecisionElement internal constructor(
             time, myEpochCount, reason, provenance)
         myEpochCount++
         lastEpochTime = time
-        if (scheduleNext) scheduleNextEpoch()
     }
 
     /**
@@ -1036,23 +986,6 @@ class DecisionElement internal constructor(
         (myPolicy as? ManagedPolicyIfc)?.afterEpisode(model.currentReplicationId, source)
     }
 
-    private fun scheduleNextEpoch() {
-        when (epochKind) {
-            EpochKind.PERIODIC -> {
-                if (myEpochInterval.isFinite()) {
-                    epochAction.schedule(myEpochInterval, priority = epochPriority)
-                }
-            }
-            EpochKind.CALENDAR -> {
-                if (calendarIndex < calendar.size) {
-                    val next = calendar[calendarIndex++]
-                    val dt = next - time
-                    if (dt >= 0.0) epochAction.schedule(dt, priority = epochPriority)
-                }
-            }
-        }
-    }
-
     // ---- Lifecycle (§4.10.3) ----------------------------------------------------
     override fun beforeExperiment() {
         // §4.7. A managed policy acquires its per-experiment resources here, paired with the
@@ -1081,7 +1014,6 @@ class DecisionElement internal constructor(
         myEpochCount = 0
         myLastTermination = null
         lastEpochTime = 0.0
-        calendarIndex = 0
         pending = null
         accruedReward = 0.0
         estimandPublished = false
@@ -1091,15 +1023,6 @@ class DecisionElement internal constructor(
         // epoch instead — which costs one discarded transition and buys order-independence.
         rewards.invalidate()
         (myPolicy as? ManagedPolicyIfc)?.beforeEpisode(model.currentReplicationId)
-        when (epochKind) {
-            EpochKind.PERIODIC -> {
-                if (myEpochInterval.isFinite()) {
-                    val first = if (firstAtTimeZero) 0.0 else myEpochInterval
-                    epochAction.schedule(first, priority = epochPriority)
-                }
-            }
-            EpochKind.CALENDAR -> scheduleNextEpoch()
-        }
     }
 
     override fun warmUp() {
@@ -1521,17 +1444,7 @@ fun ModelElement.decisionElement(
 @KSLDecisionDsl
 class DecisionElementBuilder internal constructor(
     private val element: DecisionElement
-) {
-    /**
-     *  §4.1.2. Whether `every` or `onCalendar` was called.
-     *
-     *  It cannot be inferred from the element's state: `myEpochInterval` defaults to
-     *  `POSITIVE_INFINITY` and `epochKind` to `PERIODIC`, and `initialize()` schedules only when
-     *  the interval is finite — so an element with no timing declared constructs happily, never
-     *  decides, and reports nothing. That is the silent-degenerate case build() must refuse.
-     */
-    private var timingDeclared = false
-    fun observe(source: ResponseIfc, unit: String? = null) = observe(source, source.name, unit)
+) {    fun observe(source: ResponseIfc, unit: String? = null) = observe(source, source.name, unit)
 
     fun observe(source: ResponseIfc, alias: String, unit: String? = null) {
         // ResponseIfc carries ValueIfc, NOT GetValueIfc: KSL has two interfaces declaring
@@ -1791,42 +1704,6 @@ class DecisionElementBuilder internal constructor(
             sourceRef = sourceRefFor(source)
         )
         return RewardRef(element.name, name)
-    }
-
-    fun every(interval: Double, firstAtTimeZero: Boolean = false) {
-        // The `epochInterval` PROPERTY has required this since it was written; the DSL wrote the
-        // backing field directly and did not, so the primary declaration path accepted what the
-        // parameterization path refused. `every(0.0)` schedules zero-delay events forever;
-        // `every(NaN)` and `every(Infinity)` both mean "never decide", which is indistinguishable
-        // from declaring no timing at all.
-        require(interval.isFinite() && interval > 0.0) {
-            "The epoch interval must be finite and > 0.0, but every($interval) was declared."
-        }
-        element.epochKind = EpochKind.PERIODIC
-        element.myEpochInterval = interval
-        element.firstAtTimeZero = firstAtTimeZero
-        timingDeclared = true
-    }
-
-    fun onCalendar(times: List<Double>) {
-        require(times.isNotEmpty()) {
-            "onCalendar requires at least one epoch time; an empty calendar declares an element " +
-                "that never decides."
-        }
-        val bad = times.filter { !it.isFinite() || it < 0.0 }
-        require(bad.isEmpty()) {
-            "Epoch times must be finite and non-negative; onCalendar was given $bad."
-        }
-        val duplicates = times.groupBy { it }.filterValues { it.size > 1 }.keys
-        require(duplicates.isEmpty()) {
-            "Epoch times must be distinct; onCalendar was given duplicates at $duplicates. Two " +
-                "epochs at one instant bound a zero-length interval, which is discarded " +
-                "(§4.10.2.1), so the second decision would be taken and never recorded."
-        }
-        element.epochKind = EpochKind.CALENDAR
-        element.calendar.clear()
-        element.calendar += times.sorted()
-        timingDeclared = true
     }
 
     var epochPriority: Int

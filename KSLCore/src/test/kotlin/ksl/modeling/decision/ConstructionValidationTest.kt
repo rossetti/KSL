@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
@@ -64,38 +65,37 @@ class ConstructionValidationTest {
         val cases = listOf(
             Case("no observations at all", listOf("observation")) { w ->
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             },
             Case("no levers at all", listOf("lever")) { w ->
                 observe(w.level)
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             },
             Case("no policy assigned", listOf("policy")) { w ->
                 observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0)
             },
             Case("INTEGER limits the wrong way round", listOf("unordered", "10", "0")) { w ->
                 observe(w.level)
                 lever(w, 10..0, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             },
             Case("CONTINUOUS limits the wrong way round", listOf("unordered")) { w ->
                 observe(w.level)
                 lever(w, 10.0..0.0, neutral = Neutral.Current { rate }) { v -> rate = v }
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             },
             Case("the same lever declared twice", listOf("twice", "W")) { w ->
                 observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 lever(w, 0..10, neutral = Neutral.Current { rate }) { v -> rate = v }
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             },
             Case("a budget naming a lever nobody declared", listOf("ghost", "real")) { w ->
                 observe(w.level)
                 lever(w, 0..10, alias = "real", neutral = Neutral.Current { level.value }) { }
                 budget(LeverRef("D", "ghost"), total = 5.0)
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             }
         )
 
@@ -134,7 +134,7 @@ class ConstructionValidationTest {
             observe(w.level)
             val a = lever(w, 0..10, alias = "a", neutral = Neutral.Current { level.value }) { }
             atMost(a, LeverRef("D", "nope"), total = 5.0)
-            every(10.0); policy = NeutralPolicy
+            policy = NeutralPolicy
         }
         println()
         println("atMost(a, nope): ${e.named()}")
@@ -151,12 +151,12 @@ class ConstructionValidationTest {
         declare: DecisionElementBuilder.(Widget) -> Unit = { w ->
             observe(w.level)
             lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-            every(10.0); policy = NeutralPolicy
+            policy = NeutralPolicy
         }
     ): Triple<Model, Widget, DecisionElement> {
         val model = Model("Params")
         val w = Widget(model, "W")
-        val e = w.decisionElement("D") { declare(w) }
+        val e = w.decisionElement("D") { declare(w) }.reviewEvery(w, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 50.0
         return Triple(model, w, e)
@@ -212,7 +212,6 @@ class ConstructionValidationTest {
         element = w.decisionElement("D") {
             observe(w.level)
             lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-            every(10.0)
             policy = PolicyIfc { _, ctx ->
                 if (attempts.isEmpty()) {
                     fun attempt(name: String, block: () -> Unit) {
@@ -220,7 +219,6 @@ class ConstructionValidationTest {
                             ?.let { it::class.simpleName } ?: "ACCEPTED"
                     }
                     attempt("policy") { element.policy = NeutralPolicy }
-                    attempt("epochInterval") { element.epochInterval = 20.0 }
                     attempt("feasibilityPolicy") {
                         element.feasibilityPolicy = FeasibilityPolicy.CLAMP_THEN_REJECT
                     }
@@ -230,7 +228,7 @@ class ConstructionValidationTest {
                 }
                 ctx.currentAction
             }
-        }
+        }.reviewEvery(w, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 50.0
         model.simulate()
@@ -239,7 +237,7 @@ class ConstructionValidationTest {
         println("Setting a parameter from inside a running replication:")
         attempts.forEach { (k, v) -> println("  %-18s %s".format(k, v)) }
 
-        assertTrue(attempts.size == 6, "not every setter was attempted; got ${attempts.keys}")
+        assertTrue(attempts.size == 5, "not every setter was attempted; got ${attempts.keys}")
         val accepted = attempts.filterValues { it == "ACCEPTED" }
         assertTrue(accepted.isEmpty(),
             "these setters ran during a replication and §4.1.3 says none may: ${accepted.keys}")
@@ -249,31 +247,6 @@ class ConstructionValidationTest {
 
         // And the parameter really is unchanged afterwards, not merely refused loudly.
         assertEquals(0..10, element.limitsOf(element.leverRef("W")))
-    }
-
-    /**
-     *  `epochInterval` is a **finite** positive duration, and this must be the same domain
-     *  `every()` enforces — the two paths write the same field and may not disagree about a value.
-     *
-     *  They did disagree, in both directions, at different times. The pre-port audit found the DSL
-     *  accepting `every(0.0)` while this property refused `0.0`, and fixed the DSL by requiring
-     *  finite and positive. That left the property accepting `∞` while the DSL refused it, which
-     *  `ControlSurfaceTest` then found by clamping a control onto its declared upper bound. The
-     *  non-finite cases below are the half that was missing.
-     */
-    @Test
-    fun aNonPositiveOrNonFiniteEpochIntervalIsRefused() {
-        val (_, _, e) = built()
-        println()
-        for (bad in listOf(0.0, -5.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
-            val t = runCatching { e.epochInterval = bad }.exceptionOrNull()
-            println("epochInterval = %-9s : %s — %s".format(bad, t.named(), t?.message))
-            assertTrue(t is IllegalArgumentException,
-                "epochInterval = $bad must be refused; `every($bad)` is, and one field cannot have " +
-                    "two domains depending on which path wrote it")
-        }
-        e.epochInterval = 25.0
-        assertEquals(25.0, e.epochInterval)
     }
 
     /**
@@ -289,7 +262,7 @@ class ConstructionValidationTest {
             observe(backer.level)
             lever(backer, 0..10, alias = "first", neutral = Neutral.Current { level.value }) { }
             lever(backer, 0..10, alias = "second", neutral = Neutral.Current { rate }) { }
-            every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(0.0, 0.0) }
+            policy = PolicyIfc { _, _ -> doubleArrayOf(0.0, 0.0) }
         }
 
         val none = runCatching { e.leverFor(bystander) }.exceptionOrNull()
@@ -386,7 +359,7 @@ class ConstructionValidationTest {
             observe(w.level)
             // The same alias in both elements — what two instances of one subsystem produce.
             lever(w, 0..10, alias = "staff", neutral = Neutral.Current { level.value }) { }
-            every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
+            policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
         }
         val first = declare(w1, "first")
         val second = declare(w2, "second")
@@ -437,7 +410,7 @@ class ConstructionValidationTest {
         val first = w1.decisionElement("D-first") {
             observe(w1.level)
             lever(w1, 0..10, alias = "staff", neutral = Neutral.Current { level.value }) { }
-            every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
+            policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
         }
         val foreign = first.leverRef("staff")
 
@@ -447,7 +420,7 @@ class ConstructionValidationTest {
                 val own = lever(w2, 0..10, alias = "staff",
                     neutral = Neutral.Current { level.value }) { }
                 budget(own, foreign, total = 8.0)
-                every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
+                policy = PolicyIfc { _, _ -> doubleArrayOf(0.0) }
             }
         }.exceptionOrNull()
 
@@ -480,7 +453,7 @@ class ConstructionValidationTest {
                 observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { }
                 reward(perObservation, rate = 1.0, kind = kind)
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             }
         }.exceptionOrNull()
 
@@ -519,7 +492,7 @@ class ConstructionValidationTest {
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { }
                 reward(r, rate = 1.0)
                 reward(r, rate = 2.0)
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             }
         }.exceptionOrNull()
         println()
@@ -529,79 +502,5 @@ class ConstructionValidationTest {
     }
     // -------------------------------------------------------- epoch timing (audit finding A5)
 
-    /**
-     *  §4.1.2 — epoch timing must be declared, and its values must be usable.
-     *
-     *  Found by a pre-port audit. None of these was refused: `every(0.0)` schedules zero-delay
-     *  events forever, `every(NaN)` and `every(Infinity)` mean "never decide", `maxEpochs(0)` ends
-     *  the episode before the first decision so the run completes with an estimand of zero and no
-     *  decisions in it, and an element with **no timing at all** was built happily and never
-     *  scheduled anything. Each produces a study that finishes and says nothing went wrong.
-     *
-     *  The `every` case is the sharpest: the `epochInterval` *property* has required a positive
-     *  finite value since it was written, and the DSL wrote the backing field directly, so the
-     *  primary declaration path accepted exactly what the parameterization path refused.
-     */
-    @Test
-    fun degenerateEpochTimingIsRefusedAtTheDeclaration() {
-        fun base(b: DecisionElementBuilder, w: Widget) {
-            b.observe(w.level)
-            b.lever(w, 0..10, neutral = Neutral.Current { level.value }, alias = "L") { v -> setLevel(v.toInt()) }
-            b.reward(w.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
-            b.policy = NeutralPolicy
-        }
-
-        val cases = listOf<Pair<String, DecisionElementBuilder.(Widget) -> Unit>>(
-            "every(0.0)" to { w -> base(this, w); every(0.0) },
-            "every(-5.0)" to { w -> base(this, w); every(-5.0) },
-            "every(NaN)" to { w -> base(this, w); every(Double.NaN) },
-            "every(Infinity)" to { w -> base(this, w); every(Double.POSITIVE_INFINITY) },
-            "maxEpochs(0)" to { w -> base(this, w); every(10.0); maxEpochs(0) },
-            "maxEpochs(-3)" to { w -> base(this, w); every(10.0); maxEpochs(-3) },
-            "onCalendar(empty)" to { w -> base(this, w); onCalendar(emptyList()) },
-            "onCalendar(negative)" to { w -> base(this, w); onCalendar(listOf(-5.0, 10.0)) },
-            "onCalendar(NaN)" to { w -> base(this, w); onCalendar(listOf(Double.NaN)) },
-            "onCalendar(duplicates)" to { w -> base(this, w); onCalendar(listOf(10.0, 10.0)) }
-            // "no timing declared at all" was a case here and is no longer degenerate (S§C.0):
-            // declaring no timing is the shape an element driven by decide(reason) has. The silent
-            // failure it guarded -- a run that completes with no decisions and nothing to say so --
-            // is now reported where it can actually be observed, by the zero-epoch diagnostic in
-            // replicationEnded(), rather than guessed at from the declaration.
-        )
-
-        println()
-        val accepted = mutableListOf<String>()
-        for ((label, block) in cases) {
-            val t = declaring(block)
-            println("  %-26s → %s".format(label, t.named()))
-            if (t == null) accepted += label
-            else assertTrue(t.message!!.isNotBlank(), "$label: the refusal must say something")
-        }
-        assertTrue(accepted.isEmpty(),
-            "these degenerate declarations were accepted and each produces a run that completes " +
-                "with no decisions in it and nothing to say so: $accepted")
-    }
-
     /** The two paths must agree: what the property refuses, the DSL must refuse. */
-    @Test
-    fun theDslAndThePropertyAgreeOnEpochTiming() {
-        val model = Model("Agree")
-        val w = Widget(model, "W")
-        val e = w.decisionElement("D") {
-            observe(w.level)
-            lever(w, 0..10, neutral = Neutral.Current { level.value }, alias = "L") { v -> setLevel(v.toInt()) }
-            reward(w.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
-            every(10.0)
-            policy = NeutralPolicy
-        }
-        assertFailsWith<IllegalArgumentException> { e.epochInterval = 0.0 }
-        assertFailsWith<IllegalArgumentException> { e.maxEpochs = 0 }
-        assertNotNull(declaring { w -> 
-            observe(w.level)
-            lever(w, 0..10, neutral = Neutral.Current { level.value }, alias = "L") { v -> setLevel(v.toInt()) }
-            reward(w.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
-            policy = NeutralPolicy
-            every(0.0)
-        }, "the DSL must refuse what the property refuses")
-    }
 }

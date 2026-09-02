@@ -4,7 +4,6 @@ import ksl.modeling.decision.descriptor.CounterRef
 import ksl.modeling.decision.descriptor.DESCRIPTOR_SCHEMA_VERSION
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.EpisodeDescriptor
-import ksl.modeling.decision.descriptor.EpochKind
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
 import ksl.modeling.decision.descriptor.LeverDescriptor
 import ksl.modeling.decision.descriptor.LeverDomain
@@ -313,7 +312,6 @@ class DescriptorCodecTest {
             val b = lever(s, 0.0..5.0, neutral = Neutral.Value(0.0), alias = "Q", unit = "staff") { v -> setting += v }
             budget(a, b, total = 6.0)
             reward(s.level, rate = 1.5, sense = RewardSense.COST, alias = "R")
-            every(10.0)
             maxEpochs(7)
             policy = NeutralPolicy
         }

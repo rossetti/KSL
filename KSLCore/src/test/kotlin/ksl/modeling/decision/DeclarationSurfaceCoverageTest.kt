@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
 import ksl.modeling.decision.descriptor.WarmUpOrdering
 import ksl.modeling.variable.TWResponse
@@ -104,7 +105,7 @@ class DeclarationSurfaceCoverageTest {
         w.decisionElement("D") {
             epochPriority = priority
             declare(w)
-        }
+        }.reviewEvery(w, 10.0)
         model.numberOfReplications = 2
         model.lengthOfReplication = 100.0
         model.lengthOfReplicationWarmUp = 20.0
@@ -120,22 +121,21 @@ class DeclarationSurfaceCoverageTest {
 
         results["INTEGER lever"] = probe("`lever(limits = 0..10)`") {
             runWith { w -> observe(w.level); lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["CONTINUOUS lever"] = probe("`lever(limits = 0.0..10.0)`") {
             runWith { w -> observe(w.level); lever(w, 0.0..10.0, neutral = Neutral.Current { rate }) { v -> rate = v }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["CATEGORICAL lever"] = probe("`lever(levels = listOf(...))`") {
             runWith { w -> observe(w.level)
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Current { mode.toDouble() }) { v -> mode = v.toInt() }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["CATEGORICAL + CLAMP_THEN_REJECT"] = probe("clamping a `CATEGORICAL` lever") {
             runWith { w -> observe(w.level)
                 feasibility = FeasibilityPolicy.CLAMP_THEN_REJECT
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Current { mode.toDouble() }) { v -> mode = v.toInt() }
-                every(10.0)
                 policy = PolicyIfc { _, _ -> doubleArrayOf(9.0) }   // far outside; must clamp
             }
         }
@@ -144,28 +144,24 @@ class DeclarationSurfaceCoverageTest {
                 val a = lever(w, 0..10, alias = "a", neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 val b = lever(w, 0..10, alias = "b", neutral = Neutral.Current { rate }) { v -> rate = v }
                 batchLever(a, b) { }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["reward + estimand"] = probe("`reward(...)` then read the estimand (§4.2.5)") {
             val m = runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 reward(w.level, rate = 1.0)
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
             (m.getModelElement("D") as DecisionElement).estimand
         }
         results["captureTo"] = probe("`captureTo(...)` trajectory sink (§4.8)") {
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 captureTo { ksl.sdm.capture.NullSink }
-                every(10.0); policy = NeutralPolicy }
-        }
-        results["CALENDAR timing"] = probe("`onCalendar(listOf(...))`") {
-            runWith { w -> observe(w.level); lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                onCalendar(listOf(15.0, 35.0, 60.0)); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["terminalWhen"] = probe("`terminalWhen { ... }` episode ending (§4.6.3)") {
             runWith { w -> observe(w.level); lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); terminalWhen { false }; policy = NeutralPolicy }
+                terminalWhen { false }; policy = NeutralPolicy }
         }
         results["two constraints over one lever"] = probe("`budget(a,b)` and `atMost(b,c)` sharing `b`") {
             runWith { w -> observe(w.level)
@@ -173,17 +169,17 @@ class DeclarationSurfaceCoverageTest {
                 val b = lever(w, 0..10, alias = "b", neutral = Neutral.Current { rate }) { }
                 val c = lever(w, 0..10, alias = "c", neutral = Neutral.Current { mode.toDouble() }) { }
                 budget(a, b, total = 5.0); atMost(b, c, total = 5.0)
-                every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) } }
+                policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) } }
         }
         results["TRANSACTION lever"] = probe("`lever(neutral = Neutral.Value(0.0))` (§8.2.3)") {
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Value(0.0)) { v -> repeat(v.toInt()) { bump() } }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["CATEGORICAL transaction"] = probe("a `CATEGORICAL` lever with a neutral AMOUNT") {
             runWith { w -> observe(w.level)
                 lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Value(0.0)) { v -> mode = v.toInt() }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
         }
         results["budget over mismatched units"] = probe("`budget(a, b)` where `a` and `b` differ in unit") {
             runWith { w -> observe(w.level)
@@ -192,13 +188,12 @@ class DeclarationSurfaceCoverageTest {
                 val b = lever(w, 0..10, alias = "b", unit = "dollars",
                     neutral = Neutral.Current { rate }) { }
                 budget(a, b, total = 5.0)
-                every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0) } }
+                policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0) } }
         }
         results["context read after the epoch"] = probe("retaining the `DecisionContext` (§4.5.3)") {
             var stashed: DecisionContext? = null
             runWith { w -> observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0)
                 policy = PolicyIfc { _, ctx -> stashed = ctx; ctx.currentAction } }
             stashed!!.simulationTime
         }
@@ -207,10 +202,10 @@ class DeclarationSurfaceCoverageTest {
             val w1 = Widget(model, "W1"); val w2 = Widget(model, "W2")
             w1.decisionElement("D1") { observe(w1.level)
                 lever(w1, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
             w2.decisionElement("D2") { observe(w2.level)
                 lever(w2, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = NeutralPolicy }
+                policy = NeutralPolicy }
             model.numberOfReplications = 2; model.lengthOfReplication = 100.0
             model.simulate()
         }
@@ -218,14 +213,14 @@ class DeclarationSurfaceCoverageTest {
             probe("`epochPriority` past warm-up without saying so") {
                 runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
                     lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                    every(10.0); policy = NeutralPolicy }
+                    policy = NeutralPolicy }
             }
         results["epoch priority after warm-up, declared"] =
             probe("the same, with `warmUpOrdering = WARM_UP_FIRST`") {
                 runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
                     warmUpOrdering = WarmUpOrdering.WARM_UP_FIRST
                     lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                    every(10.0); policy = NeutralPolicy }
+                    policy = NeutralPolicy }
             }
 
         println()
@@ -294,9 +289,8 @@ class DeclarationSurfaceCoverageTest {
             observe(w.level)
             feasibility = FeasibilityPolicy.CLAMP_THEN_REJECT
             lever(w, listOf("off", "slow", "fast"), neutral = Neutral.Current { mode.toDouble() }) { v -> mode = v.toInt() }
-            every(10.0)
             policy = PolicyIfc { _, _ -> doubleArrayOf(9.0) }     // not a level at all
-        }
+        }.reviewEvery(w, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 100.0
         val failure = runCatching { model.simulate() }.exceptionOrNull()
@@ -339,7 +333,7 @@ class DeclarationSurfaceCoverageTest {
                     val c = lever(w, 0..10, alias = "c", unit = unitC,
                         neutral = Neutral.Current { mode.toDouble() }) { }
                     budget(a, b, c, total = 5.0)
-                    every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) }
+                    policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) }
                 }
                 cov = el.unitCoverage()
             }.exceptionOrNull()
@@ -389,12 +383,11 @@ class DeclarationSurfaceCoverageTest {
             val b = lever(w, 0..10, alias = "b", unit = "staff",
                 neutral = Neutral.Current { rate }) { v -> rate = v }
             budget(a, b, total = 8.0)
-            every(10.0)
             policy = PolicyIfc { _, ctx ->
                 violations = ctx.actions.violations(doubleArrayOf(40.0, 0.0))
                 doubleArrayOf(4.0, 4.0)
             }
-        }
+        }.reviewEvery(w, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 30.0
         model.simulate()
@@ -430,11 +423,10 @@ class DeclarationSurfaceCoverageTest {
                 } else {
                     lever(w, 0..10, neutral = Neutral.Current { rate }) { v -> writes++; rate = v }
                 }
-                every(10.0)
                 // The same value every epoch. For a setting the first write lands and the
                 // rest are redundant; for a transaction every one of them is an act.
                 policy = PolicyIfc { _, _ -> doubleArrayOf(3.0) }
-            }
+            }.reviewEvery(w, 10.0)
             model.numberOfReplications = 1
             model.lengthOfReplication = 100.0
             model.simulate()
@@ -475,12 +467,11 @@ class DeclarationSurfaceCoverageTest {
         w.decisionElement("D") {
             observe(w.level)
             lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-            every(10.0)
             policy = PolicyIfc { _, ctx ->
                 if (stashed == null) { stashed = ctx; stashedActions = ctx.actions }
                 ctx.currentAction
             }
-        }
+        }.reviewEvery(w, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 100.0
         model.simulate()
@@ -539,7 +530,6 @@ class DeclarationSurfaceCoverageTest {
         w.decisionElement("D") {
             observe(w.level)
             lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-            every(10.0)
             policy = PolicyIfc { _, ctx ->
                 if (first == null) {
                     first = ctx
@@ -550,7 +540,7 @@ class DeclarationSurfaceCoverageTest {
                 }
                 ctx.currentAction
             }
-        }
+        }.reviewEvery(w, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 100.0
         model.simulate()
@@ -587,7 +577,7 @@ class DeclarationSurfaceCoverageTest {
                     val c = lever(w, 0..10, alias = "c", neutral = Neutral.Current { mode.toDouble() }) { }
                     budget(a, b, total = 5.0)
                     second?.invoke(this, a, b, c)
-                    every(10.0); policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) }
+                    policy = PolicyIfc { _, _ -> doubleArrayOf(5.0, 0.0, 0.0) }
                 }
             }.exceptionOrNull()
         }
@@ -614,10 +604,15 @@ class DeclarationSurfaceCoverageTest {
     }
 
     /**
-     *  §4.6.4's whole warm-up analysis rests on the epoch running BEFORE the warm-up event,
-     *  which holds because MEDIUM_LOW_PRIORITY (100 000) sorts ahead of
-     *  DEFAULT_WARMUP_EVENT_PRIORITY (1 000 000). `epochPriority` is settable, and nothing
-     *  checks it, so a modeler can invert a documented guarantee by declaring a number.
+     *  §4.6.4's whole warm-up analysis rests on the review running BEFORE the warm-up event, which
+     *  holds because MEDIUM_LOW_PRIORITY (100 000) sorts ahead of DEFAULT_WARMUP_EVENT_PRIORITY
+     *  (1 000 000).
+     *
+     *  **The knob moved with the timing (S§C.0).** A review taken through `decide` happens inside
+     *  the caller's event, so it is the *caller's* priority that decides which side of the warm-up
+     *  it lands on -- not the element's `epochPriority`, which now orders only deferred epochs. The
+     *  guarantee is the same and the thing a modeler sets to invert it is different, so this varies
+     *  what a modeler would actually vary.
      */
     @Test
     fun theWarmUpOrderingIsDeclaredAndChecked() {
@@ -630,17 +625,13 @@ class DeclarationSurfaceCoverageTest {
                 override fun warmUp() { seen = element?.epochCount ?: -1 }
             }
             w.element = w.decisionElement("D") {
-                epochPriority = priority
-                warmUpOrdering = if (priority < KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY) WarmUpOrdering.EPOCH_FIRST
-                                 else WarmUpOrdering.WARM_UP_FIRST
                 observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> level.value = v.toDouble() }
-                every(10.0)
                 policy = NeutralPolicy
-            }
+            }.reviewEvery(w, 10.0, priority = priority)
             model.numberOfReplications = 1
             model.lengthOfReplication = 100.0
-            model.lengthOfReplicationWarmUp = 20.0    // exactly on an epoch boundary
+            model.lengthOfReplicationWarmUp = 20.0    // exactly on a review boundary
             model.simulate()
             return seen
         }
@@ -666,7 +657,7 @@ class DeclarationSurfaceCoverageTest {
                 warmUpOrdering = WarmUpOrdering.EPOCH_FIRST      // the numbers say otherwise
                 observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                every(10.0); policy = NeutralPolicy
+                policy = NeutralPolicy
             }
         }.exceptionOrNull()
         println("  declaring EPOCH_FIRST with a priority that sorts after warm-up: " +
@@ -675,41 +666,4 @@ class DeclarationSurfaceCoverageTest {
             "a priority contradicting the declared ordering should be rejected at build()")
     }
 
-    /**
-     *  G.9 row 12. Two elements whose epochs coincide at equal priority run in declaration
-     *  order — deterministic, and now stated and tested rather than left to event id by
-     *  accident. A different priority is the mechanism for controlling it.
-     */
-    @Test
-    fun coincidingElementsRunInDeclarationOrderAndPriorityOverridesIt() {
-        fun order(secondPriority: Int): List<String> {
-            val model = Model("Ordering-$secondPriority")
-            val fired = mutableListOf<String>()
-            val w1 = Widget(model, "W1"); val w2 = Widget(model, "W2")
-            fun declare(w: Widget, tag: String, priority: Int) {
-                w.decisionElement("D-$tag") {
-                    epochPriority = priority
-                    observe(w.level)
-                    lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
-                    every(10.0)
-                    policy = PolicyIfc { _, ctx -> fired += tag; ctx.currentAction }
-                }
-            }
-            declare(w1, "first", KSLEvent.MEDIUM_LOW_PRIORITY)
-            declare(w2, "second", secondPriority)
-            model.numberOfReplications = 1
-            model.lengthOfReplication = 30.0
-            model.simulate()
-            return fired.take(2)
-        }
-
-        val equal = order(KSLEvent.MEDIUM_LOW_PRIORITY)
-        val raised = order(KSLEvent.MEDIUM_LOW_PRIORITY - 1)     // lower number sorts earlier
-        println()
-        println("Two elements, epochs coinciding every 10:")
-        println("  equal priority                  -> $equal")
-        println("  second declared higher priority -> $raised")
-        assertTrue(equal == listOf("first", "second"), "declaration order should decide; saw $equal")
-        assertTrue(raised == listOf("second", "first"), "priority should override it; saw $raised")
-    }
 }

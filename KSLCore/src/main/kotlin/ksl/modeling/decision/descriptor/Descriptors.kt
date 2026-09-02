@@ -118,13 +118,6 @@ enum class TerminationSource { NATURAL, MAX_EPOCHS, RUN_LENGTH, MODEL_STOPPED, P
 enum class EpochProvenance { IMMEDIATE, DEFERRED }
 
 /**
- *  How decision epochs are scheduled: [PERIODIC] at a fixed interval, or on a declared [CALENDAR]
- *  of instants. Event-triggered epochs — deciding *when a queue exceeds five* — are future work,
- *  and this enum is where a third kind would go.
- */
-enum class EpochKind { PERIODIC, CALENDAR }
-
-/**
  *  Which runs first when a decision epoch coincides with the element's warm-up (§4.6.4).
  *
  *  It exists because the ordering is a consequence of two settable priorities rather than a

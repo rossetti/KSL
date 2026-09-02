@@ -120,7 +120,6 @@ private object DecisionGuideSnippets {
     fun parameterize(element: DecisionElement) {
         val qty = element.leverRef("OrderQty")
         element.narrow(qty, 0..120)                 // the experiment's limits, inside the model's
-        element.epochInterval = 2.5                 // review twice as often
         element.maxEpochs = 100                     // cap the episode
         val limits: IntRange = element.limitsOf(qty)
     }

@@ -1,5 +1,7 @@
 package ksl.examples.decision
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.decision.DecisionElement
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
@@ -34,12 +36,47 @@ import ksl.simulation.ModelElement
  */
 class PeriodicReview @JvmOverloads constructor(
     parent: ModelElement,
-    private val interval: Double,
+    interval: Double,
     private val firstAtTimeZero: Boolean = false,
     private val reason: String = "periodic",
     private val priority: Int = KSLEvent.MEDIUM_LOW_PRIORITY,
     name: String? = null
 ) : ModelElement(parent, name ?: "PeriodicReview") {
+
+    private var myInterval: Double = interval
+
+    /**
+     *  How often this caller asks for a decision.
+     *
+     *  **A `@KSLControl`, so `simopt` can search it through the path it already uses.** A review
+     *  period is an ordinary decision variable, and it used to be one on the decision element. With
+     *  timing owned by the caller it is a parameter of the caller instead — which is where it
+     *  belongs, and which `simopt` reaches identically.
+     *
+     *  The declared bounds are the exact domain of the setter (R16): a numeric control clamps, so a
+     *  bound outside the domain would deliver a value the setter refuses. `Double.MIN_VALUE` and
+     *  `Double.MAX_VALUE` are precisely the smallest and largest values satisfying "finite and
+     *  `> 0.0`".
+     *
+     *  Replication-initial, like every other decision parameter.
+     */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = Double.MIN_VALUE,
+        upperBound = Double.MAX_VALUE
+    )
+    var interval: Double
+        get() = myInterval
+        set(value) {
+            check(model.isNotRunning) {
+                "Attempted to set 'interval' on ${this.name} while the simulation was running. " +
+                    "A review period is replication-initial."
+            }
+            require(value.isFinite() && value > 0.0) {
+                "The review interval must be finite and > 0.0, but $value was assigned."
+            }
+            myInterval = value
+        }
 
     init {
         require(interval.isFinite() && interval > 0.0) {
@@ -53,14 +90,14 @@ class PeriodicReview @JvmOverloads constructor(
     private inner class Review : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             element.decide(reason)
-            schedule(interval, priority = priority)
+            schedule(myInterval, priority = priority)
         }
     }
 
     private val review = Review()
 
     override fun initialize() {
-        review.schedule(if (firstAtTimeZero) 0.0 else interval, priority = priority)
+        review.schedule(if (firstAtTimeZero) 0.0 else myInterval, priority = priority)
     }
 }
 

@@ -141,6 +141,7 @@ class OverheadBenchmarkTest {
         val clinic = ClinicSubsystem(
             model, exit,
             decisionSink = sink?.let { s -> { _: RunProvenance -> s as TransitionSink } },
+            reviewPeriod = interval,
             name = "Clinic"
         )
         flow.source("Patients", ExponentialRV(5.0, streamNum = 3), firstReceiver = clinic.entry)
@@ -148,7 +149,6 @@ class OverheadBenchmarkTest {
         val neutral = CountingNeutral()
         val scoring = ScoringProbe()
         clinic.shiftReview.policy = if (arm == Arm.SCORING) scoring else neutral
-        clinic.shiftReview.epochInterval = interval
         model.numberOfReplications = 1
         model.lengthOfReplication = CLINIC_LENGTH
         return Rig(model) {

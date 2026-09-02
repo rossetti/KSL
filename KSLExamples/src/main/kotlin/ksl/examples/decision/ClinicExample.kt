@@ -34,6 +34,14 @@ class ClinicSubsystem(
      * `OverheadBenchmarkTest` uses it to measure what capture costs.
      */
     private val decisionSink: ((RunProvenance) -> TransitionSink)? = null,
+    /**
+     * How often this clinic reviews its staffing — one shift.
+     *
+     * It is a constructor parameter rather than a property of the decision element because the
+     * element no longer owns its timing (S§C.0): a caller schedules the reviews, so the period is
+     * the model's to state. `OverheadBenchmarkTest` sweeps it to vary the epoch count.
+     */
+    val reviewPeriod: Double = 480.0,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -48,15 +56,6 @@ class ClinicSubsystem(
     private val triage = SingleQStation(
         this, activityTime = ExponentialRV(6.0, streamNum = 1),
         resource = triageStaff, nextReceiver = exam, name = "${this.name}:Triage")
-
-    /**
-     *  How often this model reviews.
-     *
-     *  It lives on the model rather than on the element's descriptor because the element no
-     *  longer owns its timing (D5): the period is a property of whatever schedules the review,
-     *  which is this model. Anything that used to read it off the surface reads it here.
-     */
-    val reviewPeriod: Double = 480.0
 
     val shiftReview = decisionElement("ShiftReview") {
         // Observation i is the allocation weight for lever i. Each is the TIME-AVERAGE

@@ -225,7 +225,6 @@ class ParameterizationAtomicityTest {
                         if (t is IllegalStateException) attempts += name
                     }
                     attempt("policy") { e.policy = NeutralPolicy }
-                    attempt("epochInterval") { e.epochInterval = 20.0 }
                     attempt("feasibilityPolicy") { e.feasibilityPolicy = FeasibilityPolicy.CLAMP_THEN_REJECT }
                     attempt("maxEpochs") { e.maxEpochs = 3 }
                     attempt("policyLabel") { e.policyLabel = "x" }
@@ -239,15 +238,15 @@ class ParameterizationAtomicityTest {
         model.lengthOfReplication = 25.0
         model.simulate()
 
-        val intervalBefore = e.epochInterval
+        val capBefore = e.maxEpochs
         println()
         println("setters that refused from inside a replication: $attempts")
         assertEquals(
-            listOf("policy", "epochInterval", "feasibilityPolicy", "maxEpochs", "policyLabel",
+            listOf("policy", "feasibilityPolicy", "maxEpochs", "policyLabel",
                 "narrow", "rewardRate"),
             attempts.distinct(),
             "every parameterization entry point must refuse while running (§4.1.3)"
         )
-        assertEquals(intervalBefore, e.epochInterval, "and none of them took effect")
+        assertEquals(capBefore, e.maxEpochs, "and none of them took effect")
     }
 }

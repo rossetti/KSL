@@ -28,10 +28,14 @@ class SimoptHandoffTest {
         println()
         println("controls: ${demo.controlKeys}")
         assertEquals(
-            listOf("OrderRule.s", "OrderRule.sDelta", "Room:Review.epochInterval", "Room:Review.maxEpochs"),
+            listOf("OrderRule.s", "OrderRule.sDelta", "Room:Review.maxEpochs",
+                "Room:Review:Reviewer.interval"),
             demo.controlKeys,
             "the rule's two parameters must appear as controls keyed elementName.propertyName, " +
-                "and so must the element's own timing — WHEN to decide is a parameter too"
+                "and so must the review period — WHEN to decide is a parameter too. It is now a " +
+                "control of the caller that schedules the reviews rather than of the element, " +
+                "because the element no longer owns its timing (S§C.0); simopt reaches it through " +
+                "exactly the same path either way, which is the point of the move"
         )
     }
 
