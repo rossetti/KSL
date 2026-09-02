@@ -99,6 +99,7 @@ class ImplementationInventoryTest {
             "BindingException" m 1,
             "AmbiguousLeverException" m 1,
             "NarrowingException" m 1,
+            "PeriodicDecisionElement" m 1,
             "ReentrantDecisionException" m 1,
             "RunawayDecisionRequestException" m 1,
             "PolicyScheduledEventException" m 1,

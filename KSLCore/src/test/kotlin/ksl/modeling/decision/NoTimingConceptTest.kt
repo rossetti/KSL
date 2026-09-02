@@ -30,8 +30,21 @@ class NoTimingConceptTest {
         File(sourceRoot(), "ksl/modeling/decision").walkTopDown()
             .filter { it.isFile && it.extension == "kt" }.toList()
 
+    /**
+     *  The element and its description — the two places the property is actually about.
+     *
+     *  It used to be the whole package (D4), which was broader than the property that matters.
+     *  `DecisionElement` must not own its timing; a *sibling* that schedules a review and calls the
+     *  public `decide` door does not violate that — it does exactly what a modeler does, in a
+     *  reusable object, which is what `PeriodicDecisionElement` is (D12). The ratchet D4 was really
+     *  after is kept by the third test below.
+     */
+    private fun elementSources(): List<File> = decisionSources().filter {
+        it.name == "DecisionElement.kt" || it.parentFile.name == "descriptor"
+    }
+
     @Test
-    @DisplayName("The decision package declares no vocabulary for when a decision happens")
+    @DisplayName("The element declares no vocabulary for when a decision happens")
     fun noTimingVocabularySurvives() {
         // Each of these was a way of saying "decide at these times" and each is now the caller's
         // business. `epochPriority` is deliberately absent from the list: it survives, narrowed to
@@ -39,7 +52,7 @@ class NoTimingConceptTest {
         val gone = listOf("EpochKind", "EpochDescriptor", "epochInterval", "myEpochInterval",
             "scheduleNextEpoch", "calendarIndex", "firstAtTimeZero", "timingDeclared")
         val offenders = mutableListOf<String>()
-        for (f in decisionSources()) {
+        for (f in elementSources()) {
             for ((n, line) in f.readLines().withIndex()) {
                 val code = line.substringBefore("//").trim()
                 if (code.startsWith("*") || code.startsWith("/*")) continue
@@ -49,16 +62,16 @@ class NoTimingConceptTest {
             }
         }
         assertTrue(offenders.isEmpty(),
-            "the decision packages have grown a timing concept again. The element does not own " +
-                "when it decides; a caller does, and a driver outside KSLCore provides the common " +
-                "case. Found: ${offenders.joinToString("; ")}")
+            "the element has grown a timing concept again. It does not own when it decides; a " +
+                "caller does, and PeriodicDecisionElement packages the common case by BEING such a " +
+                "caller rather than by putting the timing back. Found: ${offenders.joinToString("; ")}")
     }
 
     @Test
     @DisplayName("The element schedules nothing but the epoch a caller deferred")
     fun theOnlyScheduledThingIsTheDeferredEpoch() {
         val sites = mutableListOf<String>()
-        for (f in decisionSources()) {
+        for (f in elementSources()) {
             for ((n, line) in f.readLines().withIndex()) {
                 val code = line.substringBefore("//").trim()
                 if (code.startsWith("*") || code.startsWith("/*")) continue
@@ -75,5 +88,27 @@ class NoTimingConceptTest {
         assertTrue(foreign.isEmpty(),
             "the decision package should schedule nothing but the deferred epoch, and it also " +
                 "schedules: ${foreign.joinToString("; ")}")
+    }
+
+    @Test
+    @DisplayName("Only the periodic composite schedules anything else in the package")
+    fun theCompositeIsTheOnlyOtherScheduler() {
+        // The ratchet D4 wanted, kept in the narrower form D12 argues for. A convenience that
+        // schedules is fine -- that is what a caller does. A THIRD file that schedules means the
+        // package has grown a second answer to "when does a decision happen", which is how the
+        // timing would come back without anyone deciding to bring it back.
+        val allowed = setOf("DecisionElement.kt", "PeriodicDecisionElement.kt")
+        val offenders = mutableListOf<String>()
+        for (f in decisionSources()) {
+            if (f.name in allowed) continue
+            for ((n, line) in f.readLines().withIndex()) {
+                val code = line.substringBefore("//").trim()
+                if (code.startsWith("*") || code.startsWith("/*")) continue
+                if (Regex("\\bschedule\\s*\\(").containsMatchIn(code)) offenders += "${f.name}:${n + 1}"
+            }
+        }
+        assertTrue(offenders.isEmpty(),
+            "only the element (its deferred epoch) and the periodic composite (its review) may " +
+                "schedule in this package; also scheduling: ${offenders.joinToString("; ")}")
     }
 }

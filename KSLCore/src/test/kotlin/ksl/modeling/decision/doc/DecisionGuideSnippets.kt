@@ -9,6 +9,7 @@ import ksl.modeling.decision.GridSearch
 import ksl.modeling.decision.ManagedPolicyIfc
 import ksl.modeling.decision.Neutral
 import ksl.modeling.decision.NeutralPolicy
+import ksl.modeling.decision.PeriodicDecisionElement
 import ksl.modeling.decision.PolicyIfc
 import ksl.modeling.decision.RunProvenance
 import ksl.modeling.decision.ShapeAwarePolicyIfc
@@ -49,21 +50,35 @@ import ksl.simulation.ModelElement
  * entity whose process *is* the review loop, and a call at the point the system changed.
  */
 @Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "unused")
-private class DecisionTimingSnippets(parent: ModelElement) : ProcessModel(parent, null) {
+private class StockRoom(parent: ModelElement) : ProcessModel(parent, null) {
 
     private val reviewPeriod = 5.0
     private val reorderPoint = 20.0
     private val demandSize = RandomVariable(this, ExponentialRV(1.0, streamNum = 31))
     private val onHand = TWResponse(this, name = "OnHand", initialValue = 50.0)
     private val inventoryPosition: Double get() = onHand.value
+    private val position = onHand
 
     private fun applyDemand(q: Double) { if (onHand.value >= q) onHand.decrement(q) }
+    private fun placeOrder(q: Double) { if (q > 0.0) onHand.increment(q) }
 
-    val review: DecisionElement = decisionElement("Review") {
-        observe("Position") { inventoryPosition }
-        lever(this@DecisionTimingSnippets, 0.0..200.0, neutral = Neutral.Value(0.0)) { q ->
-            onHand.increment(q)
-        }
+    /** The (s, S) rule §2.1's snippet names. */
+    class OrderUpTo(private val s: Double, private val bigS: Double) : PolicyIfc {
+        override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray =
+            doubleArrayOf(if (observation[0] <= s) bigS - observation[0] else 0.0)
+    }
+
+    val review = PeriodicDecisionElement(this, interval = 30.0, name = "Review") {
+        observe(position)
+        lever(this@StockRoom, 0..200, neutral = Neutral.Value(0.0)) { q -> placeOrder(q) }
+        reward(onHand, rate = 0.5, sense = RewardSense.COST)
+        policy = OrderUpTo(s = 20.0, bigS = 60.0)
+    }
+
+    /** The plain element §2.1's hand-written blocks drive. */
+    val decisions: DecisionElement = decisionElement("Decisions") {
+        observe(position)
+        lever(this@StockRoom, 0..200, neutral = Neutral.Value(0.0)) { q -> placeOrder(q) }
         policy = NeutralPolicy
     }
 
@@ -71,7 +86,7 @@ private class DecisionTimingSnippets(parent: ModelElement) : ProcessModel(parent
         val reviewProcess = process {
             while (model.isRunning) {
                 delay(reviewPeriod)
-                review.decide("periodic")
+                decisions.decide("periodic")
             }
         }
     }
@@ -79,7 +94,7 @@ private class DecisionTimingSnippets(parent: ModelElement) : ProcessModel(parent
     private inner class Demand : Entity() {
         val demandProcess = process {
             applyDemand(demandSize.value)
-            if (inventoryPosition <= reorderPoint) review.decide("reorder point")
+            if (inventoryPosition <= reorderPoint) decisions.decide("reorder point")
         }
     }
 }
@@ -103,7 +118,7 @@ private object DecisionGuideSnippets {
             ordersPlaced.increment()
         }
 
-        val review: DecisionElement = decisionElement("${this.name}:Review") {
+        val review = PeriodicDecisionElement(this, interval = 5.0, name = "${this.name}:Review") {
             observe(onHand, unit = "units")                       // observation 0
             lever(
                 this@StockRoom, limits = 0..200,
@@ -112,7 +127,7 @@ private object DecisionGuideSnippets {
             ) { q -> placeOrder(q) }
             reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
             policy = NeutralPolicy
-        }.reviewEvery(this, 5.0)
+        }
     }
 
     fun quickStartRun() {
@@ -135,8 +150,8 @@ private object DecisionGuideSnippets {
     }
 
     fun swapTheRule(room: StockRoom) {
-        room.review.policy = OrderUpTo(s = 20.0, bigS = 80.0)
-        room.review.policyLabel = "(20, 80)"
+        room.review.element.policy = OrderUpTo(s = 20.0, bigS = 80.0)
+        room.review.element.policyLabel = "(20, 80)"
     }
 
     // -- §4.2 A rule that checks the surface it was given --------------

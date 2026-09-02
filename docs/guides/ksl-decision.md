@@ -90,15 +90,39 @@ accrued over the interval between decisions, a recorded trajectory, and
 an estimand the comparison machinery already understands. Where the
 decision happens stays yours.
 
-**A periodic review** is an ordinary permanent entity, or an ordinary
-event action:
+**Most models want a review on a period, and should say so in one
+construction.** `PeriodicDecisionElement` is a model element that owns a
+decision element *and* the event that reviews it:
+
+```kotlin
+val review = PeriodicDecisionElement(this, interval = 30.0, name = "Review") {
+    observe(position)
+    lever(this@StockRoom, 0..200, neutral = Neutral.Value(0.0)) { q -> placeOrder(q) }
+    reward(onHand, rate = 0.5, sense = RewardSense.COST)
+    policy = OrderUpTo(s = 20.0, bigS = 60.0)
+}
+```
+
+It is a composition, not a special case: it holds an ordinary element and
+calls the same public `decide` you would. Three things come with it. The
+interval is checked at construction, so an element that never decides is
+unreachable. The review runs in an event of its own and changes nothing
+itself, so the state it reads is consistent and §6's obligation is met
+for you. And the interval is a `@KSLControl`, so `simopt` can search it.
+
+Everything below is the general case underneath it — reach for it when a
+period is not what you want.
+
+**A periodic review written by hand** is an ordinary permanent entity, or
+an ordinary event action — `decisions` here is a plain `DecisionElement`
+declared with `decisionElement { }`:
 
 ```kotlin
 private inner class Reviewer : Entity() {
     val reviewProcess = process {
         while (model.isRunning) {
             delay(reviewPeriod)
-            review.decide("periodic")
+            decisions.decide("periodic")
         }
     }
 }
@@ -110,7 +134,7 @@ changed:
 ```kotlin
 val demandProcess = process {
     applyDemand(demandSize.value)
-    if (inventoryPosition <= reorderPoint) review.decide("reorder point")
+    if (inventoryPosition <= reorderPoint) decisions.decide("reorder point")
 }
 ```
 
@@ -181,7 +205,7 @@ class StockRoom(parent: ModelElement, name: String? = null) : ModelElement(paren
         ordersPlaced.increment()
     }
 
-    val review: DecisionElement = decisionElement("${this.name}:Review") {
+    val review = PeriodicDecisionElement(this, interval = 5.0, name = "${this.name}:Review") {
         observe(onHand, unit = "units")                       // observation 0
         lever(
             this@StockRoom, limits = 0..200,
@@ -190,7 +214,7 @@ class StockRoom(parent: ModelElement, name: String? = null) : ModelElement(paren
         ) { q -> placeOrder(q) }
         reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
         policy = NeutralPolicy
-    }.reviewEvery(this, 5.0)
+    }
 }
 ```
 
@@ -239,8 +263,8 @@ class OrderUpTo(private val s: Double, private val bigS: Double) : PolicyIfc {
 Swap it in without touching the model:
 
 ```kotlin
-room.review.policy = OrderUpTo(s = 20.0, bigS = 80.0)
-room.review.policyLabel = "(20, 80)"
+room.review.element.policy = OrderUpTo(s = 20.0, bigS = 80.0)
+room.review.element.policyLabel = "(20, 80)"
 ```
 
 `policyLabel` is what appears in a captured trajectory's provenance. Set
