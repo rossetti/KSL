@@ -127,7 +127,9 @@ class ShipmentDepot(
      *  `allocation.decide(reason)` at the point the condition holds — the composite is a convenience
      *  over that door, not a different way in.
      */
-    private val reviews = PeriodicDecisionElement(this, reviewPeriod, name = "Allocation") {
+    private val reviews = PeriodicDecisionElement(
+        this, reviewPeriod, name = "Reviewer", elementName = "Allocation"
+    ) {
         // 0..2 the backlogs, 3 the stock. A policy needs all four under either design;
         // under the old one it needs them to RE-DERIVE the feasible set for itself.
         for (i in regionNames.indices) {

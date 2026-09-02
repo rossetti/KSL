@@ -60,6 +60,22 @@ class SsInventory(
     initialOnHand: Int = 60,
     private val leadTime: Double = 2.0,
     private val reviewPeriod: Double = 5.0,
+    /**
+     *  Which wiring the review uses. Both are kept because the contrast is the lesson.
+     *
+     *  `true` — a [ksl.modeling.decision.PeriodicDecisionElement], which owns the element *and* the
+     *  event that reviews it. One construction, the interval checked where it is given, a call site
+     *  that is clean because the reviewer changes nothing itself, and a searchable period. This is
+     *  what a model that reviews on a period should use.
+     *
+     *  `false` — the general mechanism underneath: declare the element, then attach a caller. It is
+     *  what you write when a period is *not* what you want — a review at a stockout, or at a point
+     *  inside a process — and seeing it here is what makes the composite legible as a convenience
+     *  over a door rather than as the only way in.
+     *
+     *  The two produce the same trajectory; `SsInventoryBenchmarkTest` asserts it.
+     */
+    private val composedReview: Boolean = true,
     private val rateFunction: PiecewiseConstantRateFunction = DemandRates.stationary,
     maxOrder: Int = 200,
     /**
@@ -190,7 +206,7 @@ class SsInventory(
      *  local, which is the trap: `decisionElement("Review")` looks like a label, while
      *  `TWResponse(this, name = …)` visibly demands an identifier.
      */
-    val review: DecisionElement = decisionElement("${this.name}:Review") {
+    private val declaration: DecisionElementBuilder.() -> Unit = {
         // Declaration order is the vector order (§4.2.3).
         observe("$name:Position") { inventoryPosition }                         // 0
         observe("$name:ExpectedDemand") { expectedDemandOverProtection }        // 1
@@ -205,7 +221,26 @@ class SsInventory(
         ) { q -> placeOrder(q.toInt()) }
         decisionSink?.let { factory -> captureTo(factory) }
         policy = NeutralPolicy
-    }.reviewEvery(this, reviewPeriod)
+    }
+
+    /**
+     *  The reviewer, when this instance is wired the packaged way.
+     *
+     *  It is named apart from the element and hands the element the name it always had, so that the
+     *  two wirings are indistinguishable from outside: same element name, same control key for the
+     *  cap, same provenance in a stored trajectory. Only the review period's key differs, because
+     *  under the composite the period belongs to the reviewer -- which is where it belongs.
+     */
+    private val reviews: PeriodicDecisionElement? =
+        if (composedReview) {
+            PeriodicDecisionElement(
+                this, reviewPeriod, name = "${this.name}:Reviewer",
+                elementName = "${this.name}:Review", declaration = declaration
+            )
+        } else null
+
+    val review: DecisionElement =
+        reviews?.element ?: decisionElement("${this.name}:Review", declaration).reviewEvery(this, reviewPeriod)
 
     override fun initialize() {
         lastOrderQuantity = 0.0

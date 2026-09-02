@@ -50,6 +50,10 @@ import ksl.simulation.ModelElement
  *  @param reason the label carried onto every transition this review produces
  *  @param reviewPriority the priority of the review *event*, which is what orders this review against
  *   other events at a coinciding instant — including this element's own warm-up
+ *  @param elementName what to call the element, if not `"<this element's name>:Decision"`. It exists
+ *   for conversion: a model that already had a decision element should not have to rename it — and so
+ *   invalidate stored trajectories, control keys and anything holding a `LeverRef` — merely because the
+ *   review moved into a composition around it.
  *  @param declaration the element's declaration, exactly as `decisionElement { }` takes it
  */
 class PeriodicDecisionElement @JvmOverloads constructor(
@@ -59,6 +63,7 @@ class PeriodicDecisionElement @JvmOverloads constructor(
     private val firstAtTimeZero: Boolean = false,
     private val reason: String = "periodic",
     private val reviewPriority: Int = KSLEvent.MEDIUM_LOW_PRIORITY,
+    elementName: String? = null,
     declaration: DecisionElementBuilder.() -> Unit
 ) : ModelElement(parent, name) {
 
@@ -112,7 +117,7 @@ class PeriodicDecisionElement @JvmOverloads constructor(
      *  attaching a sink, reading the estimand — is done on it, and none of that is this class's
      *  business to re-export.
      */
-    val element: DecisionElement = decisionElement("${this.name}:Decision", declaration)
+    val element: DecisionElement = decisionElement(elementName ?: "${this.name}:Decision", declaration)
 
     private inner class Review : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {

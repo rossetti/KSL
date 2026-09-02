@@ -4,6 +4,7 @@ import ksl.modeling.decision.DecisionElement
 import ksl.modeling.decision.NeutralPolicy
 import ksl.modeling.decision.PolicyIfc
 import ksl.simulation.Model
+import org.junit.jupiter.api.DisplayName
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -23,6 +24,42 @@ import kotlin.test.assertTrue
  *      under a lever DECLARED a setting, and the last test here measures exactly that.
  */
 class SsInventoryBenchmarkTest {
+
+    /**
+     *  The two wirings of `SsInventory` are the same model.
+     *
+     *  `composedReview = true` puts the element inside a `PeriodicDecisionElement`; `false` declares
+     *  it and attaches a caller. Both are kept in the example because the contrast teaches what the
+     *  composite is — a convenience over the public `decide` door rather than another way in — and
+     *  that claim is only worth making if the two produce the same run. Compared on the estimand and
+     *  on the order count, which is what the rest of this class measures the model by.
+     */
+    @Test
+    @DisplayName("The composed and hand-wired reviews are the same model")
+    fun bothWiringsAgree() {
+        fun wired(composed: Boolean): Model {
+            val model = Model("Wiring-$composed")
+            val inv = SsInventory(model, composedReview = composed, name = "Inv")
+            model.numberOfReplications = 5
+            model.lengthOfReplication = 1_000.0
+            inv.review.policy = SsPolicy(2, 10)
+            model.simulate()
+            return model
+        }
+
+        val composed = wired(true)
+        val assembled = wired(false)
+        println()
+        println("composed   : cost=${costOf(composed, "Inv").total}  orders=${orderCount(composed)}")
+        println("hand-wired : cost=${costOf(assembled, "Inv").total}  orders=${orderCount(assembled)}")
+
+        assertEquals(costOf(assembled, "Inv").total, costOf(composed, "Inv").total, 1e-9,
+            "the composite must not change what the model does; if it does it is a second mechanism " +
+                "rather than a convenience over the one the element already had")
+        assertEquals(orderCount(assembled), orderCount(composed), 1e-9,
+            "and the same rule must place the same orders at the same times")
+    }
+
 
     private fun run(rule: PolicyIfc, declareOrderAsSetting: Boolean = false): Model {
         val model = Model("SsInventoryStudy")

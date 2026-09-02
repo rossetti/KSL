@@ -766,6 +766,7 @@ uses for `(r, S)` inventory policies.
 | `DecisionElement` | The `ModelElement` that runs the loop. Built by `decisionElement { }`; carries the parameterization surface |
 | `DecisionElementBuilder` | The DSL receiver: `observe`, `lever`, `reward`, `budget`/`atMost`, `batchLever`, `maxEpochs`, `terminalWhen`, `captureTo`, `policy` |
 | `DecisionElement.decide` / `.requestDecision` | How a decision happens: you call one of them (§2.1) |
+| `PeriodicDecisionElement` | A decision element **and** the event that reviews it, in one construction. What most models want (§2.1) |
 | `PolicyIfc` | Your rule. `action(observation, ctx): DoubleArray` |
 | `ShapeAwarePolicyIfc` | A rule that is shown the descriptor once, before the run, and may refuse |
 | `ManagedPolicyIfc` | A rule with a lifetime and per-transition learning hooks |

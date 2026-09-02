@@ -48,6 +48,8 @@ This package makes it explicit. You declare, on the model you already have, four
 
 **When** it decides is not declared. Your model calls `decide(reason)` at the point a decision is due — from an event action, or from a point in a process — which is the same place you would have written the decision by hand without this package at all.
 
+For the common case — a review on a fixed period — `PeriodicDecisionElement` packages the element and the event that reviews it into one construction, which is what the models in Parts II and IV use. This tutorial shows the declaration and the call separately because seeing them apart is what makes the packaged form legible; `ksl.examples.decision.SsInventory` carries both wirings side by side and a test asserts they produce the same run.
+
 KSL then runs the loop: at each call it reads the observations, hands them to your rule, validates and applies the action, prices the interval that just ended, and — if you asked — records the whole transition.
 
 ### 1.2 What it deliberately does not do
