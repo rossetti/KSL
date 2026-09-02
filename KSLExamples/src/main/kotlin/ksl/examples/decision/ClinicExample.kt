@@ -49,6 +49,15 @@ class ClinicSubsystem(
         this, activityTime = ExponentialRV(6.0, streamNum = 1),
         resource = triageStaff, nextReceiver = exam, name = "${this.name}:Triage")
 
+    /**
+     *  How often this model reviews.
+     *
+     *  It lives on the model rather than on the element's descriptor because the element no
+     *  longer owns its timing (D5): the period is a property of whatever schedules the review,
+     *  which is this model. Anything that used to read it off the surface reads it here.
+     */
+    val reviewPeriod: Double = 480.0
+
     val shiftReview = decisionElement("ShiftReview") {
         // Observation i is the allocation weight for lever i. Each is the TIME-AVERAGE
         // number of busy units — an estimate of the work arriving at that station, in
@@ -88,9 +97,8 @@ class ClinicSubsystem(
         reward(exam.waitingQ.numInQ, rate = 10.0, sense = RewardSense.COST, alias = "ExamWait")
 
         decisionSink?.let { factory -> captureTo(factory) }
-        every(480.0)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, reviewPeriod)
 
     // Resolved once, after the element exists. Private: these are identity tokens
     // the subsystem uses to mediate its own parameters.

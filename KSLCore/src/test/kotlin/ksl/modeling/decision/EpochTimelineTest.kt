@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.decision.descriptor.TerminationSource
 import ksl.modeling.variable.TWResponse
@@ -67,11 +68,10 @@ class EpochTimelineTest {
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { sink }
-            every(interval)
             if (maxEpochs != Int.MAX_VALUE) maxEpochs(maxEpochs)
             if (terminalAt != null) terminalWhen { tank.time >= terminalAt }
             this.policy = policy ?: NeutralPolicy
-        }
+        }.reviewEvery(tank, interval)
         model.numberOfReplications = 1
         model.lengthOfReplication = horizon
         model.lengthOfReplicationWarmUp = warmUp
@@ -246,9 +246,8 @@ class EpochTimelineTest {
         val e = tank.decisionElement("D") {
             observe(tank.level)
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v; wrote = v }
-            every(10.0)
             policy = ramp
-        }
+        }.reviewEvery(tank, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 55.0
         model.simulate()

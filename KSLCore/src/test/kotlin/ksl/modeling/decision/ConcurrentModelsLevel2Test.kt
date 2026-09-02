@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -103,14 +104,13 @@ class ConcurrentModelsLevel2Test {
                         alias = "L") { v -> setting = v }
                     reward(nInQ, rate = 1.0, sense = RewardSense.COST, alias = "R")
                     if (sink != null) captureTo { sink }
-                    every(5.0)
                     // Recording the thread is what makes "concurrently" a measured fact rather
                     // than an intention; the rule is called on the replication's own thread.
                     policy = PolicyIfc { _, _ ->
                         threads += Thread.currentThread().name
                         doubleArrayOf(t)
                     }
-                }
+                }.reviewEvery(this, 5.0)
             }
         }
 

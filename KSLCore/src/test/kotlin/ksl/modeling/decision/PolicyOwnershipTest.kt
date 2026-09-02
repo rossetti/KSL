@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.decision.descriptor.TerminationSource
 import ksl.modeling.variable.TWResponse
@@ -65,9 +66,8 @@ class PolicyOwnershipTest {
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             if (sink != null) captureTo { sink }
-            every(10.0)
             policy = p
-        }
+        }.reviewEvery(tank, 10.0)
     }
 
     /**
@@ -179,9 +179,8 @@ class PolicyOwnershipTest {
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { CountingSink().also { made.add(it) } }
-            every(10.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(tank, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 55.0
 
@@ -229,9 +228,8 @@ class PolicyOwnershipTest {
                 lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
                 reward(tank.level, rate = 1.0, sense = RewardSense.COST)
                 captureTo { sink }
-                every(10.0)
                 policy = p
-            }
+            }.reviewEvery(tank, 10.0)
             model.numberOfReplications = 1
             model.lengthOfReplication = 55.0
             var root = runCatching { model.simulate() }.exceptionOrNull()

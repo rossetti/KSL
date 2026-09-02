@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.PeriodicReview
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.station.SResource
 import ksl.modeling.variable.RandomVariable
@@ -82,14 +83,18 @@ class Level2OrderingAndStreamsTest {
 
         init {
             if (decorated) {
-                decisionElement("${this.name}:Review") {
+                val e = decisionElement("${this.name}:Review") {
                     observe(nInQ)
                     lever(this@Shop, 0..10, neutral = Neutral.Current { setting },
                         alias = "L") { v -> setting = v }
                     reward(nInQ, rate = 1.0, sense = RewardSense.COST, alias = "R")
-                    every(5.0)
                     policy = NeutralPolicy
                 }
+                // The element no longer schedules its own reviews; a caller does. This is the
+                // canary for the migration: if moving the review out of the element perturbs the
+                // model's own same-time event ordering, or its end-of-run stream position, this
+                // test is the one that says so.
+                PeriodicReview(this, interval = 5.0, name = "${this.name}:Reviewer").element = e
             }
         }
 

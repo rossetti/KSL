@@ -1,5 +1,6 @@
 package ksl.examples.decision.tutorial
 
+import ksl.examples.decision.reviewEvery
 import ksl.modeling.decision.DecisionContext
 import ksl.modeling.decision.DecisionElement
 import ksl.modeling.decision.Neutral
@@ -93,6 +94,16 @@ class StockRoom(
 
     // ---- The decision. Four declarations: see, write, score, when.
 
+    /**
+     *  How often this model reviews.
+     *
+     *  It lives on the model rather than on the element's descriptor because the element no
+     *  longer owns its timing (D5): the period is a property of whatever schedules the review,
+     *  which is this model. Anything that used to read it from the surface reads it here.
+     */
+    val reviewPeriod: Double = 5.0
+
+
     val review: DecisionElement = decisionElement("${this.name}:Review") {
         observe("${this@StockRoom.name}:Position", unit = "units") { inventoryPosition }
         observe(backorders, unit = "units")
@@ -103,9 +114,8 @@ class StockRoom(
         ) { q -> placeOrder(q) }
         reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
         reward(backorders, rate = 5.0, sense = RewardSense.COST, alias = "Shortage")
-        every(5.0)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, reviewPeriod)
 }
 
 /** The (s, S) rule from §4.1 of the guide. */

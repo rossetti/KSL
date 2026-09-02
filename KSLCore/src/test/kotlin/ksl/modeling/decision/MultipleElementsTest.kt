@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
@@ -40,9 +41,8 @@ class MultipleElementsTest {
                     alias = "L") { v -> setting = v }
                 reward(level, rate = 1.0, sense = RewardSense.COST, alias = "R")
                 if (sink != null) captureTo { sink }
-                every(interval)
                 policy = PolicyIfc { _, _ -> doubleArrayOf(value) }
-            }
+            }.reviewEvery(this, interval)
         }
     }
 
@@ -122,8 +122,9 @@ class MultipleElementsTest {
         assertEquals("B:Review", db.name)
         assertEquals(listOf("A:Level"), da.observations.map { it.name })
         assertEquals(listOf("B:Level"), db.observations.map { it.name })
-        assertEquals(10.0, da.epochs.interval)
-        assertEquals(20.0, db.epochs.interval, "each carries its own epoch timing")
+        // Epoch timing left the descriptor with D5: the element no longer owns it, so there is
+        // nothing about it for a description to carry. What still distinguishes two elements is
+        // everything they actually declare, asserted above and below.
     }
 
     /**
@@ -141,10 +142,9 @@ class MultipleElementsTest {
             lever(s, 0..10, neutral = Neutral.Current { setting }, alias = "L", unit = "staff") { v -> setting = v }
             lever(s, 0.0..5.0, neutral = Neutral.Value(0.0), alias = "Q") { v -> setting += v }
             reward(s.level, rate = 1.5, sense = RewardSense.COST, alias = "R")
-            every(10.0)
             maxEpochs(7)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(s, 10.0)
 
         val d = e.descriptor()
         val json = Json { encodeDefaults = true }

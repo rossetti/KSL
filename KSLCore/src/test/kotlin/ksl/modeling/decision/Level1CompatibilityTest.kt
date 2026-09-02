@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.SResource
 import ksl.modeling.station.SingleQStation
@@ -66,9 +67,8 @@ class Level1CompatibilityTest {
                 val e = lever(examStaff, limits = 0..10,
                     neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                 budget(t, e, total = 8.0)
-                every(480.0)
                 policy = NeutralPolicy
-            }
+            }.reviewEvery(this, 480.0)
             // A capacity declared as a TRANSACTION. It is a mis-declaration — a capacity is
             // held, not done — and the design cannot know that; what it can do is make the
             // claim explicit and its consequence stated. Nothing is elided, so every epoch
@@ -81,9 +81,8 @@ class Level1CompatibilityTest {
                 val e = lever(examStaff, limits = 0..10,
                     neutral = Neutral.Value(4.0)) { v -> changeCapacity(v.toInt()) }
                 budget(t, e, total = 8.0)
-                every(480.0)
                 policy = NeutralPolicy
-            }
+            }.reviewEvery(this, 480.0)
             Arm.FIXED_TRANSACTION -> decisionElement("ShiftReview") {
                 observe(triage.waitingQ.numInQ)
                 observe(exam.waitingQ.numInQ)
@@ -92,9 +91,8 @@ class Level1CompatibilityTest {
                 val e = lever(examStaff, limits = 0..10,
                     neutral = Neutral.Value(4.0)) { v -> changeCapacity(v.toInt()) }
                 budget(t, e, total = 8.0)
-                every(480.0)
                 policy = FixedPolicy(doubleArrayOf(4.0, 4.0))
-            }
+            }.reviewEvery(this, 480.0)
         }
 
         val entry: QObjectReceiverIfc get() = triage
@@ -289,9 +287,8 @@ class Level1CompatibilityTest {
                     val e = lever(examStaff, limits = 0..10,
                         neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                     budget(t, e, total = 8.0)
-                    every(480.0)
                     policy = NeutralPolicy
-                }
+                }.reviewEvery(this, 480.0)
             }
         }
 

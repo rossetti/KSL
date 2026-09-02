@@ -204,9 +204,8 @@ class SsInventory(
                       else Neutral.Value(0.0)
         ) { q -> placeOrder(q.toInt()) }
         decisionSink?.let { factory -> captureTo(factory) }
-        every(reviewPeriod)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, reviewPeriod)
 
     override fun initialize() {
         lastOrderQuantity = 0.0

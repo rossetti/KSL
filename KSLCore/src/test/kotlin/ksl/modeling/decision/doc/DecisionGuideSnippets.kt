@@ -1,5 +1,6 @@
 package ksl.modeling.decision.doc
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.ActionSearch
 import ksl.modeling.decision.DecisionContext
 import ksl.modeling.decision.DecisionElement
@@ -66,9 +67,8 @@ private object DecisionGuideSnippets {
                 alias = "OrderQty", unit = "units"
             ) { q -> placeOrder(q) }
             reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
-            every(5.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, 5.0)
     }
 
     fun quickStartRun() {
@@ -149,9 +149,8 @@ private object DecisionGuideSnippets {
             observe("Level") { 1.0 }
             lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
             captureTo { provenance -> sink }        // called once per experiment
-            every(5.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(parent, 5.0)
         // after model.simulate()
         for (row: TransitionRecord in sink.records) {
             println("${row.epochIndex}: ${row.state.toList()} -> ${row.action.toList()} " +
@@ -176,9 +175,8 @@ private object DecisionGuideSnippets {
             observe("Level") { 1.0 }
             lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
             captureTo { provenance -> CountingSink() }
-            every(5.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(parent, 5.0)
     }
 
 
@@ -226,9 +224,8 @@ private object DecisionGuideSnippets {
             // One file per experiment, named from the provenance, so a k-rule study does not
             // write over itself. The sink is opened and closed for you, per experiment.
             captureTo { provenance -> TabularSink(provenance, outputDir.resolve(provenance.experimentName)) }
-            every(5.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(parent, 5.0)
     }
 
     fun readATrajectoryBack(rowsPath: Path) {
@@ -287,9 +284,8 @@ private object DecisionGuideSnippets {
                 neutral = Neutral.Current { nightStaff.toDouble() }) { v -> setNight(v.toInt()) }
             budget(day, night, total = 8.0)          // the pair must sum to exactly 8
             batchLever(day, night) { values -> setBoth(values) }   // move both in one act
-            every(480.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, 480.0)
     }
 
 
@@ -307,9 +303,8 @@ private object DecisionGuideSnippets {
         // Every rate is a positive number in the units you think in. `sense` carries the direction.
         reward(treated, rate = 25.0, sense = RewardSense.REWARD, alias = "Revenue")
         reward(queue, rate = 10.0, sense = RewardSense.COST, alias = "Waiting")
-        every(480.0)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, 480.0)
     }
 
     // -- §4.7 A rule that scores candidates ----------------------------

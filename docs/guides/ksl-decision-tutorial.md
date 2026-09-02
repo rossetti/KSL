@@ -201,9 +201,8 @@ Four declarations, in one block, inside the class:
             alias = "OrderQty", unit = "units"
         ) { q -> placeOrder(q) }
         reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
-        every(5.0)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, 5.0)
 }
 ```
 

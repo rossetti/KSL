@@ -100,9 +100,8 @@ class StaffingPolicyBenchmarkTest {
             val e = lever(examStaff, limits = 0..10, unit = "staff",
                 neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
             budget(t, e, total = 8.0)
-            every(480.0)
             policy = rule
-        }
+        }.reviewEvery(this, 480.0)
 
         val entry: QObjectReceiverIfc get() = triage
     }

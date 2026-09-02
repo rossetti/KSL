@@ -114,9 +114,8 @@ class SearchStrategyCoverageTest {
                 val ra = lever(a, limits = 0..10, neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                 val rb = lever(b, limits = 0..10, neutral = Neutral.Current { capacity.toDouble() }) { v -> changeCapacity(v.toInt()) }
                 budget(ra, rb, total = 8.0)          // SumEquals: a measure-zero slice
-                every(480.0)
                 policy = NeutralPolicy
-            }
+            }.reviewEvery(this, 480.0)
         }
         flow.source("In", ksl.utilities.random.rvariable.ExponentialRV(5.0, streamNum = 3),
             firstReceiver = clinic.entry)

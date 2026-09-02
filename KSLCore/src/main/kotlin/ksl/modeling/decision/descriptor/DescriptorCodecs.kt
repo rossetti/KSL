@@ -44,7 +44,7 @@ import net.peanuuutz.tomlkt.Toml
  *  It is the *schema's* version, not the library's and not the model's, so it moves only when the
  *  descriptor's shape moves.
  */
-val DESCRIPTOR_SCHEMA_VERSION: SchemaVersion = SchemaVersion(major = 1, minor = 0)
+val DESCRIPTOR_SCHEMA_VERSION: SchemaVersion = SchemaVersion(major = 2, minor = 0)
 
 /** Pretty output so a written file is readable; tolerant of unknown keys so a later minor loads. */
 private val descriptorJson = Json {
@@ -254,39 +254,6 @@ fun DecisionSurfaceDescriptor.validationProblems(): List<String> {
         if (r.source.name.isBlank()) p += "reward term '${r.name}' names a blank source"
     }
 
-    when (epochs.kind) {
-        EpochKind.PERIODIC -> {
-            val i = epochs.interval
-            when {
-                i == null -> p += "the epochs are PERIODIC and declare no interval"
-                !i.isFinite() || i <= 0.0 ->
-                    p += "a periodic epoch interval must be finite and positive; it is $i"
-            }
-            if (epochs.calendar != null) {
-                p += "the epochs are PERIODIC and also carry a calendar; exactly one is meaningful"
-            }
-        }
-        EpochKind.CALENDAR -> {
-            val c = epochs.calendar
-            when {
-                c == null || c.isEmpty() ->
-                    p += "the epochs are CALENDAR and the calendar is empty, so the element never decides"
-                else -> {
-                    val bad = c.filter { !it.isFinite() || it < 0.0 }
-                    if (bad.isNotEmpty()) p += "calendar times must be finite and non-negative; found $bad"
-                    val dupes = c.groupBy { it }.filterValues { it.size > 1 }.keys
-                    if (dupes.isNotEmpty()) {
-                        p += "calendar times must be distinct; these repeat: $dupes. Two epochs at " +
-                            "one instant bound a zero-length interval, which is discarded, so the " +
-                            "second decision would be taken and never recorded"
-                    }
-                }
-            }
-            if (epochs.interval != null) {
-                p += "the epochs are CALENDAR and also carry an interval; exactly one is meaningful"
-            }
-        }
-    }
 
     if (episode.maxEpochs <= 0) {
         p += "maxEpochs must be positive; it is ${episode.maxEpochs}. A cap of zero ends the " +

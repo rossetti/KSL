@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
 import ksl.sdm.capture.MemorySink
@@ -79,11 +80,10 @@ class EmissionTruthTableTest {
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { sink }
-            every(interval)
             if (maxEpochs != Int.MAX_VALUE) maxEpochs(maxEpochs)
             if (terminalAt != null) terminalWhen { tank.time >= terminalAt }
             this.policy = counter
-        }
+        }.reviewEvery(tank, interval)
         model.numberOfReplications = reps
         model.lengthOfReplication = horizon
         model.lengthOfReplicationWarmUp = warmUp

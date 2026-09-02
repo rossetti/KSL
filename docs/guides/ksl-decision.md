@@ -128,9 +128,8 @@ class StockRoom(parent: ModelElement, name: String? = null) : ModelElement(paren
             alias = "OrderQty", unit = "units"
         ) { q -> placeOrder(q) }
         reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
-        every(5.0)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, 5.0)
 }
 ```
 
@@ -281,9 +280,8 @@ val element = parent.decisionElement("Captured") {
     observe("Level") { 1.0 }
     lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
     captureTo { provenance -> sink }        // called once per experiment
-    every(5.0)
     policy = NeutralPolicy
-}
+}.reviewEvery(parent, 5.0)
 // after model.simulate()
 for (row: TransitionRecord in sink.records) {
     println("${row.epochIndex}: ${row.state.toList()} -> ${row.action.toList()} " +
@@ -323,9 +321,8 @@ parent.decisionElement("Counted") {
     observe("Level") { 1.0 }
     lever(parent, limits = 0..10, neutral = Neutral.Value(0.0)) { v -> }
     captureTo { provenance -> CountingSink() }
-    every(5.0)
     policy = NeutralPolicy
-}
+}.reviewEvery(parent, 5.0)
 ```
 
 Provenance arrives once per **experiment** rather than once per sink,
@@ -410,9 +407,8 @@ parent.decisionElement("Recorded") {
     // One file per experiment, named from the provenance, so a k-rule study does not
     // write over itself. The sink is opened and closed for you, per experiment.
     captureTo { provenance -> TabularSink(provenance, outputDir.resolve(provenance.experimentName)) }
-    every(5.0)
     policy = NeutralPolicy
-}
+}.reviewEvery(parent, 5.0)
 ```
 
 It leaves **two** files, and the second is not optional:
@@ -471,9 +467,8 @@ val review = decisionElement("${this.name}:Shift") {
         neutral = Neutral.Current { nightStaff.toDouble() }) { v -> setNight(v.toInt()) }
     budget(day, night, total = 8.0)          // the pair must sum to exactly 8
     batchLever(day, night) { values -> setBoth(values) }   // move both in one act
-    every(480.0)
     policy = NeutralPolicy
-}
+}.reviewEvery(this, 480.0)
 ```
 
 `lever(…)` returns a `LeverRef` — the lever's identity — and constraints
@@ -591,9 +586,8 @@ captured trajectory, not a comparison — has to track signs.
         // Every rate is a positive number in the units you think in. `sense` carries the direction.
         reward(treated, rate = 25.0, sense = RewardSense.REWARD, alias = "Revenue")
         reward(queue, rate = 10.0, sense = RewardSense.COST, alias = "Waiting")
-        every(480.0)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, 480.0)
 ```
 
 The published estimand is a profit, so **larger is better**. That convention holds for every

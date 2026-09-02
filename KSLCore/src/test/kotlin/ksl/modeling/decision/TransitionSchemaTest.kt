@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.decision.descriptor.TerminationSource
@@ -54,10 +55,9 @@ class TransitionSchemaTest {
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { sink }
-            every(10.0)
             feasibility = FeasibilityPolicy.CLAMP_THEN_REJECT
             policy = Fixed(99.0)
-        }
+        }.reviewEvery(tank, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 55.0
         model.simulate()
@@ -90,9 +90,8 @@ class TransitionSchemaTest {
             lever(tank, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { sink }
-            every(10.0)
             policy = Fixed(4.0)
-        }
+        }.reviewEvery(tank, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 55.0
         model.simulate()
@@ -129,7 +128,6 @@ class TransitionSchemaTest {
                 bounds = { if (time >= 25.0) 5.0..4.0 else 0.0..10.0 }) { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { sink }
-            every(10.0)
             // Asks 7.0 while there is a choice, then 3.0 once there is none. The neutral is the
             // held value, 7.0, so the request and the substitution DIFFER in the forced regime —
             // without that the two would coincide and the test would prove less than it appears to.
@@ -137,7 +135,7 @@ class TransitionSchemaTest {
                 override fun action(observation: DoubleArray, ctx: DecisionContext) =
                     doubleArrayOf(if (tank.time >= 25.0) 3.0 else 7.0)
             }
-        }
+        }.reviewEvery(tank, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 55.0
         model.simulate()   // must not throw
@@ -189,17 +187,15 @@ class TransitionSchemaTest {
             lever(a, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(a.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { shared }
-            every(10.0)
             policy = Fixed(1.0)
-        }
+        }.reviewEvery(a, 10.0)
         b.decisionElement("DB") {
             observe(b.level)
             lever(b, 0.0..10.0, neutral = Neutral.Current { setting }) { v -> setting = v }
             reward(b.level, rate = 1.0, sense = RewardSense.COST)
             captureTo { shared }
-            every(10.0)
             policy = Fixed(2.0)
-        }
+        }.reviewEvery(b, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 55.0
         model.simulate()

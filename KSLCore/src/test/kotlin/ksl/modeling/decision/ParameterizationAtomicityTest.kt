@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
 import ksl.modeling.decision.descriptor.RewardSense
@@ -51,9 +52,8 @@ class ParameterizationAtomicityTest {
             observe(tank.level)
             lever(tank, 0..10, neutral = Neutral.Current { setting }, alias = "L") { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
-            every(10.0)
             policy = p
-        }
+        }.reviewEvery(tank, 10.0)
     }
 
     // ---------------------------------------------------------------- the policy setter
@@ -179,9 +179,8 @@ class ParameterizationAtomicityTest {
             observe(tank2.level)
             lever(tank2, 0..10, neutral = Neutral.Current { setting }, alias = "L") { v -> setting = v }
             reward(tank2.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
-            every(10.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(tank2, 10.0)
 
         val mine = a.rewardRef("R")
         val foreign = b.rewardRef("R")
@@ -218,7 +217,6 @@ class ParameterizationAtomicityTest {
             observe(tank.level)
             lever(tank, 0..10, neutral = Neutral.Current { setting }, alias = "L") { v -> setting = v }
             reward(tank.level, rate = 1.0, sense = RewardSense.COST, alias = "R")
-            every(10.0)
             policy = object : PolicyIfc {
                 override fun action(observation: DoubleArray, ctx: DecisionContext): DoubleArray {
                     // Each of these must throw, from inside a running replication.
@@ -236,11 +234,12 @@ class ParameterizationAtomicityTest {
                     return doubleArrayOf(1.0)
                 }
             }
-        }
+        }.reviewEvery(tank, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 25.0
         model.simulate()
 
+        val intervalBefore = e.epochInterval
         println()
         println("setters that refused from inside a replication: $attempts")
         assertEquals(
@@ -249,6 +248,6 @@ class ParameterizationAtomicityTest {
             attempts.distinct(),
             "every parameterization entry point must refuse while running (§4.1.3)"
         )
-        assertTrue(e.epochInterval == 10.0, "and none of them took effect")
+        assertEquals(intervalBefore, e.epochInterval, "and none of them took effect")
     }
 }

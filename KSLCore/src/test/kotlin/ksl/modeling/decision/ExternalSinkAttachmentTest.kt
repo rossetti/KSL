@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
 import ksl.sdm.capture.DecisionCapture
@@ -75,9 +76,8 @@ class ExternalSinkAttachmentTest {
                 overtime = v
             }
             reward(queue, rate = 2.0, sense = RewardSense.COST, alias = "Waiting")
-            every(10.0)
             policy = PolicyIfc { _, _ -> doubleArrayOf(3.0) }
-        }
+        }.reviewEvery(this, 10.0)
     }
 
     private fun model(reps: Int = 2, horizon: Double = 45.0): Pair<Model, Shop> {
@@ -560,9 +560,8 @@ class ExternalSinkAttachmentTest {
                 reward(queue, rate = 2.0, sense = RewardSense.COST, alias = "Waiting")
                 captureTo { p -> TabularSink(p, dir.resolve(p.experimentName)) }
                 captureTo { counted }          // a second declaration, which used to be discarded
-                every(10.0)
                 policy = PolicyIfc { _, _ -> doubleArrayOf(3.0) }
-            }
+            }.reviewEvery(this, 10.0)
         }
 
         val m = Model("Declared")

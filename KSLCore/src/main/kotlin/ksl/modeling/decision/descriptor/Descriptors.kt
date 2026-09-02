@@ -17,7 +17,7 @@ import kotlinx.serialization.Serializable
  *  written by. It is the *schema's* version, not the model's and not the library's.
  */
 @Serializable
-data class SchemaVersion(val major: Int = 1, val minor: Int = 0)
+data class SchemaVersion(val major: Int = 2, val minor: Int = 0)
 
 /**
  *  What values a lever can take, which decides how an out-of-range request may be repaired.
@@ -250,23 +250,6 @@ data class RewardDescriptor(
 )
 
 /**
- *  When decisions happen. Exactly one of [interval] and [calendar] is meaningful, according to
- *  [kind].
- *
- *  [priority] is included because it is not decoration: it decides which of two elements deciding
- *  at one instant goes first, and it decides whether an epoch coinciding with the warm-up runs
- *  before or after it (§4.6.4).
- */
-@Serializable
-data class EpochDescriptor(
-    val kind: EpochKind,
-    val interval: Double? = null,
-    val calendar: List<Double>? = null,
-    val firstAtTimeZero: Boolean = false,
-    val priority: Int = 100_000
-)
-
-/**
  *  How a decision episode can end, besides the replication ending underneath it.
  *
  *  [hasTerminalCondition] is a boolean rather than the condition itself, deliberately: the
@@ -300,7 +283,6 @@ data class DecisionSurfaceDescriptor(
     val levers: List<LeverDescriptor>,
     val constraints: List<JointConstraint> = emptyList(),
     val rewards: List<RewardDescriptor> = emptyList(),
-    val epochs: EpochDescriptor,
     val episode: EpisodeDescriptor = EpisodeDescriptor(),
     val feasibility: FeasibilityPolicy = FeasibilityPolicy.REJECT
 ) {

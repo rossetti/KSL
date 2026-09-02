@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardKind
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.Counter
@@ -66,9 +67,8 @@ class MixedSenseCompositionTest {
             reward(served, rate = revenue, sense = sense, kind = RewardKind.COUNTER_TOTAL,
                 alias = "Revenue")
             captureTo { sink }
-            every(EPOCH)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, EPOCH)
     }
 
     private fun run(sense: RewardSense = RewardSense.REWARD, revenue: Double = REVENUE): Shop {

@@ -121,7 +121,6 @@ class ImplementationInventoryTest {
             "SumAtMost" m 1,
             "EpochKind" m 1,
             "EpochProvenance" m 1,
-            "EpochDescriptor" m 1,
             "EpisodeDescriptor" m 1,
             "FeasibilityPolicy" m 1,
             "WarmUpOrdering" m 1,

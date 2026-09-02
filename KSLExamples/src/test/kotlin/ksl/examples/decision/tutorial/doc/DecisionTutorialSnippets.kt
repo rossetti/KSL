@@ -1,5 +1,6 @@
 package ksl.examples.decision.tutorial.doc
 
+import ksl.examples.decision.reviewEvery
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.decision.DecisionContext
@@ -66,9 +67,8 @@ private object DecisionTutorialSnippets {
                 alias = "OrderQty", unit = "units"
             ) { q -> placeOrder(q) }
             reward(onHand, rate = 0.5, sense = RewardSense.COST, alias = "Holding")
-            every(5.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, 5.0)
     }
 
     fun quickStartRun() {
@@ -120,9 +120,8 @@ private object DecisionTutorialSnippets {
             reward(triage.waitingQ.numInQ, rate = 10.0, sense = RewardSense.COST, alias = "TriageWait")
             reward(exam.waitingQ.numInQ, rate = 10.0, sense = RewardSense.COST, alias = "ExamWait")
 
-            every(480.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, 480.0)
     }
 
     /** Stands in for `SingleQStation`, whose constructor needs a downstream receiver. */
@@ -176,9 +175,8 @@ private object DecisionTutorialSnippets {
                 ) { q -> ship(i, q.toInt()) }
             }
             atMost(*refs.toTypedArray(), envelope = truckCapacity.toDouble()) { shippableNow }
-            every(10.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(this, 10.0)
     }
 
     class GreedySnippet(private val order: List<Int>) : PolicyIfc {

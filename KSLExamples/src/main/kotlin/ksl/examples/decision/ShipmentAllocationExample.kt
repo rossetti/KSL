@@ -41,7 +41,7 @@ import kotlin.math.min
 class ShipmentDepot(
     parent: ModelElement,
     initialStock: Int = 20,
-    private val reviewPeriod: Double = 10.0,
+    val reviewPeriod: Double = 10.0,
     // The truck is the ENVELOPE and is deliberately slack: the binding constraint is meant
     // to be stock, which is the state-dependent one. Resupply arrives in lumps at 1.833
     // per unit time against demand of 1.8, so the system is barely stable and stock is
@@ -151,9 +151,8 @@ class ShipmentDepot(
             atMost(*refs.toTypedArray(), total = truckCapacity.toDouble())
         }
 
-        every(reviewPeriod)
         policy = NeutralPolicy
-    }
+    }.reviewEvery(this, reviewPeriod)
 
     override fun initialize() {
         overShipmentsAbsorbed = 0

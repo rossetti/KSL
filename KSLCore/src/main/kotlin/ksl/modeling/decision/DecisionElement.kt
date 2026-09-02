@@ -260,13 +260,6 @@ class DecisionElement internal constructor(
         rewards = rewardDecls.map {
             RewardDescriptor(it.name, it.sourceRef, it.kind, it.declaredRate, it.sense)
         },
-        epochs = EpochDescriptor(
-            kind = epochKind,
-            interval = if (epochKind == EpochKind.PERIODIC) myEpochInterval else null,
-            calendar = if (epochKind == EpochKind.CALENDAR) calendar.toList() else null,
-            firstAtTimeZero = firstAtTimeZero,
-            priority = epochPriority
-        ),
         episode = EpisodeDescriptor(maxEpochs = myMaxEpochs, hasTerminalCondition = terminalCondition != null),
         feasibility = myFeasibilityPolicy
     )

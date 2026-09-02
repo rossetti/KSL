@@ -71,13 +71,13 @@ class SystemDescriptionTest {
         val surface = room.review.descriptor()
 
         println()
-        println("review interval : table ${number("2.1 The system", "Review period")}  model ${surface.epochs.interval!!}")
+        println("review interval : table ${number("2.1 The system", "Review period")}  model ${room.reviewPeriod}")
         println("order range     : table ${numbers("2.1 The system", "Order quantity range")}  " +
             "model ${surface.levers[0].lowerBound}..${surface.levers[0].upperBound}")
         println("holding rate    : table ${number("2.1 The system", "Holding cost")}  model ${rate(room.review, "Holding")}")
         println("shortage rate   : table ${number("2.1 The system", "Shortage cost")}  model ${rate(room.review, "Shortage")}")
 
-        assertEquals(surface.epochs.interval!!, number("2.1 The system", "Review period"),
+        assertEquals(room.reviewPeriod, number("2.1 The system", "Review period"),
             "the tutorial states a review period the model does not use")
         val range = numbers("2.1 The system", "Order quantity range")
         assertEquals(listOf(surface.levers[0].lowerBound, surface.levers[0].upperBound), range,
@@ -113,13 +113,13 @@ class SystemDescriptionTest {
 
         val budget = surface.constraints.filterIsInstance<SumEquals>().single().total
         println()
-        println("shift review : table ${number("3.1 The system", "Shift review")}  model ${surface.epochs.interval!!}")
+        println("shift review : table ${number("3.1 The system", "Shift review")}  model ${clinic.reviewPeriod}")
         println("staff pool   : table ${number("3.1 The system", "Staff pool")}  model $budget")
         println("revenue      : table ${number("3.1 The system", "Revenue")}  model ${rate(clinic.shiftReview, "Revenue")}")
         println("waiting      : table ${number("3.1 The system", "Waiting charge")}  " +
             "model ${rate(clinic.shiftReview, "TriageWait")}/${rate(clinic.shiftReview, "ExamWait")}")
 
-        assertEquals(surface.epochs.interval!!, number("3.1 The system", "Shift review"),
+        assertEquals(clinic.reviewPeriod, number("3.1 The system", "Shift review"),
             "the tutorial states a shift length the model does not review on")
         assertEquals(budget, number("3.1 The system", "Staff pool"),
             "the tutorial states a staff pool the budget constraint does not declare")
@@ -171,13 +171,13 @@ class SystemDescriptionTest {
         val surface = depot.allocation.descriptor()
 
         println()
-        println("review    : table ${number("4.1 The system", "Review period")}  model ${surface.epochs.interval!!}")
+        println("review    : table ${number("4.1 The system", "Review period")}  model ${depot.reviewPeriod}")
         println("truck     : table ${number("4.1 The system", "Truck capacity")}  " +
             "model ${surface.levers[0].upperBound}")
         println("shortage  : table ${numbers("4.1 The system", "Shortage cost")}  " +
             "model ${depot.shortageRates.toList()}")
 
-        assertEquals(surface.epochs.interval!!, number("4.1 The system", "Review period"),
+        assertEquals(depot.reviewPeriod, number("4.1 The system", "Review period"),
             "the tutorial states a review period the depot does not use")
         assertEquals(surface.levers[0].upperBound, number("4.1 The system", "Truck capacity"),
             "the truck capacity is the lever ENVELOPE, so the table and the declaration must agree")

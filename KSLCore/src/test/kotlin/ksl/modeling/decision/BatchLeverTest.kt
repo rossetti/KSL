@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.RewardSense
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
@@ -60,9 +61,8 @@ class BatchLeverTest {
             val rb = lever(p, 0..6, neutral = Neutral.Current { this.b.toDouble() }, alias = "B") { v -> setB(v.toInt()) }
             budget(ra, rb, total = 6.0)
             if (batched) batchLever(ra, rb) { values -> p.setBoth(values) }
-            every(10.0)
             policy = PolicyIfc { _, _ -> target.copyOf() }
-        }
+        }.reviewEvery(p, 10.0)
         return p
     }
 
@@ -112,10 +112,9 @@ class BatchLeverTest {
             val ra = lever(p, 0..6, neutral = Neutral.Current { a.toDouble() }, alias = "A") { v -> setA(v.toInt()) }
             val rb = lever(p, 0..6, neutral = Neutral.Current { this.b.toDouble() }, alias = "B") { v -> setB(v.toInt()) }
             batchLever(ra, rb) { values -> seen += values.toList(); p.setBoth(values) }
-            every(10.0)
             // A stays at 4 — it does not move — while B goes 2 → 2 as well. Neither moves.
             policy = PolicyIfc { _, _ -> doubleArrayOf(4.0, 2.0) }
-        }
+        }.reviewEvery(p, 10.0)
         model.numberOfReplications = 1
         model.lengthOfReplication = 25.0
         model.simulate()
@@ -186,19 +185,17 @@ class BatchLeverTest {
         val other = q.decisionElement("Q:Review") {
             observe(q.load)
             lever(q, 0..6, neutral = Neutral.Current { a.toDouble() }, alias = "A") { v -> setA(v.toInt()) }
-            every(10.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(q, 10.0)
         val foreign = other.leverRef("A")
 
         val t = runCatching {
             p.decisionElement("P:Review") {
                 observe(p.load)
                 val ra = lever(p, 0..6, neutral = Neutral.Current { a.toDouble() }, alias = "A") { v -> setA(v.toInt()) }
-                every(10.0)
                 policy = NeutralPolicy
                 batchLever(ra, foreign) { }
-            }
+            }.reviewEvery(p, 10.0)
         }.exceptionOrNull()
 
         assertTrue(t is IllegalArgumentException, "a foreign ref must be refused")

@@ -1,5 +1,6 @@
 package ksl.modeling.decision
 
+import ksl.examples.general.decision.reviewEvery
 import ksl.modeling.decision.descriptor.EpochProvenance
 import ksl.modeling.decision.descriptor.LeverDomain
 import ksl.modeling.decision.descriptor.LeverKind
@@ -62,9 +63,8 @@ class TabularSinkTest {
                 TabularSink(provenance, dir.resolve("${provenance.experimentName}-trajectory"))
                     .also { sink = it }
             }
-            every(10.0)
             policy = PolicyIfc { _, _ -> doubleArrayOf(2.0, 3.0) }
-        }
+        }.reviewEvery(this, 10.0)
     }
 
     private fun tempDir(label: String): Path =
@@ -125,9 +125,9 @@ class TabularSinkTest {
             assertTrue(rows.all { it.reason.isNotBlank() },
                 "every row must carry the reason of the epoch that opened its interval; a blank " +
                     "one means the column was written but not read, or not written at all")
-            assertEquals(setOf(EpochProvenance.DEFERRED), rows.map { it.provenance }.toSet(),
-                "this element is driven by its own scheduled epochs, so every row's state was read " +
-                    "in an event of the element's own")
+            assertEquals(setOf(EpochProvenance.IMMEDIATE), rows.map { it.provenance }.toSet(),
+                "this element is driven by a caller through decide(), so every row's state was read " +
+                    "at that caller's call site")
 
             // state and successor must actually differ somewhere, or the round trip would pass
             // with the two column families swapped and nobody would know.
@@ -227,9 +227,8 @@ class TabularSinkTest {
             observe(e.a)                                   // C:X:Y  -> s_C_X_Y
             observe(e.b)                                   // C:X_Y  -> s_C_X_Y
             lever(e, 0.0..1.0, neutral = Neutral.Value(0.0), alias = "L") { }
-            every(10.0)
             policy = NeutralPolicy
-        }
+        }.reviewEvery(e, 10.0)
         val dir = tempDir("collide")
         val provenance = RunProvenance("Collide", "e", "C:Review", "p", element.descriptor())
 

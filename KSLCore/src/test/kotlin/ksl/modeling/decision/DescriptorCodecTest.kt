@@ -4,7 +4,6 @@ import ksl.modeling.decision.descriptor.CounterRef
 import ksl.modeling.decision.descriptor.DESCRIPTOR_SCHEMA_VERSION
 import ksl.modeling.decision.descriptor.DecisionSurfaceDescriptor
 import ksl.modeling.decision.descriptor.EpisodeDescriptor
-import ksl.modeling.decision.descriptor.EpochDescriptor
 import ksl.modeling.decision.descriptor.EpochKind
 import ksl.modeling.decision.descriptor.FeasibilityPolicy
 import ksl.modeling.decision.descriptor.LeverDescriptor
@@ -60,9 +59,7 @@ class DescriptorCodecTest {
      *  kinds, both constraint kinds, both source kinds, units, a narrowing, a state-dependent
      *  envelope, and an unbounded limit.
      */
-    private fun rich(
-        epochs: EpochDescriptor = EpochDescriptor(EpochKind.PERIODIC, interval = 5.0, priority = 90_000)
-    ) = DecisionSurfaceDescriptor(
+    private fun rich() = DecisionSurfaceDescriptor(
         name = "Clinic:Review",
         observations = listOf(
             ObservationDescriptor("Clinic:NInQ", LeverDomain.CONTINUOUS, unit = "patients"),
@@ -100,7 +97,6 @@ class DescriptorCodecTest {
             RewardDescriptor("Wait", ResponseRef("Clinic:NInQ"), RewardKind.TIME_INTEGRAL, 2.5, RewardSense.COST),
             RewardDescriptor("Served", CounterRef("Clinic:NServed"), RewardKind.COUNTER_TOTAL, 1.0, RewardSense.REWARD)
         ),
-        epochs = epochs,
         episode = EpisodeDescriptor(maxEpochs = 12, hasTerminalCondition = true),
         feasibility = FeasibilityPolicy.CLAMP_THEN_REJECT
     )
@@ -126,25 +122,6 @@ class DescriptorCodecTest {
             DecisionSurfaceDescriptor.fromJson(json), DecisionSurfaceDescriptor.fromToml(toml),
             "JSON and TOML must decode to the same descriptor"
         )
-    }
-
-    /** A calendar surface takes different branches on both sides; both are round-tripped. */
-    @Test
-    fun aCalendarSurfaceRoundTripsTooAndTheOptionalFieldsSurvive() {
-        val d = rich(EpochDescriptor(EpochKind.CALENDAR, calendar = listOf(0.0, 3.5, 10.0), firstAtTimeZero = true))
-        val backJson = DecisionSurfaceDescriptor.fromJson(d.toJson())
-        val backToml = DecisionSurfaceDescriptor.fromToml(d.toToml())
-        println()
-        println("calendar round trip: json=${backJson.epochs.calendar} toml=${backToml.epochs.calendar}")
-
-        assertEquals(d, backJson)
-        assertEquals(d, backToml)
-        // The nulls TOML cannot represent must come back as nulls, not as anything else.
-        assertEquals(null, backToml.epochs.interval,
-            "TOML has no null literal, so an absent interval must decode to null rather than 0.0 — " +
-                "a periodic interval of zero and no interval at all are different statements")
-        assertEquals(null, backToml.levers[0].levels, "a non-categorical lever has no levels")
-        assertEquals("staff", backToml.levers[0].unit, "and a declared unit is not lost with them")
     }
 
     /**
@@ -199,7 +176,7 @@ class DescriptorCodecTest {
         assertTrue(json.contains("\"schemaVersion\""),
             "JSON must carry the schema version even though it is the default value — a file with " +
                 "no version is the one that cannot be rejected when the format changes")
-        assertEquals(SchemaVersion(1, 0), DESCRIPTOR_SCHEMA_VERSION,
+        assertEquals(SchemaVersion(2, 0), DESCRIPTOR_SCHEMA_VERSION,
             "the version this test was written against; changing it is a deliberate act")
     }
 
@@ -211,16 +188,16 @@ class DescriptorCodecTest {
     @Test
     fun aLaterMajorIsRefusedAndALaterMinorIsRead() {
         val d = rich()
-        val laterMajor = d.copy(schemaVersion = SchemaVersion(major = 2, minor = 0)).toJson()
-        val laterMinor = d.copy(schemaVersion = SchemaVersion(major = 1, minor = 7)).toJson()
+        val laterMajor = d.copy(schemaVersion = SchemaVersion(major = 3, minor = 0)).toJson()
+        val laterMinor = d.copy(schemaVersion = SchemaVersion(major = 2, minor = 7)).toJson()
 
         val t = assertFailsWith<SchemaVersionException> { DecisionSurfaceDescriptor.fromJson(laterMajor) }
         println()
         println("later major: ${t.message}")
-        assertTrue(t.message!!.contains("2.0"), "the message must name the version it found")
+        assertTrue(t.message!!.contains("3.0"), "the message must name the version it found")
 
         val read = DecisionSurfaceDescriptor.fromJson(laterMinor)
-        assertEquals(SchemaVersion(1, 7), read.schemaVersion,
+        assertEquals(SchemaVersion(2, 7), read.schemaVersion,
             "a later minor of the same major is additive and must be readable, keeping the version " +
                 "it was written with rather than being silently restamped")
 
@@ -266,14 +243,6 @@ class DescriptorCodecTest {
                 base.copy(levers = base.levers.map {
                     if (it.name == "Nurses") it.copy(upperBound = 99.0) else it
                 }),
-            "a periodic interval of zero" to
-                base.copy(epochs = EpochDescriptor(EpochKind.PERIODIC, interval = 0.0)),
-            "periodic with no interval" to
-                base.copy(epochs = EpochDescriptor(EpochKind.PERIODIC)),
-            "an empty calendar" to
-                base.copy(epochs = EpochDescriptor(EpochKind.CALENDAR, calendar = emptyList())),
-            "a repeated calendar time" to
-                base.copy(epochs = EpochDescriptor(EpochKind.CALENDAR, calendar = listOf(5.0, 5.0))),
             "maxEpochs of zero" to
                 base.copy(episode = EpisodeDescriptor(maxEpochs = 0)),
             "a categorical lever with no levels" to
@@ -308,8 +277,11 @@ class DescriptorCodecTest {
     fun everyProblemIsReportedRatherThanTheFirst() {
         val bad = rich().copy(
             name = "  ",
-            epochs = EpochDescriptor(EpochKind.PERIODIC, interval = -1.0),
-            episode = EpisodeDescriptor(maxEpochs = -3)
+            episode = EpisodeDescriptor(maxEpochs = -3),
+            // A third mistake, of a different shape. It used to be a malformed epoch section; with
+            // epochs gone from the descriptor (D5) the test needs another independent fault, or it
+            // would only be checking that two problems are reported together.
+            rewards = rich().rewards.map { it.copy(rate = Double.NaN) }
         )
         val problems = bad.validationProblems()
         println()
