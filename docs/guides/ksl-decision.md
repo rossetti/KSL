@@ -821,14 +821,15 @@ obligation applies with full force: finish the update, then decide.
 | `ActionSearch` | `ExhaustiveSearch`, `GridSearch`, `SampledSearch` |
 | `Neutral.Current` / `Neutral.Value` | Doing nothing, for a setting and for a transaction |
 | `LeverRef` / `RewardRef` | Identities returned by declaration, consumed by constraints and parameterization |
-| `TransitionRecord` | One complete transition: state, action, reward, successor, termination |
+| `TransitionRecord` | One complete transition: state, action, reward, successor, termination — plus `reason` and `provenance`, which say *why* the decision was taken and whether it was immediate or deferred |
+| `EpochProvenance` | `IMMEDIATE` for a `decide` call, `DEFERRED` for one drained from `requestDecision`. Carried on every row |
 | `TransitionSink` | Write-only consumer with a per-run lifetime. `MemorySink`, `NullSink` in `ksl.modeling.decision.capture` |
 | `DecisionElement.attachTransitionSink` | Records an element from outside the model; `detachTransitionSink` stops it (§4.5) |
 | `DecisionCapture` | Attaches capture to a whole built model and reverses it on `close` (§4.5) |
 | `RollingSink` | Wraps a per-experiment factory, so an attached sink still leaves one artifact per run. In `ksl.modeling.decision`, with the contract — it decorates a sink rather than being a destination |
 | `TabularSink` | A durable sink: rows to a SQLite file, provenance beside it (§4.5) |
 | `TrajectoryFile` | Reads a trajectory back with no live `Model`; refuses one whose provenance is missing |
-| `StoredTransition` | One transition as read back — state, action, reward, successor, flags |
+| `StoredTransition` | One transition as read back — state, action, reward, successor, flags, `reason` and `provenance` |
 | `DecisionSurfaceDescriptor` | The serializable description; `toJson`/`fromJson`, `toToml`/`fromToml` |
 
 ## 6. Gotchas & best practices
@@ -882,10 +883,11 @@ rather than silent. `requestDecision` does not have this problem —
 several requests at one instant become one decision naming them all.
 
 **A decision as a consequence of a decision.** A lever's write function
-is your code, so it can reach back into `decide` — and that is refused,
-because the nested decision would be applied to the model and never
-recorded. Use `requestDecision` instead: it only schedules, so it
-cannot re-enter.
+is your code, so it can reach back into `decide` — and that is refused
+with a `ReentrantDecisionException`, because the nested decision would be
+applied to the model and never recorded, so the trajectory's epoch
+indices would quietly stop matching the decisions that happened. Use
+`requestDecision` instead: it only schedules, so it cannot re-enter.
 
 It is **re-entrancy-safe and not termination-safe**, and the difference
 matters. A write that *always* asks for another decision asks forever,
