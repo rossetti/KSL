@@ -44,12 +44,15 @@ class PackageLayeringTest {
     /**
      *  Every reference in a package's own source, not merely its imports.
      *
-     *  The import-only version of this check could not see the violation that actually happened. A
-     *  fully-qualified reference — `ksl.modeling.decision.capture.RollingSink(factory)` written inline — is a real
-     *  compile-time dependency and appears in no `import` line, so it passed a guard whose own KDoc
-     *  said it existed because "a cycle here builds cleanly and is invisible in review". It was
-     *  invisible to the guard too, for a year, which is the lesson: a rule about *dependencies* must
-     *  be checked against *references*.
+     *  The import-only version of this check could not see the violation that actually happened.
+     *  `DecisionElement.captureTo` constructed its sink by fully-qualified name, inline — back when the
+     *  sinks were `ksl.sdm.capture` and `RollingSink` was among them. That is a real compile-time
+     *  dependency in the forbidden direction and it appears in no `import` line, so it passed a guard
+     *  whose own KDoc said it existed because "a cycle here builds cleanly and is invisible in
+     *  review". It was invisible to the guard too, for a year, which is the lesson: a rule about
+     *  *dependencies* must be checked against *references*. (The class named there has since moved to
+     *  sit with the contract, so that exact line could not be written today — but any inline
+     *  `ksl.modeling.decision.capture.MemorySink()` would be the same fault.)
      */
     private fun referencesIn(packagePath: String, prefix: String): List<String> {
         val dir = File(sourceRoot(), packagePath)

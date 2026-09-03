@@ -44,11 +44,13 @@ deliberate boundary, not an omission.
   the parameters of a parameterized rule to minimize an expected cost
   estimated by simulation *is* simulation optimization. This package
   does not reimplement it; see §4.12 for how the two meet.
-- `ksl.modeling.decision.capture` holds the sink implementations (`MemorySink`,
-  `TabularSink`, `RollingSink`) and `DecisionCapture`, which attaches
-  capture to a model from outside. The sink *contract* lives with its
-  producer in `ksl.modeling.decision`; only implementations live in
-  `ksl.modeling.decision.capture`.
+- `ksl.modeling.decision.capture` holds the sink *destinations* —
+  `MemorySink`, `NullSink`, `TabularSink` — and `DecisionCapture`, which
+  attaches capture to a model from outside. The sink *contract* lives
+  with its producer in `ksl.modeling.decision`, and so does
+  `RollingSink`, which is a decorator over that contract rather than a
+  destination: it is about a sink's *lifetime*, one artifact per run.
+  Only destinations live in `ksl.modeling.decision.capture`.
 - `ksl.modeling.decision.descriptor` is plain serializable data — the
   machine-readable description of a decision surface, with no
   reference to a model at all, so it can travel without one.
@@ -823,7 +825,7 @@ obligation applies with full force: finish the update, then decide.
 | `TransitionSink` | Write-only consumer with a per-run lifetime. `MemorySink`, `NullSink` in `ksl.modeling.decision.capture` |
 | `DecisionElement.attachTransitionSink` | Records an element from outside the model; `detachTransitionSink` stops it (§4.5) |
 | `DecisionCapture` | Attaches capture to a whole built model and reverses it on `close` (§4.5) |
-| `RollingSink` | Wraps a per-experiment factory, so an attached sink still leaves one artifact per run |
+| `RollingSink` | Wraps a per-experiment factory, so an attached sink still leaves one artifact per run. In `ksl.modeling.decision`, with the contract — it decorates a sink rather than being a destination |
 | `TabularSink` | A durable sink: rows to a SQLite file, provenance beside it (§4.5) |
 | `TrajectoryFile` | Reads a trajectory back with no live `Model`; refuses one whose provenance is missing |
 | `StoredTransition` | One transition as read back — state, action, reward, successor, flags |
