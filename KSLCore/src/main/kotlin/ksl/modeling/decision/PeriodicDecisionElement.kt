@@ -119,16 +119,17 @@ class PeriodicDecisionElement @JvmOverloads constructor(
      */
     val element: DecisionElement = decisionElement(elementName ?: "${this.name}:Decision", declaration)
 
-    private inner class Review : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) {
-            element.decide(reason)
-            schedule(myInterval, priority = reviewPriority)
-        }
-    }
-
-    private val review = Review()
+    private val myReviewAction = ReviewAction()
 
     override fun initialize() {
-        review.schedule(if (firstAtTimeZero) 0.0 else myInterval, priority = reviewPriority)
+        super.initialize()
+        schedule(myReviewAction, if (firstAtTimeZero) 0.0 else myInterval, priority = reviewPriority)
+    }
+
+    private inner class ReviewAction : EventAction<Nothing>() {
+        override fun action(event: KSLEvent<Nothing>) {
+            element.decide(reason)
+            schedule(myReviewAction, myInterval, priority = reviewPriority)
+        }
     }
 }

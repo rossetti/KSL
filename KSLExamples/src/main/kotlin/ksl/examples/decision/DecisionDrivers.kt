@@ -87,17 +87,18 @@ class PeriodicReview @JvmOverloads constructor(
     /** Assigned after the element is built, because the element is declared on some other parent. */
     lateinit var element: DecisionElement
 
-    private inner class Review : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) {
-            element.decide(reason)
-            schedule(myInterval, priority = priority)
-        }
-    }
-
-    private val review = Review()
+    private val myReviewAction = ReviewAction()
 
     override fun initialize() {
-        review.schedule(if (firstAtTimeZero) 0.0 else myInterval, priority = priority)
+        super.initialize()
+        schedule(myReviewAction, if (firstAtTimeZero) 0.0 else myInterval, priority = priority)
+    }
+
+    private inner class ReviewAction : EventAction<Nothing>() {
+        override fun action(event: KSLEvent<Nothing>) {
+            element.decide(reason)
+            schedule(myReviewAction, myInterval, priority = priority)
+        }
     }
 }
 
@@ -134,14 +135,15 @@ class CalendarReview @JvmOverloads constructor(
 
     lateinit var element: DecisionElement
 
-    private inner class Review : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) = element.decide(reason)
-    }
-
-    private val review = Review()
+    private val myReviewAction = ReviewAction()
 
     override fun initialize() {
-        for (t in times) review.schedule(t, priority = priority)
+        super.initialize()
+        for (t in times) schedule(myReviewAction, t, priority = priority)
+    }
+
+    private inner class ReviewAction : EventAction<Nothing>() {
+        override fun action(event: KSLEvent<Nothing>) = element.decide(reason)
     }
 }
 

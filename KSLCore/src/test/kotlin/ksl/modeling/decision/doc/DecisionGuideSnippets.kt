@@ -94,15 +94,18 @@ private class StockRoom(parent: ModelElement) : ProcessModel(parent, null) {
         decisions.decide("demand")
     }
 
-    private inner class Review : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) {
-            decisions.decide("periodic")
-            schedule(reviewPeriod)
-        }
-    }
+    private val myReviewAction = ReviewAction()
 
     override fun initialize() {
-        Review().schedule(reviewPeriod)
+        super.initialize()
+        schedule(myReviewAction, reviewPeriod)
+    }
+
+    private inner class ReviewAction : EventAction<Nothing>() {
+        override fun action(event: KSLEvent<Nothing>) {
+            decisions.decide("periodic")
+            schedule(myReviewAction, reviewPeriod)
+        }
     }
 
     private inner class Demand : Entity() {

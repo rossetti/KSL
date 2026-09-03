@@ -126,15 +126,18 @@ nothing in the composition you could not have written. `decisions` here
 is a plain `DecisionElement` declared with `decisionElement { }`:
 
 ```kotlin
-private inner class Review : EventAction<Nothing>() {
-    override fun action(event: KSLEvent<Nothing>) {
-        decisions.decide("periodic")
-        schedule(reviewPeriod)
-    }
-}
+private val myReviewAction = ReviewAction()
 
 override fun initialize() {
-    Review().schedule(reviewPeriod)
+    super.initialize()
+    schedule(myReviewAction, reviewPeriod)
+}
+
+private inner class ReviewAction : EventAction<Nothing>() {
+    override fun action(event: KSLEvent<Nothing>) {
+        decisions.decide("periodic")
+        schedule(myReviewAction, reviewPeriod)
+    }
 }
 ```
 
