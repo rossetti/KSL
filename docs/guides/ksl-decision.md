@@ -353,6 +353,60 @@ Note that a lever carries **two** ranges: `modelLowerLimit`/
 `lowerBound`/`upperBound` is what this experiment narrowed it to. A tool
 that offers the wrong pair will propose values the run has excluded.
 
+#### The live surface, when a description is not enough
+
+A descriptor is *data about* the surface: it travels, it outlives the
+run, and it deliberately holds no reference to the model. That is what
+makes it useful, and it is also its limit — it cannot tell you what the
+model reads **right now**.
+
+`element.catalog` is the other half. It holds the live things themselves,
+so it can only be used against a built model, and in exchange it can be
+read:
+
+```kotlin
+val catalog = element.catalog
+
+// What is there, by name, in observation and lever order.
+println("${catalog.name} observes ${catalog.observationNames}")
+println("${catalog.name} writes  ${catalog.leverNames}")
+
+// The live thing itself, not a description of it: this reads the
+// model's CURRENT value, which a descriptor cannot do.
+val level = catalog.observation(catalog.observationNames.first())
+println("right now that reads ${level?.value}")
+
+// A lever's descriptive half. Holding one cannot write anything.
+val info = catalog.leverInfo(catalog.leverNames.first())
+if (info != null) {
+    println("${info.name} is a ${info.kind} over ${info.domain}")
+    println("the model's own envelope is ${info.modelLowerLimit}..${info.modelUpperLimit}")
+    if (info.supportsCurrentValue) println("and it can be read back as well as written")
+}
+
+// A reward source, if the element declared one under that name.
+val source = catalog.rewardSource("Holding")
+println("accumulated so far: ${source?.accumulated()}")
+```
+
+The three lookups return `null` for a name the element did not declare,
+so they are safe to probe with.
+
+**Reading the catalog cannot change the model, and that is structural
+rather than a promise.** Its constructor is internal, so the only
+catalog you can ever hold is one the library built for a declared
+element. `observation` hands back a read-only value, `leverInfo` hands
+back a lever's *descriptive* half — name, kind, domain, the model's
+envelope — and there is no accessor at all for the thing that writes.
+The actuators are not merely undocumented; they are invisible outside
+the library. A lever is written by returning an action from a rule, and
+there is no second way in.
+
+Use the descriptor to describe a surface to something outside the run,
+and the catalog to inspect a surface inside one — a rule that adapts to
+what it was handed, an assertion in a test, a diagnostic that prints
+what an element is looking at.
+
 ### 4.5 …record what the rule did?
 
 Attach a sink. Two ways in: declare one in the element, shown here, or
@@ -821,6 +875,8 @@ obligation applies with full force: finish the update, then decide.
 | `ActionSearch` | `ExhaustiveSearch`, `GridSearch`, `SampledSearch` |
 | `Neutral.Current` / `Neutral.Value` | Doing nothing, for a setting and for a transaction |
 | `LeverRef` / `RewardRef` | Identities returned by declaration, consumed by constraints and parameterization |
+| `DecisionCatalog` | `element.catalog` — name resolution against the **live** model: `observationNames`, `leverNames`, and lookups for an observation, a reward source, or a `LeverInfo` (§4.4) |
+| `LeverInfo` | A lever's descriptive half — name, kind, domain, the model's envelope, whether it reads back. Holding one cannot write anything |
 | `TransitionRecord` | One complete transition: state, action, reward, successor, termination — plus `reason` and `provenance`, which say *why* the decision was taken and whether it was immediate or deferred |
 | `EpochProvenance` | `IMMEDIATE` for a `decide` call, `DEFERRED` for one drained from `requestDecision`. Carried on every row |
 | `TransitionSink` | Write-only consumer with a per-run lifetime. `MemorySink`, `NullSink` in `ksl.modeling.decision.capture` |

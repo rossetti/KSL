@@ -206,6 +206,33 @@ private object DecisionGuideSnippets {
         val toml: String = surface.toToml()
     }
 
+    // -- §4.4 Reading the live surface ----------------------------------
+
+    fun readTheLiveSurface(element: DecisionElement) {
+        val catalog = element.catalog
+
+        // What is there, by name, in observation and lever order.
+        println("${catalog.name} observes ${catalog.observationNames}")
+        println("${catalog.name} writes  ${catalog.leverNames}")
+
+        // The live thing itself, not a description of it: this reads the
+        // model's CURRENT value, which a descriptor cannot do.
+        val level = catalog.observation(catalog.observationNames.first())
+        println("right now that reads ${level?.value}")
+
+        // A lever's descriptive half. Holding one cannot write anything.
+        val info = catalog.leverInfo(catalog.leverNames.first())
+        if (info != null) {
+            println("${info.name} is a ${info.kind} over ${info.domain}")
+            println("the model's own envelope is ${info.modelLowerLimit}..${info.modelUpperLimit}")
+            if (info.supportsCurrentValue) println("and it can be read back as well as written")
+        }
+
+        // A reward source, if the element declared one under that name.
+        val source = catalog.rewardSource("Holding")
+        println("accumulated so far: ${source?.accumulated()}")
+    }
+
     // -- §4.5 Recording what happened ----------------------------------
 
     fun captureToMemory(parent: ModelElement) {
