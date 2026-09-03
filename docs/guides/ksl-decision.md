@@ -105,6 +105,11 @@ val review = PeriodicDecisionElement(this, interval = 30.0, name = "Review") {
 }
 ```
 
+**The trailing block is the declaration DSL** — the same one
+`decisionElement { }` takes. Everything before it configures the *review*
+(`interval`, `name`), and everything inside it declares the *element*:
+what it observes, what it may write, what it is scored on, and the rule.
+
 It is a composition, not a special case: it holds an ordinary element and
 calls the same public `decide` you would. Three things come with it. The
 interval is checked at construction, so an element that never decides is
@@ -115,23 +120,31 @@ for you. And the interval is a `@KSLControl`, so `simopt` can search it.
 Everything below is the general case underneath it — reach for it when a
 period is not what you want.
 
-**A periodic review written by hand** is an ordinary permanent entity, or
-an ordinary event action — `decisions` here is a plain `DecisionElement`
-declared with `decisionElement { }`:
+**A periodic review written by hand** is an ordinary event action, which
+is exactly what `PeriodicDecisionElement` does inside — so there is
+nothing in the composition you could not have written. `decisions` here
+is a plain `DecisionElement` declared with `decisionElement { }`:
 
 ```kotlin
-private inner class Reviewer : Entity() {
-    val reviewProcess = process {
-        while (model.isRunning) {
-            delay(reviewPeriod)
-            decisions.decide("periodic")
-        }
+private inner class Review : EventAction<Nothing>() {
+    override fun action(event: KSLEvent<Nothing>) {
+        decisions.decide("periodic")
+        schedule(reviewPeriod)
     }
+}
+
+override fun initialize() {
+    Review().schedule(reviewPeriod)
 }
 ```
 
+A review has no duration, seizes nothing and waits for nothing, so there
+is no state for a process to carry between suspensions. Every review this
+package ships is an event action for that reason.
+
 **A review triggered by the system** is a call at the point the system
-changed:
+changed — here inside a process, because a demand's process is where this
+model's state actually moves:
 
 ```kotlin
 val demandProcess = process {
@@ -140,9 +153,10 @@ val demandProcess = process {
 }
 ```
 
-Timed and state-triggered reviews are the same thing — a call at a
-point in a process — which is why the package needs no vocabulary for
-either. `ksl.examples.decision.PeriodicReview` is a five-line driver
+Timed and state-triggered reviews are the same thing — a call at a point
+where you know the state is settled — which is why the package needs no
+vocabulary for either, and why it does not care whether the caller is an
+event action or a process. `ksl.examples.decision.PeriodicReview` is a five-line driver
 for the common case; it is an example rather than library API, on
 purpose.
 

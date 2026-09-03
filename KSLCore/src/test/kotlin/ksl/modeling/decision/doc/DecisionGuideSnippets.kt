@@ -46,9 +46,14 @@ import ksl.simulation.ModelElement
  * This file is not run as a test — the build only needs to compile it.
  */
 /**
- * Host for §2.1's two snippets, which are process-view code and so need a `ProcessModel` around
- * them. They are the guide's answer to "then who decides when a decision happens": a permanent
- * entity whose process *is* the review loop, and a call at the point the system changed.
+ * Host for §2.1's two snippets — the guide's answer to "then who decides when a decision happens":
+ * a periodic review, and a review triggered by the system changing.
+ *
+ * The periodic one is an **event action**, which is what every review this library ships is —
+ * `PeriodicDecisionElement`, `PeriodicReview`, `CalendarReview`. A review has no duration, seizes
+ * nothing and waits for nothing, so there is no state for a process to carry between suspensions.
+ * The host is a `ProcessModel` for the *second* snippet, where a process is the point: a demand's
+ * process is where that model's state actually moves.
  */
 @Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "unused")
 private class StockRoom(parent: ModelElement) : ProcessModel(parent, null) {
@@ -89,13 +94,15 @@ private class StockRoom(parent: ModelElement) : ProcessModel(parent, null) {
         decisions.decide("demand")
     }
 
-    private inner class Reviewer : Entity() {
-        val reviewProcess = process {
-            while (model.isRunning) {
-                delay(reviewPeriod)
-                decisions.decide("periodic")
-            }
+    private inner class Review : EventAction<Nothing>() {
+        override fun action(event: KSLEvent<Nothing>) {
+            decisions.decide("periodic")
+            schedule(reviewPeriod)
         }
+    }
+
+    override fun initialize() {
+        Review().schedule(reviewPeriod)
     }
 
     private inner class Demand : Entity() {
