@@ -6,7 +6,7 @@ import ksl.utilities.GetValueIfc
 
 /** §4.3 — actuators: the only things that write a model during a decision. */
 
-interface LeverActuator {
+internal interface LeverActuator {
     val domain: LeverDomain
     val lowerBound: Double
     val upperBound: Double
@@ -22,7 +22,7 @@ interface LeverActuator {
  *  value changed, so without it a do-nothing rule would be visible in the output and §6.2's
  *  Level-2 guarantee would fail at the fine grain.
  */
-interface StatefulLeverActuator : LeverActuator {
+internal interface StatefulLeverActuator : LeverActuator {
     fun currentValue(): Double
 }
 
@@ -39,7 +39,7 @@ interface StatefulLeverActuator : LeverActuator {
  *  [applyAll] receives a value for **every** member in [names] order, including members that did
  *  not move — a batch is one call and cannot be handed a partial vector.
  */
-interface BatchLeverActuator {
+internal interface BatchLeverActuator {
     val names: List<String>
     fun applyAll(values: DoubleArray)
 }
