@@ -2,12 +2,12 @@ package ksl.modeling.decision
 
 /** §4.4 — the action pipeline: what a rule proposes, what is planned, and what is written. */
 
-sealed interface PreparedAction {
+internal sealed interface PreparedAction {
     data class Ready(val plan: ActionPlan) : PreparedAction
     data class Invalid(val violations: List<String>) : PreparedAction
 }
 
-class ActionPlan internal constructor(
+internal class ActionPlan internal constructor(
     internal val steps: List<Step>,
     /**
      *  §4.8.3. The resolved target of **every** lever, in declaration order — what the model ends
@@ -63,7 +63,7 @@ class ActionPlan internal constructor(
  *  property of the type rather than of an implementation. It is also what lets a test assert a plan
  *  without mutating a model.
  */
-interface ActionBinding {
+internal interface ActionBinding {
     fun prepare(action: DoubleArray): PreparedAction
     fun apply(plan: ActionPlan)
 }
