@@ -103,7 +103,7 @@ class DeclarationSurfaceCoverageTest {
         val model = Model("Coverage")
         val w = Widget(model, "W")
         w.decisionElement("D") {
-            epochPriority = priority
+            myEpochPriority = priority
             declare(w)
         }.reviewEvery(w, 10.0)
         model.numberOfReplications = 2
@@ -210,7 +210,7 @@ class DeclarationSurfaceCoverageTest {
             model.simulate()
         }
         results["epoch priority after warm-up, undeclared"] =
-            probe("`epochPriority` past warm-up without saying so") {
+            probe("`myEpochPriority` past warm-up without saying so") {
                 runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
                     lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                     policy = NeutralPolicy }
@@ -218,7 +218,7 @@ class DeclarationSurfaceCoverageTest {
         results["epoch priority after warm-up, declared"] =
             probe("the same, with `warmUpOrdering = WARM_UP_FIRST`") {
                 runWith(priority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1) { w -> observe(w.level)
-                    warmUpOrdering = WarmUpOrdering.WARM_UP_FIRST
+                    myWarmUpOrdering = WarmUpOrdering.WARM_UP_FIRST
                     lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                     policy = NeutralPolicy }
             }
@@ -610,7 +610,7 @@ class DeclarationSurfaceCoverageTest {
      *
      *  **The knob moved with the timing (S§C.0).** A review taken through `decide` happens inside
      *  the caller's event, so it is the *caller's* priority that decides which side of the warm-up
-     *  it lands on -- not the element's `epochPriority`, which now orders only deferred epochs. The
+     *  it lands on -- not the element's `myEpochPriority`, which now orders only deferred epochs. The
      *  guarantee is the same and the thing a modeler sets to invert it is different, so this varies
      *  what a modeler would actually vary.
      */
@@ -653,8 +653,8 @@ class DeclarationSurfaceCoverageTest {
             val model = Model("Contradiction")
             val w = Widget(model, "W")
             w.decisionElement("D") {
-                epochPriority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1
-                warmUpOrdering = WarmUpOrdering.EPOCH_FIRST      // the numbers say otherwise
+                myEpochPriority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1
+                myWarmUpOrdering = WarmUpOrdering.EPOCH_FIRST      // the numbers say otherwise
                 observe(w.level)
                 lever(w, 0..10, neutral = Neutral.Current { level.value }) { v -> setLevel(v.toInt()) }
                 policy = NeutralPolicy

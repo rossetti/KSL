@@ -72,7 +72,7 @@ class TabularSink(
     path: Path
 ) : TransitionSink {
 
-    private val descriptor: DecisionSurfaceDescriptor = provenance.descriptor
+    private val myDescriptor: DecisionSurfaceDescriptor = provenance.descriptor
 
     /** The trajectory file. */
     val rowsPath: Path = if (path.fileName.toString().endsWith(SUFFIX)) path
@@ -81,34 +81,34 @@ class TabularSink(
     /** The provenance beside it. */
     val provenancePath: Path = provenanceFor(rowsPath)
 
-    private val columns: LinkedHashMap<String, DataType> = buildColumns()
-    private val file: TabularOutputFile
-    private var written = 0L
+    private val myColumns: LinkedHashMap<String, DataType> = buildColumns()
+    private val myFile: TabularOutputFile
+    private var myWritten = 0L
 
     /** How many rows this sink has taken. */
-    val rowsWritten: Long get() = written
+    val rowsWritten: Long get() = myWritten
 
     init {
         Files.createDirectories(rowsPath.parent)
         Files.writeString(provenancePath, PROVENANCE_JSON.encodeToString(RunProvenance.serializer(), provenance))
-        file = TabularOutputFile(columns, rowsPath)
+        myFile = TabularOutputFile(myColumns, rowsPath)
     }
 
     override fun write(record: TransitionRecord) {
-        val row = file.row()
+        val row = myFile.row()
         row.setText("element", record.elementName)
         row.setNumeric("rep", record.replicationId.toDouble())
         row.setNumeric("epoch", record.epochIndex.toDouble())
         row.setNumeric("time", record.time)
         row.setNumeric("tau", record.tau)
 
-        for ((i, o) in descriptor.observations.withIndex()) {
+        for ((i, o) in myDescriptor.observations.withIndex()) {
             row.setNumeric(stateCol(o.name), record.state[i])
             row.setNumeric(successorCol(o.name), record.successorState[i])
         }
         val proposed = record.proposedAction
         val unavailable = record.leverUnavailable
-        for ((j, l) in descriptor.levers.withIndex()) {
+        for ((j, l) in myDescriptor.levers.withIndex()) {
             row.setNumeric(actionCol(l.name), record.action[j])
             row.setNumeric(proposedCol(l.name), proposed?.get(j) ?: record.action[j])
             row.setNumeric(unavailableCol(l.name), flag(unavailable?.get(j) ?: false))
@@ -121,13 +121,13 @@ class TabularSink(
         row.setText("reason", record.reason)
         row.setText("provenance", record.provenance.name)
 
-        file.writeRow(row)
-        written++
+        myFile.writeRow(row)
+        myWritten++
     }
 
     override fun close() {
-        file.flushRows()
-        file.close()
+        myFile.flushRows()
+        myFile.close()
     }
 
     /** `RowSetterIfc` has a boolean overload by column *index* only, so encode by name here. */
@@ -152,15 +152,15 @@ class TabularSink(
 
         put("element", DataType.TEXT, "element")
         for (n in listOf("rep", "epoch", "time", "tau")) put(n, DataType.NUMERIC, n)
-        for (o in descriptor.observations) put(stateCol(o.name), DataType.NUMERIC, "observation ${o.name}")
-        for (l in descriptor.levers) {
+        for (o in myDescriptor.observations) put(stateCol(o.name), DataType.NUMERIC, "observation ${o.name}")
+        for (l in myDescriptor.levers) {
             put(actionCol(l.name), DataType.NUMERIC, "lever ${l.name}")
             put(proposedCol(l.name), DataType.NUMERIC, "lever ${l.name} (proposed)")
             put(unavailableCol(l.name), DataType.NUMERIC, "lever ${l.name} (unavailable)")
         }
         put("repaired", DataType.NUMERIC, "repaired")
         put("reward", DataType.NUMERIC, "reward")
-        for (o in descriptor.observations) put(successorCol(o.name), DataType.NUMERIC, "successor ${o.name}")
+        for (o in myDescriptor.observations) put(successorCol(o.name), DataType.NUMERIC, "successor ${o.name}")
         for (n in listOf("terminated", "truncated")) put(n, DataType.NUMERIC, n)
         put("source", DataType.TEXT, "source")
         // S§C.11.3. Both belong to the epoch that OPENED the interval, and both are recorded
@@ -209,7 +209,7 @@ class TrajectoryFile(rowsPath: Path) : AutoCloseable {
     /** What produced these rows, including the descriptor that gives them meaning. */
     val provenance: RunProvenance
 
-    private val input: TabularInputFile
+    private val myInput: TabularInputFile
 
     init {
         val provPath = TabularSink.provenanceFor(rowsPath)
@@ -222,19 +222,19 @@ class TrajectoryFile(rowsPath: Path) : AutoCloseable {
         }
         provenance = TabularSink.PROVENANCE_JSON.decodeFromString(
             RunProvenance.serializer(), Files.readString(provPath))
-        input = TabularInputFile(rowsPath)
+        myInput = TabularInputFile(rowsPath)
     }
 
     val descriptor: DecisionSurfaceDescriptor get() = provenance.descriptor
 
     /** How many transitions are stored. */
-    val rowCount: Long get() = input.totalNumberRows
+    val rowCount: Long get() = myInput.totalNumberRows
 
     /** Every transition, as `(state, action, reward, successorState)` plus the episode flags. */
     fun transitions(): List<StoredTransition> {
         val obs = descriptor.observations.map { it.name }
         val lev = descriptor.levers.map { it.name }
-        return input.fetchRows(1, rowCount).map { r ->
+        return myInput.fetchRows(1, rowCount).map { r ->
             StoredTransition(
                 replicationId = r.getNumeric("rep").toInt(),
                 epochIndex = r.getNumeric("epoch").toInt(),
@@ -256,7 +256,7 @@ class TrajectoryFile(rowsPath: Path) : AutoCloseable {
         }
     }
 
-    override fun close() { input.close() }
+    override fun close() { myInput.close() }
 }
 
 /** One transition as read back from a [TrajectoryFile]. */

@@ -28,7 +28,7 @@ object NullSink : TransitionSink {
  *  It is bounded only by the run. A study large enough to matter wants a durable sink.
  */
 class MemorySink : TransitionSink {
-    private val rows = mutableListOf<TransitionRecord>()
-    val records: List<TransitionRecord> get() = rows
-    override fun write(record: TransitionRecord) { rows.add(record) }
+    private val myRows = mutableListOf<TransitionRecord>()
+    val records: List<TransitionRecord> get() = myRows
+    override fun write(record: TransitionRecord) { myRows.add(record) }
 }

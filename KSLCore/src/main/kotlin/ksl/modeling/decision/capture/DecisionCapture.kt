@@ -79,15 +79,15 @@ class DecisionCapture private constructor(
     constructor(model: Model, sinkFor: (DecisionElement) -> TransitionSink?) :
         this(model, sinkFor, closeSinksOnClose = false)
 
-    private val attached = mutableListOf<Pair<DecisionElement, TransitionSink>>()
+    private val myAttached = mutableListOf<Pair<DecisionElement, TransitionSink>>()
 
     /** The elements this capture attached to, in the order it found them. */
     val capturedElements: List<DecisionElement>
-        get() = attached.map { it.first }
+        get() = myAttached.map { it.first }
 
     /** The sinks it attached, aligned with [capturedElements]. */
     val sinks: List<TransitionSink>
-        get() = attached.map { it.second }
+        get() = myAttached.map { it.second }
 
     init {
         val elements = model.decisionElements()
@@ -102,13 +102,13 @@ class DecisionCapture private constructor(
             for (e in elements) {
                 val s = sinkFor(e) ?: continue
                 e.attachTransitionSink(s)
-                attached.add(e to s)
+                myAttached.add(e to s)
             }
         } catch (t: Throwable) {
             runCatching { close() }.exceptionOrNull()?.let { t.addSuppressed(it) }
             throw t
         }
-        check(attached.isNotEmpty()) {
+        check(myAttached.isNotEmpty()) {
             "The selector returned null for all ${elements.size} decision elements of " +
                 "'${model.name}', so nothing was attached and this run will record nothing."
         }
@@ -120,13 +120,13 @@ class DecisionCapture private constructor(
      */
     override fun close() {
         val failures = mutableListOf<Throwable>()
-        for ((element, sink) in attached) {
+        for ((element, sink) in myAttached) {
             runCatching { element.detachTransitionSink(sink) }.exceptionOrNull()?.let { failures += it }
             if (closeSinksOnClose) {
                 runCatching { sink.close() }.exceptionOrNull()?.let { failures += it }
             }
         }
-        attached.clear()
+        myAttached.clear()
         if (failures.isNotEmpty()) {
             val first = failures.first()
             failures.drop(1).forEach { first.addSuppressed(it) }

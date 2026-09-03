@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
  *
  *  OOD §10.7 claimed the order "is determined by their event priorities and is therefore declared
  *  rather than accidental." Risk 8 recorded the doubt: two elements that both take the default
- *  `epochPriority` have *equal* priorities, so priority decides nothing between them and something
+ *  `myEpochPriority` have *equal* priorities, so priority decides nothing between them and something
  *  else must. This class finds out what, by measurement.
  *
  *  **What it found.** `KSLEvent.compareTo` breaks a time-and-priority tie on event **id** — "lower
@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
  *  So §10.7's claim is narrowed to what is true, the default is left alone — an automatically
  *  distinct default priority per element would hide the tie rather than resolve it, and would take
  *  away the ability to express a genuine tie — and the remedy is asserted here instead: an explicit
- *  `epochPriority` beats the tie-break in both directions, so a model that needs an order can state
+ *  `myEpochPriority` beats the tie-break in both directions, so a model that needs an order can state
  *  one.
  *
  *  The design still gives a coincidence no game-theoretic meaning (§1.6); that is untouched. The
@@ -65,7 +65,7 @@ class CoincidentEpochOrderingTest {
                 observe(level)
                 lever(this@Unit, 0.0..10.0, neutral = Neutral.Current { setting },
                     alias = "L") { v -> setting = v }
-                if (priority != null) epochPriority = priority
+                if (priority != null) myEpochPriority = priority
                 policy = PolicyIfc { _, _ -> trace += me; doubleArrayOf(1.0) }
             }
         }
@@ -88,7 +88,7 @@ class CoincidentEpochOrderingTest {
      *
      *  Through `requestDecision`, deliberately: what survives of R15 once the element no longer
      *  owns its timing is the ordering of two *deferred* epochs at one instant. Both post a
-     *  zero-delay event, and the executive orders those by `epochPriority` and then by event id.
+     *  zero-delay event, and the executive orders those by `myEpochPriority` and then by event id.
      *  An immediate `decide` would order by nothing but the order the caller happened to write,
      *  which is the caller's own business and not a property of this subsystem.
      */

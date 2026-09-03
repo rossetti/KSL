@@ -57,7 +57,7 @@ class EmissionTruthTableTest {
     }
 
     private class Run(
-        val census: DecisionElement.EmissionCensus,
+        val myCensus: DecisionElement.EmissionCensus,
         val decisions: Int,
         val rows: Int,
         val reps: Int
@@ -88,7 +88,7 @@ class EmissionTruthTableTest {
         model.lengthOfReplication = horizon
         model.lengthOfReplicationWarmUp = warmUp
         model.simulate()
-        return Run(e.census, counter.decisions, sink.records.size, reps)
+        return Run(e.myCensus, counter.decisions, sink.records.size, reps)
     }
 
     /**
@@ -127,27 +127,27 @@ class EmissionTruthTableTest {
         println("§4.10.2.1 census — expected counts are per replication:")
         for (c in cases) {
             val r = c.run
-            println("  %-24s D=%-5d %s".format(c.label, r.decisions, r.census))
+            println("  %-24s D=%-5d %s".format(c.label, r.decisions, r.myCensus))
 
-            assertEquals(c.noPredecessorPerRep * r.reps, r.census.noPredecessor,
+            assertEquals(c.noPredecessorPerRep * r.reps, r.myCensus.noPredecessor,
                 "${c.label}: expected ${c.noPredecessorPerRep} no-predecessor discard(s) per " +
                     "replication over ${r.reps} replication(s)")
-            assertEquals(c.zeroLengthPerRep * r.reps, r.census.zeroLength,
+            assertEquals(c.zeroLengthPerRep * r.reps, r.myCensus.zeroLength,
                 "${c.label}: expected ${c.zeroLengthPerRep} zero-length discard(s) per " +
                     "replication over ${r.reps} replication(s)")
 
             // The identity: one emit attempt per decision, plus one closer per episode.
-            assertEquals(r.decisions + r.reps, r.census.attempts,
+            assertEquals(r.decisions + r.reps, r.myCensus.attempts,
                 "${c.label}: attempts must be D + 1 per episode — every epoch attempts one emit, " +
                     "and replicationEnded() attempts one more exactly when the episode did not " +
                     "already end at an epoch (§4.10.2.1)")
-            assertEquals(r.census.attempts - r.census.discards, r.census.emitted,
+            assertEquals(r.myCensus.attempts - r.myCensus.discards, r.myCensus.emitted,
                 "${c.label}: every attempt either emits or is discarded for exactly one reason")
-            assertEquals(r.census.emitted, r.rows,
+            assertEquals(r.myCensus.emitted, r.rows,
                 "${c.label}: the sink received one row per emission")
 
             // The gap a reader is most likely to get wrong: it is one *less* than the discards.
-            assertEquals(r.census.discards - r.reps, r.decisions - r.rows,
+            assertEquals(r.myCensus.discards - r.reps, r.decisions - r.rows,
                 "${c.label}: the gap between decisions and rows is discards - 1 per episode, not " +
                     "the discard count — this is the arithmetic §8.2.9 got wrong twice")
         }
@@ -176,9 +176,9 @@ class EmissionTruthTableTest {
         println()
         println("discard rule 2 (unmeasurable reward) across every baseline-invalidating shape:")
         for ((label, r) in runs) {
-            println("  %-32s %s".format(label, r.census))
-            assertTrue(r.census.attempts > 0, "$label: nothing ran, so nothing was checked")
-            assertEquals(0, r.census.noBaseline,
+            println("  %-32s %s".format(label, r.myCensus))
+            assertTrue(r.myCensus.attempts > 0, "$label: nothing ran, so nothing was checked")
+            assertEquals(0, r.myCensus.noBaseline,
                 "$label: discard rule 2 fired. It is unreachable by construction — every site " +
                     "that calls rewards.invalidate() also clears the pending transition, so rule " +
                     "1 claims the discard first (§4.10.2.1). If this fails, that two-site " +
@@ -189,8 +189,8 @@ class EmissionTruthTableTest {
 
         // And the warm-up discards really are being counted somewhere — otherwise the assertion
         // above would pass on a build where warm-up silently stopped discarding anything.
-        val withWarmUp = runs.getValue("warm-up off an epoch").census
-        val without = runs.getValue("no warm-up").census
+        val withWarmUp = runs.getValue("warm-up off an epoch").myCensus
+        val without = runs.getValue("no warm-up").myCensus
         assertEquals(without.noPredecessor + 1, withWarmUp.noPredecessor,
             "a warm-up must cost exactly one further no-predecessor discard; if this fails, the " +
                 "zero above is measuring nothing")

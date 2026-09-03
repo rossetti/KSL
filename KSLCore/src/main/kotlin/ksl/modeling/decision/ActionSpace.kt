@@ -279,11 +279,11 @@ internal class ElementActionSet(
     private val live: (String) -> Unit = {}
 ) : ActionSet {
 
-    override val leverCount: Int get() = element.leverDecls.size
+    override val leverCount: Int get() = element.myLeverDecls.size
 
     override fun bounds(leverIndex: Int): ClosedFloatingPointRange<Double> {
         live("bounds")
-        return element.leverDecls[leverIndex].feasibleRange()
+        return element.myLeverDecls[leverIndex].feasibleRange()
     }
 
     override operator fun contains(action: DoubleArray): Boolean {
@@ -300,7 +300,7 @@ internal class ElementActionSet(
     private fun axisCounts(): LongArray? {
         val counts = LongArray(leverCount)
         var product = 1L
-        for ((i, d) in element.leverDecls.withIndex()) {
+        for ((i, d) in element.myLeverDecls.withIndex()) {
             if (d.domain == LeverDomain.CONTINUOUS) return null
             val r = d.feasibleRange()
             if (r.isEmpty()) { counts[i] = 0L; product = 0L; continue }
@@ -325,17 +325,17 @@ internal class ElementActionSet(
             return p
         }
 
-    private var draws = 0L
-    private var accepted = 0L
+    private var myDraws = 0L
+    private var myAccepted = 0L
 
     override val acceptanceRate: Double
-        get() = if (draws == 0L) Double.NaN else accepted.toDouble() / draws
+        get() = if (myDraws == 0L) Double.NaN else myAccepted.toDouble() / myDraws
 
     override fun sample(uniform: GetValueIfc, count: Int, maxAttempts: Int): Sequence<DoubleArray> {
         live("sample")
         val n = leverCount
         val ranges = (0 until n).map { bounds(it) }
-        val integral = element.leverDecls.map { it.domain != LeverDomain.CONTINUOUS }
+        val integral = element.myLeverDecls.map { it.domain != LeverDomain.CONTINUOUS }
         return sequence {
             if (ranges.any { it.isEmpty() }) return@sequence
             var yielded = 0
@@ -349,14 +349,14 @@ internal class ElementActionSet(
             for (i in 0 until n) {
                 candidate[i] = if (integral[i]) Math.ceil(ranges[i].start) else ranges[i].start
             }
-            draws++
+            myDraws++
             if (candidate in this@ElementActionSet) {
-                accepted++; yielded++
+                myAccepted++; yielded++
                 yield(candidate.copyOf())
             }
             while (yielded < count && attempts < maxAttempts) {
                 attempts++
-                draws++
+                myDraws++
                 for (i in 0 until n) {
                     val r = ranges[i]
                     val u = uniform.value
@@ -365,7 +365,7 @@ internal class ElementActionSet(
                     candidate[i] = v
                 }
                 if (candidate in this@ElementActionSet) {
-                    accepted++
+                    myAccepted++
                     yielded++
                     yield(candidate.copyOf())
                 }
@@ -380,7 +380,7 @@ internal class ElementActionSet(
                 "This action set is not enumerable — it has a continuous lever, or more than " +
                     "${ActionSet.ENUMERATION_CEILING} members. Check ActionSet.size first."
             )
-        val lows = DoubleArray(leverCount) { Math.ceil(element.leverDecls[it].feasibleRange().start) }
+        val lows = DoubleArray(leverCount) { Math.ceil(element.myLeverDecls[it].feasibleRange().start) }
         return sequence {
             if (counts.any { it == 0L }) return@sequence
             val idx = IntArray(counts.size)

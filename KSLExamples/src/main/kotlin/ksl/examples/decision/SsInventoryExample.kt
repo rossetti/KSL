@@ -271,6 +271,7 @@ class SsInventory(
         }
 
     override fun initialize() {
+        super.initialize()
         lastOrderQuantity = 0.0
         demandCountAtLastReview = 0.0
     }

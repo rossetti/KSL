@@ -47,7 +47,7 @@ class NoTimingConceptTest {
     @DisplayName("The element declares no vocabulary for when a decision happens")
     fun noTimingVocabularySurvives() {
         // Each of these was a way of saying "decide at these times" and each is now the caller's
-        // business. `epochPriority` is deliberately absent from the list: it survives, narrowed to
+        // business. `myEpochPriority` is deliberately absent from the list: it survives, narrowed to
         // ordering deferred epochs against other events at one instant (plan D1).
         val gone = listOf("EpochKind", "EpochDescriptor", "epochInterval", "myEpochInterval",
             "scheduleNextEpoch", "calendarIndex", "firstAtTimeZero", "timingDeclared")
@@ -80,11 +80,11 @@ class NoTimingConceptTest {
         }
         // Every site must be the deferred epoch. There is more than one because draining a request
         // queue opens the drain and re-opens it when a request arrived during one -- but they are the
-        // same event, and nothing else is scheduled. A site that is not `deferredAction` means the
+        // same event, and nothing else is scheduled. A site that is not `myDeferredAction` means the
         // element has started deciding when something happens again, whatever the surrounding names
         // say.
         assertTrue(sites.isNotEmpty(), "the deferred epoch must still be scheduled somewhere")
-        val foreign = sites.filterNot { it.contains("deferredAction") }
+        val foreign = sites.filterNot { it.contains("myDeferredAction") }
         assertTrue(foreign.isEmpty(),
             "the decision package should schedule nothing but the deferred epoch, and it also " +
                 "schedules: ${foreign.joinToString("; ")}")

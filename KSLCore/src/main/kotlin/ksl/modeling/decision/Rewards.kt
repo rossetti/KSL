@@ -55,13 +55,13 @@ internal class RewardDecl(
  */
 internal class RewardBinding(val decls: List<RewardDecl>) {
 
-    private var baseline: DoubleArray? = null
+    private var myBaseline: DoubleArray? = null
 
-    val hasBaseline: Boolean get() = baseline != null
+    val hasBaseline: Boolean get() = myBaseline != null
 
     /** §4.6.4. Called from `warmUp()`; the next epoch takes a fresh baseline and reports nothing. */
     fun invalidate() {
-        baseline = null
+        myBaseline = null
     }
 
     /**
@@ -76,8 +76,8 @@ internal class RewardBinding(val decls: List<RewardDecl>) {
      */
     fun closeInterval(): Double? {
         val now = DoubleArray(decls.size) { decls[it].source.accumulated() }
-        val previous = baseline
-        baseline = now
+        val previous = myBaseline
+        myBaseline = now
         if (previous == null) return null
         var total = 0.0
         for (i in decls.indices) total += decls[i].signedRate * (now[i] - previous[i])

@@ -88,6 +88,7 @@ class StockRoom(
     }
 
     override fun initialize() {
+        super.initialize()
         onOrder = 0.0
         schedule(this::demandArrives, demand)
     }

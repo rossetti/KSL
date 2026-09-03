@@ -341,8 +341,8 @@ class ExternalSinkAttachmentTest {
         // truth table of §4.10.2.1 is accounting, not capture, and it must not go blind when
         // nobody is listening.
         println()
-        println("uncaptured run census: ${shop.review.census}")
-        assertTrue(shop.review.census.emitted > 0,
+        println("uncaptured run census: ${shop.review.myCensus}")
+        assertTrue(shop.review.myCensus.emitted > 0,
             "the census must still count emissions with no sink attached — the gate that skips " +
                 "record construction sits BELOW the accounting, and if it drifted above it the " +
                 "emission truth table would read zero for every uncaptured run")

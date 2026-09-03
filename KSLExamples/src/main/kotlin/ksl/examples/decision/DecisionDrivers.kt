@@ -31,7 +31,7 @@ import ksl.simulation.ModelElement
  *  Replaces the `every(interval)` declaration the element used to carry, and reproduces it exactly:
  *  the first review is at [interval] unless [firstAtTimeZero], and reviews continue for the length of
  *  the replication. [priority] is the priority of the *review* event, which is what now decides the
- *  order against other events at a coinciding instant -- the element's own `epochPriority` still
+ *  order against other events at a coinciding instant -- the element's own `myEpochPriority` still
  *  orders its deferred epochs, but a review taken through `decide` is taken inside this event.
  */
 class PeriodicReview @JvmOverloads constructor(

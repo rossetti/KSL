@@ -84,13 +84,14 @@ class ShipmentDepot(
     }
 
     // ---- Resupply ----------------------------------------------------------------
-    private inner class Resupply : EventAction<Nothing>() {
+    private val myResupplyAction = ResupplyAction()
+
+    private inner class ResupplyAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             myOnHand.increment(resupplyQuantity.toDouble())
-            schedule(resupplyPeriod)
+            schedule(myResupplyAction, resupplyPeriod)
         }
     }
-    private val resupply = Resupply()
 
     /**
      * Ship [qty] units to region [i]. Defensive clamping is present ONLY so that the
@@ -182,8 +183,9 @@ class ShipmentDepot(
     val reviewPeriod: Double get() = reviews.interval
 
     override fun initialize() {
+        super.initialize()
         overShipmentsAbsorbed = 0
-        resupply.schedule(resupplyPeriod)
+        schedule(myResupplyAction, resupplyPeriod)
     }
 
     override fun replicationEnded() {

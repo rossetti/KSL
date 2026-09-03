@@ -149,6 +149,7 @@ class StockRoom(
     }
 
     override fun initialize() {
+        super.initialize()
         onOrder = 0.0
         schedule(this::demandArrives, 5.0)
     }
@@ -206,7 +207,10 @@ class ReEntrantRoom(
 
     private fun tick(event: KSLEvent<Nothing>) = review.decide("tick")
 
-    override fun initialize() { schedule(this::tick, 5.0) }
+    override fun initialize() {
+        super.initialize()
+        schedule(this::tick, 5.0)
+    }
 }
 
 /**
@@ -248,6 +252,7 @@ class ShortfallRoom(
     }
 
     override fun initialize() {
+        super.initialize()
         schedule(this::event, 5.0)
         schedule(this::event, 10.0)
     }

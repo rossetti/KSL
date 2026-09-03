@@ -129,13 +129,13 @@ class DecisionElement internal constructor(
 ) : ModelElement(parent, name) {
 
     // ---- Declared structure, fixed at construction ------------------------------
-    internal val observationDecls = mutableListOf<ObservationDecl>()
-    internal val leverDecls = mutableListOf<LeverDecl>()
-    internal val jointConstraints = mutableListOf<JointConstraint>()
+    internal val myObservationDecls = mutableListOf<ObservationDecl>()
+    internal val myLeverDecls = mutableListOf<LeverDecl>()
+    internal val myJointConstraints = mutableListOf<JointConstraint>()
 
     /**
      *  The joint constraints as the element evaluates them. [totalFn] is re-read at every
-     *  epoch, so a budget may itself be a state (§4.4.6.1). [jointConstraints] keeps the
+     *  epoch, so a budget may itself be a state (§4.4.6.1). [myJointConstraints] keeps the
      *  declared, serializable form for the descriptor.
      */
     internal class JointDecl(
@@ -156,7 +156,7 @@ class DecisionElement internal constructor(
             return "sum(${names.joinToString(", ")}) $rel $rhs"
         }
     }
-    internal val jointDecls = mutableListOf<JointDecl>()
+    internal val myJointDecls = mutableListOf<JointDecl>()
 
     /**
      *  §4.4.5 — a model-authored atomic multi-lever write.
@@ -172,8 +172,8 @@ class DecisionElement internal constructor(
      */
     internal class BatchDecl(val names: List<String>, val applyAll: (DoubleArray) -> Unit)
 
-    internal val batchDecls = mutableListOf<BatchDecl>()
-    internal val rewardDecls = mutableListOf<RewardDecl>()
+    internal val myBatchDecls = mutableListOf<BatchDecl>()
+    internal val myRewardDecls = mutableListOf<RewardDecl>()
 
     /**
      *  Constraints where some but not all levers declared a unit, so `build()`'s consistency
@@ -181,7 +181,7 @@ class DecisionElement internal constructor(
      *  partial declaration is a legitimate half-step, and refusing it would make `unit`
      *  all-or-nothing, which is the ceremony §4.2.4 declined.
      */
-    internal val partiallyUnitedConstraints = mutableListOf<Int>()
+    internal val myPartiallyUnitedConstraints = mutableListOf<Int>()
 
     /**
      *  What the declaration says about units, and what it therefore could not check (§4.2.4).
@@ -192,16 +192,16 @@ class DecisionElement internal constructor(
      *  require one. This makes the remaining gap countable instead of rhetorical.
      */
     fun unitCoverage(): UnitCoverage = UnitCoverage(
-        observationsDeclared = observationDecls.count { it.unit != null },
-        observations = observationDecls.size,
-        leversDeclared = leverDecls.count { it.unit != null },
-        levers = leverDecls.size,
-        constraintsChecked = jointDecls.indices.count { k ->
-            k !in partiallyUnitedConstraints &&
-                jointDecls[k].names.all { n -> leverDecls.first { it.name == n }.unit != null }
+        observationsDeclared = myObservationDecls.count { it.unit != null },
+        observations = myObservationDecls.size,
+        leversDeclared = myLeverDecls.count { it.unit != null },
+        levers = myLeverDecls.size,
+        constraintsChecked = myJointDecls.indices.count { k ->
+            k !in myPartiallyUnitedConstraints &&
+                myJointDecls[k].names.all { n -> myLeverDecls.first { it.name == n }.unit != null }
         },
-        constraintsPartlyChecked = partiallyUnitedConstraints.size,
-        constraints = jointDecls.size
+        constraintsPartlyChecked = myPartiallyUnitedConstraints.size,
+        constraints = myJointDecls.size
     )
 
     lateinit var catalog: DecisionCatalog
@@ -210,12 +210,12 @@ class DecisionElement internal constructor(
     internal fun buildCatalog() {
         catalog = DecisionCatalog(
             owner = this,
-            observations = observationDecls.associate { it.name to it.source },
-            actuators = leverDecls.associate { d -> d.name to declToActuator(d) },
-            leverInfos = leverDecls.associate { it.name to it.info() },
+            observations = myObservationDecls.associate { it.name to it.source },
+            actuators = myLeverDecls.associate { d -> d.name to declToActuator(d) },
+            leverInfos = myLeverDecls.associate { it.name to it.info() },
             rewardSources = emptyMap(),
-            observationNames = observationDecls.map { it.name },
-            leverNames = leverDecls.map { it.name }
+            observationNames = myObservationDecls.map { it.name },
+            leverNames = myLeverDecls.map { it.name }
         )
     }
 
@@ -241,8 +241,8 @@ class DecisionElement internal constructor(
 
     fun descriptor(): DecisionSurfaceDescriptor = DecisionSurfaceDescriptor(
         name = this.name,
-        observations = observationDecls.map { ObservationDescriptor(it.name, unit = it.unit) },
-        levers = leverDecls.map {
+        observations = myObservationDecls.map { ObservationDescriptor(it.name, unit = it.unit) },
+        levers = myLeverDecls.map {
             LeverDescriptor(
                 name = it.name,
                 domain = it.domain,
@@ -256,11 +256,11 @@ class DecisionElement internal constructor(
                 unit = it.unit
             )
         },
-        constraints = jointConstraints.toList(),
-        rewards = rewardDecls.map {
+        constraints = myJointConstraints.toList(),
+        rewards = myRewardDecls.map {
             RewardDescriptor(it.name, it.sourceRef, it.kind, it.declaredRate, it.sense)
         },
-        episode = EpisodeDescriptor(maxEpochs = myMaxEpochs, hasTerminalCondition = terminalCondition != null),
+        episode = EpisodeDescriptor(maxEpochs = myMaxEpochs, hasTerminalCondition = myTerminalCondition != null),
         feasibility = myFeasibilityPolicy
     )
 
@@ -308,18 +308,18 @@ class DecisionElement internal constructor(
             myPolicy = value
             superseded?.close()
         }
-    internal var epochPriority: Int = KSLEvent.MEDIUM_LOW_PRIORITY
+    internal var myEpochPriority: Int = KSLEvent.MEDIUM_LOW_PRIORITY
 
     /**
      *  Which of the two events at a coinciding instant runs first (§4.6.4, G.9 row 10).
      *
-     *  §4.6.4's analysis is a CONSEQUENCE of `epochPriority` sorting ahead of this element's
+     *  §4.6.4's analysis is a CONSEQUENCE of `myEpochPriority` sorting ahead of this element's
      *  `warmUpPriority`, not a fact about the design. Since both are settable, an ordering
      *  the document asserts could be inverted by declaring a number and nothing would say
      *  so. Declaring the intent lets `build()` check the numbers against it.
      */
-    internal var warmUpOrdering: WarmUpOrdering = WarmUpOrdering.EPOCH_FIRST
-    internal var terminalCondition: (() -> Boolean)? = null
+    internal var myWarmUpOrdering: WarmUpOrdering = WarmUpOrdering.EPOCH_FIRST
+    internal var myTerminalCondition: (() -> Boolean)? = null
 
     private var myFeasibilityPolicy: FeasibilityPolicy = FeasibilityPolicy.REJECT
     var feasibilityPolicy: FeasibilityPolicy
@@ -353,9 +353,9 @@ class DecisionElement internal constructor(
      *  AmbiguousLeverException if it backs several.
      */
     fun leverFor(owner: ModelElement): LeverRef {
-        val hits = leverDecls.filter { it.owner === owner }
+        val hits = myLeverDecls.filter { it.owner === owner }
         if (hits.isEmpty()) {
-            throw BindingException(owner.name, leverDecls.map { it.name })
+            throw BindingException(owner.name, myLeverDecls.map { it.name })
         }
         if (hits.size > 1) {
             throw AmbiguousLeverException(owner.name, hits.map { it.name })
@@ -365,8 +365,8 @@ class DecisionElement internal constructor(
 
     /** Resolve a declared lever by name. */
     fun leverRef(declaredName: String): LeverRef {
-        leverDecls.firstOrNull { it.name == declaredName }
-            ?: throw BindingException(declaredName, leverDecls.map { it.name })
+        myLeverDecls.firstOrNull { it.name == declaredName }
+            ?: throw BindingException(declaredName, myLeverDecls.map { it.name })
         return LeverRef(this.name, declaredName)
     }
 
@@ -382,14 +382,14 @@ class DecisionElement internal constructor(
         if (lever.elementName != this.name) {
             throw BindingException(
                 "${lever.elementName}:${lever.declaredName}",
-                leverDecls.map { "${this.name}:${it.name}" },
+                myLeverDecls.map { "${this.name}:${it.name}" },
                 "That reference was issued by decision element '${lever.elementName}' and this is " +
                     "'${this.name}'. Ask this element for its own: leverRef(\"${lever.declaredName}\") " +
                     "or leverFor(target)."
             )
         }
-        return leverDecls.firstOrNull { it.name == lever.declaredName }
-            ?: throw BindingException(lever.declaredName, leverDecls.map { it.name })
+        return myLeverDecls.firstOrNull { it.name == lever.declaredName }
+            ?: throw BindingException(lever.declaredName, myLeverDecls.map { it.name })
     }
 
     fun narrow(lever: LeverRef, limits: IntRange) {
@@ -446,15 +446,15 @@ class DecisionElement internal constructor(
      *  one half of the lever/reward pair alone is how the same defect keeps recurring.
      */
     fun rewardFor(source: ResponseCIfc): RewardRef {
-        val hits = rewardDecls.filter { it.source.name == source.name }
-        if (hits.isEmpty()) throw BindingException(source.name, rewardDecls.map { it.name })
+        val hits = myRewardDecls.filter { it.source.name == source.name }
+        if (hits.isEmpty()) throw BindingException(source.name, myRewardDecls.map { it.name })
         if (hits.size > 1) throw AmbiguousLeverException(source.name, hits.map { it.name })
         return RewardRef(this.name, hits.single().name)
     }
 
     fun rewardRef(declaredName: String): RewardRef {
-        rewardDecls.firstOrNull { it.name == declaredName }
-            ?: throw BindingException(declaredName, rewardDecls.map { it.name })
+        myRewardDecls.firstOrNull { it.name == declaredName }
+            ?: throw BindingException(declaredName, myRewardDecls.map { it.name })
         return RewardRef(this.name, declaredName)
     }
 
@@ -467,15 +467,15 @@ class DecisionElement internal constructor(
         if (term.elementName != this.name) {
             throw BindingException(
                 "${term.elementName}:${term.declaredName}",
-                rewardDecls.map { "${this.name}:${it.name}" },
+                myRewardDecls.map { "${this.name}:${it.name}" },
                 "That reference was issued by decision element '${term.elementName}' and this is " +
                     "'${this.name}'. Ask this element for its own: rewardRef(\"${term.declaredName}\")."
             )
         }
-        val i = rewardDecls.indexOfFirst { it.name == term.declaredName }
-        if (i < 0) throw BindingException(term.declaredName, rewardDecls.map { it.name })
-        val d = rewardDecls[i]
-        rewardDecls[i] = RewardDecl(
+        val i = myRewardDecls.indexOfFirst { it.name == term.declaredName }
+        if (i < 0) throw BindingException(term.declaredName, myRewardDecls.map { it.name })
+        val d = myRewardDecls[i]
+        myRewardDecls[i] = RewardDecl(
             name = d.name, kind = d.kind,
             signedRate = if (d.sense == RewardSense.COST) -rate else rate,
             declaredRate = rate, sense = d.sense, source = d.source, sourceRef = d.sourceRef
@@ -515,14 +515,14 @@ class DecisionElement internal constructor(
         )
 
     internal fun createEstimand() {
-        if (rewardDecls.isNotEmpty() && myEstimand == null) {
+        if (myRewardDecls.isNotEmpty() && myEstimand == null) {
             myEstimand = Response(this, name = "${this.name}:TotalReward")
         }
     }
 
     /** Reward accrued this replication since the warm-up, in reward units (COST already negated). */
-    private var accruedReward: Double = 0.0
-    private var estimandPublished: Boolean = false
+    private var myAccruedReward: Double = 0.0
+    private var myEstimandPublished: Boolean = false
 
     private var myEpochCount: Int = 0
     val epochCount: Int get() = myEpochCount
@@ -550,7 +550,7 @@ class DecisionElement internal constructor(
      *  should say so by setting this to a smaller value than the other's, which beats the tie-break
      *  regardless of construction order.
      */
-    val declaredEpochPriority: Int get() = epochPriority
+    val declaredEpochPriority: Int get() = myEpochPriority
 
     private fun requireNotRunning(what: String) {
         check(model.isNotRunning) {
@@ -570,7 +570,7 @@ class DecisionElement internal constructor(
     // ---- Runtime ----------------------------------------------------------------
     internal lateinit var binding: DefaultActionBinding
     private lateinit var ctx: MutableDecisionContext
-    private var lastEpochTime: Double = 0.0
+    private var myLastEpochTime: Double = 0.0
     internal lateinit var rewards: RewardBinding
         private set
 
@@ -590,7 +590,7 @@ class DecisionElement internal constructor(
         /** Where that decision's state was read. */
         val provenance: EpochProvenance
     )
-    private var pending: Pending? = null
+    private var myPending: Pending? = null
 
     // ---- Capture attachment (§4.8.2) --------------------------------------------
     /**
@@ -601,7 +601,7 @@ class DecisionElement internal constructor(
      *  an iteration in progress. Writes are rare (attachment happens between runs) and reads are
      *  per emitted transition, which is the shape this list is for.
      */
-    private val sinks = CopyOnWriteArrayList<TransitionSink>()
+    private val mySinks = CopyOnWriteArrayList<TransitionSink>()
 
     /**
      *  Whether anything is listening (§4.8.2).
@@ -612,14 +612,14 @@ class DecisionElement internal constructor(
      *  allocation, rather than two array copies handed to an empty method.
      */
     val isCaptured: Boolean
-        get() = sinks.isNotEmpty()
+        get() = mySinks.isNotEmpty()
 
     /** How many sinks are attached. */
     val countTransitionSinks: Int
-        get() = sinks.size
+        get() = mySinks.size
 
     /** Whether [sink] is currently attached to this element. */
-    fun isTransitionSinkAttached(sink: TransitionSink): Boolean = sinks.contains(sink)
+    fun isTransitionSinkAttached(sink: TransitionSink): Boolean = mySinks.contains(sink)
 
     /**
      *  Send this element's transitions to [sink], from now until it is detached (§4.8.2).
@@ -647,11 +647,11 @@ class DecisionElement internal constructor(
      */
     fun attachTransitionSink(sink: TransitionSink) {
         requireNotRunning("transition sink attachment")
-        check(!sinks.contains(sink)) {
+        check(!mySinks.contains(sink)) {
             "The sink is already attached to ${this.name}. Attaching it twice would deliver " +
                 "every transition to it twice."
         }
-        sinks.add(sink)
+        mySinks.add(sink)
     }
 
     /**
@@ -663,19 +663,19 @@ class DecisionElement internal constructor(
      */
     fun detachTransitionSink(sink: TransitionSink): Boolean {
         requireNotRunning("transition sink detachment")
-        return sinks.remove(sink)
+        return mySinks.remove(sink)
     }
 
     /** Detach every sink. Closes none of them, for the reason [detachTransitionSink] gives. */
     fun detachAllTransitionSinks() {
         requireNotRunning("transition sink detachment")
-        sinks.clear()
+        mySinks.clear()
     }
 
     internal fun bind() {
         binding = DefaultActionBinding(this)
         ctx = MutableDecisionContext(this)
-        rewards = RewardBinding(rewardDecls.toList())
+        rewards = RewardBinding(myRewardDecls.toList())
     }
 
     /**
@@ -690,7 +690,7 @@ class DecisionElement internal constructor(
         override fun action(event: KSLEvent<Nothing>) = drainRequests()
     }
 
-    private val deferredAction = DeferredDecisionAction()
+    private val myDeferredAction = DeferredDecisionAction()
 
     /**
      *  Reasons requested since the last drain, in request order and without duplicates.
@@ -700,15 +700,15 @@ class DecisionElement internal constructor(
      *  about the decision. How many times it was asked for is [deferredRequestCount], which is kept
      *  separately so that the duplication is visible without being in the record.
      */
-    private val requestQueue = LinkedHashSet<String>()
+    private val myRequestQueue = LinkedHashSet<String>()
     private var myDeferredRequests: Int = 0
-    private var drainOutstanding: Boolean = false
-    private var drainInstant: Double = Double.NaN
-    private var drainsThisInstant: Int = 0
+    private var myDrainOutstanding: Boolean = false
+    private var myDrainInstant: Double = Double.NaN
+    private var myDrainsThisInstant: Int = 0
 
     // ---- The invocation contract (S§C.11) ---------------------------------------
 
-    private var inDecision: Boolean = false
+    private var myInDecision: Boolean = false
     private var myLastDecisionReason: String = ""
     private var myIgnoredAfterEpisodeEnd: Int = 0
 
@@ -727,7 +727,7 @@ class DecisionElement internal constructor(
      *
      *  Readable rather than published: this subsystem adds nothing to a model's report (§10.6).
      */
-    val discardedZeroLengthCount: Int get() = census.zeroLength
+    val discardedZeroLengthCount: Int get() = myCensus.zeroLength
 
     /** How many decision requests arrived after the episode had already ended (see [decide]). */
     val ignoredAfterEpisodeEndCount: Int get() = myIgnoredAfterEpisodeEnd
@@ -782,15 +782,15 @@ class DecisionElement internal constructor(
         // made at the same point, rather than scheduling an event that is then ignored.
         if (myLastTermination != null) { myIgnoredAfterEpisodeEnd++; return }
         myDeferredRequests++
-        requestQueue += reason
-        if (!drainOutstanding) {
-            drainOutstanding = true
-            deferredAction.schedule(0.0, priority = epochPriority)
+        myRequestQueue += reason
+        if (!myDrainOutstanding) {
+            myDrainOutstanding = true
+            myDeferredAction.schedule(0.0, priority = myEpochPriority)
         }
     }
 
     /** The reasons requested and not yet decided on, in request order. */
-    val pendingRequests: List<String> get() = requestQueue.toList()
+    val pendingRequests: List<String> get() = myRequestQueue.toList()
 
     /** How many deferred requests have been made this replication, duplicates included. */
     val deferredRequestCount: Int get() = myDeferredRequests
@@ -806,28 +806,28 @@ class DecisionElement internal constructor(
      *  is what it is for.
      */
     private fun drainRequests() {
-        drainOutstanding = false
-        if (requestQueue.isEmpty()) return
+        myDrainOutstanding = false
+        if (myRequestQueue.isEmpty()) return
 
-        if (time != drainInstant) { drainInstant = time; drainsThisInstant = 0 }
-        drainsThisInstant++
+        if (time != myDrainInstant) { myDrainInstant = time; myDrainsThisInstant = 0 }
+        myDrainsThisInstant++
 
-        val batch = requestQueue.toList()
-        requestQueue.clear()
+        val batch = myRequestQueue.toList()
+        myRequestQueue.clear()
         runGuarded(batch.joinToString(", "), EpochProvenance.DEFERRED)
 
         // Something asked for a decision DURING the decision. Once is ordinary — a lever write may
         // legitimately want a follow-up. Doing it every time is the runaway of Reference I, which
         // used to be bounded only by maxEpochs and so announced itself as a hang rather than as a
         // fault. The clock has not moved, so the count is a count of self-retriggering.
-        if (requestQueue.isNotEmpty()) {
-            if (drainsThisInstant >= MAX_DRAINS_PER_INSTANT) {
+        if (myRequestQueue.isNotEmpty()) {
+            if (myDrainsThisInstant >= MAX_DRAINS_PER_INSTANT) {
                 throw RunawayDecisionRequestException(
-                    this.name, time, drainsThisInstant, requestQueue.toList()
+                    this.name, time, myDrainsThisInstant, myRequestQueue.toList()
                 )
             }
-            drainOutstanding = true
-            deferredAction.schedule(0.0, priority = epochPriority)
+            myDrainOutstanding = true
+            myDeferredAction.schedule(0.0, priority = myEpochPriority)
         }
     }
 
@@ -838,26 +838,26 @@ class DecisionElement internal constructor(
      *  the decision context's staleness generation as well as the pending transition.
      */
     private fun runGuarded(reason: String, provenance: EpochProvenance) {
-        if (inDecision) throw ReentrantDecisionException(this.name, reason)
+        if (myInDecision) throw ReentrantDecisionException(this.name, reason)
         if (myLastTermination != null) {
             myIgnoredAfterEpisodeEnd++
             return
         }
-        inDecision = true
+        myInDecision = true
         try {
             myLastDecisionReason = reason
             runEpoch(reason, provenance)
         } finally {
-            inDecision = false
+            myInDecision = false
         }
     }
 
     private fun readObservations(): DoubleArray =
-        DoubleArray(observationDecls.size) { observationDecls[it].source.value }
+        DoubleArray(myObservationDecls.size) { myObservationDecls[it].source.value }
 
     /** Do nothing, as each lever declared it (§8.2.3). */
     internal fun neutralAction(): DoubleArray =
-        DoubleArray(leverDecls.size) { leverDecls[it].neutralValue() }
+        DoubleArray(myLeverDecls.size) { myLeverDecls[it].neutralValue() }
 
     private fun runEpoch(reason: String, provenance: EpochProvenance) {
         // Step 1 — observe. ONE read, serving both the successor state of the transition that is
@@ -869,11 +869,11 @@ class DecisionElement internal constructor(
         // baseline and adopted as the new one. `null` means there was no baseline — the first
         // epoch of an episode, or one invalidated by warm-up — which is NOT a reward of zero.
         val intervalReward = rewards.closeInterval()
-        if (intervalReward != null) accruedReward += intervalReward
+        if (intervalReward != null) myAccruedReward += intervalReward
 
         // Step 3 — classify the ending. Before the emit, because `terminated` and `truncated` are
         // fields of the row step 4 writes (§4.6.3).
-        val terminal = terminalCondition?.invoke() == true
+        val terminal = myTerminalCondition?.invoke() == true
         val ending: TerminationSource? = when {
             terminal -> TerminationSource.NATURAL
             myEpochCount >= myMaxEpochs -> TerminationSource.MAX_EPOCHS
@@ -896,7 +896,7 @@ class DecisionElement internal constructor(
         // Step 6 — decide and act. The context is open only for the duration of the call:
         // reading it afterwards throws rather than answering about a later epoch (§4.5.3).
         // `finally`, so a rule that throws still leaves no live context behind.
-        val view = ctx.open(time, time - lastEpochTime, myEpochCount, reason)
+        val view = ctx.open(time, time - myLastEpochTime, myEpochCount, reason)
         // R2's third clause says the policy call "neither advances the clock nor schedules events of
         // its own", and nothing enforced it. A rule that schedules is doing simulation from inside a
         // decision: its effects land in an interval nobody attributed, and §10.4's reproducibility
@@ -939,10 +939,10 @@ class DecisionElement internal constructor(
         // request was repaired rather than a column that repeats `action` on every row.
         val appliedVector = applied.applied
         val proposed = if (action.contentEquals(appliedVector)) null else action.copyOf()
-        pending = Pending(s, appliedVector.copyOf(), proposed, applied.unavailable?.copyOf(),
+        myPending = Pending(s, appliedVector.copyOf(), proposed, applied.unavailable?.copyOf(),
             time, myEpochCount, reason, provenance)
         myEpochCount++
-        lastEpochTime = time
+        myLastEpochTime = time
     }
 
     /**
@@ -970,7 +970,7 @@ class DecisionElement internal constructor(
                 "noBaseline=$noBaseline zeroLength=$zeroLength"
     }
 
-    internal val census = EmissionCensus()
+    internal val myCensus = EmissionCensus()
 
     /**
      *  §4.10.2 step 4. Write the completed transition, or discard it for one of three reasons.
@@ -982,31 +982,31 @@ class DecisionElement internal constructor(
      *  **The order of the three tests is attributive, not merely procedural** (§4.10.2.1). They
      *  short-circuit, so when more than one predicate holds the first one recorded is the reason.
      *  This is why discard 2 never fires: `rewards.invalidate()` is called at exactly two sites,
-     *  `initialize()` and `warmUp()`, and both clear `pending` in the same breath, so there is no
+     *  `initialize()` and `warmUp()`, and both clear `myPending` in the same breath, so there is no
      *  reachable state in which a transition is pending while its baseline is not. It is kept as a
      *  guard on that two-site invariant, and `EmissionTruthTableTest` fails if it ever fires —
      *  which is the point of keeping an unreachable branch rather than deleting it.
      */
     private fun emitPending(successor: DoubleArray, reward: Double?, ending: TerminationSource?) {
-        census.attempts++
-        val p = pending ?: run { census.noPredecessor++; return }   // discard 1: no predecessor
-        pending = null
+        myCensus.attempts++
+        val p = myPending ?: run { myCensus.noPredecessor++; return }   // discard 1: no predecessor
+        myPending = null
         if (reward == null) {                     // discard 2: baseline invalidated, or none yet
-            census.noBaseline++
+            myCensus.noBaseline++
             return
         }
         val tau = time - p.time
         if (tau <= 0.0) {                         // discard 3: zero-length (§4.8.3)
-            census.zeroLength++
+            myCensus.zeroLength++
             return
         }
-        census.emitted++
+        myCensus.emitted++
 
         // §4.8.2. Guard BEFORE constructing the record, the way every animation emission site does
         // (`if (sink.isActive) sink.emit(...)`), so that with nothing listening a transition costs
         // a couple of emptiness checks and no allocation.
         //
-        // Placed AFTER the census, deliberately: `census` is the emission truth table of §4.10.2.1
+        // Placed AFTER the census, deliberately: `myCensus` is the emission truth table of §4.10.2.1
         // and `EmissionTruthTableTest` reads it. A gate above this line would make the accounting
         // report zero emissions whenever no sink was attached, which is the accounting going blind
         // rather than the emission being cheap.
@@ -1043,7 +1043,7 @@ class DecisionElement internal constructor(
         // the run, and that is the intended severity — a dropped training row is a silent data
         // defect that surfaces in somebody's learner three steps later, unlike a dropped animation
         // frame, which is why `AnimationSink` fails soft and this does not.
-        for (s in sinks) s.write(record)
+        for (s in mySinks) s.write(record)
 
         // The hook §4.5.4.1 declares and §8.2.9 measured was never called. It is called here:
         // a LookaheadPolicy holding a LearnableValueApproximationIfc becomes an adaptive rule by
@@ -1057,9 +1057,9 @@ class DecisionElement internal constructor(
      *  contribute two observations to the across-replication statistic.
      */
     private fun publishEstimand(source: TerminationSource) {
-        if (estimandPublished) return
-        estimandPublished = true
-        myEstimand?.value = accruedReward
+        if (myEstimandPublished) return
+        myEstimandPublished = true
+        myEstimand?.value = myAccruedReward
         (myPolicy as? ManagedPolicyIfc)?.afterEpisode(model.currentReplicationId, source)
     }
 
@@ -1075,7 +1075,7 @@ class DecisionElement internal constructor(
         // rather than stored, so it cannot be stale (§4.1.5), and provenance is delivered per
         // experiment rather than per attachment because two of its fields — the experiment name
         // and the policy label — differ between runs of one model (§4.9).
-        if (sinks.isNotEmpty()) {
+        if (mySinks.isNotEmpty()) {
             val provenance = RunProvenance(
                 modelName = model.name,
                 experimentName = model.experimentName,
@@ -1083,22 +1083,22 @@ class DecisionElement internal constructor(
                 policyLabel = policyLabel,
                 descriptor = descriptor()
             )
-            for (s in sinks) s.beginExperiment(provenance)
+            for (s in mySinks) s.beginExperiment(provenance)
         }
     }
 
     override fun initialize() {
         myEpochCount = 0
         myLastTermination = null
-        lastEpochTime = 0.0
-        pending = null
-        accruedReward = 0.0
-        estimandPublished = false
-        requestQueue.clear()
+        myLastEpochTime = 0.0
+        myPending = null
+        myAccruedReward = 0.0
+        myEstimandPublished = false
+        myRequestQueue.clear()
         myDeferredRequests = 0
-        drainOutstanding = false
-        drainInstant = Double.NaN
-        drainsThisInstant = 0
+        myDrainOutstanding = false
+        myDrainInstant = Double.NaN
+        myDrainsThisInstant = 0
         // §4.10.3: initialize() must NOT read reward sources. It runs in model-element
         // construction order, so reading a sibling's accumulated value here would make the
         // baseline depend on declaration order. It starts invalid and is taken at the first
@@ -1113,9 +1113,9 @@ class DecisionElement internal constructor(
         // with reward the run is meant to forget. Read nothing else: the epoch at this instant,
         // if any, has ALREADY run, because epochPriority sorts ahead of warmUpPriority and
         // build() checks that against the declared warmUpOrdering (§4.6.4.1).
-        pending = null
+        myPending = null
         rewards.invalidate()
-        accruedReward = 0.0
+        myAccruedReward = 0.0
     }
 
     override fun replicationEnded() {
@@ -1123,7 +1123,7 @@ class DecisionElement internal constructor(
         // episode already ended, in which case step 5 recorded why and emitted its own row.
         if (myLastTermination == null) {
             val reward = rewards.closeInterval()
-            if (reward != null) accruedReward += reward
+            if (reward != null) myAccruedReward += reward
             myLastTermination = TerminationSource.RUN_LENGTH
             emitPending(readObservations(), reward, TerminationSource.RUN_LENGTH)
         }
@@ -1165,7 +1165,7 @@ class DecisionElement internal constructor(
         val failures = mutableListOf<Throwable>()
         runCatching { (myPolicy as? ManagedPolicyIfc)?.afterExperiment() }
             .exceptionOrNull()?.let { failures += it }
-        for (s in sinks) {
+        for (s in mySinks) {
             runCatching { s.endExperiment() }.exceptionOrNull()?.let { failures += it }
         }
         if (failures.isNotEmpty()) {
@@ -1181,7 +1181,7 @@ class DecisionElement internal constructor(
  */
 internal class DefaultActionBinding(private val element: DecisionElement) : ActionBinding {
 
-    private val decls: List<LeverDecl> get() = element.leverDecls
+    private val myDecls: List<LeverDecl> get() = element.myLeverDecls
 
     /**
      *  §4.4.4's repair, applied only where it means something.
@@ -1194,7 +1194,7 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
      */
     fun clamp(action: DoubleArray): DoubleArray =
         DoubleArray(action.size) { i ->
-            val d = decls[i]
+            val d = myDecls[i]
             if (d.domain == LeverDomain.CATEGORICAL) return@DoubleArray action[i]
             val r = d.feasibleRange()
             // An empty set is left alone rather than mapped to NaN. `prepare` resolves such a
@@ -1217,9 +1217,9 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
 
     override fun prepare(action: DoubleArray): PreparedAction {
         val violations = mutableListOf<String>()
-        if (action.size != decls.size) {
+        if (action.size != myDecls.size) {
             return PreparedAction.Invalid(
-                listOf("The policy returned ${action.size} values; ${decls.size} levers are declared.")
+                listOf("The policy returned ${action.size} values; ${myDecls.size} levers are declared.")
             )
         }
         // §4.4.6.3. The resolved value of every lever, which is what the rule asked for except
@@ -1231,14 +1231,14 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         val resolved = action.copyOf()
         var unavailable: BooleanArray? = null
 
-        for ((i, d) in decls.withIndex()) {
+        for ((i, d) in myDecls.withIndex()) {
             val v = action[i]
             // §4.3.3: envelope ∩ narrowed ∩ 𝒳(s), re-evaluated at every epoch.
             val range = d.feasibleRange()
             if (range.isEmpty()) {
                 // Nothing to choose from. Take the neutral, record that it was forced, and do not
                 // judge what the rule asked for — there was no value it could have named.
-                val flags = unavailable ?: BooleanArray(decls.size).also { unavailable = it }
+                val flags = unavailable ?: BooleanArray(myDecls.size).also { unavailable = it }
                 flags[i] = true
                 resolved[i] = d.neutralValue()
                 continue
@@ -1260,8 +1260,8 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
                 violations += "'${d.name}' = $v${d.u()} is not integral, but the lever's domain is INTEGER."
             }
         }
-        val index = decls.withIndex().associate { (i, d) -> d.name to i }
-        for (c in element.jointDecls) {
+        val index = myDecls.withIndex().associate { (i, d) -> d.name to i }
+        for (c in element.myJointDecls) {
             // Over the RESOLVED values, not the requested ones: a constraint is a statement about
             // what the model will hold, and a lever forced to its neutral contributes the neutral.
             val sum = c.names.sumOf { n ->
@@ -1272,7 +1272,7 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
             val what = if (c.stateDependent) "the state-dependent total" else "the declaration"
             // build() has already established that the summed levers agree on a unit, so
             // there is one unit for the sum and for the total, and naming it is honest.
-            val cu = c.names.firstNotNullOfOrNull { n -> decls.first { it.name == n }.unit }
+            val cu = c.names.firstNotNullOfOrNull { n -> myDecls.first { it.name == n }.unit }
                 ?.let { " $it" } ?: ""
             if (c.equality) {
                 if (Math.abs(sum - total) > 1e-9) {
@@ -1297,8 +1297,8 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         // NaN and the guard cannot fire; the kind test states the rule rather than relying on
         // that coincidence.
         val steps = mutableListOf<ActionPlan.Step>()
-        val batched = element.batchDecls.flatMap { it.names }.toSet()
-        for ((i, d) in decls.withIndex()) {
+        val batched = element.myBatchDecls.flatMap { it.names }.toSet()
+        for ((i, d) in myDecls.withIndex()) {
             // A batched lever is not written individually — its group is written as one act below.
             // The elision rule does not apply to it either: a batch receives every member's value,
             // including members that did not move, because `applyAll` is one call and cannot be
@@ -1323,7 +1323,7 @@ internal class DefaultActionBinding(private val element: DecisionElement) : Acti
         // individual writes the groups go first, which is the conservative choice — a group that
         // exists because its members must move together is the part most likely to be the one a
         // constraint is about.
-        val batches = element.batchDecls.map { b ->
+        val batches = element.myBatchDecls.map { b ->
             ActionPlan.Batch(b.names, DoubleArray(b.names.size) { k -> resolved[index.getValue(b.names[k])] }, b.applyAll)
         }
         return PreparedAction.Ready(ActionPlan(steps, resolved, unavailable, batches))
@@ -1383,15 +1383,15 @@ internal class MutableDecisionContext(private val element: DecisionElement) {
     // these is legitimate, so nothing guards them.
     val elementName: String = element.name
     val modelName: String = element.model.name
-    val observationNames: List<String> = element.observationDecls.map { it.name }
-    val leverNames: List<String> = element.leverDecls.map { it.name }
-    val observationUnits: List<String?> = element.observationDecls.map { it.unit }
-    val leverUnits: List<String?> = element.leverDecls.map { it.unit }
-    val constraints: List<JointConstraint> = element.jointConstraints.toList()
+    val observationNames: List<String> = element.myObservationDecls.map { it.name }
+    val leverNames: List<String> = element.myLeverDecls.map { it.name }
+    val observationUnits: List<String?> = element.myObservationDecls.map { it.unit }
+    val leverUnits: List<String?> = element.myLeverDecls.map { it.unit }
+    val constraints: List<JointConstraint> = element.myJointConstraints.toList()
 
-    // ---- Liveness. `generation` counts decisions; `live` is the one being served, or -1.
-    private var generation: Long = 0L
-    private var live: Long = -1L
+    // ---- Liveness. `myGeneration` counts decisions; `myLive` is the one being served, or -1.
+    private var myGeneration: Long = 0L
+    private var myLive: Long = -1L
 
     var simulationTime: Double = 0.0
         private set
@@ -1405,22 +1405,22 @@ internal class MutableDecisionContext(private val element: DecisionElement) {
     val owner: DecisionElement get() = element
 
     internal fun check(stamp: Long, member: String) {
-        if (stamp != live) throw StaleDecisionContextException(elementName, member, generation - stamp)
+        if (stamp != myLive) throw StaleDecisionContextException(elementName, member, myGeneration - stamp)
     }
 
     /** Mint the view for this decision. */
     internal fun open(now: Double, sinceLast: Double, index: Int, why: String): DecisionContext {
-        generation++
-        live = generation
+        myGeneration++
+        myLive = myGeneration
         simulationTime = now
         intervalSinceLastEpoch = sinceLast
         epochIndex = index
         reason = why
-        return EpochContext(this, generation)
+        return EpochContext(this, myGeneration)
     }
 
     internal fun close() {
-        live = -1L
+        myLive = -1L
     }
 }
 
@@ -1437,7 +1437,7 @@ internal class EpochContext(
     private val stamp: Long
 ) : DecisionContext {
 
-    private val element get() = state.owner
+    private val myElement get() = state.owner
 
     private fun live(member: String) = state.check(stamp, member)
 
@@ -1451,9 +1451,9 @@ internal class EpochContext(
     override val reason: String
         get() { live("reason"); return state.reason }
     override val remainingRunLength: Double
-        get() { live("remainingRunLength"); return element.model.lengthOfReplication - state.simulationTime }
+        get() { live("remainingRunLength"); return myElement.model.lengthOfReplication - state.simulationTime }
     override val replicationId: Int
-        get() { live("replicationId"); return element.model.currentReplicationId }
+        get() { live("replicationId"); return myElement.model.currentReplicationId }
 
     // ---- The declared shape. Constant; unguarded.
     override val elementName: String get() = state.elementName
@@ -1465,7 +1465,7 @@ internal class EpochContext(
     override val constraints: List<JointConstraint> get() = state.constraints
 
     override val leverBounds: List<ClosedFloatingPointRange<Double>>
-        get() = element.leverDecls.map { it.lowerBound..it.upperBound }
+        get() = myElement.myLeverDecls.map { it.lowerBound..it.upperBound }
 
     /**
      *  The total governing this lever **as it stands now**. Once a budget can itself be a
@@ -1484,14 +1484,14 @@ internal class EpochContext(
     override fun budgetTotal(leverIndex: Int): Double? {
         live("budgetTotal")
         val name = leverNames[leverIndex]
-        val d = element.jointDecls.firstOrNull { it.names.contains(name) } ?: return null
+        val d = myElement.myJointDecls.firstOrNull { it.names.contains(name) } ?: return null
         return d.totalFn()
     }
 
     // ---- The feasible set 𝒳(s) as an object, §4.4.6.5. It carries this view's stamp too:
     // 𝒳(s) is a function of the state, so a retained ActionSet is the same hazard, and
     // guarding only the getter that hands it out would leave the door open.
-    private val myActions: ActionSet = ElementActionSet(element) { m -> live("actions.$m") }
+    private val myActions: ActionSet = ElementActionSet(myElement) { m -> live("actions.$m") }
 
     override val actions: ActionSet
         get() { live("actions"); return myActions }
@@ -1499,14 +1499,14 @@ internal class EpochContext(
     override val currentAction: DoubleArray
         get() {
             live("currentAction")
-            return DoubleArray(element.leverDecls.size) { i ->
-                val a = element.catalog.actuator(element.leverDecls[i].name)
+            return DoubleArray(myElement.myLeverDecls.size) { i ->
+                val a = myElement.catalog.actuator(myElement.myLeverDecls[i].name)
                 if (a is StatefulLeverActuator) a.currentValue() else Double.NaN
             }
         }
 
     override val neutralAction: DoubleArray
-        get() { live("neutralAction"); return element.neutralAction() }
+        get() { live("neutralAction"); return myElement.neutralAction() }
 }
 
 @DslMarker
@@ -1532,11 +1532,11 @@ class DecisionElementBuilder internal constructor(
         // ResponseIfc carries ValueIfc, NOT GetValueIfc: KSL has two interfaces declaring
         // `val value: Double` and they are unrelated. The catalog is typed on GetValueIfc,
         // so a response must be adapted. See §8.1.
-        element.observationDecls += ObservationDecl(alias, GetValueIfc { source.value }, unit)
+        element.myObservationDecls += ObservationDecl(alias, GetValueIfc { source.value }, unit)
     }
 
     fun observe(name: String, unit: String? = null, source: GetValueIfc) {
-        element.observationDecls += ObservationDecl(name, source, unit)
+        element.myObservationDecls += ObservationDecl(name, source, unit)
     }
 
     // Each returns the declared lever's identity, for use by budget/atMost and by
@@ -1601,7 +1601,7 @@ class DecisionElementBuilder internal constructor(
     ): LeverRef {
         require(lower <= upper) { "Lever limits for '${alias ?: owner.name}' are unordered: [$lower, $upper]" }
         val name = alias ?: owner.name
-        require(element.leverDecls.none { it.name == name }) { "Lever '$name' is declared twice." }
+        require(element.myLeverDecls.none { it.name == name }) { "Lever '$name' is declared twice." }
         // The reader and the kind both come out of `neutral`, which is why they can no
         // longer disagree. A CATEGORICAL transaction is refused: doing nothing to an
         // unordered lever is not a number, and `Neutral.Value` would have to name a level
@@ -1614,7 +1614,7 @@ class DecisionElementBuilder internal constructor(
                     "make. Declare Neutral.Current { … } naming the level in force (§8.2.3)."
             )
         }
-        element.leverDecls += LeverDecl(
+        element.myLeverDecls += LeverDecl(
             name = name,
             owner = owner,
             domain = domain,
@@ -1675,7 +1675,7 @@ class DecisionElementBuilder internal constructor(
             }
             ref.declaredName
         }
-        val declared = element.leverDecls.map { it.name }.toSet()
+        val declared = element.myLeverDecls.map { it.name }.toSet()
         val unknown = names.filterNot { it in declared }
         require(unknown.isEmpty()) {
             "batchLever names $unknown, which ${if (unknown.size == 1) "is" else "are"} not " +
@@ -1685,13 +1685,13 @@ class DecisionElementBuilder internal constructor(
             "batchLever names the same lever more than once: $names. A lever gets one value per " +
                 "epoch, so it can appear in a group once."
         }
-        val alreadyBatched = element.batchDecls.flatMap { it.names }.toSet()
+        val alreadyBatched = element.myBatchDecls.flatMap { it.names }.toSet()
         val overlap = names.filter { it in alreadyBatched }
         require(overlap.isEmpty()) {
             "$overlap already belong(s) to another batch. A lever is written by exactly one act, " +
                 "so it can be in at most one group."
         }
-        element.batchDecls += DecisionElement.BatchDecl(names, applyAll)
+        element.myBatchDecls += DecisionElement.BatchDecl(names, applyAll)
     }
 
     /**
@@ -1716,14 +1716,14 @@ class DecisionElementBuilder internal constructor(
 
     fun budget(vararg levers: LeverRef, total: Double) {
         val names = namesOf(levers)
-        element.jointConstraints += SumEquals(names, total)
-        element.jointDecls += DecisionElement.JointDecl(true, names, { total }, false)
+        element.myJointConstraints += SumEquals(names, total)
+        element.myJointDecls += DecisionElement.JointDecl(true, names, { total }, false)
     }
 
     fun atMost(vararg levers: LeverRef, total: Double) {
         val names = namesOf(levers)
-        element.jointConstraints += SumAtMost(names, total)
-        element.jointDecls += DecisionElement.JointDecl(false, names, { total }, false)
+        element.myJointConstraints += SumAtMost(names, total)
+        element.myJointDecls += DecisionElement.JointDecl(false, names, { total }, false)
     }
 
     /**
@@ -1733,14 +1733,14 @@ class DecisionElementBuilder internal constructor(
      */
     fun budget(vararg levers: LeverRef, envelope: Double, total: () -> Double) {
         val names = namesOf(levers)
-        element.jointConstraints += SumEquals(names, envelope)
-        element.jointDecls += DecisionElement.JointDecl(true, names, total, true)
+        element.myJointConstraints += SumEquals(names, envelope)
+        element.myJointDecls += DecisionElement.JointDecl(true, names, total, true)
     }
 
     fun atMost(vararg levers: LeverRef, envelope: Double, total: () -> Double) {
         val names = namesOf(levers)
-        element.jointConstraints += SumAtMost(names, envelope)
-        element.jointDecls += DecisionElement.JointDecl(false, names, total, true)
+        element.myJointConstraints += SumAtMost(names, envelope)
+        element.myJointDecls += DecisionElement.JointDecl(false, names, total, true)
     }
 
     /**
@@ -1773,9 +1773,9 @@ class DecisionElementBuilder internal constructor(
         sense: RewardSense, alias: String?, kind: RewardKind?
     ): RewardRef {
         val name = alias ?: sourceName
-        require(element.rewardDecls.none { it.name == name }) { "Reward term '$name' is declared twice." }
+        require(element.myRewardDecls.none { it.name == name }) { "Reward term '$name' is declared twice." }
         checkRewardKind(kind, source, name)
-        element.rewardDecls += RewardDecl(
+        element.myRewardDecls += RewardDecl(
             name = name,
             kind = inferRewardKind(source),
             // §4.2.5: the sign is applied ONCE, here, so nothing downstream flips it again.
@@ -1788,18 +1788,18 @@ class DecisionElementBuilder internal constructor(
         return RewardRef(element.name, name)
     }
 
-    var epochPriority: Int
-        get() = element.epochPriority
-        set(value) { element.epochPriority = value }
+    var myEpochPriority: Int
+        get() = element.myEpochPriority
+        set(value) { element.myEpochPriority = value }
 
     /**
      *  Which runs first when an epoch coincides with this element's warm-up (§4.6.4).
-     *  `build()` checks [epochPriority] against the element's `warmUpPriority` and rejects
+     *  `build()` checks [myEpochPriority] against the element's `warmUpPriority` and rejects
      *  a combination that contradicts what is declared here.
      */
-    var warmUpOrdering: WarmUpOrdering
-        get() = element.warmUpOrdering
-        set(value) { element.warmUpOrdering = value }
+    var myWarmUpOrdering: WarmUpOrdering
+        get() = element.myWarmUpOrdering
+        set(value) { element.myWarmUpOrdering = value }
 
     /**
      *  A cap on decisions per episode. Must be positive: `maxEpochs(0)` ends the episode at the
@@ -1810,7 +1810,7 @@ class DecisionElementBuilder internal constructor(
         require(n > 0) { "maxEpochs must be > 0, but maxEpochs($n) was declared." }
         element.myMaxEpochs = n
     }
-    fun terminalWhen(condition: () -> Boolean) { element.terminalCondition = condition }
+    fun terminalWhen(condition: () -> Boolean) { element.myTerminalCondition = condition }
 
     var feasibility: FeasibilityPolicy
         get() = element.feasibilityPolicy
@@ -1839,16 +1839,16 @@ class DecisionElementBuilder internal constructor(
 
     internal fun build(): DecisionElement {
         require(policy != null) { "A decision element requires a policy." }
-        require(element.observationDecls.isNotEmpty()) { "A decision element requires at least one observation." }
-        require(element.leverDecls.isNotEmpty()) { "A decision element requires at least one lever." }
+        require(element.myObservationDecls.isNotEmpty()) { "A decision element requires at least one observation." }
+        require(element.myLeverDecls.isNotEmpty()) { "A decision element requires at least one lever." }
         // S§C.0 / plan step 8. The refusal that stood here required epoch timing, on the ground
         // that an element without it "never schedules an epoch, never decides, and reports nothing".
         // With the caller owning the timing that is no longer a defect in the declaration: an element
         // is *supposed* to declare none and be driven by decide(reason). The silent-failure hazard the
         // refusal guarded is real and is now caught where it can actually be observed -- the zero-epoch
         // diagnostic in replicationEnded() -- rather than guessed at from the declaration.
-        val declared = element.leverDecls.map { it.name }.toSet()
-        for (c in element.jointConstraints) {
+        val declared = element.myLeverDecls.map { it.name }.toSet()
+        for (c in element.myJointConstraints) {
             for (n in c.names) {
                 require(n in declared) { "Constraint names lever '$n', which is not declared. Declared: $declared" }
             }
@@ -1858,9 +1858,9 @@ class DecisionElementBuilder internal constructor(
         // one place the library can check a unit against something, because it is the one
         // place units are combined. Levers that declare no unit are skipped — `unit` is
         // optional, and an optional field cannot be the basis of a mandatory check.
-        for ((k, c) in element.jointDecls.withIndex()) {
+        for ((k, c) in element.myJointDecls.withIndex()) {
             val declared = c.names.mapNotNull { n ->
-                element.leverDecls.first { it.name == n }.unit?.let { u -> n to u }
+                element.myLeverDecls.first { it.name == n }.unit?.let { u -> n to u }
             }
             val distinct = declared.map { it.second }.distinct()
             require(distinct.size <= 1) {
@@ -1873,7 +1873,7 @@ class DecisionElementBuilder internal constructor(
             if (distinct.size == 1 && declared.size < c.names.size) {
                 // Not an error: `unit` is optional and a partial declaration is a legitimate
                 // half-step. But it does mean the check above only covered part of the sum.
-                element.partiallyUnitedConstraints += k
+                element.myPartiallyUnitedConstraints += k
             }
         }
         // §4.4.6.2 / G.9 row 3: one lever, one joint total. `budgetTotal` returns a single
@@ -1881,7 +1881,7 @@ class DecisionElementBuilder internal constructor(
         // was declared first and gives it no way to act on the other. Refuse at
         // construction, naming both — that is what §4.2.6 promises everywhere else.
         for (n in declared) {
-            val owning = element.jointDecls.filter { n in it.names }
+            val owning = element.myJointDecls.filter { n in it.names }
             require(owning.size <= 1) {
                 "Lever '$n' is named by ${owning.size} joint constraints: " +
                     owning.joinToString("; ") { it.describe() } +
@@ -1892,9 +1892,9 @@ class DecisionElementBuilder internal constructor(
             }
         }
         // §4.6.4 / G.9 row 10: the declared ordering must match the numbers that produce it.
-        val epochP = element.epochPriority
+        val epochP = element.myEpochPriority
         val warmP = element.warmUpPriority
-        when (element.warmUpOrdering) {
+        when (element.myWarmUpOrdering) {
             WarmUpOrdering.EPOCH_FIRST -> require(epochP < warmP) {
                 "Element '${element.name}' declares warmUpOrdering = EPOCH_FIRST, but its epoch " +
                     "priority ($epochP) does not sort ahead of its warm-up priority ($warmP), so " +

@@ -116,32 +116,32 @@ class RollingSink(
     private val factory: (RunProvenance) -> TransitionSink
 ) : TransitionSink {
 
-    private var current: TransitionSink? = null
+    private var myCurrent: TransitionSink? = null
 
     /** The delegate for the run in progress, or null between runs. For tests and diagnostics. */
     val delegate: TransitionSink?
-        get() = current
+        get() = myCurrent
 
     override fun beginExperiment(provenance: RunProvenance) {
         // A previous run that ended abnormally could leave one behind; releasing it here is the
         // difference between a leaked file handle per run and a leaked file handle.
-        current?.let { runCatching { it.close() } }
-        current = factory(provenance)
+        myCurrent?.let { runCatching { it.close() } }
+        myCurrent = factory(provenance)
     }
 
     override fun write(record: TransitionRecord) {
-        current?.write(record)
+        myCurrent?.write(record)
     }
 
     override fun endExperiment() {
-        val d = current
-        current = null
+        val d = myCurrent
+        myCurrent = null
         d?.close()
     }
 
     override fun close() {
-        val d = current
-        current = null
+        val d = myCurrent
+        myCurrent = null
         d?.close()
     }
 }
