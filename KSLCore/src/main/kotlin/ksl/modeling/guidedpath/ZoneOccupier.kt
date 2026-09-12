@@ -237,13 +237,7 @@ open class ZoneOccupier(
      * @param duration how long to hold it once the hold begins, strictly positive
      * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
      */
-    fun holdZoneFor(zone: Zone, duration: Double): ZoneRequest {
-        require(duration > 0.0) {
-            "Occupier ($name) was asked to hold zone (${zone.name}) for $duration, which is not a " +
-                    "duration. To take a zone until told otherwise, use requestZone."
-        }
-        return ask(listOf(zone), duration)
-    }
+    fun holdZoneFor(zone: Zone, duration: Double): ZoneRequest = ask(listOf(zone), duration)
 
     /**
      * Takes a set of zones together for a stated duration, and gives them back without being asked.
@@ -254,13 +248,7 @@ open class ZoneOccupier(
      * @param zones the zones to take, all on this occupier's guide path, distinct, at least one
      * @param duration how long to hold them once the hold begins, strictly positive
      */
-    fun holdZonesFor(zones: List<Zone>, duration: Double): ZoneRequest {
-        require(duration > 0.0) {
-            "Occupier ($name) was asked to hold ${zones.size} zone(s) for $duration, which is not " +
-                    "a duration. To take space until told otherwise, use requestZones."
-        }
-        return ask(zones, duration)
-    }
+    fun holdZonesFor(zones: List<Zone>, duration: Double): ZoneRequest = ask(zones, duration)
 
     /**
      * The one way a request is made, so that the refusal below runs before anything is recorded.
@@ -270,7 +258,11 @@ open class ZoneOccupier(
      * would be recorded too late, and anything set before it would survive a refusal.
      */
     private fun ask(zones: List<Zone>, duration: Double): ZoneRequest {
-        val request = space.requestZonesFor(this, zones, duration, myHoldAction)
+        val request = if (duration.isNaN()) {
+            space.requestZones(this, zones, myHoldAction)
+        } else {
+            space.holdZonesFor(this, zones, duration, myHoldAction)
+        }
         // Recorded here rather than by the space, and only when the space did not grant it
         // outright: an immediate grant has already run holdBegan, which settles both clocks.
         if (request.isWaiting) {
@@ -291,7 +283,7 @@ open class ZoneOccupier(
         // given up while it was still draining is told to nobody -- that is the contract, since
         // abandonment is always the caller's own act -- so its clock is stopped here.
         val wasWaiting = isWaitingForSpace
-        space.releaseZonesFrom(this)
+        space.releaseZones(this)
         if (wasWaiting) {
             myFracTimeWaiting.value = 0.0
         }

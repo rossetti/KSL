@@ -1037,18 +1037,118 @@ open class GuidedPathSpace @JvmOverloads constructor(
     private val myZoneAllocations = mutableMapOf<ZoneHolderIfc, ZoneAllocation>()
 
     /** What this holder has asked for and not yet been given, or null. */
-    internal fun requestFor(holder: ZoneHolderIfc): ZoneRequest? = myZoneRequests[holder]
+    fun requestFor(holder: ZoneHolderIfc): ZoneRequest? = myZoneRequests[holder]
 
     /** The space this holder currently holds, or null when it holds none. */
-    internal fun allocationFor(holder: ZoneHolderIfc): ZoneAllocation? = myZoneAllocations[holder]
+    fun allocationFor(holder: ZoneHolderIfc): ZoneAllocation? = myZoneAllocations[holder]
 
     /** True while space is draining for this holder. */
-    internal fun isWaitingForZones(holder: ZoneHolderIfc): Boolean =
-        myZoneRequests.containsKey(holder)
+    fun isWaitingForZones(holder: ZoneHolderIfc): Boolean = myZoneRequests.containsKey(holder)
 
     /** True while this holder holds guide-path space. */
-    internal fun isHoldingZones(holder: ZoneHolderIfc): Boolean =
-        myZoneAllocations.containsKey(holder)
+    fun isHoldingZones(holder: ZoneHolderIfc): Boolean = myZoneAllocations.containsKey(holder)
+
+    /**
+     * Asks for a zone, which closes to new traffic at once and is held as soon as it has drained.
+     *
+     * Returns without waiting, whether or not the zone was free. What the zone does from this
+     * instant is refuse every new claim and every new admission; what was already in it finishes
+     * and leaves in its own time. [ZoneHoldActionIfc.holdBegan] fires when the hold actually
+     * begins, which is this same instant when the zone was already empty.
+     *
+     * @param holder who is taking the space -- anything at all that can be named and that says
+     *   what it is waiting for, which for a holder that never queues is nothing
+     * @param zone the zone to take, which must be on this guide path
+     * @param action told when the hold begins and when it ends
+     * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
+     */
+    fun requestZone(holder: ZoneHolderIfc, zone: Zone, action: ZoneHoldActionIfc): ZoneRequest =
+        requestSpace(holder, listOf(zone), Double.NaN, action)
+
+    /**
+     * Asks for a set of zones, which all close to new traffic at once and are held **together**.
+     *
+     * All or nothing, and that is a rule rather than a convenience. Taking the zones one by one as
+     * they drain would let the holder hold part of a region while waiting for the rest, and a
+     * vehicle inside the region could then be waiting for a zone the holder holds while the holder
+     * waits for the zone the vehicle is standing in. That is a deadlock, and an invisible one: a
+     * holder that never queues has no [ZoneHolderIfc.awaitedZone], so the wait-for graph has no
+     * edge to close a cycle with and the detector would never report it. Holding nothing until
+     * every zone has drained keeps such a holder a sink, which makes the deadlock impossible
+     * rather than undetectable.
+     *
+     * Traffic already inside the region is let out rather than trapped -- see `ZoneClosureIfc` --
+     * which is what makes the drain terminate however busy the region is. The cost is that a
+     * closure over busy space begins later, and that delay is measured rather than hidden.
+     *
+     * The extent is chosen per occurrence, at run time, and the sources cost nothing: a link's
+     * zones by name, a junction's zone, a zone at a station, or a sample drawn from the network.
+     *
+     * @param holder who is taking the space
+     * @param zones the zones to take, all on this guide path, distinct, at least one
+     * @param action told when the hold begins and when it ends
+     * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
+     */
+    fun requestZones(
+        holder: ZoneHolderIfc,
+        zones: List<Zone>,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest = requestSpace(holder, zones, Double.NaN, action)
+
+    /**
+     * Takes a zone for a stated duration, and gives it back without being asked again.
+     *
+     * The commonest case, and the one with the trap in it. The duration is measured **from the
+     * instant the hold begins**, not from the request -- so a closure of twenty minutes on an aisle
+     * that takes two minutes to drain occupies the zone for twenty minutes and is outstanding for
+     * twenty-two. Measuring from the request instead would silently shorten every closure by
+     * however long the drain happened to take, which depends on traffic and so varies between
+     * replications: a defect that shows up as a closure duration that is not the one the modeller
+     * asked for, and nowhere as an error.
+     *
+     * @param holder who is taking the space
+     * @param zone the zone to take, which must be on this guide path
+     * @param duration how long to hold it once the hold begins, strictly positive
+     * @param action told when the hold begins and when the clock gives it back
+     * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
+     */
+    fun holdZoneFor(
+        holder: ZoneHolderIfc,
+        zone: Zone,
+        duration: Double,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest {
+        require(duration > 0.0) {
+            "Holder (${holder.name}) was asked to hold zone (${zone.name}) for $duration, which " +
+                    "is not a duration. To take a zone until told otherwise, use requestZone."
+        }
+        return requestSpace(holder, listOf(zone), duration, action)
+    }
+
+    /**
+     * Takes a set of zones together for a stated duration, and gives them back without being asked.
+     *
+     * [requestZones] for the all-or-nothing rule, [holdZoneFor] for why the duration runs from the
+     * instant the hold begins rather than from the request.
+     *
+     * @param holder who is taking the space
+     * @param zones the zones to take, all on this guide path, distinct, at least one
+     * @param duration how long to hold them once the hold begins, strictly positive
+     * @param action told when the hold begins and when the clock gives it back
+     * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
+     */
+    fun holdZonesFor(
+        holder: ZoneHolderIfc,
+        zones: List<Zone>,
+        duration: Double,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest {
+        require(duration > 0.0) {
+            "Holder (${holder.name}) was asked to hold ${zones.size} zone(s) for $duration, which " +
+                    "is not a duration. To take space until told otherwise, use requestZones."
+        }
+        return requestSpace(holder, zones, duration, action)
+    }
 
     private val myNumBlockedByVehicle =
         TWResponse(this, name = "${this.name}:NumBlockedByVehicle")
@@ -1114,7 +1214,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * closures are two holders -- which costs nothing, because a holder is whatever implements
      * [ZoneHolderIfc] and a model may make as many as the run turns out to need.
      */
-    internal fun requestZonesFor(
+    private fun requestSpace(
         holder: ZoneHolderIfc,
         zones: List<Zone>,
         holdFor: Double,
@@ -1202,7 +1302,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * [ZoneHoldActionIfc] rather than an omission: abandonment is always the caller's own act, so
      * there is nothing the caller could learn from being told about it.
      */
-    internal fun releaseZonesFrom(holder: ZoneHolderIfc) {
+    fun releaseZones(holder: ZoneHolderIfc) {
         auditFinishedInstant()
         myZoneRequests.remove(holder)?.let { request ->
             // Asked for, still draining, and no longer wanted: the aisle was going to be closed
@@ -1265,7 +1365,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             // guarded only on "this holder still holds something" would end the wrong one, early,
             // and silently.
             if (myZoneAllocations[allocation.holder] === allocation) {
-                releaseZonesFrom(allocation.holder)
+                releaseZones(allocation.holder)
             }
         }
     }
