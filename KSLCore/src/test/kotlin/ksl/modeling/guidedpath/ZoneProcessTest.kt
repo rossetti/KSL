@@ -314,6 +314,27 @@ class ZoneProcessTest {
         )
     }
 
+    @Test
+    fun `space given back at the end of a replication does not try to wake a waiting vehicle`() {
+        // Found by an example rather than by this file, which is worth recording. The earlier
+        // end-of-replication test had nobody waiting for the zone, so the release handed over to
+        // null and the defect stayed hidden: the end of a replication terminates every suspended
+        // entity, an entity terminated while holding an aisle gives that aisle back, and the
+        // handover tried to schedule a claim retry in an executive that had already ended.
+        //
+        // The cart is blocked behind the spill from 2.0 and is still blocked when the replication
+        // ends at 20.0, so there is somebody to hand the zone to and nowhere to do it.
+        val m = Model("EndOfReplicationHandover")
+        val shop = run(
+            Shop(m, spillAt = 0.5, holdFor = 1000.0), m, length = 20.0, replications = 2
+        )
+
+        assertTrue(shop.cartArrivedAt.isEmpty(), "the cart never got past the spill")
+        assertEquals(1.0, shop.cart.numTimesBlocked.value, 0.0, "and was waiting when the run ended")
+        assertNull(shop.closed.holder, "the space was still given back")
+        assertNull(shop.closed.closingFor)
+    }
+
     // ---- a set, taken together, from a process -------------------------------------------------
 
     private class RegionShop(parent: ModelElement) : Shop(parent, cartAt = 0.0) {

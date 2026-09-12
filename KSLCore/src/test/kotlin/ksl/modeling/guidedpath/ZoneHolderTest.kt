@@ -637,6 +637,58 @@ class ZoneHolderTest {
     }
 
     @Test
+    fun `two holders may not queue for the same zone, and a refusal changes nothing`() {
+        // The limit of concurrent holders as it stands. Two holders may close guide path at the
+        // same moment and may even want the same zone -- asking for one another holder *holds* is
+        // fine and simply waits for the hold to end. What cannot be expressed is two holders queued
+        // for the same zone, because a zone carries one promise at a time.
+        //
+        // What matters as much as the refusal is that it changes nothing. The reservations are made
+        // in a loop, so a failure part way along would leave part of a set closed for a request
+        // that never existed: closed to traffic for the rest of the replication with nothing coming
+        // to release it.
+        val m = Model("OverlappingHolders")
+        val a = Aisle(m)
+        a.system.checkInvariants = true
+        val first = Crew(1)
+        val second = Crew(2)
+        var refusal: String? = null
+        object : ModelElement(a, "Driver") {
+            override fun initialize() {
+                schedule({ _: KSLEvent<Nothing> -> a.cart.sendTo("B") }, 0.0)
+                // At 2.5 the cart is crossing Zone3, so a request for it is still draining and
+                // both of its zones stay promised to the first crew.
+                schedule({ _: KSLEvent<Nothing> ->
+                    a.system.requestZones(first, listOf(a.closed, a.network.zone("L1.Zone4")!!), a.log)
+                }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    try {
+                        a.system.requestZones(
+                            second, listOf(a.network.zone("L1.Zone4")!!, a.network.zone("L1.Zone1")!!),
+                            a.log
+                        )
+                    } catch (e: IllegalArgumentException) {
+                        refusal = e.message
+                    }
+                }, 2.6)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        m.simulate()
+
+        assertTrue(refusal?.contains("already promised") == true, refusal ?: "no refusal at all")
+        assertTrue(a.system.isHoldingZones(first), "the first crew still got its region")
+        assertFalse(a.system.isWaitingForZones(second))
+        assertFalse(a.system.isHoldingZones(second))
+        // The zone the refused request would have taken second must be untouched: reserving it and
+        // then failing would close it for the rest of the run with nothing coming to release it.
+        val untouched = a.network.zone("L1.Zone1")!!
+        assertNull(untouched.closingFor, "the refused request reserved nothing at all")
+        assertTrue(untouched.isAvailable)
+    }
+
+    @Test
     fun `a zone of another guide path is not this one's to close`() {
         val m = Model("ForeignZone")
         val a = Aisle(m)

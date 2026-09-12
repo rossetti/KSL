@@ -1010,6 +1010,15 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * here, so that their order against everything else at that instant is explicit.
      */
     internal fun handOver(offeredTo: ZoneHolderIfc?) {
+        // Nothing can be handed over once the replication has ended: there is nobody left to wake,
+        // no time left to wake them in -- the executive refuses the event outright -- and the state
+        // this would hand over is about to be thrown away by initialize().
+        //
+        // This is reachable rather than theoretical. The end of a replication terminates every
+        // suspended entity, and an entity terminated while holding an aisle gives that aisle back,
+        // which funnels through here and finds whatever vehicle was waiting for it. Guarding the
+        // one funnel rather than each of its three callers is why the funnel exists.
+        if (executive.isEnded) return
         when (offeredTo) {
             null -> Unit
             is GuidedTransporter -> scheduleClaimRetry(offeredTo)
@@ -1267,6 +1276,25 @@ open class GuidedPathSpace @JvmOverloads constructor(
         for (zone in zones) {
             require(zone in network.zones) {
                 "Zone (${zone.name}) is not on guide path (${this.name})."
+            }
+        }
+        // Checked before anything is reserved, and that is the point of doing it here rather than
+        // letting Zone.closeFor raise it. The reservations are made in a loop, so a failure part way
+        // along would leave some zones of the set closed for a request that never existed -- closed
+        // to traffic for the rest of the replication with nothing coming to release them. A refusal
+        // has to leave the guide path exactly as it found it.
+        for (zone in zones) {
+            val reserved = zone.closingFor
+            require(reserved == null) {
+                "Zone (${zone.name}) is already promised to holder (${reserved!!.name}), " +
+                        "which is still waiting for it to drain, so holder (${holder.name}) " +
+                        "cannot be promised it as well. A zone carries one promise at a time. " +
+                        "Note that this is not the same as asking for a zone somebody already " +
+                        "*holds*: that is allowed and simply waits for the hold to end. What " +
+                        "cannot be expressed is two holders queued for the same zone. A model " +
+                        "whose closures can land on the same zone -- spills at random locations, " +
+                        "most obviously -- has to say what an overlap means: absorbed into the " +
+                        "closure already there, deferred until it ends, or placed elsewhere."
             }
         }
         check(!isWaitingForZones(holder) && !isHoldingZones(holder)) {

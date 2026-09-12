@@ -331,6 +331,15 @@ tasks.register<JavaExec>("dispatchingRuleComparison") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+// Both ways of taking guide-path space without being a vehicle, on one layout: spills as
+// processes, a maintenance window as scheduled events, against the same shop undisturbed.
+tasks.register<JavaExec>("guidePathDisturbancesExample") {
+    group = "examples"
+    description = "Run the guide-path disturbance study: spills and a maintenance window."
+    mainClass.set("ksl.examples.general.guidedpath.GuidePathDisturbancesExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
 tasks.register<JavaExec>("retaskingExample") {
     group = "examples"
     description = "Run the re-tasking in flight example."
