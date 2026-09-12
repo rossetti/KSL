@@ -1013,25 +1013,42 @@ open class GuidedPathSpace @JvmOverloads constructor(
         when (offeredTo) {
             null -> Unit
             is GuidedTransporter -> scheduleClaimRetry(offeredTo)
-            is ZoneOccupier -> scheduleZoneGrant(offeredTo)
-            // A third kind of holder would land here, and should not land here silently: the zone
-            // has been offered to something nothing knows how to notify, so whatever was promised
-            // it would wait for ever.
-            else -> throw IllegalStateException(
-                "Zone offered to (${offeredTo.name}), which is neither a transporter nor an " +
-                        "occupier, so there is no way to tell it that it may take the zone."
-            )
+            // Anything else was offered the zone *because it holds a reservation on it*, and the
+            // reservation carries the way to tell it. So there is no type switch to keep up to
+            // date and no third kind of holder to enumerate; scheduleZoneGrant asserts that the
+            // reservation is really there, which is the condition that makes this arm sound.
+            else -> scheduleZoneGrant(offeredTo)
         }
     }
 
     // ---- general occupancy: a holder that is not a vehicle -------------------------------------
     //
-    // The space owns these rather than the occupier, and for the same reason the resource layer
-    // owns allocations rather than entities: exclusivity can only be guaranteed if nothing outside
-    // can mint a claim on the space. An occupier asks; the space decides, records and schedules.
+    // The space owns these rather than the holder, and for the same reason the resource layer owns
+    // allocations rather than entities: exclusivity can only be guaranteed if nothing outside can
+    // mint a claim on the space. A holder asks; the space decides, records and schedules.
+    //
+    // Keyed on the interface rather than on a class, which is what lets the cast of holders be
+    // decided at run time. A crew, a spill, a picker entity made by an arrival process -- none of
+    // them can be enumerated before the run, and none of them needs to be: what a holder supplies
+    // is a name and an awaited zone, and the space supplies everything else. These two maps are
+    // the single owner of who is waiting and who holds, and nothing outside keeps a second copy.
 
-    private val myOccupierRequests = mutableMapOf<ZoneOccupier, ZoneRequest>()
-    private val myOccupierAllocations = mutableMapOf<ZoneOccupier, ZoneAllocation>()
+    private val myZoneRequests = mutableMapOf<ZoneHolderIfc, ZoneRequest>()
+    private val myZoneAllocations = mutableMapOf<ZoneHolderIfc, ZoneAllocation>()
+
+    /** What this holder has asked for and not yet been given, or null. */
+    internal fun requestFor(holder: ZoneHolderIfc): ZoneRequest? = myZoneRequests[holder]
+
+    /** The space this holder currently holds, or null when it holds none. */
+    internal fun allocationFor(holder: ZoneHolderIfc): ZoneAllocation? = myZoneAllocations[holder]
+
+    /** True while space is draining for this holder. */
+    internal fun isWaitingForZones(holder: ZoneHolderIfc): Boolean =
+        myZoneRequests.containsKey(holder)
+
+    /** True while this holder holds guide-path space. */
+    internal fun isHoldingZones(holder: ZoneHolderIfc): Boolean =
+        myZoneAllocations.containsKey(holder)
 
     private val myNumBlockedByVehicle =
         TWResponse(this, name = "${this.name}:NumBlockedByVehicle")
@@ -1087,18 +1104,27 @@ open class GuidedPathSpace @JvmOverloads constructor(
         get() = myNumZonesClosed
 
     /**
-     * Closes a zone for an occupier, and grants it at once when there was nothing to drain.
+     * Closes zones for a holder, and grants them at once when there was nothing to drain.
      *
-     * The zone refuses every new claim and every new admission from this instant. What was already
-     * in it leaves in its own time, and the grant follows through the same handover that wakes a
+     * The zones refuse every new claim and every new admission from this instant. What was already
+     * in them leaves in its own time, and the grant follows through the same handover that wakes a
      * waiting vehicle -- which is the point of routing both through one place.
+     *
+     * **One request per holder.** A holder is the identity of a closure, so two overlapping
+     * closures are two holders -- which costs nothing, because a holder is whatever implements
+     * [ZoneHolderIfc] and a model may make as many as the run turns out to need.
      */
-    internal fun requestZonesFor(occupier: ZoneOccupier, zones: List<Zone>): ZoneRequest {
+    internal fun requestZonesFor(
+        holder: ZoneHolderIfc,
+        zones: List<Zone>,
+        holdFor: Double,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest {
         require(zones.isNotEmpty()) {
-            "Occupier (${occupier.name}) asked for no zones at all."
+            "Holder (${holder.name}) asked for no zones at all."
         }
         require(zones.distinct().size == zones.size) {
-            "Occupier (${occupier.name}) asked for the same zone twice: " +
+            "Holder (${holder.name}) asked for the same zone twice: " +
                     zones.joinToString { it.name }
         }
         for (zone in zones) {
@@ -1106,17 +1132,21 @@ open class GuidedPathSpace @JvmOverloads constructor(
                 "Zone (${zone.name}) is not on guide path (${this.name})."
             }
         }
+        check(!isWaitingForZones(holder) && !isHoldingZones(holder)) {
+            "Holder (${holder.name}) already " +
+                    (if (isHoldingZones(holder)) "holds" else "has asked for") + " space on guide " +
+                    "path (${this.name}). One request at a time: give it back before asking for more."
+        }
         auditFinishedInstant()
-        val request = ZoneRequest(occupier, zones, time)
-        myOccupierRequests[occupier] = request
-        occupier.recordRequest(request)
+        val request = ZoneRequest(holder, zones, time, holdFor, action)
+        myZoneRequests[holder] = request
         for (zone in zones) {
             zone.closeFor(request)
         }
         // Nothing to drain: the grant is this instant, and takes the ordinary path rather than a
         // shortcut, so that an immediate grant and a grant after a drain are the same code.
         if (request.isDrained) {
-            grantZonesTo(occupier)
+            grantZonesTo(holder)
         }
         return request
     }
@@ -1129,41 +1159,55 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * the clock could be observed. Nothing can get in between, because the reservation stands until
      * this runs.
      */
-    private fun grantZonesTo(occupier: ZoneOccupier) {
-        val request = myOccupierRequests[occupier] ?: return
+    private fun grantZonesTo(holder: ZoneHolderIfc) {
+        val request = myZoneRequests[holder] ?: return
         // The reservation may have been given up between the offer and this event, and on a set the
         // offer arrives as each zone drains, so most of those offers are premature: the grant is
         // all or nothing and waits for the last one.
         if (request.zones.any { it.closure !== request }) return
         if (!request.isDrained) return
         for (zone in request.zones) {
-            check(zone.claim(occupier)) {
-                "Zone (${zone.name}) was offered to (${occupier.name}) and then refused its " +
+            check(zone.claim(holder)) {
+                "Zone (${zone.name}) was offered to (${holder.name}) and then refused its " +
                         "claim, which cannot happen: the reservation admits the holder it is for."
             }
         }
-        myOccupierRequests.remove(occupier)
-        val allocation = ZoneAllocation(occupier, request.zones, time)
-        myOccupierAllocations[occupier] = allocation
+        myZoneRequests.remove(holder)
+        val allocation = ZoneAllocation(request, time)
+        myZoneAllocations[holder] = allocation
         request.allocation = allocation
         myClosedZoneCount += request.zones.size
         myNumZonesClosed.value = myClosedZoneCount.toDouble()
-        occupier.recordEngagement(allocation)
+        // A hold taken for a stated duration is given back on a clock that starts *now*, not when
+        // the space was asked for. Measuring from the request would silently shorten every closure
+        // by however long the drain happened to take, which depends on traffic and so differs
+        // between replications -- a closure that is not the one the modeller asked for, and nowhere
+        // an error.
+        if (request.isTimed) {
+            scheduleTimedZoneRelease(allocation, request.holdFor)
+        }
+        // The statistics and the release are settled before anybody is told, because an action may
+        // give the space straight back -- which is legitimate, and would otherwise be recorded
+        // against a hold that had not yet been counted as having started.
+        allocation.action.holdBegan(allocation)
     }
 
     /**
-     * Gives back whatever an occupier holds, or gives up what it asked for and never got.
+     * Gives back whatever a holder holds, or gives up what it asked for and never got.
      *
      * Harmless when it holds and wants nothing, which is what lets a process release
      * unconditionally rather than asking first.
+     *
+     * A request given up while it was **still draining** tells nobody, and that is the contract on
+     * [ZoneHoldActionIfc] rather than an omission: abandonment is always the caller's own act, so
+     * there is nothing the caller could learn from being told about it.
      */
-    internal fun releaseZoneFrom(occupier: ZoneOccupier) {
+    internal fun releaseZonesFrom(holder: ZoneHolderIfc) {
         auditFinishedInstant()
-        myOccupierRequests.remove(occupier)?.let { request ->
+        myZoneRequests.remove(holder)?.let { request ->
             // Asked for, still draining, and no longer wanted: the aisle was going to be closed
             // and now is not. The zones reopen without ever having been held.
             request.isAbandoned = true
-            occupier.recordRelease()
             for (zone in request.zones) {
                 zone.abandonReservation(request)
             }
@@ -1174,18 +1218,21 @@ open class GuidedPathSpace @JvmOverloads constructor(
             }
             return
         }
-        val allocation = myOccupierAllocations.remove(occupier) ?: return
+        val allocation = myZoneAllocations.remove(holder) ?: return
         allocation.releasedAt = time
         myClosedZoneCount -= allocation.zones.size
         myNumZonesClosed.value = myClosedZoneCount.toDouble()
-        occupier.recordRelease()
         for (zone in allocation.zones) {
-            handOver(zone.release(occupier, zoneContentionRule))
+            handOver(zone.release(holder, zoneContentionRule))
         }
+        // Told last, after the zones are back and the handovers are scheduled. An action that asks
+        // for the same space again would otherwise reserve it ahead of the vehicles that have been
+        // waiting for the drain, and a closure that repeats could starve traffic indefinitely.
+        allocation.action.holdEnded(allocation)
     }
 
-    private inner class ZoneGrantAction : EventActionIfc<ZoneOccupier> {
-        override fun action(event: KSLEvent<ZoneOccupier>) {
+    private inner class ZoneGrantAction : EventActionIfc<ZoneHolderIfc> {
+        override fun action(event: KSLEvent<ZoneHolderIfc>) {
             auditFinishedInstant()
             grantZonesTo(event.message!!)
         }
@@ -1193,12 +1240,44 @@ open class GuidedPathSpace @JvmOverloads constructor(
 
     private val myZoneGrantAction = ZoneGrantAction()
 
-    /** Schedules an occupier's taking of a zone that has finished draining. */
-    private fun scheduleZoneGrant(occupier: ZoneOccupier) {
+    /** Schedules a holder's taking of space that has finished draining. */
+    private fun scheduleZoneGrant(holder: ZoneHolderIfc) {
+        // The offer came from a zone that is closing, and a zone closes only for a request, so the
+        // request is there. Asserting it is what lets handOver treat every non-vehicle holder
+        // alike instead of enumerating the kinds it knows how to notify.
+        check(isWaitingForZones(holder)) {
+            "Zone offered to (${holder.name}) on guide path (${this.name}), which has asked for " +
+                    "no space, so there is no way to tell it that it may take the zone."
+        }
         myNumEventsScheduled.increment()
         schedule(
-            myZoneGrantAction, 0.0, occupier, ProcessModel.ZONE_CLAIM_PRIORITY,
-            "${occupier.name}:takeZone"
+            myZoneGrantAction, 0.0, holder, ProcessModel.ZONE_CLAIM_PRIORITY,
+            "${holder.name}:takeZones"
+        )
+    }
+
+    private inner class ZoneTimedReleaseAction : EventActionIfc<ZoneAllocation> {
+        override fun action(event: KSLEvent<ZoneAllocation>) {
+            val allocation = event.message!!
+            // Tied to the allocation it was scheduled for, not merely to its holder. A hold may
+            // already have been given back by hand, or by the action that was told of its
+            // beginning, and a *second* hold may since have begun -- in which case a release
+            // guarded only on "this holder still holds something" would end the wrong one, early,
+            // and silently.
+            if (myZoneAllocations[allocation.holder] === allocation) {
+                releaseZonesFrom(allocation.holder)
+            }
+        }
+    }
+
+    private val myZoneTimedReleaseAction = ZoneTimedReleaseAction()
+
+    /** Schedules the giving back of space taken for a stated duration. */
+    private fun scheduleTimedZoneRelease(allocation: ZoneAllocation, holdFor: Double) {
+        myNumEventsScheduled.increment()
+        schedule(
+            myZoneTimedReleaseAction, holdFor, allocation,
+            name = "${allocation.holder.name}:releaseZones"
         )
     }
 
@@ -1243,10 +1322,11 @@ open class GuidedPathSpace @JvmOverloads constructor(
         // Nothing is owed from the previous replication: its last instant was audited by
         // checkClosing, and the state it left is about to be thrown away.
         myUnauditedInstant = Double.NaN
-        // The space's own belief about what occupiers hold, which is a separate copy from the
-        // zones' and would otherwise describe the previous replication for the whole of the next.
-        myOccupierRequests.clear()
-        myOccupierAllocations.clear()
+        // The space's own belief about what holders hold, which is a separate copy from the zones'
+        // and would otherwise describe the previous replication for the whole of the next. This is
+        // the only copy there is: a holder keeps none, so there is nothing else to clear.
+        myZoneRequests.clear()
+        myZoneAllocations.clear()
         myClosedZoneCount = 0
         for (zone in network.zones) {
             zone.resetZone()

@@ -131,24 +131,26 @@ open class ZoneOccupier(
     final override val awaitedZone: Zone?
         get() = null
 
-    private var myRequest: ZoneRequest? = null
-    private var myAllocation: ZoneAllocation? = null
+    // Nothing about what is asked for or held is kept here. The space owns that, and asking it is
+    // what keeps a second copy from drifting -- the defect this subsystem has already met with a
+    // manifest, a position and a zone population. It is also why this class needs no initialize():
+    // there is nothing of its own left to clear between replications.
 
     /** What this occupier has asked for and not yet been given, or null. */
     val request: ZoneRequest?
-        get() = myRequest
+        get() = space.requestFor(this)
 
     /** The space this occupier currently holds, or null when it holds none. */
     val allocation: ZoneAllocation?
-        get() = myAllocation
+        get() = space.allocationFor(this)
 
     /** True while a zone is draining for this occupier. */
     val isWaitingForSpace: Boolean
-        get() = myRequest?.isWaiting == true
+        get() = space.isWaitingForZones(this)
 
     /** True while this occupier holds a zone. */
     val isHoldingSpace: Boolean
-        get() = myAllocation != null
+        get() = space.isHoldingZones(this)
 
     // ---- statistics: on the holder, because there are few holders and many zones ---------------
 
@@ -263,19 +265,18 @@ open class ZoneOccupier(
     /**
      * The one way a request is made, so that the refusal below runs before anything is recorded.
      *
-     * Both verbs come through here for a reason that is easy to get wrong: an immediate grant
-     * happens *inside* the call, so how long the hold is to last has to be known before the request
-     * is made rather than after it returns. Setting it in the two verbs separately left a refused
-     * call with a duration still recorded, which the next plain [requestZone] would then have
-     * inherited and released itself out of.
+     * How long the hold is to last travels *with* the request rather than being set on this object
+     * first, because an immediate grant happens inside the call -- so anything set this side of it
+     * would be recorded too late, and anything set before it would survive a refusal.
      */
     private fun ask(zones: List<Zone>, duration: Double): ZoneRequest {
-        check(myRequest == null && myAllocation == null) {
-            "Occupier ($name) already ${if (isHoldingSpace) "holds" else "has asked for"} space. " +
-                    "One request at a time: give it back before asking for more."
+        val request = space.requestZonesFor(this, zones, duration, myHoldAction)
+        // Recorded here rather than by the space, and only when the space did not grant it
+        // outright: an immediate grant has already run holdBegan, which settles both clocks.
+        if (request.isWaiting) {
+            myFracTimeWaiting.value = 1.0
         }
-        myHoldDuration = duration
-        return space.requestZonesFor(this, zones)
+        return request
     }
 
     /**
@@ -286,8 +287,14 @@ open class ZoneOccupier(
      * does.
      */
     fun releaseZone() {
-        myHoldDuration = Double.NaN
-        space.releaseZoneFrom(this)
+        // Asked before, because the space will have forgotten by the time it returns. A request
+        // given up while it was still draining is told to nobody -- that is the contract, since
+        // abandonment is always the caller's own act -- so its clock is stopped here.
+        val wasWaiting = isWaitingForSpace
+        space.releaseZonesFrom(this)
+        if (wasWaiting) {
+            myFracTimeWaiting.value = 0.0
+        }
     }
 
     /**
@@ -311,76 +318,39 @@ open class ZoneOccupier(
         myEngagementListeners.remove(listener)
     }
 
-    // ---- internals, driven by the space --------------------------------------------------------
-
-    internal fun recordRequest(request: ZoneRequest) {
-        myRequest = request
-        myFracTimeWaiting.value = 1.0
-    }
-
-    internal fun recordEngagement(allocation: ZoneAllocation) {
-        val asked = myRequest?.requestedAt ?: allocation.engagedAt
-        myRequest = null
-        myAllocation = allocation
-        myFracTimeWaiting.value = 0.0
-        myFracTimeHolding.value = 1.0
-        myTimeToEngage.value = allocation.engagedAt - asked
-        myNumEngagements.increment()
-        // The statistics are settled before anybody is told, because a listener may give the zone
-        // straight back -- which is legitimate, and would otherwise be recorded against a hold that
-        // had not yet been counted as having started.
-        val duration = myHoldDuration
-        if (duration.isFinite()) {
-            myHoldDuration = Double.NaN
-            schedule(myReleaseAction, duration, allocation, name = "$name:releaseSpace")
-        }
-        onEngaged(allocation)
-        // Copied, so that a listener may detach itself, or attach another, while being told.
-        for (listener in myEngagementListeners.toList()) {
-            listener.engaged(this, allocation)
-        }
-    }
-
-    /** How long the current hold is to last, or NaN when it lasts until told otherwise. */
-    private var myHoldDuration: Double = Double.NaN
-
-    private val myReleaseAction = EventActionIfc<ZoneAllocation> { event ->
-        // Tied to the allocation it was scheduled for, not merely to this occupier. A hold may
-        // already have been given back by hand or by a listener, and a *second* hold may since have
-        // begun -- in which case a release guarded only on "still holding something" would end the
-        // wrong one, early, and silently.
-        if (myAllocation === event.message) {
-            space.releaseZoneFrom(this)
-        }
-    }
-
-    internal fun recordRelease() {
-        myRequest = null
-        myAllocation = null
-        myFracTimeWaiting.value = 0.0
-        myFracTimeHolding.value = 0.0
-    }
+    // ---- what the space tells this occupier ----------------------------------------------------
 
     /**
-     * Clears the hold at the start of every replication.
+     * The one thing the space drives, and the only place the statistics are settled.
      *
-     * The third instance of a defect family this subsystem has already met three times — a
-     * manifest, a position, and a zone population, each left behind by a reset. The zones clear
-     * themselves in [GuidedPathSpace.initialize]; what has to be cleared here is this occupier's
-     * belief about them, which is a separate copy and would otherwise describe the previous
-     * replication for the whole of the next one.
+     * A private object rather than this class implementing the interface, so that `holdBegan` and
+     * `holdEnded` stay off an occupier's public surface: they are the space's to call and nobody
+     * else's.
      */
-    override fun initialize() {
-        myRequest = null
-        myAllocation = null
-        myHoldDuration = Double.NaN
+    private val myHoldAction = object : ZoneHoldActionIfc {
+
+        override fun holdBegan(allocation: ZoneAllocation) {
+            myFracTimeWaiting.value = 0.0
+            myFracTimeHolding.value = 1.0
+            myTimeToEngage.value = allocation.timeToEngage
+            myNumEngagements.increment()
+            onEngaged(allocation)
+            // Copied, so that a listener may detach itself, or attach another, while being told.
+            for (listener in myEngagementListeners.toList()) {
+                listener.engaged(this@ZoneOccupier, allocation)
+            }
+        }
+
+        override fun holdEnded(allocation: ZoneAllocation) {
+            myFracTimeHolding.value = 0.0
+        }
     }
 
     override fun toString(): String = buildString {
         append("ZoneOccupier($name, ")
         append(
-            myAllocation?.let { "holding ${it.zone.name} since ${it.engagedAt}" }
-                ?: myRequest?.let { "waiting for ${it.zone.name} since ${it.requestedAt}" }
+            allocation?.let { "holding ${it.zone.name} since ${it.engagedAt}" }
+                ?: request?.let { "waiting for ${it.zone.name} since ${it.requestedAt}" }
                 ?: "holding nothing"
         )
         append(")")
