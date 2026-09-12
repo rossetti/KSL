@@ -23,6 +23,7 @@ import ksl.modeling.guidedpath.IntersectionZone
 import ksl.modeling.guidedpath.LinkZone
 import ksl.modeling.guidedpath.TransporterState
 import ksl.modeling.guidedpath.Zone
+import ksl.modeling.guidedpath.ZoneHolderIfc
 import ksl.modeling.guidedpath.ZoneState
 
 /**
@@ -233,6 +234,12 @@ internal class ZoneInvariantChecker(
             // no edge in the wait-for graph, and so one the detector cannot see.
             val closing = zone.closure
             if (closing != null) {
+                // A non-vehicle holder is a sink in the wait-for graph, and until now that was
+                // guaranteed by ZoneOccupier declaring `awaitedZone` final. A holder is any
+                // ZoneHolderIfc now, so the guarantee has to be asserted instead of assumed: a
+                // holder that both holds space and waits for more has an outgoing edge, and every
+                // argument that a closure cannot deadlock rests on it having none.
+                checkIsASink(closing.holder, "is closing ${zone.name} for")
                 val partlyHeld = closing.zones.filter { it.holder === closing.holder }
                 if (partlyHeld.isNotEmpty()) {
                     violate(
@@ -256,7 +263,10 @@ internal class ZoneInvariantChecker(
             // about a transporter's own run of zones, and a holder that merely occupies space --
             // a closed aisle, a crossing -- keeps no such run to disagree with. Its claim is
             // one-sided by construction, so there is nothing here to check.
-            if (holder !is GuidedTransporter) continue
+            if (holder !is GuidedTransporter) {
+                checkIsASink(holder, "holds ${zone.name} and")
+                continue
+            }
             if (zone.state == ZoneState.CLAIMED && holder.claimedZone !== zone) {
                 violate(
                     "zone (${zone.name}) is claimed by (${holder.name}), but that transporter is " +
@@ -271,6 +281,25 @@ internal class ZoneInvariantChecker(
                 )
             }
         }
+    }
+
+    /**
+     * A holder that is not a vehicle waits for nothing, which is what makes it a terminal node of
+     * the wait-for walk and what every argument about closures not deadlocking depends on.
+     *
+     * The all-or-nothing grant is what keeps it true: a holder holds nothing until every zone of
+     * its request has drained, so it is never both holding and waiting. Should that ever be
+     * weakened, this fires rather than the run quietly stopping with no cycle for the detector to
+     * find.
+     */
+    private fun checkIsASink(holder: ZoneHolderIfc, doing: String) {
+        val awaited = holder.awaitedZone ?: return
+        violate(
+            "holder (${holder.name}) $doing is also waiting for zone (${awaited.name}), so it is " +
+                    "not a sink in the wait-for graph. A holder that is not a vehicle must never " +
+                    "hold space and queue for more: a cycle through it would have no edge for the " +
+                    "deadlock walk to follow and the run would stop advancing with nothing to say."
+        )
     }
 
     /**

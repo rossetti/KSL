@@ -48,10 +48,14 @@ package ksl.modeling.guidedpath
  * - A request abandoned *before* it was granted produces **neither**, because abandonment is always
  *   the caller's own act -- there is no path by which the space gives up a request on its own. That
  *   is why there are two members here and not three.
- * - [holdEnded] is called **after** the zones have been given back and the handovers scheduled.
- *   Otherwise an action that immediately asks for the same space again would reserve it ahead of
- *   the vehicles that have been waiting for the drain, and a repeating closure could starve traffic
- *   indefinitely.
+ * - [holdEnded] is called **after** the zones have been given back and the handovers scheduled, so
+ *   that an action sees a settled state rather than a zone that is neither held nor handed on.
+ *
+ * Asking for the same space again from [holdEnded] takes it back at once, ahead of any vehicle that
+ * has been waiting for it. That is the drain-priority rule doing its job rather than a flaw -- a
+ * reservation has to beat a waiting vehicle or a closure on a busy aisle would never happen -- but
+ * it means a closure re-taken every time it ends holds its zone for the rest of the run. The
+ * statistics show it plainly; nothing raises.
  *
  * The usual implementer is the model element that drives the closures, so that the thing which
  * schedules them is the thing which acts on them:

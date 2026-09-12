@@ -20,10 +20,54 @@ package ksl.modeling.guidedpath
 /**
  * Something that can hold a zone exclusively.
  *
- * A zone is the atom of contended space, and until now the only thing that could take one was a
- * [GuidedTransporter]. That is a restriction of the type and not of the idea: a work crew closing
- * an aisle, a pedestrian crossing, a door that is shut for a while -- each of these denies a zone
- * to traffic in exactly the way a transporter parked there does, and none of them is a vehicle.
+ * A spill. An aisle closed for a safety walk. A picker at a rack face. A lift car out of service. A
+ * dropped pallet, a cleaning window, staging overflow at shift change. Each of these denies a zone
+ * to traffic in exactly the way a parked vehicle does, and none of them is a vehicle -- which was
+ * the whole finding behind this construct: `Zone.holder` being typed to a [GuidedTransporter] was
+ * the only thing standing between the subsystem and that entire family of problems.
+ *
+ * **Without it, obstruction time is fitted into the wrong parameter.** A model with no spills, no
+ * picking interference and no closures must still match observed throughput, so that time goes into
+ * inflated task times or a depressed velocity. The model then fits the aggregate and is wrong about
+ * the mechanism -- and it will give bad advice about any change that alters the obstruction rate,
+ * which is precisely the change a study is commissioned to evaluate.
+ *
+ * ## Why this is an interface and not a class
+ *
+ * Because a holder cannot be known in advance. A `ModelElement` must be constructed before
+ * `simulate()`, so a holder that was one could only ever be a fixed cast reused serially -- fine
+ * for two cleanup crews, impossible for an arrival stream of spills, and impossible for an
+ * `Entity`, which is made at run time and cannot be a model element at all. Everything a holder was
+ * ever going to need from a model element -- the statistics, the per-replication reset, the
+ * scheduling -- is the space's, so a holder is left with the two things below and can be anything:
+ *
+ * ```
+ * class CleanupCrew(id: Int) : ZoneHolderIfc {
+ *     override val name = "Crew$id"
+ *     override val awaitedZone: Zone? get() = null
+ * }
+ *
+ * space.holdZonesFor(CleanupCrew(nextId++), network.link("Aisle3")!!.zones, cleanupTime.value, this)
+ * ```
+ *
+ * The extent is chosen per occurrence, at run time, and so is the cast. Nothing about either has to
+ * be stated before the run.
+ *
+ * ## What a non-vehicle holder is, mechanically
+ *
+ * It **never waits for space it cannot have**, and that is a defining property rather than an
+ * incidental one. It asks for a zone; the zone drains; it takes it. While it waits it holds
+ * nothing, so it has no outgoing edge in the wait-for graph and cannot lie on a circular wait --
+ * which is why [awaitedZone] is null for such a holder and why deadlock detection treats it as a
+ * terminal node. Whatever is stuck behind one is *obstructed*, not deadlocked, and those want
+ * different remedies.
+ *
+ * It is also why such a holder is not a [GuidedTransporter] with the movement left out. A
+ * transporter has a route and gives up zones one at a time as it moves; a holder has an allocation
+ * and gives up its zones as a whole. That asymmetry is real and is stated here rather than smoothed
+ * over.
+ *
+ * ## The two members
  *
  * The interface asks for only the two things the subsystem genuinely needs from a holder, and it is
  * worth saying why each is the minimum rather than a convenience.
@@ -41,8 +85,10 @@ package ksl.modeling.guidedpath
  * or a closed aisle occupies space without ever queuing for more, and the vehicle -- which does
  * queue -- is the special case, not the general one.
  *
- * Nothing here says how a holder takes a zone or gives it up. Those are the engine's business, and
- * keeping them off this interface is what stops anything outside the package from claiming space.
+ * Nothing here says how a holder takes a zone or gives it up. Those are [GuidedPathSpace]'s
+ * business -- [GuidedPathSpace.requestZones], [GuidedPathSpace.holdZonesFor] and
+ * [GuidedPathSpace.releaseZones] -- and keeping them off this interface is what stops anything
+ * outside the package from minting a claim on the space.
  */
 interface ZoneHolderIfc {
 

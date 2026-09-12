@@ -266,7 +266,11 @@ class ResponseCardinalityTest {
             // and these three are what turn one fitted fudge into separately observable
             // quantities. Aggregates, so they are on by default with the rest.
             ":NumZonesClosed", ":NumBlockedByVehicle", ":NumBlockedByOccupier",
-            ":NumBlockedByPopulation"
+            ":NumBlockedByPopulation",
+            // General occupancy's own three, and the reason they are here rather than on the
+            // holders: a model may make as many holders as the run turns out to need, so a
+            // response per holder would be a response count nobody can state before the run.
+            ":NumWaitingForZones", ":TimeToCloseZones", ":NumZoneEngagements"
         )) {
             assertTrue(
                 names.any { it.endsWith(suffix) },

@@ -1203,6 +1203,43 @@ open class GuidedPathSpace @JvmOverloads constructor(
     val numZonesClosed: TWResponseCIfc
         get() = myNumZonesClosed
 
+    private val myNumWaitingForZones =
+        TWResponse(this, name = "${this.name}:NumWaitingForZones")
+
+    /**
+     * How many holders are waiting for guide-path space to drain.
+     *
+     * The cost of draining rather than evicting, measured. A closure that is wanted *now* and
+     * begins late because an aisle was busy is a real effect on whatever the holder represents, and
+     * it is invisible unless it is counted. Its time-average is the mean number of closures pending
+     * over the run.
+     *
+     * Here rather than on the holders, and that is the point of this whole construct rather than a
+     * detail of it: a model may make as many holders as the run turns out to need -- an arrival
+     * stream of spills, a picker entity per rack face -- so a response per holder would be a
+     * response count that nobody can state before the run. Four numbers describe any model.
+     */
+    val numWaitingForZones: TWResponseCIfc
+        get() = myNumWaitingForZones
+
+    private val myTimeToCloseZones = Response(this, name = "${this.name}:TimeToCloseZones")
+
+    /**
+     * How long each request waited for its space to drain. Zero when the space was already free.
+     *
+     * An observation per request, which is why pooling it across holders loses nothing: a mean
+     * drain delay over every closure in the run is the quantity a modeller wants, and one holder's
+     * share of it is [ZoneAllocation.timeToEngage] on that holder's own allocations.
+     */
+    val timeToCloseZones: ResponseCIfc
+        get() = myTimeToCloseZones
+
+    private val myNumZoneEngagements = Counter(this, name = "${this.name}:NumZoneEngagements")
+
+    /** How many times guide-path space was taken by something that is not a vehicle. */
+    val numZoneEngagements: CounterCIfc
+        get() = myNumZoneEngagements
+
     /**
      * Closes zones for a holder, and grants them at once when there was nothing to drain.
      *
@@ -1240,6 +1277,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         auditFinishedInstant()
         val request = ZoneRequest(holder, zones, time, holdFor, action)
         myZoneRequests[holder] = request
+        myNumWaitingForZones.value = myZoneRequests.size.toDouble()
         for (zone in zones) {
             zone.closeFor(request)
         }
@@ -1273,11 +1311,14 @@ open class GuidedPathSpace @JvmOverloads constructor(
             }
         }
         myZoneRequests.remove(holder)
+        myNumWaitingForZones.value = myZoneRequests.size.toDouble()
         val allocation = ZoneAllocation(request, time)
         myZoneAllocations[holder] = allocation
         request.allocation = allocation
         myClosedZoneCount += request.zones.size
         myNumZonesClosed.value = myClosedZoneCount.toDouble()
+        myTimeToCloseZones.value = allocation.timeToEngage
+        myNumZoneEngagements.increment()
         // A hold taken for a stated duration is given back on a clock that starts *now*, not when
         // the space was asked for. Measuring from the request would silently shorten every closure
         // by however long the drain happened to take, which depends on traffic and so differs
@@ -1308,6 +1349,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             // Asked for, still draining, and no longer wanted: the aisle was going to be closed
             // and now is not. The zones reopen without ever having been held.
             request.isAbandoned = true
+            myNumWaitingForZones.value = myZoneRequests.size.toDouble()
             for (zone in request.zones) {
                 zone.abandonReservation(request)
             }
@@ -1325,9 +1367,18 @@ open class GuidedPathSpace @JvmOverloads constructor(
         for (zone in allocation.zones) {
             handOver(zone.release(holder, zoneContentionRule))
         }
-        // Told last, after the zones are back and the handovers are scheduled. An action that asks
-        // for the same space again would otherwise reserve it ahead of the vehicles that have been
-        // waiting for the drain, and a closure that repeats could starve traffic indefinitely.
+        // Told last, so that an action sees a settled state: the allocation is released, the zones
+        // are open, and whoever was waiting has already been chosen and scheduled. An action that
+        // runs mid-release would see a zone that is neither held nor handed on.
+        //
+        // It does *not* give the waiting vehicles a turn, and that is worth being plain about. A
+        // reservation beats a waiting vehicle by design -- without that, a closure on a busy aisle
+        // would never happen at all -- and an action that asks again here makes an ordinary
+        // reservation, which wins as any other would. A closure re-taken every time it ends
+        // therefore holds the zone indefinitely. That is a modelling error rather than a mechanism
+        // defect, and it reports itself: the zone shows as closed for the whole run in
+        // numZonesClosed, the vehicle behind it in numBlockedByOccupier, and the end-of-replication
+        // report names both.
         allocation.action.holdEnded(allocation)
     }
 

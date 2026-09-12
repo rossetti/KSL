@@ -30,17 +30,17 @@ import kotlin.test.assertTrue
 /**
  *  A whole region of guide path is closed, and the two rules that make that safe.
  *
- *  Step four of the general-occupancy design: extent chosen per occurrence, and the atomicity rule.
- *  Closing a *set* has a hazard closing one zone does not, and the two rules exist for it:
+ *  Extent is chosen per occurrence, and closing a *set* has a hazard closing one zone does not.
+ *  Two rules exist for it:
  *
  *  - **the set is taken together or not at all**, so the occupier holds nothing while it waits and
  *    stays a sink in the wait-for graph;
  *  - **traffic already inside the region is let out**, so the drain terminates however busy the
  *    region is.
  *
- *  Without the first, an occupier holding part of a region can wait on a vehicle that is waiting on
+ *  Without the first, a holder holding part of a region can wait on a vehicle that is waiting on
  *  the part it holds. Without the second, a vehicle inside the region can never leave it. Neither
- *  is a circular wait the detector can see, because an occupier has no `awaitedZone` and so no
+ *  is a circular wait the detector can see, because such a holder has no `awaitedZone` and so no
  *  outgoing edge — the run would simply stop advancing with nothing to say why. That is what makes
  *  these rules rather than preferences.
  *
@@ -48,6 +48,20 @@ import kotlin.test.assertTrue
  *  junctions are dimensionless.
  */
 class ZoneClosureTest {
+
+    /** A holder, which is a plain object: two members, no base class, made whenever. */
+    private class Crew : ZoneHolderIfc {
+        override val name: String = "Crew"
+        override val awaitedZone: Zone? get() = null
+    }
+
+    /** Records what the space promises to tell, so the promise itself can be asserted. */
+    private class Log : ZoneHoldActionIfc {
+        val began = mutableListOf<Double>()
+        val ended = mutableListOf<Double>()
+        override fun holdBegan(allocation: ZoneAllocation) { began.add(allocation.engagedAt) }
+        override fun holdEnded(allocation: ZoneAllocation) { ended.add(allocation.releasedAt) }
+    }
 
     /** Two links in a line, so a vehicle can be sent right through a closed region and out. */
     private class Corridor(parent: ModelElement) : ModelElement(parent, "Corridor") {
@@ -59,7 +73,11 @@ class ZoneClosureTest {
         val cart = GuidedTransporter(
             system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart"
         )
-        val crew = ZoneOccupier(system, "Crew")
+        /** Made here only because every test in this file uses one; nothing requires it to be. */
+        val crew = Crew()
+
+        /** Records what the space promises to tell, so the promise itself can be asserted. */
+        val log = Log()
 
         /** The whole of the first aisle: four zones, chosen by name at run time. */
         val aisle: List<Zone> get() = network.link("L1")!!.zones
@@ -87,13 +105,19 @@ class ZoneClosureTest {
         val (m, c) = model()
         object : ModelElement(c, "Driver") {
             override fun initialize() {
-                schedule({ _: KSLEvent<Nothing> -> c.crew.holdZonesFor(c.aisle, 5.0) }, 0.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.holdZonesFor(c.crew, c.aisle, 5.0, c.log)
+                }, 0.0)
             }
         }
         m.simulate()
 
         assertEquals(4, c.aisle.size, "the extent came from the link, not from a literal")
-        assertFalse(c.crew.isHoldingSpace, "the closure ended on its own after five minutes")
+        assertFalse(
+            c.system.isHoldingZones(c.crew), "the closure ended on its own after five minutes"
+        )
+        assertEquals(listOf(0.0), c.log.began)
+        assertEquals(listOf(5.0), c.log.ended, "and the action was told when it ended")
         for (zone in c.aisle) {
             assertTrue(zone.isAvailable, "zone (${zone.name}) was left closed")
             assertEquals(null, zone.closingFor)
@@ -109,15 +133,21 @@ class ZoneClosureTest {
     @Test
     fun `an empty set, a repeated zone, and a foreign zone are all refused`() {
         val (_, c) = model()
-        assertFailsWith<IllegalArgumentException> { c.crew.requestZones(emptyList()) }
+        assertFailsWith<IllegalArgumentException> {
+            c.system.requestZones(c.crew, emptyList(), c.log)
+        }
         val z = c.aisle.first()
-        assertFailsWith<IllegalArgumentException> { c.crew.requestZones(listOf(z, z)) }
+        assertFailsWith<IllegalArgumentException> {
+            c.system.requestZones(c.crew, listOf(z, z), c.log)
+        }
 
         // A zone of a different guide path is not this one's to close.
         val other = GuidedPathNetwork.builder("Elsewhere")
             .link("X", "P", "Q", length = 12.0, zoneLength = 12.0)
             .build()
-        assertFailsWith<IllegalArgumentException> { c.crew.requestZones(other.zones.take(1)) }
+        assertFailsWith<IllegalArgumentException> {
+            c.system.requestZones(c.crew, other.zones.take(1), c.log)
+        }
     }
 
     // ---- rule one: all or nothing --------------------------------------------------------------
@@ -129,23 +159,24 @@ class ZoneClosureTest {
         // state the atomicity rule exists to make impossible; the invariant checker asserts it and
         // would fire here if the grant were progressive.
         val (m, c) = model()
-        val grantedAt = mutableListOf<Double>()
-        c.crew.attachEngagementListener { _, a -> grantedAt.add(a.engagedAt) }
         object : ModelElement(c, "Driver") {
             override fun initialize() {
                 schedule({ _: KSLEvent<Nothing> -> c.cart.sendTo("C") }, 0.0)
                 // At 2.5 the cart has claimed L1.Zone3 and is travelling into it.
-                schedule({ _: KSLEvent<Nothing> -> c.crew.requestZones(c.aisle) }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.requestZones(c.crew, c.aisle, c.log)
+                }, 2.5)
             }
         }
         m.simulate()
+        val grantedAt = c.log.began
 
         // At 2.5 the cart covers Zone2 and has claimed Zone3. It reaches Zone3 at 3.0, giving up
         // Zone2; reaches Zone4 at 4.0, giving up Zone3; and reaches B -- dimensionless, so the same
         // instant -- giving up Zone4 at 4.0. So the last zone of the set drains at 4.0 and the
         // whole set is taken then, not when the first three became free.
         assertEquals(listOf(4.0), grantedAt, "the set must be taken when the LAST zone drains")
-        assertEquals(1.5, c.crew.timeToEngage.withinReplicationStatistic.weightedAverage, 1e-9)
+        assertEquals(1.5, c.system.timeToCloseZones.withinReplicationStatistic.weightedAverage, 1e-9)
         for (zone in c.aisle) {
             assertTrue(zone.hasHolder, "zone (${zone.name}) should be held once the set was taken")
         }
@@ -162,7 +193,9 @@ class ZoneClosureTest {
         object : ModelElement(c, "Driver") {
             override fun initialize() {
                 schedule({ _: KSLEvent<Nothing> -> c.cart.sendTo("C") }, 0.0)
-                schedule({ _: KSLEvent<Nothing> -> c.crew.requestZones(c.aisle) }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.requestZones(c.crew, c.aisle, c.log)
+                }, 2.5)
             }
         }
         m.simulate()
@@ -170,7 +203,7 @@ class ZoneClosureTest {
         // Six link zones at a minute each; the junctions B and C are dimensionless and cost nothing.
         assertEquals(listOf(6.0), c.arrived, "the cart must have driven out of the closing region")
         assertEquals(0.0, c.cart.numTimesBlocked.value, 0.0, "and must not have waited once")
-        assertTrue(c.crew.isHoldingSpace, "and the closure got its region afterwards")
+        assertTrue(c.system.isHoldingZones(c.crew), "and the closure got its region afterwards")
     }
 
     @Test
@@ -181,7 +214,9 @@ class ZoneClosureTest {
         object : ModelElement(c, "Driver") {
             override fun initialize() {
                 // Closed first, while the cart is still on the junction A and holds no aisle zone.
-                schedule({ _: KSLEvent<Nothing> -> c.crew.holdZonesFor(c.aisle, 10.0) }, 0.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.holdZonesFor(c.crew, c.aisle, 10.0, c.log)
+                }, 0.0)
                 schedule({ _: KSLEvent<Nothing> -> c.cart.sendTo("C") }, 1.0)
             }
         }
@@ -204,8 +239,10 @@ class ZoneClosureTest {
         object : ModelElement(c, "Driver") {
             override fun initialize() {
                 schedule({ _: KSLEvent<Nothing> -> c.cart.sendTo("C") }, 0.0)
-                schedule({ _: KSLEvent<Nothing> -> c.crew.requestZones(c.aisle) }, 2.5)
-                schedule({ _: KSLEvent<Nothing> -> c.crew.releaseZone() }, 3.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.requestZones(c.crew, c.aisle, c.log)
+                }, 2.5)
+                schedule({ _: KSLEvent<Nothing> -> c.system.releaseZones(c.crew) }, 3.0)
             }
         }
         m.simulate()
@@ -214,8 +251,9 @@ class ZoneClosureTest {
             assertEquals(null, zone.closingFor, "zone (${zone.name}) was left closing")
             assertTrue(zone.isAvailable, "zone (${zone.name}) was left held")
         }
-        assertEquals(0.0, c.crew.numEngagements.value, 0.0, "the closure never took effect")
-        assertFalse(c.crew.isHoldingSpace)
+        assertEquals(0.0, c.system.numZoneEngagements.value, 0.0, "the closure never took effect")
+        assertTrue(c.log.began.isEmpty(), "and nothing was told of a hold that never began")
+        assertFalse(c.system.isHoldingZones(c.crew))
         assertEquals(listOf(6.0), c.arrived, "and the cart was never held up by any of it")
     }
 
@@ -227,18 +265,20 @@ class ZoneClosureTest {
         object : ModelElement(c, "Driver") {
             override fun initialize() {
                 c.arrived.clear()
-                schedule({ _: KSLEvent<Nothing> -> c.crew.holdZonesFor(c.aisle, 5.0) }, 1.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.holdZonesFor(c.crew, c.aisle, 5.0, c.log)
+                }, 1.0)
             }
         }
         m.numberOfReplications = 3
         m.lengthOfReplication = 60.0
         m.simulate()
 
-        assertFalse(c.crew.isHoldingSpace)
+        assertFalse(c.system.isHoldingZones(c.crew))
         for (zone in c.aisle) {
             assertEquals(null, zone.closingFor)
         }
-        val engagements = c.crew.numEngagements.acrossReplicationStatistic
+        val engagements = c.system.numZoneEngagements.acrossReplicationStatistic
         assertEquals(3.0, engagements.count, 0.0)
         assertEquals(1.0, engagements.average, 1e-12)
         assertEquals(
