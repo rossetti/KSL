@@ -1278,6 +1278,12 @@ open class GuidedPathSpace @JvmOverloads constructor(
         val request = ZoneRequest(holder, zones, time, holdFor, action)
         myZoneRequests[holder] = request
         myNumWaitingForZones.value = myZoneRequests.size.toDouble()
+        // A holder whose lifetime somebody else ends needs a back-pointer from here, or space it
+        // asked for would never be given back. Told at the request rather than at the grant: a
+        // holder killed while its aisle is still draining holds nothing yet, and the reservation it
+        // leaves behind would close that aisle for the rest of the replication. It records which
+        // guide path to ask and nothing else -- what is held stays this map's.
+        (holder as? ZoneHolderRecordIfc)?.zoneSpaceEngaged(this)
         for (zone in zones) {
             zone.closeFor(request)
         }
@@ -1350,6 +1356,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             // and now is not. The zones reopen without ever having been held.
             request.isAbandoned = true
             myNumWaitingForZones.value = myZoneRequests.size.toDouble()
+            (holder as? ZoneHolderRecordIfc)?.zoneSpaceFinished(this)
             for (zone in request.zones) {
                 zone.abandonReservation(request)
             }
@@ -1364,6 +1371,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         allocation.releasedAt = time
         myClosedZoneCount -= allocation.zones.size
         myNumZonesClosed.value = myClosedZoneCount.toDouble()
+        (holder as? ZoneHolderRecordIfc)?.zoneSpaceFinished(this)
         for (zone in allocation.zones) {
             handOver(zone.release(holder, zoneContentionRule))
         }

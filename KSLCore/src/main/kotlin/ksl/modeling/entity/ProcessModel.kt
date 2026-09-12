@@ -31,6 +31,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.guidedpath.GuidedPathNetwork
 import ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
+import ksl.modeling.guidedpath.GuidedPathSpace
+import ksl.modeling.guidedpath.Zone
+import ksl.modeling.guidedpath.ZoneHolderIfc
+import ksl.modeling.guidedpath.ZoneHolderRecordIfc
 import ksl.modeling.spatial.*
 import ksl.utilities.Identity
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -420,7 +424,87 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * @param aName an optional name for the entity
      */
     open inner class Entity(aName: String? = null) : QObject(aName),
-        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc {
+        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc,
+        ZoneHolderIfc, ZoneHolderRecordIfc {
+
+        // ---- holding guide-path space ----------------------------------------------------------
+
+        /**
+         *  Always null: an entity holding guide-path space waits for no more of it.
+         *
+         *  The outgoing edge of the guide path's wait-for graph, and the guarantee every argument
+         *  about closures not deadlocking rests on. It holds because a set of zones is taken
+         *  together or not at all, so an entity is never both holding space and queuing for more --
+         *  while it waits it holds nothing, which makes it a terminal node of the walk rather than a
+         *  possible link in a cycle. Whatever is stopped behind it is obstructed, not deadlocked.
+         *
+         *  An entity riding a transporter is a separate matter: the *transporter* holds the zones
+         *  and waits for the next one, and it is the transporter that appears in the graph.
+         */
+        final override val awaitedZone: Zone?
+            get() = null
+
+        /**
+         *  Which guide paths this entity holds space on, so that space can be given back when the
+         *  process ends -- however it ends.
+         *
+         *  A back-pointer and nothing more: what is held stays the space's, which is the single
+         *  owner of that. This is the same two-sidedness as [resourceAllocations], and for the same
+         *  reason -- the space needs its records to guarantee exclusivity, and the entity needs to
+         *  know whom to ask when somebody else decides its life is over.
+         */
+        private val myZoneSpaces: MutableSet<GuidedPathSpace> = mutableSetOf()
+
+        override fun zoneSpaceEngaged(space: GuidedPathSpace) {
+            myZoneSpaces.add(space)
+        }
+
+        override fun zoneSpaceFinished(space: GuidedPathSpace) {
+            myZoneSpaces.remove(space)
+        }
+
+        /**
+         *  True while this entity holds space on any guide path, or has asked for some and is
+         *  waiting for it to drain.
+         *
+         *  Both count, because both leave the guide path worse off if the entity vanishes: a hold
+         *  denies the zones, and a reservation that is never taken up denies them just as
+         *  completely and with nothing named as the holder.
+         */
+        val usesZoneSpace: Boolean
+            get() = myZoneSpaces.isNotEmpty()
+
+        /** Names what is held or asked for and where, for the message when a process ends. */
+        fun zoneSpaceAsString(): String = myZoneSpaces.joinToString(System.lineSeparator()) { space ->
+            val holds = space.allocationFor(this)?.zones?.joinToString { it.name }
+            val wants = space.requestFor(this)?.zones?.joinToString { it.name }
+            when {
+                holds != null -> "\t${space.name} : holding $holds"
+                wants != null -> "\t${space.name} : waiting for $wants to drain"
+                else -> "\t${space.name} : nothing"
+            }
+        }
+
+        /**
+         *  Gives back every zone this entity holds, on every guide path it holds space on.
+         *
+         *  Harmless when it holds none, and it also gives up a request still draining, which is the
+         *  state a terminated entity is most likely to be caught in: asked for an aisle, waiting for
+         *  it to empty, and killed in between. A reservation left behind would close that aisle to
+         *  traffic for the rest of the replication with nothing holding it and nothing coming to
+         *  release it.
+         */
+        fun releaseAllZones() {
+            // Copied, because each release calls back to remove the space from the set.
+            for (space in myZoneSpaces.toList()) {
+                space.releaseZones(this)
+            }
+            myZoneSpaces.clear()
+        }
+
+        /** True while this entity is waiting for guide-path space to drain. */
+        val isWaitingForZoneSpace: Boolean
+            get() = myZoneSpaces.any { it.isWaitingForZones(this) }
 
         /**
          * The default velocity for the entity's movement within the spatial model
@@ -1111,6 +1195,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess")
                     msg.appendLine()
                     msg.append(allocationsAsString())
+                    throw IllegalStateException(msg.toString())
+                }
+                // The same rule for guide-path space, and it has to be the same rule: space that is
+                // never given back stays closed to traffic for the rest of the replication with
+                // nothing holding it, which does not raise anywhere and shows up only as a guide
+                // path that quietly stopped moving.
+                if (usesZoneSpace) {
+                    val msg = StringBuilder()
+                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id held guide-path space when ending process $completedProcess")
+                    msg.appendLine()
+                    msg.appendLine("You likely did not match a seizeZones() with a releaseZones() call.")
+                    msg.appendLine(zoneSpaceAsString())
                     throw IllegalStateException(msg.toString())
                 }
                 // okay to dispose of the entity
@@ -3067,6 +3163,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (hasAllocations) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
+                }
+                // And the guide-path space, for the same reason and with the same shape. Done
+                // before the isQueued branch below only because that branch may remove the entity
+                // from the very HoldQueue it is waiting in for space; either order is correct, and
+                // this one keeps the guide path's own bookkeeping closest to the resource layer's.
+                if (usesZoneSpace) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all guide-path space." }
+                    releaseAllZones()
                 }
                 //TODO need to handle blockages in termination. This entity has been terminated, what to do about blocked entities?
                 if (isQueued) {

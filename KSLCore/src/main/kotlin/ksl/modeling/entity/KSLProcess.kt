@@ -2461,6 +2461,102 @@ interface KSLProcessBuilder {
 
 
 
+    // ---- holding guide-path space, without being a vehicle -------------------------------------
+    //
+    // The process face of general occupancy. A spill, a picker at a rack face, a crew closing an
+    // aisle: each is an entity that takes guide-path space, works, and gives it back, and each
+    // arrives at run time in numbers nobody states in advance. The event-scheduling route --
+    // GuidedPathSpace.requestZones and holdZonesFor -- is the same mechanism seen from the other
+    // side and is not a lesser one; these verbs are built on those calls rather than beside them.
+    //
+    // The holder is the entity and is implicit, as it is in seize(), and the queue is required, as
+    // it is in seize().
+
+    /**
+     * Takes a zone, waiting for whatever is in it to leave, and suspends until the zone is held.
+     *
+     * Nothing is evicted. Whatever vehicle is crossing the zone finishes crossing and leaves in its
+     * own time, and only then does this entity have the zone -- which is why this suspends at all.
+     * A zone that was already empty is granted inside the call and the process does not suspend.
+     *
+     * @param space the guide path whose space is wanted
+     * @param zone the zone to take, which must be on that guide path
+     * @param queue where to wait while the zone drains
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, which names the zone and when the hold began
+     */
+    suspend fun seizeZone(
+        space: GuidedPathSpace,
+        zone: Zone,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ): ZoneAllocation = seizeZones(space, listOf(zone), queue, requestPriority, suspensionName)
+
+    /**
+     * Takes a set of zones **together**, waiting for all of them to drain, and suspends until held.
+     *
+     * All or nothing, and that is a rule rather than a convenience: an entity that held part of a
+     * region while waiting for the rest could be waiting on a vehicle that is waiting on the part
+     * it holds, and that deadlock has no edge in the wait-for graph for the detector to find --
+     * [ProcessModel.Entity.awaitedZone] is null precisely because this rule makes it true. Traffic
+     * already inside the region is let out rather than trapped, which is what makes the drain
+     * terminate however busy the region is.
+     *
+     * The extent is chosen here, at run time, and costs nothing: a link's zones by name, a
+     * junction's zone, a zone at a station, or a sample drawn from the network.
+     *
+     * ```
+     * inner class Spill : Entity() {
+     *     val cleanup = process {
+     *         val aisle = network.link("Aisle${myAisle.value.toInt()}")!!
+     *         seizeZones(system, aisle.zones.take(myExtent.value.toInt()), cleanupQ)
+     *         delay(myCleanupTime)
+     *         releaseZones(system)
+     *     }
+     * }
+     * ```
+     *
+     * @param space the guide path whose space is wanted
+     * @param zones the zones to take, all on that guide path, distinct, at least one
+     * @param queue where to wait while they drain
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, which names the zones and when the hold began
+     */
+    suspend fun seizeZones(
+        space: GuidedPathSpace,
+        zones: List<Zone>,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ): ZoneAllocation {
+        val request = space.requestZones(entity, zones, ZoneSeizeAction(entity, queue))
+        // Suspending only when there was something to drain is the same contract a journey has:
+        // space that was free is held in the instant it was asked for, and a process that suspended
+        // anyway would need somebody to wake it for nothing.
+        if (!request.isGranted) {
+            hold(queue, requestPriority, suspensionName)
+        }
+        return request.allocation!!
+    }
+
+    /**
+     * Gives back every zone this entity holds on the guide path, and wakes whoever was waiting.
+     *
+     * Harmless when it holds none, which is what lets a process release unconditionally rather than
+     * asking first. On space asked for and still draining, this gives up the request instead.
+     *
+     * Not suspending: giving space back takes no time, and whoever gets it next is woken through
+     * the same handover a vehicle's release uses.
+     *
+     * @param space the guide path to give the space back to
+     */
+    fun releaseZones(space: GuidedPathSpace) {
+        space.releaseZones(entity)
+    }
+
     // ---- active guided vehicles ---------------------------------------------------------------
     //
     // These sit beside the guided-path verbs above and answer the same question under a different
@@ -2768,4 +2864,30 @@ suspend fun KSLProcessBuilder.charge(vehicle: FleetVehicle, suspensionName: Stri
         delay(duration, suspensionName = suspensionName ?: "${vehicle.name}:charging")
     }
     vehicle.endCharging()
+}
+
+/**
+ * Wakes the entity when the guide path has finished draining and the space is its own.
+ *
+ * The suspending verbs and the event-scheduling verbs are the same mechanism, and this is the whole
+ * of the difference between them: where an event-driven model supplies its own action and decides
+ * what to do next, a process *is* what happens next, so the action's only job is to let it continue.
+ *
+ * Nothing to do on the ending side, and that is the point rather than an omission: the process
+ * itself releases and carries straight on from the call, so there is nobody to tell.
+ */
+private class ZoneSeizeAction(
+    private val entity: ProcessModel.Entity,
+    private val queue: HoldQueue
+) : ZoneHoldActionIfc {
+
+    override fun holdBegan(allocation: ZoneAllocation) {
+        // Only when the process actually suspended. Space that was free is granted inside
+        // seizeZones, before the entity has queued, and there is then nothing to resume.
+        if (entity.isQueued) {
+            queue.removeAndResume(entity)
+        }
+    }
+
+    override fun holdEnded(allocation: ZoneAllocation) {}
 }

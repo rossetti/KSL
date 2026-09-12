@@ -103,3 +103,29 @@ interface ZoneHolderIfc {
      */
     val awaitedZone: Zone?
 }
+
+/**
+ * A holder whose lifetime something else manages, and which therefore has to be told where it holds
+ * space -- or has asked for some -- so that it can give it back when that lifetime ends.
+ *
+ * An `Entity` is the case this exists for. It is made by an arrival process and destroyed when its
+ * process ends, and neither event is the guide path's to see -- so the guide path has to leave a
+ * back-pointer the entity can follow at those moments. What is held stays the space's, as it is for
+ * every other holder; this records only *which spaces* to ask, which is the least that makes
+ * cleanup possible.
+ *
+ * It is told at the **request**, not at the grant. An entity killed while its aisle is still
+ * draining holds nothing yet, and a reservation left behind would close that aisle to traffic for
+ * the rest of the replication with nothing holding it and nothing coming to release it.
+ *
+ * A holder that outlives the run -- a crew, a maintenance team -- implements nothing here, because
+ * there is no moment at which somebody else decides it is finished.
+ */
+internal interface ZoneHolderRecordIfc {
+
+    /** This holder has just asked this guide path for space, or been granted it. */
+    fun zoneSpaceEngaged(space: GuidedPathSpace)
+
+    /** This holder now neither holds space on this guide path nor is waiting for any. */
+    fun zoneSpaceFinished(space: GuidedPathSpace)
+}
