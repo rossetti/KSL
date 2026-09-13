@@ -71,9 +71,17 @@ represents the time to negotiate it.
 ## 2. The mental model
 
 **A zone is the atom of contended space.** A network is divided into
-zones; a zone holds at most one transporter; a transporter claims the zone
+zones; a zone is held by at most one thing; a transporter claims the zone
 ahead before it moves into it, and gives up the zone behind according to a
 rule. Everything else in the package follows from that sentence.
+
+The holder is usually a transporter and does not have to be. A closed
+aisle, a spill, a pedestrian crossing or a picker occupies space in exactly
+the same way and denies it to traffic in exactly the same way, and the
+engine has no reason to know which it is — see
+[§4](#close-an-aisle-model-a-spill-or-occupy-space-with-something-that-is-not-a-vehicle).
+A zone can also carry a **population**: things present in it without taking
+exclusive possession, which refuse a claim while they are there.
 
 Four types carry the model:
 
@@ -565,6 +573,166 @@ system.statisticalReportingForHoldQueues(true)   // for debugging a model that s
 finish a leg — including a leg with nothing aboard, which is a wait neither
 of the other two describes.
 
+### …close an aisle, model a spill, or occupy space with something that is not a vehicle?
+
+Ask the space for the zones. Anything that can be **named** and that can say
+what it is waiting for may hold guide-path space — a maintenance crew, a
+spill, a picker, a pedestrian crossing. It does not have to be a vehicle,
+and it must not be a `ModelElement`: a spill that arrives at minute 137.4
+cannot be declared before the run, which is why a holder is an interface
+with two members.
+
+```kotlin
+class CleanupCrew(id: Int) : ZoneHolderIfc {
+    override val name: String = "CleanupCrew$id"
+    override val awaitedZone: Zone? get() = null   // it never queues for space
+}
+```
+
+Make as many as the run turns out to need. Then take the space:
+
+```kotlin
+// Event view: hold a whole link for a sampled duration, given back on a clock.
+space.holdZonesFor(CleanupCrew(nextId++), network.link("Aisle3")!!.zones, cleanupTime.value, this)
+```
+
+```kotlin
+// Process view: an entity holds the space across its own suspension.
+inner class Spill : Entity() {
+    val cleanup = process {
+        val allocation = seizeZones(space, network.link("Aisle3")!!.zones, spillQ)
+        delay(cleanupTime)
+        releaseZones(space)
+    }
+}
+```
+
+**Which verb.** The choice is about how the hold ends and what should
+happen when the space is already promised to somebody else:
+
+| You want | Event view | Process view |
+|---|---|---|
+| Hold for a **known duration**, released automatically | `holdZonesFor` / `holdZoneFor` | `seizeZones` + `delay` + `releaseZones` |
+| Hold until **the model decides**, released by hand | `requestZones` / `requestZone` | `seizeZones`, released when the process resumes |
+| **Give up** rather than queue behind another closure | `tryHoldZonesFor` / `tryRequestZones` (null on overlap) | `trySeizeZones` (null on overlap) |
+| Give the space back | `releaseZones(allocation)` — preferred | `releaseZones(space)` |
+
+Prefer the **timed** form where the duration is known: the release is on the
+calendar and cannot be forgotten. Prefer the **`try`** form where an overlap
+should change the plan rather than delay it — a second spill in the same
+aisle is absorbed by the crew already there, not queued behind it.
+
+A zone another holder merely **holds** is not an overlap. Asking for it
+succeeds and waits for the hold to end. Only a zone already *promised* to a
+pending closure refuses, which is what the `try` verbs answer null on.
+
+**A set is taken together or not at all.** Ask for six zones and you get all
+six at one instant, once every one of them has drained, or you get none of
+them and wait. The reason is a trap: a holder that took zones one at a time
+could hold half an aisle while waiting for the rest, and a vehicle inside
+that aisle could be waiting for a zone the holder has while the holder waits
+for the zone the vehicle is standing in. Traffic already inside a closing
+region is let out rather than trapped, which is what makes the drain
+terminate however busy the region is.
+
+Both routes report the same four numbers, on the space rather than on the
+holders — a model may make as many holders as the run needs, so a statistic
+per holder would be a count nobody can state before the run:
+`numHoldersAwaitingSpace`, `timeToCloseZones`, `numZoneEngagements` and
+`numRequestsUnfilled`. `numBlockedByVehicle`, `numBlockedByOccupier` and
+`numBlockedByPopulation` decompose a vehicle's blocked time by what was in
+the way, which is what lets a closure's cost be separated from congestion
+instead of fitted into a task time.
+
+`GuidePathDisturbancesExample` runs one layout with and without spills and a
+maintenance window and compares them; `ZoneClosurePolicyExample` shows three
+answers to one overlap as three deterministic timelines.
+
+### …check whether space can be closed, before closing it?
+
+Three questions, and they are three questions rather than one because the
+remedies differ:
+
+```kotlin
+// "Would this zone refuse me, and why?" -- HELD, OCCUPIED, RESERVED, or null.
+val refusal: ZoneRefusal? = zone.refusalFor(crew)
+
+// "Is any of this promised to another closure?" -- the try verbs answer null on this.
+val promised: Zone? = space.firstPromisedZone(aisle.zones)
+
+// "Is anything parked in it?" -- space that will not come free on its own.
+val parked: Zone? = space.firstZoneHeldByStationaryVehicle(aisle.zones)
+```
+
+`refusalFor` takes the claimant because the answer depends on who is asking:
+a reserved zone refuses a stranger, admits the holder it was promised to,
+and admits a vehicle escaping an older reservation. It is the same function
+the claim itself uses, so a check made with it cannot disagree with what
+happens next. A hand-written version — "is anything closing or holding this
+zone?" — turns away closures that would have worked perfectly well.
+
+The third question is the one worth asking before a closure that matters:
+
+```kotlin
+val parked = space.firstZoneHeldByStationaryVehicle(aisle.zones)
+if (parked != null) {
+    cleanElsewhere()              // or dispatch the vehicle, or postpone
+} else {
+    space.holdZonesFor(crew, aisle.zones, cleanupTime.value, this)
+}
+```
+
+A vehicle that carries nobody, has no route under way and waits for nothing
+will not move again by itself. Space it is standing in drains only if some
+other part of the model dispatches it — so a closure asked for over that
+zone is accepted, waits, and is never granted.
+
+Nothing warns you at the moment of asking, and that is deliberate: at that
+instant the space has no evidence, only the reading that a vehicle happens
+to be still, and an entity may seize it a moment later. The judgement is
+yours to make, which is why it is exposed rather than acted on. What the run
+*does* report is what actually happened — see the next entry.
+
+Note what these do **not** cover. A holder that simply never releases its
+own untimed hold is indistinguishable, from inside the space, from one whose
+owning process is about to resume and release. Neither predicate guesses
+between them.
+
+### …find out why my closure never happened?
+
+Look at `numRequestsUnfilled`, and read the warning at the end of the
+replication.
+
+This is the failure mode worth knowing about, because its symptom is a
+plausible number rather than an error. A closure that is never granted means
+`ZoneHoldActionIfc.holdBegan` never fires: the maintenance window, the spill,
+the crossing is simply absent from the run, and every statistic around it is
+a reasonable-looking answer to a model you did not write.
+
+Each replication that ends with space still ungranted says so, and says why:
+
+```
+GuidedPathTransportSystem (Sys): 1 request(s) for space were still waiting when
+replication 1 ended. Space asked for and never granted means the hold never
+began, so whatever it stood for is absent from this replication.
+  (CleanupCrew1) asked at 6.0 for [B]; zone (B) has not drained and never will:
+  (Cart) is parked in it, carrying nothing and with no route under way, so
+  nothing in the model will move it
+```
+
+The last clause decides the remedy. **"has not drained"** on its own means
+the region was busy and the replication ended first — nothing is wrong.
+**"and never will"** means a parked vehicle is sitting in it, and the model
+needs a home base for that vehicle, a different region, or a check with
+`firstZoneHeldByStationaryVehicle` before asking.
+
+`numRequestsUnfilled` counts the same thing, because a parameter sweep does
+not read logs. Compare it against `numZoneEngagements`: a few at the horizon
+are closures legitimately cut short, while a count near the number of
+closures attempted means they were not happening at all. `waitingRequests`
+is the same information as data — who asked, when, and for what — for a
+model that would rather assert than read.
+
 ### …animate it?
 
 Nothing to switch on. When an animation sink is active the system emits
@@ -630,7 +798,7 @@ though it had worked.
 | `GuidedPathNetwork` | The immutable geometry, and a `SpatialModel`. Built by `GuidedPathNetwork.builder(...)`. |
 | `GuidedPathNetwork.Intersection` | A junction, and a `LocationIfc`. Station names are aliases for intersections. |
 | `Link` | A one-way, two-way, or spur aisle between two intersections, divided into zones. |
-| `Zone` | The atom of contended space: `LinkZone` along a link, `IntersectionZone` at a junction. Holds at most one transporter. |
+| `Zone` | The atom of contended space: `LinkZone` along a link, `IntersectionZone` at a junction. Held by at most one thing, which need not be a transporter. `refusalFor(claimant)` says whether it would refuse a claim, and why. |
 | `GuidedPathSpace` | The `ModelElement` operating a network. Owns zone occupancy, resets between replications, reports congestion. Knows nothing about how a vehicle is asked for, which is why the AGV subsystem runs on it too. |
 | `GuidedPathTransportSystem` | A `GuidedPathSpace` plus this paradigm's own transport time, request to set-down. What a passive model constructs. |
 | `GuidedTransporter` | A vehicle; a capacity-one `Resource`. |
@@ -641,6 +809,11 @@ though it had worked.
 | `TransporterPlacement` | Where a transporter starts: `At(location)` or `OnZone(zoneName)`. Re-applied every replication. |
 | `GuidedPathDeadlockException` | A circular wait, carrying a `DeadlockReport` naming every participant. |
 | `IdleTransporterObstruction` | A transporter blocked behind one that will never move. Warned and counted, not thrown. |
+| `ZoneHolderIfc` | Anything that can hold guide-path space: a name, and the zone it waits for. Two members and no base class, so a spill arriving at minute 137.4 can be one. |
+| `ZoneHoldActionIfc` | Told when a hold begins and when it ends. Required on every request — a hold nobody is told about is a hold nobody can act on. |
+| `ZoneRequest` | Space asked for and not yet granted. `isGranted`, `isWaiting`, `isAbandoned`. |
+| `ZoneAllocation` | Space granted. The thing to release, and what `timeToEngage` and `timeHeld` are read from. |
+| `ZoneRefusal` | Why a zone would refuse a claim: `HELD`, `OCCUPIED`, `RESERVED`. |
 
 The first two are one object in a passive model: a transport system
 **is** a space. The distinction matters only when you are writing
@@ -714,6 +887,37 @@ Inbound  holds [B]          and awaits Both.Zone3
 
 The network warns at `build()` about every two-way link, and about any
 spur too short to contain the longest declared vehicle.
+
+### A closure must be given back, and by its allocation
+
+Space taken with `holdZonesFor` is given back on a clock. Space taken with
+`requestZones` is given back only when the model says so, and forgetting is
+the most likely mistake in this part of the package: the zone stays closed
+for the rest of the replication, traffic queues behind it, and the run ends
+looking like a layout problem.
+
+Two things make it survivable. Release by **allocation** rather than by
+holder:
+
+```kotlin
+override fun holdBegan(allocation: ZoneAllocation) {
+    mine = allocation
+}
+
+fun cleanupFinished() {
+    space.releaseZones(mine)      // exactly that hold, and it raises if it is stale
+}
+```
+
+A holder is made during the run, so `releaseZones(holder)` naming the wrong
+instance — or one whose space has already gone back — does nothing and says
+nothing. The allocation form raises on a double or superseded release
+instead. The holder form stays because process cleanup needs to be able to
+release unconditionally.
+
+In the process view you cannot leak at all. An entity that completes its
+process still holding zones **throws**, naming them; one that is terminated
+or is still suspended at the end of a replication has them released for it.
 
 ### A staging area stages one vehicle
 
@@ -913,6 +1117,10 @@ dispatching moves around is the larger.
 | "would both occupy zone" at startup | Two transporters placed on the same zone. Placements are re-applied every replication, so this fails immediately rather than drifting. |
 | Fleet performs worse as you add vehicles | Expected, and the reason this package exists. Look at `numTransportersBlocked` and the per-link utilization. |
 | Model refuses to build with a second system | One network per model — see above. |
+| A closure never happened; statistics look plausible | The request was never granted. Check `numRequestsUnfilled` and the end-of-replication warning, which names the zone that never drained and whether anything was ever going to move it. |
+| An aisle stays closed for the rest of the run | An untimed `requestZones` that was never released, or a `releaseZones(holder)` naming the wrong run-time instance. Release by `ZoneAllocation` instead. |
+| `IllegalStateException: One request at a time` | One holder, two requests. A holder is the identity of a closure, so two overlapping closures are two holders — and holders are cheap. |
+| `tryRequestZones` keeps answering null | The zones are promised to a pending closure, not merely held. `firstPromisedZone` names the one refusing. |
 
 ---
 

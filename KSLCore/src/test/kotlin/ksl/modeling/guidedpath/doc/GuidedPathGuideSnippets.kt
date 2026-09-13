@@ -5,6 +5,11 @@ import ksl.modeling.guidedpath.GuidedPathNetwork
 import ksl.modeling.guidedpath.GuidedPathTransportSystem
 import ksl.modeling.guidedpath.GuidedTransporter
 import ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
+import ksl.modeling.guidedpath.Zone
+import ksl.modeling.guidedpath.ZoneAllocation
+import ksl.modeling.guidedpath.ZoneHoldActionIfc
+import ksl.modeling.guidedpath.ZoneHolderIfc
+import ksl.modeling.guidedpath.ZoneRefusal
 import ksl.modeling.guidedpath.LinkType
 import ksl.modeling.guidedpath.TransporterPlacement
 import ksl.modeling.guidedpath.exceptions.DeadlockReport
@@ -205,6 +210,82 @@ private object GuidedPathGuideSnippets {
             } catch (e: GuidedPathDeadlockException) {
                 // A domain outcome, not a defect: this fleet size cannot run on this layout.
                 recordInfeasible(fleetSize, e.report)
+            }
+        }
+    }
+
+    // -- §4 …close an aisle, model a spill, or occupy space -------------
+
+    class CleanupCrew(id: Int) : ZoneHolderIfc {
+        override val name: String = "CleanupCrew$id"
+        override val awaitedZone: Zone? get() = null   // it never queues for space
+    }
+
+    /** Host for the event-view closure snippet: the element that asks is the one told. */
+    class MaintainedShop(parent: ModelElement) : ModelElement(parent, "MaintainedShop"),
+        ZoneHoldActionIfc {
+
+        val network = buildNetwork()
+        val space = GuidedPathTransportSystem(this, network, name = "MaintainedSystem")
+        val cleanupTime = ksl.utilities.random.rvariable.ExponentialRV(20.0)
+        private var nextId = 1
+
+        fun closeTheAisle() {
+            space.holdZonesFor(
+                CleanupCrew(nextId++), network.link("Link3")!!.zones, cleanupTime.value, this
+            )
+        }
+
+        /** Checking first is what turns a hopeless closure into a decision. */
+        fun closeTheAisleIfItCanDrain(crew: CleanupCrew) {
+            val aisle = network.link("Link3")!!
+            val parked = space.firstZoneHeldByStationaryVehicle(aisle.zones)
+            if (parked != null) {
+                cleanElsewhere()              // or dispatch the vehicle, or postpone
+            } else {
+                space.holdZonesFor(crew, aisle.zones, cleanupTime.value, this)
+            }
+        }
+
+        /** The three questions a model can ask for itself. */
+        fun inspect(crew: CleanupCrew) {
+            val aisle = network.link("Link3")!!
+            val zone = aisle.zones.first()
+            val refusal: ZoneRefusal? = zone.refusalFor(crew)
+            val promised: Zone? = space.firstPromisedZone(aisle.zones)
+            val parked: Zone? = space.firstZoneHeldByStationaryVehicle(aisle.zones)
+        }
+
+        // -- §6 A closure must be given back, and by its allocation -----
+
+        private var mine: ZoneAllocation? = null
+
+        override fun holdBegan(allocation: ZoneAllocation) {
+            mine = allocation
+        }
+
+        fun cleanupFinished() {
+            space.releaseZones(mine!!)      // exactly that hold, and it raises if it is stale
+        }
+
+        override fun holdEnded(allocation: ZoneAllocation) = Unit
+
+        private fun cleanElsewhere() = Unit
+    }
+
+    /** Host for the process-view closure snippet. */
+    class SpillShop(parent: ModelElement) : ProcessModel(parent, "SpillShop") {
+
+        val network = buildNetwork()
+        val space = GuidedPathTransportSystem(this, network, name = "SpillSystem")
+        val spillQ = ksl.modeling.entity.HoldQueue(this, "SpillQ")
+        val cleanupTime = ksl.utilities.random.rvariable.ExponentialRV(20.0)
+
+        inner class Spill : Entity() {
+            val cleanup = process {
+                val allocation = seizeZones(space, network.link("Link3")!!.zones, spillQ)
+                delay(cleanupTime)
+                releaseZones(space)
             }
         }
     }
