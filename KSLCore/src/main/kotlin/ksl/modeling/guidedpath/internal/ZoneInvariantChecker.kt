@@ -234,12 +234,7 @@ internal class ZoneInvariantChecker(
             // no edge in the wait-for graph, and so one the detector cannot see.
             val closing = zone.closure
             if (closing != null) {
-                // A non-vehicle holder is a sink in the wait-for graph, and until now that was
-                // guaranteed by ZoneOccupier declaring `awaitedZone` final. A holder is any
-                // ZoneHolderIfc now, so the guarantee has to be asserted instead of assumed: a
-                // holder that both holds space and waits for more has an outgoing edge, and every
-                // argument that a closure cannot deadlock rests on it having none.
-                checkIsASink(closing.holder, "is closing ${zone.name} for")
+                checkHolderDiscipline(closing.holder, "is closing ${zone.name} for")
                 val partlyHeld = closing.zones.filter { it.holder === closing.holder }
                 if (partlyHeld.isNotEmpty()) {
                     violate(
@@ -264,7 +259,7 @@ internal class ZoneInvariantChecker(
             // a closed aisle, a crossing -- keeps no such run to disagree with. Its claim is
             // one-sided by construction, so there is nothing here to check.
             if (holder !is GuidedTransporter) {
-                checkIsASink(holder, "holds ${zone.name} and")
+                checkHolderDiscipline(holder, "holds ${zone.name} and")
                 continue
             }
             if (zone.state == ZoneState.CLAIMED && holder.claimedZone !== zone) {
@@ -284,21 +279,40 @@ internal class ZoneInvariantChecker(
     }
 
     /**
-     * A holder that is not a vehicle waits for nothing, which is what makes it a terminal node of
-     * the wait-for walk and what every argument about closures not deadlocking depends on.
+     * A holder that is not a vehicle never holds guide-path space and waits for more of it at once.
      *
-     * The all-or-nothing grant is what keeps it true: a holder holds nothing until every zone of
-     * its request has drained, so it is never both holding and waiting. Should that ever be
-     * weakened, this fires rather than the run quietly stopping with no cycle for the detector to
-     * find.
+     * The all-or-nothing grant is what makes this true -- a holder holds nothing until every zone
+     * of its request has drained -- and the space enforces one request per holder on top of it.
+     * Asserting it is worth the two lines because it was a property of the *type* until
+     * `ZoneOccupier` was deleted, and is now a property of the mechanism instead.
+     *
+     * **What this does not establish**, and what §18.2 of the design record wrongly claimed it
+     * did, is that such a holder cannot lie on a circular wait. Holding nothing removes one edge:
+     * the holder holding what a vehicle wants. It leaves two others. A *pending* closure waits on
+     * every vehicle occupying the zones it has reserved, and the reservation is what a vehicle
+     * refused entry is waiting on. Two closures over adjacent regions can each trap a vehicle in
+     * the other's way -- see `MutualPromiseDeadlockTest` -- so acyclicity is not an invariant here
+     * and is not asserted. The detector is what reports that case, and reporting it is the remedy
+     * the subsystem offers for every other circular wait too.
+     *
+     * [ZoneHolderIfc.awaitedZone] is checked as well, for a narrower reason: the detector treats a
+     * non-null answer as a vehicle-style edge, so a holder that reported one would be counted twice
+     * over -- once through its own edge and once through the reservation it made.
      */
-    private fun checkIsASink(holder: ZoneHolderIfc, doing: String) {
+    private fun checkHolderDiscipline(holder: ZoneHolderIfc, doing: String) {
+        if (mySystem.isHoldingZones(holder) && mySystem.isWaitingForZones(holder)) {
+            violate(
+                "holder (${holder.name}) $doing both holds space and has a request outstanding. A " +
+                        "set of zones is taken together or not at all, so a holder holds nothing " +
+                        "until every zone of its request has drained"
+            )
+        }
         val awaited = holder.awaitedZone ?: return
         violate(
-            "holder (${holder.name}) $doing is also waiting for zone (${awaited.name}), so it is " +
-                    "not a sink in the wait-for graph. A holder that is not a vehicle must never " +
-                    "hold space and queue for more: a cycle through it would have no edge for the " +
-                    "deadlock walk to follow and the run would stop advancing with nothing to say."
+            "holder (${holder.name}) $doing reports awaiting zone (${awaited.name}). A holder that " +
+                    "is not a vehicle must answer null: what it waits for is its own reservation " +
+                    "draining, which the detector already follows through the reservation, and an " +
+                    "awaited zone here would be counted as a second, vehicle-style edge as well"
         )
     }
 

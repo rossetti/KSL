@@ -27,14 +27,23 @@ package ksl.modeling.guidedpath.exceptions
  * @param transporterName the blocked transporter
  * @param heldZoneNames the zones it occupies or has claimed, ordered rear to front
  * @param awaitedZoneName the zone it cannot claim, which the next participant in the cycle holds
+ * @param awaitedZoneReservedFor the holder the awaited zone is reserved for, when it is **free**
+ *   and what refuses it is a reservation rather than an occupant. Naming it is the difference
+ *   between a usable report and a misleading one: without it a modeller reads two vehicles awaiting
+ *   two zones, goes looking for a head-on vehicle conflict, and finds the zones empty.
  */
 data class DeadlockParticipant(
     val transporterName: String,
     val heldZoneNames: List<String>,
-    val awaitedZoneName: String
+    val awaitedZoneName: String,
+    val awaitedZoneReservedFor: String? = null
 ) {
-    override fun toString(): String =
-        "$transporterName holds [${heldZoneNames.joinToString()}] and awaits $awaitedZoneName"
+    override fun toString(): String = buildString {
+        append("$transporterName holds [${heldZoneNames.joinToString()}] and awaits $awaitedZoneName")
+        if (awaitedZoneReservedFor != null) {
+            append(", which is free but reserved for $awaitedZoneReservedFor")
+        }
+    }
 }
 
 /**
@@ -69,11 +78,33 @@ data class DeadlockReport(
             append(p)
         }
         append(System.lineSeparator())
+        val throughAReservation = participants.any { it.awaitedZoneReservedFor != null }
         append(
-            "Each transporter awaits a zone held by the next, so none can move. See the guide on " +
-                    "designing deadlock out: prefer unidirectional links, use spurs for dead ends, " +
-                    "and send idle transporters to a staging area."
+            // "held by the next" is the ordinary case and is what the great majority of these
+            // reports describe. It would be false of a cycle running through a reservation, where
+            // the awaited zones are empty, so that case says so instead rather than being
+            // contradicted by the paragraph below it.
+            if (throughAReservation) {
+                "Each transporter awaits a zone the next one stands in the way of, so none can " +
+                        "move. See the guide on designing deadlock out: prefer unidirectional " +
+                        "links, use spurs for dead ends, and send idle transporters to a staging " +
+                        "area."
+            } else {
+                "Each transporter awaits a zone held by the next, so none can move. See the guide " +
+                        "on designing deadlock out: prefer unidirectional links, use spurs for " +
+                        "dead ends, and send idle transporters to a staging area."
+            }
         )
+        if (throughAReservation) {
+            append(System.lineSeparator())
+            append(
+                "Some of these zones are free and reserved rather than occupied. A closure that " +
+                        "is still waiting for its space admits only a vehicle already holding one " +
+                        "of its own zones, so two closures reserving adjacent regions can each " +
+                        "trap a vehicle in the other's way -- and then neither region ever drains. " +
+                        "Ask for regions that do not abut, or ask for them as one closure."
+            )
+        }
     }
 }
 

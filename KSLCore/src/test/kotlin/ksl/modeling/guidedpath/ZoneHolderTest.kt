@@ -609,12 +609,16 @@ class ZoneHolderTest {
     }
 
     @Test
-    fun `a holder that holds space and waits for more is caught`() {
+    fun `a holder that reports an awaited zone is caught`() {
         // Until now this was guaranteed by the type: ZoneOccupier declared awaitedZone final and
-        // null. A holder is any ZoneHolderIfc now, so the guarantee is asserted instead. It matters
-        // because every argument that a closure cannot deadlock rests on such a holder being a sink
-        // in the wait-for graph: give it an outgoing edge and a cycle through it becomes possible
-        // *and* invisible, since the detector only follows blocked transporters.
+        // null. A holder is any ZoneHolderIfc now, so the guarantee is asserted instead.
+        //
+        // The reason is narrower than the design record once claimed, and the record was corrected.
+        // It is *not* that this makes a closure unable to lie on a circular wait -- it cannot do
+        // that, and MutualPromiseDeadlockTest shows a cycle running through two pending closures.
+        // It is that the detector follows a non-null awaitedZone as a vehicle-style edge, and
+        // already follows what a closure waits for through the reservation itself, so a holder
+        // answering non-null here would be counted twice over.
         val m = Model("NotASink")
         val a = Aisle(m)
         a.system.checkInvariants = true
@@ -633,7 +637,7 @@ class ZoneHolderTest {
         m.numberOfReplications = 1
         m.lengthOfReplication = 20.0
         val e = assertFailsWith<ZoneInvariantViolation> { m.simulate() }
-        assertTrue((e.message ?: "").contains("not a sink"), e.message ?: "")
+        assertTrue((e.message ?: "").contains("must answer null"), e.message ?: "")
     }
 
     @Test

@@ -51,12 +51,27 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
     /**
      * The transporters standing between this one and where it wants to go.
      *
-     * There are three ways to be held up and each resolves to a different set. Waiting for a zone
+     * There are four ways to be held up and each resolves to a different set. Waiting for a zone
      * is the simple case: whoever holds the zone. Waiting for a spur means waiting for the one
      * transporter that reserved it. Waiting for a link's direction is the case with more than one
      * answer -- a link runs one way at a time and any number of transporters may be running it, so
      * the direction comes free only when the last of them leaves, and every one of them is
      * therefore in the way.
+     *
+     * The fourth is waiting for a zone that is **free**, and refused because it is *reserved*. The
+     * design record originally argued this case away: all-or-nothing acquisition keeps a
+     * non-vehicle holder from holding anything while it waits, and a holder that holds nothing
+     * cannot be what a vehicle is waiting for. That reasoning conflated having no
+     * [ksl.modeling.guidedpath.ZoneHolderIfc.awaitedZone] with having no outgoing edge. A closure
+     * that is still pending waits on **every vehicle occupying the zones it has reserved**, and the
+     * reservation is what the refused vehicle is waiting on -- two edges, in opposite directions,
+     * neither of which all-or-nothing removes. Two closures reserving adjacent regions can each
+     * trap a vehicle in the other's way, and then neither region drains.
+     *
+     * The closure is collapsed out rather than added as a node: a vehicle refused by a reservation
+     * is waiting, transitively, on whichever vehicles are keeping that reservation from being
+     * granted. That keeps the walk and the cycle report about vehicles, which is what a modeller
+     * can act on, while `awaitedZoneReservedFor` on the report says which closure made the edge.
      */
     private fun obstructorsOf(transporter: GuidedTransporter): List<GuidedTransporter> {
         val link = transporter.awaitedLink
@@ -68,11 +83,23 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
                         other.heldZones.any { it is LinkZone && it.link === link }
             }
         }
-        val holder = transporter.awaitedZone?.holder ?: return emptyList()
-        // A holder that is not a vehicle is a terminal node. It never queues for space, so it has
-        // no outgoing edge and cannot close a cycle: whatever waits behind it is obstructed rather
-        // than deadlocked, which is a different condition with a different remedy. Reporting it as
-        // an obstructor would be the one mistake this walk exists to avoid.
+        val awaited = transporter.awaitedZone ?: return emptyList()
+        val holder = awaited.holder
+        if (holder == null) {
+            // Free, and refused: the zone is reserved for a closure that has not been granted yet.
+            // What stands in the way is whatever is stopping that closure from being granted, which
+            // is the vehicles occupying its other zones. A closure occupying none of them yet is
+            // not itself an obstacle and contributes nothing.
+            val closing = awaited.closure ?: return emptyList()
+            return closing.zones
+                .mapNotNull { it.holder as? GuidedTransporter }
+                .filter { it !== transporter }
+                .distinct()
+        }
+        // A holder that is not a vehicle is holding the zone outright, and a vehicle behind it is
+        // obstructed rather than deadlocked: the hold ends on its own, by a clock or by whatever
+        // process took it, so no cycle runs through it. That is still true -- what was not true is
+        // the same claim about a closure that is merely *pending*, which the branch above handles.
         if (holder !is GuidedTransporter) return emptyList()
         return if (holder === transporter) emptyList() else listOf(holder)
     }
@@ -127,7 +154,8 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
                 DeadlockParticipant(
                     transporterName = t.name,
                     heldZoneNames = t.heldZones.map { it.name },
-                    awaitedZoneName = awaitedName(t)
+                    awaitedZoneName = awaitedName(t),
+                    awaitedZoneReservedFor = awaitedReservation(t)
                 )
             }
         )
@@ -176,4 +204,17 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
      */
     private fun awaitedName(transporter: GuidedTransporter): String =
         transporter.awaitedZone?.name ?: transporter.awaitedLink?.name ?: "nothing"
+
+    /**
+     * Whom the awaited zone is reserved for, when it is free and a reservation is what refuses it.
+     *
+     * Null in the ordinary case, where something is actually standing in the zone. A zone that is
+     * both held and reserved reads as held, because that is what the waiting vehicle is up against
+     * first.
+     */
+    private fun awaitedReservation(transporter: GuidedTransporter): String? {
+        val awaited = transporter.awaitedZone ?: return null
+        if (awaited.holder != null) return null
+        return awaited.closingFor?.name
+    }
 }
