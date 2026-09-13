@@ -1042,6 +1042,13 @@ open class GuidedPathSpace @JvmOverloads constructor(
     // is a name and an awaited zone, and the space supplies everything else. These two maps are
     // the single owner of who is waiting and who holds, and nothing outside keeps a second copy.
 
+    /**
+     * Numbers the requests, so that the escape rule on `ZoneClosureIfc` has a strict order to work
+     * with. Simulated time will not do: two closures asked for in the same instant still have to be
+     * ordered, and in the case that found this they were.
+     */
+    private var myNextRequestSequence = 0L
+
     private val myZoneRequests = mutableMapOf<ZoneHolderIfc, ZoneRequest>()
     private val myZoneAllocations = mutableMapOf<ZoneHolderIfc, ZoneAllocation>()
 
@@ -1408,7 +1415,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         action: ZoneHoldActionIfc
     ): ZoneRequest {
         auditFinishedInstant()
-        val request = ZoneRequest(holder, zones, time, holdFor, action)
+        val request = ZoneRequest(holder, zones, time, holdFor, myNextRequestSequence++, action)
         myZoneRequests[holder] = request
         myNumWaitingForZones.value = myZoneRequests.size.toDouble()
         // A holder whose lifetime somebody else ends needs a back-pointer from here, or space it
@@ -1617,6 +1624,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         // The space's own belief about what holders hold, which is a separate copy from the zones'
         // and would otherwise describe the previous replication for the whole of the next. This is
         // the only copy there is: a holder keeps none, so there is nothing else to clear.
+        myNextRequestSequence = 0L
         myZoneRequests.clear()
         myZoneAllocations.clear()
         myClosedZoneCount = 0

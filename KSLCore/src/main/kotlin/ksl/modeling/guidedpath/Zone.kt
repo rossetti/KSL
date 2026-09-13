@@ -369,16 +369,60 @@ sealed class Zone {
         // and nobody needs to be, because whatever is still in the way will come through here when
         // it leaves.
         if (state != ZoneState.FREE || numPresent > 0) return null
-        // A zone that is closing has been promised, and the drain has just finished. The promise
-        // comes first, and it must: handing the zone to a waiting vehicle instead is how a request
-        // to close a busy aisle would never be satisfied at all. The reservation stands until the
-        // holder takes it, so no vehicle can get in between.
-        closure?.let { return it.holder }
+        val closing = closure
+        if (closing != null) {
+            // A zone that is closing has been promised, and the promise comes first: handing the
+            // zone to a waiting vehicle instead is how a request to close a busy aisle would never
+            // be satisfied at all.
+            //
+            // **But only when the promise can actually be taken up.** A closure still waiting on
+            // its other zones cannot use this one yet, and handing it over regardless leaves every
+            // vehicle waiting here with nothing scheduled -- including, in the worst case, the very
+            // vehicle whose departure the closure is waiting for, which is then stranded holding a
+            // zone of the region that will now never drain.
+            if (closing.zones.all { it.isDrained }) return closing.holder
+            // So the zone goes to a waiting vehicle instead -- but only one the closure admits,
+            // which is a vehicle getting *out* of this region or out of an older one. An outsider
+            // is still kept out, so the drain is not weakened: every vehicle admitted here was
+            // going to be admitted anyway when it next tried.
+            return chooseAdmittedWaiter(rule, closing)
+        }
+        // The common path, and it is a hot one -- every release and every departure comes through
+        // here, once per zone traversal. No filtering and no allocation: the whole list goes to the
+        // rule as it always did.
         if (myWaiters.isEmpty() || rule == null) return null
         val chosen = rule.selectWaiter(this, myWaiters)
         check(chosen in myWaiters) {
             "Zone contention rule ($rule) chose transporter (${chosen.name}), which is not waiting " +
                     "for zone ($name). A rule must choose from the transporters it is given."
+        }
+        myWaiters.remove(chosen)
+        return chosen
+    }
+
+    /**
+     * Picks a waiting transporter that a reservation on this zone would let through.
+     *
+     * Only reached for a zone that is closing and whose closure cannot yet be granted, so the
+     * filtered copy costs nothing in a model without closures and nothing on the hot path of one
+     * that has them.
+     *
+     * @param rule chooses among those still eligible
+     * @param closing the reservation whose admission rule narrows the queue
+     * @return whom to hand the zone to, or null when nobody eligible was waiting
+     */
+    private fun chooseAdmittedWaiter(
+        rule: ZoneContentionRuleIfc?,
+        closing: ZoneClosureIfc
+    ): GuidedTransporter? {
+        if (rule == null || myWaiters.isEmpty()) return null
+        val candidates = myWaiters.filter { closing.admits(it) }
+        if (candidates.isEmpty()) return null
+        val chosen = rule.selectWaiter(this, candidates)
+        check(chosen in candidates) {
+            "Zone contention rule ($rule) chose transporter (${chosen.name}), which is not waiting " +
+                    "for zone ($name) or is not admitted to it. A rule must choose from the " +
+                    "transporters it is given."
         }
         myWaiters.remove(chosen)
         return chosen

@@ -97,14 +97,27 @@ interface ZoneHoldActionIfc {
  * The fix is the one a real closure uses: **stop letting traffic in, and let the traffic already
  * inside get out.** A closing zone admits the holder it was promised to, which is how the grant is
  * taken up, and it admits a vehicle that is already holding some other zone of the same closure,
- * which is how that vehicle leaves. The drain then terminates for any set, because every vehicle
- * inside can always continue -- the zones beyond the region are not reserved, and once a vehicle is
- * fully out it holds nothing in the set and so cannot get back in.
+ * which is how that vehicle leaves.
  *
- * A vehicle whose route *ends* inside the region is the one case that still hangs, and it is a
+ * **That is not enough on its own, and the design record was wrong to say it was.** It argued that
+ * the drain terminates because "the zones beyond the region are not reserved". True of one pending
+ * closure; false of two. Two closures reserving abutting regions each trap a vehicle in the other's
+ * way, neither region drains, and neither is granted -- a permanent, silent stall, because the
+ * zones the vehicles await are *free* and so have no holder for the wait-for graph to follow.
+ *
+ * So a closure admits one more thing: **a vehicle escaping an older reservation.** [sequence]
+ * orders the closures strictly, and a closure lets through any vehicle standing in a region
+ * reserved before its own. That terminates, by induction on the order: the oldest pending closure
+ * is permeable only to its own occupants leaving, so it drains and is granted; then the next
+ * oldest, and so on. And it cannot itself loop, because being let through only ever runs from an
+ * older reservation to a younger one.
+ *
+ * A vehicle whose route *ends* inside a region is the one case that still hangs, and it is a
  * modelling error rather than a mechanism defect: it is the same trap as sending a vehicle to a
  * junction another vehicle is parked on. The end-of-replication report names the zone and its
- * holder.
+ * holder, and a cycle that runs through a reservation -- which the escape rule does not remove,
+ * because a vehicle blocked by another *vehicle* is not escaping anything -- is reported by the
+ * deadlock detector.
  */
 internal interface ZoneClosureIfc {
 
@@ -113,6 +126,15 @@ internal interface ZoneClosureIfc {
 
     /** Every zone this closure has reserved. */
     val zones: List<Zone>
+
+    /**
+     * When this closure was asked for, relative to every other, as a strict total order.
+     *
+     * A sequence number rather than the request time, because two closures asked for in the same
+     * instant must still be ordered: it is the ordering that breaks the trap described above, and
+     * in the reproduction both requests were made at the same instant.
+     */
+    val sequence: Long
 
     /** True when this claimant may take a zone the closure has reserved. */
     fun admits(claimant: ZoneHolderIfc): Boolean
@@ -145,6 +167,8 @@ internal interface ZoneClosureIfc {
  * @param holder who asked
  * @param zones what was asked for, one or more
  * @param requestedAt when it was asked for
+ * @param sequence where this request falls in the strict order of every request the guide path has
+ *   taken, which is what the escape rule on [ZoneClosureIfc] is ordered by
  * @param holdFor how long to hold the space once the hold begins, or NaN to hold it until the
  *   holder gives it back. Measured from the instant the hold *begins*, never from the request, or a
  *   two-minute drain would silently eat two minutes out of a twenty-minute closure.
@@ -155,15 +179,29 @@ class ZoneRequest internal constructor(
     override val zones: List<Zone>,
     val requestedAt: Double,
     val holdFor: Double,
+    override val sequence: Long,
     internal val action: ZoneHoldActionIfc
 ) : ZoneClosureIfc {
 
     /**
-     * The holder it is promised to may take a reserved zone, and so may a vehicle that is already
-     * inside the region -- see [ZoneClosureIfc] for why the second is what makes a drain terminate.
+     * Three things may take a zone this closure has reserved, and [ZoneClosureIfc] says why each
+     * is needed: the holder it is promised to, which is how the grant is taken up; a vehicle
+     * already inside this region, which is how that vehicle leaves; and a vehicle escaping a region
+     * reserved *before* this one, which is what stops two closures trapping each other.
      */
-    override fun admits(claimant: ZoneHolderIfc): Boolean =
-        claimant === holder || zones.any { it.holder === claimant }
+    override fun admits(claimant: ZoneHolderIfc): Boolean {
+        if (claimant === holder) return true
+        if (zones.any { it.holder === claimant }) return true
+        // Only a vehicle is ever *inside* a region and needing to get out of it. A holder does not
+        // travel: it asks for space, waits, takes it and gives it back, so it is never somewhere it
+        // has to be let out of. That is why this asks what the claimant is rather than adding a
+        // member to ZoneHolderIfc that only one kind of holder could answer.
+        if (claimant !is GuidedTransporter) return false
+        return claimant.heldZones.any { held ->
+            val reserving = held.closure
+            reserving != null && reserving.sequence < sequence
+        }
+    }
 
     /** The single zone asked for, when exactly one was. */
     val zone: Zone

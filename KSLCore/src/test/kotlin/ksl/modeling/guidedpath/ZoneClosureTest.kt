@@ -227,6 +227,65 @@ class ZoneClosureTest {
         assertEquals(listOf(16.0), c.arrived)
     }
 
+    @Test
+    fun `a zone that drains while the rest of the set is busy still wakes a vehicle inside`() {
+        // A lost wake-up, and a nasty one: the vehicle stranded was the one the closure was waiting
+        // for. When a zone drains, the promise on it comes first -- that is what stops a closure on
+        // a busy aisle never happening. But a closure still waiting on its *other* zones cannot use
+        // this one yet, and handing it over regardless left every vehicle waiting here with nothing
+        // scheduled at all.
+        //
+        // Two carts on the aisle, both sent on their way, and the closure covers the two zones they
+        // are standing on. The leading cart drives off Zone3, which frees it; the closure is
+        // promised it and cannot take it, because the trailing cart is still on Zone2. Before this
+        // was fixed the trailing cart was never told Zone3 had come free, so it sat on Zone2 for the
+        // rest of the run -- and Zone2 is exactly the zone the closure was waiting on, so the
+        // closure was stranded by the very vehicle it was waiting for.
+        val m = Model("DrainedWhileBusy")
+        val c = Corridor(m)
+        c.system.checkInvariants = true
+        val trailing = GuidedTransporter(
+            c.system, TransporterPlacement.OnZone("L1.Zone2"), ConstantRV(12.0), 1, name = "Trailing"
+        )
+        val leading = GuidedTransporter(
+            c.system, TransporterPlacement.OnZone("L1.Zone3"), ConstantRV(12.0), 1, name = "Leading"
+        )
+        val arrived = mutableListOf<String>()
+        trailing.attachArrivalListener { arrived.add(it.name) }
+        leading.attachArrivalListener { arrived.add(it.name) }
+        object : ModelElement(c, "Driver") {
+            override fun initialize() {
+                schedule({ _: KSLEvent<Nothing> ->
+                    c.system.requestZones(
+                        c.crew,
+                        listOf(c.network.zone("L1.Zone2")!!, c.network.zone("L1.Zone3")!!),
+                        c.log
+                    )
+                }, 0.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    // Different destinations, because two carts sent to the same junction would
+                    // leave the second one obstructed by the first parked on it -- a real condition
+                    // the subsystem reports, and nothing to do with what this test is about.
+                    leading.sendTo("C")
+                    trailing.sendTo("B")
+                }, 1.0)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 60.0
+        m.simulate()
+
+        assertEquals(
+            setOf("Leading", "Trailing"), arrived.toSet(),
+            "both carts must get out; the trailing one was stranded before this was fixed"
+        )
+        assertTrue(
+            c.system.isHoldingZones(c.crew),
+            "and the closure gets its region once the cart it was waiting for has left"
+        )
+        assertEquals(1, c.log.began.size, "granted exactly once")
+    }
+
     // ---- giving a set back ---------------------------------------------------------------------
 
     @Test
