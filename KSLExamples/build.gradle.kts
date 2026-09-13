@@ -340,6 +340,15 @@ tasks.register<JavaExec>("guidePathDisturbancesExample") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+// One condition -- the space asked for is already promised -- and three reasonable answers to it,
+// as three hand-checkable timelines. The example the try verbs exist for.
+tasks.register<JavaExec>("zoneClosurePolicyExample") {
+    group = "examples"
+    description = "Three answers to an overlapping guide-path closure, as timelines."
+    mainClass.set("ksl.examples.general.guidedpath.ZoneClosurePolicyExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
 tasks.register<JavaExec>("retaskingExample") {
     group = "examples"
     description = "Run the re-tasking in flight example."
