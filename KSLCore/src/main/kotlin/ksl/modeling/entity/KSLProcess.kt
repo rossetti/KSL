@@ -2593,6 +2593,29 @@ interface KSLProcessBuilder {
     }
 
     /**
+     * Takes one zone unless it is already promised to another holder, in which case: null.
+     *
+     * [trySeizeZones] with one zone. Null means an overlap -- another closure has been promised
+     * this zone and has not yet been granted it -- and is a question for the model rather than a
+     * failure. A zone another holder merely **holds** is not an overlap: this waits for the hold to
+     * end exactly as [seizeZone] would.
+     *
+     * @param space the guide path whose space is wanted
+     * @param zone the zone to take, which must be on that guide path
+     * @param queue where to wait while it drains
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, or null when the zone is already promised to another holder
+     */
+    suspend fun trySeizeZone(
+        space: GuidedPathSpace,
+        zone: Zone,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ): ZoneAllocation? = trySeizeZones(space, listOf(zone), queue, requestPriority, suspensionName)
+
+    /**
      * Gives back every zone this entity holds on the guide path, and wakes whoever was waiting.
      *
      * Harmless when it holds none, which is what lets a process release unconditionally rather than

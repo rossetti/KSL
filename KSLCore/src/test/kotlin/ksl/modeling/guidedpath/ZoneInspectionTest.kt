@@ -26,6 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -245,6 +246,52 @@ class ZoneInspectionTest {
             warnings.any { it.contains("request(s) for space were still waiting") },
             "the end-of-replication report must still name it: $warnings"
         )
+    }
+
+    // ---- a holder is an identity, not a value ---------------------------------------------------
+
+    /** The first idiom a Kotlin modeller reaches for. Two crews with the same id compare equal. */
+    private data class ValueCrew(val id: Int) : ZoneHolderIfc {
+        override val name: String get() = "ValueCrew$id"
+        override val awaitedZone: Zone? get() = null
+    }
+
+    @Test
+    fun `two holders that compare equal are still two holders`() {
+        // Before the maps were keyed by identity this raised "already holds space ... give it back
+        // before asking for more" -- a true statement about the map and a false one about the
+        // model, which sent its reader looking for a release that was not missing. A holder is
+        // whatever the model makes, and what makes two of them the same is being the same object.
+        val first = ValueCrew(1)
+        val second = ValueCrew(1)
+        check(first == second) { "the premise of this test is that they compare equal" }
+        check(first !== second) { "and that they are nonetheless two crews" }
+
+        val bay = run { b ->
+            b.at(1.0) { b.system.holdZonesFor(first, listOf(b.zone("L1.Zone1")), 100.0, b.log) }
+            b.at(2.0) { b.system.holdZonesFor(second, listOf(b.zone("L1.Zone3")), 100.0, b.log) }
+        }
+        assertEquals(listOf("ValueCrew1", "ValueCrew1"), bay.log.began, "both should have begun")
+        assertTrue(bay.system.isHoldingZones(first))
+        assertTrue(bay.system.isHoldingZones(second))
+        assertSame(first, bay.zone("L1.Zone1").holder, "each holds its own zone")
+        assertSame(second, bay.zone("L1.Zone3").holder)
+    }
+
+    @Test
+    fun `releasing one equal holder leaves the other holding`() {
+        // The consequence that matters. Under equality keying this released the wrong crew's space.
+        val first = ValueCrew(2)
+        val second = ValueCrew(2)
+        val bay = run { b ->
+            b.at(1.0) { b.system.holdZonesFor(first, listOf(b.zone("L1.Zone1")), 100.0, b.log) }
+            b.at(2.0) { b.system.holdZonesFor(second, listOf(b.zone("L1.Zone3")), 100.0, b.log) }
+            b.at(3.0) { b.system.releaseZones(first) }
+        }
+        assertNull(bay.zone("L1.Zone1").holder, "the one released must be free")
+        assertSame(second, bay.zone("L1.Zone3").holder, "the other must not have been touched")
+        assertFalse(bay.system.isHoldingZones(first))
+        assertTrue(bay.system.isHoldingZones(second))
     }
 
     // ---- releasing through the allocation -------------------------------------------------------

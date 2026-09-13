@@ -1049,8 +1049,17 @@ open class GuidedPathSpace @JvmOverloads constructor(
      */
     private var myNextRequestSequence = 0L
 
-    private val myZoneRequests = mutableMapOf<ZoneHolderIfc, ZoneRequest>()
-    private val myZoneAllocations = mutableMapOf<ZoneHolderIfc, ZoneAllocation>()
+    // Keyed by **identity**, not by equality, and that is a correctness matter rather than a
+    // preference. A holder is whatever the model makes, and the first idiom a Kotlin modeller
+    // reaches for is a data class -- at which point two genuinely different crews with the same id
+    // compare equal, the second request is refused as though the first crew had asked twice, and
+    // the message sends its reader looking for a release that is not missing. Identity is also what
+    // the rest of the subsystem already means by "the same holder": `DeadlockDetector` walks with
+    // IdentityHashMap-backed sets for exactly this reason.
+    private val myZoneRequests: MutableMap<ZoneHolderIfc, ZoneRequest> =
+        java.util.IdentityHashMap()
+    private val myZoneAllocations: MutableMap<ZoneHolderIfc, ZoneAllocation> =
+        java.util.IdentityHashMap()
 
     /** What this holder has asked for and not yet been given, or null. */
     fun requestFor(holder: ZoneHolderIfc): ZoneRequest? = myZoneRequests[holder]
@@ -1144,8 +1153,10 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * another guide path, or a holder that already has a request are programming errors rather than
      * conditions of the guide path, and answering null to those would hide a defect.
      *
-     * One zone is `tryRequestZones(holder, listOf(zone), action)`; there is no separate verb for it,
-     * because the answer a modeller has to handle is what matters here rather than the spelling.
+     * [tryRequestZone] is the single-zone spelling. It was left out at first, on the argument that
+     * what matters is handling the null rather than how the call is written -- true, but it left
+     * `requestZone` with no `try` counterpart while `requestZones` had one, and an asymmetry a
+     * reader has to remember is worth more than the argument against it.
      *
      * @param holder who is taking the space
      * @param zones the zones to take, all on this guide path, distinct, at least one
@@ -1161,6 +1172,20 @@ open class GuidedPathSpace @JvmOverloads constructor(
         if (firstPromisedZone(zones) != null) return null
         return requestSpace(holder, zones, Double.NaN, action)
     }
+
+    /**
+     * Asks for one zone unless it is already promised to another holder, in which case: null.
+     *
+     * [tryRequestZones] with one zone, and the same contract: null means an overlap that the model
+     * has to answer for itself, and every other defect still raises.
+     *
+     * @param holder who is taking the space
+     * @param zone the zone to take, which must be on this guide path
+     * @param action told when the hold begins and when it ends
+     * @return the request, or null when the zone is already promised to another holder
+     */
+    fun tryRequestZone(holder: ZoneHolderIfc, zone: Zone, action: ZoneHoldActionIfc): ZoneRequest? =
+        tryRequestZones(holder, listOf(zone), action)
 
     /**
      * Takes a zone for a stated duration, and gives it back without being asked again.
@@ -1246,6 +1271,25 @@ open class GuidedPathSpace @JvmOverloads constructor(
         if (firstPromisedZone(zones) != null) return null
         return requestSpace(holder, zones, duration, action)
     }
+
+    /**
+     * Takes one zone for a stated duration unless it is already promised, in which case: null.
+     *
+     * [tryHoldZonesFor] with one zone. The duration runs from the instant the hold begins, exactly
+     * as in [holdZoneFor], so a zone that takes a while to drain is still held for its full term.
+     *
+     * @param holder who is taking the space
+     * @param zone the zone to take, which must be on this guide path
+     * @param duration how long to hold it once the hold begins, strictly positive
+     * @param action told when the hold begins and when the clock gives it back
+     * @return the request, or null when the zone is already promised to another holder
+     */
+    fun tryHoldZoneFor(
+        holder: ZoneHolderIfc,
+        zone: Zone,
+        duration: Double,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest? = tryHoldZonesFor(holder, listOf(zone), duration, action)
 
     private val myNumBlockedByVehicle =
         TWResponse(this, name = "${this.name}:NumBlockedByVehicle")
@@ -1511,6 +1555,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         for (zone in zones) {
             zone.closeFor(request)
         }
+        myAnimationEmitter.emitClosureChanged(request, "RESERVED")
         // Nothing to drain: the grant is this instant, and takes the ordinary path rather than a
         // shortcut, so that an immediate grant and a grant after a drain are the same code.
         if (request.isDrained) {
@@ -1557,9 +1602,11 @@ open class GuidedPathSpace @JvmOverloads constructor(
         if (request.isTimed) {
             scheduleTimedZoneRelease(allocation, request.holdFor)
         }
+        myAnimationEmitter.emitClosureChanged(request, "HELD")
         // The statistics and the release are settled before anybody is told, because an action may
         // give the space straight back -- which is legitimate, and would otherwise be recorded
-        // against a hold that had not yet been counted as having started.
+        // against a hold that had not yet been counted as having started. The emission goes with
+        // them: an action that releases immediately must not produce RELEASED before HELD.
         allocation.action.holdBegan(allocation)
     }
 
@@ -1627,6 +1674,9 @@ open class GuidedPathSpace @JvmOverloads constructor(
             // and now is not. The zones reopen without ever having been held.
             request.isAbandoned = true
             myNumHoldersAwaitingSpace.value = myZoneRequests.size.toDouble()
+            // A reservation that is given up must not stay shaded on a canvas: it never became a
+            // hold, so RELEASED here is the only event that will ever follow its RESERVED.
+            myAnimationEmitter.emitClosureChanged(request, "RELEASED")
             (holder as? ZoneHolderRecordIfc)?.zoneSpaceFinished(this)
             for (zone in request.zones) {
                 zone.abandonReservation(request)
@@ -1642,6 +1692,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         allocation.releasedAt = time
         myClosedZoneCount -= allocation.zones.size
         myNumZonesClosed.value = myClosedZoneCount.toDouble()
+        myAnimationEmitter.emitClosureChanged(allocation.request, "RELEASED")
         (holder as? ZoneHolderRecordIfc)?.zoneSpaceFinished(this)
         for (zone in allocation.zones) {
             handOver(zone.release(holder, zoneContentionRule))
@@ -1795,9 +1846,13 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * silently drop a closure asserts on this, or on [numRequestsUnfilled], rather than parsing a
      * log; a modeller debugging one replication reads it after `simulate()` returns and sees which
      * zone of which request never drained.
+     *
+     * Oldest first, ordered by the request sequence rather than by the instant asked: two closures
+     * asked for in the same instant have the same [ZoneRequest.requestedAt] and would sort
+     * arbitrarily, and the map behind this keeps no order of its own.
      */
     val waitingRequests: List<ZoneRequest>
-        get() = myZoneRequests.values.filter { it.isWaiting }.sortedBy { it.requestedAt }
+        get() = myZoneRequests.values.filter { it.isWaiting }.sortedBy { it.sequence }
 
     /**
      * Reports any transporter still waiting when a replication ends.

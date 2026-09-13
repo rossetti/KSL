@@ -93,6 +93,64 @@ class AnimationEmissionTest {
         }
     }
 
+    /** A crew: two members, made during the run, holding space no vehicle owns. */
+    private class Crew(id: Int) : ZoneHolderIfc {
+        override val name: String = "Crew$id"
+        override val awaitedZone: Zone? get() = null
+    }
+
+    private class SilentAction : ZoneHoldActionIfc {
+        override fun holdBegan(allocation: ZoneAllocation) = Unit
+        override fun holdEnded(allocation: ZoneAllocation) = Unit
+    }
+
+    /**
+     *  The same layout with a closure on it, and a cart that runs into it.
+     *
+     *  Separate from [Shop] rather than folded into it, so the cart-only expectations above stay
+     *  about a cart only. The crew asks at 1.0 for the two zones of Main while the cart is crossing
+     *  the first of them, so the closure is genuinely pending before it is granted -- an immediate
+     *  grant would emit RESERVED and HELD in one instant and prove less.
+     */
+    private class ClosureShop(parent: ModelElement) : ModelElement(parent, "ClosureShop") {
+        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Animated")
+            .intersection("A", x = 0.0, y = 0.0)
+            .intersection("B", x = 24.0, y = 0.0)
+            .link("Main", "A", "B", length = 24.0, zoneLength = 12.0, beginDirection = 0.0)
+            .build()
+
+        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+        val cart = GuidedTransporter(
+            system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, EndOfZoneControl(), "Cart"
+        )
+        val action = SilentAction()
+
+        /** Set by the test: whether the crew gives the request up instead of waiting for it. */
+        var abandonAt: Double = Double.NaN
+
+        override fun initialize() {
+            val crew = Crew(1)
+            schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
+            schedule({ _: KSLEvent<Nothing> ->
+                system.holdZonesFor(crew, network.link("Main")!!.zones, 5.0, action)
+            }, 1.0)
+            if (abandonAt.isFinite()) {
+                schedule({ _: KSLEvent<Nothing> -> system.releaseZones(crew) }, abandonAt)
+            }
+        }
+    }
+
+    private fun runClosure(sink: AnimationSink, abandonAt: Double = Double.NaN): ClosureShop {
+        val m = Model("AnimatedClosure")
+        val shop = ClosureShop(m)
+        shop.abandonAt = abandonAt
+        m.animationSink = sink
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 50.0
+        m.simulate()
+        return shop
+    }
+
     private fun runWith(sink: AnimationSink): Shop {
         val m = Model("AnimatedRun")
         val shop = Shop(m)
@@ -183,6 +241,56 @@ class AnimationEmissionTest {
     }
 
     @Test
+    @DisplayName("A closure is emitted, so a cart stopped by empty space has a visible cause")
+    fun aClosureIsEmitted() {
+        // The blindness this closes. A cart held up by a closure is held up by space that is empty
+        // -- nothing is standing in it -- so a recording without this shows a cart stopping for no
+        // reason a viewer can see.
+        val sink = CollectingSink()
+        runClosure(sink)
+        val closures = sink.events.filterIsInstance<AnimationEvent.GuidedPathClosureChanged>()
+        assertEquals(
+            listOf("RESERVED", "HELD", "RELEASED"), closures.map { it.state },
+            "a closure that drains before it is granted passes through all three, in order"
+        )
+        for (event in closures) {
+            assertEquals("Crew1", event.holderName)
+            assertEquals("Animated", event.networkName)
+            assertEquals(
+                listOf("Main.Zone1", "Main.Zone2"), event.zoneNames,
+                "the whole set, because a closure is taken all at once or not at all"
+            )
+        }
+        // RESERVED at the ask, HELD only once the cart has left the zones it wanted.
+        assertEquals(1.0, closures[0].simTime, 1e-9)
+        assertTrue(closures[1].simTime > closures[0].simTime, "the grant must follow the drain")
+        assertEquals(closures[1].simTime + 5.0, closures[2].simTime, 1e-9, "held for its full term")
+    }
+
+    @Test
+    @DisplayName("A reservation given up is released, so nothing stays shaded that has gone")
+    fun anAbandonedReservationIsReleased() {
+        // The case a renderer would otherwise leave shaded for ever: a closure that never became a
+        // hold. RELEASED is the only event that can follow its RESERVED.
+        val sink = CollectingSink()
+        runClosure(sink, abandonAt = 1.5)
+        val closures = sink.events.filterIsInstance<AnimationEvent.GuidedPathClosureChanged>()
+        assertEquals(listOf("RESERVED", "RELEASED"), closures.map { it.state })
+        assertEquals(1.5, closures.last().simTime, 1e-9)
+    }
+
+    @Test
+    @DisplayName("Closures are gated by the sink exactly as everything else is")
+    fun closuresAreGatedToo() {
+        val sink = InactiveSink()
+        runClosure(sink)
+        assertEquals(
+            0, sink.emitCalls,
+            "a closure emission must ask the sink first, like every other emitting method"
+        )
+    }
+
+    @Test
     @DisplayName("The wire tags are pinned, because recorded traces depend on them")
     fun theTagsAreStable() {
         // Encoded through the trace format's own canonical writer rather than a locally configured
@@ -220,6 +328,14 @@ class AnimationEmissionTest {
                 AnimationEvent.GuidedTransporterStateChanged(2.0, "Cart", "N", "BLOCKED")
             )
         )
+        assertEquals(
+            """{"event":"GuidedPathClosureChanged","simTime":3.0,"holderName":"Crew1","networkName":"N","zoneNames":["L.Zone1","L.Zone2"],"state":"HELD"}""",
+            AnimationEvent.encodeToLine(
+                AnimationEvent.GuidedPathClosureChanged(
+                    3.0, "Crew1", "N", listOf("L.Zone1", "L.Zone2"), "HELD"
+                )
+            )
+        )
     }
 
     @Test
@@ -229,11 +345,17 @@ class AnimationEmissionTest {
         // recording is written, looks fine, and fails only when someone tries to replay it.
         val sink = CollectingSink()
         runWith(sink)
+        runClosure(sink)
         val guided = sink.events.filter {
             it is AnimationEvent.GuidedPathDefined ||
                     it is AnimationEvent.GuidedTransporterMoved ||
-                    it is AnimationEvent.GuidedTransporterStateChanged
+                    it is AnimationEvent.GuidedTransporterStateChanged ||
+                    it is AnimationEvent.GuidedPathClosureChanged
         }
+        assertTrue(
+            guided.any { it is AnimationEvent.GuidedPathClosureChanged },
+            "the closure fixture must have contributed some, or this checks three tags of four"
+        )
         assertTrue(guided.size >= 8, "the run must have produced events to check: ${guided.size}")
         for (event in guided) {
             assertEquals(

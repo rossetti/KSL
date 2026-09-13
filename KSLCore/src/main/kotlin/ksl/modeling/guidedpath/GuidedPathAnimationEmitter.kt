@@ -98,6 +98,31 @@ class GuidedPathAnimationEmitter(private val system: GuidedPathSpace) {
     }
 
     /**
+     * Emits a change in what a closure holds.
+     *
+     * The fourth event, and the one that is not about a vehicle. A cart stopped by a closure is
+     * stopped by space that is empty, so without this a viewer sees stillness with nothing in front
+     * of it -- the same blindness the run itself had before it learned to report space it had
+     * promised and never granted.
+     *
+     * @param request the closure whose state has changed
+     * @param state `RESERVED`, `HELD` or `RELEASED`, as documented on the event
+     */
+    internal fun emitClosureChanged(request: ZoneRequest, state: String) {
+        val sink = system.model.animationSink
+        if (!sink.isActive) return
+        sink.emit(
+            AnimationEvent.GuidedPathClosureChanged(
+                simTime = system.time,
+                holderName = request.holder.name,
+                networkName = system.network.name,
+                zoneNames = request.zones.map { it.name },
+                state = state
+            )
+        )
+    }
+
+    /**
      * Emits a change in what a transporter is doing.
      *
      * @param transporter the transporter whose state has changed

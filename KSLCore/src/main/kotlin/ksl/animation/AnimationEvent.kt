@@ -641,6 +641,40 @@ sealed class AnimationEvent {
     ) : AnimationEvent()
 
     /**
+     * Guide-path space was taken, or given back, by something that is not a vehicle.
+     *
+     * The gap this fills is the one kind of stillness a viewer could not otherwise account for.
+     * Transporter events explain a cart that is parked and a cart that is blocked, but a cart held
+     * up by a **closure** — a spill, a maintenance window, a crossing — is blocked by space that
+     * looks empty on the canvas, because nothing is standing in it. Without this the recording
+     * shows carts stopping for no visible reason.
+     *
+     * [state] is one of:
+     *
+     * - `RESERVED` — the zones are closing. No new claim succeeds, and whatever is already inside
+     *   them is finishing and leaving. The holder does **not** have them yet.
+     * - `HELD` — the drain finished and the holder has taken them all, together.
+     * - `RELEASED` — they are open again. Also emitted when a request that was still draining is
+     *   given up, so a reservation is never left shaded on a canvas after it has gone.
+     *
+     * A set that was free when it was asked for emits `RESERVED` and `HELD` in the same instant,
+     * which is true rather than redundant: the reservation is what the grant is taken up from, and
+     * a viewer that shades the two differently should see both.
+     *
+     * [zoneNames] is the whole set, because a closure is taken all at once or not at all and a
+     * renderer shading half of one would be drawing a state the guide path cannot be in.
+     */
+    @Serializable
+    @SerialName("GuidedPathClosureChanged")
+    data class GuidedPathClosureChanged(
+        override val simTime: Double,
+        val holderName: String,
+        val networkName: String,
+        val zoneNames: List<String>,
+        val state: String
+    ) : AnimationEvent()
+
+    /**
      * A dispatcher committed a vehicle to a task.
      *
      * The one thing an active fleet does that a passive one has no equivalent of, and the one thing
