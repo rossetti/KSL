@@ -335,6 +335,85 @@ class ZoneProcessTest {
         assertNull(shop.closed.closingFor)
     }
 
+    // ---- being answered instead of refused -----------------------------------------------------
+
+    /**
+     *  A crew that takes Zone3 first, and an entity that then asks for it with the `try` form.
+     *
+     *  [crewAt] is when the crew asks; [askAt] when the entity does. Whether the entity is answered
+     *  null depends on whether the crew's request has been *granted* by then, which is the whole
+     *  distinction under test.
+     */
+    private class TryShop(
+        parent: ModelElement,
+        private val askAt: Double,
+        private val crewAt: Double,
+        cartAt: Double = 0.0
+    ) : Shop(parent, cartAt = cartAt) {
+
+        private val crew = object : ZoneHolderIfc {
+            override val name = "Crew"
+            override val awaitedZone: Zone? get() = null
+        }
+
+        private val crewAction = object : ZoneHoldActionIfc {
+            override fun holdBegan(allocation: ZoneAllocation) {}
+            override fun holdEnded(allocation: ZoneAllocation) {}
+        }
+
+        /** What trySeizeZones answered: true when it was told the space was promised. */
+        var answeredNull: Boolean? = null
+
+        inner class Asker : Entity("Asker") {
+            val work = process("work") {
+                val allocation = trySeizeZones(system, listOf(closed), spaceQ)
+                answeredNull = allocation == null
+                if (allocation != null) {
+                    heldAt.add(allocation.engagedAt)
+                    delay(2.0)
+                    releaseZones(system)
+                }
+            }
+        }
+
+        override fun initialize() {
+            // The base fixture's own spill uses the refusing form, so it is left unscheduled here
+            // (spillAt defaults to NaN) and this shop activates an Asker instead.
+            super.initialize()
+            answeredNull = null
+            // The crew takes Zone3 for eight minutes; whether it has been granted by the time the
+            // Asker asks is what the two tests below differ on.
+            schedule({ _: KSLEvent<Nothing> ->
+                system.holdZoneFor(crew, closed, 8.0, crewAction)
+            }, crewAt)
+            schedule({ _: KSLEvent<Nothing> -> activate(Asker().work) }, askAt)
+        }
+    }
+
+    @Test
+    fun `trySeizeZones answers null when the space is still being closed for somebody else`() {
+        // The cart claims Zone3 at 2.5 and clears it at 4.0, so a request made at 2.5 is still
+        // draining -- promised, not held -- when the spill asks at 2.6.
+        val m = Model("TryNull")
+        val shop = TryShop(m, askAt = 2.6, crewAt = 2.5)
+        run(shop, m, length = 30.0)
+
+        assertEquals(true, shop.answeredNull, "the zone was promised to the crew, not yet held")
+        assertTrue(shop.heldAt.isEmpty(), "so the Asker took nothing and did not suspend for it")
+    }
+
+    @Test
+    fun `trySeizeZones accepts a zone another holder merely holds, and waits for it`() {
+        // The distinction, from the process side. The crew's request at 0.5 is granted at once, so
+        // by 1.0 Zone3 is held rather than promised -- and a held zone is not an overlap.
+        val m = Model("TryHeld")
+        val shop = TryShop(m, askAt = 1.0, crewAt = 0.5, cartAt = Double.NaN)
+        run(shop, m, length = 30.0)
+
+        assertEquals(false, shop.answeredNull, "a held zone is not an overlap")
+        assertEquals(listOf(8.5), shop.heldAt, "the Asker waited for the crew's hold to end at 8.5")
+    }
+
     // ---- a set, taken together, from a process -------------------------------------------------
 
     private class RegionShop(parent: ModelElement) : Shop(parent, cartAt = 0.0) {

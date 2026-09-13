@@ -1072,7 +1072,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
      */
     fun requestZone(holder: ZoneHolderIfc, zone: Zone, action: ZoneHoldActionIfc): ZoneRequest =
-        requestSpace(holder, listOf(zone), Double.NaN, action)
+        requestZones(holder, listOf(zone), action)
 
     /**
      * Asks for a set of zones, which all close to new traffic at once and are held **together**.
@@ -1102,7 +1102,55 @@ open class GuidedPathSpace @JvmOverloads constructor(
         holder: ZoneHolderIfc,
         zones: List<Zone>,
         action: ZoneHoldActionIfc
-    ): ZoneRequest = requestSpace(holder, zones, Double.NaN, action)
+    ): ZoneRequest {
+        validateRequest(holder, zones)
+        firstPromisedZone(zones)?.let { require(false) { overlapMessage(it, holder) } }
+        return requestSpace(holder, zones, Double.NaN, action)
+    }
+
+    /**
+     * Asks for a set of zones, and answers **null** when some zone of it is already promised.
+     *
+     * [requestZones] with the one refusable condition turned into an answer. A zone carries one
+     * promise at a time, so two holders cannot queue for the same zone, and a model whose closures
+     * land where they land -- spills, most obviously -- has to say what an overlap means. This is
+     * how it says it, in one call that cannot be got wrong.
+     *
+     * The hand-written alternative is the reason this exists. The test that matters is a *promise*,
+     * not a hold: asking for a zone another holder already **holds** is perfectly ordinary and
+     * simply waits for the hold to end. A guard written by hand tends to test the hold as well,
+     * and then refuses closures that would have worked.
+     *
+     * ```
+     * // A spill landing where one is already being dealt with is part of that spill.
+     * val request = space.tryRequestZones(crew, extent, action)
+     * if (request == null) {
+     *     absorbed.increment()
+     *     return
+     * }
+     * ```
+     *
+     * Everything else a request must satisfy still raises: an empty set, a repeated zone, a zone of
+     * another guide path, or a holder that already has a request are programming errors rather than
+     * conditions of the guide path, and answering null to those would hide a defect.
+     *
+     * One zone is `tryRequestZones(holder, listOf(zone), action)`; there is no separate verb for it,
+     * because the answer a modeller has to handle is what matters here rather than the spelling.
+     *
+     * @param holder who is taking the space
+     * @param zones the zones to take, all on this guide path, distinct, at least one
+     * @param action told when the hold begins and when it ends
+     * @return the request, or null when some zone of the set is already promised to another holder
+     */
+    fun tryRequestZones(
+        holder: ZoneHolderIfc,
+        zones: List<Zone>,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest? {
+        validateRequest(holder, zones)
+        if (firstPromisedZone(zones) != null) return null
+        return requestSpace(holder, zones, Double.NaN, action)
+    }
 
     /**
      * Takes a zone for a stated duration, and gives it back without being asked again.
@@ -1131,7 +1179,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             "Holder (${holder.name}) was asked to hold zone (${zone.name}) for $duration, which " +
                     "is not a duration. To take a zone until told otherwise, use requestZone."
         }
-        return requestSpace(holder, listOf(zone), duration, action)
+        return holdZonesFor(holder, listOf(zone), duration, action)
     }
 
     /**
@@ -1156,6 +1204,36 @@ open class GuidedPathSpace @JvmOverloads constructor(
             "Holder (${holder.name}) was asked to hold ${zones.size} zone(s) for $duration, which " +
                     "is not a duration. To take space until told otherwise, use requestZones."
         }
+        validateRequest(holder, zones)
+        firstPromisedZone(zones)?.let { require(false) { overlapMessage(it, holder) } }
+        return requestSpace(holder, zones, duration, action)
+    }
+
+    /**
+     * Takes a set of zones for a stated duration, and answers **null** when some zone of it is
+     * already promised.
+     *
+     * [tryRequestZones] for why this exists and what null means, [holdZoneFor] for why the duration
+     * runs from the instant the hold begins rather than from the request.
+     *
+     * @param holder who is taking the space
+     * @param zones the zones to take, all on this guide path, distinct, at least one
+     * @param duration how long to hold them once the hold begins, strictly positive
+     * @param action told when the hold begins and when the clock gives it back
+     * @return the request, or null when some zone of the set is already promised to another holder
+     */
+    fun tryHoldZonesFor(
+        holder: ZoneHolderIfc,
+        zones: List<Zone>,
+        duration: Double,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest? {
+        require(duration > 0.0) {
+            "Holder (${holder.name}) was asked to hold ${zones.size} zone(s) for $duration, which " +
+                    "is not a duration. To take space until told otherwise, use tryRequestZones."
+        }
+        validateRequest(holder, zones)
+        if (firstPromisedZone(zones) != null) return null
         return requestSpace(holder, zones, duration, action)
     }
 
@@ -1260,12 +1338,29 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * closures are two holders -- which costs nothing, because a holder is whatever implements
      * [ZoneHolderIfc] and a model may make as many as the run turns out to need.
      */
-    private fun requestSpace(
-        holder: ZoneHolderIfc,
-        zones: List<Zone>,
-        holdFor: Double,
-        action: ZoneHoldActionIfc
-    ): ZoneRequest {
+    /**
+     * The zone of this set that is already promised to somebody else, or null when none is.
+     *
+     * Public because it is the one condition a model may legitimately have to react to, and the
+     * hand-written version of it is easy to get wrong: the interesting test is a *promise*, not a
+     * hold. Asking for a zone another holder already holds is allowed and simply waits for the
+     * hold to end. [tryRequestZones] and [tryHoldZonesFor] are this test and the request made
+     * together, and are the better way to use it; this is here for a model that wants to report
+     * the conflict rather than react to it.
+     *
+     * @param zones the zones a closure would cover
+     * @return the first zone already promised, or null when the whole set could be asked for
+     */
+    fun firstPromisedZone(zones: List<Zone>): Zone? = zones.firstOrNull { it.closingFor != null }
+
+    /**
+     * Everything a request must satisfy regardless of whether an overlap refuses it or answers null.
+     *
+     * These are all programming errors rather than conditions of the guide path -- a malformed set,
+     * a foreign zone, a holder that already has a request -- so they raise in both forms of the
+     * verb. Only the overlap is a condition, and only the overlap is what the two forms differ on.
+     */
+    private fun validateRequest(holder: ZoneHolderIfc, zones: List<Zone>) {
         require(zones.isNotEmpty()) {
             "Holder (${holder.name}) asked for no zones at all."
         }
@@ -1278,30 +1373,40 @@ open class GuidedPathSpace @JvmOverloads constructor(
                 "Zone (${zone.name}) is not on guide path (${this.name})."
             }
         }
-        // Checked before anything is reserved, and that is the point of doing it here rather than
-        // letting Zone.closeFor raise it. The reservations are made in a loop, so a failure part way
-        // along would leave some zones of the set closed for a request that never existed -- closed
-        // to traffic for the rest of the replication with nothing coming to release them. A refusal
-        // has to leave the guide path exactly as it found it.
-        for (zone in zones) {
-            val reserved = zone.closingFor
-            require(reserved == null) {
-                "Zone (${zone.name}) is already promised to holder (${reserved!!.name}), " +
-                        "which is still waiting for it to drain, so holder (${holder.name}) " +
-                        "cannot be promised it as well. A zone carries one promise at a time. " +
-                        "Note that this is not the same as asking for a zone somebody already " +
-                        "*holds*: that is allowed and simply waits for the hold to end. What " +
-                        "cannot be expressed is two holders queued for the same zone. A model " +
-                        "whose closures can land on the same zone -- spills at random locations, " +
-                        "most obviously -- has to say what an overlap means: absorbed into the " +
-                        "closure already there, deferred until it ends, or placed elsewhere."
-            }
-        }
         check(!isWaitingForZones(holder) && !isHoldingZones(holder)) {
             "Holder (${holder.name}) already " +
                     (if (isHoldingZones(holder)) "holds" else "has asked for") + " space on guide " +
                     "path (${this.name}). One request at a time: give it back before asking for more."
         }
+    }
+
+    private fun overlapMessage(zone: Zone, holder: ZoneHolderIfc): String =
+        "Zone (${zone.name}) is already promised to holder " +
+                "(${zone.closingFor?.name ?: "no one"}), which is still waiting for it to drain, " +
+                "so holder (${holder.name}) cannot be promised it as well. A zone carries one " +
+                "promise at a time. Note that this is not the same as asking for a zone somebody " +
+                "already *holds*: that is allowed and simply waits for the hold to end. What " +
+                "cannot be expressed is two holders queued for the same zone. A model whose " +
+                "closures can land on the same zone -- spills at random locations, most obviously " +
+                "-- has to say what an overlap means: absorbed into the closure already there, " +
+                "deferred until it ends, or placed elsewhere. Use tryRequestZones or " +
+                "tryHoldZonesFor to be answered null instead of refused."
+
+    /**
+     * Makes the reservation, having already established that it may be made.
+     *
+     * Split from the checks because the overlap test has to happen **before anything is reserved**,
+     * and that is the point rather than tidiness: the reservations are made in a loop, so a failure
+     * part way along would leave some zones of the set closed for a request that never came into
+     * being -- closed to traffic for the rest of the replication with nothing holding them and
+     * nothing coming to release them. A refusal has to leave the guide path exactly as it found it.
+     */
+    private fun requestSpace(
+        holder: ZoneHolderIfc,
+        zones: List<Zone>,
+        holdFor: Double,
+        action: ZoneHoldActionIfc
+    ): ZoneRequest {
         auditFinishedInstant()
         val request = ZoneRequest(holder, zones, time, holdFor, action)
         myZoneRequests[holder] = request

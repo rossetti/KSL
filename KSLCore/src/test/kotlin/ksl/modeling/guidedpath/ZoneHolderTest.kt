@@ -688,6 +688,166 @@ class ZoneHolderTest {
         assertTrue(untouched.isAvailable)
     }
 
+    // ---- being answered instead of refused -----------------------------------------------------
+
+    @Test
+    fun `tryRequestZones answers null on an overlap, and reserves nothing`() {
+        // The refusal above turned into an answer, for the model that cannot design the overlap
+        // away: a spill picks its aisle at random, so sooner or later two of them want one zone.
+        //
+        // The same set-up: at 2.5 the cart is crossing Zone3, so the first crew's request is still
+        // draining and both of its zones stay promised to it.
+        val m = Model("TryOverlap")
+        val a = Aisle(m)
+        a.system.checkInvariants = true
+        val first = Crew(1)
+        val second = Crew(2)
+        val answers = mutableListOf<ZoneRequest?>()
+        object : ModelElement(a, "Driver") {
+            override fun initialize() {
+                schedule({ _: KSLEvent<Nothing> -> a.cart.sendTo("B") }, 0.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    a.system.requestZones(first, listOf(a.closed, a.network.zone("L1.Zone4")!!), a.log)
+                }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    answers.add(
+                        a.system.tryRequestZones(
+                            second,
+                            listOf(a.network.zone("L1.Zone4")!!, a.network.zone("L1.Zone1")!!),
+                            a.log
+                        )
+                    )
+                }, 2.6)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        m.simulate()
+
+        assertEquals(listOf<ZoneRequest?>(null), answers, "answered, not refused")
+        assertTrue(a.system.isHoldingZones(first), "the first crew still got its region")
+        assertFalse(a.system.isWaitingForZones(second))
+        val untouched = a.network.zone("L1.Zone1")!!
+        assertNull(untouched.closingFor, "and the null answer reserved nothing at all")
+        assertTrue(untouched.isAvailable)
+    }
+
+    @Test
+    fun `a zone another holder merely holds is not an overlap and is waited for`() {
+        // The distinction the whole verb turns on, and the one a hand-written guard gets backwards.
+        // It is the *promise* that cannot be shared, not the hold: a zone is promised only between
+        // the moment it is asked for and the moment it has drained. Asking for a zone somebody has
+        // already taken succeeds, and waits.
+        val m = Model("HeldNotPromised")
+        val a = Aisle(m)
+        a.system.checkInvariants = true
+        val first = Crew(1)
+        val second = Crew(2)
+        val secondLog = Log()
+        var answeredNull = true
+        object : ModelElement(a, "Driver") {
+            override fun initialize() {
+                // Granted at 0.5 with nothing to drain, so the promise is cleared and Zone3 is
+                // simply held from then on.
+                schedule({ _: KSLEvent<Nothing> -> a.system.requestZone(first, a.closed, a.log) }, 0.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    answeredNull = a.system.tryRequestZones(second, listOf(a.closed), secondLog) == null
+                }, 1.0)
+                schedule({ _: KSLEvent<Nothing> -> a.system.releaseZones(first) }, 5.0)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        m.simulate()
+
+        assertFalse(answeredNull, "a held zone is not an overlap; the request must be accepted")
+        assertEquals(listOf(5.0), secondLog.began, "and granted when the first hold ended")
+        assertTrue(a.system.isHoldingZones(second))
+        assertNull(a.system.allocationFor(first))
+    }
+
+    @Test
+    fun `tryHoldZonesFor answers null on an overlap too`() {
+        val m = Model("TryHoldOverlap")
+        val a = Aisle(m)
+        a.system.checkInvariants = true
+        val first = Crew(1)
+        val second = Crew(2)
+        val answers = mutableListOf<ZoneRequest?>()
+        object : ModelElement(a, "Driver") {
+            override fun initialize() {
+                schedule({ _: KSLEvent<Nothing> -> a.cart.sendTo("B") }, 0.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    a.system.requestZone(first, a.closed, a.log)
+                }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    answers.add(a.system.tryHoldZonesFor(second, listOf(a.closed), 4.0, a.log))
+                }, 2.6)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        m.simulate()
+
+        assertEquals(listOf<ZoneRequest?>(null), answers)
+        assertFalse(a.system.isWaitingForZones(second))
+    }
+
+    @Test
+    fun `the try form answers null only for an overlap, and still raises on a defect`() {
+        // Answering null to a malformed request would hide a defect rather than express a
+        // condition, so only the overlap becomes an answer. Everything else still raises.
+        val m = Model("TryStillRaises")
+        val a = Aisle(m)
+        val crew = Crew(1)
+        assertFailsWith<IllegalArgumentException> { a.system.tryRequestZones(crew, emptyList(), a.log) }
+        assertFailsWith<IllegalArgumentException> {
+            a.system.tryRequestZones(crew, listOf(a.closed, a.closed), a.log)
+        }
+        val elsewhere = GuidedPathNetwork.builder("Elsewhere")
+            .link("X", "P", "Q", length = 12.0, zoneLength = 12.0)
+            .build()
+        assertFailsWith<IllegalArgumentException> {
+            a.system.tryRequestZones(crew, elsewhere.zones.take(1), a.log)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            a.system.tryHoldZonesFor(crew, listOf(a.closed), 0.0, a.log)
+        }
+        // A holder that already has space is a modelling mistake, not a condition of the space.
+        a.system.requestZone(crew, a.closed, a.log)
+        assertFailsWith<IllegalStateException> {
+            a.system.tryRequestZones(crew, listOf(a.network.zone("L1.Zone1")!!), a.log)
+        }
+    }
+
+    @Test
+    fun `firstPromisedZone names the zone that would refuse the request`() {
+        val m = Model("FirstPromised")
+        val a = Aisle(m)
+        a.system.checkInvariants = true
+        val first = Crew(1)
+        val found = mutableListOf<String?>()
+        object : ModelElement(a, "Driver") {
+            override fun initialize() {
+                schedule({ _: KSLEvent<Nothing> -> a.cart.sendTo("B") }, 0.0)
+                schedule({ _: KSLEvent<Nothing> ->
+                    found.add(a.system.firstPromisedZone(a.network.link("L1")!!.zones)?.name)
+                }, 2.4)
+                schedule({ _: KSLEvent<Nothing> ->
+                    a.system.requestZone(first, a.closed, a.log)
+                }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    found.add(a.system.firstPromisedZone(a.network.link("L1")!!.zones)?.name)
+                }, 2.6)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        m.simulate()
+
+        assertEquals(listOf(null, "L1.Zone3"), found, "nothing promised at 2.4, Zone3 promised at 2.6")
+    }
+
     @Test
     fun `a zone of another guide path is not this one's to close`() {
         val m = Model("ForeignZone")

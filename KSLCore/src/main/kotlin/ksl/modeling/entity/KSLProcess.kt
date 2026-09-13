@@ -2543,6 +2543,56 @@ interface KSLProcessBuilder {
     }
 
     /**
+     * Takes a set of zones, and answers **null** when some zone of it is already promised.
+     *
+     * [seizeZones] with the one refusable condition turned into an answer, and the form a model
+     * wants whenever a closure lands where it lands rather than where it was told to. A zone
+     * carries one promise at a time, so two holders cannot queue for the same zone, and a model
+     * with spills at random locations has to say what an overlap means. This is how it says it, in
+     * one call that cannot be got wrong.
+     *
+     * ```
+     * inner class Spill : Entity() {
+     *     val cleanup = process {
+     *         val extent = aisle.zones.take(myExtent.value.toInt())
+     *         // A spill landing where one is already being dealt with is part of that spill.
+     *         if (trySeizeZones(system, extent, spillQ) == null) {
+     *             myAbsorbed.increment()
+     *             return@process
+     *         }
+     *         delay(myCleanupTime)
+     *         releaseZones(system)
+     *     }
+     * }
+     * ```
+     *
+     * Null is answered without suspending. A zone another holder already **holds** is not an
+     * overlap and does not answer null: that is the ordinary case, and this waits for the hold to
+     * end exactly as [seizeZones] would.
+     *
+     * @param space the guide path whose space is wanted
+     * @param zones the zones to take, all on that guide path, distinct, at least one
+     * @param queue where to wait while they drain
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, or null when some zone of the set is already promised to another holder
+     */
+    suspend fun trySeizeZones(
+        space: GuidedPathSpace,
+        zones: List<Zone>,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ): ZoneAllocation? {
+        val request = space.tryRequestZones(entity, zones, ZoneSeizeAction(entity, queue))
+            ?: return null
+        if (!request.isGranted) {
+            hold(queue, requestPriority, suspensionName)
+        }
+        return request.allocation!!
+    }
+
+    /**
      * Gives back every zone this entity holds on the guide path, and wakes whoever was waiting.
      *
      * Harmless when it holds none, which is what lets a process release unconditionally rather than

@@ -47,6 +47,7 @@ import ksl.utilities.random.rvariable.DUniformRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import ksl.utilities.statistic.Statistic
 
 /**
  *  Guide-path space taken by things that are not vehicles: a spill, and a maintenance window.
@@ -58,8 +59,10 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  throughput.** So that time goes somewhere -- into inflated task times, or a depressed velocity --
  *  and the model then fits the aggregate while being wrong about the mechanism. It will give bad
  *  advice about any change that alters the obstruction rate, which is usually the change a study
- *  was commissioned to evaluate. Here the two configurations deliver the same load and the
- *  difference shows up where it belongs: in blocked time, decomposed by cause.
+ *  was commissioned to evaluate. Both configurations here are offered the same arrival load, and
+ *  the run reports for itself which responses separate them and which do not -- read the
+ *  `detectable?` column rather than this paragraph, because it depends on the rates below and
+ *  those are there to be changed.
  *
  *  ## Two routes, one mechanism
  *
@@ -76,6 +79,34 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  taken together or not at all, and [MaintenanceWindow] is told when each closure begins and ends
  *  -- the end is what schedules the next one, so the model element that drives the closures is the
  *  one that acts on them.
+ *
+ *  ## Overlapping closures, which a random model cannot avoid
+ *
+ *  A zone carries **one promise** at a time, so two holders cannot queue for the same zone. That is
+ *  not a hazard a model can design away when the closures land where they land: a spill picks an
+ *  aisle at random and the maintenance window has a fixed one, so sooner or later they want the
+ *  same zone. Both routes therefore ask with the `try` form, which answers null rather than
+ *  refusing the model, and **this model says what an overlap means** -- because the guide path
+ *  cannot:
+ *
+ *  - a spill that lands on an aisle **still being closed** for something else is *part of* that
+ *    closure, and is counted as absorbed rather than cleaned;
+ *  - a maintenance window whose aisle is still being closed for a spill is *deferred*, and tried
+ *    again shortly.
+ *
+ *  Two different answers to the same condition, which is the point: absorbed and deferred are both
+ *  reasonable and only the model knows which it means.
+ *
+ *  **Read "still being closed" precisely, because the distinction is the whole reason these verbs
+ *  exist.** It is the *promise* that cannot be shared, not the hold. A zone is promised only between
+ *  the moment it is asked for and the moment it has drained -- so what answers null here is a
+ *  closure whose aisle a cart is still clearing. A zone another holder has already **taken** is not
+ *  an overlap at all: asking for it succeeds and waits for the hold to end, which is why a spill can
+ *  land on the maintained aisle mid-window and simply be cleaned afterwards.
+ *
+ *  That asymmetry is easy to get backwards by hand. A guard written as "is anything closing or
+ *  holding this zone?" turns away closures that would have worked perfectly well, and it is the
+ *  reason `tryRequestZones` and `trySeizeZones` exist rather than a documented predicate.
  *
  *  ## What to read in the output
  *
@@ -141,6 +172,15 @@ object GuidePathDisturbancesExample {
         val windowsHeld: CounterCIfc
             get() = myWindowsOpened
 
+        private val myWindowsDeferred = Counter(this, name = "MaintenanceWindowsDeferred")
+
+        /** How many times a window was put off because the aisle was already closed. */
+        val windowsDeferred: CounterCIfc
+            get() = myWindowsDeferred
+
+        /** How long to wait before trying a deferred window again. */
+        private val retryAfter: Double = 5.0
+
         private var nextCrewId = 1
 
         override fun initialize() {
@@ -148,10 +188,29 @@ object GuidePathDisturbancesExample {
             schedule(myAskAction, myTimeBetween)
         }
 
-        private val myAskAction = EventActionIfc<Nothing> {
-            // A crew per occurrence, made here. Nothing about the cast is stated before the run.
-            space.holdZonesFor(MaintenanceCrew(nextCrewId++), zones(), myWindowLength.value, this)
+        /** A named class rather than a lambda, because it schedules itself when it defers. */
+        private inner class AskAction : EventActionIfc<Nothing> {
+            override fun action(event: KSLEvent<Nothing>) {
+                // A crew per occurrence, made here. Nothing about the cast is stated before the run.
+                //
+                // The `try` form, because the aisle may already be promised to a spill -- and this
+                // model's answer to that is to defer, where a spill's answer to the same condition
+                // is to be absorbed. Asking with holdZonesFor instead would refuse the model
+                // outright on a collision that is entirely ordinary.
+                val asked = space.tryHoldZonesFor(
+                    MaintenanceCrew(nextCrewId), zones(), myWindowLength.value,
+                    this@MaintenanceWindow
+                )
+                if (asked == null) {
+                    myWindowsDeferred.increment()
+                    schedule(myAskAction, retryAfter)
+                } else {
+                    nextCrewId++
+                }
+            }
         }
+
+        private val myAskAction = AskAction()
 
         override fun holdBegan(allocation: ZoneAllocation) {
             myWindowsOpened.increment()
@@ -236,7 +295,9 @@ object GuidePathDisturbancesExample {
         /** Where a spill waits while the zones it landed on finish draining. */
         val spillQ = HoldQueue(this, "SpillQ")
 
-        private val mySpillLink = RandomVariable(this, DUniformRV(3, 4, streamNum = 5), "SpillLink")
+        // Two to four, so a spill can land on the maintained link and the two disturbances really
+        // do contend. Keeping them on separate links would have made the example agree with itself.
+        private val mySpillLink = RandomVariable(this, DUniformRV(2, 4, streamNum = 5), "SpillLink")
         private val mySpillExtent = RandomVariable(this, DUniformRV(1, 2, streamNum = 6), "SpillExtent")
         private val myCleanupTime = RandomVariable(
             this, LognormalRV(15.0, 20.0, streamNum = 7), "CleanupTime"
@@ -250,7 +311,7 @@ object GuidePathDisturbancesExample {
 
         private val mySpillsAbsorbed = Counter(this, "SpillsAbsorbed")
 
-        /** How many spills landed where one was already being dealt with. */
+        /** How many spills landed where a closure was already in place. */
         val spillsAbsorbed: CounterCIfc
             get() = mySpillsAbsorbed
 
@@ -265,24 +326,17 @@ object GuidePathDisturbancesExample {
             val cleanup = process(isDefaultProcess = true) {
                 val link = network.link("Link${mySpillLink.value.toInt()}")!!
                 val extent = link.zones.take(mySpillExtent.value.toInt())
-                // **A zone carries one promise at a time**, so two spills cannot queue for the
-                // same zone, and this model says what an overlap means rather than leaving the
-                // guide path to guess: a spill landing where one is already being dealt with is
-                // part of that spill. Some other model might defer it instead, or place it
-                // elsewhere; the point is that the choice belongs here.
+                // **A zone carries one promise at a time.** This model's answer to an overlap is
+                // that a spill landing where a closure is already in place is part of it -- one
+                // spill, cleaned once. The maintenance window below answers the same condition
+                // differently, which is the point: only the model knows which it means.
                 //
-                // A zone a *cart* is on is not an overlap and needs no guard -- that is the
-                // ordinary case, and seizeZones waits for the cart to finish crossing and leave.
-                val busy = extent.any {
-                    it.closingFor != null || (it.holder != null && it.holder !is GuidedTransporter)
-                }
-                if (busy) {
+                // A zone a *cart* is on is not an overlap and needs no guard. That is the ordinary
+                // case, and the call below waits for the cart to finish crossing and leave.
+                if (trySeizeZones(system, extent, spillQ) == null) {
                     mySpillsAbsorbed.increment()
                     return@process
                 }
-                // Returns when the zones have drained: whatever cart is crossing them finishes
-                // crossing and leaves first. Nothing is evicted.
-                seizeZones(system, extent, spillQ)
                 delay(myCleanupTime)
                 releaseZones(system)
                 mySpillsCleaned.increment()
@@ -291,8 +345,9 @@ object GuidePathDisturbancesExample {
 
         @Suppress("unused")
         private val spills = if (disturbed) {
+            // Often enough that spills genuinely contend with each other and with the window.
             EntityGenerator(
-                ::Spill, ExponentialRV(120.0, streamNum = 2), ExponentialRV(120.0, streamNum = 2)
+                ::Spill, ExponentialRV(60.0, streamNum = 2), ExponentialRV(60.0, streamNum = 2)
             )
         } else {
             null
@@ -304,7 +359,7 @@ object GuidePathDisturbancesExample {
         private val maintenance = if (disturbed) {
             MaintenanceWindow(
                 this, system, { network.link(MAINTAINED_LINK)!!.zones },
-                timeBetween = 400.0, windowLength = 30.0
+                timeBetween = 150.0, windowLength = 30.0
             )
         } else {
             null
@@ -377,6 +432,30 @@ fun main() {
     // The decomposition is a claim, so it is checked here rather than left to the reader. The three
     // causes must account for all of the blocked time: a residue would mean a cart was held up by
     // something nobody is naming, which is precisely the condition this construct exists to end.
+    // The disturbance counters have no counterpart in the quiet configuration -- the maintenance
+    // window does not exist there at all -- so they are reported as levels rather than as paired
+    // differences. A paired difference against a scenario that has no such element would be a
+    // comparison with nothing.
+    println()
+    println("What the disturbances did, in $disturbed (mean per replication)")
+    println()
+    for (counter in listOf(
+        "SpillsCleaned", "SpillsAbsorbed", "MaintenanceWindowsHeld", "MaintenanceWindowsDeferred"
+    )) {
+        val observations = runner.observationsAsMap(counter)
+        val values = checkNotNull(observations[disturbed]) {
+            "expected per-replication observations of $counter for $disturbed, got " +
+                "${observations.keys}"
+        }
+        println("  %-44s %12.2f".format(counter, Statistic(values).average))
+    }
+    println()
+    println("  SpillsAbsorbed and MaintenanceWindowsDeferred are the overlaps, and the two")
+    println("  different answers this model gives to them. Neither could be expressed by asking")
+    println("  for the space and hoping: a zone carries one promise at a time, so the request has")
+    println("  to be able to come back empty-handed, and what to do about that belongs to the")
+    println("  model rather than to the guide path.")
+
     val total = differences.getValue("$sys:NumTransportersBlocked")
     val parts = differences.getValue("$sys:NumBlockedByVehicle") +
             differences.getValue("$sys:NumBlockedByOccupier") +
@@ -393,10 +472,11 @@ fun main() {
     println("  Read NumBlockedByOccupier and NumZonesClosed together. The quiet configuration has")
     println("  no mechanism for either, so both are exactly zero there and every minute of cart")
     println("  obstruction in it is a cart waiting on another cart. In the disturbed configuration")
-    println("  that same total splits into two separately observable quantities, and neither had to")
-    println("  be fitted.")
+    println("  that same total splits into separately observable quantities, and none of them had")
+    println("  to be fitted.")
     println()
-    println("  That is the argument for the construct. A shop that really has spills and closures,")
+    println("  That is the argument for the construct, and it does not depend on whether the")
+    println("  headline count separates the two runs. A shop that really has spills and closures,")
     println("  modelled without them, must still reproduce the throughput it was calibrated on --")
     println("  so the missing obstruction time ends up inside task times or vehicle speed, where it")
     println("  is invisible and where it will not respond to the change a study is evaluating.")
