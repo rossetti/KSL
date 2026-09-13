@@ -1337,6 +1337,25 @@ open class GuidedPathSpace @JvmOverloads constructor(
     val numZoneEngagements: CounterCIfc
         get() = myNumZoneEngagements
 
+    private val myNumRequestsUnfilled =
+        Counter(this, name = "${this.name}:NumRequestsUnfilled")
+
+    /**
+     * How many requests were still waiting for their space when a replication ended.
+     *
+     * A count rather than only a warning, because the warning goes to the log and a parameter sweep
+     * does not read logs. Space asked for and never granted means the hold never happened: the
+     * closure a modeller wrote is absent from the run, and the replication otherwise looks exactly
+     * like one in which nothing was ever meant to close. Anything above zero here says some part of
+     * the model did not take place, and [timeToCloseZones] will be short an observation for each.
+     *
+     * It is not by itself a fault. A replication that ends while a closure is legitimately still
+     * draining counts here too, which is the same reading a conveyor gives for a load still in
+     * transit at the horizon. What matters is the size of it relative to [numZoneEngagements].
+     */
+    val numRequestsUnfilled: CounterCIfc
+        get() = myNumRequestsUnfilled
+
     /**
      * Closes zones for a holder, and grants them at once when there was nothing to drain.
      *
@@ -1660,6 +1679,18 @@ open class GuidedPathSpace @JvmOverloads constructor(
         get() = myTransporters.filter { it.transporterState == TransporterState.BLOCKED }
 
     /**
+     * The requests that have asked for space and not yet been granted it, oldest first.
+     *
+     * The holder-side counterpart of [blockedTransporters], and public for the same reason: a
+     * diagnosis a model can read is worth more than one it can only print. A sweep that must not
+     * silently drop a closure asserts on this, or on [numRequestsUnfilled], rather than parsing a
+     * log; a modeller debugging one replication reads it after `simulate()` returns and sees which
+     * zone of which request never drained.
+     */
+    val waitingRequests: List<ZoneRequest>
+        get() = myZoneRequests.values.filter { it.isWaiting }.sortedBy { it.requestedAt }
+
+    /**
      * Reports any transporter still waiting when a replication ends.
      *
      * A waiting transporter schedules nothing, so a guide path that has stopped moving does not
@@ -1682,6 +1713,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             myLinkUtilization[link]?.value =
                 coverage.withinReplicationStatistic.weightedAverage / link.numZones
         }
+        reportUnfilledRequests()
         val stuck = blockedTransporters
         if (stuck.isEmpty()) return
         logger.warn {
@@ -1708,14 +1740,90 @@ open class GuidedPathSpace @JvmOverloads constructor(
                         // them apart from the zone's name.
                         val holder = zone?.holder
                         val occupants = zone?.numPresent ?: 0
+                        // The same order the blocked-cause decomposition buckets by, so the two
+                        // readings of one instant cannot disagree: what is standing in the zone
+                        // refuses the claim first, then a population, and a reservation last --
+                        // that one being the case where the zone is free and still says no.
                         when {
                             holder != null -> append(", which is held by (${holder.name})")
                             occupants > 0 -> append(", which has $occupants occupant(s) in it")
+                            zone?.closingFor != null ->
+                                append(", which is free but reserved for (${zone.closingFor!!.name})")
                         }
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Reports any request still waiting for its space when a replication ends, and counts it.
+     *
+     * This is the quiet failure the subsystem had no answer for. A waiting transporter at least
+     * holds a zone and names what it wants, and the report above finds it. A **holder** waiting for
+     * a grant holds nothing, schedules nothing and is queued on nothing a vehicle would notice: the
+     * clock runs to the horizon, [ZoneHoldActionIfc.holdBegan] never fires, and the replication
+     * looks exactly like one in which no closure was ever asked for. The maintenance window, the
+     * spill, the crossing -- whatever the hold stood for -- is simply missing from the run, and
+     * every statistic around it is a plausible number for a model the modeller did not write.
+     *
+     * So each one is named here, with what it asked for, when, and which zone has not drained
+     * together with what is in that zone. The last clause is the one that decides the remedy: space
+     * a moving vehicle is crossing drains on its own and the request was merely cut short by the
+     * horizon, whereas space a parked vehicle sits on
+     * ([GuidedTransporter.isPermanentlyStationary]) was never going to drain at all, and that is
+     * said in those words rather than left for the reader to work out.
+     */
+    private fun reportUnfilledRequests() {
+        val waiting = waitingRequests
+        if (waiting.isEmpty()) return
+        repeat(waiting.size) { myNumRequestsUnfilled.increment() }
+        logger.warn {
+            buildString {
+                append("${this@GuidedPathSpace::class.simpleName} ($name): ${waiting.size} ")
+                append("request(s) for space were still waiting when replication ")
+                append("${model.currentReplicationNumber} ended. Space asked for and never granted ")
+                append("means the hold never began, so whatever it stood for is absent from this ")
+                append("replication.")
+                for (request in waiting) {
+                    append(System.lineSeparator())
+                    append("  (${request.holder.name}) asked at ${request.requestedAt} for ")
+                    append("[${request.zones.joinToString { z -> z.name }}]")
+                    append(whyNotDrained(request))
+                }
+            }
+        }
+    }
+
+    /**
+     * Why one waiting request has not been granted, in the words that decide the remedy.
+     *
+     * The distinction that matters is between space that is draining and space that is not going
+     * to. A zone a moving vehicle is crossing empties by itself, so a request still waiting at the
+     * horizon was merely cut short and the model is sound. A zone a **parked** vehicle sits on --
+     * [GuidedTransporter.isPermanentlyStationary], the same judgement the deadlock detector uses to
+     * tell an obstruction from a cycle -- will never empty on its own, and a closure asked for over
+     * it can never begin. That is a modelling fault, and saying "has not drained" for it would be
+     * true and useless.
+     */
+    private fun whyNotDrained(request: ZoneRequest): String {
+        val undrained = request.zones.firstOrNull { !it.isDrained }
+        // Drained but not yet taken up: the handover is scheduled and the horizon came first.
+        // Worth separating, because nothing is wrong with the model in this case.
+            ?: return " -- every zone has drained; the grant had not yet been taken up"
+        val holder = undrained.holder
+        val occupants = undrained.numPresent
+        val because = when {
+            holder is GuidedTransporter && holder.isPermanentlyStationary ->
+                "and never will: (${holder.name}) is parked in it, carrying nothing and with no " +
+                        "route under way, so nothing in the model will move it"
+            holder != null -> "-- it is held by (${holder.name})"
+            occupants > 0 -> "-- it has $occupants occupant(s) in it"
+            undrained.closingFor != null ->
+                "-- it is free but reserved for (${undrained.closingFor!!.name})"
+            else -> "-- the reason is no longer visible, which should not happen"
+        }
+        return "; zone (${undrained.name}) has not drained $because"
     }
 
     companion object {

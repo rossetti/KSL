@@ -180,7 +180,7 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
      */
     fun findObstruction(start: GuidedTransporter): IdleTransporterObstruction? {
         if (start.transporterState != TransporterState.BLOCKED) return null
-        val idle = obstructorsOf(start).firstOrNull { isPermanentlyStationary(it) } ?: return null
+        val idle = obstructorsOf(start).firstOrNull { it.isPermanentlyStationary } ?: return null
         return IdleTransporterObstruction(
             time = system.time,
             blockedTransporterName = start.name,
@@ -189,14 +189,6 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
         )
     }
 
-    /**
-     * True when nothing in the model will make this transporter move again by itself: it carries
-     * nobody, has no route under way, and is not itself waiting for anything.
-     */
-    private fun isPermanentlyStationary(transporter: GuidedTransporter): Boolean =
-        transporter.numBusy == 0 &&
-                transporter.currentRoute == null &&
-                transporter.transporterState == TransporterState.IDLE
 
     /**
      * What a blocked transporter is waiting for, named. A transporter held up by a link is waiting

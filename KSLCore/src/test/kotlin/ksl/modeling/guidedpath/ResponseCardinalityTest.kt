@@ -270,7 +270,12 @@ class ResponseCardinalityTest {
             // General occupancy's own three, and the reason they are here rather than on the
             // holders: a model may make as many holders as the run turns out to need, so a
             // response per holder would be a response count nobody can state before the run.
-            ":NumWaitingForZones", ":TimeToCloseZones", ":NumZoneEngagements"
+            ":NumWaitingForZones", ":TimeToCloseZones", ":NumZoneEngagements",
+            // Space asked for and never granted. On by default with the rest because a sweep is
+            // exactly where this reading is needed and exactly where nobody reads the log: a run
+            // whose closure never happened otherwise reports plausible numbers for a model that
+            // did not take place.
+            ":NumRequestsUnfilled"
         )) {
             assertTrue(
                 names.any { it.endsWith(suffix) },

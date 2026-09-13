@@ -390,6 +390,23 @@ class GuidedTransporter @JvmOverloads constructor(
                 transporterState == TransporterState.RETURNING_HOME ||
                 transporterState == TransporterState.TOWED
 
+    /**
+     * True when nothing in the model will make this transporter move again by itself: it carries
+     * nobody, has no route under way, and is not itself waiting for anything.
+     *
+     * One definition, in one place, because two diagnostics now rest on it. The deadlock detector
+     * uses it to tell an obstruction from a circular wait, and the guide path uses it to say
+     * whether space a holder is waiting for can ever drain. Those must never disagree: a run that
+     * reports "still draining" for space that a parked vehicle will occupy forever has told the
+     * modeller the one thing that is not true.
+     *
+     * It is a judgement about a single instant and can be overtaken by events -- an entity may
+     * seize this transporter a moment later -- which is why both callers warn rather than raise.
+     */
+    val isPermanentlyStationary: Boolean
+        get() = numBusy == 0 && currentRoute == null &&
+                transporterState == TransporterState.IDLE
+
     /** The route being followed, or null when the transporter is not travelling. */
     var currentRoute: Route? = null
         internal set
