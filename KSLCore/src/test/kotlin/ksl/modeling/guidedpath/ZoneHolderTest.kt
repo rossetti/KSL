@@ -56,8 +56,8 @@ class ZoneHolderTest {
      *  A holder, made whenever the model needs one and as often as it needs one.
      *
      *  Two members and no base class. It waits for nothing -- the all-or-nothing grant sees to that
-     *  -- so it is a terminal node of the wait-for walk and whatever queues behind it is obstructed
-     *  rather than deadlocked.
+     *  -- so it contributes no queuing edge to the wait-for walk, and a cart stopped behind one that
+     *  is merely holding space is obstructed rather than deadlocked.
      */
     private class Crew(id: Int) : ZoneHolderIfc {
         override val name: String = "Crew$id"
@@ -174,10 +174,11 @@ class ZoneHolderTest {
 
     @Test
     fun `a vehicle held up by a non-vehicle holder is not a deadlock`() {
-        // The reason `awaitedZone` is null on such a holder. A holder that never queues has no
-        // outgoing edge in the wait-for graph, so no cycle can run through it -- the cart behind it
-        // is obstructed, which is a different condition with a different remedy, and reporting a
-        // circular wait here would be the one mistake the walk exists to avoid.
+        // The reason `awaitedZone` is null on such a holder: it never queues on a zone, so it has
+        // no zone to name. The crew here is already *holding* the zone, and the cart behind it is
+        // obstructed -- a different condition with a different remedy, and reporting a circular
+        // wait here would be the one mistake the walk exists to avoid. A closure still *waiting* to
+        // drain is the other case, and can lie on a cycle: see PendingClosureCycleTest.
         val a = run(requestAt = 0.5, releaseAt = 10.0)
         assertEquals(0.0, a.system.numDeadlocksDetected.value, 0.0)
         assertNull(a.crew.awaitedZone)
@@ -615,7 +616,7 @@ class ZoneHolderTest {
         //
         // The reason is narrower than the design record once claimed, and the record was corrected.
         // It is *not* that this makes a closure unable to lie on a circular wait -- it cannot do
-        // that, and MutualPromiseDeadlockTest shows a cycle running through two pending closures.
+        // that, and PendingClosureCycleTest shows a cycle running through two pending closures.
         // It is that the detector follows a non-null awaitedZone as a vehicle-style edge, and
         // already follows what a closure waits for through the reservation itself, so a holder
         // answering non-null here would be counted twice over.

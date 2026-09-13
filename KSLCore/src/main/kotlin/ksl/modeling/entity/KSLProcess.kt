@@ -2499,10 +2499,10 @@ interface KSLProcessBuilder {
      *
      * All or nothing, and that is a rule rather than a convenience: an entity that held part of a
      * region while waiting for the rest could be waiting on a vehicle that is waiting on the part
-     * it holds, and that deadlock has no edge in the wait-for graph for the detector to find --
-     * [ProcessModel.Entity.awaitedZone] is null precisely because this rule makes it true. Traffic
-     * already inside the region is let out rather than trapped, which is what makes the drain
-     * terminate however busy the region is.
+     * it holds. The rule prevents that outright, and it is also why
+     * [ProcessModel.Entity.awaitedZone] can honestly be null -- an entity is never both holding
+     * space and queuing for more. Traffic already inside the region is let out rather than trapped,
+     * which is what makes the drain terminate however busy the region is.
      *
      * The extent is chosen here, at run time, and costs nothing: a link's zones by name, a
      * junction's zone, a zone at a station, or a sample drawn from the network.

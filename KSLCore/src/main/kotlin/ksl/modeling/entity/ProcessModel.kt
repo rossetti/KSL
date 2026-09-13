@@ -432,11 +432,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  Always null: an entity holding guide-path space waits for no more of it.
          *
-         *  The outgoing edge of the guide path's wait-for graph, and the guarantee every argument
-         *  about closures not deadlocking rests on. It holds because a set of zones is taken
-         *  together or not at all, so an entity is never both holding space and queuing for more --
-         *  while it waits it holds nothing, which makes it a terminal node of the walk rather than a
-         *  possible link in a cycle. Whatever is stopped behind it is obstructed, not deadlocked.
+         *  The queuing edge of the guide path's wait-for graph, and it is honestly null because a
+         *  set of zones is taken together or not at all: an entity is never both holding space and
+         *  queuing for more, so it has no zone to name. A vehicle stopped behind an entity that is
+         *  merely holding space is obstructed, not deadlocked.
+         *
+         *  This is not a claim that nothing can deadlock through an entity holding space. What a
+         *  *pending* request waits for is every vehicle in its reserved zones, and the detector
+         *  follows that through the reservation rather than through this property.
          *
          *  An entity riding a transporter is a separate matter: the *transporter* holds the zones
          *  and waits for the next one, and it is the transporter that appears in the graph.

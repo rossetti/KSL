@@ -229,9 +229,11 @@ internal class ZoneInvariantChecker(
             // from the other end: a zone still closing means the grant has not happened, so *no*
             // zone of that closure may be held by the holder it is closing for. Holding part of a
             // region while the rest drains is what the all-or-nothing grant exists to prevent,
-            // because a vehicle inside the region could then wait for a zone the occupier holds
-            // while the occupier waits for the zone the vehicle is standing in -- a deadlock with
-            // no edge in the wait-for graph, and so one the detector cannot see.
+            // because a vehicle inside the region could then wait for a zone the holder holds
+            // while the holder waits for the zone the vehicle is standing in. Preventing it is
+            // worth an invariant of its own: it is a deadlock nothing else in the subsystem rules
+            // out, and one the escape rule cannot reach, since the trapped vehicle is stopped by a
+            // zone that is held rather than reserved.
             val closing = zone.closure
             if (closing != null) {
                 checkHolderDiscipline(closing.holder, "is closing ${zone.name} for")
@@ -291,7 +293,7 @@ internal class ZoneInvariantChecker(
      * the holder holding what a vehicle wants. It leaves two others. A *pending* closure waits on
      * every vehicle occupying the zones it has reserved, and the reservation is what a vehicle
      * refused entry is waiting on. Two closures over adjacent regions can each trap a vehicle in
-     * the other's way -- see `MutualPromiseDeadlockTest` -- so acyclicity is not an invariant here
+     * the other's way -- see `PendingClosureCycleTest` -- so acyclicity is not an invariant here
      * and is not asserted. The detector is what reports that case, and reporting it is the remedy
      * the subsystem offers for every other circular wait too.
      *

@@ -33,16 +33,16 @@ import kotlin.test.assertTrue
  *  Extent is chosen per occurrence, and closing a *set* has a hazard closing one zone does not.
  *  Two rules exist for it:
  *
- *  - **the set is taken together or not at all**, so the occupier holds nothing while it waits and
- *    stays a sink in the wait-for graph;
+ *  - **the set is taken together or not at all**, so the holder holds nothing while it waits;
  *  - **traffic already inside the region is let out**, so the drain terminates however busy the
  *    region is.
  *
  *  Without the first, a holder holding part of a region can wait on a vehicle that is waiting on
- *  the part it holds. Without the second, a vehicle inside the region can never leave it. Neither
- *  is a circular wait the detector can see, because such a holder has no `awaitedZone` and so no
- *  outgoing edge — the run would simply stop advancing with nothing to say why. That is what makes
- *  these rules rather than preferences.
+ *  the part it holds. Without the second, a vehicle inside the region can never leave it. Both are
+ *  prevented here rather than left to be diagnosed, which is what makes them rules rather than
+ *  preferences. Neither rule makes a deadlock through a holder impossible -- two closures over
+ *  abutting regions can wait on each other through their reservations, which is
+ *  `PendingClosureCycleTest`'s subject, not this file's.
  *
  *  Geometry throughout: twelve-foot zones at twelve feet a minute, so a zone is one minute, and
  *  junctions are dimensionless.
@@ -186,9 +186,9 @@ class ZoneClosureTest {
     fun `the cart is not held up by a closure it is already inside`() {
         // Rule two, and the reason the drain terminates. The cart is inside the aisle when the whole
         // aisle is closed: if the closure refused it the zones ahead, it could never leave, the zone
-        // it stands in would never drain, and the closure would never be granted. Nothing in the
-        // wait-for graph would show it -- the occupier has no outgoing edge -- so the run would just
-        // stop advancing.
+        // it stands in would never drain, and the closure would never be granted. The cart would sit
+        // waiting on a zone that is free and stays free, which the rule prevents outright rather
+        // than leaving to be diagnosed.
         val (m, c) = model()
         object : ModelElement(c, "Driver") {
             override fun initialize() {

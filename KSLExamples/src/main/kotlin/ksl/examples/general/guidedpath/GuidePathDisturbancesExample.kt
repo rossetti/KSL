@@ -115,9 +115,9 @@ object GuidePathDisturbancesExample {
      *  The maintenance crew: a holder, and nothing else.
      *
      *  Two members and no base class, which is the whole of what taking guide-path space requires.
-     *  It waits for nothing, because a set of zones is taken together or not at all -- so it is a
-     *  terminal node of the wait-for graph and a cart stopped behind it is obstructed rather than
-     *  deadlocked.
+     *  It waits for nothing, because a set of zones is taken together or not at all -- it never
+     *  queues on a zone, so it has no zone to name. A cart stopped behind a crew that is already
+     *  holding the link is obstructed rather than deadlocked.
      */
     class MaintenanceCrew(id: Int) : ZoneHolderIfc {
         override val name: String = "MaintenanceCrew$id"

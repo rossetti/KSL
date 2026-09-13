@@ -90,9 +90,8 @@ interface ZoneHoldActionIfc {
  * The zone asks rather than decides, and the reason is the hazard a set closure has and a single
  * zone does not. Closing a *set* can trap a vehicle inside it: the vehicle's route needs a zone the
  * closure has reserved, and the zone the vehicle is standing in is one the closure is waiting to
- * drain. Neither can move. It is not a circular wait the detector can see, either -- a holder that
- * never queues has no [ZoneHolderIfc.awaitedZone], so there is no edge to close a cycle with -- so
- * the run would simply stop advancing with nothing to say why.
+ * drain. Neither can move, and nothing in the vehicle's own contention rules resolves it: the
+ * vehicle is queued on a zone that is free and that stays free until the closure lets it go.
  *
  * The fix is the one a real closure uses: **stop letting traffic in, and let the traffic already
  * inside get out.** A closing zone admits the holder it was promised to, which is how the grant is
@@ -102,8 +101,9 @@ interface ZoneHoldActionIfc {
  * **That is not enough on its own, and the design record was wrong to say it was.** It argued that
  * the drain terminates because "the zones beyond the region are not reserved". True of one pending
  * closure; false of two. Two closures reserving abutting regions each trap a vehicle in the other's
- * way, neither region drains, and neither is granted -- a permanent, silent stall, because the
- * zones the vehicles await are *free* and so have no holder for the wait-for graph to follow.
+ * way, neither region drains, and neither is granted -- a permanent stall. The zones the vehicles
+ * await are *free*, so there is no holder to follow, which is why the detector follows the
+ * reservation instead and can name the closure that is in the way.
  *
  * So a closure admits one more thing: **a vehicle escaping an older reservation.** [sequence]
  * orders the closures strictly, and a closure lets through any vehicle standing in a region
@@ -159,10 +159,12 @@ internal interface ZoneClosureIfc {
  *
  * **A set is taken all at once or not at all.** Taking the zones one by one as they drain is what
  * creates the trap described on [ZoneClosureIfc]; waiting until every zone has drained and then
- * claiming them together keeps the holder holding nothing while it waits, which keeps it a sink
- * in the wait-for graph and makes a deadlock impossible rather than undetectable. The cost is that
- * a closure over a busy region begins later, and that delay is reported rather than hidden: the
- * space keeps it as a response of its own.
+ * claiming them together prevents that trap rather than leaving it to be detected. It does not
+ * make the holder incapable of lying on a circular wait: [sequence] and the escape rule on
+ * [ZoneClosureIfc] exist because two closures over abutting regions can wait on each other through
+ * their reservations alone, whatever either one holds. The cost of the rule is that a closure over
+ * a busy region begins later, and that delay is reported rather than hidden: the space keeps it as
+ * a response of its own.
  *
  * @param holder who asked
  * @param zones what was asked for, one or more

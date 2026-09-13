@@ -57,10 +57,16 @@ package ksl.modeling.guidedpath
  *
  * It **never waits for space it cannot have**, and that is a defining property rather than an
  * incidental one. It asks for a zone; the zone drains; it takes it. While it waits it holds
- * nothing, so it has no outgoing edge in the wait-for graph and cannot lie on a circular wait --
- * which is why [awaitedZone] is null for such a holder and why deadlock detection treats it as a
- * terminal node. Whatever is stuck behind one is *obstructed*, not deadlocked, and those want
- * different remedies.
+ * nothing, which is why [awaitedZone] is null for such a holder: it never queues on a zone, so
+ * there is nothing for it to name. A vehicle stopped behind a holder that is merely *holding*
+ * space is *obstructed*, not deadlocked, and those two want different remedies.
+ *
+ * Answering null does not make such a holder incapable of lying on a circular wait, and an earlier
+ * version of this note wrongly said that it did. What a *pending* closure waits for is every
+ * vehicle occupying its reserved zones, and that wait runs through the reservation rather than
+ * through [awaitedZone] -- so two closures over abutting regions can wait on each other. That case
+ * is prevented by the ordering rule on `ZoneClosureIfc` and reported by the detector, which
+ * follows a reserved-but-free zone to the vehicles the reservation is waiting on.
  *
  * It is also why such a holder is not a [GuidedTransporter] with the movement left out. A
  * transporter has a route and gives up zones one at a time as it moves; a holder has an allocation
@@ -77,13 +83,14 @@ package ksl.modeling.guidedpath
  * Those messages are how a modeller finds a fault, and one that named an object rather than a
  * holder would be no help.
  *
- * [awaitedZone] is needed because it is the outgoing edge of the wait-for graph, and so is the only
- * thing deadlock detection asks of a holder. A holder that waits for nothing has no outgoing edge,
- * cannot close a cycle, and is therefore a terminal node of the walk: whatever is stuck behind it
- * is obstructed rather than deadlocked. That distinction is the whole reason the graph is walked,
- * and it falls out of this one property. It is also why *most* holders will answer null: a crossing
- * or a closed aisle occupies space without ever queuing for more, and the vehicle -- which does
- * queue -- is the special case, not the general one.
+ * [awaitedZone] is needed because it is the queuing edge of the wait-for graph, and so is the only
+ * thing deadlock detection asks of a holder. A holder that waits for nothing contributes no such
+ * edge, and a vehicle stuck behind one that is merely holding space is obstructed rather than
+ * deadlocked. It is also why *most* holders will answer null: a crossing or a closed aisle occupies
+ * space without ever queuing for more, and the vehicle -- which does queue -- is the special case,
+ * not the general one. Answering null is a statement about queuing and nothing more; a holder that
+ * answered non-null would have the same wait counted twice, since the detector already reaches what
+ * a pending closure waits for through the reservation.
  *
  * Nothing here says how a holder takes a zone or gives it up. Those are [GuidedPathSpace]'s
  * business -- [GuidedPathSpace.requestZones], [GuidedPathSpace.holdZonesFor] and

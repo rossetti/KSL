@@ -1087,11 +1087,14 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * All or nothing, and that is a rule rather than a convenience. Taking the zones one by one as
      * they drain would let the holder hold part of a region while waiting for the rest, and a
      * vehicle inside the region could then be waiting for a zone the holder holds while the holder
-     * waits for the zone the vehicle is standing in. That is a deadlock, and an invisible one: a
-     * holder that never queues has no [ZoneHolderIfc.awaitedZone], so the wait-for graph has no
-     * edge to close a cycle with and the detector would never report it. Holding nothing until
-     * every zone has drained keeps such a holder a sink, which makes the deadlock impossible
-     * rather than undetectable.
+     * waits for the zone the vehicle is standing in. That is a deadlock, and holding nothing until
+     * every zone has drained prevents it outright rather than leaving it to be diagnosed.
+     *
+     * What it does **not** do is make a deadlock through a holder impossible. What a *pending*
+     * closure waits for is every vehicle occupying its reserved zones, and that wait runs through
+     * the reservation rather than through [ZoneHolderIfc.awaitedZone], so two closures over
+     * abutting regions can still wait on each other. That case is prevented by the ordering rule
+     * on `ZoneClosureIfc` and reported by the detector when it survives.
      *
      * Traffic already inside the region is let out rather than trapped -- see `ZoneClosureIfc` --
      * which is what makes the drain terminate however busy the region is. The cost is that a
