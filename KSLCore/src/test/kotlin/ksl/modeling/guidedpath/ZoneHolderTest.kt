@@ -688,6 +688,50 @@ class ZoneHolderTest {
         assertTrue(untouched.isAvailable)
     }
 
+    @Test
+    fun `the waiting count and the drain delay are the same fact measured two ways`() {
+        // Little's law as an assertion. The time-average of NumWaitingForZones over the run must
+        // equal the total of every request's drain delay divided by the run length, because both
+        // measure the same thing: how much request-time was spent waiting for space. Tying them
+        // together is what would catch one of them being updated on a path the other is not.
+        //
+        // Three requests, chosen so the two are hand-computable:
+        //   2.5  crew1 asks for Zone3, which the cart is crossing -> granted 4.0, waited 1.5
+        //   5.0  crew2 asks for Zone1, long since clear           -> granted 5.0, waited 0.0
+        //   6.0  crew3 asks for Zone3, held by crew1              -> granted 10.0, waited 4.0
+        // so 5.5 minutes of waiting in a forty-minute run.
+        val m = Model("LittlesLaw")
+        val a = Aisle(m)
+        a.system.checkInvariants = true
+        val crew1 = Crew(1)
+        val crew2 = Crew(2)
+        val crew3 = Crew(3)
+        object : ModelElement(a, "Driver") {
+            override fun initialize() {
+                schedule({ _: KSLEvent<Nothing> -> a.cart.sendTo("B") }, 0.0)
+                schedule({ _: KSLEvent<Nothing> -> a.system.requestZone(crew1, a.closed, a.log) }, 2.5)
+                schedule({ _: KSLEvent<Nothing> ->
+                    a.system.requestZone(crew2, a.network.zone("L1.Zone1")!!, a.log)
+                }, 5.0)
+                schedule({ _: KSLEvent<Nothing> -> a.system.requestZone(crew3, a.closed, a.log) }, 6.0)
+                schedule({ _: KSLEvent<Nothing> -> a.system.releaseZones(crew1) }, 10.0)
+            }
+        }
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 40.0
+        m.simulate()
+
+        assertEquals(listOf(4.0, 5.0, 10.0), a.log.began, "the three grants, in order")
+        val delay = a.system.timeToCloseZones.withinReplicationStatistic
+        assertEquals(3.0, delay.count, 0.0, "one observation per request")
+        assertEquals(5.5 / 3.0, delay.weightedAverage, 1e-9, "1.5 + 0.0 + 4.0, over three requests")
+        assertEquals(
+            5.5 / 40.0,
+            a.system.numWaitingForZones.withinReplicationStatistic.weightedAverage, 1e-9,
+            "the same 5.5 minutes of waiting, measured as a time-average instead"
+        )
+    }
+
     // ---- being answered instead of refused -----------------------------------------------------
 
     @Test
