@@ -31,6 +31,8 @@ The examples are ordered so that each one needs only what came before it.
 | 8 | [A dispatcher with no aisles](#8-a-dispatcher-with-no-aisles) | `:KSLExamples:freePathFleetExample` |
 | 9 | [What the engine costs](#9-what-the-engine-costs) | `:KSLExamples:guidedPathBenchmark` |
 | 10 | [What deciding costs](#10-what-deciding-costs) | `:KSLExamples:agvBenchmark` |
+| 11 | [A shop with spills and a maintenance window](#11-a-shop-with-spills-and-a-maintenance-window) | `:KSLExamples:guidePathDisturbancesExample` |
+| 12 | [Three answers to one closure](#12-three-answers-to-one-closure) | `:KSLExamples:zoneClosurePolicyExample` |
 
 **A note on the output.** Several examples print warnings above their tables —
 horizon diagnostics, and in two cases deadlock reports logged at ERROR. Those
@@ -4654,9 +4656,799 @@ the *load* side saturates instead.
 
 ---
 
-## What the ten have in common
+## 11. A shop with spills and a maintenance window
 
-**Four of them exist to prevent a false conclusion**, not to demonstrate a
+`ksl.examples.general.guidedpath.GuidePathDisturbancesExample`
+
+### The problem
+
+Aisles are not only blocked by vehicles. A spill closes part of one until
+somebody cleans it; a maintenance window closes a whole leg of the loop for
+as long as the work takes. Neither is a cart, and neither can be declared
+before the run.
+
+A model without them is not merely less detailed. It must still reproduce
+the throughput it was calibrated on, so the obstruction time has to go
+somewhere — and it ends up inside task times or vehicle speed, where it is
+invisible and where it will not respond to the change a study is
+evaluating.
+
+### The model
+
+**Case 1's layout, unaltered**, run twice: once quiet, once with spills on
+`Link3` and `Link4` and a maintenance window on `Link2`. Paired by
+replication on common random numbers, twenty replications, the disturbed
+configuration added first.
+
+Both routes to holding space appear, because both are first-class. The
+spills are **entities** holding zones across a process suspension. The
+maintenance window is **event-scheduled** by a `ModelElement` that is told
+when each closure begins and ends.
+
+### The code
+
+`GuidePathDisturbancesExample.kt` in full, minus documentation comments and imports.
+
+#### 1. The constants, and a crew that is not a vehicle
+
+```kotlin
+object GuidePathDisturbancesExample {
+
+    const val QUIET: String = "NoDisturbances"
+    const val DISTURBED: String = "SpillsAndMaintenance"
+    const val SYSTEM_NAME: String = "AgvSystem"
+    const val REPLICATIONS: Int = 20
+    const val HORIZON: Double = 8_000.0
+    const val WARM_UP: Double = 1_000.0
+
+    const val MAINTAINED_LINK: String = "Link2"
+
+    class MaintenanceCrew(id: Int) : ZoneHolderIfc {
+        override val name: String = "MaintenanceCrew$id"
+        override val awaitedZone: Zone? get() = null
+    }
+```
+
+`MaintenanceCrew` is the whole of what taking guide-path space requires: a
+name, and the zone it is waiting for. Two members, no base class, and
+**not a `ModelElement`** — which is the point. A spill that arrives at
+minute 137.4 cannot be declared before the run, so a holder cannot be
+something the model has to enumerate in advance. `awaitedZone` is null
+because a crew never queues for space: it asks, the space drains, it takes
+it.
+
+#### 2. The maintenance window: the event route
+
+```kotlin
+    class MaintenanceWindow(
+        parent: ModelElement,
+        private val space: GuidedPathSpace,
+        private val zones: () -> List<Zone>,
+        timeBetween: Double,
+        windowLength: Double
+    ) : ModelElement(parent, "MaintenanceWindow"), ZoneHoldActionIfc {
+
+        private val myTimeBetween = RandomVariable(
+            this, ExponentialRV(timeBetween, streamNum = 4), name = "TimeBetweenWindows"
+        )
+        private val myWindowLength = RandomVariable(
+            this, ConstantRV(windowLength), name = "WindowLength"
+        )
+
+        private val myWindowsOpened = Counter(this, name = "MaintenanceWindowsHeld")
+
+        val windowsHeld: CounterCIfc
+            get() = myWindowsOpened
+
+        private var nextCrewId = 1
+
+        override fun initialize() {
+            nextCrewId = 1
+            schedule(myAskAction, myTimeBetween)
+        }
+
+        private val myAskAction = EventActionIfc<Nothing> {
+            // A crew per occurrence, made here. Nothing about the cast is stated before the run.
+            //
+            // The plain verb, not tryHoldZonesFor, and that is a statement about this model rather
+            // than a shortcut: nothing else closes the maintained link, so no zone of it can be
+            // promised to anybody else when this asks. A model whose closures *can* collide has to
+            // decide what that means, which is what tryHoldZonesFor is for.
+            space.holdZonesFor(
+                MaintenanceCrew(nextCrewId++), zones(), myWindowLength.value, this
+            )
+        }
+
+        override fun holdBegan(allocation: ZoneAllocation) {
+            myWindowsOpened.increment()
+        }
+
+        override fun holdEnded(allocation: ZoneAllocation) {
+            // The end of one window schedules the next, which is the contract this interface is
+            // for: whatever the closure was holding up proceeds from here.
+            schedule(myAskAction, myTimeBetween)
+        }
+    }
+```
+
+The event route, and the shape to copy if you are not in a process. The
+element that schedules the closures is the element that is told about them
+— `MaintenanceWindow` implements `ZoneHoldActionIfc`, so `holdBegan` and
+`holdEnded` arrive at the thing that asked.
+
+`holdZonesFor` samples the window length **once** and gives the space back
+on a clock. An earlier draft of this example scheduled its own "crew free"
+event and sampled the duration a second time, so the zones reopened at one
+time and the crew took its next job at another. Requiring the action, and
+letting the clock do the release, is what removed the possibility.
+
+#### 3. The shop, and the deliveries being measured
+
+```kotlin
+    class DisturbedShop(
+        parent: ModelElement,
+        disturbed: Boolean,
+        timeBtwArrivals: Double = 20.0
+    ) : ProcessModel(parent, "DisturbedShop") {
+
+        val network: GuidedPathNetwork = SimpleAGVExample.createNetwork("DisturbedNet")
+
+        init {
+            spatialModel = network
+        }
+
+        val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
+
+        val cart1 = GuidedTransporter(
+            system, TransporterPlacement.At(SimpleAGVExample.AGV1_HOME), ConstantRV(10.0), 1,
+            EndOfZoneControl(), "Cart1"
+        ).apply { homeBase = SimpleAGVExample.AGV1_HOME }
+
+        val cart2 = GuidedTransporter(
+            system, TransporterPlacement.At(SimpleAGVExample.AGV2_HOME), ConstantRV(10.0), 1,
+            EndOfZoneControl(), "Cart2"
+        ).apply { homeBase = SimpleAGVExample.AGV2_HOME }
+
+        val carts = GuidedTransporterPoolWithQ(
+            this, system, listOf(cart1, cart2),
+            ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
+        )
+
+        private val myTimeInSystem = Response(this, "TimeInSystem")
+        val timeInSystem: ResponseCIfc
+            get() = myTimeInSystem
+
+        private val myCompleted = Counter(this, "PartsDelivered")
+        val completed: CounterCIfc
+            get() = myCompleted
+
+        @Suppress("unused")
+        private val generator = EntityGenerator(
+            ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
+            ExponentialRV(timeBtwArrivals, streamNum = 1)
+        )
+
+        inner class Part : Entity() {
+            @Suppress("unused")
+            val delivery = process(isDefaultProcess = true) {
+                val arrived = time
+                currentLocation = network.requireLocation(SimpleAGVExample.ENTRY_STATION)
+                guidedTransport(
+                    carts,
+                    destination = SimpleAGVExample.EXIT_STATION,
+                    pickupLocation = SimpleAGVExample.ENTRY_STATION,
+                    loadingDelay = ConstantRV(0.5),
+                    unLoadingDelay = ConstantRV(0.5)
+                )
+                myTimeInSystem.value = time - arrived
+                myCompleted.increment()
+            }
+        }
+
+        // ---- the process route: spills, which arrive and are cleaned ---------------------------
+```
+
+The layout is case 1's, read from `SimpleAGVExample.createNetwork` rather
+than restated, so the disturbed and quiet runs cannot drift apart. The
+`disturbed` flag is the only difference between the two scenarios, and it
+gates the spills and the maintenance window without touching the fleet, the
+arrivals or the policies.
+
+#### 4. The spills: the process route, and a closure that may be refused
+
+```kotlin
+        val spillQ = HoldQueue(this, "SpillQ")
+
+        // Three and four: the maintained link is left to the maintenance window, so the only
+        // closures that can collide here are two spills in the same aisle.
+        private val mySpillLink = RandomVariable(this, DUniformRV(3, 4, streamNum = 5), "SpillLink")
+        private val mySpillExtent = RandomVariable(this, DUniformRV(1, 2, streamNum = 6), "SpillExtent")
+        private val myCleanupTime = RandomVariable(
+            this, LognormalRV(15.0, 20.0, streamNum = 7), "CleanupTime"
+        )
+
+        private val mySpillsCleaned = Counter(this, "SpillsCleaned")
+
+        val spillsCleaned: CounterCIfc
+            get() = mySpillsCleaned
+
+        private val mySpillsAbsorbed = Counter(this, "SpillsAbsorbed")
+
+        val spillsAbsorbed: CounterCIfc
+            get() = mySpillsAbsorbed
+
+        inner class Spill : Entity() {
+            @Suppress("unused")
+            val cleanup = process(isDefaultProcess = true) {
+                val link = network.link("Link${mySpillLink.value.toInt()}")!!
+                val extent = link.zones.take(mySpillExtent.value.toInt())
+                // A zone carries one promise at a time, so a spill landing on an aisle another
+                // spill is still having closed cannot queue behind it. This model's answer is that
+                // the second is part of the first -- one spill, cleaned once. Deferring it or
+                // placing it elsewhere would be equally reasonable; the choice belongs here.
+                //
+                // A zone a *cart* is on is not a collision and needs no guard: that is the ordinary
+                // case, and the call below waits for the cart to finish crossing and leave.
+                if (trySeizeZones(system, extent, spillQ) == null) {
+                    mySpillsAbsorbed.increment()
+                    return@process
+                }
+                delay(myCleanupTime)
+                releaseZones(system)
+                mySpillsCleaned.increment()
+            }
+        }
+
+        @Suppress("unused")
+        private val spills = if (disturbed) {
+            EntityGenerator(
+                ::Spill, ExponentialRV(90.0, streamNum = 2), ExponentialRV(90.0, streamNum = 2)
+            )
+        } else {
+            null
+        }
+
+        // ---- the event route: a maintenance window on a whole link ------------------------------
+
+        @Suppress("unused")
+        private val maintenance = if (disturbed) {
+            MaintenanceWindow(
+                this, system, { network.link(MAINTAINED_LINK)!!.zones },
+                timeBetween = 300.0, windowLength = 30.0
+            )
+        } else {
+            null
+        }
+    }
+
+    fun buildRunner(): ScenarioRunner {
+```
+
+The process route, and the interesting verb. A spill is an `Entity`, and an
+entity may hold guide-path space across its own suspension: `trySeizeZones`
+takes the zones and suspends until they drain, or **answers null** when
+some of that space is already promised to another closure.
+
+Null is not a failure. It is the question "two spills in the same aisle —
+one job, or two?" being handed back to the model, because the guide path
+cannot know the answer. This model absorbs the second one and counts it;
+case 12 takes the same instant and answers it three ways.
+
+Note what is *not* a refusal. A zone another holder already **holds** is
+asked for in the ordinary way and simply waited for. Only a zone promised
+to a closure that has not yet been granted refuses.
+
+#### 5. Two scenarios, disturbed first
+
+```kotlin
+        val runner = ScenarioRunner("GuidePathDisturbances")
+        // Disturbed first, because MultipleComparisonAnalyzer keys each paired difference
+        // "first - second" in the order the scenarios were added, and the reading that makes sense
+        // here is what the disturbances cost rather than what their absence saves.
+        for ((label, disturbed) in listOf(DISTURBED to true, QUIET to false)) {
+            val m = Model("Disturbances_$label")
+            DisturbedShop(m, disturbed = disturbed)
+            runner.addScenario(
+                model = m,
+                name = label,
+                inputs = emptyMap(),
+                numberReplications = REPLICATIONS,
+                lengthOfReplication = HORIZON,
+                lengthOfReplicationWarmUp = WARM_UP
+            )
+        }
+        return runner
+    }
+}
+```
+
+Disturbed **first**, and the comment says why: `MultipleComparisonAnalyzer`
+keys each paired difference as "first minus second" in the order the
+scenarios were added, and the reading that makes sense here is what the
+disturbances cost rather than what their absence saves. Get the order wrong
+and every sign in the table inverts while the arithmetic stays correct.
+
+#### 6. Reading the difference, and checking that the causes add up
+
+```kotlin
+fun main() {
+    val runner = GuidePathDisturbancesExample.buildRunner()
+    runner.simulate()
+    runner.print()
+
+    val quiet = GuidePathDisturbancesExample.QUIET
+    val disturbed = GuidePathDisturbancesExample.DISTURBED
+    val sys = GuidePathDisturbancesExample.SYSTEM_NAME
+
+    println()
+    println("What the disturbances cost: $disturbed minus $quiet, paired by replication")
+    println("(${GuidePathDisturbancesExample.REPLICATIONS} replications, 95% intervals)")
+    println()
+    println("  %-44s %12s %12s %12s".format("response", "difference", "half-width", "detectable?"))
+    val differences = mutableMapOf<String, Double>()
+    for (response in listOf(
+        "PartsDelivered",
+        "TimeInSystem",
+        "$sys:NumTransportersBlocked",
+        "$sys:NumBlockedByVehicle",
+        "$sys:NumBlockedByOccupier",
+        "$sys:NumBlockedByPopulation",
+        "$sys:NumZonesClosed"
+    )) {
+        val observations = runner.observationsAsMap(response)
+        check(observations.size == 2) {
+            "expected per-replication observations of $response for both scenarios, got " +
+                "${observations.keys}. A missing response would print an empty row rather than say so."
+        }
+        val mca = MultipleComparisonAnalyzer(observations, response)
+        val d = checkNotNull(mca.pairedDifferenceStatistic(disturbed, quiet)) {
+            "no paired difference for '$disturbed - $quiet' of $response"
+        }
+        val detectable = if (kotlin.math.abs(d.average) > d.halfWidth) "yes" else "no"
+        differences[response] = d.average
+        println("  %-44s %12.4f %12.4f %12s".format(response, d.average, d.halfWidth, detectable))
+    }
+
+    // The decomposition is a claim, so it is checked here rather than left to the reader. The three
+    // causes must account for all of the blocked time: a residue would mean a cart was held up by
+    // something nobody is naming, which is precisely the condition this construct exists to end.
+    // The disturbance counters have no counterpart in the quiet configuration -- the maintenance
+    // window does not exist there at all -- so they are reported as levels rather than as paired
+    // differences. A paired difference against a scenario that has no such element would be a
+    // comparison with nothing.
+    println()
+    println("What the disturbances did, in $disturbed (mean per replication)")
+    println()
+    for (counter in listOf(
+        "SpillsCleaned", "SpillsAbsorbed", "MaintenanceWindowsHeld"
+    )) {
+        val observations = runner.observationsAsMap(counter)
+        val values = checkNotNull(observations[disturbed]) {
+            "expected per-replication observations of $counter for $disturbed, got " +
+                "${observations.keys}"
+        }
+        println("  %-44s %12.2f".format(counter, Statistic(values).average))
+    }
+    println()
+    println("  SpillsAbsorbed counts the spills that landed on an aisle another spill was still")
+    println("  having closed. A zone carries one promise at a time, so the request has to be able")
+    println("  to come back empty-handed, and what to do about that belongs to the model rather")
+    println("  than to the guide path. This model absorbs them; deferring them until the aisle")
+    println("  reopens, or placing them elsewhere, would be equally reasonable readings.")
+
+    val total = differences.getValue("$sys:NumTransportersBlocked")
+    val parts = differences.getValue("$sys:NumBlockedByVehicle") +
+            differences.getValue("$sys:NumBlockedByOccupier") +
+            differences.getValue("$sys:NumBlockedByPopulation")
+    println()
+    println("  %-44s %12.4f".format("blocked time, by cause, summed", parts))
+    println("  %-44s %12.4f".format("unaccounted for", total - parts))
+    check(kotlin.math.abs(total - parts) < 1.0e-9) {
+        "the blocked-time decomposition left ${total - parts} unaccounted for, which means a cart " +
+            "was held up by something none of the three causes names"
+    }
+
+    println()
+    println("  Read NumBlockedByOccupier and NumZonesClosed together. The quiet configuration has")
+    println("  no mechanism for either, so both are exactly zero there and every minute of cart")
+    println("  obstruction in it is a cart waiting on another cart. In the disturbed configuration")
+    println("  that same total splits into separately observable quantities, and none of them had")
+    println("  to be fitted.")
+    println()
+    println("  That is the argument for the construct, and it does not depend on whether the")
+    println("  headline count separates the two runs. A shop that really has spills and closures,")
+    println("  modelled without them, must still reproduce the throughput it was calibrated on --")
+    println("  so the missing obstruction time ends up inside task times or vehicle speed, where it")
+    println("  is invisible and where it will not respond to the change a study is evaluating.")
+}
+```
+
+The `check` in the last part is the one worth copying. The three
+blocked-by causes are a decomposition, so they must sum to
+`NumTransportersBlocked` exactly — and the example asserts it to 1e-9
+rather than printing the three numbers and inviting the reader to trust
+them. If a cart is ever held up by something none of the three names, this
+example fails rather than reporting a plausible table.
+
+### What it shows
+
+Twenty paired replications:
+
+```
+  response                                       difference   half-width  detectable?
+  PartsDelivered                                    -1.5000       2.0513           no
+  TimeInSystem                                      59.1857      18.0548          yes
+  AgvSystem:NumTransportersBlocked                   0.2115       0.0121          yes
+  AgvSystem:NumBlockedByVehicle                      0.0779       0.0053          yes
+  AgvSystem:NumBlockedByOccupier                     0.1336       0.0077          yes
+  AgvSystem:NumBlockedByPopulation                   0.0000       0.0000           no
+  AgvSystem:NumZonesClosed                           0.7843       0.0419          yes
+
+  blocked time, by cause, summed                     0.2115
+  unaccounted for                                   -0.0000
+```
+
+**The headline count does not separate the two runs** — 1.5 fewer parts
+against a half-width of 2.05 — and the example says so rather than
+reaching for the significant column instead. Time in system does separate
+them, by 59 minutes.
+
+The decomposition is the finding. Obstruction rises by 0.21 carts, and
+that total splits into 0.08 caused by other **carts** and 0.13 caused by
+**something that is not a cart**. In the quiet configuration
+`NumBlockedByOccupier` and `NumZonesClosed` are exactly zero, because
+there is no mechanism for either; every minute of obstruction there is a
+cart waiting on a cart. None of the 0.13 was fitted to anything.
+
+`SpillsAbsorbed` averages 0.40 per replication: spills that landed on an
+aisle another spill was still having closed, where `trySeizeZones` answered
+null and this model chose to absorb them.
+
+Run it and you will also see a few end-of-replication warnings — a cart
+still waiting on the exit spur when the horizon arrived, named along with
+what it holds and what it wants. That is the guide path reporting that it
+stopped moving rather than ran out of work, and at a horizon it is benign.
+
+### What to learn
+
+**A holder is an interface, not a class, and that is forced rather than
+chosen.** Extent, timing and cast are all decided during the run. Make as
+many holders as the run turns out to need.
+
+**Both routes are first-class.** A process-shaped disturbance and an
+event-shaped one sit in the same model, on the same space, reported by the
+same four statistics.
+
+**A refusal is a question, not an error.** `trySeizeZones` answering null
+hands back a modelling decision the library cannot make.
+
+**Decompositions should be asserted, not printed.** The `check` that the
+three causes sum to the total is three lines and turns a plausible table
+into a checked one.
+
+---
+## 12. Three answers to one closure
+
+`ksl.examples.general.guidedpath.ZoneClosurePolicyExample`
+
+### The problem
+
+Case 11 absorbed a spill that landed on an aisle already being closed, and
+that was one choice out of several. What would the others have looked like?
+
+The question is not which policy is best. It is that the guide path has no
+way to know, so the answer has to belong to the model — and the way the
+library hands it over had better be usable.
+
+### The model
+
+One aisle of six zones, one cart, no randomness at all. Velocity and zone
+length are chosen so that **a zone is a minute**: the cart reaches Zone *k*
+at time *k*. A crew asks for `[Zone3, Zone4]` at 2.50 while the cart is
+still crossing Zone3; a spill asks for `[Zone4, Zone5]` at 2.60 and is
+refused. The same instant, three times, under three policies.
+
+### The code
+
+`ZoneClosurePolicyExample.kt` in full, minus documentation comments and imports.
+
+#### 1. Three policies, one crew, and a clock in whole minutes
+
+```kotlin
+object ZoneClosurePolicyExample {
+
+    enum class OverlapPolicy {
+        ABSORB,
+
+        DEFER,
+
+        RELOCATE
+    }
+
+    class Crew(override val name: String) : ZoneHolderIfc {
+        override val awaitedZone: Zone? get() = null
+    }
+
+    const val CREW_ASKS_AT: Double = 2.5
+    const val SPILL_ASKS_AT: Double = 2.6
+    const val RETRY_AFTER: Double = 3.0
+    const val CREW_HOLDS_FOR: Double = 4.0
+    const val CLEANUP_TAKES: Double = 2.0
+```
+
+A zone is a minute, deliberately: velocity and zone length are chosen so
+that the cart reaches Zone *k* at time *k*. Every instant on the timelines
+below is therefore checkable by hand, which is what makes this example a
+specification rather than an illustration.
+
+The three policies are not three features. They are three answers a modeller
+could reasonably give to one question, and the example exists to show that
+the library does not choose between them.
+
+#### 2. One aisle, one cart, and the reading taken before asking
+
+```kotlin
+    class Aisle(parent: ModelElement, val policy: OverlapPolicy) : ProcessModel(parent, "Aisle") {
+
+        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Aisle")
+            .link("L1", "A", "B", length = 72.0, zoneLength = 12.0)
+            .build()
+
+        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+
+        val cart = GuidedTransporter(
+            system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart"
+        )
+
+        val closureQ = HoldQueue(this, "ClosureQ")
+
+        private val crew = Crew("Crew")
+
+        private fun zones(vararg names: String) = names.map { network.zone(it)!! }
+
+        private val crewWants get() = zones("L1.Zone3", "L1.Zone4")
+        private val spillWants get() = zones("L1.Zone4", "L1.Zone5")
+        private val spillElsewhere get() = zones("L1.Zone5", "L1.Zone6")
+
+        val timeline = mutableListOf<String>()
+
+        private fun note(who: String, what: String) {
+            timeline.add("  %6.2f  %-6s %s".format(time, who, what))
+        }
+
+        private fun namesOf(zs: List<Zone>) =
+            zs.joinToString(", ", "[", "]") { it.name.removePrefix("L1.") }
+
+        private fun prospects(wanted: List<Zone>): String {
+            val promised = system.firstPromisedZone(wanted)
+            if (promised != null) {
+                return " -- refused: ${promised.name.removePrefix("L1.")} is promised to " +
+                        "${promised.closingFor?.name}, still waiting for it to drain"
+            }
+            val held = wanted.firstOrNull { it.holder != null && it.holder !is GuidedTransporter }
+            if (held != null) {
+                return " -- accepted: ${held.name.removePrefix("L1.")} is *held* by " +
+                        "${held.holder?.name}, which is not a collision; waiting for the hold to end"
+            }
+            return " -- accepted: the space is free"
+        }
+
+        // ---- the event route: a scheduled maintenance closure -----------------------------------
+
+        private val crewAction = object : ZoneHoldActionIfc {
+            override fun holdBegan(allocation: ZoneAllocation) {
+                note("Crew", "takes ${namesOf(allocation.zones)}")
+            }
+
+            override fun holdEnded(allocation: ZoneAllocation) {
+                note("Crew", "gives back ${namesOf(allocation.zones)}")
+            }
+        }
+
+        // ---- the process route: a spill that has to decide ---------------------------------------
+
+        inner class Spill : Entity("Spill") {
+            @Suppress("unused")
+```
+
+`prospects` is the reading the spill takes **before** it asks, and it uses
+the surface a model is meant to use: `firstPromisedZone` for the overlap
+that would refuse, and then the distinction the whole case turns on —
+
+```kotlin
+val held = wanted.firstOrNull { it.holder != null && it.holder !is GuidedTransporter }
+```
+
+A zone that is *promised* to a pending closure refuses. A zone that is
+already *held* does not: asking for it is ordinary and the request waits for
+the hold to end. Those are different conditions, and reading them as one is
+the mistake this example was written to make visible.
+
+#### 3. The spill's loop: refused, then absorb, defer or relocate
+
+```kotlin
+            val cleanup = process(isDefaultProcess = true) {
+                var wanted = spillWants
+                var relocated = false
+                while (true) {
+                    // The one call that can come back empty-handed. Everything a request must
+                    // satisfy besides an overlap still raises, so a null here means exactly one
+                    // thing: some zone of the set is promised to a closure still waiting for it.
+                    note("Spill", "asks for ${namesOf(wanted)}${prospects(wanted)}")
+                    val taken = trySeizeZones(system, wanted, closureQ)
+                    if (taken != null) {
+                        note("Spill", "takes ${namesOf(taken.zones)}")
+                        delay(CLEANUP_TAKES)
+                        releaseZones(system)
+                        note("Spill", "gives back ${namesOf(wanted)}")
+                        return@process
+                    }
+                    when (policy) {
+                        OverlapPolicy.ABSORB -> {
+                            note("Spill", "absorbed into the closure already there; nothing to do")
+                            return@process
+                        }
+                        OverlapPolicy.DEFER -> {
+                            note("Spill", "deferring $RETRY_AFTER minutes and asking again")
+                            delay(RETRY_AFTER)
+                        }
+                        OverlapPolicy.RELOCATE -> {
+                            if (relocated) {
+                                note("Spill", "nowhere left to move it; absorbed")
+                                return@process
+                            }
+                            relocated = true
+                            wanted = spillElsewhere
+                            note("Spill", "moving the work to ${namesOf(wanted)}")
+                        }
+                    }
+                }
+            }
+        }
+
+        init {
+            cart.attachArrivalListener { note("Cart", "reaches B") }
+        }
+
+        override fun initialize() {
+            timeline.clear()
+            schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
+            schedule({ _: KSLEvent<Nothing> ->
+                note("Crew", "asks for ${namesOf(crewWants)} -- the cart is still crossing Zone3")
+                system.tryHoldZonesFor(crew, crewWants, CREW_HOLDS_FOR, crewAction)
+            }, CREW_ASKS_AT)
+            schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, SPILL_ASKS_AT)
+        }
+    }
+```
+
+One loop, three policies, and the only branch is what to do about null.
+ABSORB gives up and records that it did. DEFER waits `RETRY_AFTER` and asks
+again. RELOCATE asks for different space. The call that may be refused is
+the same in all three.
+
+#### 4. One timeline per policy
+
+```kotlin
+    const val HORIZON: Double = 20.0
+
+    fun timelineFor(policy: OverlapPolicy): List<String> {
+        val m = Model("ClosurePolicy_$policy")
+        val aisle = Aisle(m, policy)
+        aisle.system.checkInvariants = true
+        m.numberOfReplications = 1
+        m.lengthOfReplication = HORIZON
+        m.simulate()
+        return aisle.timeline.toList()
+    }
+}
+
+fun main() {
+    println()
+    println("One condition, three answers: the space asked for is already promised")
+    println("A zone is a minute. The cart reaches Zone k at time k and holds it until k+1.")
+
+    for (policy in ZoneClosurePolicyExample.OverlapPolicy.entries) {
+        println()
+        println("$policy")
+        for (line in ZoneClosurePolicyExample.timelineFor(policy)) {
+            println(line)
+        }
+    }
+
+    println()
+    println("  ABSORB closes the least space: the spill is dealt with as part of the closure that")
+    println("  was already being set up, and nothing waits.")
+    println()
+    println("  DEFER is the one to read twice. The retry succeeds, and it succeeds because by then")
+    println("  the crew *holds* Zone4 rather than being promised it -- a held zone is not a")
+    println("  collision, and asking for one is ordinary: the request is accepted and waits for the")
+    println("  hold to end. A guard written by hand as \"is anything closing or holding this zone?\"")
+    println("  would have turned this closure away, silently, and it works perfectly well.")
+    println()
+    println("  RELOCATE gets the work done soonest, and the timeline shows what that costs. The two")
+    println("  closures overlap in time without overlapping in space, so more of the aisle is shut")
+    println("  at once -- and the cart, which reaches B at 6.0 under the other two policies, is held")
+    println("  up behind the relocated closure and reaches it at 6.6. The maintenance crew's own")
+    println("  closure starts later for the same reason.")
+    println()
+    println("  None of the three is more correct than the others, which is the whole point: the")
+    println("  guide path cannot know whether a second spill in the same aisle is one spill, a")
+    println("  spill that waits, or a spill somewhere else. So the verb answers null and the model")
+    println("  decides.")
+}
+```
+
+Twenty minutes, one replication, no randomness: `timelineFor` returns a list
+of strings, and the three lists are the result. There are no statistics and
+no intervals here on purpose — this case is a specification of behaviour,
+and case 5 is the other deterministic one.
+
+### What it shows
+
+Three timelines. Every instant is checkable by hand.
+
+```
+ABSORB
+    2.50  Crew   asks for [Zone3, Zone4] -- the cart is still crossing Zone3
+    2.60  Spill  asks for [Zone4, Zone5] -- refused: Zone4 is promised to Crew, still waiting for it to drain
+    2.60  Spill  absorbed into the closure already there; nothing to do
+    5.00  Crew   takes [Zone3, Zone4]
+    6.00  Cart   reaches B
+    9.00  Crew   gives back [Zone3, Zone4]
+
+DEFER
+    2.60  Spill  deferring 3.0 minutes and asking again
+    5.00  Crew   takes [Zone3, Zone4]
+    5.60  Spill  asks for [Zone4, Zone5] -- accepted: Zone4 is *held* by Crew, which is not a collision; waiting for the hold to end
+    6.00  Cart   reaches B
+    9.00  Crew   gives back [Zone3, Zone4]
+    9.00  Spill  takes [Zone4, Zone5]
+   11.00  Spill  gives back [Zone4, Zone5]
+
+RELOCATE
+    2.60  Spill  moving the work to [Zone5, Zone6]
+    2.60  Spill  takes [Zone5, Zone6]
+    4.60  Spill  gives back [Zone5, Zone6]
+    5.60  Crew   takes [Zone3, Zone4]
+    6.60  Cart   reaches B
+    9.60  Crew   gives back [Zone3, Zone4]
+```
+
+**DEFER is the one to read twice.** The retry at 5.60 succeeds, and it
+succeeds because by then the crew *holds* Zone4 rather than being promised
+it. A held zone is not a collision: the request is accepted and waits for
+the hold to end. A guard written by hand as "is anything closing **or
+holding** this zone?" would have turned this closure away — silently, and
+it works perfectly well.
+
+**RELOCATE gets the work done soonest and the timeline shows the cost.**
+The two closures overlap in time without overlapping in space, so more of
+the aisle is shut at once, and the cart reaches B at **6.60** instead of
+6.00. The crew's own closure starts 0.60 later for the same reason. A
+policy chosen on "the spill is cleaned by 4.60" alone would have missed
+both.
+
+### What to learn
+
+**Promised and held are different conditions.** This is the distinction the
+whole zone-closure design rests on, and the one a hand-written check gets
+wrong. `firstPromisedZone` asks the right question; `Zone.refusalFor` asks
+it for a named claimant, which matters because a reserved zone admits the
+holder it was promised to and refuses a stranger.
+
+**A library should refuse to choose where it cannot know.** The `try` verbs
+answer null and stop there. None of these three policies is more correct
+than the others.
+
+**Determinism is a feature in an example.** No statistics, no intervals, no
+streams — a reader can verify every line against the arithmetic, which an
+averaged result never allows. Case 5 is the other one.
+
+---
+## What the twelve have in common
+
+**Five of them exist to prevent a false conclusion**, not to demonstrate a
 feature — and that is the habit worth carrying into your own models:
 
 | Example | The false conclusion it prevents |
@@ -4665,6 +5457,7 @@ feature — and that is the habit worth carrying into your own models:
 | 4, a deliberately poor rule | "Nearest is better" as an assertion |
 | 7, demand above capacity | "Throughput flattened, so the aisles bind" |
 | 8, the throughput column first | "It's faster" when it served fewer loads |
+| 11, the decomposition asserted | "The obstruction time adds up" without checking that it does |
 
 **Two are explicitly not tests** (9 and 10), because a wall-clock number should
 not fail somebody else's build.
@@ -4677,8 +5470,8 @@ not fail somebody else's build.
 
 ---
 
-**Every comparison here is paired, and none of them was to begin with.** The six studies
-that compare configurations — 1, 2, 4, 6, 7 and 8 — all run their alternatives on common
+**Every comparison here is paired, and none of them was to begin with.** The seven studies
+that compare configurations — 1, 2, 4, 6, 7, 8 and 11 — all run their alternatives on common
 random numbers and all report the difference **replication by replication**, with a
 half-width beside it. That is not decoration:
 
@@ -4694,8 +5487,8 @@ the same in every case and it is three lines of code: run the alternatives throu
 `ScenarioRunner` so they share their run parameters and their streams, ask it for
 `observationsAsMap`, and hand that to a `MultipleComparisonAnalyzer`.
 
-**Two cases deliberately report no intervals**, and say so: case 5 is deterministic, and
-cases 9 and 10 measure wall-clock time on one machine.
+**Three cases deliberately report no intervals**, and say so: cases 5 and 12 are
+deterministic, and cases 9 and 10 measure wall-clock time on one machine.
 
 ---
 

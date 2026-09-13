@@ -1144,6 +1144,9 @@ dispatching moves around is the larger.
 - [`ksl-simulation`](ksl-simulation.md) — `ModelElement` lifecycle, which
   is where placement reset between replications happens.
 - `KSLExamples`: `ksl.examples.general.guidedpath.SimpleAGVExample` and
-  `GuidedPathThroughputBenchmark`;
+  `GuidedPathThroughputBenchmark`; `GuidePathDisturbancesExample` (spills and
+  a maintenance window, both routes to holding space, paired against the same
+  layout undisturbed) and `ZoneClosurePolicyExample` (one overlapping closure,
+  three answers, as deterministic timelines);
   `ksl.examples.book.chapter8.TestAndRepairShopWithGuidedTransporters`,
   which is the chapter-eight shop with its transport moved onto an aisle.
