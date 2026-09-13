@@ -33,6 +33,7 @@ import ksl.modeling.guidedpath.GuidedPathNetwork
 import ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
 import ksl.modeling.guidedpath.GuidedPathSpace
 import ksl.modeling.guidedpath.Zone
+import ksl.modeling.guidedpath.ZoneCrossing
 import ksl.modeling.guidedpath.ZoneHolderIfc
 import ksl.modeling.guidedpath.ZoneHolderRecordIfc
 import ksl.modeling.spatial.*
@@ -497,6 +498,37 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  traffic for the rest of the replication with nothing holding it and nothing coming to
          *  release it.
          */
+        // ---- standing on a crossing ------------------------------------------------------
+
+        private val myCrossings: MutableSet<ZoneCrossing> = mutableSetOf()
+
+        internal fun crossingJoined(crossing: ZoneCrossing) {
+            myCrossings.add(crossing)
+        }
+
+        internal fun crossingLeft(crossing: ZoneCrossing) {
+            myCrossings.remove(crossing)
+        }
+
+        /** True while this entity is waiting for, or standing on, a crossing. */
+        val isUsingCrossing: Boolean
+            get() = myCrossings.isNotEmpty()
+
+        /**
+         *  Takes this entity off every crossing it is waiting for or standing on.
+         *
+         *  The population edge the design record calls the single most likely hand-rolling error: a
+         *  walker that is interrupted or destroyed must still leave the count, or the crossing
+         *  stays shut to vehicles for the rest of the replication with nobody on it and nothing
+         *  coming to say so.
+         */
+        fun leaveAllCrossings() {
+            for (crossing in myCrossings.toList()) {
+                crossing.abandon(this)
+            }
+            myCrossings.clear()
+        }
+
         fun releaseAllZones() {
             // Copied, because each release calls back to remove the space from the set.
             for (space in myZoneSpaces.toList()) {
@@ -1212,6 +1244,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     msg.appendLine(zoneSpaceAsString())
                     throw IllegalStateException(msg.toString())
                 }
+                // A crossing needs no check of its own here, and the absence is deliberate.
+                // Seizing and releasing guide-path space are two verbs a model can fail to pair;
+                // crossing is one verb that steps on, walks and steps off, so completing a process
+                // while still on a crossing is not something a model can express. The termination
+                // path below is a different matter -- an unwound process never reaches its own
+                // step-off -- and that one does clean up.
                 // okay to dispose of the entity
                 if (autoDispose) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id is being disposed by ${processModel.name}" }
@@ -3174,6 +3212,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (usesZoneSpace) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all guide-path space." }
                     releaseAllZones()
+                }
+                if (isUsingCrossing) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity leaving all crossings." }
+                    leaveAllCrossings()
                 }
                 //TODO need to handle blockages in termination. This entity has been terminated, what to do about blocked entities?
                 if (isQueued) {

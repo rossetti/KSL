@@ -349,6 +349,13 @@ tasks.register<JavaExec>("zoneClosurePolicyExample") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+tasks.register<JavaExec>("crossingArbiterExample") {
+    group = "examples"
+    description = "One pedestrian crossing, four admission disciplines, and two broken models."
+    mainClass.set("ksl.examples.general.guidedpath.CrossingArbiterExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
 tasks.register<JavaExec>("retaskingExample") {
     group = "examples"
     description = "Run the re-tasking in flight example."

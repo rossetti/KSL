@@ -20,6 +20,7 @@ package ksl.modeling.guidedpath.internal
 import ksl.modeling.guidedpath.GuidedPathSpace
 import ksl.modeling.guidedpath.GuidedTransporter
 import ksl.modeling.guidedpath.IntersectionZone
+import ksl.modeling.guidedpath.ZonePopulationHostIfc
 import ksl.modeling.guidedpath.LinkZone
 import ksl.modeling.guidedpath.TransporterState
 import ksl.modeling.guidedpath.Zone
@@ -205,7 +206,11 @@ internal class ZoneInvariantChecker(
             if (zone.numPresent < 0) {
                 violate("zone (${zone.name}) reports ${zone.numPresent} occupants")
             }
-            if (holder != null && zone.numPresent > 0) {
+            // The one legitimate exception, and it is a type rather than a flag so that this check
+            // can keep its teeth: a crossing holds its zones to drain vehicles off them and then
+            // admits its own people onto what it holds. Everywhere else, held-and-populated is the
+            // defect this invariant exists to catch.
+            if (holder != null && holder !is ZonePopulationHostIfc && zone.numPresent > 0) {
                 violate(
                     "zone (${zone.name}) is held by (${holder.name}) and also has " +
                             "${zone.numPresent} occupant(s) present"

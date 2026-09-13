@@ -2633,6 +2633,57 @@ interface KSLProcessBuilder {
         space.releaseZones(entity)
     }
 
+    /**
+     * Waits for a turn, crosses guide-path space on foot, and steps off the other side.
+     *
+     * The whole of a pedestrian's part in a crossing, in one verb, because the three steps have to
+     * happen together: joining the queue, stepping on once the crossing's arbiter opens a turn, and
+     * -- above all -- **stepping off**. A walker that steps on and does not step off leaves a
+     * population behind that no vehicle can pass, which is the error the construct exists to make
+     * unlikely, so the verb does not offer the halves separately.
+     *
+     * Does not suspend at all when a turn is already open and the arbiter admits: the walker steps
+     * on in the instant it arrives, waits `crossingTime`, and steps off.
+     *
+     * Whether the walker waits, and for how long, is the [ZoneCrossing]'s arbiter's business, not
+     * this verb's -- which is the point of the arbiter being substitutable. The walk itself is a
+     * plain delay: the crossing is space, not a server.
+     *
+     * ```
+     * inner class Pedestrian : Entity() {
+     *     val walk = process {
+     *         crossOnFoot(crossing, crossingTime, crossingQ)
+     *     }
+     * }
+     * ```
+     *
+     * @param crossing the crossing to use
+     * @param crossingTime how long this walker takes to get across, strictly positive
+     * @param queue where to wait for a turn
+     * @param requestPriority orders this walker against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     */
+    suspend fun crossOnFoot(
+        crossing: ZoneCrossing,
+        crossingTime: Double,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ) {
+        require(crossingTime > 0.0) {
+            "Entity ${entity.id} was given $crossingTime to cross (${crossing.name}), which is " +
+                    "not a duration."
+        }
+        entity.crossingJoined(crossing)
+        if (!crossing.joinAndTryToCross(entity, queue)) {
+            hold(queue, requestPriority, suspensionName)
+            crossing.stepOnAfterWaiting()
+        }
+        delay(crossingTime, suspensionName = suspensionName)
+        crossing.stepOff()
+        entity.crossingLeft(crossing)
+    }
+
     // ---- active guided vehicles ---------------------------------------------------------------
     //
     // These sit beside the guided-path verbs above and answer the same question under a different

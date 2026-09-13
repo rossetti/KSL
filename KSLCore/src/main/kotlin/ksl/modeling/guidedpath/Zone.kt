@@ -311,7 +311,14 @@ sealed class Zone {
      *
      * @return true when the zone was open and the occupant is now present
      */
-    internal fun admit(): Boolean {
+    internal fun admit(under: ZonePopulationHostIfc? = null): Boolean {
+        // A population host admits onto space it is already holding, which is the only way to say
+        // "closed to vehicles, open to people". It has drained the vehicles off by holding the
+        // zone; letting its own people on is the point of having done so.
+        if (under != null && holder === under) {
+            numPresent++
+            return true
+        }
         if (state != ZoneState.FREE) return false
         if (closure != null) return false
         numPresent++

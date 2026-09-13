@@ -976,12 +976,12 @@ open class GuidedPathSpace @JvmOverloads constructor(
      *
      * @return true when the occupant is now present in the zone
      */
-    internal fun admitToZone(zone: Zone): Boolean {
+    internal fun admitToZone(zone: Zone, under: ZonePopulationHostIfc? = null): Boolean {
         require(zone in network.zones) {
             "Zone (${zone.name}) is not on guide path (${this.name})."
         }
         auditFinishedInstant()
-        return zone.admit()
+        return zone.admit(under)
     }
 
     /**
