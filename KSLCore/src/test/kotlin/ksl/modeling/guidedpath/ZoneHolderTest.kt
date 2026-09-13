@@ -390,7 +390,7 @@ class ZoneHolderTest {
         // real effect, and invisible unless it is counted.
         val a = run(requestAt = 2.5, releaseAt = 20.0)
         assertEquals(
-            1.5 / 40.0, a.system.numWaitingForZones.withinReplicationStatistic.weightedAverage, 1e-9,
+            1.5 / 40.0, a.system.numHoldersAwaitingSpace.withinReplicationStatistic.weightedAverage, 1e-9,
             "the mean number of holders waiting for space to drain"
         )
         assertEquals(1.5, a.system.timeToCloseZones.withinReplicationStatistic.weightedAverage, 1e-9)
@@ -695,7 +695,7 @@ class ZoneHolderTest {
 
     @Test
     fun `the waiting count and the drain delay are the same fact measured two ways`() {
-        // Little's law as an assertion. The time-average of NumWaitingForZones over the run must
+        // Little's law as an assertion. The time-average of NumHoldersAwaitingSpace over the run must
         // equal the total of every request's drain delay divided by the run length, because both
         // measure the same thing: how much request-time was spent waiting for space. Tying them
         // together is what would catch one of them being updated on a path the other is not.
@@ -732,7 +732,7 @@ class ZoneHolderTest {
         assertEquals(5.5 / 3.0, delay.weightedAverage, 1e-9, "1.5 + 0.0 + 4.0, over three requests")
         assertEquals(
             5.5 / 40.0,
-            a.system.numWaitingForZones.withinReplicationStatistic.weightedAverage, 1e-9,
+            a.system.numHoldersAwaitingSpace.withinReplicationStatistic.weightedAverage, 1e-9,
             "the same 5.5 minutes of waiting, measured as a time-average instead"
         )
     }

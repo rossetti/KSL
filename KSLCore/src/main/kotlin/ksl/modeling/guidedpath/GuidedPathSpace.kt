@@ -1300,8 +1300,8 @@ open class GuidedPathSpace @JvmOverloads constructor(
     val numZonesClosed: TWResponseCIfc
         get() = myNumZonesClosed
 
-    private val myNumWaitingForZones =
-        TWResponse(this, name = "${this.name}:NumWaitingForZones")
+    private val myNumHoldersAwaitingSpace =
+        TWResponse(this, name = "${this.name}:NumHoldersAwaitingSpace")
 
     /**
      * How many holders are waiting for guide-path space to drain.
@@ -1316,8 +1316,8 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * stream of spills, a picker entity per rack face -- so a response per holder would be a
      * response count that nobody can state before the run. Four numbers describe any model.
      */
-    val numWaitingForZones: TWResponseCIfc
-        get() = myNumWaitingForZones
+    val numHoldersAwaitingSpace: TWResponseCIfc
+        get() = myNumHoldersAwaitingSpace
 
     private val myTimeToCloseZones = Response(this, name = "${this.name}:TimeToCloseZones")
 
@@ -1383,6 +1383,68 @@ open class GuidedPathSpace @JvmOverloads constructor(
     fun firstPromisedZone(zones: List<Zone>): Zone? = zones.firstOrNull { it.closingFor != null }
 
     /**
+     * True when a vehicle is standing in this zone that nothing in the model will move again.
+     *
+     * The one case where "this space will never come free" is a judgement the guide path can
+     * actually make. The vehicle carries nobody, has no route under way and waits for nothing
+     * ([GuidedTransporter.isPermanentlyStationary]), so no event on the calendar and no process in
+     * flight is going to shift it. A closure asked for over such a zone is granted only if some
+     * other part of the model dispatches that vehicle.
+     *
+     * **Deliberately narrow, and the narrowness was bought.** An earlier version of this also
+     * called an *untimed* hold indefinite, on the reasoning that a timed hold puts its release on
+     * the calendar and an untimed one does not. That is wrong, and one example proved it: a spill
+     * entity holding space through `trySeizeZones` releases it when its process resumes, which is
+     * every bit as certain as a clock and simply invisible from here. The overreach produced 139
+     * warnings in a model with no faults in it at all. A holder's untimed hold and a holder that
+     * has forgotten to release look identical from inside the guide path, so this does not guess
+     * between them.
+     *
+     * A reading about one instant rather than a proof, for the same reason the deadlock detector's
+     * idle obstruction is: an entity may seize the vehicle a moment later. That is why nothing is
+     * raised or warned on the strength of it -- a model asks this and decides for itself.
+     *
+     * False for a free zone whatever is reserved or present in it. A reservation is a different
+     * question with a different answer -- see [firstPromisedZone].
+     */
+    fun isHeldByStationaryVehicle(zone: Zone): Boolean {
+        val current = zone.holder ?: return false
+        return current is GuidedTransporter && current.isPermanentlyStationary
+    }
+
+    /**
+     * The zone of this set that a parked vehicle is standing in, or null when none is.
+     *
+     * The companion of [firstPromisedZone], and deliberately a separate question rather than an
+     * extra reason folded into the same one. "Is this promised to somebody else?" and "is anything
+     * parked in it?" are different properties with different remedies, and this subsystem has
+     * already paid three defects for treating two different properties as one word. A request
+     * refused by a promise fails at once and says so; a request over space a parked vehicle
+     * occupies succeeds, waits, and is never granted -- the quiet failure [numRequestsUnfilled]
+     * counts and the end-of-replication report names.
+     *
+     * Checking first is what turns that into a decision:
+     *
+     * ```
+     * val parked = space.firstZoneHeldByStationaryVehicle(aisle.zones)
+     * if (parked != null) {
+     *     dispatch(parked.holder)          // move it, clean elsewhere, or postpone
+     * } else {
+     *     space.holdZonesFor(crew, aisle.zones, cleanupTime.value, this)
+     * }
+     * ```
+     *
+     * It is not a guarantee that a set which passes will drain promptly: a busy aisle takes as long
+     * as it takes, and a holder that never releases its own untimed hold is a fault this cannot
+     * see. What it rules out is the one hopeless case the guide path can recognise.
+     *
+     * @param zones the zones a closure would cover
+     * @return the first zone with a parked vehicle in it, or null when none has one
+     */
+    fun firstZoneHeldByStationaryVehicle(zones: List<Zone>): Zone? =
+        zones.firstOrNull { isHeldByStationaryVehicle(it) }
+
+    /**
      * Everything a request must satisfy regardless of whether an overlap refuses it or answers null.
      *
      * These are all programming errors rather than conditions of the guide path -- a malformed set,
@@ -1439,7 +1501,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         auditFinishedInstant()
         val request = ZoneRequest(holder, zones, time, holdFor, myNextRequestSequence++, action)
         myZoneRequests[holder] = request
-        myNumWaitingForZones.value = myZoneRequests.size.toDouble()
+        myNumHoldersAwaitingSpace.value = myZoneRequests.size.toDouble()
         // A holder whose lifetime somebody else ends needs a back-pointer from here, or space it
         // asked for would never be given back. Told at the request rather than at the grant: a
         // holder killed while its aisle is still draining holds nothing yet, and the reservation it
@@ -1479,7 +1541,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             }
         }
         myZoneRequests.remove(holder)
-        myNumWaitingForZones.value = myZoneRequests.size.toDouble()
+        myNumHoldersAwaitingSpace.value = myZoneRequests.size.toDouble()
         val allocation = ZoneAllocation(request, time)
         myZoneAllocations[holder] = allocation
         request.allocation = allocation
@@ -1502,10 +1564,57 @@ open class GuidedPathSpace @JvmOverloads constructor(
     }
 
     /**
+     * Gives back exactly the space this allocation covers, and complains if it is not current.
+     *
+     * **The form to prefer.** [releaseZones] taking a holder is keyed on object identity, and a
+     * holder is minted during the run -- so releasing the wrong instance of a crew, or a crew whose
+     * space has already gone back, is an easy slip that does nothing at all and says nothing about
+     * it. The zone stays closed for the rest of the replication and the model quietly stops being
+     * the one that was written.
+     *
+     * An allocation cannot be got wrong in that way. It is handed to
+     * [ZoneHoldActionIfc.holdBegan] at the moment the hold began, it names one hold rather than one
+     * holder, and releasing it twice raises instead of passing silently.
+     *
+     * ```
+     * override fun holdBegan(allocation: ZoneAllocation) {
+     *     mine = allocation                       // hold on to it
+     * }
+     * fun cleanupFinished() {
+     *     space.releaseZones(mine)                // and give back exactly that
+     * }
+     * ```
+     *
+     * @param allocation the grant to give back, as handed to [ZoneHoldActionIfc.holdBegan]
+     * @throws IllegalStateException if it has already been released, or is not the holder's current
+     *   grant on this guide path
+     */
+    fun releaseZones(allocation: ZoneAllocation) {
+        val holder = allocation.holder
+        val current = myZoneAllocations[holder]
+        check(current != null) {
+            "Allocation for holder (${holder.name}) cannot be released: it holds no space on guide " +
+                    "path ($name)" +
+                    if (allocation.releasedAt.isNaN()) " and this grant was never current." else
+                        " -- this grant was already released at ${allocation.releasedAt}."
+        }
+        check(current === allocation) {
+            "Allocation for holder (${holder.name}) is not its current grant on guide path " +
+                    "($name). It now holds [${current.zones.joinToString { it.name }}], asked for " +
+                    "at ${current.requestedAt}, not [${allocation.zones.joinToString { it.name }}] " +
+                    "asked for at ${allocation.requestedAt}."
+        }
+        releaseZones(holder)
+    }
+
+    /**
      * Gives back whatever a holder holds, or gives up what it asked for and never got.
      *
      * Harmless when it holds and wants nothing, which is what lets a process release
-     * unconditionally rather than asking first.
+     * unconditionally rather than asking first -- and that forgiveness is exactly why the
+     * [releaseZones] that takes a [ZoneAllocation] is the better form for a model to use. A holder
+     * is made during the run, so naming the wrong one here is silent and leaves space closed for
+     * good; naming the wrong allocation raises.
      *
      * A request given up while it was **still draining** tells nobody, and that is the contract on
      * [ZoneHoldActionIfc] rather than an omission: abandonment is always the caller's own act, so
@@ -1517,7 +1626,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
             // Asked for, still draining, and no longer wanted: the aisle was going to be closed
             // and now is not. The zones reopen without ever having been held.
             request.isAbandoned = true
-            myNumWaitingForZones.value = myZoneRequests.size.toDouble()
+            myNumHoldersAwaitingSpace.value = myZoneRequests.size.toDouble()
             (holder as? ZoneHolderRecordIfc)?.zoneSpaceFinished(this)
             for (zone in request.zones) {
                 zone.abandonReservation(request)

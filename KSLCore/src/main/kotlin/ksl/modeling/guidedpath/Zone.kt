@@ -166,6 +166,27 @@ sealed class Zone {
         get() = state == ZoneState.FREE && numPresent == 0
 
     /**
+     * Why this zone would refuse a claim from [claimant], or null when [claimant] could take it.
+     *
+     * The question a modeller has to be able to ask, and the reason it is answered here rather than
+     * left to be worked out: getting it right needs three facts in the right order *and* the
+     * claimant's own identity, and a hand-written version will get the last part wrong. A zone
+     * reserved for a closure refuses a stranger and admits both the holder it was promised to and a
+     * vehicle escaping an older reservation -- so "is this zone reserved?" is not the same question
+     * as "would it refuse me?", and only the second one predicts what happens.
+     *
+     * [claim] is this same function, which is what keeps the two from drifting. A check that
+     * disagreed with the claim it predicts would be worse than no check at all.
+     */
+    fun refusalFor(claimant: ZoneHolderIfc): ZoneRefusal? {
+        if (state != ZoneState.FREE) return ZoneRefusal.HELD
+        if (numPresent > 0) return ZoneRefusal.OCCUPIED
+        val closing = closure
+        if (closing != null && !closing.admits(claimant)) return ZoneRefusal.RESERVED
+        return null
+    }
+
+    /**
      * Reserves the zone for a closure, so that it drains rather than being handed to the next
      * vehicle along.
      */
@@ -213,14 +234,14 @@ sealed class Zone {
         check(holder !== claimant) {
             "Zone ($name) is already held by (${claimant.name}), which cannot claim it a second time."
         }
-        if (state != ZoneState.FREE) return false
-        if (numPresent > 0) return false
-        // A closure decides for itself who may still take the zone. The holder it is promised to
-        // may, which is how a granted reservation is taken up -- and so may a vehicle that is
-        // already inside the region being closed, which is what lets it get out. The null test is
-        // all the hot path pays; the question is only asked of a zone that is actually closing.
+        // The three refusals, in order, live on [refusalFor] so that the check a modeller makes
+        // before claiming and the claim itself cannot disagree. A closure decides for itself who
+        // may still take the zone: the holder it is promised to may, which is how a granted
+        // reservation is taken up, and so may a vehicle already inside the region being closed,
+        // which is what lets it get out. The enum entries are singletons and the call inlines, so
+        // the hot path still pays one state test, one integer test and one null test.
+        if (refusalFor(claimant) != null) return false
         val closing = closure
-        if (closing != null && !closing.admits(claimant)) return false
         state = ZoneState.CLAIMED
         holder = claimant
         // A closure ends when the holder it was promised to takes the zone, and not when somebody
