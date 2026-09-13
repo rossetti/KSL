@@ -614,13 +614,29 @@ happen when the space is already promised to somebody else:
 |---|---|---|
 | Hold for a **known duration**, released automatically | `holdZonesFor` / `holdZoneFor` | `seizeZones` + `delay` + `releaseZones` |
 | Hold until **the model decides**, released by hand | `requestZones` / `requestZone` | `seizeZones`, released when the process resumes |
-| **Give up** rather than queue behind another closure | `tryHoldZonesFor` / `tryRequestZones` (null on overlap) | `trySeizeZones` (null on overlap) |
+| **Give up** rather than queue behind another closure | `tryHoldZonesFor` / `tryHoldZoneFor` / `tryRequestZones` / `tryRequestZone` (null on overlap) | `trySeizeZones` / `trySeizeZone` (null on overlap) |
+| **Take a turn** behind the closure already promised the zone | any verb above with `onOverlap = ZoneOverlap.QUEUE` | `seizeZones(..., onOverlap = ZoneOverlap.QUEUE)` |
+| Close the same space **over and over** on a schedule | `ZoneClosureDriver` | — |
 | Give the space back | `releaseZones(allocation)` — preferred | `releaseZones(space)` |
 
 Prefer the **timed** form where the duration is known: the release is on the
 calendar and cannot be forgotten. Prefer the **`try`** form where an overlap
 should change the plan rather than delay it — a second spill in the same
 aisle is absorbed by the crew already there, not queued behind it.
+
+**`ZoneOverlap.QUEUE` is not a way to make an inconvenient refusal go
+away.** It serialises the closures, which is right for maintenance windows
+on one leg or work that genuinely repeats, and wrong — quietly wrong — for
+one spill reported twice, which it will then have cleaned twice. The
+default, `ZoneOverlap.RAISE`, exists to make you say which you meant.
+
+Use `ZoneClosureDriver` for a closure that recurs: it samples an interval
+and a duration, mints a holder per closure and asks, which is the shape a
+model writes identically every time. It adds no capability — it is
+`holdZonesFor` and an event — but it rules out the two errors that shape
+invites: sampling the duration twice, so the zones reopen at one instant
+and the model resumes at another, and reusing one holder, which is refused
+because a holder is the identity of *one* closure.
 
 A zone another holder merely **holds** is not an overlap. Asking for it
 succeeds and waits for the hold to end. Only a zone already *promised* to a
@@ -733,12 +749,102 @@ closures attempted means they were not happening at all. `waitingRequests`
 is the same information as data — who asked, when, and for what — for a
 model that would rather assert than read.
 
+### …let people cross an aisle that vehicles also use?
+
+Build a `ZoneCrossing` over the zones they cross, give it an arbiter, and
+let pedestrians use it with `crossOnFoot`.
+
+```kotlin
+val crossing = ZoneCrossing(
+    this, system, listOf(network.zone("Aisle.Zone3")!!),
+    arbiter = BoundedBatchArbiter(batchSize = 3, maxWait = 5.0),
+    name = "Walkway"
+)
+val walkQ = HoldQueue(this, "WalkQ")
+
+inner class Walker : Entity() {
+    val walk = process { crossOnFoot(crossing, walkTime.value, walkQ) }
+}
+```
+
+`crossOnFoot` waits for a turn, crosses, and **steps off**. The three are
+one verb on purpose: a walker that steps on and does not step off leaves a
+population behind that no vehicle can pass and nothing will ever remove.
+
+**A crossing is a `ModelElement`, and a holder is not.** That contrast is
+the clearest statement of what each construct is for. A spill happens at
+minute 137.4 on whichever aisle the sample picks, so nothing about it can
+be declared before the run — hence `ZoneHolderIfc`, two members, made as
+often as the run needs. A crossing is a piece of the layout: one of it,
+named, with statistics and a discipline that remembers. So it is an
+element, built with the model.
+
+**The arbiter is the point, and it answers two questions.** This is the
+part a single shared resource hides, and getting it wrong produces a model
+that runs and reports and does not represent what it claims to:
+
+| The discipline decides | Leave it out and |
+|---|---|
+| may this walker step on now? | — |
+| should vehicles be held off? | — |
+| **only the first** | vehicles starve: under steady pedestrian flow there is never an instant with nobody waiting, so the crossing never reopens |
+| **only the second** | pedestrians never cross: traffic never leaves a long enough gap |
+
+Four ship, and they are there to be compared rather than defaulted to:
+
+| Arbiter | Discipline |
+|---|---|
+| `PedestrianPriorityArbiter` | people go whenever they arrive; **starves traffic** |
+| `VehiclePriorityArbiter` | traffic goes whenever it arrives; **starves people** |
+| `AlternatingArbiter(walkTime, driveTime)` | a signal with a cycle: each side gets a share that does not depend on how hard the other pushes |
+| `BoundedBatchArbiter(batchSize, maxWait)` | gap acceptance: this group finishes, new arrivals hold |
+
+Write your own by implementing `CrossingArbiterIfc`. Because the population
+count lives on the zone, a rule may be written against **crowding** as well
+as time — "admit while fewer than k are on it", "close the group at the
+zone's limit". What is too many is a modelling statement, and the zone only
+reports the number.
+
+If your rule depends on **elapsed time** — "open once the first of them has
+waited five minutes" — implement `reviewAt` as well. The crossing asks its
+questions when something happens, and a deadline is an instant at which, by
+construction, nothing happens; without `reviewAt` one walker waiting alone
+would wait for ever.
+
+`CrossingArbiterExample` runs all four over the same deterministic 120
+minutes and shows both failures happening.
+
+**How a turn works**, because it is worth knowing what the crossing does to
+your traffic. When the arbiter decides to bar vehicles, the crossing
+**requests its zones as a holder** — so traffic already on them drains off
+through the ordinary all-or-nothing machinery, and the turn opens on every
+zone at one instant or on none. Nothing is evicted and no cart is stranded
+half way across. It then admits its own people onto what it holds, which is
+what `ZonePopulationHostIfc` means and the only exception to "a held zone
+admits nobody". The turn ends when the arbiter stops barring **and** the
+last person is off: a turn always finishes, because an arbiter can stop
+admitting but never evict.
+
+The statistics are the crossing's own: `turnsTaken`, `crossingsMade`,
+`fracTimeBarred` (which counts the drain as barred, because a cart arriving
+during it is refused exactly as one arriving mid-turn is), `waitToCross`
+and `numWaitingResponse`.
+
 ### …animate it?
 
 Nothing to switch on. When an animation sink is active the system emits
-`GuidedPathDefined` once per replication and a `GuidedTransporterMoved`
-each time a transporter enters a zone. The guide path carries its own
-coordinates, so — unlike a conveyor — it needs no authored layout.
+`GuidedPathDefined` once per replication, a `GuidedTransporterMoved` each
+time a transporter enters a zone, and a `GuidedTransporterStateChanged`
+when one starts or stops. The guide path carries its own coordinates, so —
+unlike a conveyor — it needs no authored layout.
+
+A fourth, `GuidedPathClosureChanged`, is the one that is not about a
+vehicle: it names the holder, the whole zone set, and whether the space is
+`RESERVED` (draining), `HELD` (the turn or closure is on) or `RELEASED`.
+Without it a cart stopped by a closure is stopped by space that looks empty
+on the canvas, and the recording shows carts halting for no visible reason.
+A reservation given up while still draining emits `RELEASED` too, so
+nothing stays shaded after it has gone.
 
 ### …check the subsystem's own bookkeeping?
 
@@ -814,6 +920,11 @@ though it had worked.
 | `ZoneRequest` | Space asked for and not yet granted. `isGranted`, `isWaiting`, `isAbandoned`. |
 | `ZoneAllocation` | Space granted. The thing to release, and what `timeToEngage` and `timeHeld` are read from. |
 | `ZoneRefusal` | Why a zone would refuse a claim: `HELD`, `OCCUPIED`, `RESERVED`. |
+| `ZoneOverlap` | What a closure does when the space is already promised: `RAISE` (default), `REFUSE`, `QUEUE`. |
+| `ZoneCrossing` | A place people cross space vehicles want. A `ModelElement`, unlike a holder, because there is one of it and it is known before the run. |
+| `CrossingArbiterIfc` | Whose turn it is. **Two** decisions, plus `reviewAt` for a rule that depends on elapsed time. Four ship. |
+| `ZonePopulationHostIfc` | A holder that admits a population onto space it holds — the one exception to "a held zone admits nobody", and what makes a crossing possible. |
+| `ZoneClosureDriver` | Closes the same space over and over on a schedule. Packaging, not semantics. |
 
 The first two are one object in a passive model: a transport system
 **is** a space. The distinction matters only when you are writing
@@ -918,6 +1029,22 @@ release unconditionally.
 In the process view you cannot leak at all. An entity that completes its
 process still holding zones **throws**, naming them; one that is terminated
 or is still suspended at the end of a replication has them released for it.
+
+### A holder is an identity, not a value
+
+Two holders are the same holder when they are the same object. Make a
+holder a `data class` and two genuinely different crews with the same id
+become one:
+
+```kotlin
+data class Crew(val id: Int) : ZoneHolderIfc      // don't
+class Crew(id: Int) : ZoneHolderIfc               // do
+```
+
+The guide path keys what is held and what is asked for by identity, so a
+value-equal holder is not refused — it is *conflated*, and everything that
+follows is about the wrong crew. Give a holder value semantics only if you
+mean two of them to be one.
 
 ### A staging area stages one vehicle
 
@@ -1121,6 +1248,11 @@ dispatching moves around is the larger.
 | An aisle stays closed for the rest of the run | An untimed `requestZones` that was never released, or a `releaseZones(holder)` naming the wrong run-time instance. Release by `ZoneAllocation` instead. |
 | `IllegalStateException: One request at a time` | One holder, two requests. A holder is the identity of a closure, so two overlapping closures are two holders — and holders are cheap. |
 | `tryRequestZones` keeps answering null | The zones are promised to a pending closure, not merely held. `firstPromisedZone` names the one refusing. |
+| Two closures behave as one, or a release frees the wrong one | A holder with value semantics — a `data class`. Two holders are the same holder only when they are the same object. |
+| Vehicles never get past a crossing | The arbiter answers only the pedestrian question. Under steady flow there is never a gap, so it never reopens. Compare against `AlternatingArbiter`. |
+| Nobody ever crosses | The mirror: the arbiter never bars vehicles, so a turn opens only if the aisle happens to be idle. |
+| One walker waits for ever while others go | A time-based arbiter without `reviewAt`. The crossing asks when something happens, and a deadline is an instant at which nothing does. |
+| One spill got cleaned twice | `ZoneOverlap.QUEUE` on closures that were really one piece of work. Use the default refusal and decide. |
 
 ---
 
@@ -1147,6 +1279,8 @@ dispatching moves around is the larger.
   `GuidedPathThroughputBenchmark`; `GuidePathDisturbancesExample` (spills and
   a maintenance window, both routes to holding space, paired against the same
   layout undisturbed) and `ZoneClosurePolicyExample` (one overlapping closure,
-  three answers, as deterministic timelines);
+  three answers, as deterministic timelines); `CrossingArbiterExample` (one
+  pedestrian crossing, four admission disciplines, and the two ways a model
+  that decides only half the question goes quietly wrong);
   `ksl.examples.book.chapter8.TestAndRepairShopWithGuidedTransporters`,
   which is the chapter-eight shop with its transport moved onto an aisle.

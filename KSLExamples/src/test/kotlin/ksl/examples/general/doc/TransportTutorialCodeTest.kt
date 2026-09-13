@@ -30,7 +30,7 @@ import kotlin.test.fail
 /**
  *  The transport tutorial quotes the examples; this checks that it still quotes them accurately.
  *
- *  `docs/guides/ksl-transport-tutorial.md` walks through twelve examples and explains each one by
+ *  `docs/guides/ksl-transport-tutorial.md` walks through thirteen examples and explains each one by
  *  showing its actual code. Those excerpts are copies, and a copy of source in a document is a
  *  claim that ages: rename a parameter, reorder an argument list, or change a policy's default and
  *  the tutorial goes on teaching what the code used to do. Nothing compiles a markdown file, so

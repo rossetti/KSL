@@ -33,6 +33,7 @@ The examples are ordered so that each one needs only what came before it.
 | 10 | [What deciding costs](#10-what-deciding-costs) | `:KSLExamples:agvBenchmark` |
 | 11 | [A shop with spills and a maintenance window](#11-a-shop-with-spills-and-a-maintenance-window) | `:KSLExamples:guidePathDisturbancesExample` |
 | 12 | [Three answers to one closure](#12-three-answers-to-one-closure) | `:KSLExamples:zoneClosurePolicyExample` |
+| 13 | [Whose turn is it?](#13-whose-turn-is-it) | `:KSLExamples:crossingArbiterExample` |
 
 **A note on the output.** Several examples print warnings above their tables —
 horizon diagnostics, and in two cases deadlock reports logged at ERROR. Those
@@ -5446,9 +5447,309 @@ streams — a reader can verify every line against the arithmetic, which an
 averaged result never allows. Case 5 is the other one.
 
 ---
-## What the twelve have in common
+## 13. Whose turn is it?
 
-**Five of them exist to prevent a false conclusion**, not to demonstrate a
+`ksl.examples.general.guidedpath.CrossingArbiterExample`
+
+### The problem
+
+People need to cross an aisle that vehicles are using. Both want the same
+space and neither can share it.
+
+The hard part is not the exclusion — a zone already refuses a vehicle while
+somebody is standing in it. The hard part is **whose turn it is**, and that
+is a decision with two halves that a single shared resource hides.
+
+### The model
+
+A one-way loop, a cart circulating, a walker every 1.5 minutes, and a
+crossing on one zone. No randomness at all. The same 120 minutes are run
+four times, once per discipline, and the only thing that differs between
+runs is the arbiter.
+
+### The code
+
+`CrossingArbiterExample.kt` in full, minus documentation comments and imports.
+
+#### 1. The constants, and the four disciplines
+
+```kotlin
+object CrossingArbiterExample {
+
+    const val HORIZON: Double = 120.0
+
+    const val ZONE: Double = 12.0
+
+    const val WALKER_EVERY: Double = 1.5
+    const val CART_EVERY: Double = 4.0
+    const val WALK_TIME: Double = 2.0
+
+    fun arbiters(): Map<String, CrossingArbiterIfc> = linkedMapOf(
+        "PedestrianPriority" to PedestrianPriorityArbiter(),
+        "VehiclePriority" to VehiclePriorityArbiter(),
+        "Alternating" to AlternatingArbiter(walkTime = 6.0, driveTime = 6.0),
+        "BoundedBatch" to BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
+    )
+```
+
+The four disciplines are made **fresh for each run**. Two of them carry
+state between turns, and an arbiter reused across runs would start its
+second one wherever its first left off — the defect family this subsystem
+has met three times, and one only a test with more than one replication
+ever catches.
+
+#### 2. One loop, one cart, one crossing, and a stream of walkers
+
+```kotlin
+    class Town(parent: ModelElement, arbiter: CrossingArbiterIfc) : ProcessModel(parent, "Town") {
+
+        // A one-way loop rather than a single aisle, so the cart can keep circulating: a
+        // one-way link cannot be run backwards, and sending a cart home along one raises.
+        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
+            .link("Aisle", "A", "B", length = 6 * ZONE, zoneLength = ZONE)
+            .link("Return", "B", "A", length = 6 * ZONE, zoneLength = ZONE)
+            .build()
+
+        init {
+            spatialModel = network
+        }
+
+        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+
+        val cart = GuidedTransporter(
+            system, TransporterPlacement.At("A"), ConstantRV(ZONE), 1, name = "Cart"
+        )
+
+        val crossing = ZoneCrossing(
+            this, system, listOf(network.zone("Aisle.Zone3")!!), arbiter, name = "Walkway"
+        )
+
+        val walkQ = HoldQueue(this, "WalkQ")
+
+        var cartTrips: Int = 0
+            private set
+        var walkersAcross: Int = 0
+            private set
+
+        inner class Walker : Entity() {
+            val walk = process(isDefaultProcess = true) {
+                crossOnFoot(crossing, WALK_TIME, walkQ)
+                walkersAcross++
+            }
+        }
+
+        // Named classes rather than lambdas because each one schedules itself, and a lambda that
+        // refers to the property it is being assigned to cannot have its type inferred.
+        private inner class WalkerAction : EventActionIfc<Nothing> {
+            override fun action(event: KSLEvent<Nothing>) {
+                activate(Walker().walk)
+                schedule(this, WALKER_EVERY)
+            }
+        }
+
+        private inner class CartAction : EventActionIfc<Nothing> {
+            override fun action(event: KSLEvent<Nothing>) {
+                // Sent back and forth so there is always traffic wanting the crossing. Counting
+                // arrivals rather than dispatches is what makes the number mean "got through".
+                if (!cart.isMoving) {
+                    cart.sendTo(if (cart.currentLocation?.name == "B") "A" else "B")
+                }
+                schedule(this, CART_EVERY)
+            }
+        }
+
+        private val myWalkerAction = WalkerAction()
+        private val myCartAction = CartAction()
+
+        override fun initialize() {
+            cartTrips = 0
+            walkersAcross = 0
+            cart.attachArrivalListener { cartTrips++ }
+            schedule(myWalkerAction, WALKER_EVERY)
+            schedule(myCartAction, 0.5)
+        }
+    }
+```
+
+A one-way **loop**, not a single aisle, so the cart can keep circulating: a
+one-way link cannot be run backwards and sending a cart home along one
+raises. The crossing covers one zone of the outbound leg.
+
+`crossOnFoot` is the whole of a walker's part — wait for a turn, cross,
+step off. The three are one verb because a walker that steps on and does
+not step off leaves a population behind that no vehicle can pass.
+
+The two repeating actions are **named classes rather than lambdas**,
+because each schedules itself and a lambda cannot refer to the property it
+is being assigned to.
+
+#### 3. Running each discipline over the same deterministic horizon
+
+```kotlin
+    class Outcome(
+        val name: String,
+        val cartTrips: Int,
+        val walkersAcross: Int,
+        val fracBarred: Double,
+        val meanWaitToCross: Double,
+        val turns: Double
+    )
+
+    fun runWith(name: String, arbiter: CrossingArbiterIfc): Outcome {
+        val m = Model("Crossing_$name")
+        val town = Town(m, arbiter)
+        town.system.checkInvariants = true
+        m.numberOfReplications = 1
+        m.lengthOfReplication = HORIZON
+        m.simulate()
+        return Outcome(
+            name = name,
+            cartTrips = town.cartTrips,
+            walkersAcross = town.walkersAcross,
+            fracBarred = town.crossing.fracTimeBarred.withinReplicationStatistic.weightedAverage,
+            meanWaitToCross = town.crossing.waitToCross.withinReplicationStatistic.weightedAverage,
+            turns = town.crossing.turnsTaken.value
+        )
+    }
+}
+```
+
+No randomness anywhere: walkers every 1.5 minutes, a cart dispatched every
+4.0, a zone a minute. Every figure in the table can be checked by hand,
+which is what lets this case assert the two failures rather than estimate
+them.
+
+#### 4. The table, and reading the two priority rows
+
+```kotlin
+fun main() {
+    println()
+    println("One crossing, four disciplines, over ${CrossingArbiterExample.HORIZON.toInt()} minutes")
+    println("A walker every ${CrossingArbiterExample.WALKER_EVERY} minutes, a cart dispatched every " +
+            "${CrossingArbiterExample.CART_EVERY}, and a zone is a minute.")
+    println()
+    println("  %-20s %11s %11s %11s %11s %8s".format(
+        "discipline", "cart trips", "walkers", "frac barred", "mean wait", "turns"
+    ))
+
+    val outcomes = CrossingArbiterExample.arbiters().map { (name, arbiter) ->
+        CrossingArbiterExample.runWith(name, arbiter)
+    }
+    for (o in outcomes) {
+        // A discipline under which nobody ever crosses has no wait to report, and printing NaN
+        // for it would read as a defect rather than as the finding it is.
+        val wait = if (o.walkersAcross == 0) "--" else "%.2f".format(o.meanWaitToCross)
+        println("  %-20s %11d %11d %11.3f %11s %8.0f".format(
+            o.name, o.cartTrips, o.walkersAcross, o.fracBarred, wait, o.turns
+        ))
+    }
+
+    val ped = outcomes.first { it.name == "PedestrianPriority" }
+    val veh = outcomes.first { it.name == "VehiclePriority" }
+
+    println()
+    println("  Read the two priority rows together, because each is a model that runs, reports, and")
+    println("  does not represent what it claims to.")
+    println()
+    println("  PedestrianPriority put ${ped.walkersAcross} people across and moved the cart")
+    println("  ${ped.cartTrips} time(s). A walker every ${CrossingArbiterExample.WALKER_EVERY} minutes")
+    println("  taking ${CrossingArbiterExample.WALK_TIME} minutes to cross leaves no instant with the")
+    println("  crossing empty, so it never reopens and the vehicles starve outright. A study that")
+    println("  reported only pedestrian service would call this a success: nobody waited at all.")
+    println()
+    println("  Note what the run itself said about it. The guide path reported a transporter still")
+    println("  waiting when the replication ended, and named what it was waiting for and who had it:")
+    println("  the crossing. A model that stops moving says so rather than quietly reporting a")
+    println("  smaller throughput.")
+    println()
+    println("  VehiclePriority is the exact mirror: ${veh.cartTrips} cart trips and")
+    println("  ${veh.walkersAcross} people across -- not a slow crossing, no crossing. This rule never")
+    println("  bars traffic, so a turn opens only if the crossing happens to be idle, and on a busy")
+    println("  aisle it never is. Here the failure is silent: nothing waits at the horizon, because")
+    println("  the walkers are all still queued, and queued is not stalled.")
+    println()
+    println("  That is the argument for the arbiter having TWO questions rather than one. Each")
+    println("  priority rule answers only one of them and is complete, consistent and wrong.")
+    println()
+    println("  The other two rows answer both. Alternating gives each side a share that does not")
+    println("  depend on how hard the other is pushing; BoundedBatch opens on a group and admits")
+    println("  only that group, so a stream of arrivals cannot extend one turn indefinitely. Which")
+    println("  of them is right is a modelling question -- a signal and a warden are different")
+    println("  things -- and neither is the library's to choose, which is why the arbiter is a")
+    println("  substitutable object and not a policy baked into the crossing.")
+
+    check(outcomes.size == 4) { "expected four disciplines, got ${outcomes.size}" }
+    check(ped.cartTrips < veh.cartTrips) {
+        "pedestrian priority should starve the vehicles relative to vehicle priority"
+    }
+    check(veh.walkersAcross < ped.walkersAcross) {
+        "vehicle priority should starve the pedestrians relative to pedestrian priority"
+    }
+}
+```
+
+The `check`s at the end are the case's own gate. If a future change made
+pedestrian priority *not* starve the vehicles, this example would fail
+rather than quietly print a table that no longer demonstrates anything.
+
+### What it shows
+
+```
+  discipline            cart trips     walkers frac barred   mean wait    turns
+  PedestrianPriority             0          78       0.988        0.00        1
+  VehiclePriority               15           0       0.000          --        0
+  Alternating                   14          76       0.554        1.99        9
+  BoundedBatch                  15          77       0.708        1.12       37
+```
+
+**Read the top two rows together.** Each is a model that runs, reports, and
+does not represent what it claims to.
+
+`PedestrianPriority` put 78 people across and moved the cart **zero** times.
+A walker every 1.5 minutes taking 2.0 to cross leaves no instant with the
+crossing empty, so it never reopens. Mean wait 0.00 — nobody waited at all.
+A study reporting only pedestrian service would call this a success.
+
+`VehiclePriority` is the exact mirror: 15 cart trips and **nobody across**.
+Not a slow crossing — no crossing. This rule never bars traffic, so a turn
+opens only if the aisle happens to be idle, and on a busy loop it never is.
+
+The two failures are not symmetric in how they announce themselves, and
+that is worth noticing. The starved-vehicle run **says so**: the guide path
+reports a transporter still waiting when the replication ended and names
+what it waits for and who holds it — the crossing. The starved-pedestrian
+run is silent, because nothing is stalled: the walkers are all still
+queued, and queued is not stalled.
+
+The other two rows answer both questions. `Alternating` gives each side a
+share that does not depend on how hard the other is pushing. `BoundedBatch`
+opens on a group and admits only that group, so a stream of arrivals cannot
+extend one turn indefinitely — 37 turns against Alternating's 9, for
+almost the same service on both sides.
+
+### What to learn
+
+**A discipline with two decisions is not two disciplines.** Answer only
+"may this walker go?" and vehicles starve; answer only "should traffic be
+held?" and nobody crosses. Both halves belong to one substitutable object,
+which is also what lets a study vary them.
+
+**Neither of the four is a default worth having.** Which is right is a
+modelling question — a signal and a warden are different things — so the
+crossing takes an arbiter rather than baking a policy in.
+
+**A rule that depends on elapsed time needs `reviewAt`.** The crossing asks
+its questions when something happens, and "once the first has waited five
+minutes" is an instant at which, by construction, nothing does.
+
+**Two of these models are broken and neither raises.** That is the case for
+comparing disciplines rather than picking one: the table is what makes the
+breakage visible, and no single run of any one row would have.
+
+---
+## What the thirteen have in common
+
+**Six of them exist to prevent a false conclusion**, not to demonstrate a
 feature — and that is the habit worth carrying into your own models:
 
 | Example | The false conclusion it prevents |
@@ -5458,6 +5759,7 @@ feature — and that is the habit worth carrying into your own models:
 | 7, demand above capacity | "Throughput flattened, so the aisles bind" |
 | 8, the throughput column first | "It's faster" when it served fewer loads |
 | 11, the decomposition asserted | "The obstruction time adds up" without checking that it does |
+| 13, both priority rules run | "The crossing works" from a model that starves one side entirely |
 
 **Two are explicitly not tests** (9 and 10), because a wall-clock number should
 not fail somebody else's build.
@@ -5487,7 +5789,7 @@ the same in every case and it is three lines of code: run the alternatives throu
 `ScenarioRunner` so they share their run parameters and their streams, ask it for
 `observationsAsMap`, and hand that to a `MultipleComparisonAnalyzer`.
 
-**Three cases deliberately report no intervals**, and say so: cases 5 and 12 are
+**Four cases deliberately report no intervals**, and say so: cases 5, 12 and 13 are
 deterministic, and cases 9 and 10 measure wall-clock time on one machine.
 
 ---

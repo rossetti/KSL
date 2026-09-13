@@ -10,6 +10,8 @@ import ksl.modeling.guidedpath.ZoneAllocation
 import ksl.modeling.guidedpath.ZoneHoldActionIfc
 import ksl.modeling.guidedpath.ZoneHolderIfc
 import ksl.modeling.guidedpath.ZoneRefusal
+import ksl.modeling.guidedpath.ZoneCrossing
+import ksl.modeling.guidedpath.rules.BoundedBatchArbiter
 import ksl.modeling.guidedpath.LinkType
 import ksl.modeling.guidedpath.TransporterPlacement
 import ksl.modeling.guidedpath.exceptions.DeadlockReport
@@ -288,6 +290,33 @@ private object GuidedPathGuideSnippets {
                 releaseZones(space)
             }
         }
+    }
+
+    // -- §4 …let people cross an aisle that vehicles also use -----------
+
+    class CrossingShop(parent: ModelElement) : ProcessModel(parent, "CrossingShop") {
+
+        val network = buildNetwork()
+        val system = GuidedPathTransportSystem(this, network, name = "CrossingSystem")
+        val walkTime = ksl.utilities.random.rvariable.ExponentialRV(2.0)
+
+        val crossing = ZoneCrossing(
+            this, system, listOf(network.zone("Link3.Zone1")!!),
+            arbiter = BoundedBatchArbiter(batchSize = 3, maxWait = 5.0),
+            name = "Walkway"
+        )
+        val walkQ = ksl.modeling.entity.HoldQueue(this, "WalkQ")
+
+        inner class Walker : Entity() {
+            val walk = process { crossOnFoot(crossing, walkTime.value, walkQ) }
+        }
+    }
+
+    // -- §6 A holder is an identity, not a value ------------------------
+
+    class ValueCrew(val id: Int) : ZoneHolderIfc {
+        override val name: String = "ValueCrew$id"
+        override val awaitedZone: Zone? get() = null
     }
 
     // Stand-ins for the study's own code, so the sweep snippet compiles as written.
