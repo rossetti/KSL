@@ -143,6 +143,21 @@ sealed class Zone {
     internal var closure: ZoneClosureIfc? = null
 
     /**
+     * Closures waiting for the ones ahead of them, or null when nothing has ever queued here.
+     *
+     * Two fields rather than one list, and the split is a cost decision rather than a stylistic
+     * one. [claim] and [admit] run once per zone traversal -- 4.4 million times in the reference
+     * benchmark -- and read the head as a bare field. Allocating a list for every zone in every
+     * model would put that cost on every model, and almost no model queues closures at all: a
+     * network has thousands of zones and the overlaps that need a queue happen on a handful of
+     * them, in the handful of models that ask for queueing in the first place.
+     *
+     * So this stays null until something actually overlaps, and the three readers never consult it:
+     * the **head is the promise in force** and the rest are waiting for their turn.
+     */
+    private var myQueuedClosures: MutableList<ZoneClosureIfc>? = null
+
+    /**
      * Whom this zone is closing for, or null when it is open to whoever gets there first.
      *
      * A zone is *closing* between the moment something asks for it and the moment it can be given:
@@ -190,22 +205,51 @@ sealed class Zone {
      * Reserves the zone for a closure, so that it drains rather than being handed to the next
      * vehicle along.
      */
-    internal fun closeFor(closing: ZoneClosureIfc) {
-        check(closure == null) {
+    internal fun closeFor(closing: ZoneClosureIfc, queued: Boolean = false) {
+        if (closure == null) {
+            closure = closing
+            return
+        }
+        check(queued) {
             "Zone ($name) is already closing for (${closingFor?.name}), so " +
                     "(${closing.holder.name}) cannot reserve it as well. One at a time."
         }
-        closure = closing
+        val waiting = myQueuedClosures ?: mutableListOf<ZoneClosureIfc>().also {
+            myQueuedClosures = it
+        }
+        check(waiting.none { it === closing }) {
+            "Zone ($name) already has (${closing.holder.name}) waiting in its queue."
+        }
+        waiting.add(closing)
     }
 
-    /** Gives up a reservation without ever having taken the zone. */
-    internal fun abandonReservation(closing: ZoneClosureIfc) {
-        check(closure === closing) {
-            "Zone ($name) is not closing for (${closing.holder.name}): it is closing for " +
-                    "(${closingFor?.name ?: "no one"})."
+    /**
+     * Gives up a reservation without ever having taken the zone.
+     *
+     * The asymmetry here is the easiest thing in the queue to get wrong. Giving up **from the
+     * middle** must be silent: nothing about the promise in force has changed, and offering the
+     * zone would hand it to a vehicle over the head of the closure that is still draining it.
+     * Giving up **the head** promotes whoever was next and the caller must then offer the zone,
+     * because the newly promoted closure may already have everything it asked for.
+     *
+     * @return the closure promoted into the head, or null when the head did not change
+     */
+    internal fun abandonReservation(closing: ZoneClosureIfc): ZoneClosureIfc? {
+        if (closure !== closing) {
+            val waiting = myQueuedClosures
+            check(waiting != null && waiting.removeAll { it === closing }) {
+                "Zone ($name) is not closing for (${closing.holder.name}) and has it nowhere in " +
+                        "its queue: it is closing for (${closingFor?.name ?: "no one"})."
+            }
+            return null
         }
-        closure = null
+        closure = myQueuedClosures?.removeFirstOrNull()
+        return closure
     }
+
+    /** Everything promised this zone after the one in force, oldest first. Empty in almost every model. */
+    internal val queuedClosures: List<ZoneClosureIfc>
+        get() = myQueuedClosures ?: emptyList()
 
     /**
      * Offers a zone that has stopped closing to whoever was waiting for it.
@@ -245,9 +289,11 @@ sealed class Zone {
         state = ZoneState.CLAIMED
         holder = claimant
         // A closure ends when the holder it was promised to takes the zone, and not when somebody
-        // it let out passes through: the promise must survive traffic leaving the region.
+        // it let out passes through: the promise must survive traffic leaving the region. Whoever
+        // was queued behind it becomes the promise in force -- and cannot be granted yet, because
+        // the zone it is waiting for has just been taken.
         if (closing != null && claimant === closing.holder) {
-            closure = null
+            closure = myQueuedClosures?.removeFirstOrNull()
         }
         return true
     }
@@ -401,7 +447,10 @@ sealed class Zone {
             // vehicle waiting here with nothing scheduled -- including, in the worst case, the very
             // vehicle whose departure the closure is waiting for, which is then stranded holding a
             // zone of the region that will now never drain.
-            if (closing.zones.all { it.isDrained }) return closing.holder
+            // Asked of the closure rather than of its zones one by one, because with queueing
+            // "drained" is not only about emptiness: a closure that is behind another on any zone
+            // of its set has not been promised that zone yet and cannot take any of them.
+            if (closing.isDrained) return closing.holder
             // So the zone goes to a waiting vehicle instead -- but only one the closure admits,
             // which is a vehicle getting *out* of this region or out of an older one. An outsider
             // is still kept out, so the drain is not weakened: every vehicle admitted here was
@@ -469,6 +518,10 @@ sealed class Zone {
         holder = null
         numPresent = 0
         closure = null
+        // Dropped rather than emptied: a model that queued closures in one replication need not do
+        // so in the next, and leaving the list allocated would keep the cost of a feature the run
+        // has stopped using.
+        myQueuedClosures = null
         myWaiters.clear()
     }
 

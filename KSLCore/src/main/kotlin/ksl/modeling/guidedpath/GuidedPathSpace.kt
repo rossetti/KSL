@@ -1087,8 +1087,12 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * @param action told when the hold begins and when it ends
      * @return the request, whose [ZoneRequest.isGranted] says whether the hold began at once
      */
-    fun requestZone(holder: ZoneHolderIfc, zone: Zone, action: ZoneHoldActionIfc): ZoneRequest =
-        requestZones(holder, listOf(zone), action)
+    fun requestZone(
+        holder: ZoneHolderIfc,
+        zone: Zone,
+        action: ZoneHoldActionIfc,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
+    ): ZoneRequest = requestZones(holder, listOf(zone), action, onOverlap)
 
     /**
      * Asks for a set of zones, which all close to new traffic at once and are held **together**.
@@ -1120,11 +1124,14 @@ open class GuidedPathSpace @JvmOverloads constructor(
     fun requestZones(
         holder: ZoneHolderIfc,
         zones: List<Zone>,
-        action: ZoneHoldActionIfc
+        action: ZoneHoldActionIfc,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
     ): ZoneRequest {
         validateRequest(holder, zones)
-        firstPromisedZone(zones)?.let { require(false) { overlapMessage(it, holder) } }
-        return requestSpace(holder, zones, Double.NaN, action)
+        if (onOverlap != ZoneOverlap.QUEUE) {
+            firstPromisedZone(zones)?.let { require(false) { overlapMessage(it, holder) } }
+        }
+        return requestSpace(holder, zones, Double.NaN, action, onOverlap == ZoneOverlap.QUEUE)
     }
 
     /**
@@ -1208,13 +1215,14 @@ open class GuidedPathSpace @JvmOverloads constructor(
         holder: ZoneHolderIfc,
         zone: Zone,
         duration: Double,
-        action: ZoneHoldActionIfc
+        action: ZoneHoldActionIfc,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
     ): ZoneRequest {
         require(duration > 0.0) {
             "Holder (${holder.name}) was asked to hold zone (${zone.name}) for $duration, which " +
                     "is not a duration. To take a zone until told otherwise, use requestZone."
         }
-        return holdZonesFor(holder, listOf(zone), duration, action)
+        return holdZonesFor(holder, listOf(zone), duration, action, onOverlap)
     }
 
     /**
@@ -1233,15 +1241,18 @@ open class GuidedPathSpace @JvmOverloads constructor(
         holder: ZoneHolderIfc,
         zones: List<Zone>,
         duration: Double,
-        action: ZoneHoldActionIfc
+        action: ZoneHoldActionIfc,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
     ): ZoneRequest {
         require(duration > 0.0) {
             "Holder (${holder.name}) was asked to hold ${zones.size} zone(s) for $duration, which " +
                     "is not a duration. To take space until told otherwise, use requestZones."
         }
         validateRequest(holder, zones)
-        firstPromisedZone(zones)?.let { require(false) { overlapMessage(it, holder) } }
-        return requestSpace(holder, zones, duration, action)
+        if (onOverlap != ZoneOverlap.QUEUE) {
+            firstPromisedZone(zones)?.let { require(false) { overlapMessage(it, holder) } }
+        }
+        return requestSpace(holder, zones, duration, action, onOverlap == ZoneOverlap.QUEUE)
     }
 
     /**
@@ -1519,13 +1530,15 @@ open class GuidedPathSpace @JvmOverloads constructor(
         "Zone (${zone.name}) is already promised to holder " +
                 "(${zone.closingFor?.name ?: "no one"}), which is still waiting for it to drain, " +
                 "so holder (${holder.name}) cannot be promised it as well. A zone carries one " +
-                "promise at a time. Note that this is not the same as asking for a zone somebody " +
-                "already *holds*: that is allowed and simply waits for the hold to end. What " +
-                "cannot be expressed is two holders queued for the same zone. A model whose " +
-                "closures can land on the same zone -- spills at random locations, most obviously " +
-                "-- has to say what an overlap means: absorbed into the closure already there, " +
-                "deferred until it ends, or placed elsewhere. Use tryRequestZones or " +
-                "tryHoldZonesFor to be answered null instead of refused."
+                "promise at a time by default. Note that this is not the same as asking for a " +
+                "zone somebody already *holds*: that is allowed and simply waits for the hold to " +
+                "end. A model whose closures can land on the same zone -- spills at random " +
+                "locations, most obviously -- has to say what an overlap means: absorbed into the " +
+                "closure already there, deferred until it ends, placed elsewhere, or genuinely " +
+                "done in turn. Use tryRequestZones or tryHoldZonesFor to be answered null instead " +
+                "of refused, or pass ZoneOverlap.QUEUE to take a place behind the closure already " +
+                "promised this zone -- but only where serialising them is what the model means, " +
+                "since one spill queued behind itself is cleaned twice."
 
     /**
      * Makes the reservation, having already established that it may be made.
@@ -1540,7 +1553,8 @@ open class GuidedPathSpace @JvmOverloads constructor(
         holder: ZoneHolderIfc,
         zones: List<Zone>,
         holdFor: Double,
-        action: ZoneHoldActionIfc
+        action: ZoneHoldActionIfc,
+        queued: Boolean = false
     ): ZoneRequest {
         auditFinishedInstant()
         val request = ZoneRequest(holder, zones, time, holdFor, myNextRequestSequence++, action)
@@ -1553,7 +1567,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         // guide path to ask and nothing else -- what is held stays this map's.
         (holder as? ZoneHolderRecordIfc)?.zoneSpaceEngaged(this)
         for (zone in zones) {
-            zone.closeFor(request)
+            zone.closeFor(request, queued)
         }
         myAnimationEmitter.emitClosureChanged(request, "RESERVED")
         // Nothing to drain: the grant is this instant, and takes the ordinary path rather than a
@@ -1678,13 +1692,26 @@ open class GuidedPathSpace @JvmOverloads constructor(
             // hold, so RELEASED here is the only event that will ever follow its RESERVED.
             myAnimationEmitter.emitClosureChanged(request, "RELEASED")
             (holder as? ZoneHolderRecordIfc)?.zoneSpaceFinished(this)
+            // Giving up the head of a zone's queue promotes whoever was behind it, and that
+            // closure may now have everything it asked for. Collected rather than acted on here,
+            // because the offer below has to wait until every one of this request's reservations
+            // is gone -- promoting on one zone while another is still reserved would grant a
+            // closure space it does not yet hold everywhere.
+            val promoted = mutableListOf<ZoneHolderIfc>()
             for (zone in request.zones) {
-                zone.abandonReservation(request)
+                zone.abandonReservation(request)?.let { promoted.add(it.holder) }
             }
             // Offered only after every reservation is gone, so that a vehicle woken for one zone
             // does not find the next one still closed and go straight back to waiting.
             for (zone in request.zones) {
                 handOver(zone.reopen(zoneContentionRule))
+            }
+            // A promoted closure whose zones are all empty is granted through the same handover a
+            // woken vehicle uses, and one that is not simply keeps waiting.
+            for (holderPromoted in promoted.distinct()) {
+                if (myZoneRequests[holderPromoted]?.isDrained == true) {
+                    handOver(holderPromoted)
+                }
             }
             return
         }

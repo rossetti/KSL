@@ -2491,8 +2491,10 @@ interface KSLProcessBuilder {
         zone: Zone,
         queue: HoldQueue,
         requestPriority: Int = QUEUE_PRIORITY,
-        suspensionName: String? = null
-    ): ZoneAllocation = seizeZones(space, listOf(zone), queue, requestPriority, suspensionName)
+        suspensionName: String? = null,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
+    ): ZoneAllocation =
+        seizeZones(space, listOf(zone), queue, requestPriority, suspensionName, onOverlap)
 
     /**
      * Takes a set of zones **together**, waiting for all of them to drain, and suspends until held.
@@ -2530,9 +2532,10 @@ interface KSLProcessBuilder {
         zones: List<Zone>,
         queue: HoldQueue,
         requestPriority: Int = QUEUE_PRIORITY,
-        suspensionName: String? = null
+        suspensionName: String? = null,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
     ): ZoneAllocation {
-        val request = space.requestZones(entity, zones, ZoneSeizeAction(entity, queue))
+        val request = space.requestZones(entity, zones, ZoneSeizeAction(entity, queue), onOverlap)
         // Suspending only when there was something to drain is the same contract a journey has:
         // space that was free is held in the instant it was asked for, and a process that suspended
         // anyway would need somebody to wake it for nothing.

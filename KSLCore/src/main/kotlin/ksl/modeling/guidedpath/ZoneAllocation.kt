@@ -137,6 +137,12 @@ internal interface ZoneClosureIfc {
     val sequence: Long
 
     /** True when this claimant may take a zone the closure has reserved. */
+    /**
+     * True when every zone of this closure is empty **and** promised to it rather than to somebody
+     * ahead of it in that zone's queue. Both halves are needed once closures can queue.
+     */
+    val isDrained: Boolean
+
     fun admits(claimant: ZoneHolderIfc): Boolean
 }
 
@@ -213,9 +219,16 @@ class ZoneRequest internal constructor(
     val isTimed: Boolean
         get() = holdFor.isFinite()
 
-    /** True when every zone asked for has drained and could now be taken together. */
-    internal val isDrained: Boolean
-        get() = zones.all { it.isDrained }
+    /**
+     * True when every zone asked for has drained and could now be taken together.
+     *
+     * Two conditions, not one, and the second only matters where closures queue: a zone this
+     * request is *behind* somebody on has not been promised to it, however empty it happens to be.
+     * Granting on emptiness alone would hand a queued closure space that the closure ahead of it is
+     * still draining, which is the one thing the queue exists to order.
+     */
+    override val isDrained: Boolean
+        get() = zones.all { it.isDrained && it.closure === this }
 
     /** The grant, once the zones have drained and been taken, or null while any is still draining. */
     var allocation: ZoneAllocation? = null

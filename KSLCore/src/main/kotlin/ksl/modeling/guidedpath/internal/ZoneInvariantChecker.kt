@@ -246,6 +246,38 @@ internal class ZoneInvariantChecker(
                     )
                 }
             }
+            // The queue behind the promise in force, where a model has asked for one. The same
+            // all-or-nothing rule applies to every closure in it -- waiting your turn is still
+            // waiting -- and two structural facts besides: a zone with somebody queued must have
+            // somebody promised, or the queue is waiting on nothing and will never move; and a
+            // closure appears at most once, as head or in the queue but never both.
+            val queued = zone.queuedClosures
+            if (queued.isNotEmpty() && closing == null) {
+                violate(
+                    "zone (${zone.name}) has ${queued.size} closure(s) queued behind no promise " +
+                            "at all, so nothing will ever promote them"
+                )
+            }
+            for (waiting in queued) {
+                checkHolderDiscipline(waiting.holder, "is queued for ${zone.name} behind")
+                if (waiting === closing) {
+                    violate(
+                        "zone (${zone.name}) has (${waiting.holder.name}) both promised it and " +
+                                "queued for it, so giving up once would leave the other entry"
+                    )
+                }
+                val alreadyHeld = waiting.zones.filter { it.holder === waiting.holder }
+                if (alreadyHeld.isNotEmpty()) {
+                    violate(
+                        "zone (${zone.name}) has (${waiting.holder.name}) queued for it while it " +
+                                "already holds ${alreadyHeld.joinToString { it.name }} of the " +
+                                "same closure -- a queued closure holds nothing until its turn"
+                    )
+                }
+            }
+            if (queued.distinct().size != queued.size) {
+                violate("zone (${zone.name}) has the same closure queued for it more than once")
+            }
             if (zone.state == ZoneState.FREE) {
                 if (holder != null) {
                     violate("zone (${zone.name}) is free but is held by (${holder.name})")
