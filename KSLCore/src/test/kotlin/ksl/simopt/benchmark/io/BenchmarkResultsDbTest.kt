@@ -1,7 +1,11 @@
 package ksl.simopt.benchmark.io
 
 import ksl.simopt.benchmark.BenchmarkExperiment
+import ksl.simopt.benchmark.BenchmarkResultSink
 import ksl.simopt.benchmark.BenchmarkSolverFactoryIfc
+import ksl.simopt.benchmark.BenchmarkSummaryHeader
+import ksl.simopt.benchmark.IterationTracePoint
+import ksl.simopt.benchmark.ProblemBenchmarkResult
 import ksl.simopt.benchmark.BenchmarkSummary
 import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
@@ -26,6 +30,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.io.TempDir
+import kotlinx.datetime.Instant
 import java.nio.file.Path
 
 /**
@@ -689,5 +694,171 @@ class BenchmarkResultsDbTest {
         assertTrue(error.message!!.contains("captureIterationTraces")) {
             "the message must name the flag that is missing, got: ${error.message}"
         }
+    }
+
+    // ── D1–D4: incremental persistence and problem-level resume ───────────────
+
+    /** Simulates a crash: delegates to the real sink but dies partway through a nominated problem. */
+    private class CrashingSink(
+        private val delegate: BenchmarkResultSink,
+        private val failOnProblemNumber: Int
+    ) : BenchmarkResultSink {
+        var problemsSeen = 0
+            private set
+
+        override fun beginExperiment(header: BenchmarkSummaryHeader, resume: Boolean): Int =
+            delegate.beginExperiment(header, resume)
+
+        override fun problemCompleted(
+            expId: Int,
+            result: ProblemBenchmarkResult,
+            traces: Map<String, List<IterationTracePoint>>
+        ) {
+            problemsSeen++
+            if (problemsSeen == failOnProblemNumber) {
+                throw IllegalStateException("simulated interruption during problem ${result.problemName}")
+            }
+            delegate.problemCompleted(expId, result, traces)
+        }
+
+        override fun endExperiment(
+            expId: Int,
+            endTime: Instant,
+            solverConfigurations: Map<String, Map<String, String>>
+        ) = delegate.endExperiment(expId, endTime, solverConfigurations)
+
+        override fun completedProblems(expName: String): Set<String> = delegate.completedProblems(expName)
+    }
+
+    private fun threeProblemExperiment(
+        sink: BenchmarkResultSink?,
+        name: String = "resumable"
+    ): BenchmarkExperiment {
+        return BenchmarkExperiment(
+            name = name,
+            problems = listOf(sphereProblem("p1"), sphereProblem("p2"), sphereProblem("p3")),
+            solverCases = listOf(shcCase("shcA", 10)),
+            macroReplications = 2,
+            replicationBudgetPerRun = BUDGET,
+            resultSink = sink,
+            numWorkers = WORKERS
+        )
+    }
+
+    /**
+     * The claim the whole sink exists to support, and the one worth watching fail: an experiment
+     * killed after its second problem, re-run, must skip the two already recorded and produce
+     * results identical to one that was never interrupted.
+     *
+     * The failure this guards is subtle. A resume that silently RE-RAN the finished problems would
+     * still end with three problems in the database and still look right; so would one that skipped
+     * them but addressed its starting points by position within the pass rather than within the
+     * study, quietly giving problem 3 the streams meant for problem 1. Both are checked here: the
+     * skipped problems must not be re-recorded, and the resumed problem's cells must match an
+     * uninterrupted run's cell for cell.
+     */
+    @Test
+    @DisplayName("An interrupted experiment resumes, skipping recorded problems and matching an uninterrupted run")
+    fun interruptedExperimentResumesWithoutRepeatingOrDrifting() {
+        val db = BenchmarkResultsDb("resume.db", tempDir).also { openDatabases += it }
+
+        // 1. Die during problem 3, so problems 1 and 2 are recorded and the record is never closed.
+        val crashing = CrashingSink(db, failOnProblemNumber = 3)
+        assertThrows(IllegalStateException::class.java) {
+            threeProblemExperiment(crashing).run()
+        }
+        val interruptedExpId = db.experiments().single().expId
+        assertEquals(setOf("p1", "p2"), db.problems(interruptedExpId).map { it.problemName }.toSet())
+        assertEquals("", db.experiments().single().endTime) {
+            "an interrupted experiment must be left unfinished; that is what makes it resumable"
+        }
+        val rowsBeforeResume = db.runs(interruptedExpId).associateBy { it.cellLabel }
+
+        // 2. Re-run. The sink reports what is already there and the experiment skips it.
+        val resumedSummary = threeProblemExperiment(db).run()
+        assertEquals(listOf("p3"), resumedSummary.problemResults.map { it.problemName }) {
+            "the resumed run must execute only the outstanding problem"
+        }
+
+        // 3. One experiment record, now closed, holding all three problems exactly once.
+        val experiment = db.experiments().single()
+        assertEquals(interruptedExpId, experiment.expId) {
+            "the resumed run must attach to the interrupted record rather than open a new one"
+        }
+        assertTrue(experiment.endTime.isNotEmpty()) { "the resumed run must close the record" }
+        assertEquals(3, experiment.numProblems) {
+            "numProblems describes the study, not the pass that happened to finish it"
+        }
+        assertEquals(setOf("p1", "p2", "p3"), db.problems(interruptedExpId).map { it.problemName }.toSet())
+
+        val allRuns = db.runs(interruptedExpId)
+        assertEquals(allRuns.size, allRuns.map { it.cellLabel }.toSet().size) {
+            "a cell was recorded twice: the resume re-ran work it should have skipped"
+        }
+
+        // The rows written before the interruption are untouched, byte for byte.
+        for ((cellLabel, before) in rowsBeforeResume) {
+            val after = allRuns.single { it.cellLabel == cellLabel }
+            assertEquals(before.bestObjective, after.bestObjective)
+            assertEquals(before.runId, after.runId)
+        }
+
+        // 4. The outstanding problem must match a run that was never interrupted. Starting points
+        //    are addressed by (problem, macro-replication) within the STUDY, so skipping problems
+        //    must not shift them.
+        val reference = BenchmarkResultsDb("reference.db", tempDir).also { openDatabases += it }
+        val referenceExpId = reference.saveSummary(threeProblemExperiment(null, name = "reference").run())
+        val referenceP3 = reference.runs(referenceExpId)
+            .filter { it.problemName == "p3" }
+            .associateBy { it.cellLabel }
+        val resumedP3 = allRuns.filter { it.problemName == "p3" }.associateBy { it.cellLabel }
+
+        assertEquals(referenceP3.keys, resumedP3.keys)
+        assertTrue(referenceP3.isNotEmpty()) { "the comparison fixture produced no cells" }
+        for ((cellLabel, expected) in referenceP3) {
+            val actual = resumedP3.getValue(cellLabel)
+            assertEquals(expected.bestObjective, actual.bestObjective) {
+                "resumed cell $cellLabel drifted from the uninterrupted run"
+            }
+            assertEquals(expected.startingPointJson, actual.startingPointJson) {
+                "resumed cell $cellLabel started somewhere else: the starting point is being " +
+                    "addressed by position within the pass rather than within the study"
+            }
+        }
+    }
+
+    /**
+     * Resume must be the exception, not the rule. A COMPLETED experiment re-run under the same name
+     * appends alongside as it always has — the append semantics the database documents — and skips
+     * nothing. Only an unfinished record is resumed into.
+     */
+    @Test
+    @DisplayName("Re-running a completed experiment appends under a fresh id and skips nothing")
+    fun completedExperimentIsNeverResumedInto() {
+        val db = BenchmarkResultsDb("noResume.db", tempDir).also { openDatabases += it }
+
+        val first = threeProblemExperiment(db, name = "finished").run()
+        assertEquals(3, first.problemResults.size)
+        assertTrue(db.completedProblems("finished").isEmpty()) {
+            "a finished experiment must report nothing as resumable"
+        }
+
+        val second = threeProblemExperiment(db, name = "finished").run()
+        assertEquals(3, second.problemResults.size) { "nothing should have been skipped" }
+        assertEquals(2, db.experiments().size)
+        assertEquals(listOf(1, 2), db.experiments().map { it.expId }.sorted())
+    }
+
+    /**
+     * Without a sink nothing changes: no skipping is possible, because the only thing that can ever
+     * cause a skip is a sink reporting a problem as already recorded.
+     */
+    @Test
+    @DisplayName("With no sink every problem runs, whatever the database already holds")
+    fun noSinkMeansNoSkipping() {
+        val db = BenchmarkResultsDb("sinkless.db", tempDir).also { openDatabases += it }
+        db.saveSummary(threeProblemExperiment(null, name = "sinkless").run())
+        val second = threeProblemExperiment(null, name = "sinkless").run()
+        assertEquals(listOf("p1", "p2", "p3"), second.problemResults.map { it.problemName })
     }
 }

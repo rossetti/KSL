@@ -3,6 +3,7 @@ package ksl.simopt.benchmark
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.ModelInputs
@@ -100,6 +101,13 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param experimentStreamProvider the stream provider for experiment-level draws
  *  (currently: the common starting points); defaults to a fresh provider so identically
  *  configured experiments reproduce each other exactly
+ *  @param resultSink when supplied, receives each problem's result as it completes rather
+ *  than only at the end, so a long study is checkpointed per problem instead of holding
+ *  everything in heap and writing once. A sink also enables resume: a re-run attaches to an
+ *  unfinished record of the same name and skips the problems already in it. `run()` still
+ *  returns a `BenchmarkSummary`, so existing callers are unaffected — but note that on a
+ *  resumed run the summary covers only the problems THIS pass ran; the skipped ones are in
+ *  the sink, not in the returned value.
  *  @param cellSolverDecorator invoked with each freshly created cell solver before it
  *  runs, on the cell's worker thread — the attachment hook for per-cell trackers and
  *  instrumentation; anything it touches must be safe to use from worker threads
@@ -116,6 +124,7 @@ class BenchmarkExperiment(
     val captureSolverState: Boolean = false,
     val verificationReplications: Int? = null,
     val numWorkers: Int? = null,
+    val resultSink: BenchmarkResultSink? = null,
     experimentStreamProvider: RNStreamProviderIfc = RNStreamProvider(),
     private val cellSolverDecorator: ((solver: Solver, problemName: String, solverLabel: String, repNum: Int) -> Unit)? = null
 ) {
@@ -167,10 +176,35 @@ class BenchmarkExperiment(
     fun run(): BenchmarkSummary {
         logger.info { "Benchmark experiment '$name': ${problems.size} problems x ${solverCases.size} solver cases x macro-replications $macroReplicationRange of $macroReplications, budget $replicationBudgetPerRun" }
         val startTime = Clock.System.now()
-        val problemResults = problems.mapIndexed { problemIndex, problemCase ->
-            runProblem(problemIndex, problemCase)
+        // A problem is skipped only because a sink says it is already recorded under an unfinished
+        // experiment of this name. With no sink the set is empty and nothing is ever skipped.
+        val alreadyDone = resultSink?.completedProblems(name) ?: emptySet()
+        if (alreadyDone.isNotEmpty()) {
+            logger.info { "Benchmark experiment '$name': resuming, skipping ${alreadyDone.size} already-recorded problems $alreadyDone" }
+        }
+        val expId = resultSink?.beginExperiment(summaryHeader(startTime), resume = true)
+        val problemResults = mutableListOf<ProblemBenchmarkResult>()
+        for ((problemIndex, problemCase) in problems.withIndex()) {
+            if (problemCase.name in alreadyDone) {
+                continue
+            }
+            // The problem's index within the full problem list, not within this pass, so a resumed
+            // run addresses starting points exactly as an uninterrupted one does.
+            val result = runProblem(problemIndex, problemCase)
+            problemResults.add(result)
+            if (resultSink != null && expId != null) {
+                val cellLabels = result.runs.map { it.cellLabel }.toSet()
+                resultSink.problemCompleted(
+                    expId,
+                    result,
+                    myTraces.filterKeys { it in cellLabels }.mapValues { (_, points) -> points.toList() }
+                )
+            }
         }
         val endTime = Clock.System.now()
+        if (resultSink != null && expId != null) {
+            resultSink.endExperiment(expId, endTime, mySolverConfigurations.toMap())
+        }
         logger.info { "Benchmark experiment '$name' complete" }
         return BenchmarkSummary(
             experimentName = name,
@@ -186,6 +220,23 @@ class BenchmarkExperiment(
             traces = myTraces.mapValues { (_, points) -> points.toList() }
         )
     }
+
+    /** What a sink needs before the first problem runs. */
+    private fun summaryHeader(startTime: Instant): BenchmarkSummaryHeader = BenchmarkSummaryHeader(
+        experimentName = name,
+        macroReplications = myRepNumbers.size,
+        replicationBudgetPerRun = replicationBudgetPerRun,
+        confirmationTopK = confirmation?.topK,
+        confirmationReplications = confirmation?.replicationsPerCandidate,
+        verificationReplications = verificationReplications,
+        // The experiment's problem count, not this pass's, so a resumed run does not shrink the
+        // record of how big the study was.
+        numProblems = problems.size,
+        solverCaseDescriptions = solverCases.associate { it.label to it.description },
+        startTime = startTime,
+        tracesCaptured = captureIterationTraces,
+        solverStateCaptured = captureSolverState
+    )
 
     /**
      *  The overall confidence at which a cell's best point is assessed against the problem's
