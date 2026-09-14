@@ -87,6 +87,11 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param captureIterationTraces when true, every cell solver's per-iteration progress
  *  (iteration, cumulative replications, best penalized objective) is captured into the
  *  summary's traces, keyed by cell label — opt-in because traces grow with the budget
+ *  @param captureSolverState when true, each captured trace point also carries the cell
+ *  solver's algorithm-specific state for that iteration. Gated separately from
+ *  `captureIterationTraces` because the volume is an order of magnitude larger: a solver
+ *  publishing six state values turns a study's trace rows into millions of state rows.
+ *  Requires `captureIterationTraces`, since solver state rides on trace points.
  *  @param verificationReplications when non-null, each problem's winning point is
  *  re-simulated at this replication count on a dedicated evaluator and recorded — the
  *  classic verify-at-elevated-replications step
@@ -108,6 +113,7 @@ class BenchmarkExperiment(
     val replicationBudgetPerRun: Int,
     val confirmation: ConfirmationOptions? = ConfirmationOptions(),
     val captureIterationTraces: Boolean = false,
+    val captureSolverState: Boolean = false,
     val verificationReplications: Int? = null,
     val numWorkers: Int? = null,
     experimentStreamProvider: RNStreamProviderIfc = RNStreamProvider(),
@@ -136,6 +142,11 @@ class BenchmarkExperiment(
             "verificationReplications must be >= 1 when specified"
         }
         require(numWorkers == null || numWorkers > 0) { "numWorkers must be > 0 when specified" }
+        // Solver state is carried on trace points, so asking for it without traces would record
+        // nothing and say nothing about why. Refuse the combination rather than no-op quietly.
+        require(!captureSolverState || captureIterationTraces) {
+            "captureSolverState requires captureIterationTraces; solver state is recorded on trace points"
+        }
     }
 
     private val myExperimentStreamProvider: RNStreamProviderIfc = experimentStreamProvider
@@ -315,7 +326,12 @@ class BenchmarkExperiment(
                         IterationTracePoint(
                             iteration = snapshot.iterationNumber,
                             cumulativeReplications = snapshot.numReplicationsRequested,
-                            bestPenalizedObjective = snapshot.penalizedObjFncValue
+                            bestPenalizedObjective = snapshot.penalizedObjFncValue,
+                            solverState = if (captureSolverState) {
+                                snapshot.solverSpecificState ?: emptyMap()
+                            } else {
+                                emptyMap()
+                            }
                         )
                     )
                 }

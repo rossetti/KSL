@@ -20,11 +20,18 @@ import ksl.simopt.solvers.concurrent.MemberStatus
  *  snapshot — the x-axis for budget-normalized convergence plots
  *  @param bestPenalizedObjective the penalized objective (minimization-oriented) of the
  *  best solution found so far
+ *  @param solverState the solver's algorithm-specific state at the snapshot, keyed by the
+ *  names the solver chose — a swarm's diameter, a population's diversity, a reference
+ *  distribution's coefficient of variation. These are the direct measurements of premature
+ *  convergence, and the solvers emit them every iteration whether or not anyone records
+ *  them. Empty unless the experiment captured solver state, and for solvers that publish
+ *  none.
  */
 data class IterationTracePoint(
     val iteration: Int,
     val cumulativeReplications: Int,
-    val bestPenalizedObjective: Double
+    val bestPenalizedObjective: Double,
+    val solverState: Map<String, Double> = emptyMap()
 )
 
 /**

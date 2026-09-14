@@ -13,7 +13,9 @@ import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simopt.solvers.algorithms.pso.ParticleSwarmSolver
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -167,6 +169,45 @@ class BenchmarkResultsDbTest {
             captureIterationTraces = traces,
             verificationReplications = verification,
             numWorkers = WORKERS
+        ).run()
+    }
+
+
+    // ── Solver-state fixture (B1/B2/B3) ───────────────────────────────────────
+
+    /**
+     * A particle swarm on a mildly noisy sphere. PSO is the solver whose state map carries
+     * `swarmDiameter`, the measurement that says directly whether the swarm collapsed.
+     */
+    private fun psoCase(label: String): SolverCase {
+        return SolverCase(
+            label = label,
+            solverFactory = BenchmarkSolverFactoryIfc { pd, evaluator, memberIndex, name ->
+                ParticleSwarmSolver(
+                    pd, evaluator,
+                    streamNum = memberIndex + 1,
+                    swarmSize = 8,
+                    replicationsPerEvaluation = FixedReplicationsPerEvaluation(5),
+                    name = name
+                )
+            },
+            description = "PSO, swarm of 8"
+        )
+    }
+
+    private fun runPsoExperiment(
+        captureState: Boolean,
+        name: String = "psoExp"
+    ): BenchmarkSummary {
+        return BenchmarkExperiment(
+            name = name,
+            problems = listOf(sphereProblem("psoSphere")),
+            solverCases = listOf(psoCase("pso")),
+            macroReplications = 1,
+            replicationBudgetPerRun = 600,
+            captureIterationTraces = true,
+            captureSolverState = captureState,
+            numWorkers = 1
         ).run()
     }
 
@@ -560,6 +601,93 @@ class BenchmarkResultsDbTest {
 
         assertTrue(rebuilt.none { it.isResponseConstraintFeasible() }) {
             "the fixture no longer exercises the infeasible branch"
+        }
+    }
+
+    // ── B1/B2/B3: solver state on iteration traces ────────────────────────────
+
+    /**
+     * The measurement this item exists for. PSO publishes `swarmDiameter` on every iteration and
+     * the library was discarding it, so the conclusion that a swarm collapsed prematurely rested on
+     * inference — identical results across a ninefold budget increase — rather than on the number
+     * the solver had already computed.
+     *
+     * Note what is asserted about its shape. The swarm CONTRACTS over a converging run, but it does
+     * not contract monotonically: measured on this fixture it falls from 0.58 to 0.18 while rising
+     * again on 5 of 14 steps. A strict-decrease assertion would fail a correct implementation, so
+     * the claim made here is the one that is true and that matters — the diameter is recorded, it
+     * stays within its documented range, and it ends the run a fraction of where it started.
+     */
+    @Test
+    @DisplayName("A PSO run records its swarm diameter, and the swarm contracts over the run")
+    fun solverStateIsCapturedAndTracksConvergence() {
+        val db = BenchmarkResultsDb("solverState.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runPsoExperiment(captureState = true))
+
+        assertTrue(db.experiments().single().solverStateCaptured)
+
+        val states = db.traceStates(expId)
+        assertTrue(states.isNotEmpty()) { "state capture was on but no state rows were written" }
+        assertTrue(states.any { it.stateName == "swarmDiameter" }) {
+            "expected swarmDiameter among ${states.map { it.stateName }.toSet()}"
+        }
+
+        // Long format: the key set is whatever the solver chose to publish, and every captured
+        // iteration carries the same one.
+        val byIteration = states.groupBy { it.iteration }
+        val keySets = byIteration.values.map { rows -> rows.map { it.stateName }.toSet() }.toSet()
+        assertEquals(1, keySets.size) { "the state key set varied across iterations: $keySets" }
+
+        val diameters = states.filter { it.stateName == "swarmDiameter" }
+            .sortedBy { it.iteration }
+            .map { it.stateValue }
+        assertTrue(diameters.size >= 5) { "too few iterations to say anything about contraction" }
+        assertTrue(diameters.all { it in 0.0..1.0 }) {
+            "the normalized diameter left its documented range: $diameters"
+        }
+        assertTrue(diameters.last() < diameters.first() / 2.0) {
+            "the swarm did not contract: first=${diameters.first()} last=${diameters.last()}"
+        }
+    }
+
+    /**
+     * The flag has to mean something on its own, or it is not a flag. Traces without state capture
+     * must produce trace rows and no state rows — and the experiment row must say so, so that an
+     * empty state table is never ambiguous between "not asked for" and "the solvers had nothing
+     * to say".
+     */
+    @Test
+    @DisplayName("Trace capture without state capture records traces and no solver state")
+    fun traceCaptureAloneWritesNoSolverState() {
+        val db = BenchmarkResultsDb("tracesOnly.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runPsoExperiment(captureState = false, name = "tracesOnlyExp"))
+
+        assertTrue(db.traces(expId).isNotEmpty()) { "the fixture captured no traces at all" }
+        assertTrue(db.traceStates(expId).isEmpty())
+        assertTrue(!db.experiments().single().solverStateCaptured)
+    }
+
+    /**
+     * Solver state rides on trace points, so asking for it without traces would record nothing and
+     * give no reason why. That is the silent no-op this whole effort is about removing, so the
+     * combination is refused at construction instead.
+     */
+    @Test
+    @DisplayName("Asking for solver state without traces is refused rather than silently ignored")
+    fun solverStateWithoutTraceCaptureIsRefused() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            BenchmarkExperiment(
+                name = "badExp",
+                problems = listOf(sphereProblem("sphereA")),
+                solverCases = listOf(shcCase("shcA", 10)),
+                macroReplications = 1,
+                replicationBudgetPerRun = BUDGET,
+                captureIterationTraces = false,
+                captureSolverState = true
+            )
+        }
+        assertTrue(error.message!!.contains("captureIterationTraces")) {
+            "the message must name the flag that is missing, got: ${error.message}"
         }
     }
 }

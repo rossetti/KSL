@@ -20,6 +20,7 @@ data class ExperimentTableData(
     var confirmationReplications: Int? = null,
     var verificationReplications: Int? = null,
     var tracesCaptured: Boolean = false,
+    var solverStateCaptured: Boolean = false,
     var kslVersion: String? = null
 ) : DbTableData("tblExperiment", listOf("expId"))
 
@@ -207,6 +208,25 @@ data class IterationTraceTableData(
     var cumulativeReplications: Int = 0,
     var bestPenalizedObjective: Double = 0.0
 ) : DbTableData("tblIterationTrace", listOf("runId", "iteration"))
+
+/**
+ *  One row per (run, iteration, state name) of a captured trace (opt-in): the cell solver's
+ *  algorithm-specific state for that iteration.
+ *
+ *  Long format deliberately. Solvers publish different state, and a new solver — or a new
+ *  measurement on an existing one — would otherwise add a column and change the schema for every
+ *  study already in the file. Keyed by run id, matching tblIterationTrace.
+ *
+ *  Volume is the reason this is gated behind its own flag rather than riding on trace capture: a
+ *  solver publishing six values per iteration produces roughly six times the trace row count, so a
+ *  study with a couple of hundred thousand trace rows lands on the order of a million here.
+ */
+data class IterationTraceStateTableData(
+    var runId: Int = -1,
+    var iteration: Int = 0,
+    var stateName: String = "",
+    var stateValue: Double = 0.0
+) : DbTableData("tblIterationTraceState", listOf("runId", "iteration", "stateName"))
 
 /**
  *  One row per response of a problem's verification stage (opt-in): the winning point

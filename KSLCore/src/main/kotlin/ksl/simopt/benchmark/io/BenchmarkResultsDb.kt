@@ -84,6 +84,11 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 confirmationReplications = summary.confirmation?.replicationsPerCandidate,
                 verificationReplications = summary.verificationReplications,
                 tracesCaptured = summary.traces.isNotEmpty(),
+                // Derived from what was actually recorded, matching tracesCaptured above, so an
+                // empty state table is never ambiguous between "not asked for" and "nothing to say".
+                solverStateCaptured = summary.traces.values.any { points ->
+                    points.any { it.solverState.isNotEmpty() }
+                },
                 kslVersion = kslVersion
             )
         )
@@ -289,6 +294,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
 
     private fun saveTraces(runIdByCell: Map<String, Int>, summary: BenchmarkSummary) {
         val rows = mutableListOf<IterationTraceTableData>()
+        val stateRows = mutableListOf<IterationTraceStateTableData>()
         for ((cellLabel, points) in summary.traces) {
             val runId = runIdByCell[cellLabel] ?: continue
             for (point in points) {
@@ -300,9 +306,23 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                         bestPenalizedObjective = point.bestPenalizedObjective
                     )
                 )
+                for ((stateName, stateValue) in point.solverState) {
+                    // A solver reporting an unmeasurable quantity says so with NaN, which SQLite
+                    // stores as null. Keeping the row preserves the fact that the solver was asked
+                    // and answered; dropping it would look like the measurement never existed.
+                    stateRows.add(
+                        IterationTraceStateTableData(
+                            runId = runId,
+                            iteration = point.iteration,
+                            stateName = stateName,
+                            stateValue = stateValue
+                        )
+                    )
+                }
             }
         }
         insertAllDbDataIntoTable(rows, "tblIterationTrace")
+        insertAllDbDataIntoTable(stateRows, "tblIterationTraceState")
     }
 
     // ── Typed extraction, one per table ──────────────────────────────────────
@@ -388,6 +408,21 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     /** Iteration-trace rows, optionally restricted to one experiment's runs. */
     fun traces(expId: Int? = null): List<IterationTraceTableData> {
         val all = selectTableDataIntoDbData(::IterationTraceTableData)
+        if (expId == null) {
+            return all
+        }
+        val runIds = runs(expId).map { it.runId }.toSet()
+        return all.filter { it.runId in runIds }
+    }
+
+    /**
+     *  Solver-state rows for an experiment's captured traces, in long format — one row per
+     *  (run, iteration, state name). Empty when the experiment did not capture solver state;
+     *  `tblExperiment.solverStateCaptured` distinguishes that from a study whose solvers published
+     *  nothing.
+     */
+    fun traceStates(expId: Int? = null): List<IterationTraceStateTableData> {
+        val all = selectTableDataIntoDbData(::IterationTraceStateTableData)
         if (expId == null) {
             return all
         }
@@ -621,6 +656,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 ConfirmationTableData(),
                 ConfirmationSummaryTableData(),
                 IterationTraceTableData(),
+                IterationTraceStateTableData(),
                 VerificationTableData()
             )
         }
