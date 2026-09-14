@@ -6,8 +6,12 @@ import ksl.simopt.benchmark.BenchmarkSummary
 import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
 import ksl.simopt.benchmark.SolverCase
+import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.FeasibilityFirstComparator
 import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
+import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import org.junit.jupiter.api.AfterEach
@@ -46,6 +50,8 @@ class BenchmarkResultsDbTest {
 
     private companion object {
         const val OBJ = "objFn"
+        const val TIGHT = "tight"
+        const val SLACK = "slack"
         const val BUDGET = 60
         const val WORKERS = 2
     }
@@ -79,6 +85,53 @@ class BenchmarkResultsDbTest {
                 })
             },
             tags = mapOf("family" to "sphere", "noiseLevel" to "LOW")
+        )
+    }
+
+
+    // ── Constrained fixture (A1/A2/A3) ────────────────────────────────────────
+
+    /**
+     * A problem with TWO response constraints of which exactly ONE binds, which is the shape the
+     * aggregate violation cannot describe. `tight` is held near 5.0 against a limit of 1.0, so it
+     * is violated by about 4 and is confidently infeasible; `slack` is held near 0.0 against a
+     * limit of 100.0, so it is satisfied with room to spare. The noise is small relative to both
+     * margins, so neither verdict depends on the draw.
+     */
+    private fun constrainedProblem(name: String): ProblemCase {
+        val inputNames = listOf("x1", "x2")
+        return ProblemCase(
+            name = name,
+            problemDefinitionFactory = {
+                val pd = ProblemDefinition(
+                    problemName = name,
+                    modelIdentifier = name,
+                    objFnResponseName = OBJ,
+                    inputNames = inputNames,
+                    responseNames = listOf(TIGHT, SLACK)
+                )
+                for (inputName in inputNames) {
+                    pd.inputVariable(inputName, -10.0, 10.0, 0.0)
+                }
+                pd.responseConstraint(TIGHT, rhsValue = 1.0, inequalityType = InequalityType.LESS_THAN)
+                pd.responseConstraint(SLACK, rhsValue = 100.0, inequalityType = InequalityType.LESS_THAN)
+                pd
+            },
+            evaluatorFactoryProvider = { pd ->
+                FunctionMemberEvaluatorFactory(pd, ResponseFunctionBuilderIfc { streamProvider ->
+                    val stream = streamProvider.rnStream(1)
+                    ResponseFunctionIfc { inputs ->
+                        val x1 = inputs.getValue("x1")
+                        val x2 = inputs.getValue("x2")
+                        mapOf(
+                            OBJ to x1 * x1 + x2 * x2 + 0.1 * stream.randU01(),
+                            TIGHT to 5.0 + 0.01 * stream.randU01(),
+                            SLACK to 0.0 + 0.01 * stream.randU01()
+                        )
+                    }
+                })
+            },
+            tags = mapOf("family" to "constrained")
         )
     }
 
@@ -356,5 +409,157 @@ class BenchmarkResultsDbTest {
         )
         assertEquals(wholeProfile, pooledProfile)
         assertTrue(wholeProfile.isNotEmpty()) { "The profile fixture produced no points" }
+    }
+
+    // ── A1/A2/A3: per-constraint and per-response recording ───────────────────
+
+    private fun runConstrainedExperiment(name: String = "constrainedExp"): BenchmarkSummary {
+        return BenchmarkExperiment(
+            name = name,
+            problems = listOf(constrainedProblem("twoConstraints")),
+            solverCases = listOf(shcCase("shcA", 10)),
+            macroReplications = 2,
+            replicationBudgetPerRun = BUDGET,
+            numWorkers = WORKERS
+        ).run()
+    }
+
+    /**
+     * The aggregate `responseConstraintViolation` is a plain SUM of the per-constraint violations,
+     * so the decomposition is checkable against the number that was already being recorded rather
+     * than against a freshly computed expectation. That is the strongest available statement that
+     * the new rows describe the same run: they must add up to the old column, and they must
+     * attribute the whole of it to the one constraint that binds.
+     */
+    @Test
+    @DisplayName("Per-constraint rows attribute the aggregate violation to the constraint that binds")
+    fun perConstraintRowsDecomposeTheAggregateViolation() {
+        val db = BenchmarkResultsDb("constraints.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runConstrainedExperiment())
+
+        val runs = db.runs(expId)
+        assertTrue(runs.isNotEmpty())
+        val constraintsByRun = db.runConstraints(expId).groupBy { it.runId }
+        assertEquals(runs.size, constraintsByRun.size) { "every cell must contribute constraint rows" }
+
+        for (run in runs) {
+            val rows = constraintsByRun.getValue(run.runId).associateBy { it.responseName }
+            assertEquals(setOf(TIGHT, SLACK), rows.keys)
+
+            assertEquals(run.responseConstraintViolation, rows.values.sumOf { it.violation }, 1e-9) {
+                "the per-constraint violations must sum to the aggregate the run row already carried"
+            }
+
+            val tight = rows.getValue(TIGHT)
+            val slack = rows.getValue(SLACK)
+            assertTrue(tight.violation > 0.0) { "the tight constraint should bind, got ${tight.violation}" }
+            assertEquals(0.0, slack.violation) { "the slack constraint should not bind" }
+            assertTrue(!tight.feasibleAtCI) { "the tight constraint cannot be declared feasible" }
+            assertTrue(slack.feasibleAtCI) { "the slack constraint is satisfied with room to spare" }
+
+            // The interval is what makes "not feasible" a statistical claim rather than a point one.
+            assertNotNull(tight.ciUpperLimit)
+            assertTrue(tight.ciUpperLimit!! > 0.0) { "an infeasible constraint's upper limit exceeds zero" }
+            assertTrue(slack.ciUpperLimit!! < 0.0) { "a confidently feasible constraint's upper limit is below zero" }
+        }
+    }
+
+    /**
+     * The constraint definitions travel with the results, so "was this winner feasible?" is a join
+     * rather than a lookup in a specification document.
+     */
+    @Test
+    @DisplayName("The problem's constraints are recorded, so the database says what a run had to meet")
+    fun problemConstraintsAreSelfDescribing() {
+        val db = BenchmarkResultsDb("problemConstraints.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runConstrainedExperiment())
+
+        val defined = db.problemConstraints(expId).associateBy { it.responseName }
+        assertEquals(setOf(TIGHT, SLACK), defined.keys)
+        assertEquals(1.0, defined.getValue(TIGHT).rhsValue)
+        assertEquals(100.0, defined.getValue(SLACK).rhsValue)
+        assertTrue(defined.values.all { it.inequalityType == "LESS_THAN" })
+        assertTrue(defined.values.all { it.problemName == "twoConstraints" })
+
+        // The join the archive exists to support: every recorded constraint has a matching
+        // assessment on every cell, with no orphan on either side.
+        val assessed = db.runConstraints(expId).map { it.responseName }.toSet()
+        assertEquals(defined.keys, assessed)
+    }
+
+    /**
+     * A3's reason for existing. `tblRun` preserves the best point's INPUTS, which is enough to
+     * re-simulate but not to re-select: ranking needs each response's average, variance and count.
+     * This rebuilds solutions from the stored rows alone and asserts they rank identically to the
+     * in-memory ones under the rule confirmation actually uses — which is the precondition for
+     * replaying a selection offline instead of re-running a 32-hour search.
+     */
+    @Test
+    @DisplayName("Solutions rebuilt from stored responses rank identically to the originals")
+    fun storedResponsesAreSufficientToReplaySelection() {
+        val db = BenchmarkResultsDb("replay.db", tempDir).also { openDatabases += it }
+        val summary = runConstrainedExperiment()
+        val expId = db.saveSummary(summary)
+
+        val problemResult = summary.problemResults.single()
+        val problemDefinition = problemResult.winner!!.problemDefinition
+        val responsesByRun = db.runResponses(expId).groupBy { it.runId }
+        val runsByCell = db.runs(expId).associateBy { it.cellLabel }
+
+        val rebuilt = problemResult.runs.map { run ->
+            val row = runsByCell.getValue(run.cellLabel)
+            val stored = responsesByRun.getValue(row.runId).associateBy { it.responseName }
+            fun estimate(name: String): EstimatedResponse {
+                val r = stored.getValue(name)
+                return EstimatedResponse(name, r.average, r.variance, r.count)
+            }
+            Solution(
+                inputMap = problemDefinition.toInputMap(run.bestInputs.toMutableMap()),
+                estimatedObjFnc = estimate(OBJ),
+                responseEstimates = listOf(estimate(TIGHT), estimate(SLACK)),
+                evaluationNumber = 1
+            )
+        }
+
+        // Every response the original carried survived the round trip, value for value.
+        for ((index, run) in problemResult.runs.withIndex()) {
+            for ((name, original) in run.responseEstimates) {
+                val restored = (rebuilt[index].responseEstimates + rebuilt[index].estimatedObjFnc)
+                    .single { it.name == name }
+                assertEquals(original.average, restored.average)
+                assertEquals(original.count, restored.count)
+            }
+        }
+
+        // The ranking check. FeasibilityFirstComparator judges an infeasible candidate by its
+        // total response-constraint violation -- which tblRun recorded independently, as a single
+        // aggregate column, before any of this phase's tables existed. So ordering the rebuilt
+        // solutions with the comparator and ordering the run rows by that column are two routes to
+        // the same answer, and they must agree. If the stored per-response estimates were
+        // insufficient to reconstruct a rankable solution, they would not.
+        val comparator = FeasibilityFirstComparator()
+        val byCell = problemResult.runs.map { it.cellLabel }
+        val rebuiltOrder = problemResult.runs.indices
+            .sortedWith { a, b ->
+                val c = comparator.compare(rebuilt[a], rebuilt[b])
+                if (c != 0) c else byCell[a].compareTo(byCell[b])
+            }
+            .map { byCell[it] }
+        val expectedOrder = problemResult.runs.indices
+            .sortedWith(
+                compareBy(
+                    { runsByCell.getValue(byCell[it]).responseConstraintViolation },
+                    { byCell[it] }
+                )
+            )
+            .map { byCell[it] }
+        assertEquals(expectedOrder, rebuiltOrder) {
+            "solutions rebuilt from tblRunResponse do not rank as the recorded violations say they should"
+        }
+        assertTrue(expectedOrder.size > 1) { "a single cell cannot demonstrate an ordering" }
+
+        assertTrue(rebuilt.none { it.isResponseConstraintFeasible() }) {
+            "the fixture no longer exercises the infeasible branch"
+        }
     }
 }

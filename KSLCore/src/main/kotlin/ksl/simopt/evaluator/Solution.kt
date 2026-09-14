@@ -34,6 +34,28 @@ class SolutionEmitter : SolutionEmitterIfc {
  *  @param searchState an optional snapshot of solver-level search state for self-scaling penalties. Null
  *  unless such a penalty populates it. Excluded from value-equality (derived state).
  */
+/**
+ *  One response constraint's assessment for a particular solution: what the constraint was judged
+ *  on, by how much it is violated, and whether it can be declared feasible.
+ *
+ *  @param responseName the constrained response
+ *  @param estimate the solution's average for that response
+ *  @param violation the amount by which the constraint is violated; zero when it is satisfied
+ *  @param ciUpperLimit the one-sided upper confidence limit on the constraint difference at the
+ *  adjusted level. Null when the estimate carries fewer than two observations, so no sample
+ *  variance and therefore no interval exists — distinct from an interval that happens to be wide.
+ *  @param isFeasibleAtCI whether the constraint can be declared feasible at that level. False for a
+ *  single-observation estimate: "not shown" rather than "shown to fail", which is the same answer
+ *  the constraint's own feasibility test gives.
+ */
+data class ResponseConstraintAssessment(
+    val responseName: String,
+    val estimate: Double,
+    val violation: Double,
+    val ciUpperLimit: Double?,
+    val isFeasibleAtCI: Boolean
+)
+
 data class Solution(
     val inputMap: InputMap,
     val estimatedObjFnc: EstimatedResponse,
@@ -198,6 +220,21 @@ data class Solution(
         get() = problemDefinition.granularPenalizedObjFncValue(this)
 
     /**
+     *  The Bonferroni-adjusted confidence level applied to each individual response constraint so
+     *  that the tests jointly meet the supplied overall level.
+     *
+     *  An unconstrained problem has nothing to correct for; dividing by a constraint count of zero
+     *  would give an infinite level, and a level of negative infinity is not a value to compute and
+     *  carry even where no loop consumes it.
+     *
+     *  @param overallCILevel the overall confidence across all response constraints
+     */
+    private fun perConstraintCILevel(overallCILevel: Double): Double {
+        val k = problemDefinition.responseConstraints.size
+        return if (k == 0) overallCILevel else 1.0 - ((1.0 - overallCILevel) / k)
+    }
+
+    /**
      *  Tests if each response constraint is feasible.  If all tests are feasible, then the
      *  solution is considered response feasible.
      *
@@ -205,13 +242,8 @@ data class Solution(
      */
     fun isResponseConstraintFeasible(overallCILevel: Double = 0.99): Boolean {
         require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
-        val alpha = 1.0 - overallCILevel
         val responses = responseEstimatesMap
-        val k = problemDefinition.responseConstraints.size
-        // An unconstrained problem has nothing to correct for; dividing by k would give an
-        // infinite level. The loop below does not execute in that case, but a level of negative
-        // infinity is not a value to compute and carry.
-        val level = if (k == 0) overallCILevel else 1.0 - (alpha / k)
+        val level = perConstraintCILevel(overallCILevel)
         for (rc in problemDefinition.responseConstraints){
             if (responses.containsKey(rc.responseName)) {
                 val estimatedResponse = responses[rc.responseName]!!
@@ -237,10 +269,8 @@ data class Solution(
     fun responseConstraintOneSidedIntervals(overallCILevel: Double = 0.99): List<Interval> {
         require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
         val intervals = mutableListOf<Interval>()
-        val alpha = 1.0 - overallCILevel
         val responses = responseEstimatesMap
-        val k = problemDefinition.responseConstraints.size
-        val level = if (k == 0) overallCILevel else 1.0 - (alpha / k)
+        val level = perConstraintCILevel(overallCILevel)
         for (rc in problemDefinition.responseConstraints) {
             if (responses.containsKey(rc.responseName)) {
                 val estimatedResponse = responses[rc.responseName]!!
@@ -253,6 +283,50 @@ data class Solution(
             }
         }
         return intervals
+    }
+
+    /**
+     *  A per-constraint assessment of this solution, keyed by response name: the estimate the
+     *  constraint was judged on, the amount by which it is violated, the one-sided upper confidence
+     *  limit, and whether the constraint can be declared feasible at that limit.
+     *
+     *  Prefer this to `responseConstraintOneSidedIntervals` when the results must be attributed to
+     *  particular constraints. That function returns a positional list which silently omits any
+     *  constraint whose response is missing from the estimates, so its indices do not reliably
+     *  align with the problem's constraint list; this one is keyed and cannot be misattributed.
+     *
+     *  Constraints whose response is absent from the estimates are omitted, as they are there — no
+     *  assessment is possible without an estimate.
+     *
+     *  @param overallCILevel the overall confidence across all response constraints. The individual
+     *  levels are adjusted so the tests jointly meet it.
+     */
+    fun responseConstraintAssessments(
+        overallCILevel: Double = 0.99
+    ): Map<String, ResponseConstraintAssessment> {
+        require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
+        val responses = responseEstimatesMap
+        val level = perConstraintCILevel(overallCILevel)
+        val violations = responseViolations
+        val assessments = LinkedHashMap<String, ResponseConstraintAssessment>()
+        for (rc in problemDefinition.responseConstraints) {
+            val estimatedResponse = responses[rc.responseName] ?: continue
+            // A single observation carries no sample variance, so there is no interval to report.
+            // Null says "not computable" where a sentinel limit would read as a real bound.
+            val upperLimit = if (estimatedResponse.count < 2.0) {
+                null
+            } else {
+                rc.oneSidedUpperResponseInterval(estimatedResponse, level).upperLimit
+            }
+            assessments[rc.responseName] = ResponseConstraintAssessment(
+                responseName = rc.responseName,
+                estimate = estimatedResponse.average,
+                violation = violations[rc.responseName] ?: 0.0,
+                ciUpperLimit = upperLimit,
+                isFeasibleAtCI = rc.testFeasibility(estimatedResponse, level)
+            )
+        }
+        return assessments
     }
 
     override fun compareTo(other: Solution): Int {

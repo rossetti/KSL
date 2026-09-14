@@ -176,6 +176,16 @@ class BenchmarkExperiment(
         )
     }
 
+    /**
+     *  The overall confidence at which a cell's best point is assessed against the problem's
+     *  response constraints. Taken from the confirmation options so the per-constraint record and
+     *  the confirmation's own selection read feasibility at the same level; 0.99 when confirmation
+     *  is disabled, which is what both `ConfirmationOptions` and `Solver.recommendationCILevel`
+     *  default to.
+     */
+    private val assessmentCILevel: Double
+        get() = confirmation?.recommendationCILevel ?: 0.99
+
     private fun runProblem(problemIndex: Int, problemCase: ProblemCase): ProblemBenchmarkResult {
         logger.info { "Benchmark '$name': running problem '${problemCase.name}'" }
         val problemDefinition = problemCase.problemDefinitionFactory()
@@ -395,6 +405,8 @@ class BenchmarkExperiment(
                 isBestValid = isBestValid,
                 isInputFeasible = best.isInputFeasible(),
                 responseConstraintViolation = best.responseConstraintViolationPenalty,
+                responseEstimates = best.responseEstimatesMap + (best.estimatedObjFnc.name to best.estimatedObjFnc),
+                responseConstraintAssessments = best.responseConstraintAssessments(assessmentCILevel).values.toList(),
                 numOracleCalls = member.numOracleCalls,
                 numReplicationsRequested = member.numReplicationsRequested,
                 totalIterations = completed?.totalIterations,
@@ -419,6 +431,7 @@ class BenchmarkExperiment(
             dimension = problemDefinition.inputSize,
             optimizationType = problemDefinition.optimizationType,
             numResponseConstraints = problemDefinition.responseConstraints.size,
+            responseConstraints = problemDefinition.responseConstraints,
             runs = runs,
             confirmation = confirmationOutcome,
             winner = winner,

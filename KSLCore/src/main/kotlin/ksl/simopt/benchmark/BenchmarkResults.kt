@@ -1,8 +1,11 @@
 package ksl.simopt.benchmark
 
 import kotlinx.datetime.Instant
+import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.ResponseConstraintAssessment
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.OptimizationType
+import ksl.simopt.problem.ResponseConstraint
 import ksl.simopt.solvers.concurrent.ConfirmationOptions
 import ksl.simopt.solvers.concurrent.ConfirmationOutcome
 import ksl.simopt.solvers.concurrent.MemberStatus
@@ -51,6 +54,13 @@ data class IterationTracePoint(
  *  and deterministic constraints
  *  @param responseConstraintViolation the total response-constraint violation at the
  *  best point (zero when response-feasible or the problem has no response constraints)
+ *  @param responseEstimates the best point's estimate for every response of the problem,
+ *  keyed by response name, including the objective. These are what a selection rule needs
+ *  in order to be replayed offline: with the average, variance and count of each response
+ *  preserved, a solution sufficient for ranking can be rebuilt without re-simulating.
+ *  @param responseConstraintAssessments the best point's per-constraint assessment, in the
+ *  problem's constraint order. The aggregate `responseConstraintViolation` above cannot say
+ *  WHICH constraint bound; this can. Empty when the problem has no response constraints.
  *  @param numOracleCalls the solver's cumulative oracle-call count
  *  @param numReplicationsRequested the solver's cumulative requested replications — the
  *  actual budget consumption used for normalization
@@ -79,6 +89,8 @@ data class BenchmarkRunResult(
     val isBestValid: Boolean,
     val isInputFeasible: Boolean,
     val responseConstraintViolation: Double,
+    val responseEstimates: Map<String, EstimatedResponse>,
+    val responseConstraintAssessments: List<ResponseConstraintAssessment>,
     val numOracleCalls: Int,
     val numReplicationsRequested: Int,
     val totalIterations: Int?,
@@ -99,6 +111,9 @@ data class BenchmarkRunResult(
  *  @param optimizationType whether the problem minimizes or maximizes
  *  @param numResponseConstraints the number of response constraints (zero means the
  *  problem is unconstrained apart from input ranges)
+ *  @param responseConstraints the problem's response constraints as defined, so the record
+ *  says what a run had to meet and not only what it achieved. Carried here rather than read
+ *  back off a winning solution, which does not exist when every cell of a problem failed.
  *  @param runs the cell results, in deterministic cell order (solver case major,
  *  macro-replication minor)
  *  @param confirmation the CRN confirmation outcome across the problem's finalists;
@@ -118,6 +133,7 @@ data class ProblemBenchmarkResult(
     val dimension: Int,
     val optimizationType: OptimizationType,
     val numResponseConstraints: Int,
+    val responseConstraints: List<ResponseConstraint>,
     val runs: List<BenchmarkRunResult>,
     val confirmation: ConfirmationOutcome?,
     val winner: Solution?,

@@ -89,7 +89,9 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         )
         saveSolverCases(expId, summary)
         saveProblems(expId, summary)
+        saveProblemConstraints(expId, summary)
         val runIdByCell = saveRuns(expId, summary)
+        saveRunConstraintsAndResponses(runIdByCell, summary)
         saveConfirmations(expId, summary)
         saveVerifications(expId, summary)
         saveTraces(runIdByCell, summary)
@@ -169,6 +171,60 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         }
         insertAllDbDataIntoTable(rows, "tblRun")
         return runIdByCell
+    }
+
+    private fun saveProblemConstraints(expId: Int, summary: BenchmarkSummary) {
+        val rows = summary.problemResults.flatMap { pr ->
+            pr.responseConstraints.map { rc ->
+                ProblemConstraintTableData(
+                    expId = expId,
+                    problemName = pr.problemName,
+                    responseName = rc.responseName,
+                    rhsValue = rc.rhsValue,
+                    inequalityType = rc.inequalityType.name,
+                    target = rc.target,
+                    tolerance = rc.tolerance
+                )
+            }
+        }
+        insertAllDbDataIntoTable(rows, "tblProblemConstraint")
+    }
+
+    /**
+     *  Writes both per-run detail tables in one pass over the cells, since they share the run id
+     *  assigned by `saveRuns` and differ only in what they project from the same best solution.
+     */
+    private fun saveRunConstraintsAndResponses(runIdByCell: Map<String, Int>, summary: BenchmarkSummary) {
+        val constraintRows = mutableListOf<RunConstraintTableData>()
+        val responseRows = mutableListOf<RunResponseTableData>()
+        for (run in summary.allRuns) {
+            val runId = runIdByCell[run.cellLabel] ?: continue
+            for (assessment in run.responseConstraintAssessments) {
+                constraintRows.add(
+                    RunConstraintTableData(
+                        runId = runId,
+                        responseName = assessment.responseName,
+                        estimate = assessment.estimate,
+                        violation = assessment.violation,
+                        ciUpperLimit = assessment.ciUpperLimit,
+                        feasibleAtCI = assessment.isFeasibleAtCI
+                    )
+                )
+            }
+            for ((responseName, estimate) in run.responseEstimates) {
+                responseRows.add(
+                    RunResponseTableData(
+                        runId = runId,
+                        responseName = responseName,
+                        average = estimate.average,
+                        variance = estimate.variance,
+                        count = estimate.count
+                    )
+                )
+            }
+        }
+        insertAllDbDataIntoTable(constraintRows, "tblRunConstraint")
+        insertAllDbDataIntoTable(responseRows, "tblRunResponse")
     }
 
     private fun saveConfirmations(expId: Int, summary: BenchmarkSummary) {
@@ -274,6 +330,39 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     /** Run rows, optionally restricted to one experiment. */
     fun runs(expId: Int? = null): List<RunTableData> {
         return selectTableDataIntoDbData(::RunTableData).filter { expId == null || it.expId == expId }
+    }
+
+    /**
+     *  Per-constraint rows for an experiment's cells: what each cell's best achieved against each
+     *  response constraint. Restricted to one experiment by joining through its run ids.
+     */
+    fun runConstraints(expId: Int? = null): List<RunConstraintTableData> {
+        val all = selectTableDataIntoDbData(::RunConstraintTableData)
+        if (expId == null) {
+            return all
+        }
+        val runIds = runs(expId).map { it.runId }.toSet()
+        return all.filter { it.runId in runIds }
+    }
+
+    /**
+     *  Per-response estimate rows for an experiment's cells — the average, variance and count that
+     *  make a selection replayable offline. Restricted to one experiment by joining through its
+     *  run ids.
+     */
+    fun runResponses(expId: Int? = null): List<RunResponseTableData> {
+        val all = selectTableDataIntoDbData(::RunResponseTableData)
+        if (expId == null) {
+            return all
+        }
+        val runIds = runs(expId).map { it.runId }.toSet()
+        return all.filter { it.runId in runIds }
+    }
+
+    /** The response constraints of an experiment's problems, as the problems define them. */
+    fun problemConstraints(expId: Int? = null): List<ProblemConstraintTableData> {
+        return selectTableDataIntoDbData(::ProblemConstraintTableData)
+            .filter { expId == null || it.expId == expId }
     }
 
     /** Confirmation rows, optionally restricted to one experiment. */
@@ -526,6 +615,9 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 SolverCaseTableData(),
                 SolverCaseParameterTableData(),
                 RunTableData(),
+                RunConstraintTableData(),
+                RunResponseTableData(),
+                ProblemConstraintTableData(),
                 ConfirmationTableData(),
                 ConfirmationSummaryTableData(),
                 IterationTraceTableData(),

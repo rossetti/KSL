@@ -112,6 +112,64 @@ data class ConfirmationTableData(
 ) : DbTableData("tblConfirmation", listOf("expId", "problemName", "candidateNum"))
 
 /**
+ *  One row per (run, response constraint): the cell best's estimate for the constrained response,
+ *  by how much the constraint is violated, the one-sided upper confidence limit, and whether that
+ *  constraint on its own can be declared feasible.
+ *
+ *  `tblRun.responseConstraintViolation` is retained alongside this and is unchanged; it is the
+ *  aggregate, and an aggregate cannot say WHICH constraint bound. That question — do particular
+ *  solvers fail specifically on one coupling constraint? — is what these rows answer.
+ *
+ *  `ciUpperLimit` is null when the estimate carried fewer than two observations, so there was no
+ *  sample variance and no interval to report. A `feasibleAtCI` of false on such a row means "not
+ *  shown feasible", not "shown infeasible".
+ */
+data class RunConstraintTableData(
+    var runId: Int = -1,
+    var responseName: String = "",
+    var estimate: Double = 0.0,
+    var violation: Double = 0.0,
+    var ciUpperLimit: Double? = null,
+    var feasibleAtCI: Boolean = false
+) : DbTableData("tblRunConstraint", listOf("runId", "responseName"))
+
+/**
+ *  One row per (experiment, problem, response constraint): the constraint as the problem defines
+ *  it. Without these rows the database records what a run achieved but not what it had to meet, so
+ *  answering "was every verified winner feasible?" meant hand-coding the constraint table from the
+ *  specification and joining it externally. With them the question is a single join and the archive
+ *  is self-describing.
+ */
+data class ProblemConstraintTableData(
+    var expId: Int = -1,
+    var problemName: String = "",
+    var responseName: String = "",
+    var rhsValue: Double = 0.0,
+    var inequalityType: String = "",
+    var target: Double = 0.0,
+    var tolerance: Double = 0.0
+) : DbTableData("tblProblemConstraint", listOf("expId", "problemName", "responseName"))
+
+/**
+ *  One row per (run, response): the cell best's estimate for every response of the problem, the
+ *  objective included.
+ *
+ *  This is what makes a selection replayable. `tblRun` preserves the best point's INPUTS, which is
+ *  enough to re-simulate but not to re-select: ranking a candidate needs its average, variance and
+ *  count per response. With those stored, an alternative confirmation rule can be applied to a
+ *  finished study offline, and only the finalists it chooses need fresh simulation.
+ *
+ *  A variance of NaN is what a single-observation estimate legitimately carries.
+ */
+data class RunResponseTableData(
+    var runId: Int = -1,
+    var responseName: String = "",
+    var average: Double = 0.0,
+    var variance: Double = 0.0,
+    var count: Double = 0.0
+) : DbTableData("tblRunResponse", listOf("runId", "responseName"))
+
+/**
  *  One row per (experiment, problem) confirmation stage: how many candidates were ranked,
  *  how many of them were confidently response-feasible at the confirmation's CI level, and
  *  whether the selection was therefore degenerate.
