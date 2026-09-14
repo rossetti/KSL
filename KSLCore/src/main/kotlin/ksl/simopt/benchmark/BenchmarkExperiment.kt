@@ -399,6 +399,7 @@ class BenchmarkExperiment(
                 numReplicationsRequested = member.numReplicationsRequested,
                 totalIterations = completed?.totalIterations,
                 wallClockMillis = completed?.executionTimeMillis,
+                cpuTimeMillis = member.cpuTimeMillis,
                 gap = gap,
                 gapType = if (gap != null) gapType else null,
                 errorMessage = member.error?.message

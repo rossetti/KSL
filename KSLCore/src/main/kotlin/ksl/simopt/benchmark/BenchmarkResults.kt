@@ -56,6 +56,11 @@ data class IterationTracePoint(
  *  actual budget consumption used for normalization
  *  @param totalIterations the solver's iteration count, when the solver ran
  *  @param wallClockMillis the solver's execution time in milliseconds, when tracked
+ *  @param cpuTimeMillis the CPU time the cell's worker thread spent running the solver,
+ *  in milliseconds. Portable across machines in a way wall clock is not, because it does
+ *  not depend on the worker count or on what else the machine was doing. Counts only the
+ *  worker thread, so work an evaluator delegates elsewhere is excluded. Null when the cell
+ *  never ran or the JVM does not report per-thread CPU time.
  *  @param gap the optimality gap of the best objective against the problem's gap basis
  *  @param gapType the basis the gap was computed against
  *  @param errorMessage the failure cause when the cell failed; null otherwise
@@ -78,6 +83,7 @@ data class BenchmarkRunResult(
     val numReplicationsRequested: Int,
     val totalIterations: Int?,
     val wallClockMillis: Long?,
+    val cpuTimeMillis: Long?,
     val gap: Double?,
     val gapType: GapType?,
     val errorMessage: String? = null

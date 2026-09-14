@@ -47,6 +47,7 @@ class BenchmarkResultsDbTest {
     private companion object {
         const val OBJ = "objFn"
         const val BUDGET = 60
+        const val WORKERS = 2
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ class BenchmarkResultsDbTest {
             replicationBudgetPerRun = BUDGET,
             captureIterationTraces = traces,
             verificationReplications = verification,
-            numWorkers = 2
+            numWorkers = WORKERS
         ).run()
     }
 
@@ -167,6 +168,43 @@ class BenchmarkResultsDbTest {
         }
 
         assertTrue(db.confirmations(expId).isNotEmpty())
+
+        // CPU time is the portable cost measure: wall clock depends on the worker count and on
+        // what else the machine was doing, so it cannot be compared across runs or machines.
+        // It is measured on the member worker only, which is why it is bounded ABOVE by wall
+        // clock times the worker count and is not expected to approach it.
+        val timed = runs.filter { it.cpuTimeMillis != null }
+        assertTrue(timed.isNotEmpty()) {
+            "no cell reported CPU time; the JVM supports it here, so this is a wiring failure"
+        }
+        for (row in timed) {
+            assertTrue(row.cpuTimeMillis!! >= 0) { "cell ${row.cellLabel} reported negative CPU time" }
+            val wall = row.wallClockMillis
+            if (wall != null) {
+                assertTrue(row.cpuTimeMillis!! <= (wall + 1) * WORKERS) {
+                    "cell ${row.cellLabel} reported ${row.cpuTimeMillis} ms of CPU against " +
+                        "$wall ms of wall clock on $WORKERS workers, which is not physically " +
+                        "possible — the field is reading the wrong clock"
+                }
+            }
+        }
+        assertTrue(timed.any { it.cpuTimeMillis!! > 0 }) {
+            "every cell reported exactly zero CPU time, which means the measurement is not running"
+        }
+
+        // One summary row per problem whose confirmation stage ran, carrying the counts that make
+        // a degenerate selection visible. These problems are unconstrained, so no selection here
+        // can be degenerate; a true flag would mean the condition is being reported spuriously.
+        val confirmationSummaries = db.confirmationSummaries(expId)
+        assertEquals(setOf("sphereA", "sphereB"), confirmationSummaries.map { it.problemName }.toSet())
+        for (row in confirmationSummaries) {
+            assertTrue(row.numCandidates > 0)
+            assertEquals(row.numCandidates, row.numConfidentlyFeasible) {
+                "an unconstrained problem's candidates are all trivially feasible"
+            }
+            assertTrue(!row.selectionDegenerate)
+        }
+
         val verifications = db.verifications(expId)
         assertEquals(setOf("sphereA", "sphereB"), verifications.map { it.problemName }.toSet())
         assertTrue(verifications.all { it.count == 20.0 })

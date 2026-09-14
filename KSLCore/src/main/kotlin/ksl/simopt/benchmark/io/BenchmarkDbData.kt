@@ -90,6 +90,7 @@ data class RunTableData(
     var numReplicationsRequested: Int = 0,
     var totalIterations: Int? = null,
     var wallClockMillis: Long? = null,
+    var cpuTimeMillis: Long? = null,
     var gap: Double? = null,
     var gapType: String? = null,
     var errorMessage: String? = null
@@ -109,6 +110,32 @@ data class ConfirmationTableData(
     var numReplications: Double = 0.0,
     var isWinner: Boolean = false
 ) : DbTableData("tblConfirmation", listOf("expId", "problemName", "candidateNum"))
+
+/**
+ *  One row per (experiment, problem) confirmation stage: how many candidates were ranked,
+ *  how many of them were confidently response-feasible at the confirmation's CI level, and
+ *  whether the selection was therefore degenerate.
+ *
+ *  Separate from `tblConfirmation` rather than extra columns on it, for two reasons. The
+ *  candidate table is one row per finalist, so these problem-level values would repeat on
+ *  every row; and it gets no rows at all when confirmation is skipped for a single distinct
+ *  finalist — which is exactly a case where knowing the selection could not discriminate
+ *  still matters. A summary row is written whenever a confirmation stage ran.
+ *
+ *  A degenerate selection is one in which no candidate could be declared confidently
+ *  feasible, so the comparator fell through to ranking by constraint violation alone and the
+ *  objective played no part in choosing the winner. Always false for a problem with no
+ *  response constraints.
+ */
+data class ConfirmationSummaryTableData(
+    var expId: Int = -1,
+    var problemName: String = "",
+    var numCandidates: Int = 0,
+    var numConfidentlyFeasible: Int = 0,
+    var selectionDegenerate: Boolean = false,
+    var numOracleCalls: Int = 0,
+    var numReplicationsRequested: Int = 0
+) : DbTableData("tblConfirmationSummary", listOf("expId", "problemName"))
 
 /**
  *  One row per captured iteration of a run's trace (opt-in): the cumulative requested

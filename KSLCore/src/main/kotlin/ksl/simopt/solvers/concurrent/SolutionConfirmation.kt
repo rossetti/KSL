@@ -19,12 +19,26 @@ import ksl.simopt.problem.ProblemDefinition
  * skipped because there was effectively a single candidate)
  * @param numOracleCalls the number of oracle design points the confirmation consumed
  * @param numReplicationsRequested the number of replications the confirmation consumed
+ * @param numCandidates the number of candidates that entered ranking
+ * @param numConfidentlyFeasible how many of those candidates passed
+ * `Solution.isResponseConstraintFeasible` at the options' CI level, measured at the
+ * candidates' own search-time precision — which is the precision the ranking actually used
+ * @param selectionDegenerate true when no candidate could be declared confidently feasible.
+ * The comparator then cannot discriminate on feasibility, every candidate falls through to
+ * its violation-penalty tie-break, and **the objective plays no part in choosing the
+ * winner**: the reported winner is the most conservative candidate rather than the best
+ * objective/feasibility trade-off. Always false for a problem with no response constraints,
+ * where every candidate is trivially feasible. The condition is otherwise invisible in the
+ * output, which is why it is recorded rather than merely logged.
  */
 data class ConfirmationOutcome(
     val winner: Solution,
     val confirmedSolutions: List<Solution>,
     val numOracleCalls: Int,
-    val numReplicationsRequested: Int
+    val numReplicationsRequested: Int,
+    val numCandidates: Int,
+    val numConfidentlyFeasible: Int,
+    val selectionDegenerate: Boolean
 )
 
 /**
@@ -79,13 +93,34 @@ object SolutionConfirmation {
         // whenever the penalty was smaller than the objective gap.
         val recommendationComparator = FeasibilityFirstComparator(options.recommendationCILevel)
         val selectionClock = candidates.maxOf { it.evaluationNumber }
+        // Measured before ranking, on the same candidates and at the same CI level the comparator
+        // uses, so this records what the comparator had to work with rather than a re-derivation.
+        val numConfidentlyFeasible = usable.count {
+            it.isResponseConstraintFeasible(options.recommendationCILevel)
+        }
+        val selectionDegenerate = numConfidentlyFeasible == 0
+        if (selectionDegenerate) {
+            logger.warn {
+                "Confirmation selection is degenerate: none of ${usable.size} candidates is " +
+                    "confidently response-feasible at level ${options.recommendationCILevel}, so " +
+                    "the winner is ranked by constraint violation alone and the objective is unused."
+            }
+        }
         val finalists = usable
             .sortedWith(recommendationComparator)
             .take(options.topK)
         val distinctInputs = finalists.map { it.inputMap }.distinct()
         if (distinctInputs.size <= 1) {
             logger.debug { "Confirmation skipped: a single distinct finalist input point" }
-            return ConfirmationOutcome(finalists.first(), emptyList(), 0, 0)
+            return ConfirmationOutcome(
+                winner = finalists.first(),
+                confirmedSolutions = emptyList(),
+                numOracleCalls = 0,
+                numReplicationsRequested = 0,
+                numCandidates = usable.size,
+                numConfidentlyFeasible = numConfidentlyFeasible,
+                selectionDegenerate = selectionDegenerate
+            )
         }
         val modelInputs = distinctInputs.map { inputMap ->
             ModelInputs(
@@ -132,7 +167,10 @@ object SolutionConfirmation {
             winner = winner,
             confirmedSolutions = restamped,
             numOracleCalls = modelInputs.size,
-            numReplicationsRequested = modelInputs.sumOf { it.numReplications }
+            numReplicationsRequested = modelInputs.sumOf { it.numReplications },
+            numCandidates = usable.size,
+            numConfidentlyFeasible = numConfidentlyFeasible,
+            selectionDegenerate = selectionDegenerate
         )
     }
 }

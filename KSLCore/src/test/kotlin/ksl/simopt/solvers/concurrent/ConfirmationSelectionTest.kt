@@ -234,6 +234,118 @@ class ConfirmationSelectionTest {
         }
     }
 
+    // ── Selection degeneracy (C1) ─────────────────────────────────────────────────────────
+    //
+    // Feasibility-first has a failure mode that looks like success. When NO candidate can be
+    // declared confidently feasible, step 2 of the comparator cannot discriminate, every candidate
+    // falls through to step 4, and the winner is ranked by constraint violation ALONE -- the
+    // objective plays no part at all. Nothing in the output says so. That is what produced a
+    // FacilitySizing winner verifying at P(stockout) = 0.122 against a 0.05 limit, reported with
+    // the same confidence as any other result.
+    //
+    // These tests pin the flag that makes the condition visible, and pin what the selection
+    // actually does while it holds.
+
+    /**
+     * The headline: when every candidate violates, the LEAST-VIOLATING one wins even though it is
+     * by far the most expensive. The objective spread here is 9:1 and it changes nothing, which is
+     * the point — a reader of the winner alone cannot tell that the objective was never consulted.
+     */
+    @Test
+    @DisplayName("With no confidently feasible candidate the least-violating design wins and the objective is unused")
+    fun degenerateSelectionRanksByViolationAloneAndIsFlagged() {
+        val pd = makeProblem()
+        val evaluator = makeEvaluator(pd)
+        // Both violate `usage <= 1.0`. The cheap one violates by 2.0, the costly one by 0.5.
+        val cheapBadlyInfeasible = solutionAt(pd, evaluator, 100.0, 3.0, WEAK_CLOCK)
+        val costlyBarelyInfeasible = solutionAt(pd, evaluator, 900.0, 1.5, WEAK_CLOCK)
+
+        val outcome = confirm(pd, listOf(cheapBadlyInfeasible, costlyBarelyInfeasible))
+
+        assertTrue(outcome.selectionDegenerate) {
+            "no candidate is confidently feasible, so the selection is degenerate and must say so"
+        }
+        assertEquals(0, outcome.numConfidentlyFeasible)
+        assertEquals(2, outcome.numCandidates)
+        assertEquals(900.0, winningObjective(outcome)) {
+            "the winner must be the least-violating candidate; picking the cheaper one would mean " +
+                "the objective still reached the decision"
+        }
+        assertEquals(1.5, outcome.winner.inputMap.getValue("usage"))
+    }
+
+    /**
+     * The control. The same machinery on the same problem, with one feasible candidate present,
+     * must NOT raise the flag — otherwise it would fire on every constrained problem and carry no
+     * information.
+     */
+    @Test
+    @DisplayName("One confidently feasible candidate is enough to make the selection non-degenerate")
+    fun oneFeasibleCandidateClearsTheDegeneracyFlag() {
+        val pd = makeProblem()
+        val evaluator = makeEvaluator(pd)
+        val candidates = listOf(
+            solutionAt(pd, evaluator, CHEAP_INFEASIBLE_OBJECTIVE, CHEAP_INFEASIBLE_USAGE, WEAK_CLOCK),
+            solutionAt(pd, evaluator, COSTLY_FEASIBLE_OBJECTIVE, COSTLY_FEASIBLE_USAGE, WEAK_CLOCK)
+        )
+        val outcome = confirm(pd, candidates)
+
+        assertTrue(!outcome.selectionDegenerate)
+        assertEquals(1, outcome.numConfidentlyFeasible)
+        assertEquals(2, outcome.numCandidates)
+        assertEquals(COSTLY_FEASIBLE_OBJECTIVE, winningObjective(outcome))
+    }
+
+    /**
+     * A problem with no response constraints has nothing to be confidently feasible ABOUT: every
+     * candidate passes trivially. The flag must stay down, or every unconstrained benchmark problem
+     * would be reported as a degenerate selection.
+     */
+    @Test
+    @DisplayName("An unconstrained problem is never reported as a degenerate selection")
+    fun unconstrainedProblemIsNeverDegenerate() {
+        val pd = ProblemDefinition(
+            problemName = "unconstrainedProbe",
+            modelIdentifier = MODEL_ID,
+            objFnResponseName = OBJ,
+            inputNames = listOf("objective", "usage"),
+            responseNames = listOf(USAGE)
+        )
+        pd.inputVariable("objective", 0.0, 1000.0)
+        pd.inputVariable("usage", 0.0, 1000.0)
+        val evaluator = makeEvaluator(pd)
+        val candidates = listOf(
+            solutionAt(pd, evaluator, CHEAP_INFEASIBLE_OBJECTIVE, CHEAP_INFEASIBLE_USAGE, WEAK_CLOCK),
+            solutionAt(pd, evaluator, COSTLY_FEASIBLE_OBJECTIVE, COSTLY_FEASIBLE_USAGE, WEAK_CLOCK)
+        )
+        val outcome = confirm(pd, candidates)
+
+        assertTrue(!outcome.selectionDegenerate)
+        assertEquals(2, outcome.numConfidentlyFeasible)
+        // With no constraint to fail, the smaller objective wins on the comparator's third key.
+        assertEquals(CHEAP_INFEASIBLE_OBJECTIVE, winningObjective(outcome))
+    }
+
+    /**
+     * Confirmation is skipped when the finalists collapse to one distinct point, and that early
+     * return must still carry the counts. This is the case a `tblConfirmation`-only record would
+     * lose entirely, since it produces no candidate rows.
+     */
+    @Test
+    @DisplayName("A skipped confirmation still reports the degeneracy counts")
+    fun skippedConfirmationStillReportsCounts() {
+        val pd = makeProblem()
+        val evaluator = makeEvaluator(pd)
+        val single = solutionAt(pd, evaluator, 100.0, 3.0, WEAK_CLOCK)
+        val outcome = confirm(pd, listOf(single, single))
+
+        assertTrue(outcome.confirmedSolutions.isEmpty()) { "the fixture must exercise the skip path" }
+        assertEquals(0, outcome.numOracleCalls)
+        assertEquals(2, outcome.numCandidates)
+        assertEquals(0, outcome.numConfidentlyFeasible)
+        assertTrue(outcome.selectionDegenerate)
+    }
+
     /**
      * The mechanism the clock-independence above protects against: a newly built evaluator — which
      * is what the confirmation stage is given — stamps its first batch at 1, the weakest penalty a

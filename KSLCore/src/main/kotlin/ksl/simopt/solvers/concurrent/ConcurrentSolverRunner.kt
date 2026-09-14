@@ -15,6 +15,7 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simulation.SimulationDispatcher
+import java.lang.management.ManagementFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
@@ -189,7 +190,11 @@ class ConcurrentSolverRunner(
                 runCatching { solver.stopIterations(myStopMessage) }
             }
             logger.debug { "Member $index (${task.label}) starting" }
+            // Bracket only the solver's run, on this worker thread, so the measurement excludes
+            // evaluator provisioning and matches what executionTimeMillis brackets in wall clock.
+            val cpuStart = currentThreadCpuTimeNanos()
             solver.runAllIterations()
+            val cpuMillis = elapsedCpuMillis(cpuStart)
             reusable = true
             logger.debug { "Member $index (${task.label}) completed" }
             return SolverMemberResult(
@@ -199,7 +204,8 @@ class ConcurrentSolverRunner(
                 numOracleCalls = solver.numOracleCalls,
                 numReplicationsRequested = solver.numReplicationsRequested,
                 solverResult = solver.solverResult,
-                status = MemberStatus.COMPLETED
+                status = MemberStatus.COMPLETED,
+                cpuTimeMillis = cpuMillis
             )
         } catch (e: CancellationException) {
             throw e
@@ -219,6 +225,32 @@ class ConcurrentSolverRunner(
             myLiveSolvers.remove(index)
             evaluator?.let { evaluatorFactory.release(index, it, reusable) }
         }
+    }
+
+    /**
+     * The calling thread's CPU time in nanoseconds, or null when the JVM does not support
+     * per-thread CPU time or has it switched off. Read once per call rather than cached,
+     * because the enabled flag is settable at run time.
+     */
+    private fun currentThreadCpuTimeNanos(): Long? {
+        val bean = ManagementFactory.getThreadMXBean()
+        if (!bean.isCurrentThreadCpuTimeSupported || !bean.isThreadCpuTimeEnabled) {
+            return null
+        }
+        // The bean returns -1 when the measurement is unavailable despite the flags.
+        return bean.currentThreadCpuTime.takeIf { it >= 0 }
+    }
+
+    /**
+     * Milliseconds of CPU time elapsed on this thread since [startNanos], or null when either
+     * endpoint was unavailable. A negative delta cannot happen on a single thread, so it is
+     * treated as an unavailable measurement rather than clamped to zero.
+     */
+    private fun elapsedCpuMillis(startNanos: Long?): Long? {
+        if (startNanos == null) return null
+        val endNanos = currentThreadCpuTimeNanos() ?: return null
+        val delta = endNanos - startNanos
+        return if (delta < 0) null else delta / 1_000_000L
     }
 
     companion object {

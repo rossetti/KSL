@@ -159,6 +159,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                     numReplicationsRequested = run.numReplicationsRequested,
                     totalIterations = run.totalIterations,
                     wallClockMillis = run.wallClockMillis,
+                    cpuTimeMillis = run.cpuTimeMillis,
                     gap = run.gap,
                     gapType = run.gapType?.name,
                     errorMessage = run.errorMessage
@@ -172,8 +173,22 @@ class BenchmarkResultsDb @JvmOverloads constructor(
 
     private fun saveConfirmations(expId: Int, summary: BenchmarkSummary) {
         val rows = mutableListOf<ConfirmationTableData>()
+        val summaryRows = mutableListOf<ConfirmationSummaryTableData>()
         for (pr in summary.problemResults) {
             val outcome = pr.confirmation ?: continue
+            // Written for every problem whose confirmation stage ran, including one whose
+            // finalists collapsed to a single point and produced no candidate rows below.
+            summaryRows.add(
+                ConfirmationSummaryTableData(
+                    expId = expId,
+                    problemName = pr.problemName,
+                    numCandidates = outcome.numCandidates,
+                    numConfidentlyFeasible = outcome.numConfidentlyFeasible,
+                    selectionDegenerate = outcome.selectionDegenerate,
+                    numOracleCalls = outcome.numOracleCalls,
+                    numReplicationsRequested = outcome.numReplicationsRequested
+                )
+            )
             for ((index, solution) in outcome.confirmedSolutions.withIndex()) {
                 rows.add(
                     ConfirmationTableData(
@@ -190,6 +205,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
             }
         }
         insertAllDbDataIntoTable(rows, "tblConfirmation")
+        insertAllDbDataIntoTable(summaryRows, "tblConfirmationSummary")
     }
 
     private fun saveVerifications(expId: Int, summary: BenchmarkSummary) {
@@ -263,6 +279,16 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     /** Confirmation rows, optionally restricted to one experiment. */
     fun confirmations(expId: Int? = null): List<ConfirmationTableData> {
         return selectTableDataIntoDbData(::ConfirmationTableData).filter { expId == null || it.expId == expId }
+    }
+
+    /**
+     *  Confirmation summary rows, optionally restricted to one experiment. One row per problem
+     *  whose confirmation stage ran; `selectionDegenerate` marks a problem whose winner was
+     *  chosen by constraint violation alone, with the objective unused.
+     */
+    fun confirmationSummaries(expId: Int? = null): List<ConfirmationSummaryTableData> {
+        return selectTableDataIntoDbData(::ConfirmationSummaryTableData)
+            .filter { expId == null || it.expId == expId }
     }
 
     /** Verification rows, optionally restricted to one experiment. */
@@ -501,6 +527,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 SolverCaseParameterTableData(),
                 RunTableData(),
                 ConfirmationTableData(),
+                ConfirmationSummaryTableData(),
                 IterationTraceTableData(),
                 VerificationTableData()
             )
