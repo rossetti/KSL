@@ -185,6 +185,11 @@ data class RunResponseTableData(
  *  feasible, so the comparator fell through to ranking by constraint violation alone and the
  *  objective played no part in choosing the winner. Always false for a problem with no
  *  response constraints.
+ *
+ *  `numConfidentlyFeasibleAfterScreening` is null when no screening stage ran. When screening did
+ *  run, it is the count at the screening precision, so a degenerate row followed by a positive count
+ *  here records a selection that screening rescued — and a zero records a screening stage whose
+ *  replication count was too small for the constraint, which looks identical in every other respect.
  */
 data class ConfirmationSummaryTableData(
     var expId: Int = -1,
@@ -192,6 +197,7 @@ data class ConfirmationSummaryTableData(
     var numCandidates: Int = 0,
     var numConfidentlyFeasible: Int = 0,
     var selectionDegenerate: Boolean = false,
+    var numConfidentlyFeasibleAfterScreening: Int? = null,
     var numOracleCalls: Int = 0,
     var numReplicationsRequested: Int = 0
 ) : DbTableData("tblConfirmationSummary", listOf("expId", "problemName"))

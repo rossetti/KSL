@@ -343,6 +343,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 numCandidates = outcome.numCandidates,
                 numConfidentlyFeasible = outcome.numConfidentlyFeasible,
                 selectionDegenerate = outcome.selectionDegenerate,
+                numConfidentlyFeasibleAfterScreening = outcome.numConfidentlyFeasibleAfterScreening,
                 numOracleCalls = outcome.numOracleCalls,
                 numReplicationsRequested = outcome.numReplicationsRequested
             )
