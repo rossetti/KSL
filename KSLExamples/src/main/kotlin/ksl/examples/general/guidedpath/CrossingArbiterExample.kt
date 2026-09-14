@@ -141,10 +141,17 @@ object CrossingArbiterExample {
         private val myWalkerAction = WalkerAction()
         private val myCartAction = CartAction()
 
+        init {
+            // Attached ONCE, when the element is built. A listener attached in initialize() is
+            // added again at the start of every replication and never removed, so replication n
+            // runs with n of them and counts every arrival n times -- and the counter being
+            // reset correctly just below is what hides it.
+            cart.attachArrivalListener { cartTrips++ }
+        }
+
         override fun initialize() {
             cartTrips = 0
             walkersAcross = 0
-            cart.attachArrivalListener { cartTrips++ }
             schedule(myWalkerAction, WALKER_EVERY)
             schedule(myCartAction, 0.5)
         }

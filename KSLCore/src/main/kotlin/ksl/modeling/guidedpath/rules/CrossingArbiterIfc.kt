@@ -99,13 +99,17 @@ interface CrossingArbiterIfc {
     fun turnEnded(crossing: ZoneCrossing) {}
 
     /**
-     * Puts the discipline back as it began, at the start of each replication.
+     * Clears whatever the discipline remembers between replications. Does nothing by default.
      *
-     * An arbiter with state must re-establish it here or the second replication starts in whatever
-     * condition the first one ended in -- a defect family this subsystem has met three times
-     * already, and one that only a test running more than one replication will ever catch.
+     * Named and shaped to match [GuidedTransporterAllocationRuleIfc.reset], which solved this same
+     * problem first: a stateless rule needs it not at all, and a rule that carries the end of one
+     * replication into the start of the next makes the second depend on the first, which is the one
+     * thing a replication may never do. The crossing calls this as each replication begins, so a
+     * stateful arbiter is correct without its author having to remember.
+     *
+     * Only a test running **more than one replication** will ever catch its absence.
      */
-    fun initialize() {}
+    fun reset() {}
 }
 
 /**
@@ -155,7 +159,7 @@ class AlternatingArbiter(
     private var turnOpenedAt: Double = Double.NEGATIVE_INFINITY
     private var turnEndedAt: Double = Double.NEGATIVE_INFINITY
 
-    override fun initialize() {
+    override fun reset() {
         turnOpenedAt = Double.NEGATIVE_INFINITY
         turnEndedAt = Double.NEGATIVE_INFINITY
     }
@@ -214,7 +218,7 @@ class BoundedBatchArbiter(
     private var admittedThisTurn: Int = 0
     private var turnSize: Int = 0
 
-    override fun initialize() {
+    override fun reset() {
         admittedThisTurn = 0
         turnSize = 0
     }

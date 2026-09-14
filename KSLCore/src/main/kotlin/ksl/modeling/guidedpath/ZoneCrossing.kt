@@ -200,7 +200,7 @@ class ZoneCrossing(
         myNumWaiting.value = 0.0
         myTimeBarred.value = 0.0
         myReviewEvent = null
-        arbiter.initialize()
+        arbiter.reset()
     }
 
     /**

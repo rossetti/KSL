@@ -592,6 +592,11 @@ class CleanupCrew(id: Int) : ZoneHolderIfc {
 Make as many as the run turns out to need. Then take the space:
 
 ```kotlin
+// Sampled durations belong in a RandomVariable, which is a ModelElement: the model then
+// controls its stream, resets it between experiments and can report it. A bare
+// ExponentialRV held as a field gets none of that.
+val cleanupTime = RandomVariable(this, ExponentialRV(20.0), "CleanupTime")
+
 // Event view: hold a whole link for a sampled duration, given back on a clock.
 space.holdZonesFor(CleanupCrew(nextId++), network.link("Aisle3")!!.zones, cleanupTime.value, this)
 ```
@@ -601,7 +606,7 @@ space.holdZonesFor(CleanupCrew(nextId++), network.link("Aisle3")!!.zones, cleanu
 inner class Spill : Entity() {
     val cleanup = process {
         val allocation = seizeZones(space, network.link("Aisle3")!!.zones, spillQ)
-        delay(cleanupTime)
+        delay(cleanupTime.value)
         releaseZones(space)
     }
 }

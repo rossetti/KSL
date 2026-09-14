@@ -10,6 +10,8 @@ import ksl.modeling.guidedpath.ZoneAllocation
 import ksl.modeling.guidedpath.ZoneHoldActionIfc
 import ksl.modeling.guidedpath.ZoneHolderIfc
 import ksl.modeling.guidedpath.ZoneRefusal
+import ksl.modeling.variable.RandomVariable
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.modeling.guidedpath.ZoneCrossing
 import ksl.modeling.guidedpath.rules.BoundedBatchArbiter
 import ksl.modeling.guidedpath.LinkType
@@ -229,7 +231,11 @@ private object GuidedPathGuideSnippets {
 
         val network = buildNetwork()
         val space = GuidedPathTransportSystem(this, network, name = "MaintainedSystem")
-        val cleanupTime = ksl.utilities.random.rvariable.ExponentialRV(20.0)
+        // Wrapped in a RandomVariable, which is the KSL idiom and not decoration: a bare
+        // ExponentialRV as a field is outside the model, so the model cannot control its stream,
+        // reset it between experiments, or report it. RandomVariable is a ModelElement and does
+        // all three.
+        val cleanupTime = RandomVariable(this, ExponentialRV(20.0), "CleanupTime")
         private var nextId = 1
 
         fun closeTheAisle() {
@@ -281,12 +287,16 @@ private object GuidedPathGuideSnippets {
         val network = buildNetwork()
         val space = GuidedPathTransportSystem(this, network, name = "SpillSystem")
         val spillQ = ksl.modeling.entity.HoldQueue(this, "SpillQ")
-        val cleanupTime = ksl.utilities.random.rvariable.ExponentialRV(20.0)
+        // Wrapped in a RandomVariable, which is the KSL idiom and not decoration: a bare
+        // ExponentialRV as a field is outside the model, so the model cannot control its stream,
+        // reset it between experiments, or report it. RandomVariable is a ModelElement and does
+        // all three.
+        val cleanupTime = RandomVariable(this, ExponentialRV(20.0), "CleanupTime")
 
         inner class Spill : Entity() {
             val cleanup = process {
                 val allocation = seizeZones(space, network.link("Link3")!!.zones, spillQ)
-                delay(cleanupTime)
+                delay(cleanupTime.value)
                 releaseZones(space)
             }
         }
@@ -298,7 +308,7 @@ private object GuidedPathGuideSnippets {
 
         val network = buildNetwork()
         val system = GuidedPathTransportSystem(this, network, name = "CrossingSystem")
-        val walkTime = ksl.utilities.random.rvariable.ExponentialRV(2.0)
+        val walkTime = RandomVariable(this, ExponentialRV(2.0), "WalkTime")
 
         val crossing = ZoneCrossing(
             this, system, listOf(network.zone("Link3.Zone1")!!),
