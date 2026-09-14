@@ -36,6 +36,11 @@ class PenaltyClockConventionTest {
          *  - `RSplineSolver` differences gradients within ONE evaluation batch, so the clock is
          *    already common (verified, not assumed)
          *  - the remaining solvers expose it in `extractSolverSpecificState` tracker maps
+         *  - `CrossEntropySolver` reports the spread of its elite sample's values in
+         *    `extractSolverSpecificState`. The elites of an iteration are taken from a SINGLE
+         *    `requestEvaluations` batch in `mainIteration`, so they already share one clock
+         *    (verified, not assumed — the same basis as `RSplineSolver` above); and the value is
+         *    a telemetry statistic that is never compared against another solution.
          */
         val ALLOWED_RECORDED_READS: Set<String> = setOf(
             "evaluator/Solution.kt",
@@ -43,6 +48,7 @@ class PenaltyClockConventionTest {
             "benchmark/io/BenchmarkResultsDb.kt",
             "cache/MemorySolutionCache.kt",
             "solvers/Solver.kt",
+            "solvers/algorithms/CrossEntropySolver.kt",
             "solvers/algorithms/RSplineSolver.kt",
             "solvers/algorithms/genetic/GeneticAlgorithmSolver.kt",
             "solvers/algorithms/isc/CompassSolver.kt",
