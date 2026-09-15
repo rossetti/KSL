@@ -29,6 +29,7 @@ import ksl.utilities.distributions.metalog.Metalog3P
 import ksl.utilities.distributions.metalog.Metalog4P
 import ksl.utilities.distributions.metalog.Metalog5P
 import ksl.utilities.distributions.metalog.Metalog6P
+import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.BoxPlot
@@ -217,6 +218,14 @@ class PDFModeler(
      *  that were not successfully estimated or had no parameters estimated will
      *  not be scored.  The returned list contains instances holding the scoring
      *  results for each successfully estimated distribution.
+     *
+     *  A result is also skipped when no distribution can be constructed from its parameters.
+     *  That covers two cases, and the second used to end the whole call: an unknown random
+     *  variable type, for which `createDistribution` returns null, and a KNOWN type whose
+     *  estimated parameter values are not valid for it, for which the distribution's own
+     *  constructor throws — a normal with zero variance, say, which an estimator will report
+     *  as a success on constant or near-constant data. One unusable candidate out of many is
+     *  a candidate to drop, not a reason to fail the scoring of every other.
      */
     fun scoringResults(
         results: List<EstimationResult>,
@@ -228,7 +237,18 @@ class PDFModeler(
             if (!result.success || (result.parameters == null)) {
                 continue
             }
-            val distribution = createDistribution(result.parameters) ?: continue
+            val distribution = try {
+                createDistribution(result.parameters)
+            } catch (e: IllegalArgumentException) {
+                // The type is known but the estimated values are not valid for it. Caught
+                // narrowly: this is the distributions' own require() failing, and anything
+                // broader would swallow genuine faults in the scoring models below.
+                KSL.logger.warn {
+                    "scoringResults: skipping ${result.parameters?.rvType} because its estimated " +
+                        "parameters do not define a valid distribution: ${e.message}"
+                }
+                null
+            } ?: continue
             val name = if (result.shiftedData != null) {
                 "${result.shiftedData!!.shift} + $distribution"
             } else {
@@ -1166,6 +1186,13 @@ class PDFModeler(
          *  Constructs an instance of the appropriate continuous probability distribution
          *  for the provided [estimationResult].  If no probability distribution
          *  is defined for the supplied result, then null is returned.
+         *
+         *  Null means "no distribution is defined for this TYPE". It does not cover a known type
+         *  carrying invalid parameter values: the distribution's own constructor rejects those, so
+         *  this function throws `IllegalArgumentException` rather than returning null. An estimator
+         *  reporting success does not guarantee parameters a distribution will accept — a normal
+         *  with zero variance, estimated from constant data, is the reachable case — so a caller
+         *  scoring several candidates should expect both outcomes.
          */
         fun createDistribution(estimationResult: EstimationResult): ContinuousDistributionIfc? {
             if (estimationResult.parameters == null) {
@@ -1183,6 +1210,11 @@ class PDFModeler(
          *  Constructs an instance of the appropriate continuous probability distribution
          *  for the provided random variable [parameters].  If no probability distribution
          *  is defined for the supplied type of random variable, then null is returned.
+         *
+         *  Null means "no distribution is defined for this TYPE". A known type whose parameter
+         *  VALUES are invalid — a normal with zero variance, for instance — is rejected by the
+         *  distribution's own constructor, so this function throws `IllegalArgumentException`
+         *  instead of returning null.
          */
         fun createDistribution(parameters: RVParameters): ContinuousDistributionIfc? {
 
