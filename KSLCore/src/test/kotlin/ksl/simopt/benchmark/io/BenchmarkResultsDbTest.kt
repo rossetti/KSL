@@ -287,9 +287,11 @@ class BenchmarkResultsDbTest {
                 }
             }
         }
-        assertTrue(timed.any { it.cpuTimeMillis!! > 0 }) {
-            "every cell reported exactly zero CPU time, which means the measurement is not running"
-        }
+        // Deliberately NOT asserting a positive value here. These cells run a single hill-climbing
+        // iteration and can finish in well under a millisecond of CPU, so a millisecond-resolution
+        // field legitimately floors to zero and an "at least one is positive" assertion is a coin
+        // flip. That the measurement is live is pinned by `cpuTimeIsActuallyMeasuredOnRealWork`,
+        // on a fixture that does enough work for the answer to be unambiguous.
 
         // One summary row per problem whose confirmation stage ran, carrying the counts that make
         // a degenerate selection visible. These problems are unconstrained, so no selection here
@@ -652,6 +654,31 @@ class BenchmarkResultsDbTest {
         }
         assertTrue(diameters.last() < diameters.first() / 2.0) {
             "the swarm did not contract: first=${diameters.first()} last=${diameters.last()}"
+        }
+    }
+
+    /**
+     * That CPU time is really measured rather than defaulted, on a fixture that does enough work
+     * for a millisecond-resolution answer to be unambiguous. A particle swarm over several hundred
+     * evaluations cannot finish in under a millisecond of CPU, so a zero here means the measurement
+     * is not running — which is the failure a round-trip test on single-iteration cells cannot
+     * distinguish from a cell that was simply too quick to measure.
+     */
+    @Test
+    @DisplayName("CPU time is actually measured on a cell that does real work")
+    fun cpuTimeIsActuallyMeasuredOnRealWork() {
+        val db = BenchmarkResultsDb("cpuTime.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runPsoExperiment(captureState = false, name = "cpuExp"))
+        val runs = db.runs(expId)
+        assertTrue(runs.isNotEmpty())
+        for (row in runs) {
+            assertNotNull(row.cpuTimeMillis) {
+                "cell ${row.cellLabel} reported no CPU time at all; the JVM supports it here"
+            }
+            assertTrue(row.cpuTimeMillis!! > 0) {
+                "cell ${row.cellLabel} reported zero CPU time for a full swarm search, so the " +
+                    "measurement is not running"
+            }
         }
     }
 
