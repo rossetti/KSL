@@ -871,11 +871,35 @@ class Model @JvmOverloads constructor(
      * 
      * Note for Java users: This method may return null. Always check for null before using the result.
      */
-    fun response(name: String): Response? {
-        if (!myModelElementMap.containsKey(name)) {
-            return null
+    /**
+     *  Applies to a lookup argument the same rule the constructor applied to the name.
+     *
+     *  `ModelElement` replaces `.` with `_` when it stores a name, so a caller who builds a name
+     *  containing a dot and later asks for it by what they wrote used to get null — the same answer
+     *  as for a name that never existed. The rewrite happened on write and not on read, and the
+     *  round trip did not close. Canonicalizing the query closes it, and costs nothing in
+     *  precision: two elements whose names differ only by `.` versus `_` cannot both exist, because
+     *  `addToModelElementMap` rejects the second as a duplicate of the first's stored name.
+     *
+     *  Reported at debug rather than warn. Under this rule the lookup now succeeds, so nothing has
+     *  gone wrong; the line exists for someone puzzled that `element.name` is not the string they
+     *  passed to the constructor.
+     */
+    private fun canonicalLookupName(name: String): String {
+        val canonical = ModelElement.canonicalName(name)
+        if (canonical != name) {
+            logger.debug {
+                "Model: the lookup name '$name' was canonicalized to '$canonical'. A model " +
+                    "element's name cannot contain '.', so it is stored with '_' in its place; " +
+                    "lookups accept either form."
+            }
         }
-        val v = myModelElementMap[name]
+        return canonical
+    }
+
+    fun response(name: String): Response? {
+        val key = canonicalLookupName(name)
+        val v = myModelElementMap[key] ?: return null
         return v as? Response
     }
 
@@ -912,10 +936,8 @@ class Model @JvmOverloads constructor(
      * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun counter(name: String): Counter? {
-        if (!myModelElementMap.containsKey(name)) {
-            return null
-        }
-        val v = myModelElementMap[name]
+        val key = canonicalLookupName(name)
+        val v = myModelElementMap[key] ?: return null
         return v as? Counter
     }
 
@@ -1018,7 +1040,7 @@ class Model @JvmOverloads constructor(
      * @return true if contained
      */
     fun containsModelElement(modelElementName: String): Boolean {
-        return myModelElementMap.containsKey(modelElementName)
+        return myModelElementMap.containsKey(canonicalLookupName(modelElementName))
     }
 
     /**
@@ -1033,10 +1055,8 @@ class Model @JvmOverloads constructor(
      * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun randomVariable(name: String): RandomVariable? {
-        if (!myModelElementMap.containsKey(name)) {
-            return null
-        }
-        val v: ModelElement? = myModelElementMap[name]
+        val key = canonicalLookupName(name)
+        val v: ModelElement? = myModelElementMap[key] ?: return null
         return v as? RandomVariable
     }
 
@@ -1067,9 +1087,7 @@ class Model @JvmOverloads constructor(
      * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun getModelElement(name: String): ModelElement? {
-        return if (!myModelElementMap.containsKey(name)) {
-            null
-        } else myModelElementMap[name]
+        return myModelElementMap[canonicalLookupName(name)]
     }
 
     /**
