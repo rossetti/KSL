@@ -2550,8 +2550,9 @@ interface KSLProcessBuilder {
      *
      * [seizeZones] with the one refusable condition turned into an answer, and the form a model
      * wants whenever a closure lands where it lands rather than where it was told to. A zone
-     * carries one promise at a time, so two holders cannot queue for the same zone, and a model
-     * with spills at random locations has to say what an overlap means. This is how it says it, in
+     * carries one promise at a time, and by default a second asker is refused rather than queued
+     * behind the first -- `ZoneOverlap.QUEUE` is the opt-in for waiting instead. So a model with
+     * spills at random locations has to say what an overlap means. This is how it says it, in
      * one call that cannot be got wrong.
      *
      * ```

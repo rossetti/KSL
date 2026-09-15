@@ -110,6 +110,53 @@ tasks.register<JavaExec>("bookExamplesBundleJar") {
     )
 }
 
+// ── Vehicle Examples bundle (the guided-path, AGV and free-path fleet models) ─
+// Mirrors the animation pair: a plain builders JAR assembled by `kslpkg assemble` into a manifest
+// bundle. Dropped into the user's KSLWork/bundles folder, it makes every bundled vehicle example
+// pickable in the apps' Open Model… picker.
+//
+//     ./gradlew :KSLExamples:vehicleExamplesBundleJar
+//     -> KSLExamples/build/libs/vehicle-examples.jar   (drop into KSLWork/bundles)
+//
+// The models are NOT copied into the bundle package: the includes below reach them where they live,
+// so the file a reader runs, the file the transport tutorial quotes, and the file this bundle ships
+// are one file. The book bundle keeps its own copies instead, which is two of everything.
+tasks.register<Jar>("vehicleBuildersJar") {
+    description = "Plain builders JAR for the vehicle-examples bundle (input to kslpkg assemble)."
+    archiveBaseName.set("vehicle-builders")
+    archiveVersion.set("")
+    dependsOn(tasks.named("classes"))
+    from(sourceSets["main"].output) {
+        include("ksl/examples/general/vehiclebundle/**")          // the builders
+        include("ksl/examples/general/guidedpath/**")             // simple AGV shop, disturbances, crossing
+        include("ksl/examples/general/agv/**")                    // hospital, warehouse, both paradigms, rules
+        include("ksl/examples/general/fleet/**")                  // the free-path yard
+        // Named for the CLASS, not the file: an include matching a file name packages nothing.
+        include("ksl/examples/book/chapter8/TestAndRepairShopWithGuidedTransporters*")
+    }
+}
+
+tasks.register<JavaExec>("vehicleExamplesBundleJar") {
+    group = "ksl bundle"
+    description = "Assemble the KSL Vehicle Examples manifest bundle JAR (kslpkg assemble)."
+    dependsOn("vehicleBuildersJar")
+    classpath = kslpkgClasspath
+    mainClass.set("ksl.bundle.tools.MainKt")
+    args(
+        "assemble", layout.buildDirectory.file("libs/vehicle-builders.jar").get().asFile.path,
+        "--id", "edu.uark.ksl.vehicle-examples",
+        "--name", "KSL Vehicle Examples",
+        "--version", "1.0.0",
+        "--description", "Curated, decision-relevant vehicle models: transporters on a guided path " +
+            "where they contend for the space they travel through, an active fleet whose dispatcher " +
+            "decides, and the same fleet over a free path where nothing blocks. Each carries an " +
+            "authored catalog of headline inputs and outputs. The guided-path subsystem is " +
+            "experimental.",
+        "-o", layout.buildDirectory.file("libs/vehicle-examples.jar").get().asFile.path,
+        "--force",
+    )
+}
+
 // ── Animation Examples bundle (the worked animation gallery models) ───────────
 // Mirrors bookExamplesBundleJar: a plain builders JAR (the ModelBuilderIfc
 // wrappers + the example models' class closure) assembled by `kslpkg assemble`
@@ -146,6 +193,13 @@ tasks.register<Jar>("animationBuildersJar") {
 // missing and nothing says so until a user opens it. AnimationBundleClosureTest loads every builder out of
 // this jar to prove otherwise, which means the jar has to exist when tests run.
 tasks.named<Test>("test") {
+    // VehicleBundleClosureTest loads every vehicle builder out of this jar, for the same reason:
+    // the include list is matched against paths, so a model class nobody added to it ships missing.
+    dependsOn("vehicleBuildersJar")
+    val vehicleJar = tasks.named<Jar>("vehicleBuildersJar").flatMap { it.archiveFile }
+    inputs.file(vehicleJar)
+    doFirst { systemProperty("vehicleBundleJar", vehicleJar.get().asFile.absolutePath) }
+
     dependsOn("animationBuildersJar")
     val jar = tasks.named<Jar>("animationBuildersJar").flatMap { it.archiveFile }
     inputs.file(jar)

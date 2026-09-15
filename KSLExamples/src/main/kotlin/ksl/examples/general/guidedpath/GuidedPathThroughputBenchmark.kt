@@ -59,157 +59,161 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  machine, and a half-width over replications of the same deterministic workload would describe
  *  the machine's scheduler rather than the model. Record the figure alongside the hardware and
  *  compare like with like.
+ *
+ *  The model itself is twenty vehicles, each re-dispatched to a fresh random intersection the
+ *  moment it arrives, so that the fleet never stops and the measurement is of movement rather than
+ *  of waiting. The reference configuration -- the torus, the fleet size, the run and the report --
+ *  is in the companion object.
+ *
+ *  @param parent the containing model element
  */
-object GuidedPathThroughputBenchmark {
+class GuidedPathThroughputBenchmark(parent: ModelElement) : ModelElement(parent, "SaturatedFleet") {
 
-    /** Rows of the reference torus. */
-    const val ROWS: Int = 4
+    val network = createNetwork()
+    val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
-    /** Columns of the reference torus: four by five is twenty intersections and forty links. */
-    const val COLUMNS: Int = 5
+    // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
+    // differ only in wall-clock time.
+    private val stream = RNStreamProvider().rnStream(1)
 
-    /** Zones per link, chosen so the network holds four hundred zones. */
-    const val ZONES_PER_LINK: Int = 10
-
-    /** Vehicles under saturated demand. */
-    const val NUM_VEHICLES: Int = 20
-
-    const val ZONE_LENGTH: Double = 10.0
-    const val VELOCITY: Double = 10.0
-
-    private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
-
-    /**
-     *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
-     *  the edges. Every intersection is reachable from every other, no link is two-way, and there
-     *  are exactly two links per intersection.
-     */
-    fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork {
-        var b = GuidedPathNetwork.builder(networkName)
-        for (r in 0 until ROWS) {
-            for (c in 0 until COLUMNS) {
-                b = b.intersection(nodeName(r, c), x = c * 100.0, y = -r * 100.0)
-            }
-        }
-        val length = ZONE_LENGTH * ZONES_PER_LINK
-        for (r in 0 until ROWS) {
-            for (c in 0 until COLUMNS) {
-                b = b.link(
-                    "E${r}_$c", nodeName(r, c), nodeName(r, (c + 1) % COLUMNS),
-                    length = length, zoneLength = ZONE_LENGTH, beginDirection = 0.0
-                )
-                b = b.link(
-                    "S${r}_$c", nodeName(r, c), nodeName((r + 1) % ROWS, c),
-                    length = length, zoneLength = ZONE_LENGTH, beginDirection = 270.0
-                )
-            }
-        }
-        return b.build()
+    val vehicles: List<GuidedTransporter> = (0 until NUM_VEHICLES).map { i ->
+        // One vehicle at the head of each of the first twenty links, which spreads the fleet
+        // over the network without two of them ever sharing a zone at the start.
+        val r = i / COLUMNS
+        val c = i % COLUMNS
+        GuidedTransporter(
+            system, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
+            ConstantRV(VELOCITY), 1, EndOfZoneControl(), "V$i"
+        )
     }
 
-    /**
-     *  Twenty vehicles, each re-dispatched to a fresh random intersection the moment it arrives, so
-     *  that the fleet never stops and the measurement is of movement rather than of waiting.
-     */
-    private class SaturatedFleet(parent: ModelElement) : ModelElement(parent, "SaturatedFleet") {
-        val network = createNetwork()
-        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+    init {
+        for (v in vehicles) {
+            v.attachArrivalListener { dispatch(v) }
+        }
+    }
 
-        // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
-        // differ only in wall-clock time.
-        private val stream = RNStreamProvider().rnStream(1)
+    override fun initialize() {
+        for (v in vehicles) dispatch(v)
+    }
 
-        val vehicles: List<GuidedTransporter> = (0 until NUM_VEHICLES).map { i ->
-            // One vehicle at the head of each of the first twenty links, which spreads the fleet
-            // over the network without two of them ever sharing a zone at the start.
-            val r = i / COLUMNS
-            val c = i % COLUMNS
-            GuidedTransporter(
-                system, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
-                ConstantRV(VELOCITY), 1, EndOfZoneControl(), "V$i"
+    private fun dispatch(vehicle: GuidedTransporter) {
+        // Keep trying until the vehicle is actually sent somewhere: a destination it already
+        // stands on is refused, and a vehicle left undispatched would quietly stop and make the
+        // benchmark measure a smaller fleet than it claims.
+        repeat(8) {
+            val target = network.intersections[stream.randInt(0, network.intersections.size - 1)]
+            if (vehicle.sendTo(target.name)) return
+        }
+    }
+
+    companion object {
+
+        /** Rows of the reference torus. */
+        const val ROWS: Int = 4
+
+        /** Columns of the reference torus: four by five is twenty intersections and forty links. */
+        const val COLUMNS: Int = 5
+
+        /** Zones per link, chosen so the network holds four hundred zones. */
+        const val ZONES_PER_LINK: Int = 10
+
+        /** Vehicles under saturated demand. */
+        const val NUM_VEHICLES: Int = 20
+
+        const val ZONE_LENGTH: Double = 10.0
+        const val VELOCITY: Double = 10.0
+
+        private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
+
+        /**
+         *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
+         *  the edges. Every intersection is reachable from every other, no link is two-way, and there
+         *  are exactly two links per intersection.
+         */
+        fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork {
+            var b = GuidedPathNetwork.builder(networkName)
+            for (r in 0 until ROWS) {
+                for (c in 0 until COLUMNS) {
+                    b = b.intersection(nodeName(r, c), x = c * 100.0, y = -r * 100.0)
+                }
+            }
+            val length = ZONE_LENGTH * ZONES_PER_LINK
+            for (r in 0 until ROWS) {
+                for (c in 0 until COLUMNS) {
+                    b = b.link(
+                        "E${r}_$c", nodeName(r, c), nodeName(r, (c + 1) % COLUMNS),
+                        length = length, zoneLength = ZONE_LENGTH, beginDirection = 0.0
+                    )
+                    b = b.link(
+                        "S${r}_$c", nodeName(r, c), nodeName((r + 1) % ROWS, c),
+                        length = length, zoneLength = ZONE_LENGTH, beginDirection = 270.0
+                    )
+                }
+            }
+            return b.build()
+        }
+
+        /** What one run measured. */
+        data class Result(
+            val zoneTraversals: Double,
+            val eventsScheduled: Double,
+            val wallClockSeconds: Double
+        ) {
+            /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
+            val traversalsPerWallClockMinute: Double
+                get() = zoneTraversals / wallClockSeconds * 60.0
+
+            val eventsPerTraversal: Double
+                get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
+        }
+
+        /**
+         *  Runs the reference configuration.
+         *
+         *  @param replicationLength how long to run, in simulated minutes
+         *  @param replications how many replications to run
+         */
+        fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
+            val m = Model("GuidedPathThroughputBenchmark")
+            val fleet = GuidedPathThroughputBenchmark(m)
+            // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
+            fleet.system.checkInvariants = false
+            m.numberOfReplications = replications
+            m.lengthOfReplication = replicationLength
+            val started = System.nanoTime()
+            m.simulate()
+            val elapsed = (System.nanoTime() - started) / 1e9
+            return Result(
+                zoneTraversals = fleet.system.numZoneTraversals.value,
+                eventsScheduled = fleet.system.numEventsScheduled.value,
+                wallClockSeconds = elapsed
             )
         }
 
-        init {
-            for (v in vehicles) {
-                v.attachArrivalListener { dispatch(v) }
-            }
+        fun report() {
+            val warmUp = run(replicationLength = 20_000.0)
+            println("warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in ${"%.2f".format(warmUp.wallClockSeconds)} s")
+            val result = run()
+            println()
+            val described = createNetwork("Describe")
+            println("Guided path throughput benchmark - reference configuration")
+            println(
+                "  network            : $ROWS x $COLUMNS torus, ${described.intersections.size} intersections, " +
+                        "${described.links.size} links, ${described.zones.size} zones " +
+                        "(${described.links.size * ZONES_PER_LINK} on links, one per intersection)"
+            )
+            println("  vehicles           : $NUM_VEHICLES, saturated")
+            println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
+            println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
+            println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
+            println("  wall clock         : ${"%.2f".format(result.wallClockSeconds)} s")
+            println("  throughput         : ${"%,.0f".format(result.traversalsPerWallClockMinute)} zone traversals per wall-clock minute")
+            println()
+            println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
+            println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+            println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
         }
-
-        override fun initialize() {
-            for (v in vehicles) dispatch(v)
-        }
-
-        private fun dispatch(vehicle: GuidedTransporter) {
-            // Keep trying until the vehicle is actually sent somewhere: a destination it already
-            // stands on is refused, and a vehicle left undispatched would quietly stop and make the
-            // benchmark measure a smaller fleet than it claims.
-            repeat(8) {
-                val target = network.intersections[stream.randInt(0, network.intersections.size - 1)]
-                if (vehicle.sendTo(target.name)) return
-            }
-        }
-    }
-
-    /** What one run measured. */
-    data class Result(
-        val zoneTraversals: Double,
-        val eventsScheduled: Double,
-        val wallClockSeconds: Double
-    ) {
-        /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
-        val traversalsPerWallClockMinute: Double
-            get() = zoneTraversals / wallClockSeconds * 60.0
-
-        val eventsPerTraversal: Double
-            get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
-    }
-
-    /**
-     *  Runs the reference configuration.
-     *
-     *  @param replicationLength how long to run, in simulated minutes
-     *  @param replications how many replications to run
-     */
-    fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
-        val m = Model("GuidedPathThroughputBenchmark")
-        val fleet = SaturatedFleet(m)
-        // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
-        fleet.system.checkInvariants = false
-        m.numberOfReplications = replications
-        m.lengthOfReplication = replicationLength
-        val started = System.nanoTime()
-        m.simulate()
-        val elapsed = (System.nanoTime() - started) / 1e9
-        return Result(
-            zoneTraversals = fleet.system.numZoneTraversals.value,
-            eventsScheduled = fleet.system.numEventsScheduled.value,
-            wallClockSeconds = elapsed
-        )
-    }
-
-    fun report() {
-        val warmUp = run(replicationLength = 20_000.0)
-        println("warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in ${"%.2f".format(warmUp.wallClockSeconds)} s")
-        val result = run()
-        println()
-        val described = createNetwork("Describe")
-        println("Guided path throughput benchmark - reference configuration")
-        println(
-            "  network            : $ROWS x $COLUMNS torus, ${described.intersections.size} intersections, " +
-                    "${described.links.size} links, ${described.zones.size} zones " +
-                    "(${described.links.size * ZONES_PER_LINK} on links, one per intersection)"
-        )
-        println("  vehicles           : $NUM_VEHICLES, saturated")
-        println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
-        println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
-        println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
-        println("  wall clock         : ${"%.2f".format(result.wallClockSeconds)} s")
-        println("  throughput         : ${"%,.0f".format(result.traversalsPerWallClockMinute)} zone traversals per wall-clock minute")
-        println()
-        println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
-        println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-        println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
     }
 }
 

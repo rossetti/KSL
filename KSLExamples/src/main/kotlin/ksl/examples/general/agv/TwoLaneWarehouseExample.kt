@@ -398,21 +398,13 @@ fun main() {
         println("  Over the same range fleet time blocked goes %.1f%% -> %.1f%%.".format(
             100.0 * a.blocked, 100.0 * b.blocked
         ))
-        println("  The carts bought past the ceiling are not idle. They are in each other's way.")
-    }
+        }
     val gridlock = twoLaneSizes.filter { two.getValue(it).deadlocked }
     if (gridlock.isNotEmpty()) {
         val n = gridlock.min()
         println()
         println("  At %d cart(s) the grid **deadlocks**, among %d transporters.".format(
             n, two.getValue(n).deadlockedAmong))
-        println("  Paired one-way lanes are not deadlock-proof. They remove the head-on meeting *on")
-        println("  a link* -- two vehicles on one span can never face each other. They do nothing")
-        println("  about a cycle that closes through the junctions at each end of a span: both lanes")
-        println("  full nose to tail, and each junction held by a vehicle wanting the other lane.")
-        println("  That is blocking the box, and it is what a second lane does not buy you out of.")
-        println("  The logged report above names every participant, which is what says whether a")
-        println("  cycle closed through a lane or through the junctions.")
     }
 
     val one = oneLaneSizes.associateWith { runFleet(it, twoLane = false) }
@@ -424,15 +416,5 @@ fun main() {
     println()
     if (oneMax != null && twoMax != null) {
         println("  Single two-way aisles carry %d cart(s); paired one-way lanes carry %d.".format(oneMax, twoMax))
-        println("  That is what the second lane is worth on this building -- stated as the fleet each")
-        println("  design can run, rather than as an opinion about how wide an aisle ought to be.")
     }
-    println()
-    println("  A bidirectional link is one lane used by one direction at a time under a direction")
-    println("  lock, so a vehicle waiting at the mouth can stand on the far vehicle's destination")
-    println("  and close the cycle that way. Prefer paired one-way lanes wherever the aisle really")
-    println("  is wide enough for two; keep BIDIRECTIONAL for an aisle that is not.")
-    println()
-    println("  Neither finding is available to a free-path model. It has no aisle to fill, so it")
-    println("  rewards every cart for ever and cannot deadlock at all.")
 }

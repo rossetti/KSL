@@ -97,7 +97,7 @@ class ExampleReplicationResetTest {
     @DisplayName("The crossing example repeats exactly, and does not count an arrival twice")
     fun theCrossingExampleResets() {
         val m = Model("CrossingReset")
-        val town = CrossingArbiterExample.Town(m, CrossingArbiterExample.arbiters().getValue("BoundedBatch"))
+        val town = CrossingArbiterExample(m, CrossingArbiterExample.arbiters().getValue("BoundedBatch"))
         town.system.checkInvariants = true
         m.numberOfReplications = replications
         m.lengthOfReplication = CrossingArbiterExample.HORIZON
@@ -108,7 +108,7 @@ class ExampleReplicationResetTest {
         // cannot see it -- and a plain Int is exactly where the defect that prompted this test
         // lived. One run of one replication says what the truth is; the last of three must match.
         val single = Model("CrossingSingle")
-        val once = CrossingArbiterExample.Town(single, CrossingArbiterExample.arbiters().getValue("BoundedBatch"))
+        val once = CrossingArbiterExample(single, CrossingArbiterExample.arbiters().getValue("BoundedBatch"))
         single.numberOfReplications = 1
         single.lengthOfReplication = CrossingArbiterExample.HORIZON
         single.simulate()
@@ -126,7 +126,7 @@ class ExampleReplicationResetTest {
     fun theClosurePolicyExampleResets() {
         for (policy in ZoneClosurePolicyExample.OverlapPolicy.entries) {
             val m = Model("PolicyReset_$policy")
-            val aisle = ZoneClosurePolicyExample.Aisle(m, policy)
+            val aisle = ZoneClosurePolicyExample(m, policy)
             aisle.system.checkInvariants = true
             m.numberOfReplications = replications
             m.lengthOfReplication = ZoneClosurePolicyExample.HORIZON
@@ -137,7 +137,7 @@ class ExampleReplicationResetTest {
             // half of the mistake this test is about. Three replications must leave one
             // replication's worth of lines, not three.
             val single = Model("PolicySingle_$policy")
-            val onceAisle = ZoneClosurePolicyExample.Aisle(single, policy)
+            val onceAisle = ZoneClosurePolicyExample(single, policy)
             single.numberOfReplications = 1
             single.lengthOfReplication = ZoneClosurePolicyExample.HORIZON
             single.simulate()
@@ -156,7 +156,7 @@ class ExampleReplicationResetTest {
         // the replication before, or a population that did not return to zero, is a violation in
         // replication two rather than a number nobody questions.
         val m = Model("DisturbancesReset")
-        val shop = GuidePathDisturbancesExample.DisturbedShop(m, disturbed = true)
+        val shop = GuidePathDisturbancesExample(m, disturbed = true)
         shop.system.checkInvariants = true
         m.numberOfReplications = replications
         m.lengthOfReplication = 400.0

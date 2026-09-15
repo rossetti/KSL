@@ -49,7 +49,7 @@ import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
 
-/**
+/*
  *  Guide-path space taken by things that are not vehicles: a spill, and a maintenance window.
  *
  *  The same shop as [SimpleAGVExample], on the same layout, run twice -- once clean and once with
@@ -82,7 +82,8 @@ import ksl.utilities.statistic.Statistic
  *
  *  ## Two spills in one aisle
  *
- *  A zone carries one promise at a time, so two closures cannot queue for the same zone. Spills
+ *  A zone carries one promise at a time, and by default a second asker is refused rather than
+ *  queued -- `ZoneOverlap.QUEUE` is what a model opts into when it wants the wait instead. Spills
  *  land where they land, so two of them can want one zone, and this model's answer is that the
  *  second is *part of* the first -- one spill, counted as absorbed rather than cleaned. It is one
  *  answer of several: another model might defer the second until the first ends, or place it
@@ -99,259 +100,262 @@ import ksl.utilities.statistic.Statistic
  *  all of the blocked time, which is what turns one fitted fudge into separately observable
  *  quantities.
  */
-object GuidePathDisturbancesExample {
 
-    const val QUIET: String = "NoDisturbances"
-    const val DISTURBED: String = "SpillsAndMaintenance"
-    const val SYSTEM_NAME: String = "AgvSystem"
-    const val REPLICATIONS: Int = 20
-    const val HORIZON: Double = 8_000.0
-    const val WARM_UP: Double = 1_000.0
+/**
+ *  The maintenance crew: a holder, and nothing else.
+ *
+ *  Two members and no base class, which is the whole of what taking guide-path space requires.
+ *  It waits for nothing, because a set of zones is taken together or not at all -- it never
+ *  queues on a zone, so it has no zone to name. A cart stopped behind a crew that is already
+ *  holding the link is obstructed rather than deadlocked.
+ */
+class MaintenanceCrew(id: Int) : ZoneHolderIfc {
+    override val name: String = "MaintenanceCrew$id"
+    override val awaitedZone: Zone? get() = null
+}
 
-    /** The link closed for maintenance: a leg of the one-way loop, six zones taken as one. */
-    const val MAINTAINED_LINK: String = "Link2"
+/**
+ *  Closes a whole link every so often, event-scheduled, and acts on the closure ending.
+ *
+ *  The model element that schedules the closures is the one told about them, which is what
+ *  [ZoneHoldActionIfc] is for: the end of one window is what schedules the next, so there is no
+ *  second copy of the window length kept anywhere to be added to a grant time nobody was told.
+ *
+ *  The closure is *asked for* on a schedule and *begins* when the link has drained, which is
+ *  not the same instant -- a cart already on the link finishes crossing and leaves first.
+ *  Nothing is evicted, and the delay is reported as `TimeToCloseZones` rather than hidden.
+ */
+class MaintenanceWindow(
+    parent: ModelElement,
+    private val space: GuidedPathSpace,
+    private val zones: () -> List<Zone>,
+    timeBetween: Double,
+    windowLength: Double
+) : ModelElement(parent, "MaintenanceWindow"), ZoneHoldActionIfc {
 
-    /**
-     *  The maintenance crew: a holder, and nothing else.
-     *
-     *  Two members and no base class, which is the whole of what taking guide-path space requires.
-     *  It waits for nothing, because a set of zones is taken together or not at all -- it never
-     *  queues on a zone, so it has no zone to name. A cart stopped behind a crew that is already
-     *  holding the link is obstructed rather than deadlocked.
-     */
-    class MaintenanceCrew(id: Int) : ZoneHolderIfc {
-        override val name: String = "MaintenanceCrew$id"
-        override val awaitedZone: Zone? get() = null
+    private val myTimeBetween = RandomVariable(
+        this, ExponentialRV(timeBetween, streamNum = 4), name = "TimeBetweenWindows"
+    )
+    private val myWindowLength = RandomVariable(
+        this, ConstantRV(windowLength), name = "WindowLength"
+    )
+
+    private val myWindowsOpened = Counter(this, name = "MaintenanceWindowsHeld")
+
+    /** How many maintenance closures actually took effect. */
+    val windowsHeld: CounterCIfc
+        get() = myWindowsOpened
+
+    private var nextCrewId = 1
+
+    override fun initialize() {
+        nextCrewId = 1
+        schedule(myAskAction, myTimeBetween)
     }
 
-    /**
-     *  Closes a whole link every so often, event-scheduled, and acts on the closure ending.
-     *
-     *  The model element that schedules the closures is the one told about them, which is what
-     *  [ZoneHoldActionIfc] is for: the end of one window is what schedules the next, so there is no
-     *  second copy of the window length kept anywhere to be added to a grant time nobody was told.
-     *
-     *  The closure is *asked for* on a schedule and *begins* when the link has drained, which is
-     *  not the same instant -- a cart already on the link finishes crossing and leaves first.
-     *  Nothing is evicted, and the delay is reported as `TimeToCloseZones` rather than hidden.
-     */
-    class MaintenanceWindow(
-        parent: ModelElement,
-        private val space: GuidedPathSpace,
-        private val zones: () -> List<Zone>,
-        timeBetween: Double,
-        windowLength: Double
-    ) : ModelElement(parent, "MaintenanceWindow"), ZoneHoldActionIfc {
-
-        private val myTimeBetween = RandomVariable(
-            this, ExponentialRV(timeBetween, streamNum = 4), name = "TimeBetweenWindows"
+    private val myAskAction = EventActionIfc<Nothing> {
+        // A crew per occurrence, made here. Nothing about the cast is stated before the run.
+        //
+        // The plain verb, not tryHoldZonesFor, and that is a statement about this model rather
+        // than a shortcut: nothing else closes the maintained link, so no zone of it can be
+        // promised to anybody else when this asks. A model whose closures *can* collide has to
+        // decide what that means, which is what tryHoldZonesFor is for.
+        space.holdZonesFor(
+            MaintenanceCrew(nextCrewId++), zones(), myWindowLength.value, this
         )
-        private val myWindowLength = RandomVariable(
-            this, ConstantRV(windowLength), name = "WindowLength"
-        )
-
-        private val myWindowsOpened = Counter(this, name = "MaintenanceWindowsHeld")
-
-        /** How many maintenance closures actually took effect. */
-        val windowsHeld: CounterCIfc
-            get() = myWindowsOpened
-
-        private var nextCrewId = 1
-
-        override fun initialize() {
-            nextCrewId = 1
-            schedule(myAskAction, myTimeBetween)
-        }
-
-        private val myAskAction = EventActionIfc<Nothing> {
-            // A crew per occurrence, made here. Nothing about the cast is stated before the run.
-            //
-            // The plain verb, not tryHoldZonesFor, and that is a statement about this model rather
-            // than a shortcut: nothing else closes the maintained link, so no zone of it can be
-            // promised to anybody else when this asks. A model whose closures *can* collide has to
-            // decide what that means, which is what tryHoldZonesFor is for.
-            space.holdZonesFor(
-                MaintenanceCrew(nextCrewId++), zones(), myWindowLength.value, this
-            )
-        }
-
-        override fun holdBegan(allocation: ZoneAllocation) {
-            myWindowsOpened.increment()
-        }
-
-        override fun holdEnded(allocation: ZoneAllocation) {
-            // The end of one window schedules the next, which is the contract this interface is
-            // for: whatever the closure was holding up proceeds from here.
-            schedule(myAskAction, myTimeBetween)
-        }
     }
 
-    /**
-     *  Parts carried from the entry station to the exit station, with spills on the loop.
-     *
-     *  @param parent the containing model element
-     *  @param disturbed whether spills occur and maintenance windows are taken
-     *  @param timeBtwArrivals the mean time between part arrivals, in minutes
-     */
-    class DisturbedShop(
-        parent: ModelElement,
-        disturbed: Boolean,
-        timeBtwArrivals: Double = 20.0
-    ) : ProcessModel(parent, "DisturbedShop") {
-
-        val network: GuidedPathNetwork = SimpleAGVExample.createNetwork("DisturbedNet")
-
-        init {
-            spatialModel = network
-        }
-
-        val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
-
-        val cart1 = GuidedTransporter(
-            system, TransporterPlacement.At(SimpleAGVExample.AGV1_HOME), ConstantRV(10.0), 1,
-            EndOfZoneControl(), "Cart1"
-        ).apply { homeBase = SimpleAGVExample.AGV1_HOME }
-
-        val cart2 = GuidedTransporter(
-            system, TransporterPlacement.At(SimpleAGVExample.AGV2_HOME), ConstantRV(10.0), 1,
-            EndOfZoneControl(), "Cart2"
-        ).apply { homeBase = SimpleAGVExample.AGV2_HOME }
-
-        val carts = GuidedTransporterPoolWithQ(
-            this, system, listOf(cart1, cart2),
-            ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
-        )
-
-        private val myTimeInSystem = Response(this, "TimeInSystem")
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
-
-        private val myCompleted = Counter(this, "PartsDelivered")
-        val completed: CounterCIfc
-            get() = myCompleted
-
-        @Suppress("unused")
-        private val generator = EntityGenerator(
-            ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
-            ExponentialRV(timeBtwArrivals, streamNum = 1)
-        )
-
-        inner class Part : Entity() {
-            @Suppress("unused")
-            val delivery = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(SimpleAGVExample.ENTRY_STATION)
-                guidedTransport(
-                    carts,
-                    destination = SimpleAGVExample.EXIT_STATION,
-                    pickupLocation = SimpleAGVExample.ENTRY_STATION,
-                    loadingDelay = ConstantRV(0.5),
-                    unLoadingDelay = ConstantRV(0.5)
-                )
-                myTimeInSystem.value = time - arrived
-                myCompleted.increment()
-            }
-        }
-
-        // ---- the process route: spills, which arrive and are cleaned ---------------------------
-
-        /** Where a spill waits while the zones it landed on finish draining. */
-        val spillQ = HoldQueue(this, "SpillQ")
-
-        // Three and four: the maintained link is left to the maintenance window, so the only
-        // closures that can collide here are two spills in the same aisle.
-        private val mySpillLink = RandomVariable(this, DUniformRV(3, 4, streamNum = 5), "SpillLink")
-        private val mySpillExtent = RandomVariable(this, DUniformRV(1, 2, streamNum = 6), "SpillExtent")
-        private val myCleanupTime = RandomVariable(
-            this, LognormalRV(15.0, 20.0, streamNum = 7), "CleanupTime"
-        )
-
-        private val mySpillsCleaned = Counter(this, "SpillsCleaned")
-
-        /** How many spills were cleaned up. */
-        val spillsCleaned: CounterCIfc
-            get() = mySpillsCleaned
-
-        private val mySpillsAbsorbed = Counter(this, "SpillsAbsorbed")
-
-        /** How many spills landed where a closure was already in place. */
-        val spillsAbsorbed: CounterCIfc
-            get() = mySpillsAbsorbed
-
-        /**
-         *  A spill is an entity, and that is the whole reason a holder cannot be a model element.
-         *
-         *  Where it lands, how much of the aisle it covers and how long it takes to clean are all
-         *  drawn here, at run time, and any number of spills may be in progress at once.
-         */
-        inner class Spill : Entity() {
-            @Suppress("unused")
-            val cleanup = process(isDefaultProcess = true) {
-                val link = network.link("Link${mySpillLink.value.toInt()}")!!
-                val extent = link.zones.take(mySpillExtent.value.toInt())
-                // A zone carries one promise at a time, so a spill landing on an aisle another
-                // spill is still having closed cannot queue behind it. This model's answer is that
-                // the second is part of the first -- one spill, cleaned once. Deferring it or
-                // placing it elsewhere would be equally reasonable; the choice belongs here.
-                //
-                // A zone a *cart* is on is not a collision and needs no guard: that is the ordinary
-                // case, and the call below waits for the cart to finish crossing and leave.
-                if (trySeizeZones(system, extent, spillQ) == null) {
-                    mySpillsAbsorbed.increment()
-                    return@process
-                }
-                delay(myCleanupTime)
-                releaseZones(system)
-                mySpillsCleaned.increment()
-            }
-        }
-
-        @Suppress("unused")
-        private val spills = if (disturbed) {
-            EntityGenerator(
-                ::Spill, ExponentialRV(90.0, streamNum = 2), ExponentialRV(90.0, streamNum = 2)
-            )
-        } else {
-            null
-        }
-
-        // ---- the event route: a maintenance window on a whole link ------------------------------
-
-        @Suppress("unused")
-        private val maintenance = if (disturbed) {
-            MaintenanceWindow(
-                this, system, { network.link(MAINTAINED_LINK)!!.zones },
-                timeBetween = 300.0, windowLength = 30.0
-            )
-        } else {
-            null
-        }
+    override fun holdBegan(allocation: ZoneAllocation) {
+        myWindowsOpened.increment()
     }
 
-    /**
-     *  One scenario per configuration, with the same replications, horizon, warm-up and arrival
-     *  stream, because the only thing being compared is whether the guide path is disturbed.
-     */
-    fun buildRunner(): ScenarioRunner {
-        val runner = ScenarioRunner("GuidePathDisturbances")
-        // Disturbed first, because MultipleComparisonAnalyzer keys each paired difference
-        // "first - second" in the order the scenarios were added, and the reading that makes sense
-        // here is what the disturbances cost rather than what their absence saves.
-        for ((label, disturbed) in listOf(DISTURBED to true, QUIET to false)) {
-            val m = Model("Disturbances_$label")
-            DisturbedShop(m, disturbed = disturbed)
-            runner.addScenario(
-                model = m,
-                name = label,
-                inputs = emptyMap(),
-                numberReplications = REPLICATIONS,
-                lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
-            )
-        }
-        return runner
+    override fun holdEnded(allocation: ZoneAllocation) {
+        // The end of one window schedules the next, which is the contract this interface is
+        // for: whatever the closure was holding up proceeds from here.
+        schedule(myAskAction, myTimeBetween)
     }
 }
+
+/**
+ *  Parts carried from the entry station to the exit station, with spills on the loop.
+ *
+ *  @param parent the containing model element
+ *  @param disturbed whether spills occur and maintenance windows are taken
+ *  @param timeBtwArrivals the mean time between part arrivals, in minutes
+ */
+class GuidePathDisturbancesExample(
+    parent: ModelElement,
+    disturbed: Boolean,
+    timeBtwArrivals: Double = 20.0
+) : ProcessModel(parent, "DisturbedShop") {
+
+    companion object {
+
+        const val QUIET: String = "NoDisturbances"
+        const val DISTURBED: String = "SpillsAndMaintenance"
+        const val SYSTEM_NAME: String = "AgvSystem"
+        const val REPLICATIONS: Int = 20
+        const val HORIZON: Double = 8_000.0
+        const val WARM_UP: Double = 1_000.0
+
+        /** The link closed for maintenance: a leg of the one-way loop, six zones taken as one. */
+        const val MAINTAINED_LINK: String = "Link2"
+
+        fun buildRunner(): ScenarioRunner {
+            val runner = ScenarioRunner("GuidePathDisturbances")
+            // Disturbed first, because MultipleComparisonAnalyzer keys each paired difference
+            // "first - second" in the order the scenarios were added, and the reading that makes sense
+            // here is what the disturbances cost rather than what their absence saves.
+            for ((label, disturbed) in listOf(DISTURBED to true, QUIET to false)) {
+                val m = Model("Disturbances_$label")
+                GuidePathDisturbancesExample(m, disturbed = disturbed)
+                runner.addScenario(
+                    model = m,
+                    name = label,
+                    inputs = emptyMap(),
+                    numberReplications = REPLICATIONS,
+                    lengthOfReplication = HORIZON,
+                    lengthOfReplicationWarmUp = WARM_UP
+                )
+            }
+            return runner
+        }
+    }
+
+    val network: GuidedPathNetwork = SimpleAGVExample.createNetwork("DisturbedNet")
+
+    init {
+        spatialModel = network
+    }
+
+    val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
+
+    val cart1 = GuidedTransporter(
+        system, TransporterPlacement.At(SimpleAGVExample.AGV1_HOME), ConstantRV(10.0), 1,
+        EndOfZoneControl(), "Cart1"
+    ).apply { homeBase = SimpleAGVExample.AGV1_HOME }
+
+    val cart2 = GuidedTransporter(
+        system, TransporterPlacement.At(SimpleAGVExample.AGV2_HOME), ConstantRV(10.0), 1,
+        EndOfZoneControl(), "Cart2"
+    ).apply { homeBase = SimpleAGVExample.AGV2_HOME }
+
+    val carts = GuidedTransporterPoolWithQ(
+        this, system, listOf(cart1, cart2),
+        ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
+    )
+
+    private val myTimeInSystem = Response(this, "TimeInSystem")
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
+
+    private val myCompleted = Counter(this, "PartsDelivered")
+    val completed: CounterCIfc
+        get() = myCompleted
+
+    @Suppress("unused")
+    private val generator = EntityGenerator(
+        ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
+        ExponentialRV(timeBtwArrivals, streamNum = 1)
+    )
+
+    inner class Part : Entity() {
+        @Suppress("unused")
+        val delivery = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(SimpleAGVExample.ENTRY_STATION)
+            guidedTransport(
+                carts,
+                destination = SimpleAGVExample.EXIT_STATION,
+                pickupLocation = SimpleAGVExample.ENTRY_STATION,
+                loadingDelay = ConstantRV(0.5),
+                unLoadingDelay = ConstantRV(0.5)
+            )
+            myTimeInSystem.value = time - arrived
+            myCompleted.increment()
+        }
+    }
+
+    // ---- the process route: spills, which arrive and are cleaned ---------------------------
+
+    /** Where a spill waits while the zones it landed on finish draining. */
+    val spillQ = HoldQueue(this, "SpillQ")
+
+    // Three and four: the maintained link is left to the maintenance window, so the only
+    // closures that can collide here are two spills in the same aisle.
+    private val mySpillLink = RandomVariable(this, DUniformRV(3, 4, streamNum = 5), "SpillLink")
+    private val mySpillExtent = RandomVariable(this, DUniformRV(1, 2, streamNum = 6), "SpillExtent")
+    private val myCleanupTime = RandomVariable(
+        this, LognormalRV(15.0, 20.0, streamNum = 7), "CleanupTime"
+    )
+
+    private val mySpillsCleaned = Counter(this, "SpillsCleaned")
+
+    /** How many spills were cleaned up. */
+    val spillsCleaned: CounterCIfc
+        get() = mySpillsCleaned
+
+    private val mySpillsAbsorbed = Counter(this, "SpillsAbsorbed")
+
+    /** How many spills landed where a closure was already in place. */
+    val spillsAbsorbed: CounterCIfc
+        get() = mySpillsAbsorbed
+
+    /**
+     *  A spill is an entity, and that is the whole reason a holder cannot be a model element.
+     *
+     *  Where it lands, how much of the aisle it covers and how long it takes to clean are all
+     *  drawn here, at run time, and any number of spills may be in progress at once.
+     */
+    inner class Spill : Entity() {
+        @Suppress("unused")
+        val cleanup = process(isDefaultProcess = true) {
+            val link = network.link("Link${mySpillLink.value.toInt()}")!!
+            val extent = link.zones.take(mySpillExtent.value.toInt())
+            // A zone carries one promise at a time, and this asks with the default policy, so a
+            // spill landing on an aisle another spill is still having closed is refused rather
+            // than queued behind it. This model's answer is that the second is part of the first
+            // -- one spill, cleaned once. Deferring it, placing it elsewhere, or asking with
+            // ZoneOverlap.QUEUE would be equally reasonable; the choice belongs here.
+            //
+            // A zone a *cart* is on is not a collision and needs no guard: that is the ordinary
+            // case, and the call below waits for the cart to finish crossing and leave.
+            if (trySeizeZones(system, extent, spillQ) == null) {
+                mySpillsAbsorbed.increment()
+                return@process
+            }
+            delay(myCleanupTime)
+            releaseZones(system)
+            mySpillsCleaned.increment()
+        }
+    }
+
+    @Suppress("unused")
+    private val spills = if (disturbed) {
+        EntityGenerator(
+            ::Spill, ExponentialRV(90.0, streamNum = 2), ExponentialRV(90.0, streamNum = 2)
+        )
+    } else {
+        null
+    }
+
+    // ---- the event route: a maintenance window on a whole link ------------------------------
+
+    @Suppress("unused")
+    private val maintenance = if (disturbed) {
+        MaintenanceWindow(
+            this, system, { network.link(MAINTAINED_LINK)!!.zones },
+            timeBetween = 300.0, windowLength = 30.0
+        )
+    } else {
+        null
+    }
+}
+
+/**
+ *  One scenario per configuration, with the same replications, horizon, warm-up and arrival
+ *  stream, because the only thing being compared is whether the guide path is disturbed.
+ */
 
 fun main() {
     val runner = GuidePathDisturbancesExample.buildRunner()
@@ -411,12 +415,6 @@ fun main() {
         }
         println("  %-44s %12.2f".format(counter, Statistic(values).average))
     }
-    println()
-    println("  SpillsAbsorbed counts the spills that landed on an aisle another spill was still")
-    println("  having closed. A zone carries one promise at a time, so the request has to be able")
-    println("  to come back empty-handed, and what to do about that belongs to the model rather")
-    println("  than to the guide path. This model absorbs them; deferring them until the aisle")
-    println("  reopens, or placing them elsewhere, would be equally reasonable readings.")
 
     val total = differences.getValue("$sys:NumTransportersBlocked")
     val parts = differences.getValue("$sys:NumBlockedByVehicle") +
@@ -429,17 +427,4 @@ fun main() {
         "the blocked-time decomposition left ${total - parts} unaccounted for, which means a cart " +
             "was held up by something none of the three causes names"
     }
-
-    println()
-    println("  Read NumBlockedByOccupier and NumZonesClosed together. The quiet configuration has")
-    println("  no mechanism for either, so both are exactly zero there and every minute of cart")
-    println("  obstruction in it is a cart waiting on another cart. In the disturbed configuration")
-    println("  that same total splits into separately observable quantities, and none of them had")
-    println("  to be fitted.")
-    println()
-    println("  That is the argument for the construct, and it does not depend on whether the")
-    println("  headline count separates the two runs. A shop that really has spills and closures,")
-    println("  modelled without them, must still reproduce the throughput it was calibrated on --")
-    println("  so the missing obstruction time ends up inside task times or vehicle speed, where it")
-    println("  is invisible and where it will not respond to the change a study is evaluating.")
 }

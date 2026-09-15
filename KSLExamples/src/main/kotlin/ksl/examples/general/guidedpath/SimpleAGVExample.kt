@@ -79,160 +79,161 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  so the two configurations deliver the same load and the damage shows up only in the obstruction
  *  count — which is the point of the example, and is why that count is in the standard report
  *  rather than only in a log.
+ *
+ *  Parts arrive at the entry station and are carried to the exit station by whichever cart is
+ *  free. The vocabulary the model is written in — the station names, the two zone lengths and the
+ *  layout itself — is in the companion object, so a caller can name a place, or reuse the layout,
+ *  without repeating a string.
+ *
+ *  @param parent the containing model element
+ *  @param sendCartsHome whether an idle cart returns to its own spur or stays where it stopped
+ *  @param timeBtwArrivals the mean time between part arrivals, in minutes
  */
-object SimpleAGVExample {
+class SimpleAGVExample(
+    parent: ModelElement,
+    sendCartsHome: Boolean = true,
+    timeBtwArrivals: Double = 20.0
+) : ProcessModel(parent, "AgvShop") {
 
-    const val LOOP_ZONE_LENGTH: Double = 12.0
-    const val HOME_SPUR_ZONE_LENGTH: Double = 6.0
-    const val ENTRY_STATION: String = "EntryStation"
-    const val EXIT_STATION: String = "ExitStation"
-    const val AGV1_HOME: String = "I6"
-    const val AGV2_HOME: String = "I7"
-    const val SYSTEM_NAME: String = "AgvSystem"
+    companion object {
 
-    /**
-     *  Builds the guide path. Coordinates place `I4` at the origin with the loop above and to the
-     *  right of it; they drive layout and animation only, never routing, which uses the declared
-     *  link lengths.
-     *
-     *  The loop is one-way, so distances are not symmetric. Entry to exit runs the long way round,
-     *  `I1` to `I2` to `I3` to `I4` and down the spur: 204 feet. The return from the exit is only
-     *  108, because the spur is two-way and `Link4` carries the cart straight back up to `I1`.
-     */
-    fun createNetwork(networkName: String = "SimpleAgvNetwork"): GuidedPathNetwork =
-        GuidedPathNetwork.builder(networkName)
-            .intersection("I1", x = 0.0, y = 72.0)
-            .intersection("I2", x = 48.0, y = 72.0)
-            .intersection("I3", x = 48.0, y = 0.0)
-            .intersection("I4", x = 0.0, y = 0.0)
-            .intersection("I5", x = 0.0, y = -36.0)
-            .intersection("I6", x = 54.0, y = 72.0)
-            .intersection("I7", x = 54.0, y = 0.0)
-            .link("Link1", "I1", "I2", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 0.0)
-            .link("Link2", "I2", "I3", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 270.0)
-            .link("Link3", "I3", "I4", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 180.0)
-            .link("Link4", "I4", "I1", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 90.0)
-            .link(
-                "Spur", "I4", "I5", length = 36.0, zoneLength = LOOP_ZONE_LENGTH,
-                type = LinkType.SPUR, beginDirection = 270.0
-            )
-            .link(
-                "Link5", "I2", "I6", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
-                type = LinkType.SPUR, beginDirection = 0.0
-            )
-            .link(
-                "Link6", "I3", "I7", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
-                type = LinkType.SPUR, beginDirection = 0.0
-            )
-            .station(ENTRY_STATION, "I1")
-            .station(EXIT_STATION, "I5")
-            .build()
+        const val LOOP_ZONE_LENGTH: Double = 12.0
+        const val HOME_SPUR_ZONE_LENGTH: Double = 6.0
+        const val ENTRY_STATION: String = "EntryStation"
+        const val EXIT_STATION: String = "ExitStation"
+        const val AGV1_HOME: String = "I6"
+        const val AGV2_HOME: String = "I7"
+        const val SYSTEM_NAME: String = "AgvSystem"
 
-    /**
-     *  Parts arrive at the entry station and are carried to the exit station by whichever cart is
-     *  free.
-     *
-     *  @param parent the containing model element
-     *  @param sendCartsHome whether an idle cart returns to its own spur or stays where it stopped
-     *  @param timeBtwArrivals the mean time between part arrivals, in minutes
-     */
-    class AgvShop(
-        parent: ModelElement,
-        sendCartsHome: Boolean = true,
-        timeBtwArrivals: Double = 20.0
-    ) : ProcessModel(parent, "AgvShop") {
-
-        val network: GuidedPathNetwork = createNetwork()
-
-        init {
-            // The parts travel on the guide path, so it is their spatial model too.
-            spatialModel = network
-        }
-
-        val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
-
-        val cart1 = GuidedTransporter(
-            system, TransporterPlacement.At(AGV1_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart1"
-        ).apply { homeBase = AGV1_HOME }
-
-        val cart2 = GuidedTransporter(
-            system, TransporterPlacement.At(AGV2_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart2"
-        ).apply { homeBase = AGV2_HOME }
-
-        val carts = GuidedTransporterPoolWithQ(
-            this, system, listOf(cart1, cart2),
-            ClosestByNetworkDistanceRule(),
-            if (sendCartsHome) ReturnToHomeBaseRule() else ParkInPlaceRule(),
-            "Carts"
-        )
-
-        private val myTimeInSystem = Response(this, "TimeInSystem")
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
-
-        private val myCompleted = Counter(this, "PartsDelivered")
-        val completed: CounterCIfc
-            get() = myCompleted
-
-        private val myLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "LoadingTime")
-        val loadingTimeRV: RandomVariableCIfc
-            get() = myLoadingTime
-
-        private val myUnLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "UnLoadingTime")
-        val unLoadingTimeRV: RandomVariableCIfc
-            get() = myUnLoadingTime
-
-        @Suppress("unused")
-        private val generator = EntityGenerator(
-            ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
-            ExponentialRV(timeBtwArrivals, streamNum = 1)
-        )
-
-        inner class Part : Entity() {
-            @Suppress("unused")
-            val delivery = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(ENTRY_STATION)
-                guidedTransport(
-                    carts,
-                    destination = EXIT_STATION,
-                    pickupLocation = ENTRY_STATION,
-                    loadingDelay = myLoadingTime,
-                    unLoadingDelay = myUnLoadingTime
+        /**
+         *  Builds the guide path. Coordinates place `I4` at the origin with the loop above and to the
+         *  right of it; they drive layout and animation only, never routing, which uses the declared
+         *  link lengths.
+         *
+         *  The loop is one-way, so distances are not symmetric. Entry to exit runs the long way round,
+         *  `I1` to `I2` to `I3` to `I4` and down the spur: 204 feet. The return from the exit is only
+         *  108, because the spur is two-way and `Link4` carries the cart straight back up to `I1`.
+         */
+        fun createNetwork(networkName: String = "SimpleAgvNetwork"): GuidedPathNetwork =
+            GuidedPathNetwork.builder(networkName)
+                .intersection("I1", x = 0.0, y = 72.0)
+                .intersection("I2", x = 48.0, y = 72.0)
+                .intersection("I3", x = 48.0, y = 0.0)
+                .intersection("I4", x = 0.0, y = 0.0)
+                .intersection("I5", x = 0.0, y = -36.0)
+                .intersection("I6", x = 54.0, y = 72.0)
+                .intersection("I7", x = 54.0, y = 0.0)
+                .link("Link1", "I1", "I2", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 0.0)
+                .link("Link2", "I2", "I3", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 270.0)
+                .link("Link3", "I3", "I4", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 180.0)
+                .link("Link4", "I4", "I1", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 90.0)
+                .link(
+                    "Spur", "I4", "I5", length = 36.0, zoneLength = LOOP_ZONE_LENGTH,
+                    type = LinkType.SPUR, beginDirection = 270.0
                 )
-                myTimeInSystem.value = time - arrived
-                myCompleted.increment()
+                .link(
+                    "Link5", "I2", "I6", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
+                    type = LinkType.SPUR, beginDirection = 0.0
+                )
+                .link(
+                    "Link6", "I3", "I7", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
+                    type = LinkType.SPUR, beginDirection = 0.0
+                )
+                .station(ENTRY_STATION, "I1")
+                .station(EXIT_STATION, "I5")
+                .build()
+
+        const val REPLICATIONS: Int = 10
+        const val HORIZON: Double = 8_000.0
+        const val WARM_UP: Double = 1_000.0
+
+        const val SENT_HOME: String = "CartsSentHome"
+        const val LEFT_IN_PLACE: String = "CartsLeftInPlace"
+
+        /**
+         *  One scenario per configuration. Both get the same replications, horizon, warm-up and arrival
+         *  stream, because the only thing being compared is where an idle cart waits and any difference
+         *  in the run settings would swamp it.
+         */
+        fun buildRunner(): ScenarioRunner {
+            val runner = ScenarioRunner("SimpleAgvHomeBases")
+            for ((label, sendHome) in listOf(SENT_HOME to true, LEFT_IN_PLACE to false)) {
+                val m = Model("SimpleAGV_$label")
+                SimpleAGVExample(m, sendCartsHome = sendHome)
+                runner.addScenario(
+                    model = m,
+                    name = label,
+                    inputs = emptyMap(),
+                    numberReplications = REPLICATIONS,
+                    lengthOfReplication = HORIZON,
+                    lengthOfReplicationWarmUp = WARM_UP
+                )
             }
+            return runner
         }
     }
 
-    const val REPLICATIONS: Int = 10
-    const val HORIZON: Double = 8_000.0
-    const val WARM_UP: Double = 1_000.0
+    val network: GuidedPathNetwork = createNetwork()
 
-    const val SENT_HOME: String = "CartsSentHome"
-    const val LEFT_IN_PLACE: String = "CartsLeftInPlace"
+    init {
+        // The parts travel on the guide path, so it is their spatial model too.
+        spatialModel = network
+    }
 
-    /**
-     *  One scenario per configuration. Both get the same replications, horizon, warm-up and arrival
-     *  stream, because the only thing being compared is where an idle cart waits and any difference
-     *  in the run settings would swamp it.
-     */
-    fun buildRunner(): ScenarioRunner {
-        val runner = ScenarioRunner("SimpleAgvHomeBases")
-        for ((label, sendHome) in listOf(SENT_HOME to true, LEFT_IN_PLACE to false)) {
-            val m = Model("SimpleAGV_$label")
-            AgvShop(m, sendCartsHome = sendHome)
-            runner.addScenario(
-                model = m,
-                name = label,
-                inputs = emptyMap(),
-                numberReplications = REPLICATIONS,
-                lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
+    val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
+
+    val cart1 = GuidedTransporter(
+        system, TransporterPlacement.At(AGV1_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart1"
+    ).apply { homeBase = AGV1_HOME }
+
+    val cart2 = GuidedTransporter(
+        system, TransporterPlacement.At(AGV2_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart2"
+    ).apply { homeBase = AGV2_HOME }
+
+    val carts = GuidedTransporterPoolWithQ(
+        this, system, listOf(cart1, cart2),
+        ClosestByNetworkDistanceRule(),
+        if (sendCartsHome) ReturnToHomeBaseRule() else ParkInPlaceRule(),
+        "Carts"
+    )
+
+    private val myTimeInSystem = Response(this, "TimeInSystem")
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
+
+    private val myCompleted = Counter(this, "PartsDelivered")
+    val completed: CounterCIfc
+        get() = myCompleted
+
+    private val myLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "LoadingTime")
+    val loadingTimeRV: RandomVariableCIfc
+        get() = myLoadingTime
+
+    private val myUnLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "UnLoadingTime")
+    val unLoadingTimeRV: RandomVariableCIfc
+        get() = myUnLoadingTime
+
+    @Suppress("unused")
+    private val generator = EntityGenerator(
+        ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
+        ExponentialRV(timeBtwArrivals, streamNum = 1)
+    )
+
+    inner class Part : Entity() {
+        @Suppress("unused")
+        val delivery = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(ENTRY_STATION)
+            guidedTransport(
+                carts,
+                destination = EXIT_STATION,
+                pickupLocation = ENTRY_STATION,
+                loadingDelay = myLoadingTime,
+                unLoadingDelay = myUnLoadingTime
             )
+            myTimeInSystem.value = time - arrived
+            myCompleted.increment()
         }
-        return runner
     }
 }
 
@@ -266,12 +267,4 @@ fun main() {
         val detectable = if (kotlin.math.abs(d.average) > d.halfWidth) "yes" else "no"
         println("  %-40s %12.4f %12.4f %12s".format(response, d.average, d.halfWidth, detectable))
     }
-
-    println()
-    println("  Neither run fails and neither reports an error, and their delivered counts are")
-    println("  indistinguishable:")
-    println("  this shop is arrival-limited, so the damage never reaches the headline number. The")
-    println("  obstruction count is the only thing that separates them, which is why that condition")
-    println("  is counted into the standard report rather than only written to a log. It is a design")
-    println("  defect that a run is perfectly capable of hiding.")
 }

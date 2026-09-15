@@ -80,6 +80,20 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  The same yard is run twice, differing in one number: how many pallets a cart can hold. Whether
  *  consolidation pays is a property of how loaded the fleet is rather than a law, so the run
  *  reports it rather than the comment asserting it.
+ *
+ *  Read the throughput row of each pair first. At window 25 the two capacities deliver
+ *  indistinguishable loads, so the time-in-system difference beside it is a comparison of two
+ *  fleets doing the same work, and carrying up to four is worth having. At window 40 the
+ *  capacity-1 fleet delivers detectably fewer: it has fallen behind, so its time in system is a
+ *  number about the loads it managed rather than about the fleet, and comparing the times would be
+ *  comparing two different questions. **Check throughput parity before believing a time-in-system
+ *  comparison.** The paired difference is what makes "indistinguishable" and "detectably fewer"
+ *  statements about the run rather than about the reader's eye.
+ *
+ *  The replication count is part of that. At ten replications the window-40 throughput deficit was
+ *  about eight loads with a half-width of nine: the point estimate said the fleet had fallen behind
+ *  and the interval could not tell it from noise, which is a reason to run more replications rather
+ *  than to believe the point estimate. Forty resolves it.
  */
 class FreePathFleetExample(
     parent: ModelElement,
@@ -246,33 +260,6 @@ fun main() {
         }
     }
 
-    println()
-    println("Read the throughput row of each pair first.")
-    println()
-    println("  At window 25 the two capacities deliver indistinguishable loads, so the time-in-system")
-    println("  difference beside it is a comparison of two fleets doing the same work, and carrying")
-    println("  up to four is worth having. At window 40 the capacity-1 fleet delivers detectably")
-    println("  fewer: it has fallen behind, so its time in system is a number about the loads it")
-    println("  managed rather than about the fleet, and comparing the times would be comparing two")
-    println("  different questions.")
-    println()
-    println("  Check throughput parity before believing a time-in-system comparison. The paired")
-    println("  difference is what makes 'indistinguishable' and 'detectably fewer' statements about")
-    println("  the run rather than about the reader's eye.")
-    println()
-    println("  The replication count is part of that. At ten replications the window-40 throughput")
-    println("  deficit was about eight loads with a half-width of nine: the point estimate said the")
-    println("  fleet had fallen behind and the interval could not tell it from noise, which is a")
-    println("  reason to run more replications rather than to believe the point estimate. Forty")
-    println("  resolves it.")
-    println()
-    println("The blocked column is zero everywhere, and will be in every free-path run.")
-    println()
-    println("  Nothing here waits for another vehicle -- that is what a free path means. The row is")
-    println("  registered and flat on purpose: it is this model's central assumption showing up in")
-    println("  the output rather than being left to be remembered. A guide path fills that column")
-    println("  in, and the difference between the two is what a substrate comparison measures.")
-    println("  See ksl.examples.general.agv for the same machinery where the aisles push back.")
     println()
     println("  Full half-width summary reports for all four cells: ${KSL.outDir}")
 }

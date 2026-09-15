@@ -90,7 +90,13 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
     private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0))
 
-    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
+    // Named, so that a study -- or the vehicle-examples bundle's catalog -- can nominate its mean
+    // as an input. An unnamed random variable has no stable key to nominate.
+    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0), name = "DiagnosticTime")
+
+    /** How long diagnosis takes; its mean is the shop's headline load parameter. */
+    val diagnosticTimeRV: RandomVariableCIfc
+        get() = diagnosticTime
 
     // The same walking speed as the free-path model, in meters per minute. Sharing it is what makes
     // the comparison about the space rather than about how fast anybody walks.

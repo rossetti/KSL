@@ -83,162 +83,162 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  the machine's scheduler rather than the model. Record the figure alongside the hardware and
  *  compare like with like.
  */
-object AgvThroughputBenchmark {
+class AgvThroughputBenchmark(parent: ModelElement) : ProcessModel(parent, "SaturatedFleet") {
 
-    /** Loads in circulation. More than vehicles, so the board is never empty. */
-    const val NUM_LOADS: Int = 40
+    val network = createNetwork()
 
-    /**
-     *  The same torus the passive benchmark uses, borrowed rather than rebuilt so that the two
-     *  measurements are of one layout and stay that way.
-     */
-    fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork =
-        GuidedPathThroughputBenchmark.createNetwork(networkName)
+    init {
+        spatialModel = network
+    }
 
-    private class SaturatedFleet(parent: ModelElement) : ProcessModel(parent, "SaturatedFleet") {
+    val agv = AgvSystem(this, network, assignmentPolicy = NearestVehiclePolicy(), name = "Agv")
 
-        val network = createNetwork()
+    // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
+    // differ only in wall-clock time.
+    private val stream = RNStreamProvider().rnStream(1)
 
-        init {
-            spatialModel = network
-        }
+    val vehicles: List<AgvVehicle> = (0 until GuidedPathThroughputBenchmark.NUM_VEHICLES).map { i ->
+        // One vehicle at the head of each of the first twenty links, exactly as the passive
+        // benchmark places them, so neither fleet begins with an advantage over the other.
+        val r = i / GuidedPathThroughputBenchmark.COLUMNS
+        val c = i % GuidedPathThroughputBenchmark.COLUMNS
+        AgvVehicle(
+            agv, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
+            ConstantRV(GuidedPathThroughputBenchmark.VELOCITY), 1, EndOfZoneControl(), "V$i"
+        ).apply { dispositionPolicy = ParkInPlaceDisposition() }
+    }
 
-        val agv = AgvSystem(this, network, assignmentPolicy = NearestVehiclePolicy(), name = "Agv")
+    private fun somewhere(): String =
+        network.intersections[stream.randInt(0, network.intersections.size - 1)].name
 
-        // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
-        // differ only in wall-clock time.
-        private val stream = RNStreamProvider().rnStream(1)
-
-        val vehicles: List<AgvVehicle> = (0 until GuidedPathThroughputBenchmark.NUM_VEHICLES).map { i ->
-            // One vehicle at the head of each of the first twenty links, exactly as the passive
-            // benchmark places them, so neither fleet begins with an advantage over the other.
-            val r = i / GuidedPathThroughputBenchmark.COLUMNS
-            val c = i % GuidedPathThroughputBenchmark.COLUMNS
-            AgvVehicle(
-                agv, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
-                ConstantRV(GuidedPathThroughputBenchmark.VELOCITY), 1, EndOfZoneControl(), "V$i"
-            ).apply { dispositionPolicy = ParkInPlaceDisposition() }
-        }
-
-        private fun somewhere(): String =
-            network.intersections[stream.randInt(0, network.intersections.size - 1)].name
-
-        private inner class Load : Entity() {
-            val circulating = process(isDefaultProcess = true) {
-                currentLocation = network.requireLocation(somewhere())
-                while (true) {
-                    val there = somewhere()
-                    if (there != currentLocation.name) {
-                        transportByFleet(agv, destination = there, origin = currentLocation.name)
-                    } else {
-                        // Asking to be carried where it already stands would be refused, and a load
-                        // that stopped asking would quietly shrink the population this claims to run.
-                        delay(0.0)
-                    }
+    private inner class Load : Entity() {
+        val circulating = process(isDefaultProcess = true) {
+            currentLocation = network.requireLocation(somewhere())
+            while (true) {
+                val there = somewhere()
+                if (there != currentLocation.name) {
+                    transportByFleet(agv, destination = there, origin = currentLocation.name)
+                } else {
+                    // Asking to be carried where it already stands would be refused, and a load
+                    // that stopped asking would quietly shrink the population this claims to run.
+                    delay(0.0)
                 }
             }
         }
+    }
 
-        override fun initialize() {
-            repeat(NUM_LOADS) { activate(Load().circulating) }
+    override fun initialize() {
+        repeat(NUM_LOADS) { activate(Load().circulating) }
+    }
+
+    companion object {
+
+        /** Loads in circulation. More than vehicles, so the board is never empty. */
+        const val NUM_LOADS: Int = 40
+
+        /**
+         *  The same torus the passive benchmark uses, borrowed rather than rebuilt so that the two
+         *  measurements are of one layout and stay that way.
+         */
+        fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork =
+            GuidedPathThroughputBenchmark.createNetwork(networkName)
+
+        /** What one run measured. The same three quantities the passive benchmark reports. */
+        private data class Result(
+            val zoneTraversals: Double,
+            val eventsScheduled: Double,
+            val tasksCompleted: Double,
+            val wallClockSeconds: Double
+        ) {
+            val traversalsPerWallClockMinute: Double
+                get() = zoneTraversals / wallClockSeconds * 60.0
+
+            val eventsPerTraversal: Double
+                get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
         }
-    }
 
-    /** What one run measured. The same three quantities the passive benchmark reports. */
-    data class Result(
-        val zoneTraversals: Double,
-        val eventsScheduled: Double,
-        val tasksCompleted: Double,
-        val wallClockSeconds: Double
-    ) {
-        val traversalsPerWallClockMinute: Double
-            get() = zoneTraversals / wallClockSeconds * 60.0
+        /**
+         *  Runs the reference configuration.
+         *
+         *  @param replicationLength how long to run, in simulated minutes
+         *  @param replications how many replications to run
+         */
+        private fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
+            val m = Model("AgvThroughputBenchmark")
+            val fleet = AgvThroughputBenchmark(m)
+            fleet.agv.checkInvariants = false
+            m.numberOfReplications = replications
+            m.lengthOfReplication = replicationLength
+            val started = System.nanoTime()
+            m.simulate()
+            val elapsed = (System.nanoTime() - started) / 1e9
+            return Result(
+                zoneTraversals = fleet.agv.numZoneTraversals.value,
+                eventsScheduled = fleet.agv.numEventsScheduled.value,
+                tasksCompleted = fleet.agv.dispatcher.numTasksCompleted.value,
+                wallClockSeconds = elapsed
+            )
+        }
 
-        val eventsPerTraversal: Double
-            get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
-    }
+        fun report() {
+            val warmUp = run(replicationLength = 20_000.0)
+            println(
+                "warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in " +
+                        "${"%.2f".format(warmUp.wallClockSeconds)} s"
+            )
+            val active = run()
+            val passive = GuidedPathThroughputBenchmark.run()
+            val described = createNetwork("Describe")
 
-    /**
-     *  Runs the reference configuration.
-     *
-     *  @param replicationLength how long to run, in simulated minutes
-     *  @param replications how many replications to run
-     */
-    fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
-        val m = Model("AgvThroughputBenchmark")
-        val fleet = SaturatedFleet(m)
-        fleet.agv.checkInvariants = false
-        m.numberOfReplications = replications
-        m.lengthOfReplication = replicationLength
-        val started = System.nanoTime()
-        m.simulate()
-        val elapsed = (System.nanoTime() - started) / 1e9
-        return Result(
-            zoneTraversals = fleet.agv.numZoneTraversals.value,
-            eventsScheduled = fleet.agv.numEventsScheduled.value,
-            tasksCompleted = fleet.agv.dispatcher.numTasksCompleted.value,
-            wallClockSeconds = elapsed
-        )
-    }
-
-    fun report() {
-        val warmUp = run(replicationLength = 20_000.0)
-        println(
-            "warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in " +
-                    "${"%.2f".format(warmUp.wallClockSeconds)} s"
-        )
-        val active = run()
-        val passive = GuidedPathThroughputBenchmark.run()
-        val described = createNetwork("Describe")
-
-        println()
-        println("AGV throughput benchmark - reference configuration, both paradigms")
-        println(
-            "  network            : ${GuidedPathThroughputBenchmark.ROWS} x " +
-                    "${GuidedPathThroughputBenchmark.COLUMNS} torus, " +
-                    "${described.intersections.size} intersections, ${described.links.size} links, " +
-                    "${described.zones.size} zones"
-        )
-        println("  vehicles           : ${GuidedPathThroughputBenchmark.NUM_VEHICLES}, saturated")
-        println("  loads circulating  : $NUM_LOADS  (active only; the passive fleet saturates itself)")
-        println()
-        println("  %-22s %18s %18s".format("", "active", "passive"))
-        println(
-            "  %-22s %18s %18s".format(
-                "zone traversals",
-                "%,.0f".format(active.zoneTraversals), "%,.0f".format(passive.zoneTraversals)
+            println()
+            println("AGV throughput benchmark - reference configuration, both paradigms")
+            println(
+                "  network            : ${GuidedPathThroughputBenchmark.ROWS} x " +
+                        "${GuidedPathThroughputBenchmark.COLUMNS} torus, " +
+                        "${described.intersections.size} intersections, ${described.links.size} links, " +
+                        "${described.zones.size} zones"
             )
-        )
-        println(
-            "  %-22s %18s %18s".format(
-                "events scheduled",
-                "%,.0f".format(active.eventsScheduled), "%,.0f".format(passive.eventsScheduled)
+            println("  vehicles           : ${GuidedPathThroughputBenchmark.NUM_VEHICLES}, saturated")
+            println("  loads circulating  : $NUM_LOADS  (active only; the passive fleet saturates itself)")
+            println()
+            println("  %-22s %18s %18s".format("", "active", "passive"))
+            println(
+                "  %-22s %18s %18s".format(
+                    "zone traversals",
+                    "%,.0f".format(active.zoneTraversals), "%,.0f".format(passive.zoneTraversals)
+                )
             )
-        )
-        println(
-            "  %-22s %18s %18s".format(
-                "events / traversal",
-                "%.3f".format(active.eventsPerTraversal), "%.3f".format(passive.eventsPerTraversal)
+            println(
+                "  %-22s %18s %18s".format(
+                    "events scheduled",
+                    "%,.0f".format(active.eventsScheduled), "%,.0f".format(passive.eventsScheduled)
+                )
             )
-        )
-        println(
-            "  %-22s %18s %18s".format(
-                "wall clock (s)",
-                "%.2f".format(active.wallClockSeconds), "%.2f".format(passive.wallClockSeconds)
+            println(
+                "  %-22s %18s %18s".format(
+                    "events / traversal",
+                    "%.3f".format(active.eventsPerTraversal), "%.3f".format(passive.eventsPerTraversal)
+                )
             )
-        )
-        println(
-            "  %-22s %18s %18s".format(
-                "traversals / minute",
-                "%,.0f".format(active.traversalsPerWallClockMinute),
-                "%,.0f".format(passive.traversalsPerWallClockMinute)
+            println(
+                "  %-22s %18s %18s".format(
+                    "wall clock (s)",
+                    "%.2f".format(active.wallClockSeconds), "%.2f".format(passive.wallClockSeconds)
+                )
             )
-        )
-        println("  %-22s %18s %18s".format("tasks completed", "%,.0f".format(active.tasksCompleted), "--"))
-        println()
-        println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
-        println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-        println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
+            println(
+                "  %-22s %18s %18s".format(
+                    "traversals / minute",
+                    "%,.0f".format(active.traversalsPerWallClockMinute),
+                    "%,.0f".format(passive.traversalsPerWallClockMinute)
+                )
+            )
+            println("  %-22s %18s %18s".format("tasks completed", "%,.0f".format(active.tasksCompleted), "--"))
+            println()
+            println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
+            println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+            println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
+        }
     }
 }
 

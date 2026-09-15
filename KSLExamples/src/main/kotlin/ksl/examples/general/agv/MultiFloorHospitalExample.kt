@@ -110,300 +110,353 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *  the length of the run rather than about the hospital. Closed, every fleet size is stable, cycle
  *  time means something, and Little's law is available as a check on the table:
  *  `orders in circulation = throughput x cycle time`, which the printed columns satisfy.
+ *
+ *  ## What the tables show
+ *
+ *  **Study 1.** Both floors are reachable and the routed distance is a real number, so the network
+ *  knows the floors connect -- by declared length, since nothing here has a third coordinate. Every
+ *  porter used the lift, and never two at once. Nothing was written to make that true: a zone
+ *  admits one vehicle, and a lift is one zone. The held fraction is worth checking rather than
+ *  taking on trust: each delivery cycle rides the up shaft once, at 8 units a ride, so 42
+ *  deliveries in 600 units account for about 0.56 of it. The sampled figure is a little higher, and
+ *  should be -- the zone is held from the moment it is *reserved*, not from the moment a porter
+ *  enters it, and the reservation is the exclusion.
+ *
+ *  **Studies 2 and 3, read against each other, one porter first.** A single porter travels the same
+ *  400 in both and delivers at the same rate in both, which is the whole reason the corridors were
+ *  lengthened when the shaft was shortened. Any difference further down is therefore about how many
+ *  porters the shaft will pass, and about nothing else.
+ *
+ *  Study 2 scales cleanly to four porters -- 2.486, 4.971, 7.486, 10.000, essentially 2.5 apiece --
+ *  then stops dead at 12.486 for six porters and for eight. That ceiling is not an artefact of the
+ *  fleet or of the dispatching rule: an 8 unit ride passes at most 12.50 deliveries per 100 units,
+ *  which is five porters' worth, and the fleet reaches it and can go no further however many more
+ *  are hired.
+ *
+ *  What the surplus porters do instead is in the last two columns, and the arithmetic is exact. Six
+ *  porters are blocked 0.1667 of the time and 6 x 0.1667 is 1; eight are blocked 0.3750 and
+ *  8 x 0.3750 is 3. One porter's worth of the fleet is standing still at six, three porters' worth
+ *  at eight -- precisely the surplus over the five the shaft will carry. Cycle time rises to match,
+ *  from 60.0 at four porters to 80.0 at eight, because the extra orders are waiting rather than
+ *  moving. **Buying porters buys queue.**
+ *
+ *  In study 3 the same fleet sizes keep converting into throughput: eight porters deliver 19.94 per
+ *  100 against the 20.00 that perfect scaling would give, because a 2 unit ride will pass 50 per
+ *  100 and the fleet never comes near it. Same circuit, same porters, same rule, same code -- a
+ *  different lift.
+ *
+ *  The columns are not independent, and it is worth checking that they hang together. Little's law
+ *  says orders outstanding = throughput x cycle time, with throughput put back on a per-unit basis
+ *  by dividing the column by 100. Eight porters in study 2: `0.12486 x 80.00 = 9.99`, against 10
+ *  orders out. In study 3: `0.19943 x 49.98 = 9.97`. It holds because the system is closed, which
+ *  is also why cycle time here is a number about the hospital rather than about the length of the
+ *  run.
+ *
+ *  The warnings above each table are the horizon diagnostics doing their job and finding nothing
+ *  wrong. A closed system necessarily has its whole population outstanding when the clock stops, so
+ *  those counts never exceed the orders-out column -- which is exactly the reading that would tell
+ *  you something was wrong if they did.
+ *
+ *  ## What none of this needed
+ *
+ *  An elevator object, a floor attribute, a capacity semaphore, or a branch anywhere in the
+ *  dispatcher or the vehicle control loop. A lift is a one-way link of a single zone. The floors are
+ *  placed at their own heights, so the picture is right as well as the behaviour -- and because a
+ *  height is layout and nothing else, placing them changed not one number.
  */
-object MultiFloorHospitalExample {
-
-    const val PHARMACY: String = "Pharmacy"
-    const val WARD: String = "WardA"
-    const val LOBBY: String = "Lobby"
-
-    /** The porters' parking spurs, one apiece. Two porters cannot stand in one zone. */
-    fun parkingSpur(i: Int): String = "Park$i"
-
-    const val SPEED: Double = 10.0
-
-    /** The circuit is held at this length whatever the shaft costs, so the fleet studies compare. */
-    const val CIRCUIT: Double = 400.0
-
-    /** Time to make an order up at the pharmacy, which also keeps the fleet from phase-locking. */
-    const val MEAN_PREPARATION: Double = 1.0
-
-    private const val MAX_PORTERS = 8
+/**
+ *  Orders are made up at the pharmacy and are wanted on the ward below.
+ *
+ *  @param numPorters how many porters serve the circuit
+ *  @param shaftLength how far a lift ride is, and so how long the shaft is held
+ *  @param ordersInCirculation how much work is outstanding at any moment. Finishing an order
+ *    releases the next one, so this number is constant for the whole run.
+ */
+class MultiFloorHospitalExample(
+    parent: ModelElement,
+    val numPorters: Int,
+    shaftLength: Double,
+    ordersInCirculation: Int
+) : ProcessModel(parent, "Hospital") {
 
     /**
-     *  The hospital, with the lift ride costing [shaftLength] of travel.
-     *
-     *  The two corridor legs that are not fixed at 60 absorb whatever the shafts do not use, which
-     *  is what holds the circuit at [CIRCUIT] across configurations. Coordinates are supplied for
-     *  drawing only: routing reads the declared lengths, which is precisely why a network can span
-     *  floors at all.
+     *  How much work is outstanding. Read only in [initialize], so it is a genuine input a
+     *  scenario can override rather than a structural choice baked into the constructor.
      */
-    fun createNetwork(shaftLength: Double): GuidedPathNetwork {
-        val corridor = (CIRCUIT - 2.0 * shaftLength - 120.0) / 2.0
-        require(corridor > 0.0) { "the shafts leave no room for corridors" }
-        val builder = GuidedPathNetwork.builder("Hospital")
-            .intersection("G1", x = 0.0, y = 0.0)
-            .intersection("G2", x = 60.0, y = 0.0)
-            .intersection("G3", x = 60.0 + corridor, y = 0.0)
-            // The first floor sits directly above the ground floor. Before an intersection carried
-            // a height this layout had to offset the upper floor in y to be drawable at all, which
-            // put the wards somewhere they are not. The heights are layout only: routing reads
-            // declared link lengths and never a coordinate.
-            .intersection("F1", x = 60.0 + corridor, y = 0.0, z = shaftLength)
-            .intersection("F2", x = 60.0, y = 0.0, z = shaftLength)
-            .intersection("F3", x = 0.0, y = 0.0, z = shaftLength)
-            .link("GroundA", "G1", "G2", length = 60.0, zoneLength = 10.0, beginDirection = 0.0)
-            .link("GroundB", "G2", "G3", length = corridor, zoneLength = 10.0, beginDirection = 0.0)
-            // The lift: one zone, so exactly one porter may be inside it at a time.
-            .link("ShaftUp", "G3", "F1", length = shaftLength, zoneLength = shaftLength, beginDirection = 90.0)
-            .link("FirstA", "F1", "F2", length = corridor, zoneLength = 10.0, beginDirection = 180.0)
-            .link("FirstB", "F2", "F3", length = 60.0, zoneLength = 10.0, beginDirection = 180.0)
-            .link("ShaftDown", "F3", "G1", length = shaftLength, zoneLength = shaftLength, beginDirection = 270.0)
-            .station(LOBBY, "G1")
-            .station(WARD, "G2")
-            .station(PHARMACY, "F2")
-        // A spur per porter. Without one, porters "at the lobby" would be several vehicles in one
-        // zone, which a guide path does not allow -- and a porter left standing on the circuit
-        // would deny that space to everyone else for the rest of the run.
-        for (i in 1..MAX_PORTERS) {
-            builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
-                .link(
-                    "Spur$i", "G1", "P$i", length = 20.0, zoneLength = 20.0,
-                    type = LinkType.SPUR, beginDirection = 225.0
-                )
-                .station(parkingSpur(i), "P$i")
+    @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
+    var ordersInCirculation: Int = ordersInCirculation
+        set(value) {
+            require(value > 0) { "There must be at least one order in circulation." }
+            require(!model.isRunning) { "Cannot change the outstanding work while the model is running." }
+            field = value
         }
-        return builder.build()
+
+    val network = createNetwork(shaftLength)
+
+    init {
+        spatialModel = network
     }
 
-    /**
-     *  Orders are made up at the pharmacy and are wanted on the ward below.
-     *
-     *  @param numPorters how many porters serve the circuit
-     *  @param shaftLength how far a lift ride is, and so how long the shaft is held
-     *  @param ordersInCirculation how much work is outstanding at any moment. Finishing an order
-     *    releases the next one, so this number is constant for the whole run.
-     */
-    class Hospital(
-        parent: ModelElement,
-        val numPorters: Int,
-        shaftLength: Double,
-        ordersInCirculation: Int
-    ) : ProcessModel(parent, "Hospital") {
+    val agv = AgvSystem(this, network, name = "Agv")
+
+    val porters: List<AgvVehicle> = (1..numPorters).map { i ->
+        AgvVehicle(
+            agv, TransporterPlacement.At(parkingSpur(i)), ConstantRV(SPEED), name = "Porter$i"
+        ).apply { homeBase = parkingSpur(i) }
+    }
+
+    private val myDelivered = Counter(this, "Delivered")
+    val delivered: CounterCIfc
+        get() = myDelivered
+
+    private val myCycleTime = Response(this, "CycleTime")
+    val cycleTime: ResponseCIfc
+        get() = myCycleTime
+
+    /** The fleet's average blocked fraction, observed once per replication so that it carries a
+     *  confidence interval like any other response. Averaging the porters' across-replication
+     *  averages afterwards would give the same point estimate and no interval at all. */
+    private val myFleetBlocked = Response(this, "FleetFracBlocked")
+    val fleetBlocked: ResponseCIfc
+        get() = myFleetBlocked
+
+    private val myPreparation = RandomVariable(
+        this, ExponentialRV(MEAN_PREPARATION, 1), name = "PreparationTime"
+    )
+    val preparationRV: RandomVariableCIfc
+        get() = myPreparation
+
+    inner class Order : Entity() {
+        val delivery: KSLProcess = process(isDefaultProcess = true) {
+            val placed = time
+            currentLocation = network.requireLocation(PHARMACY)
+            delay(myPreparation)
+            transportByFleet(agv, destination = WARD, origin = PHARMACY)
+            myCycleTime.value = time - placed
+            myDelivered.increment()
+            // The shelf is never the constraint: the next order is ready the moment this one
+            // is delivered, which is what holds the outstanding work constant.
+            activate(Order().delivery)
+        }
+    }
+
+    override fun initialize() {
+        repeat(ordersInCirculation) { activate(Order().delivery) }
+    }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        myFleetBlocked.value =
+            porters.sumOf { it.fracTimeBlocked.withinReplicationStatistic.weightedAverage } / numPorters
+    }
+
+    companion object {
+
+        const val PHARMACY: String = "Pharmacy"
+        const val WARD: String = "WardA"
+        const val LOBBY: String = "Lobby"
+
+        /** The porters' parking spurs, one apiece. Two porters cannot stand in one zone. */
+        fun parkingSpur(i: Int): String = "Park$i"
+
+        const val SPEED: Double = 10.0
+
+        /** The circuit is held at this length whatever the shaft costs, so the fleet studies compare. */
+        const val CIRCUIT: Double = 400.0
+
+        /** Time to make an order up at the pharmacy, which also keeps the fleet from phase-locking. */
+        const val MEAN_PREPARATION: Double = 1.0
+
+        private const val MAX_PORTERS = 8
 
         /**
-         *  How much work is outstanding. Read only in [initialize], so it is a genuine input a
-         *  scenario can override rather than a structural choice baked into the constructor.
+         *  The hospital, with the lift ride costing [shaftLength] of travel.
+         *
+         *  The two corridor legs that are not fixed at 60 absorb whatever the shafts do not use, which
+         *  is what holds the circuit at [CIRCUIT] across configurations. Coordinates are supplied for
+         *  drawing only: routing reads the declared lengths, which is precisely why a network can span
+         *  floors at all.
          */
-        @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
-        var ordersInCirculation: Int = ordersInCirculation
-            set(value) {
-                require(value > 0) { "There must be at least one order in circulation." }
-                require(!model.isRunning) { "Cannot change the outstanding work while the model is running." }
-                field = value
+        fun createNetwork(shaftLength: Double): GuidedPathNetwork {
+            val corridor = (CIRCUIT - 2.0 * shaftLength - 120.0) / 2.0
+            require(corridor > 0.0) { "the shafts leave no room for corridors" }
+            val builder = GuidedPathNetwork.builder("Hospital")
+                .intersection("G1", x = 0.0, y = 0.0)
+                .intersection("G2", x = 60.0, y = 0.0)
+                .intersection("G3", x = 60.0 + corridor, y = 0.0)
+                // The first floor sits directly above the ground floor. Before an intersection carried
+                // a height this layout had to offset the upper floor in y to be drawable at all, which
+                // put the wards somewhere they are not. The heights are layout only: routing reads
+                // declared link lengths and never a coordinate.
+                .intersection("F1", x = 60.0 + corridor, y = 0.0, z = shaftLength)
+                .intersection("F2", x = 60.0, y = 0.0, z = shaftLength)
+                .intersection("F3", x = 0.0, y = 0.0, z = shaftLength)
+                .link("GroundA", "G1", "G2", length = 60.0, zoneLength = 10.0, beginDirection = 0.0)
+                .link("GroundB", "G2", "G3", length = corridor, zoneLength = 10.0, beginDirection = 0.0)
+                // The lift: one zone, so exactly one porter may be inside it at a time.
+                .link("ShaftUp", "G3", "F1", length = shaftLength, zoneLength = shaftLength, beginDirection = 90.0)
+                .link("FirstA", "F1", "F2", length = corridor, zoneLength = 10.0, beginDirection = 180.0)
+                .link("FirstB", "F2", "F3", length = 60.0, zoneLength = 10.0, beginDirection = 180.0)
+                .link("ShaftDown", "F3", "G1", length = shaftLength, zoneLength = shaftLength, beginDirection = 270.0)
+                .station(LOBBY, "G1")
+                .station(WARD, "G2")
+                .station(PHARMACY, "F2")
+            // A spur per porter. Without one, porters "at the lobby" would be several vehicles in one
+            // zone, which a guide path does not allow -- and a porter left standing on the circuit
+            // would deny that space to everyone else for the rest of the run.
+            for (i in 1..MAX_PORTERS) {
+                builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
+                    .link(
+                        "Spur$i", "G1", "P$i", length = 20.0, zoneLength = 20.0,
+                        type = LinkType.SPUR, beginDirection = 225.0
+                    )
+                    .station(parkingSpur(i), "P$i")
             }
-
-        val network = createNetwork(shaftLength)
-
-        init {
-            spatialModel = network
+            return builder.build()
         }
 
-        val agv = AgvSystem(this, network, name = "Agv")
+        const val REPLICATIONS: Int = 4
+        const val HORIZON: Double = 4_000.0
+        const val WARM_UP: Double = 500.0
 
-        val porters: List<AgvVehicle> = (1..numPorters).map { i ->
-            AgvVehicle(
-                agv, TransporterPlacement.At(parkingSpur(i)), ConstantRV(SPEED), name = "Porter$i"
-            ).apply { homeBase = parkingSpur(i) }
-        }
+        /** How much work is outstanding: enough that a porter never waits for one, and no more. */
+        fun ordersFor(numPorters: Int): Int = numPorters + 2
 
-        private val myDelivered = Counter(this, "Delivered")
-        val delivered: CounterCIfc
-            get() = myDelivered
+        /** Deliveries per 100 time units, which is the quantity a capacity study is about. */
+        fun throughputPer100(deliveries: Double): Double = 100.0 * deliveries / (HORIZON - WARM_UP)
 
-        private val myCycleTime = Response(this, "CycleTime")
-        val cycleTime: ResponseCIfc
-            get() = myCycleTime
-
-        /** The fleet's average blocked fraction, observed once per replication so that it carries a
-         *  confidence interval like any other response. Averaging the porters' across-replication
-         *  averages afterwards would give the same point estimate and no interval at all. */
-        private val myFleetBlocked = Response(this, "FleetFracBlocked")
-        val fleetBlocked: ResponseCIfc
-            get() = myFleetBlocked
-
-        private val myPreparation = RandomVariable(
-            this, ExponentialRV(MEAN_PREPARATION, 1), name = "PreparationTime"
-        )
-        val preparationRV: RandomVariableCIfc
-            get() = myPreparation
-
-        inner class Order : Entity() {
-            val delivery: KSLProcess = process(isDefaultProcess = true) {
-                val placed = time
-                currentLocation = network.requireLocation(PHARMACY)
-                delay(myPreparation)
-                transportByFleet(agv, destination = WARD, origin = PHARMACY)
-                myCycleTime.value = time - placed
-                myDelivered.increment()
-                // The shelf is never the constraint: the next order is ready the moment this one
-                // is delivered, which is what holds the outstanding work constant.
-                activate(Order().delivery)
+        /**
+         *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because
+         *  the fleet size is structural -- the network carries one parking spur per porter -- so this
+         *  is a runner over model instances rather than over control values.
+         */
+        fun buildRunner(name: String, shaftLength: Double, sizes: List<Int>): ScenarioRunner {
+            val runner = ScenarioRunner(name)
+            for (n in sizes) {
+                val m = Model("${name}_$n")
+                MultiFloorHospitalExample(m, n, shaftLength, ordersFor(n))
+                runner.addScenario(
+                    model = m, name = "Porters$n", inputs = emptyMap(),
+                    numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
+                    lengthOfReplicationWarmUp = WARM_UP
+                )
             }
+            return runner
         }
 
-        override fun initialize() {
-            repeat(ordersInCirculation) { activate(Order().delivery) }
-        }
-
-        override fun replicationEnded() {
-            super.replicationEnded()
-            myFleetBlocked.value =
-                porters.sumOf { it.fracTimeBlocked.withinReplicationStatistic.weightedAverage } / numPorters
-        }
-    }
-
-    /**
-     *  The same hospital, watched. Sampling is on the half-tick so that an observer does not compete
-     *  with the zone transitions for ordering at the instants they happen: with a constant velocity
-     *  and equal zone lengths every transition lands on a whole number here, and an observer
-     *  scheduled at those same instants sees whichever side of them event priority puts it on. That
-     *  is not a subtlety of this subsystem -- it is what makes a deterministic model easy to observe
-     *  wrongly -- and it reported an unused lift in a model that was plainly using one.
-     */
-    class WatchedHospital(
-        parent: ModelElement,
-        numPorters: Int,
-        shaftLength: Double,
-        ordersInCirculation: Int,
-        private val horizon: Double
-    ) : ProcessModel(parent, "Watched") {
-
-        private val inner = Hospital(this, numPorters, shaftLength, ordersInCirculation)
-
-        val network get() = inner.network
-        val delivered get() = inner.delivered
-
-        /** How many of the samples found the up shaft reserved by somebody. */
-        var samples: Int = 0
-            private set
-        var samplesHeld: Int = 0
-            private set
-
-        /** Which porters were ever seen holding it. */
-        val holders: MutableSet<String> = sortedSetOf()
-
-        /** The largest number of porters found inside the shaft at once. */
-        var maxInShaft: Int = 0
-            private set
-
-        override fun initialize() {
-            samples = 0
-            samplesHeld = 0
-            holders.clear()
-            maxInShaft = 0
-            var t = 0.5
-            while (t < horizon) {
-                schedule(::sampleShaft, t)
-                t += 1.0
-            }
-        }
-
-        @Suppress("UNUSED_PARAMETER")
-        private fun sampleShaft(event: KSLEvent<Nothing>) {
-            val shaft = network.link("ShaftUp")!!.zones
-            // `hasHolder`, not `isCovered` -- see the note in this file's header.
-            val inside = shaft.count { it.hasHolder }
-            samples++
-            if (inside > 0) samplesHeld++
-            if (inside > maxInShaft) maxInShaft = inside
-            shaft.forEach { z -> z.holder?.let { holders.add(it.name) } }
-        }
-    }
-
-    const val REPLICATIONS: Int = 4
-    const val HORIZON: Double = 4_000.0
-    const val WARM_UP: Double = 500.0
-
-    /** How much work is outstanding: enough that a porter never waits for one, and no more. */
-    fun ordersFor(numPorters: Int): Int = numPorters + 2
-
-    /** Deliveries per 100 time units, which is the quantity a capacity study is about. */
-    fun throughputPer100(deliveries: Double): Double = 100.0 * deliveries / (HORIZON - WARM_UP)
-
-    /**
-     *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because
-     *  the fleet size is structural -- the network carries one parking spur per porter -- so this
-     *  is a runner over model instances rather than over control values.
-     */
-    fun buildRunner(name: String, shaftLength: Double, sizes: List<Int>): ScenarioRunner {
-        val runner = ScenarioRunner(name)
-        for (n in sizes) {
-            val m = Model("${name}_$n")
-            Hospital(m, n, shaftLength, ordersFor(n))
-            runner.addScenario(
-                model = m, name = "Porters$n", inputs = emptyMap(),
-                numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
+        fun runWatched(): WatchedHospital {
+            val m = Model("Hospital-Watched")
+            val h = WatchedHospital(
+                m, numPorters = 3, shaftLength = 80.0, ordersInCirculation = 3, horizon = 600.0
             )
+            m.numberOfReplications = 1
+            m.lengthOfReplication = 600.0
+            m.simulate()
+            return h
         }
-        return runner
-    }
 
-    fun runWatched(): WatchedHospital {
-        val m = Model("Hospital-Watched")
-        val h = WatchedHospital(
-            m, numPorters = 3, shaftLength = 80.0, ordersInCirculation = 3, horizon = 600.0
-        )
-        m.numberOfReplications = 1
-        m.lengthOfReplication = 600.0
-        m.simulate()
-        return h
-    }
-
-    /**
-     *  Runs one fleet sweep and prints it. The full half-width summary report for every fleet size
-     *  goes to the KSL output file; the console gets the three columns the study is about, each
-     *  with its half-width, because a capacity ceiling that is inside the sampling error is not a
-     *  ceiling.
-     */
-    fun fleetTable(title: String, name: String, shaftLength: Double, sizes: List<Int>) {
-        val rideTime = shaftLength / SPEED
-        val runner = buildRunner(name, shaftLength, sizes)
-        runner.simulate()
-        runner.write()
-        println("  $title")
-        println(
-            "  a ride costs %.1f time units, so the shaft passes at most %.2f porters per 100"
-                .format(rideTime, 100.0 / rideTime)
-        )
-        println()
-        println(
-            "    %7s %9s %11s %9s %11s %8s %11s %8s".format(
-                "porters", "orders", "deliveries", "hw", "cycle time", "hw", "blocked", "hw"
-            )
-        )
-        for (n in sizes) {
-            val run = checkNotNull(runner.scenarioByName("Porters$n")?.simulationRun) {
-                "scenario Porters$n did not run"
-            }
-            val stats = run.acrossReplicationStatistics()
-            val d = checkNotNull(stats["Delivered"]) { "no Delivered response" }
-            val c = checkNotNull(stats["CycleTime"]) { "no CycleTime response" }
-            val b = checkNotNull(stats["FleetFracBlocked"]) { "no FleetFracBlocked response" }
+        /**
+         *  Runs one fleet sweep and prints it. The full half-width summary report for every fleet size
+         *  goes to the KSL output file; the console gets the three columns the study is about, each
+         *  with its half-width, because a capacity ceiling that is inside the sampling error is not a
+         *  ceiling.
+         */
+        fun fleetTable(title: String, name: String, shaftLength: Double, sizes: List<Int>) {
+            val rideTime = shaftLength / SPEED
+            val runner = buildRunner(name, shaftLength, sizes)
+            runner.simulate()
+            runner.write()
+            println("  $title")
             println(
-                "    %7d %9d %11.1f %9.1f %11.2f %8.2f %11.4f %8.4f".format(
-                    n, ordersFor(n), d.average, d.halfWidth, c.average, c.halfWidth,
-                    b.average, b.halfWidth
+                "  a ride costs %.1f time units, so the shaft passes at most %.2f porters per 100"
+                    .format(rideTime, 100.0 / rideTime)
+            )
+            println()
+            println(
+                "    %7s %9s %11s %9s %11s %8s %11s %8s".format(
+                    "porters", "orders", "deliveries", "hw", "cycle time", "hw", "blocked", "hw"
                 )
             )
+            for (n in sizes) {
+                val run = checkNotNull(runner.scenarioByName("Porters$n")?.simulationRun) {
+                    "scenario Porters$n did not run"
+                }
+                val stats = run.acrossReplicationStatistics()
+                val d = checkNotNull(stats["Delivered"]) { "no Delivered response" }
+                val c = checkNotNull(stats["CycleTime"]) { "no CycleTime response" }
+                val b = checkNotNull(stats["FleetFracBlocked"]) { "no FleetFracBlocked response" }
+                println(
+                    "    %7d %9d %11.1f %9.1f %11.2f %8.2f %11.4f %8.4f".format(
+                        n, ordersFor(n), d.average, d.halfWidth, c.average, c.halfWidth,
+                        b.average, b.halfWidth
+                    )
+                )
+            }
+            println()
+            println("    throughput per 100 units: " + sizes.joinToString {
+                val run = runner.scenarioByName("Porters$it")!!.simulationRun!!
+                "%d:%.3f".format(it, throughputPer100(run.acrossReplicationStatistics()["Delivered"]!!.average))
+            })
+            println()
         }
-        println()
-        println("    throughput per 100 units: " + sizes.joinToString {
-            val run = runner.scenarioByName("Porters$it")!!.simulationRun!!
-            "%d:%.3f".format(it, throughputPer100(run.acrossReplicationStatistics()["Delivered"]!!.average))
-        })
-        println()
+    }
+}
+
+/**
+ *  The same hospital, watched. Sampling is on the half-tick so that an observer does not compete
+ *  with the zone transitions for ordering at the instants they happen: with a constant velocity
+ *  and equal zone lengths every transition lands on a whole number here, and an observer
+ *  scheduled at those same instants sees whichever side of them event priority puts it on. That
+ *  is not a subtlety of this subsystem -- it is what makes a deterministic model easy to observe
+ *  wrongly -- and it reported an unused lift in a model that was plainly using one.
+ */
+class WatchedHospital(
+    parent: ModelElement,
+    numPorters: Int,
+    shaftLength: Double,
+    ordersInCirculation: Int,
+    private val horizon: Double
+) : ProcessModel(parent, "Watched") {
+
+    private val inner = MultiFloorHospitalExample(this, numPorters, shaftLength, ordersInCirculation)
+
+    val network get() = inner.network
+    val delivered get() = inner.delivered
+
+    /** How many of the samples found the up shaft reserved by somebody. */
+    var samples: Int = 0
+        private set
+    var samplesHeld: Int = 0
+        private set
+
+    /** Which porters were ever seen holding it. */
+    val holders: MutableSet<String> = sortedSetOf()
+
+    /** The largest number of porters found inside the shaft at once. */
+    var maxInShaft: Int = 0
+        private set
+
+    override fun initialize() {
+        samples = 0
+        samplesHeld = 0
+        holders.clear()
+        maxInShaft = 0
+        var t = 0.5
+        while (t < horizon) {
+            schedule(::sampleShaft, t)
+            t += 1.0
+        }
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun sampleShaft(event: KSLEvent<Nothing>) {
+        val shaft = network.link("ShaftUp")!!.zones
+        // `hasHolder`, not `isCovered` -- see the note in this file's header.
+        val inside = shaft.count { it.hasHolder }
+        samples++
+        if (inside > 0) samplesHeld++
+        if (inside > maxInShaft) maxInShaft = inside
+        shaft.forEach { z -> z.holder?.let { holders.add(it.name) } }
     }
 }
 
@@ -431,71 +484,15 @@ fun main() {
     println("    most porters ever inside the shaft:      %8d".format(watched.maxInShaft))
     println("    porters seen using it:                   %s".format(watched.holders.joinToString(", ")))
     println()
-    println("  Both floors are reachable and the routed distance is a real number, so the network")
-    println("  knows the floors connect - by declared length, since nothing here has a third")
-    println("  coordinate. Every porter used the lift, and never two at once. Nothing was written")
-    println("  to make that true: a zone admits one vehicle, and a lift is one zone.")
-    println()
-    println("  The held fraction is worth checking against the deliveries rather than taken on")
-    println("  trust. Each delivery cycle rides the up shaft once, at 8 units a ride, so 42")
-    println("  deliveries in 600 units account for about 0.56 of it. The sampled figure is a")
-    println("  little higher, and should be: the zone is held from the moment it is reserved,")
-    println("  not from the moment a porter enters it, and that reservation is the exclusion.")
-    println()
 
     MultiFloorHospitalExample.fleetTable(
-    "Study 2: a slow lift - an 8 unit ride, 60 unit corridors, circuit 400",
-    name = "HospitalSlowLift", shaftLength = 80.0, sizes = listOf(1, 2, 3, 4, 6, 8)
+        "Study 2: a slow lift - an 8 unit ride, 60 unit corridors, circuit 400",
+        name = "HospitalSlowLift", shaftLength = 80.0, sizes = listOf(1, 2, 3, 4, 6, 8)
     )
     MultiFloorHospitalExample.fleetTable(
-    "Study 3: a fast lift - a 2 unit ride, 120 unit corridors, circuit still 400",
-    name = "HospitalFastLift", shaftLength = 20.0, sizes = listOf(1, 2, 3, 4, 6, 8)
+        "Study 3: a fast lift - a 2 unit ride, 120 unit corridors, circuit still 400",
+        name = "HospitalFastLift", shaftLength = 20.0, sizes = listOf(1, 2, 3, 4, 6, 8)
     )
     println("  Full half-width summary reports for every fleet size: ${KSL.outDir}")
     println()
-
-    println("  Read the two tables against each other, one porter first. A single porter travels")
-    println("  the same 400 in both, so it delivers at the same rate in both, which is the whole")
-    println("  reason the corridors were lengthened when the shaft was shortened. Any difference")
-    println("  further down the tables is therefore about how many porters the shaft will pass,")
-    println("  and about nothing else.")
-    println()
-    println("  Study 2 scales cleanly to four porters - 2.486, 4.971, 7.486, 10.000, which is")
-    println("  essentially 2.5 apiece - then stops dead at 12.486 for six porters and for eight.")
-    println("  That ceiling is not an artefact of the fleet or of the dispatching rule: an 8")
-    println("  unit ride passes at most 12.50 deliveries per 100 units, which is five porters'")
-    println("  worth, and the fleet reaches it and can go no further however many more are hired.")
-    println()
-    println("  What the surplus porters do instead is visible in the last two columns, and the")
-    println("  arithmetic is exact. Six porters are blocked 0.1667 of the time and 6 x 0.1667 is")
-    println("  1; eight are blocked 0.3750 and 8 x 0.3750 is 3. One porter's worth of the fleet")
-    println("  is standing still at six, three porters' worth at eight - precisely the surplus")
-    println("  over the five the shaft will carry. Cycle time rises to match, from 60.0 at four")
-    println("  porters to 80.0 at eight, because the extra orders are waiting rather than moving.")
-    println("  Buying porters buys queue.")
-    println()
-    println("  In study 3 the same fleet sizes keep converting into throughput: eight porters")
-    println("  deliver 19.94 per 100 against the 20.00 that perfect scaling would give, because a")
-    println("  2 unit ride will pass 50 per 100 and the fleet never comes near it. Same circuit,")
-    println("  same porters, same rule, same code - a different lift.")
-    println()
-    println("  The columns are not independent, and it is worth checking that they hang together.")
-    println("  Little's law says orders outstanding = throughput x cycle time, with throughput")
-    println("  put back on a per-unit basis by dividing the column by 100. Eight porters in study")
-    println("  2: 0.12486 x 80.00 = 9.99, against 10 orders out. In study 3: 0.19943 x 49.98 =")
-    println("  9.97. It holds because the system is closed, which is also why cycle time here is")
-    println("  a number about the hospital rather than about the length of the run.")
-    println()
-    println("  The warnings above each table are the horizon diagnostics doing their job and")
-    println("  finding nothing wrong. A closed system necessarily has its whole population")
-    println("  outstanding when the clock stops, so those counts never exceed the orders-out")
-    println("  column - which is exactly the reading that would tell you something was wrong if")
-    println("  they did.")
-    println()
-    println("  What none of this needed: an elevator object, a floor attribute, a capacity")
-    println("  semaphore, or a branch anywhere in the dispatcher or the vehicle control loop. A")
-    println("  lift is a one-way link of a single zone. The floors are placed at their own")
-    println("  heights, so the picture is right as well as the behaviour - and because a height")
-    println("  is layout and nothing else, placing them changed not one number above.")
-    
 }

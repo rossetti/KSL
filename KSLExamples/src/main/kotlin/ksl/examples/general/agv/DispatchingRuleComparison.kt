@@ -19,6 +19,7 @@
 package ksl.examples.general.agv
 
 import ksl.controls.experiments.ScenarioRunner
+import ksl.controls.KSLStringControl
 import ksl.modeling.agv.AgvSystem
 import ksl.modeling.agv.AgvVehicle
 import ksl.modeling.entity.ProcessModel
@@ -89,175 +90,227 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  and concluded that the rules were equivalent in throughput. The half-width on a single rule's
  *  throughput is about seven loads. Nothing on that page could have distinguished a real
  *  difference of five loads from no difference at all; the pairing can, and the pairing is what
- *  is reported now.
+ *  is reported now. *
+ *  ## Reading the three tables
+ *
+ *  **Throughput.** The half-width on any one rule's delivered count is about seven loads, and the
+ *  paired half-width is under one. Five of the six rules are indistinguishable from
+ *  nearest-vehicle in throughput -- a finding here, and an assertion back when this example
+ *  printed six unpaired averages. Batching is the exception and is detectably worse: on a
+ *  saturated fleet the window delays every decision.
+ *
+ *  **Time in system and imbalance** are where the rules actually differ, and both differences are
+ *  far outside their intervals. Least-used trades time for evenness on purpose; furthest-vehicle
+ *  is deliberately poor so that "nearest is better" can be measured rather than asserted.
+ *
+ *  **The instant auction reproduces nearest-vehicle replication for replication** -- a difference
+ *  of zero with a half-width of zero. That is a check rather than a coincidence: with distance
+ *  bidding the vehicles quote what the rule would have computed, so the negotiation machinery is
+ *  shown not to change the answer by itself. The deadline row then shows what it costs once
+ *  negotiating is charged for.
+ *
+ *  Where a table says no, the honest statement is "no detectable difference at this sample size",
+ *  not "the rules are the same".
  */
-object DispatchingRuleComparison {
+/**
+ *  Three carts on the ring, dispatched by the rule [ruleName] names.
+ *
+ *  The rule is taken **by name** rather than as a policy object, and the reason is in [rules]:
+ *  two of the six are the same class with different terms, so the class cannot tell them apart
+ *  and only a name can. That the name is what varies is also what lets the whole study be
+ *  expressed as one model with one input -- see [ruleName].
+ *
+ *  @param parent the containing model element
+ *  @param ruleName the rule under test; the only thing that differs between the six runs
+ *  @param name a name for the model element
+ */
+class DispatchingRuleComparison(
+    parent: ModelElement,
+    ruleName: String = "NearestVehicle",
+    name: String? = "Shop"
+) : ProcessModel(parent, name) {
 
-    const val NORTH_PICKUP: String = "NorthPickup"
-    const val SOUTH_PICKUP: String = "SouthPickup"
-    const val SHIPPING: String = "Shipping"
-    const val DEPOT_A: String = "DepotA"
-    const val DEPOT_B: String = "DepotB"
-    const val DEPOT_C: String = "DepotC"
+    companion object {
 
-    /**
-     *  A one-way ring of four legs with a depot spur for each of the three carts.
-     *
-     *  Two pickup stations, at opposite corners, for the reason in this file's header.
-     */
-    fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("RingShop")
-        .intersection("N", x = 0.0, y = 100.0)
-        .intersection("E", x = 100.0, y = 0.0)
-        .intersection("S", x = 0.0, y = -100.0)
-        .intersection("W", x = -100.0, y = 0.0)
-        .intersection("PA", x = 0.0, y = 150.0)
-        .intersection("PB", x = 150.0, y = 0.0)
-        .intersection("PC", x = 0.0, y = -150.0)
-        .link("NE", "N", "E", length = 120.0, zoneLength = 12.0, beginDirection = 315.0)
-        .link("ES", "E", "S", length = 120.0, zoneLength = 12.0, beginDirection = 225.0)
-        .link("SW", "S", "W", length = 120.0, zoneLength = 12.0, beginDirection = 135.0)
-        .link("WN", "W", "N", length = 120.0, zoneLength = 12.0, beginDirection = 45.0)
-        .link("SpurA", "N", "PA", length = 24.0, zoneLength = 24.0,
-            type = LinkType.SPUR, beginDirection = 90.0)
-        .link("SpurB", "E", "PB", length = 24.0, zoneLength = 24.0,
-            type = LinkType.SPUR, beginDirection = 0.0)
-        .link("SpurC", "S", "PC", length = 24.0, zoneLength = 24.0,
-            type = LinkType.SPUR, beginDirection = 270.0)
-        .station(NORTH_PICKUP, "N")
-        .station(SOUTH_PICKUP, "S")
-        .station(SHIPPING, "W")
-        .station(DEPOT_A, "PA")
-        .station(DEPOT_B, "PB")
-        .station(DEPOT_C, "PC")
-        .build()
+        const val NORTH_PICKUP: String = "NorthPickup"
+        const val SOUTH_PICKUP: String = "SouthPickup"
+        const val SHIPPING: String = "Shipping"
+        const val DEPOT_A: String = "DepotA"
+        const val DEPOT_B: String = "DepotB"
+        const val DEPOT_C: String = "DepotC"
 
-    const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 26.0
-    const val ARRIVAL_STREAM: Int = 1
-    const val NUM_ARRIVALS: Int = 600
+        /**
+         *  A one-way ring of four legs with a depot spur for each of the three carts.
+         *
+         *  Two pickup stations, at opposite corners, for the reason in this file's header.
+         */
+        fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("RingShop")
+            .intersection("N", x = 0.0, y = 100.0)
+            .intersection("E", x = 100.0, y = 0.0)
+            .intersection("S", x = 0.0, y = -100.0)
+            .intersection("W", x = -100.0, y = 0.0)
+            .intersection("PA", x = 0.0, y = 150.0)
+            .intersection("PB", x = 150.0, y = 0.0)
+            .intersection("PC", x = 0.0, y = -150.0)
+            .link("NE", "N", "E", length = 120.0, zoneLength = 12.0, beginDirection = 315.0)
+            .link("ES", "E", "S", length = 120.0, zoneLength = 12.0, beginDirection = 225.0)
+            .link("SW", "S", "W", length = 120.0, zoneLength = 12.0, beginDirection = 135.0)
+            .link("WN", "W", "N", length = 120.0, zoneLength = 12.0, beginDirection = 45.0)
+            .link("SpurA", "N", "PA", length = 24.0, zoneLength = 24.0,
+                type = LinkType.SPUR, beginDirection = 90.0)
+            .link("SpurB", "E", "PB", length = 24.0, zoneLength = 24.0,
+                type = LinkType.SPUR, beginDirection = 0.0)
+            .link("SpurC", "S", "PC", length = 24.0, zoneLength = 24.0,
+                type = LinkType.SPUR, beginDirection = 270.0)
+            .station(NORTH_PICKUP, "N")
+            .station(SOUTH_PICKUP, "S")
+            .station(SHIPPING, "W")
+            .station(DEPOT_A, "PA")
+            .station(DEPOT_B, "PB")
+            .station(DEPOT_C, "PC")
+            .build()
 
-    /**
-     *  Three carts on the ring, dispatched by [policy].
-     *
-     *  @param parent the containing model element
-     *  @param policy the rule under test; the only thing that differs between the six runs
-     *  @param name a name for the model element
-     */
-    class Shop(
-        parent: ModelElement,
-        policy: AssignmentPolicyIfc,
-        name: String? = "Shop"
-    ) : ProcessModel(parent, name) {
+        const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 26.0
+        const val ARRIVAL_STREAM: Int = 1
+        const val NUM_ARRIVALS: Int = 600
 
-        val network: GuidedPathNetwork = createNetwork()
+        const val REPLICATIONS: Int = 15
+        const val HORIZON: Double = 10_000.0
+        const val WARM_UP: Double = 1_500.0
 
-        init {
-            spatialModel = network
-        }
+        /**
+         *  The six rules, in the order they are reported. Scenario names are also experiment names in
+         *  the runner's database and directory names on disk, so they carry no punctuation.
+         */
+        /** The policy object a rule name stands for, made fresh. */
+        fun policyFor(ruleName: String): AssignmentPolicyIfc =
+            requireNotNull(rules().toMap()[ruleName]) {
+                "unknown dispatching rule '$ruleName'; expected one of ${rules().map { it.first }}"
+            }
 
-        val agv: AgvSystem = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
-
-        val fleet: List<AgvVehicle> = listOf(DEPOT_A, DEPOT_B, DEPOT_C).mapIndexed { i, depot ->
-            AgvVehicle(agv, TransporterPlacement.At(depot), ConstantRV(12.0), name = "Cart${i + 1}")
-                .apply { homeBase = depot }
-        }
-
-        private val myWaitForVehicle = Response(this, "${this.name}:WaitForVehicle")
-        val waitForVehicle: ResponseCIfc
-            get() = myWaitForVehicle
-
-        private val myTimeInSystem = Response(this, "${this.name}:TimeInSystem")
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
-
-        private val myDelivered = Counter(this, "${this.name}:Delivered")
-        val delivered: CounterCIfc
-            get() = myDelivered
-
-        /** Largest minus smallest per-vehicle completions: how unevenly the work fell. Observed at
-         *  the horizon, so a Response rather than a Counter -- it is one measurement of the finished
-         *  replication, not a total that accumulated during it. */
-        private val myFleetImbalance = Response(this, "${this.name}:FleetImbalance")
-        val fleetImbalance: ResponseCIfc
-            get() = myFleetImbalance
-
-        // A model element rather than a bare random variable, so that the arrival rate is a named
-        // input a scenario can override and the report says what it was.
-        private val myTimeBetweenArrivals = RandomVariable(
-            this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "${this.name}:TBA"
+        fun rules(): List<Pair<String, AssignmentPolicyIfc>> = listOf(
+            "NearestVehicle" to NearestVehiclePolicy(),
+            "FurthestVehicle" to FurthestVehiclePolicy(),
+            "LeastUsed" to LeastUsedVehiclePolicy(),
+            "BatchedWindow30" to BatchedAssignmentPolicy(30.0),
+            "ContractNetInstant" to ContractNetAssignmentPolicy(0.0),
+            "ContractNetDeadline5" to ContractNetAssignmentPolicy(5.0)
         )
-        val timeBetweenArrivals: RandomVariableCIfc
-            get() = myTimeBetweenArrivals
 
-        inner class Load(private val from: String) : Entity() {
-            val production = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(from)
-                val result = transportByFleet(agv, destination = SHIPPING, origin = from)
-                myWaitForVehicle.value = result.waitForAssignment + result.waitForArrival
-                myTimeInSystem.value = time - arrived
-                myDelivered.increment()
+        /**
+         *  Builds the runner with one scenario per rule. Every scenario gets its own model and the same
+         *  run parameters, and the runner leaves the random streams alone, so the six runs see the same
+         *  arrivals -- which is what makes the paired comparison below valid.
+         */
+        fun buildRunner(): ScenarioRunner {
+            val runner = ScenarioRunner("DispatchingRules")
+            for ((label, _) in rules()) {
+                val m = Model("DispatchRules_$label")
+                DispatchingRuleComparison(m, label)
+                runner.addScenario(
+                    model = m,
+                    name = label,
+                    inputs = emptyMap(),
+                    numberReplications = REPLICATIONS,
+                    lengthOfReplication = HORIZON,
+                    lengthOfReplicationWarmUp = WARM_UP
+                )
             }
-        }
-
-        inner class Source : Entity() {
-            val arrivals = process(isDefaultProcess = true) {
-                repeat(NUM_ARRIVALS) {
-                    delay(myTimeBetweenArrivals)
-                    // Alternating origins, so that which task is nearest genuinely varies.
-                    val from = if (it % 2 == 0) NORTH_PICKUP else SOUTH_PICKUP
-                    activate(Load(from).production)
-                }
-            }
-        }
-
-        override fun initialize() {
-            activate(Source().arrivals)
-        }
-
-        override fun replicationEnded() {
-            super.replicationEnded()
-            val counts = fleet.map { it.numTasksCompleted.value }
-            myFleetImbalance.value = counts.max() - counts.min()
+            return runner
         }
     }
 
-    const val REPLICATIONS: Int = 15
-    const val HORIZON: Double = 10_000.0
-    const val WARM_UP: Double = 1_500.0
+    val network: GuidedPathNetwork = createNetwork()
+
+    init {
+        spatialModel = network
+    }
+
+    val agv: AgvSystem = AgvSystem(this, network, assignmentPolicy = policyFor(ruleName), name = "Agv")
 
     /**
-     *  The six rules, in the order they are reported. Scenario names are also experiment names in
-     *  the runner's database and directory names on disk, so they carry no punctuation.
+     *  Which of the six rules the dispatcher runs, by name.
+     *
+     *  [ksl.controls.KSLStringControl] declares the names it will accept, so the six-way comparison
+     *  in `main` can equally be run as one model with one input -- which is what a scenario, or an
+     *  app's input panel, wants. A rule is made fresh on assignment for the same reason [rules]
+     *  makes them fresh: a batching or contract-net policy carries state between decisions.
      */
-    fun rules(): List<Pair<String, AssignmentPolicyIfc>> = listOf(
-        "NearestVehicle" to NearestVehiclePolicy(),
-        "FurthestVehicle" to FurthestVehiclePolicy(),
-        "LeastUsed" to LeastUsedVehiclePolicy(),
-        "BatchedWindow30" to BatchedAssignmentPolicy(30.0),
-        "ContractNetInstant" to ContractNetAssignmentPolicy(0.0),
-        "ContractNetDeadline5" to ContractNetAssignmentPolicy(5.0)
+    @set:KSLStringControl(
+        allowedValues = [
+            "NearestVehicle", "FurthestVehicle", "LeastUsed",
+            "BatchedWindow30", "ContractNetInstant", "ContractNetDeadline5"
+        ],
+        comment = "Which dispatching rule the dispatcher runs"
     )
-
-    /**
-     *  Builds the runner with one scenario per rule. Every scenario gets its own model and the same
-     *  run parameters, and the runner leaves the random streams alone, so the six runs see the same
-     *  arrivals -- which is what makes the paired comparison below valid.
-     */
-    fun buildRunner(): ScenarioRunner {
-        val runner = ScenarioRunner("DispatchingRules")
-        for ((label, policy) in rules()) {
-            val m = Model("DispatchRules_$label")
-            Shop(m, policy)
-            runner.addScenario(
-                model = m,
-                name = label,
-                inputs = emptyMap(),
-                numberReplications = REPLICATIONS,
-                lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
-            )
+    var ruleName: String = ruleName
+        set(value) {
+            agv.dispatcher.assignmentPolicy = policyFor(value)
+            field = value
         }
-        return runner
+
+    val fleet: List<AgvVehicle> = listOf(DEPOT_A, DEPOT_B, DEPOT_C).mapIndexed { i, depot ->
+        AgvVehicle(agv, TransporterPlacement.At(depot), ConstantRV(12.0), name = "Cart${i + 1}")
+            .apply { homeBase = depot }
+    }
+
+    private val myWaitForVehicle = Response(this, "${this.name}:WaitForVehicle")
+    val waitForVehicle: ResponseCIfc
+        get() = myWaitForVehicle
+
+    private val myTimeInSystem = Response(this, "${this.name}:TimeInSystem")
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
+
+    private val myDelivered = Counter(this, "${this.name}:Delivered")
+    val delivered: CounterCIfc
+        get() = myDelivered
+
+    /** Largest minus smallest per-vehicle completions: how unevenly the work fell. Observed at
+     *  the horizon, so a Response rather than a Counter -- it is one measurement of the finished
+     *  replication, not a total that accumulated during it. */
+    private val myFleetImbalance = Response(this, "${this.name}:FleetImbalance")
+    val fleetImbalance: ResponseCIfc
+        get() = myFleetImbalance
+
+    // A model element rather than a bare random variable, so that the arrival rate is a named
+    // input a scenario can override and the report says what it was.
+    private val myTimeBetweenArrivals = RandomVariable(
+        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "${this.name}:TBA"
+    )
+    val timeBetweenArrivals: RandomVariableCIfc
+        get() = myTimeBetweenArrivals
+
+    inner class Load(private val from: String) : Entity() {
+        val production = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(from)
+            val result = transportByFleet(agv, destination = SHIPPING, origin = from)
+            myWaitForVehicle.value = result.waitForAssignment + result.waitForArrival
+            myTimeInSystem.value = time - arrived
+            myDelivered.increment()
+        }
+    }
+
+    inner class Source : Entity() {
+        val arrivals = process(isDefaultProcess = true) {
+            repeat(NUM_ARRIVALS) {
+                delay(myTimeBetweenArrivals)
+                // Alternating origins, so that which task is nearest genuinely varies.
+                val from = if (it % 2 == 0) NORTH_PICKUP else SOUTH_PICKUP
+                activate(Load(from).production)
+            }
+        }
+    }
+
+    override fun initialize() {
+        activate(Source().arrivals)
+    }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        val counts = fleet.map { it.numTasksCompleted.value }
+        myFleetImbalance.value = counts.max() - counts.min()
     }
 }
 
@@ -303,27 +356,4 @@ fun main() {
             println("  %-22s %12.3f %12.3f %12s".format(name, d.average, d.halfWidth, detectable))
         }
     }
-
-    println()
-    println("Reading the three tables")
-    println()
-    println("  Throughput: the half-width on any one rule's delivered count is about seven loads,")
-    println("  and the paired half-width is under one. Five of the six rules are indistinguishable")
-    println("  from nearest-vehicle in throughput -- which is a finding here and was an assertion")
-    println("  when this example printed six unpaired averages. Batching is the exception and is")
-    println("  detectably worse: on a saturated fleet the window delays every decision.")
-    println()
-    println("  Time in system and imbalance are where the rules actually differ, and both")
-    println("  differences are far outside their intervals. Least-used trades time for evenness on")
-    println("  purpose; furthest-vehicle is deliberately poor so that 'nearest is better' can be")
-    println("  measured rather than asserted.")
-    println()
-    println("  The instant auction reproduces nearest-vehicle replication for replication -- a")
-    println("  difference of zero with a half-width of zero. That is a check rather than a")
-    println("  coincidence: with distance bidding the vehicles quote what the rule would have")
-    println("  computed, so the negotiation machinery is shown not to change the answer by itself.")
-    println("  The deadline row then shows what it costs once negotiating is charged for.")
-    println()
-    println("  Where the table says no, the honest statement is 'no detectable difference at this")
-    println("  sample size', not 'the rules are the same'.")
 }

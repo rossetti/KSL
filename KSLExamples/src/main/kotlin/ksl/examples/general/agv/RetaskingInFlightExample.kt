@@ -44,6 +44,21 @@ import ksl.utilities.random.rvariable.ConstantRV
  *
  *  Here it has somewhere: a dispatcher that can see the whole board and take a task back.
  *
+ *  ## Reading the three cases
+ *
+ *  The middle case is the capability; the third is what makes it a rule rather than a reflex. A
+ *  policy that always swapped would produce the middle result and the wrong third one, and on a
+ *  busy floor it would churn -- revoking and re-revoking as the board shifts, with carts spending
+ *  their time changing their minds. The threshold is what makes a swap have to be worth making.
+ *
+ *  The cart never reverses. A redirect takes effect at the next zone boundary, because something
+ *  between two places cannot stop and turn round; the guide path decides when, and it is the same
+ *  code the passive subsystem has always used.
+ *
+ *  Note the reassignment count on the load that was put back. Its accumulated wait survives the
+ *  swap -- the task never left the queue -- so a load that has been waiting longest still looks
+ *  like one, and the fact that it was passed over is reported rather than absorbed.
+ *
  *  ## The layout, and why the arithmetic is unambiguous
  *
  *  A one-way ring of four legs of 100, with the cart parked on a spur off `N`.
@@ -85,123 +100,108 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  200 and the rule refuses. An interval around a deterministic quantity would obscure that rather
  *  than support it.
  */
-object RetaskingInFlightExample {
+class RetaskingInFlightExample(
+    parent: ModelElement,
+    policy: AssignmentPolicyIfc,
+    private val nearArrivesAt: Double
+) : ProcessModel(parent, "Shop") {
 
-    const val NEAR_PICKUP: String = "NearStation"
-    const val FAR_PICKUP: String = "FarStation"
-    const val SHIPPING: String = "Shipping"
-    const val DEPOT: String = "Depot"
+    val network = createNetwork()
 
-    fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
-        .intersection("N", x = 0.0, y = 100.0)
-        .intersection("E", x = 100.0, y = 0.0)
-        .intersection("S", x = 0.0, y = -100.0)
-        .intersection("W", x = -100.0, y = 0.0)
-        .intersection("Park", x = 0.0, y = 140.0)
-        .link("NE", "N", "E", length = 100.0, zoneLength = 10.0, beginDirection = 315.0)
-        .link("ES", "E", "S", length = 100.0, zoneLength = 10.0, beginDirection = 225.0)
-        .link("SW", "S", "W", length = 100.0, zoneLength = 10.0, beginDirection = 135.0)
-        .link("WN", "W", "N", length = 100.0, zoneLength = 10.0, beginDirection = 45.0)
-        .link("ParkSpur", "N", "Park", length = 20.0, zoneLength = 20.0,
-            type = LinkType.SPUR, beginDirection = 90.0)
-        .station(NEAR_PICKUP, "E")
-        .station(FAR_PICKUP, "W")
-        .station(SHIPPING, "S")
-        .station(DEPOT, "Park")
-        .build()
+    init {
+        spatialModel = network
+    }
 
-    class Shop(
-        parent: ModelElement,
-        policy: AssignmentPolicyIfc,
-        private val nearArrivesAt: Double
-    ) : ProcessModel(parent, "Shop") {
+    val agv = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
 
-        val network = createNetwork()
+    val cart = AgvVehicle(
+        agv, TransporterPlacement.At(DEPOT), ConstantRV(10.0), name = "Cart"
+    ).apply { homeBase = DEPOT }
 
-        init {
-            spatialModel = network
+    val delivered = linkedMapOf<String, FleetTransportResult>()
+
+    inner class Load(private val label: String, private val from: String) : Entity(label) {
+        val production = process(isDefaultProcess = true) {
+            currentLocation = network.requireLocation(from)
+            delivered[label] = transportByFleet(agv, destination = SHIPPING, origin = from)
+        }
+    }
+
+    override fun initialize() {
+        delivered.clear()
+        activate(Load("far", FAR_PICKUP).production)
+        activate(Load("near", NEAR_PICKUP).production, timeUntilActivation = nearArrivesAt)
+    }
+
+    companion object {
+
+        const val NEAR_PICKUP: String = "NearStation"
+        const val FAR_PICKUP: String = "FarStation"
+        const val SHIPPING: String = "Shipping"
+        const val DEPOT: String = "Depot"
+
+        fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
+            .intersection("N", x = 0.0, y = 100.0)
+            .intersection("E", x = 100.0, y = 0.0)
+            .intersection("S", x = 0.0, y = -100.0)
+            .intersection("W", x = -100.0, y = 0.0)
+            .intersection("Park", x = 0.0, y = 140.0)
+            .link("NE", "N", "E", length = 100.0, zoneLength = 10.0, beginDirection = 315.0)
+            .link("ES", "E", "S", length = 100.0, zoneLength = 10.0, beginDirection = 225.0)
+            .link("SW", "S", "W", length = 100.0, zoneLength = 10.0, beginDirection = 135.0)
+            .link("WN", "W", "N", length = 100.0, zoneLength = 10.0, beginDirection = 45.0)
+            .link("ParkSpur", "N", "Park", length = 20.0, zoneLength = 20.0,
+                type = LinkType.SPUR, beginDirection = 90.0)
+            .station(NEAR_PICKUP, "E")
+            .station(FAR_PICKUP, "W")
+            .station(SHIPPING, "S")
+            .station(DEPOT, "Park")
+            .build()
+
+        fun run(policy: AssignmentPolicyIfc, nearArrivesAt: Double): RetaskingInFlightExample {
+            val m = Model("Retasking")
+            val shop = RetaskingInFlightExample(m, policy, nearArrivesAt)
+            m.numberOfReplications = 1
+            m.lengthOfReplication = 2_000.0
+            m.simulate()
+            return shop
         }
 
-        val agv = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
-
-        val cart = AgvVehicle(
-            agv, TransporterPlacement.At(DEPOT), ConstantRV(10.0), name = "Cart"
-        ).apply { homeBase = DEPOT }
-
-        val delivered = linkedMapOf<String, FleetTransportResult>()
-
-        inner class Load(private val label: String, private val from: String) : Entity(label) {
-            val production = process(isDefaultProcess = true) {
-                currentLocation = network.requireLocation(from)
-                delivered[label] = transportByFleet(agv, destination = SHIPPING, origin = from)
+        private fun report(title: String, shop: RetaskingInFlightExample) {
+            println("  $title")
+            for ((label, r) in shop.delivered) {
+                println(
+                    "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
+                        label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
+                    )
+                )
             }
-        }
-
-        override fun initialize() {
-            delivered.clear()
-            activate(Load("far", FAR_PICKUP).production)
-            activate(Load("near", NEAR_PICKUP).production, timeUntilActivation = nearArrivesAt)
-        }
-    }
-
-    fun run(policy: AssignmentPolicyIfc, nearArrivesAt: Double): Shop {
-        val m = Model("Retasking")
-        val shop = Shop(m, policy, nearArrivesAt)
-        m.numberOfReplications = 1
-        m.lengthOfReplication = 2_000.0
-        m.simulate()
-        return shop
-    }
-
-    private fun report(title: String, shop: Shop) {
-        println("  $title")
-        for ((label, r) in shop.delivered) {
             println(
-                "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
-                    label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
+                "    revocations: %.0f".format(
+                    shop.agv.dispatcher.numAssignmentsRevoked.value
                 )
             )
+            println()
         }
-        println(
-            "    revocations: %.0f".format(
-                shop.agv.dispatcher.numAssignmentsRevoked.value
+
+        fun report() {
+            println()
+            println("Re-tasking a cart in mid-journey - what the passive paradigm has no place for")
+            println()
+
+            report(
+                "Without re-tasking: the cart commits at t=0 and finishes what it started.",
+                run(NearestVehiclePolicy(), nearArrivesAt = 2.0)
             )
-        )
-        println()
-    }
-
-    fun report() {
-        println()
-        println("Re-tasking a cart in mid-journey - what the passive paradigm has no place for")
-        println()
-
-        report(
-            "Without re-tasking: the cart commits at t=0 and finishes what it started.",
-            run(NearestVehiclePolicy(), nearArrivesAt = 2.0)
-        )
-        report(
-            "With re-tasking, near job at t=2 (worth 200 units): the cart is turned round.",
-            run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 2.0)
-        )
-        report(
-            "With re-tasking, near job at t=15 (would cost 200): the rule declines the swap.",
-            run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 15.0)
-        )
-
-        println("  The middle case is the capability; the third is what makes it a rule rather than a")
-        println("  reflex. A policy that always swapped would produce the middle result and the wrong")
-        println("  third one, and on a busy floor it would churn - revoking and re-revoking as the")
-        println("  board shifts, with carts spending their time changing their minds. The threshold")
-        println("  is what makes a swap have to be worth making.")
-        println()
-        println("  The cart never reverses. A redirect takes effect at the next zone boundary,")
-        println("  because something between two places cannot stop and turn round; the guide path")
-        println("  decides when, and it is the same code the passive subsystem has always used.")
-        println()
-        println("  Note the reassignment count on the load that was put back. Its accumulated wait")
-        println("  survives the swap - the task never left the queue - so a load that has been")
-        println("  waiting longest still looks like one, and the fact that it was passed over is")
-        println("  reported rather than absorbed.")
+            report(
+                "With re-tasking, near job at t=2 (worth 200 units): the cart is turned round.",
+                run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 2.0)
+            )
+            report(
+                "With re-tasking, near job at t=15 (would cost 200): the rule declines the swap.",
+                run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 15.0)
+            )
+        }
     }
 }
 

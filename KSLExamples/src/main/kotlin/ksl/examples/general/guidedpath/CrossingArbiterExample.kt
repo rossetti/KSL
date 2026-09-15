@@ -18,6 +18,7 @@
 
 package ksl.examples.general.guidedpath
 
+import ksl.controls.KSLStringControl
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.guidedpath.GuidedPathNetwork
@@ -35,7 +36,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 
-/**
+/*
  *  One crossing, four disciplines, and the two failures that make the case for an arbiter.
  *
  *  A crossing arbitrates between two populations that want the same space and cannot both have it.
@@ -51,139 +52,182 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  Both are run here. Neither raises, neither warns, and each produces a perfectly plausible table
  *  of numbers for a model that does not represent what it claims to.
  *
+ *  The two failures do not fail alike, which is worth knowing before trusting either. Under
+ *  pedestrian priority the guide path reports a transporter still waiting when the replication
+ *  ends, and names both what it waits for and who holds it: a model that stops moving says so.
+ *  Under vehicle priority nothing waits at the horizon at all, because the walkers are still
+ *  queued -- and queued is not stalled. The first failure announces itself; the second is silent.
+ *
+ *  ## What the other two disciplines add
+ *
+ *  [AlternatingArbiter] gives each side a share that does not depend on how hard the other is
+ *  pushing. [BoundedBatchArbiter] opens on a group and admits only that group, so a stream of
+ *  arrivals cannot extend one turn indefinitely. Both answer *both* questions, which is the
+ *  property the two priority rules lack. Which of them a model wants is a modelling question -- a
+ *  signal and a warden are different things -- and not the library's to choose, which is why the
+ *  arbiter is a substitutable object rather than a policy baked into the crossing.
+ *
  *  ## Deterministic
  *
  *  No randomness at all: walkers arrive every `WALKER_EVERY` minutes and carts every `CART_EVERY`,
  *  and a zone is a minute. So every figure below can be checked by hand, and the example is a
  *  specification of behaviour rather than an estimate of it.
  */
-object CrossingArbiterExample {
+/**
+ *  A one-way loop with a crossing part way along its outbound leg.
+ *
+ *  The cart circulates so that traffic is continuous; walkers cross and go.
+ */
+class CrossingArbiterExample(
+    parent: ModelElement,
+    arbiter: CrossingArbiterIfc
+) : ProcessModel(parent, "Town") {
 
-    const val HORIZON: Double = 120.0
+    companion object {
 
-    /** Zones are twelve feet and everything moves twelve feet a minute, so a zone is a minute. */
-    const val ZONE: Double = 12.0
+        const val HORIZON: Double = 120.0
 
-    const val WALKER_EVERY: Double = 1.5
-    const val CART_EVERY: Double = 4.0
-    const val WALK_TIME: Double = 2.0
+        /** Zones are twelve feet and everything moves twelve feet a minute, so a zone is a minute. */
+        const val ZONE: Double = 12.0
 
-    /** The four disciplines, made fresh for each run so none inherits another's state. */
-    fun arbiters(): Map<String, CrossingArbiterIfc> = linkedMapOf(
-        "PedestrianPriority" to PedestrianPriorityArbiter(),
-        "VehiclePriority" to VehiclePriorityArbiter(),
-        "Alternating" to AlternatingArbiter(walkTime = 6.0, driveTime = 6.0),
-        "BoundedBatch" to BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
+        const val WALKER_EVERY: Double = 1.5
+        const val CART_EVERY: Double = 4.0
+        const val WALK_TIME: Double = 2.0
+
+        /** The four disciplines, made fresh for each run so none inherits another's state. */
+        fun arbiters(): Map<String, CrossingArbiterIfc> = linkedMapOf(
+            "PedestrianPriority" to PedestrianPriorityArbiter(),
+            "VehiclePriority" to VehiclePriorityArbiter(),
+            "Alternating" to AlternatingArbiter(walkTime = 6.0, driveTime = 6.0),
+            "BoundedBatch" to BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
+        )
+
+        /** What one discipline did over the horizon. */
+        class Outcome(
+            val name: String,
+            val cartTrips: Int,
+            val walkersAcross: Int,
+            val fracBarred: Double,
+            val meanWaitToCross: Double,
+            val turns: Double
+        )
+
+        fun runWith(name: String, arbiter: CrossingArbiterIfc): Outcome {
+            val m = Model("Crossing_$name")
+            val town = CrossingArbiterExample(m, arbiter)
+            town.system.checkInvariants = true
+            m.numberOfReplications = 1
+            m.lengthOfReplication = HORIZON
+            m.simulate()
+            return Outcome(
+                name = name,
+                cartTrips = town.cartTrips,
+                walkersAcross = town.walkersAcross,
+                fracBarred = town.crossing.fracTimeBarred.withinReplicationStatistic.weightedAverage,
+                meanWaitToCross = town.crossing.waitToCross.withinReplicationStatistic.weightedAverage,
+                turns = town.crossing.turnsTaken.value
+            )
+        }
+    }
+
+    // A one-way loop rather than a single aisle, so the cart can keep circulating: a
+    // one-way link cannot be run backwards, and sending a cart home along one raises.
+    val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
+        .link("Aisle", "A", "B", length = 6 * ZONE, zoneLength = ZONE)
+        .link("Return", "B", "A", length = 6 * ZONE, zoneLength = ZONE)
+        .build()
+
+    init {
+        spatialModel = network
+    }
+
+    val system = GuidedPathTransportSystem(this, network, name = "Sys")
+
+    val cart = GuidedTransporter(
+        system, TransporterPlacement.At("A"), ConstantRV(ZONE), 1, name = "Cart"
+    )
+
+    val crossing = ZoneCrossing(
+        this, system, listOf(network.zone("Aisle.Zone3")!!), arbiter, name = "Walkway"
     )
 
     /**
-     *  A one-way loop with a crossing part way along its outbound leg.
+     *  The discipline the crossing runs under, by name, so that a scenario or an app can change it
+     *  without holding an arbiter object.
      *
-     *  The cart circulates so that traffic is continuous; walkers cross and go.
+     *  The constructor still takes the arbiter itself, because that is the point of the construct
+     *  and `main` below reads better for it. This property is the same choice spelled as a
+     *  **control**: [ksl.controls.KSLStringControl] declares the names it will accept, which is
+     *  what lets a study over disciplines be expressed as an input rather than as six models. The
+     *  initial value is read off the arbiter's own class, so the two can never disagree.
      */
-    class Town(parent: ModelElement, arbiter: CrossingArbiterIfc) : ProcessModel(parent, "Town") {
-
-        // A one-way loop rather than a single aisle, so the cart can keep circulating: a
-        // one-way link cannot be run backwards, and sending a cart home along one raises.
-        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
-            .link("Aisle", "A", "B", length = 6 * ZONE, zoneLength = ZONE)
-            .link("Return", "B", "A", length = 6 * ZONE, zoneLength = ZONE)
-            .build()
-
-        init {
-            spatialModel = network
-        }
-
-        val system = GuidedPathTransportSystem(this, network, name = "Sys")
-
-        val cart = GuidedTransporter(
-            system, TransporterPlacement.At("A"), ConstantRV(ZONE), 1, name = "Cart"
-        )
-
-        val crossing = ZoneCrossing(
-            this, system, listOf(network.zone("Aisle.Zone3")!!), arbiter, name = "Walkway"
-        )
-
-        val walkQ = HoldQueue(this, "WalkQ")
-
-        var cartTrips: Int = 0
-            private set
-        var walkersAcross: Int = 0
-            private set
-
-        inner class Walker : Entity() {
-            val walk = process(isDefaultProcess = true) {
-                crossOnFoot(crossing, WALK_TIME, walkQ)
-                walkersAcross++
+    @set:KSLStringControl(
+        allowedValues = ["PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch"],
+        comment = "Which admission discipline the crossing runs under"
+    )
+    var arbiterName: String = arbiter::class.simpleName!!.removeSuffix("Arbiter")
+        set(value) {
+            // Made fresh, exactly as arbiters() does: an arbiter carries turn state, and handing
+            // two models the same one would let the second inherit the first's.
+            crossing.arbiter = requireNotNull(arbiters()[value]) {
+                "unknown crossing discipline '$value'; expected one of ${arbiters().keys}"
             }
+            field = value
         }
 
-        // Named classes rather than lambdas because each one schedules itself, and a lambda that
-        // refers to the property it is being assigned to cannot have its type inferred.
-        private inner class WalkerAction : EventActionIfc<Nothing> {
-            override fun action(event: KSLEvent<Nothing>) {
-                activate(Walker().walk)
-                schedule(this, WALKER_EVERY)
-            }
-        }
+    val walkQ = HoldQueue(this, "WalkQ")
 
-        private inner class CartAction : EventActionIfc<Nothing> {
-            override fun action(event: KSLEvent<Nothing>) {
-                // Sent back and forth so there is always traffic wanting the crossing. Counting
-                // arrivals rather than dispatches is what makes the number mean "got through".
-                if (!cart.isMoving) {
-                    cart.sendTo(if (cart.currentLocation?.name == "B") "A" else "B")
-                }
-                schedule(this, CART_EVERY)
-            }
-        }
+    var cartTrips: Int = 0
+        private set
+    var walkersAcross: Int = 0
+        private set
 
-        private val myWalkerAction = WalkerAction()
-        private val myCartAction = CartAction()
-
-        init {
-            // Attached ONCE, when the element is built. A listener attached in initialize() is
-            // added again at the start of every replication and never removed, so replication n
-            // runs with n of them and counts every arrival n times -- and the counter being
-            // reset correctly just below is what hides it.
-            cart.attachArrivalListener { cartTrips++ }
-        }
-
-        override fun initialize() {
-            cartTrips = 0
-            walkersAcross = 0
-            schedule(myWalkerAction, WALKER_EVERY)
-            schedule(myCartAction, 0.5)
+    inner class Walker : Entity() {
+        val walk = process(isDefaultProcess = true) {
+            crossOnFoot(crossing, WALK_TIME, walkQ)
+            walkersAcross++
         }
     }
 
-    /** What one discipline did over the horizon. */
-    class Outcome(
-        val name: String,
-        val cartTrips: Int,
-        val walkersAcross: Int,
-        val fracBarred: Double,
-        val meanWaitToCross: Double,
-        val turns: Double
-    )
+    // Named classes rather than lambdas because each one schedules itself, and a lambda that
+    // refers to the property it is being assigned to cannot have its type inferred.
+    private inner class WalkerAction : EventActionIfc<Nothing> {
+        override fun action(event: KSLEvent<Nothing>) {
+            activate(Walker().walk)
+            schedule(this, WALKER_EVERY)
+        }
+    }
 
-    fun runWith(name: String, arbiter: CrossingArbiterIfc): Outcome {
-        val m = Model("Crossing_$name")
-        val town = Town(m, arbiter)
-        town.system.checkInvariants = true
-        m.numberOfReplications = 1
-        m.lengthOfReplication = HORIZON
-        m.simulate()
-        return Outcome(
-            name = name,
-            cartTrips = town.cartTrips,
-            walkersAcross = town.walkersAcross,
-            fracBarred = town.crossing.fracTimeBarred.withinReplicationStatistic.weightedAverage,
-            meanWaitToCross = town.crossing.waitToCross.withinReplicationStatistic.weightedAverage,
-            turns = town.crossing.turnsTaken.value
-        )
+    private inner class CartAction : EventActionIfc<Nothing> {
+        override fun action(event: KSLEvent<Nothing>) {
+            // Sent back and forth so there is always traffic wanting the crossing. Counting
+            // arrivals rather than dispatches is what makes the number mean "got through".
+            if (!cart.isMoving) {
+                cart.sendTo(if (cart.currentLocation?.name == "B") "A" else "B")
+            }
+            schedule(this, CART_EVERY)
+        }
+    }
+
+    private val myWalkerAction = WalkerAction()
+    private val myCartAction = CartAction()
+
+    init {
+        // Attached ONCE, when the element is built. A listener attached in initialize() is
+        // added again at the start of every replication and never removed, so replication n
+        // runs with n of them and counts every arrival n times -- and the counter being
+        // reset correctly just below is what hides it.
+        cart.attachArrivalListener { cartTrips++ }
+    }
+
+    override fun initialize() {
+        cartTrips = 0
+        walkersAcross = 0
+        schedule(myWalkerAction, WALKER_EVERY)
+        schedule(myCartAction, 0.5)
     }
 }
+
 
 fun main() {
     println()
@@ -209,37 +253,6 @@ fun main() {
 
     val ped = outcomes.first { it.name == "PedestrianPriority" }
     val veh = outcomes.first { it.name == "VehiclePriority" }
-
-    println()
-    println("  Read the two priority rows together, because each is a model that runs, reports, and")
-    println("  does not represent what it claims to.")
-    println()
-    println("  PedestrianPriority put ${ped.walkersAcross} people across and moved the cart")
-    println("  ${ped.cartTrips} time(s). A walker every ${CrossingArbiterExample.WALKER_EVERY} minutes")
-    println("  taking ${CrossingArbiterExample.WALK_TIME} minutes to cross leaves no instant with the")
-    println("  crossing empty, so it never reopens and the vehicles starve outright. A study that")
-    println("  reported only pedestrian service would call this a success: nobody waited at all.")
-    println()
-    println("  Note what the run itself said about it. The guide path reported a transporter still")
-    println("  waiting when the replication ended, and named what it was waiting for and who had it:")
-    println("  the crossing. A model that stops moving says so rather than quietly reporting a")
-    println("  smaller throughput.")
-    println()
-    println("  VehiclePriority is the exact mirror: ${veh.cartTrips} cart trips and")
-    println("  ${veh.walkersAcross} people across -- not a slow crossing, no crossing. This rule never")
-    println("  bars traffic, so a turn opens only if the crossing happens to be idle, and on a busy")
-    println("  aisle it never is. Here the failure is silent: nothing waits at the horizon, because")
-    println("  the walkers are all still queued, and queued is not stalled.")
-    println()
-    println("  That is the argument for the arbiter having TWO questions rather than one. Each")
-    println("  priority rule answers only one of them and is complete, consistent and wrong.")
-    println()
-    println("  The other two rows answer both. Alternating gives each side a share that does not")
-    println("  depend on how hard the other is pushing; BoundedBatch opens on a group and admits")
-    println("  only that group, so a stream of arrivals cannot extend one turn indefinitely. Which")
-    println("  of them is right is a modelling question -- a signal and a warden are different")
-    println("  things -- and neither is the library's to choose, which is why the arbiter is a")
-    println("  substitutable object and not a policy baked into the crossing.")
 
     check(outcomes.size == 4) { "expected four disciplines, got ${outcomes.size}" }
     check(ped.cartTrips < veh.cartTrips) {

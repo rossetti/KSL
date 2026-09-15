@@ -1138,9 +1138,10 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * Asks for a set of zones, and answers **null** when some zone of it is already promised.
      *
      * [requestZones] with the one refusable condition turned into an answer. A zone carries one
-     * promise at a time, so two holders cannot queue for the same zone, and a model whose closures
-     * land where they land -- spills, most obviously -- has to say what an overlap means. This is
-     * how it says it, in one call that cannot be got wrong.
+     * promise at a time, and by default a second asker is refused rather than put in a queue
+     * behind the first -- [ZoneOverlap.QUEUE] is the opt-in for waiting instead. So a model whose
+     * closures land where they land -- spills, most obviously -- has to say what an overlap means.
+     * This is how it says it, in one call that cannot be got wrong.
      *
      * The hand-written alternative is the reason this exists. The test that matters is a *promise*,
      * not a hold: asking for a zone another holder already **holds** is perfectly ordinary and

@@ -133,10 +133,11 @@ cart. Four properties of that description are load-bearing:
 
 ### The code
 
-`SimpleAGVExample.kt` in full, in the order the file declares it, with nothing left
-out but the GPL header and the file's own documentation comments — which this page
-replaces. Every later case is presented the same way, so if you read one
-walk-through closely, read this one.
+`SimpleAGVExample.kt` in full, with nothing left out but the GPL header and the
+file's own documentation comments — which this page replaces. The parts follow the
+file's own reading order: the model class and the names it is written in, then the
+layout, then the body, then the study. Every later case is presented the same way,
+so if you read one walk-through closely, read this one.
 
 #### 1. Imports
 
@@ -189,22 +190,30 @@ you will not see them again in this tutorial.
 - `ScenarioRunner` and `MultipleComparisonAnalyzer` are the study machinery, and
   parts 8 and 9 are where they earn their place.
 
-#### 2. The object, and the names the model is written in
+#### 2. The model class, and the names it is written in
 
 ```kotlin
-object SimpleAGVExample {
+class SimpleAGVExample(
+    ...
+) : ProcessModel(parent, "AgvShop") {
 
-    const val LOOP_ZONE_LENGTH: Double = 12.0
-    const val HOME_SPUR_ZONE_LENGTH: Double = 6.0
-    const val ENTRY_STATION: String = "EntryStation"
-    const val EXIT_STATION: String = "ExitStation"
-    const val AGV1_HOME: String = "I6"
-    const val AGV2_HOME: String = "I7"
-    const val SYSTEM_NAME: String = "AgvSystem"
+    companion object {
+
+        const val LOOP_ZONE_LENGTH: Double = 12.0
+        const val HOME_SPUR_ZONE_LENGTH: Double = 6.0
+        const val ENTRY_STATION: String = "EntryStation"
+        const val EXIT_STATION: String = "ExitStation"
+        const val AGV1_HOME: String = "I6"
+        const val AGV2_HOME: String = "I7"
+        const val SYSTEM_NAME: String = "AgvSystem"
 ```
 
-An `object` rather than a class because this file is a study, not a component: there
-is one of it. The constants are the vocabulary of everything below.
+The names live in the model class's **companion object**, which is the KSL
+convention for a model's vocabulary: the class is `SimpleAGVExample`, named for its
+file, and `SimpleAGVExample.ENTRY_STATION` is how a caller — the study function in
+part 8, a test, or the disturbances model of case 11, which reuses this very layout —
+names a place without repeating a string. The constants are the vocabulary of
+everything below.
 
 The two zone lengths are the interesting pair. **A zone is the unit of exclusion on a
 guide path — one zone holds one vehicle** — so choosing 12 for the loop says that two
@@ -220,34 +229,34 @@ is a *named* intersection, nothing more.
 #### 3. The layout
 
 ```kotlin
-    fun createNetwork(networkName: String = "SimpleAgvNetwork"): GuidedPathNetwork =
-        GuidedPathNetwork.builder(networkName)
-            .intersection("I1", x = 0.0, y = 72.0)
-            .intersection("I2", x = 48.0, y = 72.0)
-            .intersection("I3", x = 48.0, y = 0.0)
-            .intersection("I4", x = 0.0, y = 0.0)
-            .intersection("I5", x = 0.0, y = -36.0)
-            .intersection("I6", x = 54.0, y = 72.0)
-            .intersection("I7", x = 54.0, y = 0.0)
-            .link("Link1", "I1", "I2", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 0.0)
-            .link("Link2", "I2", "I3", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 270.0)
-            .link("Link3", "I3", "I4", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 180.0)
-            .link("Link4", "I4", "I1", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 90.0)
-            .link(
-                "Spur", "I4", "I5", length = 36.0, zoneLength = LOOP_ZONE_LENGTH,
-                type = LinkType.SPUR, beginDirection = 270.0
-            )
-            .link(
-                "Link5", "I2", "I6", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
-                type = LinkType.SPUR, beginDirection = 0.0
-            )
-            .link(
-                "Link6", "I3", "I7", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
-                type = LinkType.SPUR, beginDirection = 0.0
-            )
-            .station(ENTRY_STATION, "I1")
-            .station(EXIT_STATION, "I5")
-            .build()
+fun createNetwork(networkName: String = "SimpleAgvNetwork"): GuidedPathNetwork =
+    GuidedPathNetwork.builder(networkName)
+        .intersection("I1", x = 0.0, y = 72.0)
+        .intersection("I2", x = 48.0, y = 72.0)
+        .intersection("I3", x = 48.0, y = 0.0)
+        .intersection("I4", x = 0.0, y = 0.0)
+        .intersection("I5", x = 0.0, y = -36.0)
+        .intersection("I6", x = 54.0, y = 72.0)
+        .intersection("I7", x = 54.0, y = 0.0)
+        .link("Link1", "I1", "I2", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 0.0)
+        .link("Link2", "I2", "I3", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 270.0)
+        .link("Link3", "I3", "I4", length = 48.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 180.0)
+        .link("Link4", "I4", "I1", length = 72.0, zoneLength = LOOP_ZONE_LENGTH, beginDirection = 90.0)
+        .link(
+            "Spur", "I4", "I5", length = 36.0, zoneLength = LOOP_ZONE_LENGTH,
+            type = LinkType.SPUR, beginDirection = 270.0
+        )
+        .link(
+            "Link5", "I2", "I6", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
+            type = LinkType.SPUR, beginDirection = 0.0
+        )
+        .link(
+            "Link6", "I3", "I7", length = 6.0, zoneLength = HOME_SPUR_ZONE_LENGTH,
+            type = LinkType.SPUR, beginDirection = 0.0
+        )
+        .station(ENTRY_STATION, "I1")
+        .station(EXIT_STATION, "I5")
+        .build()
 ```
 
 This is the whole network — the thing Figure 1 draws — and every argument does
@@ -285,23 +294,23 @@ not symmetric: entry to exit is 204 the long way round, and exit back to entry i
 #### 4. The model class, and the line that makes locations mean something
 
 ```kotlin
-    class AgvShop(
-        parent: ModelElement,
-        sendCartsHome: Boolean = true,
-        timeBtwArrivals: Double = 20.0
-    ) : ProcessModel(parent, "AgvShop") {
+class SimpleAGVExample(
+    parent: ModelElement,
+    sendCartsHome: Boolean = true,
+    timeBtwArrivals: Double = 20.0
+) : ProcessModel(parent, "AgvShop") {
 
-        val network: GuidedPathNetwork = createNetwork()
+    val network: GuidedPathNetwork = createNetwork()
 
-        init {
-            // The parts travel on the guide path, so it is their spatial model too.
-            spatialModel = network
-        }
+    init {
+        // The parts travel on the guide path, so it is their spatial model too.
+        spatialModel = network
+    }
 
-        val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
+    val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
 ```
 
-`AgvShop` extends `ProcessModel`, which is what allows the `Part` class further down to
+`SimpleAGVExample` extends `ProcessModel`, which is what allows the `Part` class further down to
 be written as a suspending process. `parent: ModelElement` is the KSL convention: every
 element is constructed into a tree under the `Model`.
 
@@ -320,20 +329,20 @@ occupancy, moves vehicles, detects blocking, and keeps the statistics part 9 rea
 #### 5. The carts, and the one line the experiment turns on
 
 ```kotlin
-        val cart1 = GuidedTransporter(
-            system, TransporterPlacement.At(AGV1_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart1"
-        ).apply { homeBase = AGV1_HOME }
+    val cart1 = GuidedTransporter(
+        system, TransporterPlacement.At(AGV1_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart1"
+    ).apply { homeBase = AGV1_HOME }
 
-        val cart2 = GuidedTransporter(
-            system, TransporterPlacement.At(AGV2_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart2"
-        ).apply { homeBase = AGV2_HOME }
+    val cart2 = GuidedTransporter(
+        system, TransporterPlacement.At(AGV2_HOME), ConstantRV(10.0), 1, EndOfZoneControl(), "Cart2"
+    ).apply { homeBase = AGV2_HOME }
 
-        val carts = GuidedTransporterPoolWithQ(
-            this, system, listOf(cart1, cart2),
-            ClosestByNetworkDistanceRule(),
-            if (sendCartsHome) ReturnToHomeBaseRule() else ParkInPlaceRule(),
-            "Carts"
-        )
+    val carts = GuidedTransporterPoolWithQ(
+        this, system, listOf(cart1, cart2),
+        ClosestByNetworkDistanceRule(),
+        if (sendCartsHome) ReturnToHomeBaseRule() else ParkInPlaceRule(),
+        "Carts"
+    )
 ```
 
 A `GuidedTransporter` takes, in order: the system it belongs to, where it starts, how
@@ -361,27 +370,27 @@ anything ever reads them.
 #### 6. The statistics, the inputs, and the arrival process
 
 ```kotlin
-        private val myTimeInSystem = Response(this, "TimeInSystem")
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
+    private val myTimeInSystem = Response(this, "TimeInSystem")
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
 
-        private val myCompleted = Counter(this, "PartsDelivered")
-        val completed: CounterCIfc
-            get() = myCompleted
+    private val myCompleted = Counter(this, "PartsDelivered")
+    val completed: CounterCIfc
+        get() = myCompleted
 
-        private val myLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "LoadingTime")
-        val loadingTimeRV: RandomVariableCIfc
-            get() = myLoadingTime
+    private val myLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "LoadingTime")
+    val loadingTimeRV: RandomVariableCIfc
+        get() = myLoadingTime
 
-        private val myUnLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "UnLoadingTime")
-        val unLoadingTimeRV: RandomVariableCIfc
-            get() = myUnLoadingTime
+    private val myUnLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "UnLoadingTime")
+    val unLoadingTimeRV: RandomVariableCIfc
+        get() = myUnLoadingTime
 
-        @Suppress("unused")
-        private val generator = EntityGenerator(
-            ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
-            ExponentialRV(timeBtwArrivals, streamNum = 1)
-        )
+    @Suppress("unused")
+    private val generator = EntityGenerator(
+        ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
+        ExponentialRV(timeBtwArrivals, streamNum = 1)
+    )
 ```
 
 This is the KSL house style for a model's outputs and inputs, and it is worth copying.
@@ -407,22 +416,22 @@ paired comparison a comparison of parking rules rather than of luck.
 #### 7. The part, which is the whole of the passive paradigm
 
 ```kotlin
-        inner class Part : Entity() {
-            @Suppress("unused")
-            val delivery = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(ENTRY_STATION)
-                guidedTransport(
-                    carts,
-                    destination = EXIT_STATION,
-                    pickupLocation = ENTRY_STATION,
-                    loadingDelay = myLoadingTime,
-                    unLoadingDelay = myUnLoadingTime
-                )
-                myTimeInSystem.value = time - arrived
-                myCompleted.increment()
-            }
+    inner class Part : Entity() {
+        @Suppress("unused")
+        val delivery = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(ENTRY_STATION)
+            guidedTransport(
+                carts,
+                destination = EXIT_STATION,
+                pickupLocation = ENTRY_STATION,
+                loadingDelay = myLoadingTime,
+                unLoadingDelay = myUnLoadingTime
+            )
+            myTimeInSystem.value = time - arrived
+            myCompleted.increment()
         }
+    }
 ```
 
 Everything a part does, in a dozen lines.
@@ -448,34 +457,34 @@ Case 2 is the same shop with that decision moved somewhere else.
 #### 8. The experiment: two scenarios over one factor
 
 ```kotlin
-    const val REPLICATIONS: Int = 10
-    const val HORIZON: Double = 8_000.0
-    const val WARM_UP: Double = 1_000.0
+const val REPLICATIONS: Int = 10
+const val HORIZON: Double = 8_000.0
+const val WARM_UP: Double = 1_000.0
 
-    const val SENT_HOME: String = "CartsSentHome"
-    const val LEFT_IN_PLACE: String = "CartsLeftInPlace"
+const val SENT_HOME: String = "CartsSentHome"
+const val LEFT_IN_PLACE: String = "CartsLeftInPlace"
 
-    /**
-     *  One scenario per configuration. Both get the same replications, horizon, warm-up and arrival
-     *  stream, because the only thing being compared is where an idle cart waits and any difference
-     *  in the run settings would swamp it.
-     */
-    fun buildRunner(): ScenarioRunner {
-        val runner = ScenarioRunner("SimpleAgvHomeBases")
-        for ((label, sendHome) in listOf(SENT_HOME to true, LEFT_IN_PLACE to false)) {
-            val m = Model("SimpleAGV_$label")
-            AgvShop(m, sendCartsHome = sendHome)
-            runner.addScenario(
-                model = m,
-                name = label,
-                inputs = emptyMap(),
-                numberReplications = REPLICATIONS,
-                lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
-            )
-        }
-        return runner
+/**
+ *  One scenario per configuration. Both get the same replications, horizon, warm-up and arrival
+ *  stream, because the only thing being compared is where an idle cart waits and any difference
+ *  in the run settings would swamp it.
+ */
+fun buildRunner(): ScenarioRunner {
+    val runner = ScenarioRunner("SimpleAgvHomeBases")
+    for ((label, sendHome) in listOf(SENT_HOME to true, LEFT_IN_PLACE to false)) {
+        val m = Model("SimpleAGV_$label")
+        SimpleAGVExample(m, sendCartsHome = sendHome)
+        runner.addScenario(
+            model = m,
+            name = label,
+            inputs = emptyMap(),
+            numberReplications = REPLICATIONS,
+            lengthOfReplication = HORIZON,
+            lengthOfReplicationWarmUp = WARM_UP
+        )
     }
+    return runner
+}
 ```
 
 The two configurations are two **scenarios** in a `ScenarioRunner`, rather than two
@@ -531,12 +540,6 @@ fun main() {
     }
 
     println()
-    println("  Neither run fails and neither reports an error, and their delivered counts are")
-    println("  indistinguishable:")
-    println("  this shop is arrival-limited, so the damage never reaches the headline number. The")
-    println("  obstruction count is the only thing that separates them, which is why that condition")
-    println("  is counted into the standard report rather than only written to a log. It is a design")
-    println("  defect that a run is perfectly capable of hiding.")
 }
 ```
 
@@ -682,16 +685,15 @@ The same substrate imports as case 1, plus `AgvSystem` and `AgvVehicle` from
 `MultipleComparisonAnalyzer` for the comparison.
 
 ```kotlin
-object TwoParadigmsExample {
 
-    const val ENTRY: String = "EntryStation"
-    const val EXIT: String = "ExitStation"
-    const val DEPOT: String = "CartDepot"
+    private const val ENTRY: String = "EntryStation"
+    private const val EXIT: String = "ExitStation"
+    private const val DEPOT: String = "CartDepot"
 
     /** Both shops name their statistics identically, so the two runs can be compared replication
      *  by replication rather than only average by average. */
-    const val TIME_IN_SYSTEM: String = "TimeInSystem"
-    const val DELIVERED: String = "Delivered"
+    private const val TIME_IN_SYSTEM: String = "TimeInSystem"
+    private const val DELIVERED: String = "Delivered"
 ```
 
 Three station names, then two response names as constants. **The two shops name their
@@ -703,25 +705,25 @@ replication in part 6.
 #### 2. The layout both shops use
 
 ```kotlin
-    fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("ShopFloor")
-        .intersection("I1", x = 0.0, y = 72.0)
-        .intersection("I2", x = 48.0, y = 72.0)
-        .intersection("I3", x = 48.0, y = 0.0)
-        .intersection("I4", x = 0.0, y = 0.0)
-        .intersection("I5", x = 0.0, y = -36.0)
-        .intersection("I6", x = 54.0, y = 72.0)
-        .link("Link1", "I1", "I2", length = 48.0, zoneLength = 12.0, beginDirection = 0.0)
-        .link("Link2", "I2", "I3", length = 72.0, zoneLength = 12.0, beginDirection = 270.0)
-        .link("Link3", "I3", "I4", length = 48.0, zoneLength = 12.0, beginDirection = 180.0)
-        .link("Link4", "I4", "I1", length = 72.0, zoneLength = 12.0, beginDirection = 90.0)
-        .link("ExitSpur", "I4", "I5", length = 36.0, zoneLength = 12.0,
-            type = LinkType.SPUR, beginDirection = 270.0)
-        .link("DepotSpur", "I2", "I6", length = 6.0, zoneLength = 6.0,
-            type = LinkType.SPUR, beginDirection = 0.0)
-        .station(ENTRY, "I1")
-        .station(EXIT, "I5")
-        .station(DEPOT, "I6")
-        .build()
+private fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("ShopFloor")
+    .intersection("I1", x = 0.0, y = 72.0)
+    .intersection("I2", x = 48.0, y = 72.0)
+    .intersection("I3", x = 48.0, y = 0.0)
+    .intersection("I4", x = 0.0, y = 0.0)
+    .intersection("I5", x = 0.0, y = -36.0)
+    .intersection("I6", x = 54.0, y = 72.0)
+    .link("Link1", "I1", "I2", length = 48.0, zoneLength = 12.0, beginDirection = 0.0)
+    .link("Link2", "I2", "I3", length = 72.0, zoneLength = 12.0, beginDirection = 270.0)
+    .link("Link3", "I3", "I4", length = 48.0, zoneLength = 12.0, beginDirection = 180.0)
+    .link("Link4", "I4", "I1", length = 72.0, zoneLength = 12.0, beginDirection = 90.0)
+    .link("ExitSpur", "I4", "I5", length = 36.0, zoneLength = 12.0,
+        type = LinkType.SPUR, beginDirection = 270.0)
+    .link("DepotSpur", "I2", "I6", length = 6.0, zoneLength = 6.0,
+        type = LinkType.SPUR, beginDirection = 0.0)
+    .station(ENTRY, "I1")
+    .station(EXIT, "I5")
+    .station(DEPOT, "I6")
+    .build()
 ```
 
 Case 1's loop with one cart's depot instead of two — the same four one-way links, the
@@ -735,10 +737,10 @@ below would be measuring the drift and reporting it as a paradigm difference.
 #### 3. The load, common to both
 
 ```kotlin
-    const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 40.0
-    const val ARRIVAL_STREAM: Int = 1
-    const val NUM_ARRIVALS: Int = 400
-    const val CART_SPEED: Double = 10.0
+private const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 40.0
+private const val ARRIVAL_STREAM: Int = 1
+private const val NUM_ARRIVALS: Int = 400
+private const val CART_SPEED: Double = 10.0
 ```
 
 Four constants that fix the workload. `ARRIVAL_STREAM = 1` is the important one: both
@@ -749,62 +751,62 @@ fourth, and nobody could say whether that was the paradigm or the sampling.
 #### 4. The passive shop, in full
 
 ```kotlin
-    /** The part steers the cart: ask for one, be collected, be carried, hand it back. */
-    class PassiveShop(parent: ModelElement) : ProcessModel(parent, "PassiveShop") {
+/** The part steers the cart: ask for one, be collected, be carried, hand it back. */
+class PassiveShop(parent: ModelElement) : ProcessModel(parent, "PassiveShop") {
 
-        val network = createNetwork()
+    val network = createNetwork()
 
-        init {
-            spatialModel = network
-        }
+    init {
+        spatialModel = network
+    }
 
-        val space = GuidedPathTransportSystem(this, network, name = "Space")
+    val space = GuidedPathTransportSystem(this, network, name = "Space")
 
-        val cart = GuidedTransporter(
-            space, TransporterPlacement.At(DEPOT), ConstantRV(CART_SPEED), name = "Cart"
-        ).apply { homeBase = DEPOT }
+    val cart = GuidedTransporter(
+        space, TransporterPlacement.At(DEPOT), ConstantRV(CART_SPEED), name = "Cart"
+    ).apply { homeBase = DEPOT }
 
-        val carts = GuidedTransporterPoolWithQ(
-            this, space, listOf(cart), ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
-        )
+    val carts = GuidedTransporterPoolWithQ(
+        this, space, listOf(cart), ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
+    )
 
-        private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
+    private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
 
-        private val myDelivered = Counter(this, DELIVERED)
-        val delivered: CounterCIfc
-            get() = myDelivered
+    private val myDelivered = Counter(this, DELIVERED)
+    val delivered: CounterCIfc
+        get() = myDelivered
 
-        private val myTimeBetweenArrivals = RandomVariable(
-            this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "TBA"
-        )
-        val timeBetweenArrivals: RandomVariableCIfc
-            get() = myTimeBetweenArrivals
+    private val myTimeBetweenArrivals = RandomVariable(
+        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "TBA"
+    )
+    val timeBetweenArrivals: RandomVariableCIfc
+        get() = myTimeBetweenArrivals
 
-        inner class Part : Entity() {
-            val production = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(ENTRY)
-                guidedTransport(carts, destination = EXIT, pickupLocation = ENTRY)
-                myTimeInSystem.value = time - arrived
-                myDelivered.increment()
-            }
-        }
-
-        inner class Source : Entity() {
-            val arrivals = process(isDefaultProcess = true) {
-                repeat(NUM_ARRIVALS) {
-                    delay(myTimeBetweenArrivals)
-                    activate(Part().production)
-                }
-            }
-        }
-
-        override fun initialize() {
-            activate(Source().arrivals)
+    inner class Part : Entity() {
+        val production = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(ENTRY)
+            guidedTransport(carts, destination = EXIT, pickupLocation = ENTRY)
+            myTimeInSystem.value = time - arrived
+            myDelivered.increment()
         }
     }
+
+    inner class Source : Entity() {
+        val arrivals = process(isDefaultProcess = true) {
+            repeat(NUM_ARRIVALS) {
+                delay(myTimeBetweenArrivals)
+                activate(Part().production)
+            }
+        }
+    }
+
+    override fun initialize() {
+        activate(Source().arrivals)
+    }
+}
 ```
 
 Read it top to bottom.
@@ -837,58 +839,58 @@ process, at the instant it asks, over whatever is free at that instant.
 #### 5. The active shop, in full
 
 ```kotlin
-    /** The part states what it needs and suspends. A dispatcher and a vehicle do the rest. */
-    class ActiveShop(parent: ModelElement) : ProcessModel(parent, "ActiveShop") {
+/** The part states what it needs and suspends. A dispatcher and a vehicle do the rest. */
+class ActiveShop(parent: ModelElement) : ProcessModel(parent, "ActiveShop") {
 
-        val network = createNetwork()
+    val network = createNetwork()
 
-        init {
-            spatialModel = network
-        }
+    init {
+        spatialModel = network
+    }
 
-        val agv = AgvSystem(this, network, name = "Agv")
+    val agv = AgvSystem(this, network, name = "Agv")
 
-        val cart = AgvVehicle(
-            agv, TransporterPlacement.At(DEPOT), ConstantRV(CART_SPEED), name = "Cart"
-        ).apply { homeBase = DEPOT }
+    val cart = AgvVehicle(
+        agv, TransporterPlacement.At(DEPOT), ConstantRV(CART_SPEED), name = "Cart"
+    ).apply { homeBase = DEPOT }
 
-        private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
+    private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
 
-        private val myDelivered = Counter(this, DELIVERED)
-        val delivered: CounterCIfc
-            get() = myDelivered
+    private val myDelivered = Counter(this, DELIVERED)
+    val delivered: CounterCIfc
+        get() = myDelivered
 
-        private val myTimeBetweenArrivals = RandomVariable(
-            this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "TBA"
-        )
-        val timeBetweenArrivals: RandomVariableCIfc
-            get() = myTimeBetweenArrivals
+    private val myTimeBetweenArrivals = RandomVariable(
+        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "TBA"
+    )
+    val timeBetweenArrivals: RandomVariableCIfc
+        get() = myTimeBetweenArrivals
 
-        inner class Part : Entity() {
-            val production = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(ENTRY)
-                transportByFleet(agv, destination = EXIT, origin = ENTRY)
-                myTimeInSystem.value = time - arrived
-                myDelivered.increment()
-            }
-        }
-
-        inner class Source : Entity() {
-            val arrivals = process(isDefaultProcess = true) {
-                repeat(NUM_ARRIVALS) {
-                    delay(myTimeBetweenArrivals)
-                    activate(Part().production)
-                }
-            }
-        }
-
-        override fun initialize() {
-            activate(Source().arrivals)
+    inner class Part : Entity() {
+        val production = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(ENTRY)
+            transportByFleet(agv, destination = EXIT, origin = ENTRY)
+            myTimeInSystem.value = time - arrived
+            myDelivered.increment()
         }
     }
+
+    inner class Source : Entity() {
+        val arrivals = process(isDefaultProcess = true) {
+            repeat(NUM_ARRIVALS) {
+                delay(myTimeBetweenArrivals)
+                activate(Part().production)
+            }
+        }
+    }
+
+    override fun initialize() {
+        activate(Source().arrivals)
+    }
+}
 ```
 
 Now the same shop with the decision moved out of the part.
@@ -916,36 +918,36 @@ identical to the passive shop, line for line.
 #### 6. The experiment
 
 ```kotlin
-    const val REPLICATIONS: Int = 20
-    const val HORIZON: Double = 8_000.0
-    const val WARM_UP: Double = 1_000.0
+private const val REPLICATIONS: Int = 20
+private const val HORIZON: Double = 8_000.0
+private const val WARM_UP: Double = 1_000.0
 
-    const val PASSIVE: String = "Passive"
-    const val ACTIVE: String = "Active"
+private const val PASSIVE: String = "Passive"
+private const val ACTIVE: String = "Active"
 
-    /**
-     *  One scenario per paradigm. Both build the same network from the same function, run the same
-     *  replications over the same horizon, and draw arrivals from the same stream, so anything that
-     *  differs between them is the paradigm and nothing else.
-     */
-    fun buildRunner(): ScenarioRunner {
-        val runner = ScenarioRunner("TwoParadigms")
-        val passiveModel = Model("TwoParadigms_Passive")
-        PassiveShop(passiveModel)
-        runner.addScenario(
-            model = passiveModel, name = PASSIVE, inputs = emptyMap(),
-            numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-            lengthOfReplicationWarmUp = WARM_UP
-        )
-        val activeModel = Model("TwoParadigms_Active")
-        ActiveShop(activeModel)
-        runner.addScenario(
-            model = activeModel, name = ACTIVE, inputs = emptyMap(),
-            numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-            lengthOfReplicationWarmUp = WARM_UP
-        )
-        return runner
-    }
+/**
+ *  One scenario per paradigm. Both build the same network from the same function, run the same
+ *  replications over the same horizon, and draw arrivals from the same stream, so anything that
+ *  differs between them is the paradigm and nothing else.
+ */
+private fun buildRunner(): ScenarioRunner {
+    val runner = ScenarioRunner("TwoParadigms")
+    val passiveModel = Model("TwoParadigms_Passive")
+    PassiveShop(passiveModel)
+    runner.addScenario(
+        model = passiveModel, name = PASSIVE, inputs = emptyMap(),
+        numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
+        lengthOfReplicationWarmUp = WARM_UP
+    )
+    val activeModel = Model("TwoParadigms_Active")
+    ActiveShop(activeModel)
+    runner.addScenario(
+        model = activeModel, name = ACTIVE, inputs = emptyMap(),
+        numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
+        lengthOfReplicationWarmUp = WARM_UP
+    )
+    return runner
+}
 ```
 
 One scenario per paradigm, both with the same run parameters. Two different **model
@@ -956,16 +958,16 @@ parameters, and nothing requires the models to be related.
 
 ```kotlin
 fun main() {
-    val runner = TwoParadigmsExample.buildRunner()
+    val runner = buildRunner()
     runner.simulate()
     runner.print()
 
     println()
-    println("One shop, modelled two ways: ${TwoParadigmsExample.PASSIVE} minus ${TwoParadigmsExample.ACTIVE}")
-    println("(paired by replication, ${TwoParadigmsExample.REPLICATIONS} replications, 95% intervals)")
+    println("One shop, modelled two ways: ${PASSIVE} minus ${ACTIVE}")
+    println("(paired by replication, ${REPLICATIONS} replications, 95% intervals)")
     println()
     println("  %-22s %14s %14s %14s".format("response", "difference", "half-width", "detectable?"))
-    for (response in listOf(TwoParadigmsExample.DELIVERED, TwoParadigmsExample.TIME_IN_SYSTEM)) {
+    for (response in listOf(DELIVERED, TIME_IN_SYSTEM)) {
         val observations = runner.observationsAsMap(response)
         check(observations.size == 2) {
             "expected per-replication observations of $response for both paradigms, got " +
@@ -974,38 +976,18 @@ fun main() {
         }
         val mca = MultipleComparisonAnalyzer(observations, response)
         val d = checkNotNull(
-            mca.pairedDifferenceStatistic(TwoParadigmsExample.PASSIVE, TwoParadigmsExample.ACTIVE)
+            mca.pairedDifferenceStatistic(PASSIVE, ACTIVE)
         ) { "no paired difference for $response" }
         val detectable = if (kotlin.math.abs(d.average) > d.halfWidth) "yes" else "no"
         println("  %-22s %14.6f %14.6f %14s".format(response, d.average, d.halfWidth, detectable))
     }
 
     println()
-    println("  Every paired difference is exactly zero, replication by replication, and so is every")
-    println("  half-width. The two models are not close: they agree. With one cart, \"closest idle")
-    println("  transporter\" and \"nearest vehicle\" are the same rule -- there is only ever one")
-    println("  candidate -- so they should agree, and the fact that they do is what makes the active")
-    println("  subsystem a second way of modelling this world rather than a different world.")
     println()
-    println("  Had they differed, every comparison a researcher wanted to make between paradigms")
-    println("  would have been confounded by the modelling choice itself.")
     println()
-    println("What only the active model can report")
     println()
-    println("  Look for these rows in the Active report above; the Passive report has no equivalent:")
-    println("    Agv:Dispatcher:WaitForAssignment  - from asking to somebody committing a vehicle")
-    println("    Agv:Dispatcher:TaskQ:TimeInQ      - the dispatcher's own queue of open work")
-    println("    Agv:TimeAboard                    - how long a load rode")
-    println("    Cart:FracTimeOnTask               - committed, whether moving or not")
     println()
-    println("  A passive pool has no object that holds a commitment, so nothing in it could separate")
-    println("  \"how long until someone was assigned\" from \"how long until it arrived\". Here a")
-    println("  dispatcher decides at one instant and a vehicle arrives at another, so the two are")
-    println("  different questions with different answers.")
     println()
-    println("  \"On task\" is not the same as \"moving\", and neither contains the other: a cart is on")
-    println("  task while it stands still being loaded, and it is moving but not on task while it")
-    println("  returns to its depot.")
 ```
 
 `runner.print()` writes both half-width summary reports.
@@ -1167,7 +1149,13 @@ the base class because the part below is written as a suspending process.
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
     private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0))
 
-    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
+    // Named, so that a study -- or the vehicle-examples bundle's catalog -- can nominate its mean
+    // as an input. An unnamed random variable has no stable key to nominate.
+    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0), name = "DiagnosticTime")
+
+    /** How long diagnosis takes; its mean is the shop's headline load parameter. */
+    val diagnosticTimeRV: RandomVariableCIfc
+        get() = diagnosticTime
 
     // The same walking speed as the free-path model, in meters per minute. Sharing it is what makes
     // the comparison about the space rather than about how fast anybody walks.
@@ -1682,45 +1670,49 @@ classes: `ScenarioRunner` to run the six configurations under identical conditio
 #### 2. The places, and the ring
 
 ```kotlin
-object DispatchingRuleComparison {
+class DispatchingRuleComparison(
+    ...
+) : ProcessModel(parent, name) {
 
-    const val NORTH_PICKUP: String = "NorthPickup"
-    const val SOUTH_PICKUP: String = "SouthPickup"
-    const val SHIPPING: String = "Shipping"
-    const val DEPOT_A: String = "DepotA"
-    const val DEPOT_B: String = "DepotB"
-    const val DEPOT_C: String = "DepotC"
+    companion object {
 
-    /**
-     *  A one-way ring of four legs with a depot spur for each of the three carts.
-     *
-     *  Two pickup stations, at opposite corners, for the reason in this file's header.
-     */
-    fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("RingShop")
-        .intersection("N", x = 0.0, y = 100.0)
-        .intersection("E", x = 100.0, y = 0.0)
-        .intersection("S", x = 0.0, y = -100.0)
-        .intersection("W", x = -100.0, y = 0.0)
-        .intersection("PA", x = 0.0, y = 150.0)
-        .intersection("PB", x = 150.0, y = 0.0)
-        .intersection("PC", x = 0.0, y = -150.0)
-        .link("NE", "N", "E", length = 120.0, zoneLength = 12.0, beginDirection = 315.0)
-        .link("ES", "E", "S", length = 120.0, zoneLength = 12.0, beginDirection = 225.0)
-        .link("SW", "S", "W", length = 120.0, zoneLength = 12.0, beginDirection = 135.0)
-        .link("WN", "W", "N", length = 120.0, zoneLength = 12.0, beginDirection = 45.0)
-        .link("SpurA", "N", "PA", length = 24.0, zoneLength = 24.0,
-            type = LinkType.SPUR, beginDirection = 90.0)
-        .link("SpurB", "E", "PB", length = 24.0, zoneLength = 24.0,
-            type = LinkType.SPUR, beginDirection = 0.0)
-        .link("SpurC", "S", "PC", length = 24.0, zoneLength = 24.0,
-            type = LinkType.SPUR, beginDirection = 270.0)
-        .station(NORTH_PICKUP, "N")
-        .station(SOUTH_PICKUP, "S")
-        .station(SHIPPING, "W")
-        .station(DEPOT_A, "PA")
-        .station(DEPOT_B, "PB")
-        .station(DEPOT_C, "PC")
-        .build()
+        const val NORTH_PICKUP: String = "NorthPickup"
+        const val SOUTH_PICKUP: String = "SouthPickup"
+        const val SHIPPING: String = "Shipping"
+        const val DEPOT_A: String = "DepotA"
+        const val DEPOT_B: String = "DepotB"
+        const val DEPOT_C: String = "DepotC"
+
+        /**
+         *  A one-way ring of four legs with a depot spur for each of the three carts.
+         *
+         *  Two pickup stations, at opposite corners, for the reason in this file's header.
+         */
+        fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("RingShop")
+            .intersection("N", x = 0.0, y = 100.0)
+            .intersection("E", x = 100.0, y = 0.0)
+            .intersection("S", x = 0.0, y = -100.0)
+            .intersection("W", x = -100.0, y = 0.0)
+            .intersection("PA", x = 0.0, y = 150.0)
+            .intersection("PB", x = 150.0, y = 0.0)
+            .intersection("PC", x = 0.0, y = -150.0)
+            .link("NE", "N", "E", length = 120.0, zoneLength = 12.0, beginDirection = 315.0)
+            .link("ES", "E", "S", length = 120.0, zoneLength = 12.0, beginDirection = 225.0)
+            .link("SW", "S", "W", length = 120.0, zoneLength = 12.0, beginDirection = 135.0)
+            .link("WN", "W", "N", length = 120.0, zoneLength = 12.0, beginDirection = 45.0)
+            .link("SpurA", "N", "PA", length = 24.0, zoneLength = 24.0,
+                type = LinkType.SPUR, beginDirection = 90.0)
+            .link("SpurB", "E", "PB", length = 24.0, zoneLength = 24.0,
+                type = LinkType.SPUR, beginDirection = 0.0)
+            .link("SpurC", "S", "PC", length = 24.0, zoneLength = 24.0,
+                type = LinkType.SPUR, beginDirection = 270.0)
+            .station(NORTH_PICKUP, "N")
+            .station(SOUTH_PICKUP, "S")
+            .station(SHIPPING, "W")
+            .station(DEPOT_A, "PA")
+            .station(DEPOT_B, "PB")
+            .station(DEPOT_C, "PC")
+            .build()
 ```
 
 Figure 4's ring, one way round, four legs of 120 cut into zones of 12 — ten zones a leg, so
@@ -1735,9 +1727,9 @@ rule does not matter. That would be an artefact of the layout, not a finding.
 #### 3. The load
 
 ```kotlin
-    const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 26.0
-    const val ARRIVAL_STREAM: Int = 1
-    const val NUM_ARRIVALS: Int = 600
+const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 26.0
+const val ARRIVAL_STREAM: Int = 1
+const val NUM_ARRIVALS: Int = 600
 ```
 
 600 loads, exponential with mean 26, **stream 1**. All six runs name the same stream, which
@@ -1748,57 +1740,82 @@ than merely averaged over.
 #### 4. The shop, with the rule as a parameter
 
 ```kotlin
-    class Shop(
-        parent: ModelElement,
-        policy: AssignmentPolicyIfc,
-        name: String? = "Shop"
-    ) : ProcessModel(parent, name) {
+class DispatchingRuleComparison(
+    parent: ModelElement,
+    ruleName: String = "NearestVehicle",
+    name: String? = "Shop"
+) : ProcessModel(parent, name) {
 
-        val network: GuidedPathNetwork = createNetwork()
+    val network: GuidedPathNetwork = createNetwork()
 
-        init {
-            spatialModel = network
+    init {
+        spatialModel = network
+    }
+
+    val agv: AgvSystem = AgvSystem(this, network, assignmentPolicy = policyFor(ruleName), name = "Agv")
+
+    @set:KSLStringControl(
+        allowedValues = [
+            "NearestVehicle", "FurthestVehicle", "LeastUsed",
+            "BatchedWindow30", "ContractNetInstant", "ContractNetDeadline5"
+        ],
+        comment = "Which dispatching rule the dispatcher runs"
+    )
+    var ruleName: String = ruleName
+        set(value) {
+            agv.dispatcher.assignmentPolicy = policyFor(value)
+            field = value
         }
 
-        val agv: AgvSystem = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
+    val fleet: List<AgvVehicle> = listOf(DEPOT_A, DEPOT_B, DEPOT_C).mapIndexed { i, depot ->
+        AgvVehicle(agv, TransporterPlacement.At(depot), ConstantRV(12.0), name = "Cart${i + 1}")
+            .apply { homeBase = depot }
+    }
 
-        val fleet: List<AgvVehicle> = listOf(DEPOT_A, DEPOT_B, DEPOT_C).mapIndexed { i, depot ->
-            AgvVehicle(agv, TransporterPlacement.At(depot), ConstantRV(12.0), name = "Cart${i + 1}")
-                .apply { homeBase = depot }
-        }
+    private val myWaitForVehicle = Response(this, "${this.name}:WaitForVehicle")
+    val waitForVehicle: ResponseCIfc
+        get() = myWaitForVehicle
 
-        private val myWaitForVehicle = Response(this, "${this.name}:WaitForVehicle")
-        val waitForVehicle: ResponseCIfc
-            get() = myWaitForVehicle
+    private val myTimeInSystem = Response(this, "${this.name}:TimeInSystem")
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
 
-        private val myTimeInSystem = Response(this, "${this.name}:TimeInSystem")
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
+    private val myDelivered = Counter(this, "${this.name}:Delivered")
+    val delivered: CounterCIfc
+        get() = myDelivered
 
-        private val myDelivered = Counter(this, "${this.name}:Delivered")
-        val delivered: CounterCIfc
-            get() = myDelivered
+    /** Largest minus smallest per-vehicle completions: how unevenly the work fell. Observed at
+     *  the horizon, so a Response rather than a Counter -- it is one measurement of the finished
+     *  replication, not a total that accumulated during it. */
+    private val myFleetImbalance = Response(this, "${this.name}:FleetImbalance")
+    val fleetImbalance: ResponseCIfc
+        get() = myFleetImbalance
 
-        /** Largest minus smallest per-vehicle completions: how unevenly the work fell. Observed at
-         *  the horizon, so a Response rather than a Counter -- it is one measurement of the finished
-         *  replication, not a total that accumulated during it. */
-        private val myFleetImbalance = Response(this, "${this.name}:FleetImbalance")
-        val fleetImbalance: ResponseCIfc
-            get() = myFleetImbalance
-
-        // A model element rather than a bare random variable, so that the arrival rate is a named
-        // input a scenario can override and the report says what it was.
-        private val myTimeBetweenArrivals = RandomVariable(
-            this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "${this.name}:TBA"
-        )
-        val timeBetweenArrivals: RandomVariableCIfc
-            get() = myTimeBetweenArrivals
+    // A model element rather than a bare random variable, so that the arrival rate is a named
+    // input a scenario can override and the report says what it was.
+    private val myTimeBetweenArrivals = RandomVariable(
+        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "${this.name}:TBA"
+    )
+    val timeBetweenArrivals: RandomVariableCIfc
+        get() = myTimeBetweenArrivals
 ```
 
-`policy: AssignmentPolicyIfc` is the substitution point, passed straight to `AgvSystem`. That
-interface is the seam: a policy is handed the board — the outstanding tasks and the fleet —
-and answers which vehicle should take which task, however it likes, **including by taking
-simulated time to decide**. Nothing else in this class knows which rule is running.
+`AssignmentPolicyIfc` is the substitution point, and it is the seam: a policy is handed the
+board — the outstanding tasks and the fleet — and answers which vehicle should take which
+task, however it likes, **including by taking simulated time to decide**. Nothing else in
+this class knows which rule is running.
+
+The rule arrives here as a **name** rather than as a policy object, and part 7's `rules()` is
+why: two of the six are the same class with different terms, so the class cannot tell them
+apart and only a name can.
+
+`ruleName` being a `@KSLStringControl` is what makes the whole six-way comparison expressible
+as *one* model with *one* input. The annotation declares the six names the control will
+accept, so an app can offer them in a drop-down and a scenario can set one by name, and the
+setter swaps the policy behind the dispatcher — made fresh, because a batching or
+contract-net policy carries state between decisions. Without it, the same study is six models
+that differ in a line, and the vehicle-examples bundle would ship six entries where one will
+do.
 
 Three carts, one per depot, created by mapping over the depot names.
 
@@ -1812,16 +1829,16 @@ arrival rate is a named input a scenario could override and the report says what
 #### 5. The load's process, and the wait split in two
 
 ```kotlin
-        inner class Load(private val from: String) : Entity() {
-            val production = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(from)
-                val result = transportByFleet(agv, destination = SHIPPING, origin = from)
-                myWaitForVehicle.value = result.waitForAssignment + result.waitForArrival
-                myTimeInSystem.value = time - arrived
-                myDelivered.increment()
-            }
+    inner class Load(private val from: String) : Entity() {
+        val production = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(from)
+            val result = transportByFleet(agv, destination = SHIPPING, origin = from)
+            myWaitForVehicle.value = result.waitForAssignment + result.waitForArrival
+            myTimeInSystem.value = time - arrived
+            myDelivered.increment()
         }
+    }
 ```
 
 `transportByFleet` returns a `FleetTransportResult`, and the two fields added here are **two
@@ -1836,27 +1853,27 @@ not report the split at all, because there is no object in it that holds a commi
 #### 6. The source, and imbalance at the horizon
 
 ```kotlin
-        inner class Source : Entity() {
-            val arrivals = process(isDefaultProcess = true) {
-                repeat(NUM_ARRIVALS) {
-                    delay(myTimeBetweenArrivals)
-                    // Alternating origins, so that which task is nearest genuinely varies.
-                    val from = if (it % 2 == 0) NORTH_PICKUP else SOUTH_PICKUP
-                    activate(Load(from).production)
-                }
+    inner class Source : Entity() {
+        val arrivals = process(isDefaultProcess = true) {
+            repeat(NUM_ARRIVALS) {
+                delay(myTimeBetweenArrivals)
+                // Alternating origins, so that which task is nearest genuinely varies.
+                val from = if (it % 2 == 0) NORTH_PICKUP else SOUTH_PICKUP
+                activate(Load(from).production)
             }
         }
-
-        override fun initialize() {
-            activate(Source().arrivals)
-        }
-
-        override fun replicationEnded() {
-            super.replicationEnded()
-            val counts = fleet.map { it.numTasksCompleted.value }
-            myFleetImbalance.value = counts.max() - counts.min()
-        }
     }
+
+    override fun initialize() {
+        activate(Source().arrivals)
+    }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        val counts = fleet.map { it.numTasksCompleted.value }
+        myFleetImbalance.value = counts.max() - counts.min()
+    }
+}
 ```
 
 A `Source` entity rather than an `EntityGenerator`, because a generator produces identical
@@ -1871,44 +1888,50 @@ largest minus smallest is how unevenly the work fell across the fleet.
 #### 7. The six rules, and the runner
 
 ```kotlin
-    const val REPLICATIONS: Int = 15
-    const val HORIZON: Double = 10_000.0
-    const val WARM_UP: Double = 1_500.0
+const val REPLICATIONS: Int = 15
+const val HORIZON: Double = 10_000.0
+const val WARM_UP: Double = 1_500.0
 
-    /**
-     *  The six rules, in the order they are reported. Scenario names are also experiment names in
-     *  the runner's database and directory names on disk, so they carry no punctuation.
-     */
-    fun rules(): List<Pair<String, AssignmentPolicyIfc>> = listOf(
-        "NearestVehicle" to NearestVehiclePolicy(),
-        "FurthestVehicle" to FurthestVehiclePolicy(),
-        "LeastUsed" to LeastUsedVehiclePolicy(),
-        "BatchedWindow30" to BatchedAssignmentPolicy(30.0),
-        "ContractNetInstant" to ContractNetAssignmentPolicy(0.0),
-        "ContractNetDeadline5" to ContractNetAssignmentPolicy(5.0)
-    )
-
-    /**
-     *  Builds the runner with one scenario per rule. Every scenario gets its own model and the same
-     *  run parameters, and the runner leaves the random streams alone, so the six runs see the same
-     *  arrivals -- which is what makes the paired comparison below valid.
-     */
-    fun buildRunner(): ScenarioRunner {
-        val runner = ScenarioRunner("DispatchingRules")
-        for ((label, policy) in rules()) {
-            val m = Model("DispatchRules_$label")
-            Shop(m, policy)
-            runner.addScenario(
-                model = m,
-                name = label,
-                inputs = emptyMap(),
-                numberReplications = REPLICATIONS,
-                lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
-            )
-        }
-        return runner
+/**
+ *  The six rules, in the order they are reported. Scenario names are also experiment names in
+ *  the runner's database and directory names on disk, so they carry no punctuation.
+ */
+/** The policy object a rule name stands for, made fresh. */
+fun policyFor(ruleName: String): AssignmentPolicyIfc =
+    requireNotNull(rules().toMap()[ruleName]) {
+        "unknown dispatching rule '$ruleName'; expected one of ${rules().map { it.first }}"
     }
+
+fun rules(): List<Pair<String, AssignmentPolicyIfc>> = listOf(
+    "NearestVehicle" to NearestVehiclePolicy(),
+    "FurthestVehicle" to FurthestVehiclePolicy(),
+    "LeastUsed" to LeastUsedVehiclePolicy(),
+    "BatchedWindow30" to BatchedAssignmentPolicy(30.0),
+    "ContractNetInstant" to ContractNetAssignmentPolicy(0.0),
+    "ContractNetDeadline5" to ContractNetAssignmentPolicy(5.0)
+)
+
+/**
+ *  Builds the runner with one scenario per rule. Every scenario gets its own model and the same
+ *  run parameters, and the runner leaves the random streams alone, so the six runs see the same
+ *  arrivals -- which is what makes the paired comparison below valid.
+ */
+fun buildRunner(): ScenarioRunner {
+    val runner = ScenarioRunner("DispatchingRules")
+    for ((label, _) in rules()) {
+        val m = Model("DispatchRules_$label")
+        DispatchingRuleComparison(m, label)
+        runner.addScenario(
+            model = m,
+            name = label,
+            inputs = emptyMap(),
+            numberReplications = REPLICATIONS,
+            lengthOfReplication = HORIZON,
+            lengthOfReplicationWarmUp = WARM_UP
+        )
+    }
+    return runner
+}
 ```
 
 The six policies, in the order the tables print them:
@@ -1980,27 +2003,10 @@ fun main() {
     }
 
     println()
-    println("Reading the three tables")
     println()
-    println("  Throughput: the half-width on any one rule's delivered count is about seven loads,")
-    println("  and the paired half-width is under one. Five of the six rules are indistinguishable")
-    println("  from nearest-vehicle in throughput -- which is a finding here and was an assertion")
-    println("  when this example printed six unpaired averages. Batching is the exception and is")
-    println("  detectably worse: on a saturated fleet the window delays every decision.")
     println()
-    println("  Time in system and imbalance are where the rules actually differ, and both")
-    println("  differences are far outside their intervals. Least-used trades time for evenness on")
-    println("  purpose; furthest-vehicle is deliberately poor so that 'nearest is better' can be")
-    println("  measured rather than asserted.")
     println()
-    println("  The instant auction reproduces nearest-vehicle replication for replication -- a")
-    println("  difference of zero with a half-width of zero. That is a check rather than a")
-    println("  coincidence: with distance bidding the vehicles quote what the rule would have")
-    println("  computed, so the negotiation machinery is shown not to change the answer by itself.")
-    println("  The deadline row then shows what it costs once negotiating is charged for.")
     println()
-    println("  Where the table says no, the honest statement is 'no detectable difference at this")
-    println("  sample size', not 'the rules are the same'.")
 }
 ```
 
@@ -2148,30 +2154,34 @@ demonstrating a rule needs no randomness, no arrival process and no warm-up.
 #### 1. Four places and a ring
 
 ```kotlin
-object RetaskingInFlightExample {
+class RetaskingInFlightExample(
+    ...
+) : ProcessModel(parent, "Shop") {
 
-    const val NEAR_PICKUP: String = "NearStation"
-    const val FAR_PICKUP: String = "FarStation"
-    const val SHIPPING: String = "Shipping"
-    const val DEPOT: String = "Depot"
+    companion object {
 
-    fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
-        .intersection("N", x = 0.0, y = 100.0)
-        .intersection("E", x = 100.0, y = 0.0)
-        .intersection("S", x = 0.0, y = -100.0)
-        .intersection("W", x = -100.0, y = 0.0)
-        .intersection("Park", x = 0.0, y = 140.0)
-        .link("NE", "N", "E", length = 100.0, zoneLength = 10.0, beginDirection = 315.0)
-        .link("ES", "E", "S", length = 100.0, zoneLength = 10.0, beginDirection = 225.0)
-        .link("SW", "S", "W", length = 100.0, zoneLength = 10.0, beginDirection = 135.0)
-        .link("WN", "W", "N", length = 100.0, zoneLength = 10.0, beginDirection = 45.0)
-        .link("ParkSpur", "N", "Park", length = 20.0, zoneLength = 20.0,
-            type = LinkType.SPUR, beginDirection = 90.0)
-        .station(NEAR_PICKUP, "E")
-        .station(FAR_PICKUP, "W")
-        .station(SHIPPING, "S")
-        .station(DEPOT, "Park")
-        .build()
+        const val NEAR_PICKUP: String = "NearStation"
+        const val FAR_PICKUP: String = "FarStation"
+        const val SHIPPING: String = "Shipping"
+        const val DEPOT: String = "Depot"
+
+        fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
+            .intersection("N", x = 0.0, y = 100.0)
+            .intersection("E", x = 100.0, y = 0.0)
+            .intersection("S", x = 0.0, y = -100.0)
+            .intersection("W", x = -100.0, y = 0.0)
+            .intersection("Park", x = 0.0, y = 140.0)
+            .link("NE", "N", "E", length = 100.0, zoneLength = 10.0, beginDirection = 315.0)
+            .link("ES", "E", "S", length = 100.0, zoneLength = 10.0, beginDirection = 225.0)
+            .link("SW", "S", "W", length = 100.0, zoneLength = 10.0, beginDirection = 135.0)
+            .link("WN", "W", "N", length = 100.0, zoneLength = 10.0, beginDirection = 45.0)
+            .link("ParkSpur", "N", "Park", length = 20.0, zoneLength = 20.0,
+                type = LinkType.SPUR, beginDirection = 90.0)
+            .station(NEAR_PICKUP, "E")
+            .station(FAR_PICKUP, "W")
+            .station(SHIPPING, "S")
+            .station(DEPOT, "Park")
+            .build()
 ```
 
 Figure 5's ring: four legs of 100, one way round `N → E → S → W → N`, cut at 10 so each
@@ -2184,39 +2194,39 @@ out of that: from `N`, the near pickup is one leg ahead and the far pickup is th
 #### 2. The shop
 
 ```kotlin
-    class Shop(
-        parent: ModelElement,
-        policy: AssignmentPolicyIfc,
-        private val nearArrivesAt: Double
-    ) : ProcessModel(parent, "Shop") {
+class RetaskingInFlightExample(
+    parent: ModelElement,
+    policy: AssignmentPolicyIfc,
+    private val nearArrivesAt: Double
+) : ProcessModel(parent, "Shop") {
 
-        val network = createNetwork()
+    val network = createNetwork()
 
-        init {
-            spatialModel = network
-        }
+    init {
+        spatialModel = network
+    }
 
-        val agv = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
+    val agv = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
 
-        val cart = AgvVehicle(
-            agv, TransporterPlacement.At(DEPOT), ConstantRV(10.0), name = "Cart"
-        ).apply { homeBase = DEPOT }
+    val cart = AgvVehicle(
+        agv, TransporterPlacement.At(DEPOT), ConstantRV(10.0), name = "Cart"
+    ).apply { homeBase = DEPOT }
 
-        val delivered = linkedMapOf<String, FleetTransportResult>()
+    val delivered = linkedMapOf<String, FleetTransportResult>()
 
-        inner class Load(private val label: String, private val from: String) : Entity(label) {
-            val production = process(isDefaultProcess = true) {
-                currentLocation = network.requireLocation(from)
-                delivered[label] = transportByFleet(agv, destination = SHIPPING, origin = from)
-            }
-        }
-
-        override fun initialize() {
-            delivered.clear()
-            activate(Load("far", FAR_PICKUP).production)
-            activate(Load("near", NEAR_PICKUP).production, timeUntilActivation = nearArrivesAt)
+    inner class Load(private val label: String, private val from: String) : Entity(label) {
+        val production = process(isDefaultProcess = true) {
+            currentLocation = network.requireLocation(from)
+            delivered[label] = transportByFleet(agv, destination = SHIPPING, origin = from)
         }
     }
+
+    override fun initialize() {
+        delivered.clear()
+        activate(Load("far", FAR_PICKUP).production)
+        activate(Load("near", NEAR_PICKUP).production, timeUntilActivation = nearArrivesAt)
+    }
+}
 ```
 
 One cart at `ConstantRV(10.0)`, the assignment policy taken as a parameter, and no arrival
@@ -2236,31 +2246,31 @@ real source of quietly wrong second replications.
 #### 3. Running one scenario, and reporting it
 
 ```kotlin
-    fun run(policy: AssignmentPolicyIfc, nearArrivesAt: Double): Shop {
-        val m = Model("Retasking")
-        val shop = Shop(m, policy, nearArrivesAt)
-        m.numberOfReplications = 1
-        m.lengthOfReplication = 2_000.0
-        m.simulate()
-        return shop
-    }
+fun run(policy: AssignmentPolicyIfc, nearArrivesAt: Double): RetaskingInFlightExample {
+    val m = Model("Retasking")
+    val shop = RetaskingInFlightExample(m, policy, nearArrivesAt)
+    m.numberOfReplications = 1
+    m.lengthOfReplication = 2_000.0
+    m.simulate()
+    return shop
+}
 
-    private fun report(title: String, shop: Shop) {
-        println("  $title")
-        for ((label, r) in shop.delivered) {
-            println(
-                "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
-                    label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
-                )
-            )
-        }
+private fun report(title: String, shop: RetaskingInFlightExample) {
+    println("  $title")
+    for ((label, r) in shop.delivered) {
         println(
-            "    revocations: %.0f".format(
-                shop.agv.dispatcher.numAssignmentsRevoked.value
+            "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
+                label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
             )
         )
-        println()
     }
+    println(
+        "    revocations: %.0f".format(
+            shop.agv.dispatcher.numAssignmentsRevoked.value
+        )
+    )
+    println()
+}
 ```
 
 **One replication, no warm-up, and no confidence intervals — and that is the right design
@@ -2296,20 +2306,8 @@ nothing that holds a commitment, and so nothing that could revoke one.
             run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 15.0)
         )
 
-        println("  The middle case is the capability; the third is what makes it a rule rather than a")
-        println("  reflex. A policy that always swapped would produce the middle result and the wrong")
-        println("  third one, and on a busy floor it would churn - revoking and re-revoking as the")
-        println("  board shifts, with carts spending their time changing their minds. The threshold")
-        println("  is what makes a swap have to be worth making.")
         println()
-        println("  The cart never reverses. A redirect takes effect at the next zone boundary,")
-        println("  because something between two places cannot stop and turn round; the guide path")
-        println("  decides when, and it is the same code the passive subsystem has always used.")
         println()
-        println("  Note the reassignment count on the load that was put back. Its accumulated wait")
-        println("  survives the swap - the task never left the queue - so a load that has been")
-        println("  waiting longest still looks like one, and the fact that it was passed over is")
-        println("  reported rather than absorbed.")
     }
 }
 ```
@@ -2347,8 +2345,8 @@ fun main() {
 ```
 
 The corpus convention: a top-level `fun main()` that runs the study. Keeping the body in the
-object and calling it from here means the study can also be invoked from a test or another
-example without going through a `main`.
+model class's companion and calling it from here means the study can also be invoked from a
+test or another example without going through a `main`.
 
 ### What it shows
 
@@ -2468,24 +2466,28 @@ import ksl.utilities.random.rvariable.ExponentialRV
 ```
 
 ```kotlin
-object MultiFloorHospitalExample {
+class MultiFloorHospitalExample(
+    ...
+) : ProcessModel(parent, "Hospital") {
 
-    const val PHARMACY: String = "Pharmacy"
-    const val WARD: String = "WardA"
-    const val LOBBY: String = "Lobby"
+    companion object {
 
-    /** The porters' parking spurs, one apiece. Two porters cannot stand in one zone. */
-    fun parkingSpur(i: Int): String = "Park$i"
+        const val PHARMACY: String = "Pharmacy"
+        const val WARD: String = "WardA"
+        const val LOBBY: String = "Lobby"
 
-    const val SPEED: Double = 10.0
+        /** The porters' parking spurs, one apiece. Two porters cannot stand in one zone. */
+        fun parkingSpur(i: Int): String = "Park$i"
 
-    /** The circuit is held at this length whatever the shaft costs, so the fleet studies compare. */
-    const val CIRCUIT: Double = 400.0
+        const val SPEED: Double = 10.0
 
-    /** Time to make an order up at the pharmacy, which also keeps the fleet from phase-locking. */
-    const val MEAN_PREPARATION: Double = 1.0
+        /** The circuit is held at this length whatever the shaft costs, so the fleet studies compare. */
+        const val CIRCUIT: Double = 400.0
 
-    private const val MAX_PORTERS = 8
+        /** Time to make an order up at the pharmacy, which also keeps the fleet from phase-locking. */
+        const val MEAN_PREPARATION: Double = 1.0
+
+        private const val MAX_PORTERS = 8
 ```
 
 `parkingSpur(i)` is a function rather than a constant because there is one per porter and the
@@ -2495,43 +2497,43 @@ what it buys. `MAX_PORTERS` is how many parking spurs get built.
 #### 2. The layout, and the two lines that make it a hospital
 
 ```kotlin
-    fun createNetwork(shaftLength: Double): GuidedPathNetwork {
-        val corridor = (CIRCUIT - 2.0 * shaftLength - 120.0) / 2.0
-        require(corridor > 0.0) { "the shafts leave no room for corridors" }
-        val builder = GuidedPathNetwork.builder("Hospital")
-            .intersection("G1", x = 0.0, y = 0.0)
-            .intersection("G2", x = 60.0, y = 0.0)
-            .intersection("G3", x = 60.0 + corridor, y = 0.0)
-            // The first floor sits directly above the ground floor. Before an intersection carried
-            // a height this layout had to offset the upper floor in y to be drawable at all, which
-            // put the wards somewhere they are not. The heights are layout only: routing reads
-            // declared link lengths and never a coordinate.
-            .intersection("F1", x = 60.0 + corridor, y = 0.0, z = shaftLength)
-            .intersection("F2", x = 60.0, y = 0.0, z = shaftLength)
-            .intersection("F3", x = 0.0, y = 0.0, z = shaftLength)
-            .link("GroundA", "G1", "G2", length = 60.0, zoneLength = 10.0, beginDirection = 0.0)
-            .link("GroundB", "G2", "G3", length = corridor, zoneLength = 10.0, beginDirection = 0.0)
-            // The lift: one zone, so exactly one porter may be inside it at a time.
-            .link("ShaftUp", "G3", "F1", length = shaftLength, zoneLength = shaftLength, beginDirection = 90.0)
-            .link("FirstA", "F1", "F2", length = corridor, zoneLength = 10.0, beginDirection = 180.0)
-            .link("FirstB", "F2", "F3", length = 60.0, zoneLength = 10.0, beginDirection = 180.0)
-            .link("ShaftDown", "F3", "G1", length = shaftLength, zoneLength = shaftLength, beginDirection = 270.0)
-            .station(LOBBY, "G1")
-            .station(WARD, "G2")
-            .station(PHARMACY, "F2")
-        // A spur per porter. Without one, porters "at the lobby" would be several vehicles in one
-        // zone, which a guide path does not allow -- and a porter left standing on the circuit
-        // would deny that space to everyone else for the rest of the run.
-        for (i in 1..MAX_PORTERS) {
-            builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
-                .link(
-                    "Spur$i", "G1", "P$i", length = 20.0, zoneLength = 20.0,
-                    type = LinkType.SPUR, beginDirection = 225.0
-                )
-                .station(parkingSpur(i), "P$i")
-        }
-        return builder.build()
+fun createNetwork(shaftLength: Double): GuidedPathNetwork {
+    val corridor = (CIRCUIT - 2.0 * shaftLength - 120.0) / 2.0
+    require(corridor > 0.0) { "the shafts leave no room for corridors" }
+    val builder = GuidedPathNetwork.builder("Hospital")
+        .intersection("G1", x = 0.0, y = 0.0)
+        .intersection("G2", x = 60.0, y = 0.0)
+        .intersection("G3", x = 60.0 + corridor, y = 0.0)
+        // The first floor sits directly above the ground floor. Before an intersection carried
+        // a height this layout had to offset the upper floor in y to be drawable at all, which
+        // put the wards somewhere they are not. The heights are layout only: routing reads
+        // declared link lengths and never a coordinate.
+        .intersection("F1", x = 60.0 + corridor, y = 0.0, z = shaftLength)
+        .intersection("F2", x = 60.0, y = 0.0, z = shaftLength)
+        .intersection("F3", x = 0.0, y = 0.0, z = shaftLength)
+        .link("GroundA", "G1", "G2", length = 60.0, zoneLength = 10.0, beginDirection = 0.0)
+        .link("GroundB", "G2", "G3", length = corridor, zoneLength = 10.0, beginDirection = 0.0)
+        // The lift: one zone, so exactly one porter may be inside it at a time.
+        .link("ShaftUp", "G3", "F1", length = shaftLength, zoneLength = shaftLength, beginDirection = 90.0)
+        .link("FirstA", "F1", "F2", length = corridor, zoneLength = 10.0, beginDirection = 180.0)
+        .link("FirstB", "F2", "F3", length = 60.0, zoneLength = 10.0, beginDirection = 180.0)
+        .link("ShaftDown", "F3", "G1", length = shaftLength, zoneLength = shaftLength, beginDirection = 270.0)
+        .station(LOBBY, "G1")
+        .station(WARD, "G2")
+        .station(PHARMACY, "F2")
+    // A spur per porter. Without one, porters "at the lobby" would be several vehicles in one
+    // zone, which a guide path does not allow -- and a porter left standing on the circuit
+    // would deny that space to everyone else for the rest of the run.
+    for (i in 1..MAX_PORTERS) {
+        builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
+            .link(
+                "Spur$i", "G1", "P$i", length = 20.0, zoneLength = 20.0,
+                type = LinkType.SPUR, beginDirection = 225.0
+            )
+            .station(parkingSpur(i), "P$i")
     }
+    return builder.build()
+}
 ```
 
 Two lines here matter more than the rest.
@@ -2559,84 +2561,84 @@ is what makes the capacity arithmetic exact.
 #### 3. The hospital, a control, and a closed population
 
 ```kotlin
-    class Hospital(
-        parent: ModelElement,
-        val numPorters: Int,
-        shaftLength: Double,
-        ordersInCirculation: Int
-    ) : ProcessModel(parent, "Hospital") {
+class MultiFloorHospitalExample(
+    parent: ModelElement,
+    val numPorters: Int,
+    shaftLength: Double,
+    ordersInCirculation: Int
+) : ProcessModel(parent, "Hospital") {
 
-        /**
-         *  How much work is outstanding. Read only in [initialize], so it is a genuine input a
-         *  scenario can override rather than a structural choice baked into the constructor.
-         */
-        @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
-        var ordersInCirculation: Int = ordersInCirculation
-            set(value) {
-                require(value > 0) { "There must be at least one order in circulation." }
-                require(!model.isRunning) { "Cannot change the outstanding work while the model is running." }
-                field = value
-            }
-
-        val network = createNetwork(shaftLength)
-
-        init {
-            spatialModel = network
+    /**
+     *  How much work is outstanding. Read only in [initialize], so it is a genuine input a
+     *  scenario can override rather than a structural choice baked into the constructor.
+     */
+    @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0)
+    var ordersInCirculation: Int = ordersInCirculation
+        set(value) {
+            require(value > 0) { "There must be at least one order in circulation." }
+            require(!model.isRunning) { "Cannot change the outstanding work while the model is running." }
+            field = value
         }
 
-        val agv = AgvSystem(this, network, name = "Agv")
+    val network = createNetwork(shaftLength)
 
-        val porters: List<AgvVehicle> = (1..numPorters).map { i ->
-            AgvVehicle(
-                agv, TransporterPlacement.At(parkingSpur(i)), ConstantRV(SPEED), name = "Porter$i"
-            ).apply { homeBase = parkingSpur(i) }
-        }
+    init {
+        spatialModel = network
+    }
 
-        private val myDelivered = Counter(this, "Delivered")
-        val delivered: CounterCIfc
-            get() = myDelivered
+    val agv = AgvSystem(this, network, name = "Agv")
 
-        private val myCycleTime = Response(this, "CycleTime")
-        val cycleTime: ResponseCIfc
-            get() = myCycleTime
+    val porters: List<AgvVehicle> = (1..numPorters).map { i ->
+        AgvVehicle(
+            agv, TransporterPlacement.At(parkingSpur(i)), ConstantRV(SPEED), name = "Porter$i"
+        ).apply { homeBase = parkingSpur(i) }
+    }
 
-        /** The fleet's average blocked fraction, observed once per replication so that it carries a
-         *  confidence interval like any other response. Averaging the porters' across-replication
-         *  averages afterwards would give the same point estimate and no interval at all. */
-        private val myFleetBlocked = Response(this, "FleetFracBlocked")
-        val fleetBlocked: ResponseCIfc
-            get() = myFleetBlocked
+    private val myDelivered = Counter(this, "Delivered")
+    val delivered: CounterCIfc
+        get() = myDelivered
 
-        private val myPreparation = RandomVariable(
-            this, ExponentialRV(MEAN_PREPARATION, 1), name = "PreparationTime"
-        )
-        val preparationRV: RandomVariableCIfc
-            get() = myPreparation
+    private val myCycleTime = Response(this, "CycleTime")
+    val cycleTime: ResponseCIfc
+        get() = myCycleTime
 
-        inner class Order : Entity() {
-            val delivery: KSLProcess = process(isDefaultProcess = true) {
-                val placed = time
-                currentLocation = network.requireLocation(PHARMACY)
-                delay(myPreparation)
-                transportByFleet(agv, destination = WARD, origin = PHARMACY)
-                myCycleTime.value = time - placed
-                myDelivered.increment()
-                // The shelf is never the constraint: the next order is ready the moment this one
-                // is delivered, which is what holds the outstanding work constant.
-                activate(Order().delivery)
-            }
-        }
+    /** The fleet's average blocked fraction, observed once per replication so that it carries a
+     *  confidence interval like any other response. Averaging the porters' across-replication
+     *  averages afterwards would give the same point estimate and no interval at all. */
+    private val myFleetBlocked = Response(this, "FleetFracBlocked")
+    val fleetBlocked: ResponseCIfc
+        get() = myFleetBlocked
 
-        override fun initialize() {
-            repeat(ordersInCirculation) { activate(Order().delivery) }
-        }
+    private val myPreparation = RandomVariable(
+        this, ExponentialRV(MEAN_PREPARATION, 1), name = "PreparationTime"
+    )
+    val preparationRV: RandomVariableCIfc
+        get() = myPreparation
 
-        override fun replicationEnded() {
-            super.replicationEnded()
-            myFleetBlocked.value =
-                porters.sumOf { it.fracTimeBlocked.withinReplicationStatistic.weightedAverage } / numPorters
+    inner class Order : Entity() {
+        val delivery: KSLProcess = process(isDefaultProcess = true) {
+            val placed = time
+            currentLocation = network.requireLocation(PHARMACY)
+            delay(myPreparation)
+            transportByFleet(agv, destination = WARD, origin = PHARMACY)
+            myCycleTime.value = time - placed
+            myDelivered.increment()
+            // The shelf is never the constraint: the next order is ready the moment this one
+            // is delivered, which is what holds the outstanding work constant.
+            activate(Order().delivery)
         }
     }
+
+    override fun initialize() {
+        repeat(ordersInCirculation) { activate(Order().delivery) }
+    }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        myFleetBlocked.value =
+            porters.sumOf { it.fracTimeBlocked.withinReplicationStatistic.weightedAverage } / numPorters
+    }
+}
 ```
 
 **`ordersInCirculation` is a `@KSLControl`.** It is read only in `initialize()`, so it is a
@@ -2660,60 +2662,60 @@ carries a half-width like any other response.
 #### 4. The watcher, and two mistakes it is built to avoid
 
 ```kotlin
-    class WatchedHospital(
-        parent: ModelElement,
-        numPorters: Int,
-        shaftLength: Double,
-        ordersInCirculation: Int,
-        private val horizon: Double
-    ) : ProcessModel(parent, "Watched") {
+class WatchedHospital(
+    parent: ModelElement,
+    numPorters: Int,
+    shaftLength: Double,
+    ordersInCirculation: Int,
+    private val horizon: Double
+) : ProcessModel(parent, "Watched") {
 
-        private val inner = Hospital(this, numPorters, shaftLength, ordersInCirculation)
+    private val inner = MultiFloorHospitalExample(this, numPorters, shaftLength, ordersInCirculation)
 
-        val network get() = inner.network
-        val delivered get() = inner.delivered
+    val network get() = inner.network
+    val delivered get() = inner.delivered
 
-        /** How many of the samples found the up shaft reserved by somebody. */
-        var samples: Int = 0
-            private set
-        var samplesHeld: Int = 0
-            private set
+    /** How many of the samples found the up shaft reserved by somebody. */
+    var samples: Int = 0
+        private set
+    var samplesHeld: Int = 0
+        private set
 
-        /** Which porters were ever seen holding it. */
-        val holders: MutableSet<String> = sortedSetOf()
+    /** Which porters were ever seen holding it. */
+    val holders: MutableSet<String> = sortedSetOf()
 
-        /** The largest number of porters found inside the shaft at once. */
-        var maxInShaft: Int = 0
-            private set
+    /** The largest number of porters found inside the shaft at once. */
+    var maxInShaft: Int = 0
+        private set
 
-        override fun initialize() {
-            samples = 0
-            samplesHeld = 0
-            holders.clear()
-            maxInShaft = 0
-            var t = 0.5
-            while (t < horizon) {
-                schedule(::sampleShaft, t)
-                t += 1.0
-            }
-        }
-
-        @Suppress("UNUSED_PARAMETER")
-        private fun sampleShaft(event: KSLEvent<Nothing>) {
-            val shaft = network.link("ShaftUp")!!.zones
-            // `hasHolder`, not `isCovered` -- see the note in this file's header.
-            val inside = shaft.count { it.hasHolder }
-            samples++
-            if (inside > 0) samplesHeld++
-            if (inside > maxInShaft) maxInShaft = inside
-            shaft.forEach { z -> z.holder?.let { holders.add(it.name) } }
+    override fun initialize() {
+        samples = 0
+        samplesHeld = 0
+        holders.clear()
+        maxInShaft = 0
+        var t = 0.5
+        while (t < horizon) {
+            schedule(::sampleShaft, t)
+            t += 1.0
         }
     }
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun sampleShaft(event: KSLEvent<Nothing>) {
+        val shaft = network.link("ShaftUp")!!.zones
+        // `hasHolder`, not `isCovered` -- see the note in this file's header.
+        val inside = shaft.count { it.hasHolder }
+        samples++
+        if (inside > 0) samplesHeld++
+        if (inside > maxInShaft) maxInShaft = inside
+        shaft.forEach { z -> z.holder?.let { holders.add(it.name) } }
+    }
+}
 ```
 
 Study 1 needs to know whether the lift is doing what the model claims, and it cannot ask the
 lift, because there is no lift object. So it samples the shaft's zones directly.
-`WatchedHospital` wraps a `Hospital` rather than extending it, which keeps the observation
+`WatchedHospital` wraps a `MultiFloorHospitalExample` rather than extending it, which keeps the observation
 apparatus out of the model being observed.
 
 Two details, both learned the hard way:
@@ -2732,34 +2734,34 @@ a replication.
 #### 5. The experiment design
 
 ```kotlin
-    const val REPLICATIONS: Int = 4
-    const val HORIZON: Double = 4_000.0
-    const val WARM_UP: Double = 500.0
+const val REPLICATIONS: Int = 4
+const val HORIZON: Double = 4_000.0
+const val WARM_UP: Double = 500.0
 
-    /** How much work is outstanding: enough that a porter never waits for one, and no more. */
-    fun ordersFor(numPorters: Int): Int = numPorters + 2
+/** How much work is outstanding: enough that a porter never waits for one, and no more. */
+fun ordersFor(numPorters: Int): Int = numPorters + 2
 
-    /** Deliveries per 100 time units, which is the quantity a capacity study is about. */
-    fun throughputPer100(deliveries: Double): Double = 100.0 * deliveries / (HORIZON - WARM_UP)
+/** Deliveries per 100 time units, which is the quantity a capacity study is about. */
+fun throughputPer100(deliveries: Double): Double = 100.0 * deliveries / (HORIZON - WARM_UP)
 
-    /**
-     *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because
-     *  the fleet size is structural -- the network carries one parking spur per porter -- so this
-     *  is a runner over model instances rather than over control values.
-     */
-    fun buildRunner(name: String, shaftLength: Double, sizes: List<Int>): ScenarioRunner {
-        val runner = ScenarioRunner(name)
-        for (n in sizes) {
-            val m = Model("${name}_$n")
-            Hospital(m, n, shaftLength, ordersFor(n))
-            runner.addScenario(
-                model = m, name = "Porters$n", inputs = emptyMap(),
-                numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-                lengthOfReplicationWarmUp = WARM_UP
-            )
-        }
-        return runner
+/**
+ *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because
+ *  the fleet size is structural -- the network carries one parking spur per porter -- so this
+ *  is a runner over model instances rather than over control values.
+ */
+fun buildRunner(name: String, shaftLength: Double, sizes: List<Int>): ScenarioRunner {
+    val runner = ScenarioRunner(name)
+    for (n in sizes) {
+        val m = Model("${name}_$n")
+        MultiFloorHospitalExample(m, n, shaftLength, ordersFor(n))
+        runner.addScenario(
+            model = m, name = "Porters$n", inputs = emptyMap(),
+            numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
+            lengthOfReplicationWarmUp = WARM_UP
+        )
     }
+    return runner
+}
 ```
 
 Four replications of 4,000 with a 500 warm-up.
@@ -2869,16 +2871,7 @@ confirmation, and it is what distinguishes a capacity finding from a coincidence
     println("    most porters ever inside the shaft:      %8d".format(watched.maxInShaft))
     println("    porters seen using it:                   %s".format(watched.holders.joinToString(", ")))
     println()
-    println("  Both floors are reachable and the routed distance is a real number, so the network")
-    println("  knows the floors connect - by declared length, since nothing here has a third")
-    println("  coordinate. Every porter used the lift, and never two at once. Nothing was written")
-    println("  to make that true: a zone admits one vehicle, and a lift is one zone.")
     println()
-    println("  The held fraction is worth checking against the deliveries rather than taken on")
-    println("  trust. Each delivery cycle rides the up shaft once, at 8 units a ride, so 42")
-    println("  deliveries in 600 units account for about 0.56 of it. The sampled figure is a")
-    println("  little higher, and should be: the zone is held from the moment it is reserved,")
-    println("  not from the moment a porter enters it, and that reservation is the exclusion.")
     println()
 
     MultiFloorHospitalExample.fleetTable(
@@ -2892,49 +2885,12 @@ confirmation, and it is what distinguishes a capacity finding from a coincidence
     println("  Full half-width summary reports for every fleet size: ${KSL.outDir}")
     println()
 
-    println("  Read the two tables against each other, one porter first. A single porter travels")
-    println("  the same 400 in both, so it delivers at the same rate in both, which is the whole")
-    println("  reason the corridors were lengthened when the shaft was shortened. Any difference")
-    println("  further down the tables is therefore about how many porters the shaft will pass,")
-    println("  and about nothing else.")
     println()
-    println("  Study 2 scales cleanly to four porters - 2.486, 4.971, 7.486, 10.000, which is")
-    println("  essentially 2.5 apiece - then stops dead at 12.486 for six porters and for eight.")
-    println("  That ceiling is not an artefact of the fleet or of the dispatching rule: an 8")
-    println("  unit ride passes at most 12.50 deliveries per 100 units, which is five porters'")
-    println("  worth, and the fleet reaches it and can go no further however many more are hired.")
     println()
-    println("  What the surplus porters do instead is visible in the last two columns, and the")
-    println("  arithmetic is exact. Six porters are blocked 0.1667 of the time and 6 x 0.1667 is")
-    println("  1; eight are blocked 0.3750 and 8 x 0.3750 is 3. One porter's worth of the fleet")
-    println("  is standing still at six, three porters' worth at eight - precisely the surplus")
-    println("  over the five the shaft will carry. Cycle time rises to match, from 60.0 at four")
-    println("  porters to 80.0 at eight, because the extra orders are waiting rather than moving.")
-    println("  Buying porters buys queue.")
     println()
-    println("  In study 3 the same fleet sizes keep converting into throughput: eight porters")
-    println("  deliver 19.94 per 100 against the 20.00 that perfect scaling would give, because a")
-    println("  2 unit ride will pass 50 per 100 and the fleet never comes near it. Same circuit,")
-    println("  same porters, same rule, same code - a different lift.")
     println()
-    println("  The columns are not independent, and it is worth checking that they hang together.")
-    println("  Little's law says orders outstanding = throughput x cycle time, with throughput")
-    println("  put back on a per-unit basis by dividing the column by 100. Eight porters in study")
-    println("  2: 0.12486 x 80.00 = 9.99, against 10 orders out. In study 3: 0.19943 x 49.98 =")
-    println("  9.97. It holds because the system is closed, which is also why cycle time here is")
-    println("  a number about the hospital rather than about the length of the run.")
     println()
-    println("  The warnings above each table are the horizon diagnostics doing their job and")
-    println("  finding nothing wrong. A closed system necessarily has its whole population")
-    println("  outstanding when the clock stops, so those counts never exceed the orders-out")
-    println("  column - which is exactly the reading that would tell you something was wrong if")
-    println("  they did.")
     println()
-    println("  What none of this needed: an elevator object, a floor attribute, a capacity")
-    println("  semaphore, or a branch anywhere in the dispatcher or the vehicle control loop. A")
-    println("  lift is a one-way link of a single zone. The floors are placed at their own")
-    println("  heights, so the picture is right as well as the behaviour - and because a height")
-    println("  is layout and nothing else, placing them changed not one number above.")
     
 }
 ```
@@ -3432,7 +3388,6 @@ fun main() {
         println("  Over the same range fleet time blocked goes %.1f%% -> %.1f%%.".format(
             100.0 * a.blocked, 100.0 * b.blocked
         ))
-        println("  The carts bought past the ceiling are not idle. They are in each other's way.")
     }
     val gridlock = twoLaneSizes.filter { two.getValue(it).deadlocked }
     if (gridlock.isNotEmpty()) {
@@ -3440,13 +3395,6 @@ fun main() {
         println()
         println("  At %d cart(s) the grid **deadlocks**, among %d transporters.".format(
             n, two.getValue(n).deadlockedAmong))
-        println("  Paired one-way lanes are not deadlock-proof. They remove the head-on meeting *on")
-        println("  a link* -- two vehicles on one span can never face each other. They do nothing")
-        println("  about a cycle that closes through the junctions at each end of a span: both lanes")
-        println("  full nose to tail, and each junction held by a vehicle wanting the other lane.")
-        println("  That is blocking the box, and it is what a second lane does not buy you out of.")
-        println("  The logged report above names every participant, which is what says whether a")
-        println("  cycle closed through a lane or through the junctions.")
     }
 
     val one = oneLaneSizes.associateWith { runFleet(it, twoLane = false) }
@@ -3458,17 +3406,9 @@ fun main() {
     println()
     if (oneMax != null && twoMax != null) {
         println("  Single two-way aisles carry %d cart(s); paired one-way lanes carry %d.".format(oneMax, twoMax))
-        println("  That is what the second lane is worth on this building -- stated as the fleet each")
-        println("  design can run, rather than as an opinion about how wide an aisle ought to be.")
     }
     println()
-    println("  A bidirectional link is one lane used by one direction at a time under a direction")
-    println("  lock, so a vehicle waiting at the mouth can stand on the far vehicle's destination")
-    println("  and close the cycle that way. Prefer paired one-way lanes wherever the aisle really")
-    println("  is wide enough for two; keep BIDIRECTIONAL for an aisle that is not.")
     println()
-    println("  Neither finding is available to a free-path model. It has no aisle to fill, so it")
-    println("  rewards every cart for ever and cannot deadlock at all.")
 }
 ```
 
@@ -3854,32 +3794,11 @@ fun main() {
     }
 
     println()
-    println("Read the throughput row of each pair first.")
     println()
-    println("  At window 25 the two capacities deliver indistinguishable loads, so the time-in-system")
-    println("  difference beside it is a comparison of two fleets doing the same work, and carrying")
-    println("  up to four is worth having. At window 40 the capacity-1 fleet delivers detectably")
-    println("  fewer: it has fallen behind, so its time in system is a number about the loads it")
-    println("  managed rather than about the fleet, and comparing the times would be comparing two")
-    println("  different questions.")
     println()
-    println("  Check throughput parity before believing a time-in-system comparison. The paired")
-    println("  difference is what makes 'indistinguishable' and 'detectably fewer' statements about")
-    println("  the run rather than about the reader's eye.")
     println()
-    println("  The replication count is part of that. At ten replications the window-40 throughput")
-    println("  deficit was about eight loads with a half-width of nine: the point estimate said the")
-    println("  fleet had fallen behind and the interval could not tell it from noise, which is a")
-    println("  reason to run more replications rather than to believe the point estimate. Forty")
-    println("  resolves it.")
     println()
-    println("The blocked column is zero everywhere, and will be in every free-path run.")
     println()
-    println("  Nothing here waits for another vehicle -- that is what a free path means. The row is")
-    println("  registered and flat on purpose: it is this model's central assumption showing up in")
-    println("  the output rather than being left to be remembered. A guide path fills that column")
-    println("  in, and the difference between the two is what a substrate comparison measures.")
-    println("  See ksl.examples.general.agv for the same machinery where the aisles push back.")
     println()
     println("  Full half-width summary reports for all four cells: ${KSL.outDir}")
 }
@@ -4012,22 +3931,24 @@ measured.
 #### 1. The size of the thing being measured
 
 ```kotlin
-object GuidedPathThroughputBenchmark {
+class GuidedPathThroughputBenchmark(parent: ModelElement) : ModelElement(parent, "SaturatedFleet") {
 
-    /** Rows of the reference torus. */
-    const val ROWS: Int = 4
+    companion object {
 
-    /** Columns of the reference torus: four by five is twenty intersections and forty links. */
-    const val COLUMNS: Int = 5
+        /** Rows of the reference torus. */
+        const val ROWS: Int = 4
 
-    /** Zones per link, chosen so the network holds four hundred zones. */
-    const val ZONES_PER_LINK: Int = 10
+        /** Columns of the reference torus: four by five is twenty intersections and forty links. */
+        const val COLUMNS: Int = 5
 
-    /** Vehicles under saturated demand. */
-    const val NUM_VEHICLES: Int = 20
+        /** Zones per link, chosen so the network holds four hundred zones. */
+        const val ZONES_PER_LINK: Int = 10
 
-    const val ZONE_LENGTH: Double = 10.0
-    const val VELOCITY: Double = 10.0
+        /** Vehicles under saturated demand. */
+        const val NUM_VEHICLES: Int = 20
+
+        const val ZONE_LENGTH: Double = 10.0
+        const val VELOCITY: Double = 10.0
 ```
 
 Six constants and the benchmark is specified: 4 × 5 = 20 intersections, two links
@@ -4042,35 +3963,35 @@ distribution you chose.
 #### 2. The torus
 
 ```kotlin
-    private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
+private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
 
-    /**
-     *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
-     *  the edges. Every intersection is reachable from every other, no link is two-way, and there
-     *  are exactly two links per intersection.
-     */
-    fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork {
-        var b = GuidedPathNetwork.builder(networkName)
-        for (r in 0 until ROWS) {
-            for (c in 0 until COLUMNS) {
-                b = b.intersection(nodeName(r, c), x = c * 100.0, y = -r * 100.0)
-            }
+/**
+ *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
+ *  the edges. Every intersection is reachable from every other, no link is two-way, and there
+ *  are exactly two links per intersection.
+ */
+fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork {
+    var b = GuidedPathNetwork.builder(networkName)
+    for (r in 0 until ROWS) {
+        for (c in 0 until COLUMNS) {
+            b = b.intersection(nodeName(r, c), x = c * 100.0, y = -r * 100.0)
         }
-        val length = ZONE_LENGTH * ZONES_PER_LINK
-        for (r in 0 until ROWS) {
-            for (c in 0 until COLUMNS) {
-                b = b.link(
-                    "E${r}_$c", nodeName(r, c), nodeName(r, (c + 1) % COLUMNS),
-                    length = length, zoneLength = ZONE_LENGTH, beginDirection = 0.0
-                )
-                b = b.link(
-                    "S${r}_$c", nodeName(r, c), nodeName((r + 1) % ROWS, c),
-                    length = length, zoneLength = ZONE_LENGTH, beginDirection = 270.0
-                )
-            }
-        }
-        return b.build()
     }
+    val length = ZONE_LENGTH * ZONES_PER_LINK
+    for (r in 0 until ROWS) {
+        for (c in 0 until COLUMNS) {
+            b = b.link(
+                "E${r}_$c", nodeName(r, c), nodeName(r, (c + 1) % COLUMNS),
+                length = length, zoneLength = ZONE_LENGTH, beginDirection = 0.0
+            )
+            b = b.link(
+                "S${r}_$c", nodeName(r, c), nodeName((r + 1) % ROWS, c),
+                length = length, zoneLength = ZONE_LENGTH, beginDirection = 270.0
+            )
+        }
+    }
+    return b.build()
+}
 ```
 
 ```kotlin
@@ -4098,45 +4019,45 @@ that occasionally deadlocked would be measuring deadlock recovery.
 #### 3. The fleet, and the mechanism that keeps it saturated
 
 ```kotlin
-    private class SaturatedFleet(parent: ModelElement) : ModelElement(parent, "SaturatedFleet") {
-        val network = createNetwork()
-        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+class GuidedPathThroughputBenchmark(parent: ModelElement) : ModelElement(parent, "SaturatedFleet") {
+    val network = createNetwork()
+    val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
-        // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
-        // differ only in wall-clock time.
-        private val stream = RNStreamProvider().rnStream(1)
+    // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
+    // differ only in wall-clock time.
+    private val stream = RNStreamProvider().rnStream(1)
 
-        val vehicles: List<GuidedTransporter> = (0 until NUM_VEHICLES).map { i ->
-            // One vehicle at the head of each of the first twenty links, which spreads the fleet
-            // over the network without two of them ever sharing a zone at the start.
-            val r = i / COLUMNS
-            val c = i % COLUMNS
-            GuidedTransporter(
-                system, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
-                ConstantRV(VELOCITY), 1, EndOfZoneControl(), "V$i"
-            )
-        }
+    val vehicles: List<GuidedTransporter> = (0 until NUM_VEHICLES).map { i ->
+        // One vehicle at the head of each of the first twenty links, which spreads the fleet
+        // over the network without two of them ever sharing a zone at the start.
+        val r = i / COLUMNS
+        val c = i % COLUMNS
+        GuidedTransporter(
+            system, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
+            ConstantRV(VELOCITY), 1, EndOfZoneControl(), "V$i"
+        )
+    }
 
-        init {
-            for (v in vehicles) {
-                v.attachArrivalListener { dispatch(v) }
-            }
-        }
-
-        override fun initialize() {
-            for (v in vehicles) dispatch(v)
-        }
-
-        private fun dispatch(vehicle: GuidedTransporter) {
-            // Keep trying until the vehicle is actually sent somewhere: a destination it already
-            // stands on is refused, and a vehicle left undispatched would quietly stop and make the
-            // benchmark measure a smaller fleet than it claims.
-            repeat(8) {
-                val target = network.intersections[stream.randInt(0, network.intersections.size - 1)]
-                if (vehicle.sendTo(target.name)) return
-            }
+    init {
+        for (v in vehicles) {
+            v.attachArrivalListener { dispatch(v) }
         }
     }
+
+    override fun initialize() {
+        for (v in vehicles) dispatch(v)
+    }
+
+    private fun dispatch(vehicle: GuidedTransporter) {
+        // Keep trying until the vehicle is actually sent somewhere: a destination it already
+        // stands on is refused, and a vehicle left undispatched would quietly stop and make the
+        // benchmark measure a smaller fleet than it claims.
+        repeat(8) {
+            val target = network.intersections[stream.randInt(0, network.intersections.size - 1)]
+            if (vehicle.sendTo(target.name)) return
+        }
+    }
+}
 ```
 
 Three things here, and all three are about honesty of measurement.
@@ -4191,18 +4112,18 @@ of their own, so two runs on the same machine differ only in wall-clock time.
 #### 4. What is measured, and what transfers
 
 ```kotlin
-    data class Result(
-        val zoneTraversals: Double,
-        val eventsScheduled: Double,
-        val wallClockSeconds: Double
-    ) {
-        /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
-        val traversalsPerWallClockMinute: Double
-            get() = zoneTraversals / wallClockSeconds * 60.0
+data class Result(
+    val zoneTraversals: Double,
+    val eventsScheduled: Double,
+    val wallClockSeconds: Double
+) {
+    /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
+    val traversalsPerWallClockMinute: Double
+        get() = zoneTraversals / wallClockSeconds * 60.0
 
-        val eventsPerTraversal: Double
-            get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
-    }
+    val eventsPerTraversal: Double
+        get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
+}
 ```
 
 ```kotlin
@@ -4223,22 +4144,22 @@ exchange rate.
 #### 5. Running it
 
 ```kotlin
-    fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
-        val m = Model("GuidedPathThroughputBenchmark")
-        val fleet = SaturatedFleet(m)
-        // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
-        fleet.system.checkInvariants = false
-        m.numberOfReplications = replications
-        m.lengthOfReplication = replicationLength
-        val started = System.nanoTime()
-        m.simulate()
-        val elapsed = (System.nanoTime() - started) / 1e9
-        return Result(
-            zoneTraversals = fleet.system.numZoneTraversals.value,
-            eventsScheduled = fleet.system.numEventsScheduled.value,
-            wallClockSeconds = elapsed
-        )
-    }
+fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
+    val m = Model("GuidedPathThroughputBenchmark")
+    val fleet = GuidedPathThroughputBenchmark(m)
+    // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
+    fleet.system.checkInvariants = false
+    m.numberOfReplications = replications
+    m.lengthOfReplication = replicationLength
+    val started = System.nanoTime()
+    m.simulate()
+    val elapsed = (System.nanoTime() - started) / 1e9
+    return Result(
+        zoneTraversals = fleet.system.numZoneTraversals.value,
+        eventsScheduled = fleet.system.numEventsScheduled.value,
+        wallClockSeconds = elapsed
+    )
+}
 ```
 
 Note what is switched off and what is not.
@@ -4257,29 +4178,29 @@ the function is setup.
 #### 6. Reporting a number that belongs to a machine
 
 ```kotlin
-    fun report() {
-        val warmUp = run(replicationLength = 20_000.0)
-        println("warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in ${"%.2f".format(warmUp.wallClockSeconds)} s")
-        val result = run()
-        println()
-        val described = createNetwork("Describe")
-        println("Guided path throughput benchmark - reference configuration")
-        println(
-            "  network            : $ROWS x $COLUMNS torus, ${described.intersections.size} intersections, " +
-                    "${described.links.size} links, ${described.zones.size} zones " +
-                    "(${described.links.size * ZONES_PER_LINK} on links, one per intersection)"
-        )
-        println("  vehicles           : $NUM_VEHICLES, saturated")
-        println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
-        println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
-        println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
-        println("  wall clock         : ${"%.2f".format(result.wallClockSeconds)} s")
-        println("  throughput         : ${"%,.0f".format(result.traversalsPerWallClockMinute)} zone traversals per wall-clock minute")
-        println()
-        println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
-        println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-        println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
-    }
+fun report() {
+    val warmUp = run(replicationLength = 20_000.0)
+    println("warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in ${"%.2f".format(warmUp.wallClockSeconds)} s")
+    val result = run()
+    println()
+    val described = createNetwork("Describe")
+    println("Guided path throughput benchmark - reference configuration")
+    println(
+        "  network            : $ROWS x $COLUMNS torus, ${described.intersections.size} intersections, " +
+                "${described.links.size} links, ${described.zones.size} zones " +
+                "(${described.links.size * ZONES_PER_LINK} on links, one per intersection)"
+    )
+    println("  vehicles           : $NUM_VEHICLES, saturated")
+    println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
+    println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
+    println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
+    println("  wall clock         : ${"%.2f".format(result.wallClockSeconds)} s")
+    println("  throughput         : ${"%,.0f".format(result.traversalsPerWallClockMinute)} zone traversals per wall-clock minute")
+    println()
+    println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
+    println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+    println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
+}
 ```
 
 The output prints the configuration alongside the result — network size, zone
@@ -4301,9 +4222,10 @@ fun main() {
 }
 ```
 
-The corpus convention: the study body stays in the object, and a top-level `fun main()`
-runs it. Keeping it that way means the benchmark can be invoked from a test or another
-example without going through a `main`.
+The corpus convention: the study body stays in the model class's companion object, and a
+top-level `fun main()` runs it. Keeping it that way means the benchmark can be invoked from a
+test or another example without going through a `main` — which is exactly what case 10 does
+with `GuidedPathThroughputBenchmark.run()`.
 
 ### What to learn
 
@@ -4348,17 +4270,19 @@ is deliberately thin, because most of it is case 9's file.
 #### 1. The layout, imported rather than restated
 
 ```kotlin
-object AgvThroughputBenchmark {
+class AgvThroughputBenchmark(parent: ModelElement) : ProcessModel(parent, "SaturatedFleet") {
 
-    /** Loads in circulation. More than vehicles, so the board is never empty. */
-    const val NUM_LOADS: Int = 40
+    companion object {
 
-    /**
-     *  The same torus the passive benchmark uses, borrowed rather than rebuilt so that the two
-     *  measurements are of one layout and stay that way.
-     */
-    fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork =
-        GuidedPathThroughputBenchmark.createNetwork(networkName)
+        /** Loads in circulation. More than vehicles, so the board is never empty. */
+        const val NUM_LOADS: Int = 40
+
+        /**
+         *  The same torus the passive benchmark uses, borrowed rather than rebuilt so that the two
+         *  measurements are of one layout and stay that way.
+         */
+        fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork =
+            GuidedPathThroughputBenchmark.createNetwork(networkName)
 ```
 
 ```kotlin
@@ -4377,29 +4301,29 @@ the twenty vehicles.
 #### 2. The fleet, placed exactly as the other benchmark places it
 
 ```kotlin
-    private class SaturatedFleet(parent: ModelElement) : ProcessModel(parent, "SaturatedFleet") {
+class AgvThroughputBenchmark(parent: ModelElement) : ProcessModel(parent, "SaturatedFleet") {
 
-        val network = createNetwork()
+    val network = createNetwork()
 
-        init {
-            spatialModel = network
-        }
+    init {
+        spatialModel = network
+    }
 
-        val agv = AgvSystem(this, network, assignmentPolicy = NearestVehiclePolicy(), name = "Agv")
+    val agv = AgvSystem(this, network, assignmentPolicy = NearestVehiclePolicy(), name = "Agv")
 
-        // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
-        // differ only in wall-clock time.
-        private val stream = RNStreamProvider().rnStream(1)
+    // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
+    // differ only in wall-clock time.
+    private val stream = RNStreamProvider().rnStream(1)
 
-        val vehicles: List<AgvVehicle> = (0 until GuidedPathThroughputBenchmark.NUM_VEHICLES).map { i ->
-            // One vehicle at the head of each of the first twenty links, exactly as the passive
-            // benchmark places them, so neither fleet begins with an advantage over the other.
-            val r = i / GuidedPathThroughputBenchmark.COLUMNS
-            val c = i % GuidedPathThroughputBenchmark.COLUMNS
-            AgvVehicle(
-                agv, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
-                ConstantRV(GuidedPathThroughputBenchmark.VELOCITY), 1, EndOfZoneControl(), "V$i"
-            ).apply { dispositionPolicy = ParkInPlaceDisposition() }
+    val vehicles: List<AgvVehicle> = (0 until GuidedPathThroughputBenchmark.NUM_VEHICLES).map { i ->
+        // One vehicle at the head of each of the first twenty links, exactly as the passive
+        // benchmark places them, so neither fleet begins with an advantage over the other.
+        val r = i / GuidedPathThroughputBenchmark.COLUMNS
+        val c = i % GuidedPathThroughputBenchmark.COLUMNS
+        AgvVehicle(
+            agv, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
+            ConstantRV(GuidedPathThroughputBenchmark.VELOCITY), 1, EndOfZoneControl(), "V$i"
+        ).apply { dispositionPolicy = ParkInPlaceDisposition() }
 ```
 
 ```kotlin
@@ -4426,29 +4350,29 @@ else to do here, would then be running a different workload.
 
 ```kotlin
 
-        private fun somewhere(): String =
-            network.intersections[stream.randInt(0, network.intersections.size - 1)].name
+    private fun somewhere(): String =
+        network.intersections[stream.randInt(0, network.intersections.size - 1)].name
 
-        private inner class Load : Entity() {
-            val circulating = process(isDefaultProcess = true) {
-                currentLocation = network.requireLocation(somewhere())
-                while (true) {
-                    val there = somewhere()
-                    if (there != currentLocation.name) {
-                        transportByFleet(agv, destination = there, origin = currentLocation.name)
-                    } else {
-                        // Asking to be carried where it already stands would be refused, and a load
-                        // that stopped asking would quietly shrink the population this claims to run.
-                        delay(0.0)
-                    }
+    private inner class Load : Entity() {
+        val circulating = process(isDefaultProcess = true) {
+            currentLocation = network.requireLocation(somewhere())
+            while (true) {
+                val there = somewhere()
+                if (there != currentLocation.name) {
+                    transportByFleet(agv, destination = there, origin = currentLocation.name)
+                } else {
+                    // Asking to be carried where it already stands would be refused, and a load
+                    // that stopped asking would quietly shrink the population this claims to run.
+                    delay(0.0)
                 }
             }
         }
-
-        override fun initialize() {
-            repeat(NUM_LOADS) { activate(Load().circulating) }
-        }
     }
+
+    override fun initialize() {
+        repeat(NUM_LOADS) { activate(Load().circulating) }
+    }
+}
 ```
 
 This is the genuinely interesting difference between the two benchmarks.
@@ -4486,41 +4410,41 @@ and the number would come out looking fine.
 #### 4. What is measured
 
 ```kotlin
-    data class Result(
-        val zoneTraversals: Double,
-        val eventsScheduled: Double,
-        val tasksCompleted: Double,
-        val wallClockSeconds: Double
-    ) {
-        val traversalsPerWallClockMinute: Double
-            get() = zoneTraversals / wallClockSeconds * 60.0
+private data class Result(
+    val zoneTraversals: Double,
+    val eventsScheduled: Double,
+    val tasksCompleted: Double,
+    val wallClockSeconds: Double
+) {
+    val traversalsPerWallClockMinute: Double
+        get() = zoneTraversals / wallClockSeconds * 60.0
 
-        val eventsPerTraversal: Double
-            get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
-    }
+    val eventsPerTraversal: Double
+        get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
+}
 
-    /**
-     *  Runs the reference configuration.
-     *
-     *  @param replicationLength how long to run, in simulated minutes
-     *  @param replications how many replications to run
-     */
-    fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
-        val m = Model("AgvThroughputBenchmark")
-        val fleet = SaturatedFleet(m)
-        fleet.agv.checkInvariants = false
-        m.numberOfReplications = replications
-        m.lengthOfReplication = replicationLength
-        val started = System.nanoTime()
-        m.simulate()
-        val elapsed = (System.nanoTime() - started) / 1e9
-        return Result(
-            zoneTraversals = fleet.agv.numZoneTraversals.value,
-            eventsScheduled = fleet.agv.numEventsScheduled.value,
-            tasksCompleted = fleet.agv.dispatcher.numTasksCompleted.value,
-            wallClockSeconds = elapsed
-        )
-    }
+/**
+ *  Runs the reference configuration.
+ *
+ *  @param replicationLength how long to run, in simulated minutes
+ *  @param replications how many replications to run
+ */
+private fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
+    val m = Model("AgvThroughputBenchmark")
+    val fleet = AgvThroughputBenchmark(m)
+    fleet.agv.checkInvariants = false
+    m.numberOfReplications = replications
+    m.lengthOfReplication = replicationLength
+    val started = System.nanoTime()
+    m.simulate()
+    val elapsed = (System.nanoTime() - started) / 1e9
+    return Result(
+        zoneTraversals = fleet.agv.numZoneTraversals.value,
+        eventsScheduled = fleet.agv.numEventsScheduled.value,
+        tasksCompleted = fleet.agv.dispatcher.numTasksCompleted.value,
+        wallClockSeconds = elapsed
+    )
+}
 ```
 
 `Result` carries one field the passive benchmark does not: `tasksCompleted`. There
@@ -4534,65 +4458,65 @@ off, deadlock detection on, `System.nanoTime()` around `simulate()`.
 #### 5. The comparison
 
 ```kotlin
-    fun report() {
-        val warmUp = run(replicationLength = 20_000.0)
-        println(
-            "warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in " +
-                    "${"%.2f".format(warmUp.wallClockSeconds)} s"
-        )
-        val active = run()
-        val passive = GuidedPathThroughputBenchmark.run()
-        val described = createNetwork("Describe")
+fun report() {
+    val warmUp = run(replicationLength = 20_000.0)
+    println(
+        "warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in " +
+                "${"%.2f".format(warmUp.wallClockSeconds)} s"
+    )
+    val active = run()
+    val passive = GuidedPathThroughputBenchmark.run()
+    val described = createNetwork("Describe")
 
-        println()
-        println("AGV throughput benchmark - reference configuration, both paradigms")
-        println(
-            "  network            : ${GuidedPathThroughputBenchmark.ROWS} x " +
-                    "${GuidedPathThroughputBenchmark.COLUMNS} torus, " +
-                    "${described.intersections.size} intersections, ${described.links.size} links, " +
-                    "${described.zones.size} zones"
+    println()
+    println("AGV throughput benchmark - reference configuration, both paradigms")
+    println(
+        "  network            : ${GuidedPathThroughputBenchmark.ROWS} x " +
+                "${GuidedPathThroughputBenchmark.COLUMNS} torus, " +
+                "${described.intersections.size} intersections, ${described.links.size} links, " +
+                "${described.zones.size} zones"
+    )
+    println("  vehicles           : ${GuidedPathThroughputBenchmark.NUM_VEHICLES}, saturated")
+    println("  loads circulating  : $NUM_LOADS  (active only; the passive fleet saturates itself)")
+    println()
+    println("  %-22s %18s %18s".format("", "active", "passive"))
+    println(
+        "  %-22s %18s %18s".format(
+            "zone traversals",
+            "%,.0f".format(active.zoneTraversals), "%,.0f".format(passive.zoneTraversals)
         )
-        println("  vehicles           : ${GuidedPathThroughputBenchmark.NUM_VEHICLES}, saturated")
-        println("  loads circulating  : $NUM_LOADS  (active only; the passive fleet saturates itself)")
-        println()
-        println("  %-22s %18s %18s".format("", "active", "passive"))
-        println(
-            "  %-22s %18s %18s".format(
-                "zone traversals",
-                "%,.0f".format(active.zoneTraversals), "%,.0f".format(passive.zoneTraversals)
-            )
+    )
+    println(
+        "  %-22s %18s %18s".format(
+            "events scheduled",
+            "%,.0f".format(active.eventsScheduled), "%,.0f".format(passive.eventsScheduled)
         )
-        println(
-            "  %-22s %18s %18s".format(
-                "events scheduled",
-                "%,.0f".format(active.eventsScheduled), "%,.0f".format(passive.eventsScheduled)
-            )
+    )
+    println(
+        "  %-22s %18s %18s".format(
+            "events / traversal",
+            "%.3f".format(active.eventsPerTraversal), "%.3f".format(passive.eventsPerTraversal)
         )
-        println(
-            "  %-22s %18s %18s".format(
-                "events / traversal",
-                "%.3f".format(active.eventsPerTraversal), "%.3f".format(passive.eventsPerTraversal)
-            )
+    )
+    println(
+        "  %-22s %18s %18s".format(
+            "wall clock (s)",
+            "%.2f".format(active.wallClockSeconds), "%.2f".format(passive.wallClockSeconds)
         )
-        println(
-            "  %-22s %18s %18s".format(
-                "wall clock (s)",
-                "%.2f".format(active.wallClockSeconds), "%.2f".format(passive.wallClockSeconds)
-            )
+    )
+    println(
+        "  %-22s %18s %18s".format(
+            "traversals / minute",
+            "%,.0f".format(active.traversalsPerWallClockMinute),
+            "%,.0f".format(passive.traversalsPerWallClockMinute)
         )
-        println(
-            "  %-22s %18s %18s".format(
-                "traversals / minute",
-                "%,.0f".format(active.traversalsPerWallClockMinute),
-                "%,.0f".format(passive.traversalsPerWallClockMinute)
-            )
-        )
-        println("  %-22s %18s %18s".format("tasks completed", "%,.0f".format(active.tasksCompleted), "--"))
-        println()
-        println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
-        println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-        println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
-    }
+    )
+    println("  %-22s %18s %18s".format("tasks completed", "%,.0f".format(active.tasksCompleted), "--"))
+    println()
+    println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
+    println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+    println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
+}
 ```
 
 The output puts the two side by side, and there are **two** questions in the table
@@ -4623,7 +4547,8 @@ fun main() {
 }
 ```
 
-The same shape as case 9: the body in the object, a top-level `fun main()` to run it.
+The same shape as case 9: the body in the model class's companion object, a top-level
+`fun main()` to run it.
 
 ### What it shows
 
@@ -4693,21 +4618,23 @@ when each closure begins and ends.
 #### 1. The constants, and a crew that is not a vehicle
 
 ```kotlin
-object GuidePathDisturbancesExample {
+class MaintenanceCrew(id: Int) : ZoneHolderIfc {
 
-    const val QUIET: String = "NoDisturbances"
-    const val DISTURBED: String = "SpillsAndMaintenance"
-    const val SYSTEM_NAME: String = "AgvSystem"
-    const val REPLICATIONS: Int = 20
-    const val HORIZON: Double = 8_000.0
-    const val WARM_UP: Double = 1_000.0
+    companion object {
 
-    const val MAINTAINED_LINK: String = "Link2"
+        const val QUIET: String = "NoDisturbances"
+        const val DISTURBED: String = "SpillsAndMaintenance"
+        const val SYSTEM_NAME: String = "AgvSystem"
+        const val REPLICATIONS: Int = 20
+        const val HORIZON: Double = 8_000.0
+        const val WARM_UP: Double = 1_000.0
 
-    class MaintenanceCrew(id: Int) : ZoneHolderIfc {
-        override val name: String = "MaintenanceCrew$id"
-        override val awaitedZone: Zone? get() = null
-    }
+        const val MAINTAINED_LINK: String = "Link2"
+
+        class MaintenanceCrew(id: Int) : ZoneHolderIfc {
+            override val name: String = "MaintenanceCrew$id"
+            override val awaitedZone: Zone? get() = null
+        }
 ```
 
 `MaintenanceCrew` is the whole of what taking guide-path space requires: a
@@ -4721,55 +4648,55 @@ it.
 #### 2. The maintenance window: the event route
 
 ```kotlin
-    class MaintenanceWindow(
-        parent: ModelElement,
-        private val space: GuidedPathSpace,
-        private val zones: () -> List<Zone>,
-        timeBetween: Double,
-        windowLength: Double
-    ) : ModelElement(parent, "MaintenanceWindow"), ZoneHoldActionIfc {
+class MaintenanceWindow(
+    parent: ModelElement,
+    private val space: GuidedPathSpace,
+    private val zones: () -> List<Zone>,
+    timeBetween: Double,
+    windowLength: Double
+) : ModelElement(parent, "MaintenanceWindow"), ZoneHoldActionIfc {
 
-        private val myTimeBetween = RandomVariable(
-            this, ExponentialRV(timeBetween, streamNum = 4), name = "TimeBetweenWindows"
-        )
-        private val myWindowLength = RandomVariable(
-            this, ConstantRV(windowLength), name = "WindowLength"
-        )
+    private val myTimeBetween = RandomVariable(
+        this, ExponentialRV(timeBetween, streamNum = 4), name = "TimeBetweenWindows"
+    )
+    private val myWindowLength = RandomVariable(
+        this, ConstantRV(windowLength), name = "WindowLength"
+    )
 
-        private val myWindowsOpened = Counter(this, name = "MaintenanceWindowsHeld")
+    private val myWindowsOpened = Counter(this, name = "MaintenanceWindowsHeld")
 
-        val windowsHeld: CounterCIfc
-            get() = myWindowsOpened
+    val windowsHeld: CounterCIfc
+        get() = myWindowsOpened
 
-        private var nextCrewId = 1
+    private var nextCrewId = 1
 
-        override fun initialize() {
-            nextCrewId = 1
-            schedule(myAskAction, myTimeBetween)
-        }
-
-        private val myAskAction = EventActionIfc<Nothing> {
-            // A crew per occurrence, made here. Nothing about the cast is stated before the run.
-            //
-            // The plain verb, not tryHoldZonesFor, and that is a statement about this model rather
-            // than a shortcut: nothing else closes the maintained link, so no zone of it can be
-            // promised to anybody else when this asks. A model whose closures *can* collide has to
-            // decide what that means, which is what tryHoldZonesFor is for.
-            space.holdZonesFor(
-                MaintenanceCrew(nextCrewId++), zones(), myWindowLength.value, this
-            )
-        }
-
-        override fun holdBegan(allocation: ZoneAllocation) {
-            myWindowsOpened.increment()
-        }
-
-        override fun holdEnded(allocation: ZoneAllocation) {
-            // The end of one window schedules the next, which is the contract this interface is
-            // for: whatever the closure was holding up proceeds from here.
-            schedule(myAskAction, myTimeBetween)
-        }
+    override fun initialize() {
+        nextCrewId = 1
+        schedule(myAskAction, myTimeBetween)
     }
+
+    private val myAskAction = EventActionIfc<Nothing> {
+        // A crew per occurrence, made here. Nothing about the cast is stated before the run.
+        //
+        // The plain verb, not tryHoldZonesFor, and that is a statement about this model rather
+        // than a shortcut: nothing else closes the maintained link, so no zone of it can be
+        // promised to anybody else when this asks. A model whose closures *can* collide has to
+        // decide what that means, which is what tryHoldZonesFor is for.
+        space.holdZonesFor(
+            MaintenanceCrew(nextCrewId++), zones(), myWindowLength.value, this
+        )
+    }
+
+    override fun holdBegan(allocation: ZoneAllocation) {
+        myWindowsOpened.increment()
+    }
+
+    override fun holdEnded(allocation: ZoneAllocation) {
+        // The end of one window schedules the next, which is the contract this interface is
+        // for: whatever the closure was holding up proceeds from here.
+        schedule(myAskAction, myTimeBetween)
+    }
+}
 ```
 
 The event route, and the shape to copy if you are not in a process. The
@@ -4786,67 +4713,67 @@ letting the clock do the release, is what removed the possibility.
 #### 3. The shop, and the deliveries being measured
 
 ```kotlin
-    class DisturbedShop(
-        parent: ModelElement,
-        disturbed: Boolean,
-        timeBtwArrivals: Double = 20.0
-    ) : ProcessModel(parent, "DisturbedShop") {
+class GuidePathDisturbancesExample(
+    parent: ModelElement,
+    disturbed: Boolean,
+    timeBtwArrivals: Double = 20.0
+) : ProcessModel(parent, "DisturbedShop") {
 
-        val network: GuidedPathNetwork = SimpleAGVExample.createNetwork("DisturbedNet")
+    val network: GuidedPathNetwork = SimpleAGVExample.createNetwork("DisturbedNet")
 
-        init {
-            spatialModel = network
-        }
+    init {
+        spatialModel = network
+    }
 
-        val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
+    val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
 
-        val cart1 = GuidedTransporter(
-            system, TransporterPlacement.At(SimpleAGVExample.AGV1_HOME), ConstantRV(10.0), 1,
-            EndOfZoneControl(), "Cart1"
-        ).apply { homeBase = SimpleAGVExample.AGV1_HOME }
+    val cart1 = GuidedTransporter(
+        system, TransporterPlacement.At(SimpleAGVExample.AGV1_HOME), ConstantRV(10.0), 1,
+        EndOfZoneControl(), "Cart1"
+    ).apply { homeBase = SimpleAGVExample.AGV1_HOME }
 
-        val cart2 = GuidedTransporter(
-            system, TransporterPlacement.At(SimpleAGVExample.AGV2_HOME), ConstantRV(10.0), 1,
-            EndOfZoneControl(), "Cart2"
-        ).apply { homeBase = SimpleAGVExample.AGV2_HOME }
+    val cart2 = GuidedTransporter(
+        system, TransporterPlacement.At(SimpleAGVExample.AGV2_HOME), ConstantRV(10.0), 1,
+        EndOfZoneControl(), "Cart2"
+    ).apply { homeBase = SimpleAGVExample.AGV2_HOME }
 
-        val carts = GuidedTransporterPoolWithQ(
-            this, system, listOf(cart1, cart2),
-            ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
-        )
+    val carts = GuidedTransporterPoolWithQ(
+        this, system, listOf(cart1, cart2),
+        ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
+    )
 
-        private val myTimeInSystem = Response(this, "TimeInSystem")
-        val timeInSystem: ResponseCIfc
-            get() = myTimeInSystem
+    private val myTimeInSystem = Response(this, "TimeInSystem")
+    val timeInSystem: ResponseCIfc
+        get() = myTimeInSystem
 
-        private val myCompleted = Counter(this, "PartsDelivered")
-        val completed: CounterCIfc
-            get() = myCompleted
+    private val myCompleted = Counter(this, "PartsDelivered")
+    val completed: CounterCIfc
+        get() = myCompleted
 
+    @Suppress("unused")
+    private val generator = EntityGenerator(
+        ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
+        ExponentialRV(timeBtwArrivals, streamNum = 1)
+    )
+
+    inner class Part : Entity() {
         @Suppress("unused")
-        private val generator = EntityGenerator(
-            ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
-            ExponentialRV(timeBtwArrivals, streamNum = 1)
-        )
-
-        inner class Part : Entity() {
-            @Suppress("unused")
-            val delivery = process(isDefaultProcess = true) {
-                val arrived = time
-                currentLocation = network.requireLocation(SimpleAGVExample.ENTRY_STATION)
-                guidedTransport(
-                    carts,
-                    destination = SimpleAGVExample.EXIT_STATION,
-                    pickupLocation = SimpleAGVExample.ENTRY_STATION,
-                    loadingDelay = ConstantRV(0.5),
-                    unLoadingDelay = ConstantRV(0.5)
-                )
-                myTimeInSystem.value = time - arrived
-                myCompleted.increment()
-            }
+        val delivery = process(isDefaultProcess = true) {
+            val arrived = time
+            currentLocation = network.requireLocation(SimpleAGVExample.ENTRY_STATION)
+            guidedTransport(
+                carts,
+                destination = SimpleAGVExample.EXIT_STATION,
+                pickupLocation = SimpleAGVExample.ENTRY_STATION,
+                loadingDelay = ConstantRV(0.5),
+                unLoadingDelay = ConstantRV(0.5)
+            )
+            myTimeInSystem.value = time - arrived
+            myCompleted.increment()
         }
+    }
 
-        // ---- the process route: spills, which arrive and are cleaned ---------------------------
+    // ---- the process route: spills, which arrive and are cleaned ---------------------------
 ```
 
 The layout is case 1's, read from `SimpleAGVExample.createNetwork` rather
@@ -4858,71 +4785,72 @@ arrivals or the policies.
 #### 4. The spills: the process route, and a closure that may be refused
 
 ```kotlin
-        val spillQ = HoldQueue(this, "SpillQ")
+    val spillQ = HoldQueue(this, "SpillQ")
 
-        // Three and four: the maintained link is left to the maintenance window, so the only
-        // closures that can collide here are two spills in the same aisle.
-        private val mySpillLink = RandomVariable(this, DUniformRV(3, 4, streamNum = 5), "SpillLink")
-        private val mySpillExtent = RandomVariable(this, DUniformRV(1, 2, streamNum = 6), "SpillExtent")
-        private val myCleanupTime = RandomVariable(
-            this, LognormalRV(15.0, 20.0, streamNum = 7), "CleanupTime"
-        )
+    // Three and four: the maintained link is left to the maintenance window, so the only
+    // closures that can collide here are two spills in the same aisle.
+    private val mySpillLink = RandomVariable(this, DUniformRV(3, 4, streamNum = 5), "SpillLink")
+    private val mySpillExtent = RandomVariable(this, DUniformRV(1, 2, streamNum = 6), "SpillExtent")
+    private val myCleanupTime = RandomVariable(
+        this, LognormalRV(15.0, 20.0, streamNum = 7), "CleanupTime"
+    )
 
-        private val mySpillsCleaned = Counter(this, "SpillsCleaned")
+    private val mySpillsCleaned = Counter(this, "SpillsCleaned")
 
-        val spillsCleaned: CounterCIfc
-            get() = mySpillsCleaned
+    val spillsCleaned: CounterCIfc
+        get() = mySpillsCleaned
 
-        private val mySpillsAbsorbed = Counter(this, "SpillsAbsorbed")
+    private val mySpillsAbsorbed = Counter(this, "SpillsAbsorbed")
 
-        val spillsAbsorbed: CounterCIfc
-            get() = mySpillsAbsorbed
+    val spillsAbsorbed: CounterCIfc
+        get() = mySpillsAbsorbed
 
-        inner class Spill : Entity() {
-            @Suppress("unused")
-            val cleanup = process(isDefaultProcess = true) {
-                val link = network.link("Link${mySpillLink.value.toInt()}")!!
-                val extent = link.zones.take(mySpillExtent.value.toInt())
-                // A zone carries one promise at a time, so a spill landing on an aisle another
-                // spill is still having closed cannot queue behind it. This model's answer is that
-                // the second is part of the first -- one spill, cleaned once. Deferring it or
-                // placing it elsewhere would be equally reasonable; the choice belongs here.
-                //
-                // A zone a *cart* is on is not a collision and needs no guard: that is the ordinary
-                // case, and the call below waits for the cart to finish crossing and leave.
-                if (trySeizeZones(system, extent, spillQ) == null) {
-                    mySpillsAbsorbed.increment()
-                    return@process
-                }
-                delay(myCleanupTime)
-                releaseZones(system)
-                mySpillsCleaned.increment()
+    inner class Spill : Entity() {
+        @Suppress("unused")
+        val cleanup = process(isDefaultProcess = true) {
+            val link = network.link("Link${mySpillLink.value.toInt()}")!!
+            val extent = link.zones.take(mySpillExtent.value.toInt())
+            // A zone carries one promise at a time, and this asks with the default policy, so a
+            // spill landing on an aisle another spill is still having closed is refused rather
+            // than queued behind it. This model's answer is that the second is part of the first
+            // -- one spill, cleaned once. Deferring it, placing it elsewhere, or asking with
+            // ZoneOverlap.QUEUE would be equally reasonable; the choice belongs here.
+            //
+            // A zone a *cart* is on is not a collision and needs no guard: that is the ordinary
+            // case, and the call below waits for the cart to finish crossing and leave.
+            if (trySeizeZones(system, extent, spillQ) == null) {
+                mySpillsAbsorbed.increment()
+                return@process
             }
-        }
-
-        @Suppress("unused")
-        private val spills = if (disturbed) {
-            EntityGenerator(
-                ::Spill, ExponentialRV(90.0, streamNum = 2), ExponentialRV(90.0, streamNum = 2)
-            )
-        } else {
-            null
-        }
-
-        // ---- the event route: a maintenance window on a whole link ------------------------------
-
-        @Suppress("unused")
-        private val maintenance = if (disturbed) {
-            MaintenanceWindow(
-                this, system, { network.link(MAINTAINED_LINK)!!.zones },
-                timeBetween = 300.0, windowLength = 30.0
-            )
-        } else {
-            null
+            delay(myCleanupTime)
+            releaseZones(system)
+            mySpillsCleaned.increment()
         }
     }
 
-    fun buildRunner(): ScenarioRunner {
+    @Suppress("unused")
+    private val spills = if (disturbed) {
+        EntityGenerator(
+            ::Spill, ExponentialRV(90.0, streamNum = 2), ExponentialRV(90.0, streamNum = 2)
+        )
+    } else {
+        null
+    }
+
+    // ---- the event route: a maintenance window on a whole link ------------------------------
+
+    @Suppress("unused")
+    private val maintenance = if (disturbed) {
+        MaintenanceWindow(
+            this, system, { network.link(MAINTAINED_LINK)!!.zones },
+            timeBetween = 300.0, windowLength = 30.0
+        )
+    } else {
+        null
+    }
+}
+
+fun buildRunner(): ScenarioRunner {
 ```
 
 The process route, and the interesting verb. A spill is an `Entity`, and an
@@ -4948,7 +4876,7 @@ to a closure that has not yet been granted refuses.
         // here is what the disturbances cost rather than what their absence saves.
         for ((label, disturbed) in listOf(DISTURBED to true, QUIET to false)) {
             val m = Model("Disturbances_$label")
-            DisturbedShop(m, disturbed = disturbed)
+            GuidePathDisturbancesExample(m, disturbed = disturbed)
             runner.addScenario(
                 model = m,
                 name = label,
@@ -5031,11 +4959,6 @@ fun main() {
         println("  %-44s %12.2f".format(counter, Statistic(values).average))
     }
     println()
-    println("  SpillsAbsorbed counts the spills that landed on an aisle another spill was still")
-    println("  having closed. A zone carries one promise at a time, so the request has to be able")
-    println("  to come back empty-handed, and what to do about that belongs to the model rather")
-    println("  than to the guide path. This model absorbs them; deferring them until the aisle")
-    println("  reopens, or placing them elsewhere, would be equally reasonable readings.")
 
     val total = differences.getValue("$sys:NumTransportersBlocked")
     val parts = differences.getValue("$sys:NumBlockedByVehicle") +
@@ -5050,17 +4973,7 @@ fun main() {
     }
 
     println()
-    println("  Read NumBlockedByOccupier and NumZonesClosed together. The quiet configuration has")
-    println("  no mechanism for either, so both are exactly zero there and every minute of cart")
-    println("  obstruction in it is a cart waiting on another cart. In the disturbed configuration")
-    println("  that same total splits into separately observable quantities, and none of them had")
-    println("  to be fitted.")
     println()
-    println("  That is the argument for the construct, and it does not depend on whether the")
-    println("  headline count separates the two runs. A shop that really has spills and closures,")
-    println("  modelled without them, must still reproduce the throughput it was calibrated on --")
-    println("  so the missing obstruction time ends up inside task times or vehicle speed, where it")
-    println("  is invisible and where it will not respond to the change a study is evaluating.")
 }
 ```
 
@@ -5156,25 +5069,29 @@ refused. The same instant, three times, under three policies.
 #### 1. Three policies, one crew, and a clock in whole minutes
 
 ```kotlin
-object ZoneClosurePolicyExample {
+class ZoneClosurePolicyExample(
+    ...
+) : ProcessModel(parent, "Aisle") {
 
-    enum class OverlapPolicy {
-        ABSORB,
+    companion object {
 
-        DEFER,
+        enum class OverlapPolicy {
+            ABSORB,
 
-        RELOCATE
-    }
+            DEFER,
 
-    class Crew(override val name: String) : ZoneHolderIfc {
-        override val awaitedZone: Zone? get() = null
-    }
+            RELOCATE
+        }
 
-    const val CREW_ASKS_AT: Double = 2.5
-    const val SPILL_ASKS_AT: Double = 2.6
-    const val RETRY_AFTER: Double = 3.0
-    const val CREW_HOLDS_FOR: Double = 4.0
-    const val CLEANUP_TAKES: Double = 2.0
+        private class Crew(override val name: String) : ZoneHolderIfc {
+            override val awaitedZone: Zone? get() = null
+        }
+
+        const val CREW_ASKS_AT: Double = 2.5
+        const val SPILL_ASKS_AT: Double = 2.6
+        const val RETRY_AFTER: Double = 3.0
+        const val CREW_HOLDS_FOR: Double = 4.0
+        const val CLEANUP_TAKES: Double = 2.0
 ```
 
 A zone is a minute, deliberately: velocity and zone length are chosen so
@@ -5189,67 +5106,70 @@ the library does not choose between them.
 #### 2. One aisle, one cart, and the reading taken before asking
 
 ```kotlin
-    class Aisle(parent: ModelElement, val policy: OverlapPolicy) : ProcessModel(parent, "Aisle") {
+class ZoneClosurePolicyExample(
+    parent: ModelElement,
+    val policy: OverlapPolicy
+) : ProcessModel(parent, "Aisle") {
 
-        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Aisle")
-            .link("L1", "A", "B", length = 72.0, zoneLength = 12.0)
-            .build()
+    val network: GuidedPathNetwork = GuidedPathNetwork.builder("Aisle")
+        .link("L1", "A", "B", length = 72.0, zoneLength = 12.0)
+        .build()
 
-        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+    val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
-        val cart = GuidedTransporter(
-            system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart"
-        )
+    val cart = GuidedTransporter(
+        system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart"
+    )
 
-        val closureQ = HoldQueue(this, "ClosureQ")
+    val closureQ = HoldQueue(this, "ClosureQ")
 
-        private val crew = Crew("Crew")
+    private val crew = Crew("Crew")
 
-        private fun zones(vararg names: String) = names.map { network.zone(it)!! }
+    private fun zones(vararg names: String) = names.map { network.zone(it)!! }
 
-        private val crewWants get() = zones("L1.Zone3", "L1.Zone4")
-        private val spillWants get() = zones("L1.Zone4", "L1.Zone5")
-        private val spillElsewhere get() = zones("L1.Zone5", "L1.Zone6")
+    private val crewWants get() = zones("L1.Zone3", "L1.Zone4")
+    private val spillWants get() = zones("L1.Zone4", "L1.Zone5")
+    private val spillElsewhere get() = zones("L1.Zone5", "L1.Zone6")
 
-        val timeline = mutableListOf<String>()
+    val timeline = mutableListOf<String>()
 
-        private fun note(who: String, what: String) {
-            timeline.add("  %6.2f  %-6s %s".format(time, who, what))
+    private fun note(who: String, what: String) {
+        timeline.add("  %6.2f  %-6s %s".format(time, who, what))
+    }
+
+    private fun namesOf(zs: List<Zone>) =
+        zs.joinToString(", ", "[", "]") { it.name.removePrefix("L1.") }
+
+    private fun prospects(wanted: List<Zone>): String {
+        val promised = system.firstPromisedZone(wanted)
+        if (promised != null) {
+            return " -- refused: ${promised.name.removePrefix("L1.")} is promised to " +
+                    "${promised.closingFor?.name}, still waiting for it to drain"
+        }
+        val held = wanted.firstOrNull { it.holder != null && it.holder !is GuidedTransporter }
+        if (held != null) {
+            return " -- accepted: ${held.name.removePrefix("L1.")} is *held* by " +
+                    "${held.holder?.name}, which is not a collision; waiting for the hold to end"
+        }
+        return " -- accepted: the space is free"
+    }
+
+    // ---- the event route: a scheduled maintenance closure -----------------------------------
+
+    private val crewAction = object : ZoneHoldActionIfc {
+        override fun holdBegan(allocation: ZoneAllocation) {
+            note("Crew", "takes ${namesOf(allocation.zones)}")
         }
 
-        private fun namesOf(zs: List<Zone>) =
-            zs.joinToString(", ", "[", "]") { it.name.removePrefix("L1.") }
-
-        private fun prospects(wanted: List<Zone>): String {
-            val promised = system.firstPromisedZone(wanted)
-            if (promised != null) {
-                return " -- refused: ${promised.name.removePrefix("L1.")} is promised to " +
-                        "${promised.closingFor?.name}, still waiting for it to drain"
-            }
-            val held = wanted.firstOrNull { it.holder != null && it.holder !is GuidedTransporter }
-            if (held != null) {
-                return " -- accepted: ${held.name.removePrefix("L1.")} is *held* by " +
-                        "${held.holder?.name}, which is not a collision; waiting for the hold to end"
-            }
-            return " -- accepted: the space is free"
+        override fun holdEnded(allocation: ZoneAllocation) {
+            note("Crew", "gives back ${namesOf(allocation.zones)}")
         }
+    }
 
-        // ---- the event route: a scheduled maintenance closure -----------------------------------
+    // ---- the process route: a spill that has to decide ---------------------------------------
 
-        private val crewAction = object : ZoneHoldActionIfc {
-            override fun holdBegan(allocation: ZoneAllocation) {
-                note("Crew", "takes ${namesOf(allocation.zones)}")
-            }
-
-            override fun holdEnded(allocation: ZoneAllocation) {
-                note("Crew", "gives back ${namesOf(allocation.zones)}")
-            }
-        }
-
-        // ---- the process route: a spill that has to decide ---------------------------------------
-
-        inner class Spill : Entity("Spill") {
-            @Suppress("unused")
+    inner class Spill : Entity("Spill") {
+        @Suppress("unused")
 ```
 
 `prospects` is the reading the spill takes **before** it asks, and it uses
@@ -5268,59 +5188,59 @@ the mistake this example was written to make visible.
 #### 3. The spill's loop: refused, then absorb, defer or relocate
 
 ```kotlin
-            val cleanup = process(isDefaultProcess = true) {
-                var wanted = spillWants
-                var relocated = false
-                while (true) {
-                    // The one call that can come back empty-handed. Everything a request must
-                    // satisfy besides an overlap still raises, so a null here means exactly one
-                    // thing: some zone of the set is promised to a closure still waiting for it.
-                    note("Spill", "asks for ${namesOf(wanted)}${prospects(wanted)}")
-                    val taken = trySeizeZones(system, wanted, closureQ)
-                    if (taken != null) {
-                        note("Spill", "takes ${namesOf(taken.zones)}")
-                        delay(CLEANUP_TAKES)
-                        releaseZones(system)
-                        note("Spill", "gives back ${namesOf(wanted)}")
+        val cleanup = process(isDefaultProcess = true) {
+            var wanted = spillWants
+            var relocated = false
+            while (true) {
+                // The one call that can come back empty-handed. Everything a request must
+                // satisfy besides an overlap still raises, so a null here means exactly one
+                // thing: some zone of the set is promised to a closure still waiting for it.
+                note("Spill", "asks for ${namesOf(wanted)}${prospects(wanted)}")
+                val taken = trySeizeZones(system, wanted, closureQ)
+                if (taken != null) {
+                    note("Spill", "takes ${namesOf(taken.zones)}")
+                    delay(CLEANUP_TAKES)
+                    releaseZones(system)
+                    note("Spill", "gives back ${namesOf(wanted)}")
+                    return@process
+                }
+                when (policy) {
+                    OverlapPolicy.ABSORB -> {
+                        note("Spill", "absorbed into the closure already there; nothing to do")
                         return@process
                     }
-                    when (policy) {
-                        OverlapPolicy.ABSORB -> {
-                            note("Spill", "absorbed into the closure already there; nothing to do")
+                    OverlapPolicy.DEFER -> {
+                        note("Spill", "deferring $RETRY_AFTER minutes and asking again")
+                        delay(RETRY_AFTER)
+                    }
+                    OverlapPolicy.RELOCATE -> {
+                        if (relocated) {
+                            note("Spill", "nowhere left to move it; absorbed")
                             return@process
                         }
-                        OverlapPolicy.DEFER -> {
-                            note("Spill", "deferring $RETRY_AFTER minutes and asking again")
-                            delay(RETRY_AFTER)
-                        }
-                        OverlapPolicy.RELOCATE -> {
-                            if (relocated) {
-                                note("Spill", "nowhere left to move it; absorbed")
-                                return@process
-                            }
-                            relocated = true
-                            wanted = spillElsewhere
-                            note("Spill", "moving the work to ${namesOf(wanted)}")
-                        }
+                        relocated = true
+                        wanted = spillElsewhere
+                        note("Spill", "moving the work to ${namesOf(wanted)}")
                     }
                 }
             }
         }
-
-        init {
-            cart.attachArrivalListener { note("Cart", "reaches B") }
-        }
-
-        override fun initialize() {
-            timeline.clear()
-            schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
-            schedule({ _: KSLEvent<Nothing> ->
-                note("Crew", "asks for ${namesOf(crewWants)} -- the cart is still crossing Zone3")
-                system.tryHoldZonesFor(crew, crewWants, CREW_HOLDS_FOR, crewAction)
-            }, CREW_ASKS_AT)
-            schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, SPILL_ASKS_AT)
-        }
     }
+
+    init {
+        cart.attachArrivalListener { note("Cart", "reaches B") }
+    }
+
+    override fun initialize() {
+        timeline.clear()
+        schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
+        schedule({ _: KSLEvent<Nothing> ->
+            note("Crew", "asks for ${namesOf(crewWants)} -- the cart is still crossing Zone3")
+            system.tryHoldZonesFor(crew, crewWants, CREW_HOLDS_FOR, crewAction)
+        }, CREW_ASKS_AT)
+        schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, SPILL_ASKS_AT)
+    }
+}
 ```
 
 One loop, three policies, and the only branch is what to do about null.
@@ -5335,7 +5255,7 @@ the same in all three.
 
     fun timelineFor(policy: OverlapPolicy): List<String> {
         val m = Model("ClosurePolicy_$policy")
-        val aisle = Aisle(m, policy)
+        val aisle = ZoneClosurePolicyExample(m, policy)
         aisle.system.checkInvariants = true
         m.numberOfReplications = 1
         m.lengthOfReplication = HORIZON
@@ -5358,25 +5278,9 @@ fun main() {
     }
 
     println()
-    println("  ABSORB closes the least space: the spill is dealt with as part of the closure that")
-    println("  was already being set up, and nothing waits.")
     println()
-    println("  DEFER is the one to read twice. The retry succeeds, and it succeeds because by then")
-    println("  the crew *holds* Zone4 rather than being promised it -- a held zone is not a")
-    println("  collision, and asking for one is ordinary: the request is accepted and waits for the")
-    println("  hold to end. A guard written by hand as \"is anything closing or holding this zone?\"")
-    println("  would have turned this closure away, silently, and it works perfectly well.")
     println()
-    println("  RELOCATE gets the work done soonest, and the timeline shows what that costs. The two")
-    println("  closures overlap in time without overlapping in space, so more of the aisle is shut")
-    println("  at once -- and the cart, which reaches B at 6.0 under the other two policies, is held")
-    println("  up behind the relocated closure and reaches it at 6.6. The maintenance crew's own")
-    println("  closure starts later for the same reason.")
     println()
-    println("  None of the three is more correct than the others, which is the whole point: the")
-    println("  guide path cannot know whether a second spill in the same aisle is one spill, a")
-    println("  spill that waits, or a spill somewhere else. So the verb answers null and the model")
-    println("  decides.")
 }
 ```
 
@@ -5474,22 +5378,26 @@ runs is the arbiter.
 #### 1. The constants, and the four disciplines
 
 ```kotlin
-object CrossingArbiterExample {
+class CrossingArbiterExample(
+    ...
+) : ProcessModel(parent, "Town") {
 
-    const val HORIZON: Double = 120.0
+    companion object {
 
-    const val ZONE: Double = 12.0
+        const val HORIZON: Double = 120.0
 
-    const val WALKER_EVERY: Double = 1.5
-    const val CART_EVERY: Double = 4.0
-    const val WALK_TIME: Double = 2.0
+        const val ZONE: Double = 12.0
 
-    fun arbiters(): Map<String, CrossingArbiterIfc> = linkedMapOf(
-        "PedestrianPriority" to PedestrianPriorityArbiter(),
-        "VehiclePriority" to VehiclePriorityArbiter(),
-        "Alternating" to AlternatingArbiter(walkTime = 6.0, driveTime = 6.0),
-        "BoundedBatch" to BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
-    )
+        const val WALKER_EVERY: Double = 1.5
+        const val CART_EVERY: Double = 4.0
+        const val WALK_TIME: Double = 2.0
+
+        fun arbiters(): Map<String, CrossingArbiterIfc> = linkedMapOf(
+            "PedestrianPriority" to PedestrianPriorityArbiter(),
+            "VehiclePriority" to VehiclePriorityArbiter(),
+            "Alternating" to AlternatingArbiter(walkTime = 6.0, driveTime = 6.0),
+            "BoundedBatch" to BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
+        )
 ```
 
 The four disciplines are made **fresh for each run**. Two of them carry
@@ -5501,74 +5409,89 @@ ever catches.
 #### 2. One loop, one cart, one crossing, and a stream of walkers
 
 ```kotlin
-    class Town(parent: ModelElement, arbiter: CrossingArbiterIfc) : ProcessModel(parent, "Town") {
+class CrossingArbiterExample(
+    parent: ModelElement,
+    arbiter: CrossingArbiterIfc
+) : ProcessModel(parent, "Town") {
 
-        // A one-way loop rather than a single aisle, so the cart can keep circulating: a
-        // one-way link cannot be run backwards, and sending a cart home along one raises.
-        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
-            .link("Aisle", "A", "B", length = 6 * ZONE, zoneLength = ZONE)
-            .link("Return", "B", "A", length = 6 * ZONE, zoneLength = ZONE)
-            .build()
+    // A one-way loop rather than a single aisle, so the cart can keep circulating: a
+    // one-way link cannot be run backwards, and sending a cart home along one raises.
+    val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
+        .link("Aisle", "A", "B", length = 6 * ZONE, zoneLength = ZONE)
+        .link("Return", "B", "A", length = 6 * ZONE, zoneLength = ZONE)
+        .build()
 
-        init {
-            spatialModel = network
-        }
+    init {
+        spatialModel = network
+    }
 
-        val system = GuidedPathTransportSystem(this, network, name = "Sys")
+    val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
-        val cart = GuidedTransporter(
-            system, TransporterPlacement.At("A"), ConstantRV(ZONE), 1, name = "Cart"
-        )
+    val cart = GuidedTransporter(
+        system, TransporterPlacement.At("A"), ConstantRV(ZONE), 1, name = "Cart"
+    )
 
-        val crossing = ZoneCrossing(
-            this, system, listOf(network.zone("Aisle.Zone3")!!), arbiter, name = "Walkway"
-        )
+    val crossing = ZoneCrossing(
+        this, system, listOf(network.zone("Aisle.Zone3")!!), arbiter, name = "Walkway"
+    )
 
-        val walkQ = HoldQueue(this, "WalkQ")
-
-        var cartTrips: Int = 0
-            private set
-        var walkersAcross: Int = 0
-            private set
-
-        inner class Walker : Entity() {
-            val walk = process(isDefaultProcess = true) {
-                crossOnFoot(crossing, WALK_TIME, walkQ)
-                walkersAcross++
+    @set:KSLStringControl(
+        allowedValues = ["PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch"],
+        comment = "Which admission discipline the crossing runs under"
+    )
+    var arbiterName: String = arbiter::class.simpleName!!.removeSuffix("Arbiter")
+        set(value) {
+            crossing.arbiter = requireNotNull(arbiters()[value]) {
+                "unknown crossing discipline '$value'; expected one of ${arbiters().keys}"
             }
+            field = value
         }
 
-        // Named classes rather than lambdas because each one schedules itself, and a lambda that
-        // refers to the property it is being assigned to cannot have its type inferred.
-        private inner class WalkerAction : EventActionIfc<Nothing> {
-            override fun action(event: KSLEvent<Nothing>) {
-                activate(Walker().walk)
-                schedule(this, WALKER_EVERY)
-            }
-        }
+    val walkQ = HoldQueue(this, "WalkQ")
 
-        private inner class CartAction : EventActionIfc<Nothing> {
-            override fun action(event: KSLEvent<Nothing>) {
-                // Sent back and forth so there is always traffic wanting the crossing. Counting
-                // arrivals rather than dispatches is what makes the number mean "got through".
-                if (!cart.isMoving) {
-                    cart.sendTo(if (cart.currentLocation?.name == "B") "A" else "B")
-                }
-                schedule(this, CART_EVERY)
-            }
-        }
+    var cartTrips: Int = 0
+        private set
+    var walkersAcross: Int = 0
+        private set
 
-        private val myWalkerAction = WalkerAction()
-        private val myCartAction = CartAction()
-
-        override fun initialize() {
-            cartTrips = 0
-            walkersAcross = 0
-            cart.attachArrivalListener { cartTrips++ }
-            schedule(myWalkerAction, WALKER_EVERY)
-            schedule(myCartAction, 0.5)
+    inner class Walker : Entity() {
+        val walk = process(isDefaultProcess = true) {
+            crossOnFoot(crossing, WALK_TIME, walkQ)
+            walkersAcross++
         }
     }
+
+    // Named classes rather than lambdas because each one schedules itself, and a lambda that
+    // refers to the property it is being assigned to cannot have its type inferred.
+    private inner class WalkerAction : EventActionIfc<Nothing> {
+        override fun action(event: KSLEvent<Nothing>) {
+            activate(Walker().walk)
+            schedule(this, WALKER_EVERY)
+        }
+    }
+
+    private inner class CartAction : EventActionIfc<Nothing> {
+        override fun action(event: KSLEvent<Nothing>) {
+            // Sent back and forth so there is always traffic wanting the crossing. Counting
+            // arrivals rather than dispatches is what makes the number mean "got through".
+            if (!cart.isMoving) {
+                cart.sendTo(if (cart.currentLocation?.name == "B") "A" else "B")
+            }
+            schedule(this, CART_EVERY)
+        }
+    }
+
+    private val myWalkerAction = WalkerAction()
+    private val myCartAction = CartAction()
+
+    override fun initialize() {
+        cartTrips = 0
+        walkersAcross = 0
+        cart.attachArrivalListener { cartTrips++ }
+        schedule(myWalkerAction, WALKER_EVERY)
+        schedule(myCartAction, 0.5)
+    }
+}
 ```
 
 A one-way **loop**, not a single aisle, so the cart can keep circulating: a
@@ -5582,6 +5505,16 @@ not step off leaves a population behind that no vehicle can pass.
 The two repeating actions are **named classes rather than lambdas**,
 because each schedules itself and a lambda cannot refer to the property it
 is being assigned to.
+
+`arbiterName` is the same choice spelled as an **input**. The constructor
+still takes the arbiter itself — that is the point of the construct, and
+`main` reads better for it — but a `@KSLStringControl` declaring the four
+names lets an app offer them in a drop-down, and lets a study over
+disciplines be one model with one input rather than four models. Its
+initial value is read off the arbiter's own class, so the two cannot
+disagree; assigning it makes a fresh arbiter, because an arbiter carries
+turn state and handing two models the same one would let the second inherit
+the first's.
 
 #### 3. Running each discipline over the same deterministic horizon
 
@@ -5597,7 +5530,7 @@ is being assigned to.
 
     fun runWith(name: String, arbiter: CrossingArbiterIfc): Outcome {
         val m = Model("Crossing_$name")
-        val town = Town(m, arbiter)
+        val town = CrossingArbiterExample(m, arbiter)
         town.system.checkInvariants = true
         m.numberOfReplications = 1
         m.lengthOfReplication = HORIZON
@@ -5648,35 +5581,11 @@ fun main() {
     val veh = outcomes.first { it.name == "VehiclePriority" }
 
     println()
-    println("  Read the two priority rows together, because each is a model that runs, reports, and")
-    println("  does not represent what it claims to.")
     println()
-    println("  PedestrianPriority put ${ped.walkersAcross} people across and moved the cart")
-    println("  ${ped.cartTrips} time(s). A walker every ${CrossingArbiterExample.WALKER_EVERY} minutes")
-    println("  taking ${CrossingArbiterExample.WALK_TIME} minutes to cross leaves no instant with the")
-    println("  crossing empty, so it never reopens and the vehicles starve outright. A study that")
-    println("  reported only pedestrian service would call this a success: nobody waited at all.")
     println()
-    println("  Note what the run itself said about it. The guide path reported a transporter still")
-    println("  waiting when the replication ended, and named what it was waiting for and who had it:")
-    println("  the crossing. A model that stops moving says so rather than quietly reporting a")
-    println("  smaller throughput.")
     println()
-    println("  VehiclePriority is the exact mirror: ${veh.cartTrips} cart trips and")
-    println("  ${veh.walkersAcross} people across -- not a slow crossing, no crossing. This rule never")
-    println("  bars traffic, so a turn opens only if the crossing happens to be idle, and on a busy")
-    println("  aisle it never is. Here the failure is silent: nothing waits at the horizon, because")
-    println("  the walkers are all still queued, and queued is not stalled.")
     println()
-    println("  That is the argument for the arbiter having TWO questions rather than one. Each")
-    println("  priority rule answers only one of them and is complete, consistent and wrong.")
     println()
-    println("  The other two rows answer both. Alternating gives each side a share that does not")
-    println("  depend on how hard the other is pushing; BoundedBatch opens on a group and admits")
-    println("  only that group, so a stream of arrivals cannot extend one turn indefinitely. Which")
-    println("  of them is right is a modelling question -- a signal and a warden are different")
-    println("  things -- and neither is the library's to choose, which is why the arbiter is a")
-    println("  substitutable object and not a policy baked into the crossing.")
 
     check(outcomes.size == 4) { "expected four disciplines, got ${outcomes.size}" }
     check(ped.cartTrips < veh.cartTrips) {
@@ -5791,6 +5700,28 @@ the same in every case and it is three lines of code: run the alternatives throu
 
 **Four cases deliberately report no intervals**, and say so: cases 5, 12 and 13 are
 deterministic, and cases 9 and 10 measure wall-clock time on one machine.
+
+### Ten of them ship as a bundle
+
+Most of these models are also **pickable in the KSL apps**, without a line of Kotlin. The
+`edu.uark.ksl.vehicle-examples` bundle carries ten of them, each with an authored catalog of
+headline inputs and outputs:
+
+```
+./gradlew :KSLExamples:vehicleExamplesBundleJar
+# -> KSLExamples/build/libs/vehicle-examples.jar   (drop into KSLWork/bundles)
+```
+
+The bundle does not hold copies: its builders, in
+`ksl.examples.general.vehiclebundle`, import the examples where they live, so the file you
+run from a `main`, the file this page quotes, and the file the bundle ships are one file.
+
+Cases 4 and 13 ship as **one model each rather than six and four**, because their varying
+part is a `@KSLStringControl` — the rule and the crossing discipline are inputs with their
+names declared, so the comparison is a study over one input. Cases 9 and 10 are not bundled:
+they measure wall-clock time, and nominating inputs and outputs would present a benchmark as
+a decision model. Nor are cases 5 and 12, whose output is an arranged timeline read line by
+line rather than a response with an interval.
 
 ---
 
