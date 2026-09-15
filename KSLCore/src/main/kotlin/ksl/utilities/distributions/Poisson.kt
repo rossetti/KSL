@@ -94,7 +94,18 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         return cdf(x.toInt())
     }
 
+    /**
+     * G1(x) = E[max(X - x, 0)].
+     *
+     * The closed form below is derived for a whole-number argument. A fraction is handled by exact
+     * interpolation from the neighbouring whole numbers rather than by substituting it into that
+     * form, which previously dropped the term carrying the mass function and could return a negative
+     * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
+     */
     override fun firstOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedFirstOrderLoss(this, x)
+        }
         val mu = this@Poisson.mean
         return if (x < 0.0) {
             floor(abs(x)) + mu
@@ -124,6 +135,9 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * mu/2 at x = 0. KSL uses the factorial-moment form throughout.
      */
     override fun secondOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedSecondOrderLoss(this, x)
+        }
         val mu = this@Poisson.mean
         val sbm = 0.5 * (mu * mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {

@@ -149,7 +149,18 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
         return ceil(ln(1.0 - p) / ln(1.0 - pSuccess) - 1.0)
     }
 
+    /**
+     * G1(x) = E[max(X - x, 0)].
+     *
+     * The closed form below is derived for a whole-number argument. A fraction is handled by exact
+     * interpolation from the neighbouring whole numbers rather than by substituting it into that
+     * form, which previously dropped the term carrying the mass function and could return a negative
+     * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
+     */
     override fun firstOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedFirstOrderLoss(this, x)
+        }
         val mu = mean()
         return if (x < 0.0) {
             floor(abs(x)) + mu
@@ -165,7 +176,16 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
         }
     }
 
+    /**
+     * G2(x) = (1/2) * E[max(X - x, 0) * max(X - x - 1, 0)].
+     *
+     * As with G1, a non-whole argument is interpolated exactly from the neighbouring whole numbers
+     * rather than substituted into a closed form that assumes one. See `interpolatedSecondOrderLoss`.
+     */
     override fun secondOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedSecondOrderLoss(this, x)
+        }
         val mu = mean()
         val sbm = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
