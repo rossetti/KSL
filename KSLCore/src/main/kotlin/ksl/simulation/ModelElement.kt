@@ -87,6 +87,20 @@ abstract class ModelElement internal constructor(
     final override var id: Int = 0
         private set
 
+    /**
+     *  The element's name, as stored.
+     *
+     *  This is not always the string handed to the constructor: a `.` is replaced with `_`, because
+     *  the controls framework keys a control as `elementName.propertyName` and splits on that
+     *  character. So an element constructed as `"Study1.5"` reports its name as `"Study1_5"`, and
+     *  that is the form that appears in reports, databases and the model's element map.
+     *
+     *  Looking one up does not require knowing which form you have: every name-based lookup on
+     *  `Model` canonicalizes its argument the same way, so `model.response("Study1.5:TimeInSystem")`
+     *  and `model.response("Study1_5:TimeInSystem")` find the same response. Use
+     *  `ModelElement.canonicalName` to apply the rule yourself when building a key for something
+     *  outside the model.
+     */
     final override var name: String = makeName(name)
         private set
 
@@ -101,7 +115,7 @@ abstract class ModelElement internal constructor(
             s + "_" + id
         } else {
             // the name of a model element cannot contain a "." character
-            str.replace(".", "_")
+            canonicalName(str)
         }
     }
 
@@ -2018,6 +2032,26 @@ abstract class ModelElement internal constructor(
     }
 
     companion object {
+
+        /**
+         *  The name a model element is actually stored under, given the name it was constructed
+         *  with.
+         *
+         *  A model element's name cannot contain a `.`, because the controls framework keys a
+         *  control as `elementName.propertyName` and splits it on that character. A supplied name
+         *  therefore has its dots replaced with `_`, and it is the result that is stored, reported,
+         *  and used as the key in the model's element map.
+         *
+         *  Every name-based lookup on `Model` passes its argument through here before searching, so
+         *  a caller may ask by either form and get the same answer. This function is public so that
+         *  code building a key for something outside the model — a results table, an external
+         *  index — can canonicalize the same way rather than reimplementing the rule.
+         *
+         *  @param name the name as supplied
+         *  @return the name as it will be stored
+         */
+        fun canonicalName(name: String): String = name.replace(".", "_")
+
         private var enumCounter: Int = 0
 
         /**

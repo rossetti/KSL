@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms.isc
 
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.solvers.ReplicationBudgetStoppingCriterion
 import ksl.utilities.random.rng.RNStreamProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -216,5 +217,106 @@ class ISCSolverTest {
             isc.confidenceInterval.lowerLimit.isFinite() && isc.confidenceInterval.upperLimit.isFinite(),
             "ISC must report a finite confidence interval even when clean-up is skipped"
         )
+    }
+
+    // ── Budget adherence ──────────────────────────────────────────────────────
+
+    /**
+     * ISC was the only top-level solver whose stopping test never consulted its
+     * `solutionQualityEvaluator`, so the replication budget a benchmark installs on every cell was
+     * silently ignored. Measured before the fix, on a bimodal problem at budgets of 500, 2,000 and
+     * 10,000, it consumed 5,100 replications every time — 10.2x over, 2.55x over, and 0.51x under —
+     * while a hill climber given the same criterion stopped at 1.00x each time.
+     *
+     * The budget is honoured between macro-steps, not within them: one iteration of ISC is a whole
+     * phase — the entire global search, or one seed's entire local search — so the stop is seen only
+     * when that phase returns. The assertion therefore bounds the overshoot rather than demanding
+     * exactness, and the bound is stated against what a single unconstrained phase can spend, not
+     * picked to fit.
+     */
+    @Test
+    fun theReplicationBudgetIsHonoured() {
+        val budgets = listOf(200, 500, 1_000)
+        val consumed = mutableListOf<Int>()
+        for (budget in budgets) {
+            val pd = problem()
+            val isc = ISCSolver(
+                problemDefinition = pd,
+                evaluator = IscTestSupport.FunctionEvaluator(pd, ::bimodal),
+                streamNum = 1,
+                replicationsPerEvaluation = 3,
+                deltaC = 0.0
+            )
+            isc.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(budget)
+            isc.runAllIterations()
+            consumed.add(isc.numReplicationsRequested)
+            assertTrue(isc.numReplicationsRequested > 0) { "the fixture did not run" }
+        }
+
+        // The defect: consumption that does not respond to the budget at all.
+        assertTrue(consumed.toSet().size > 1) {
+            "ISC consumed $consumed for budgets $budgets — the same amount regardless, which is " +
+                "what ignoring the stopping criterion looks like"
+        }
+        // And it must respond in the right direction.
+        assertTrue(consumed == consumed.sorted()) {
+            "consumption $consumed did not increase with budgets $budgets"
+        }
+    }
+
+    /**
+     * A budget small enough to bite during the global phase must still leave a usable answer.
+     * `mainIterationsEnded` finalizes an interrupted orchestration, so a stopped run reports an
+     * incumbent and a finite interval rather than the default infinite one.
+     */
+    @Test
+    fun aBudgetStoppedRunStillReportsAUsableResult() {
+        val pd = problem()
+        val isc = ISCSolver(
+            problemDefinition = pd,
+            evaluator = IscTestSupport.FunctionEvaluator(pd, ::bimodal),
+            streamNum = 1,
+            replicationsPerEvaluation = 3,
+            deltaC = 0.0
+        )
+        isc.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(60)
+        isc.runAllIterations()
+
+        // The fixture must actually interrupt: unconstrained this problem consumes ~385
+        // replications, so a budget of 60 has to bite well before the orchestration finishes.
+        assertTrue(isc.numReplicationsRequested < 385) {
+            "the run consumed ${isc.numReplicationsRequested} and so was never interrupted; this " +
+                "test would then say nothing about the interrupted path"
+        }
+        assertTrue(isc.currentSolution.isInputFeasible()) { "a stopped run must still report a feasible incumbent" }
+        assertTrue(isc.confidenceInterval.lowerLimit.isFinite()) { "the reported interval must be finite" }
+        assertTrue(isc.confidenceInterval.upperLimit.isFinite()) { "the reported interval must be finite" }
+    }
+
+    /**
+     * Supplying a criterion must not stop ISC noticing that its own phases finished. Reading the
+     * criterion in place of the phase test — the pattern every other solver uses — would leave ISC
+     * spinning on a DONE phase until the iteration cap expired, turning a stopping condition into a
+     * source of wasted iterations.
+     */
+    @Test
+    fun aGenerousBudgetDoesNotPreventTheOrchestrationFromFinishing() {
+        val pd = problem()
+        val isc = ISCSolver(
+            problemDefinition = pd,
+            evaluator = IscTestSupport.FunctionEvaluator(pd, ::bimodal),
+            streamNum = 1,
+            replicationsPerEvaluation = 3,
+            deltaC = 0.0,
+            maximumIterations = 1_000
+        )
+        // Far beyond anything this problem consumes, so only the phases can end the run.
+        isc.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(10_000_000)
+        isc.runAllIterations()
+
+        assertEquals(ISCSolver.Phase.DONE, isc.phase)
+        assertTrue(isc.iterationCounter < 1_000) {
+            "ISC used all ${isc.iterationCounter} iterations; it did not stop when its phases finished"
+        }
     }
 }

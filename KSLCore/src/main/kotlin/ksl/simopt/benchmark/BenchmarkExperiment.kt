@@ -3,6 +3,7 @@ package ksl.simopt.benchmark
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.ModelInputs
@@ -87,6 +88,11 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param captureIterationTraces when true, every cell solver's per-iteration progress
  *  (iteration, cumulative replications, best penalized objective) is captured into the
  *  summary's traces, keyed by cell label — opt-in because traces grow with the budget
+ *  @param captureSolverState when true, each captured trace point also carries the cell
+ *  solver's algorithm-specific state for that iteration. Gated separately from
+ *  `captureIterationTraces` because the volume is an order of magnitude larger: a solver
+ *  publishing six state values turns a study's trace rows into millions of state rows.
+ *  Requires `captureIterationTraces`, since solver state rides on trace points.
  *  @param verificationReplications when non-null, each problem's winning point is
  *  re-simulated at this replication count on a dedicated evaluator and recorded — the
  *  classic verify-at-elevated-replications step
@@ -95,6 +101,13 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  @param experimentStreamProvider the stream provider for experiment-level draws
  *  (currently: the common starting points); defaults to a fresh provider so identically
  *  configured experiments reproduce each other exactly
+ *  @param resultSink when supplied, receives each problem's result as it completes rather
+ *  than only at the end, so a long study is checkpointed per problem instead of holding
+ *  everything in heap and writing once. A sink also enables resume: a re-run attaches to an
+ *  unfinished record of the same name and skips the problems already in it. `run()` still
+ *  returns a `BenchmarkSummary`, so existing callers are unaffected — but note that on a
+ *  resumed run the summary covers only the problems THIS pass ran; the skipped ones are in
+ *  the sink, not in the returned value.
  *  @param cellSolverDecorator invoked with each freshly created cell solver before it
  *  runs, on the cell's worker thread — the attachment hook for per-cell trackers and
  *  instrumentation; anything it touches must be safe to use from worker threads
@@ -108,8 +121,10 @@ class BenchmarkExperiment(
     val replicationBudgetPerRun: Int,
     val confirmation: ConfirmationOptions? = ConfirmationOptions(),
     val captureIterationTraces: Boolean = false,
+    val captureSolverState: Boolean = false,
     val verificationReplications: Int? = null,
     val numWorkers: Int? = null,
+    val resultSink: BenchmarkResultSink? = null,
     experimentStreamProvider: RNStreamProviderIfc = RNStreamProvider(),
     private val cellSolverDecorator: ((solver: Solver, problemName: String, solverLabel: String, repNum: Int) -> Unit)? = null
 ) {
@@ -136,6 +151,11 @@ class BenchmarkExperiment(
             "verificationReplications must be >= 1 when specified"
         }
         require(numWorkers == null || numWorkers > 0) { "numWorkers must be > 0 when specified" }
+        // Solver state is carried on trace points, so asking for it without traces would record
+        // nothing and say nothing about why. Refuse the combination rather than no-op quietly.
+        require(!captureSolverState || captureIterationTraces) {
+            "captureSolverState requires captureIterationTraces; solver state is recorded on trace points"
+        }
     }
 
     private val myExperimentStreamProvider: RNStreamProviderIfc = experimentStreamProvider
@@ -156,10 +176,35 @@ class BenchmarkExperiment(
     fun run(): BenchmarkSummary {
         logger.info { "Benchmark experiment '$name': ${problems.size} problems x ${solverCases.size} solver cases x macro-replications $macroReplicationRange of $macroReplications, budget $replicationBudgetPerRun" }
         val startTime = Clock.System.now()
-        val problemResults = problems.mapIndexed { problemIndex, problemCase ->
-            runProblem(problemIndex, problemCase)
+        // A problem is skipped only because a sink says it is already recorded under an unfinished
+        // experiment of this name. With no sink the set is empty and nothing is ever skipped.
+        val alreadyDone = resultSink?.completedProblems(name) ?: emptySet()
+        if (alreadyDone.isNotEmpty()) {
+            logger.info { "Benchmark experiment '$name': resuming, skipping ${alreadyDone.size} already-recorded problems $alreadyDone" }
+        }
+        val expId = resultSink?.beginExperiment(summaryHeader(startTime), resume = true)
+        val problemResults = mutableListOf<ProblemBenchmarkResult>()
+        for ((problemIndex, problemCase) in problems.withIndex()) {
+            if (problemCase.name in alreadyDone) {
+                continue
+            }
+            // The problem's index within the full problem list, not within this pass, so a resumed
+            // run addresses starting points exactly as an uninterrupted one does.
+            val result = runProblem(problemIndex, problemCase)
+            problemResults.add(result)
+            if (resultSink != null && expId != null) {
+                val cellLabels = result.runs.map { it.cellLabel }.toSet()
+                resultSink.problemCompleted(
+                    expId,
+                    result,
+                    myTraces.filterKeys { it in cellLabels }.mapValues { (_, points) -> points.toList() }
+                )
+            }
         }
         val endTime = Clock.System.now()
+        if (resultSink != null && expId != null) {
+            resultSink.endExperiment(expId, endTime, mySolverConfigurations.toMap())
+        }
         logger.info { "Benchmark experiment '$name' complete" }
         return BenchmarkSummary(
             experimentName = name,
@@ -175,6 +220,33 @@ class BenchmarkExperiment(
             traces = myTraces.mapValues { (_, points) -> points.toList() }
         )
     }
+
+    /** What a sink needs before the first problem runs. */
+    private fun summaryHeader(startTime: Instant): BenchmarkSummaryHeader = BenchmarkSummaryHeader(
+        experimentName = name,
+        macroReplications = myRepNumbers.size,
+        replicationBudgetPerRun = replicationBudgetPerRun,
+        confirmationTopK = confirmation?.topK,
+        confirmationReplications = confirmation?.replicationsPerCandidate,
+        verificationReplications = verificationReplications,
+        // The experiment's problem count, not this pass's, so a resumed run does not shrink the
+        // record of how big the study was.
+        numProblems = problems.size,
+        solverCaseDescriptions = solverCases.associate { it.label to it.description },
+        startTime = startTime,
+        tracesCaptured = captureIterationTraces,
+        solverStateCaptured = captureSolverState
+    )
+
+    /**
+     *  The overall confidence at which a cell's best point is assessed against the problem's
+     *  response constraints. Taken from the confirmation options so the per-constraint record and
+     *  the confirmation's own selection read feasibility at the same level; 0.99 when confirmation
+     *  is disabled, which is what both `ConfirmationOptions` and `Solver.recommendationCILevel`
+     *  default to.
+     */
+    private val assessmentCILevel: Double
+        get() = confirmation?.recommendationCILevel ?: 0.99
 
     private fun runProblem(problemIndex: Int, problemCase: ProblemCase): ProblemBenchmarkResult {
         logger.info { "Benchmark '$name': running problem '${problemCase.name}'" }
@@ -305,7 +377,12 @@ class BenchmarkExperiment(
                         IterationTracePoint(
                             iteration = snapshot.iterationNumber,
                             cumulativeReplications = snapshot.numReplicationsRequested,
-                            bestPenalizedObjective = snapshot.penalizedObjFncValue
+                            bestPenalizedObjective = snapshot.penalizedObjFncValue,
+                            solverState = if (captureSolverState) {
+                                snapshot.solverSpecificState ?: emptyMap()
+                            } else {
+                                emptyMap()
+                            }
                         )
                     )
                 }
@@ -395,10 +472,13 @@ class BenchmarkExperiment(
                 isBestValid = isBestValid,
                 isInputFeasible = best.isInputFeasible(),
                 responseConstraintViolation = best.responseConstraintViolationPenalty,
+                responseEstimates = best.responseEstimatesMap + (best.estimatedObjFnc.name to best.estimatedObjFnc),
+                responseConstraintAssessments = best.responseConstraintAssessments(assessmentCILevel).values.toList(),
                 numOracleCalls = member.numOracleCalls,
                 numReplicationsRequested = member.numReplicationsRequested,
                 totalIterations = completed?.totalIterations,
                 wallClockMillis = completed?.executionTimeMillis,
+                cpuTimeMillis = member.cpuTimeMillis,
                 gap = gap,
                 gapType = if (gap != null) gapType else null,
                 errorMessage = member.error?.message
@@ -418,6 +498,7 @@ class BenchmarkExperiment(
             dimension = problemDefinition.inputSize,
             optimizationType = problemDefinition.optimizationType,
             numResponseConstraints = problemDefinition.responseConstraints.size,
+            responseConstraints = problemDefinition.responseConstraints,
             runs = runs,
             confirmation = confirmationOutcome,
             winner = winner,

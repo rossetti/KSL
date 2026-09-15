@@ -20,6 +20,7 @@ data class ExperimentTableData(
     var confirmationReplications: Int? = null,
     var verificationReplications: Int? = null,
     var tracesCaptured: Boolean = false,
+    var solverStateCaptured: Boolean = false,
     var kslVersion: String? = null
 ) : DbTableData("tblExperiment", listOf("expId"))
 
@@ -90,6 +91,7 @@ data class RunTableData(
     var numReplicationsRequested: Int = 0,
     var totalIterations: Int? = null,
     var wallClockMillis: Long? = null,
+    var cpuTimeMillis: Long? = null,
     var gap: Double? = null,
     var gapType: String? = null,
     var errorMessage: String? = null
@@ -111,6 +113,96 @@ data class ConfirmationTableData(
 ) : DbTableData("tblConfirmation", listOf("expId", "problemName", "candidateNum"))
 
 /**
+ *  One row per (run, response constraint): the cell best's estimate for the constrained response,
+ *  by how much the constraint is violated, the one-sided upper confidence limit, and whether that
+ *  constraint on its own can be declared feasible.
+ *
+ *  `tblRun.responseConstraintViolation` is retained alongside this and is unchanged; it is the
+ *  aggregate, and an aggregate cannot say WHICH constraint bound. That question — do particular
+ *  solvers fail specifically on one coupling constraint? — is what these rows answer.
+ *
+ *  `ciUpperLimit` is null when the estimate carried fewer than two observations, so there was no
+ *  sample variance and no interval to report. A `feasibleAtCI` of false on such a row means "not
+ *  shown feasible", not "shown infeasible".
+ */
+data class RunConstraintTableData(
+    var runId: Int = -1,
+    var responseName: String = "",
+    var estimate: Double = 0.0,
+    var violation: Double = 0.0,
+    var ciUpperLimit: Double? = null,
+    var feasibleAtCI: Boolean = false
+) : DbTableData("tblRunConstraint", listOf("runId", "responseName"))
+
+/**
+ *  One row per (experiment, problem, response constraint): the constraint as the problem defines
+ *  it. Without these rows the database records what a run achieved but not what it had to meet, so
+ *  answering "was every verified winner feasible?" meant hand-coding the constraint table from the
+ *  specification and joining it externally. With them the question is a single join and the archive
+ *  is self-describing.
+ */
+data class ProblemConstraintTableData(
+    var expId: Int = -1,
+    var problemName: String = "",
+    var responseName: String = "",
+    var rhsValue: Double = 0.0,
+    var inequalityType: String = "",
+    var target: Double = 0.0,
+    var tolerance: Double = 0.0
+) : DbTableData("tblProblemConstraint", listOf("expId", "problemName", "responseName"))
+
+/**
+ *  One row per (run, response): the cell best's estimate for every response of the problem, the
+ *  objective included.
+ *
+ *  This is what makes a selection replayable. `tblRun` preserves the best point's INPUTS, which is
+ *  enough to re-simulate but not to re-select: ranking a candidate needs its average, variance and
+ *  count per response. With those stored, an alternative confirmation rule can be applied to a
+ *  finished study offline, and only the finalists it chooses need fresh simulation.
+ *
+ *  A variance of NaN is what a single-observation estimate legitimately carries.
+ */
+data class RunResponseTableData(
+    var runId: Int = -1,
+    var responseName: String = "",
+    var average: Double = 0.0,
+    var variance: Double = 0.0,
+    var count: Double = 0.0
+) : DbTableData("tblRunResponse", listOf("runId", "responseName"))
+
+/**
+ *  One row per (experiment, problem) confirmation stage: how many candidates were ranked,
+ *  how many of them were confidently response-feasible at the confirmation's CI level, and
+ *  whether the selection was therefore degenerate.
+ *
+ *  Separate from `tblConfirmation` rather than extra columns on it, for two reasons. The
+ *  candidate table is one row per finalist, so these problem-level values would repeat on
+ *  every row; and it gets no rows at all when confirmation is skipped for a single distinct
+ *  finalist — which is exactly a case where knowing the selection could not discriminate
+ *  still matters. A summary row is written whenever a confirmation stage ran.
+ *
+ *  A degenerate selection is one in which no candidate could be declared confidently
+ *  feasible, so the comparator fell through to ranking by constraint violation alone and the
+ *  objective played no part in choosing the winner. Always false for a problem with no
+ *  response constraints.
+ *
+ *  `numConfidentlyFeasibleAfterScreening` is null when no screening stage ran. When screening did
+ *  run, it is the count at the screening precision, so a degenerate row followed by a positive count
+ *  here records a selection that screening rescued — and a zero records a screening stage whose
+ *  replication count was too small for the constraint, which looks identical in every other respect.
+ */
+data class ConfirmationSummaryTableData(
+    var expId: Int = -1,
+    var problemName: String = "",
+    var numCandidates: Int = 0,
+    var numConfidentlyFeasible: Int = 0,
+    var selectionDegenerate: Boolean = false,
+    var numConfidentlyFeasibleAfterScreening: Int? = null,
+    var numOracleCalls: Int = 0,
+    var numReplicationsRequested: Int = 0
+) : DbTableData("tblConfirmationSummary", listOf("expId", "problemName"))
+
+/**
  *  One row per captured iteration of a run's trace (opt-in): the cumulative requested
  *  replications and the best penalized objective so far. Iteration 0 is the initialized
  *  state. Keyed by run id, so a trace-enabled rerun lands in the same database next to
@@ -122,6 +214,25 @@ data class IterationTraceTableData(
     var cumulativeReplications: Int = 0,
     var bestPenalizedObjective: Double = 0.0
 ) : DbTableData("tblIterationTrace", listOf("runId", "iteration"))
+
+/**
+ *  One row per (run, iteration, state name) of a captured trace (opt-in): the cell solver's
+ *  algorithm-specific state for that iteration.
+ *
+ *  Long format deliberately. Solvers publish different state, and a new solver — or a new
+ *  measurement on an existing one — would otherwise add a column and change the schema for every
+ *  study already in the file. Keyed by run id, matching tblIterationTrace.
+ *
+ *  Volume is the reason this is gated behind its own flag rather than riding on trace capture: a
+ *  solver publishing six values per iteration produces roughly six times the trace row count, so a
+ *  study with a couple of hundred thousand trace rows lands on the order of a million here.
+ */
+data class IterationTraceStateTableData(
+    var runId: Int = -1,
+    var iteration: Int = 0,
+    var stateName: String = "",
+    var stateValue: Double = 0.0
+) : DbTableData("tblIterationTraceState", listOf("runId", "iteration", "stateName"))
 
 /**
  *  One row per response of a problem's verification stage (opt-in): the winning point

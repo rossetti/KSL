@@ -134,26 +134,26 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         return DEmpiricalCDF(values, cdf)
     }
 
+    /**
+     *  The cumulative probability of the largest support point not exceeding [x]; zero below the
+     *  support.
+     *
+     *  A single forward pass. The walk previously here advanced the iterator TWICE per pass, so it
+     *  examined the brackets (x0,x1), (x2,x3), ... and never (x1,x2), (x3,x4), ...: arguments in a
+     *  skipped bracket fell through to whichever point was consumed last, and a support with an odd
+     *  number of points ran the iterator off the end and threw NoSuchElementException on an ordinary
+     *  lookup. The early returns for the ends are no longer needed — an empty accumulator gives 0
+     *  below the support, and the last point's cumulative probability is 1 at or above its top.
+     */
     override fun cdf(x: Double): Double {
-        var lowpt = myProbabilityPoints.first()
-        if (x < lowpt.value) {
-            return 0.0
-        }
-        var uppt = myProbabilityPoints.last()
-        if (x >= uppt.value) {
-            return 1.0
-        }
-        val iter: ListIterator<ProbPoint> = myProbabilityPoints.listIterator()
-        while (iter.hasNext()) {
-            lowpt = iter.next()
-            uppt = iter.next()
-            val lv = lowpt.value
-            val uv = uppt.value
-            if (lv <= x && x < uv) {
+        var result = 0.0
+        for (probPoint in myProbabilityPoints) {
+            if (probPoint.value > x) {
                 break
             }
+            result = probPoint.cumProb
         }
-        return lowpt.cumProb
+        return result
     }
 
     override fun mean(): Double {
@@ -294,26 +294,41 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     }
 
     /**
-     * First order loss function G1(x) = E[max(X-x,0)]
+     * First order loss function G1(x) = E[max(X-x,0)].
+     *
+     * The components are named rather than destructured. `ProbPoint` is (value, prob, cumProb), so
+     * the positional form previously here bound the VALUE to a variable called `p` and the
+     * PROBABILITY to one called `v`: the guard then compared a probability against a stock level and
+     * the accumulation multiplied a value by a difference of probabilities. Naming them is also what
+     * stops the same transposition recurring if `ProbPoint` ever gains a field.
      */
     override fun firstOrderLossFunction(x: Double): Double {
         var m = 0.0
-        for ((p, v) in myProbabilityPoints) {
-            if (v >= x) {
-                m = m + p * (v - x)
+        for (probPoint in myProbabilityPoints) {
+            if (probPoint.value > x) {
+                m += probPoint.prob * (probPoint.value - x)
             }
         }
         return m
     }
 
     /**
-     * Second order loss function G2(x) = (1/2)E[max(X-x,0)*max(X-x-1,0)]
+     * Second order loss function G2(x) = (1/2)E[max(X-x,0)*max(X-x-1,0)].
+     *
+     * Both factors are clamped at zero, as the definition says. Guarding only the first would admit
+     * a support point sitting strictly between x and x+1, whose second factor is then negative, and
+     * a second order loss function — half the expectation of a product of two non-negative
+     * quantities — cannot be negative. Unlike the integer-supported distributions, an empirical
+     * support can place a point anywhere, so the second guard is load-bearing here rather than
+     * redundant.
      */
     override fun secondOrderLossFunction(x: Double): Double {
         var m = 0.0
-        for ((p, v) in myProbabilityPoints) {
-            if (v >= x) {
-                m = m + p * (v - x) * (v - x - 1.0)
+        for (probPoint in myProbabilityPoints) {
+            val first = probPoint.value - x
+            val second = probPoint.value - x - 1.0
+            if (first > 0.0 && second > 0.0) {
+                m += probPoint.prob * first * second
             }
         }
         return 0.5 * m

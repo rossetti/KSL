@@ -11,6 +11,8 @@ import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.statistics
+import kotlin.math.abs
 import kotlin.math.ceil
 
 /**
@@ -255,6 +257,50 @@ class CrossEntropySolver @JvmOverloads constructor(
 
     private fun findEliteSolutions(results: List<Solution>): MutableList<Solution> {
         return results.sorted().take(eliteSize()).toMutableList()
+    }
+
+    /**
+     *  The mean coefficient of variation of the sampling distribution: the average, over the
+     *  problem's dimensions, of the standard deviation divided by the absolute mean. This is the
+     *  quantity the sampler's own convergence test compares against its threshold, so it is the
+     *  direct measurement of the reference distribution collapsing onto a point.
+     *
+     *  Returns NaN when the sampler does not expose mean and standard deviation parameters
+     *  (only `CENormalSampler` does today), and skips any dimension whose mean is zero, where
+     *  the ratio is undefined. A dimension count of zero after skipping also yields NaN.
+     */
+    private fun samplerMeanCoefficientOfVariation(): Double {
+        val sampler = ceSampler as? CENormalSampler ?: return Double.NaN
+        val means = sampler.means
+        val stdDevs = sampler.stdDeviations
+        var total = 0.0
+        var counted = 0
+        for (i in means.indices) {
+            val m = abs(means[i])
+            if (m > 0.0) {
+                total += stdDevs[i] / m
+                counted++
+            }
+        }
+        return if (counted == 0) Double.NaN else total / counted
+    }
+
+    override fun extractSolverSpecificState(): Map<String, Double> {
+        if (myEliteSolutions.isEmpty()) {
+            return linkedMapOf(
+                "eliteCount" to 0.0,
+                "eliteSpread" to Double.NaN,
+                "samplerMeanCV" to samplerMeanCoefficientOfVariation()
+            )
+        }
+        val fitness = myEliteSolutions.map { it.recordedPenalizedObjFncValue }.toDoubleArray()
+        // A single elite has no spread; Statistic reports NaN for a sample of one, which is the
+        // honest answer and matches how the population solvers report an unmeasurable quantity.
+        return linkedMapOf(
+            "eliteCount" to fitness.size.toDouble(),
+            "eliteSpread" to fitness.statistics().standardDeviation,
+            "samplerMeanCV" to samplerMeanCoefficientOfVariation()
+        )
     }
 
     override fun toString(): String {

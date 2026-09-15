@@ -67,10 +67,25 @@ interface PlotIfc {
     /**
      * Returns an embeddable HTML fragment (a `<div>` and inline `<script>`) suitable
      * for compositing into a larger HTML page. Unlike [toHTML], this does not include
-     * `<html>`, `<head>`, or `<body>` wrappers. The Lets-Plot JS library must be loaded
-     * once in the enclosing page's `<head>` for the fragment to render correctly.
+     * `<html>`, `<head>`, or `<body>` wrappers.
+     *
+     * **The caller must load the Lets-Plot JS library once in the enclosing page's `<head>`**,
+     * via `PlotHtmlHelper.scriptUrl`, or the fragment renders as an empty box. A page built by
+     * `ksl.utilities.io.report.renderer.HtmlReportRenderer` already does this. Use
+     * [toSelfContainedHTML] instead when the output has to stand on its own.
      */
     fun toEmbeddedHTML(): String
+
+    /**
+     * Returns a complete HTML document for the plot that carries its own copy of the Lets-Plot JS
+     * library, so it renders wherever it is put without the surrounding page doing anything.
+     *
+     * Differs from [toHTML] only in that the plot is not wrapped in an iframe. Prefer
+     * [toEmbeddedHTML] for anything being composited into a larger page: a document nested inside
+     * another document is invalid, and though browsers recover from it, other tools that consume
+     * HTML need not.
+     */
+    fun toSelfContainedHTML(): String
 
     /**
      * @param fileName the name of the file without an extension
@@ -124,8 +139,24 @@ interface PlotIfc {
          * `<script>` with no surrounding page structure. The caller is responsible for
          * loading the Lets-Plot JS library once in the enclosing page's `<head>` via
          * [PlotHtmlHelper.scriptUrl].
+         *
+         * This used to return what [toSelfContainedHTML] now returns: a complete document,
+         * `<html>`, `<head>`, `<body>` and its own library script. A report embedding several plots
+         * therefore emitted one document per plot inside the page document. Browsers recover from
+         * that — the plots render and the parsed DOM comes out right — but the markup is invalid,
+         * every plot container ends up holding the flattened head of its nested document, and the
+         * function could not be used for the one thing it exists for.
          */
         fun toEmbeddedHTML(figure: Figure): String {
+            return PlotHtmlHelper.getDynamicDisplayHtmlForRawSpec(figure.toSpec())
+        }
+
+        /**
+         * Produces a complete HTML document from a [Figure] that carries its own copy of the
+         * Lets-Plot JS library, so it renders wherever it is put. Differs from [toHTML] only in
+         * that the plot is not wrapped in an iframe.
+         */
+        fun toSelfContainedHTML(figure: Figure): String {
             val spec = figure.toSpec()
             return PlotHtmlExport.buildHtmlFromRawSpecs(
                 spec, iFrame = false,

@@ -81,7 +81,14 @@ class HtmlReportRenderer(
     // ── ReportVisitor implementation ────────────────────────────────────────────
 
     override fun enterDocument(node: ReportNode.Document) {
-        val myScriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+        // Lets-Plot's own head setup, not a hand-rolled script tag. The display fragments emitted
+        // per plot call window.letsPlotCall(...), and that function is defined by this bootstrap --
+        // loading lets-plot.min.js alone leaves it undefined and every plot fails with
+        // "window.letsPlotCall is not a function", rendering the page with blank space where the
+        // plots should be.
+        val myPlotBootstrap = PlotHtmlHelper.getDynamicConfigureHtml(
+            PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion), false
+        )
         val myStyleBlock = when {
             cssPath != null ->
                 """<link rel="stylesheet" href="${cssPath.toUri()}"/>"""
@@ -97,7 +104,7 @@ class HtmlReportRenderer(
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>${node.title.escapeHtml()}</title>
-<script src="$myScriptUrl"></script>
+$myPlotBootstrap
 $myStyleBlock
 </head>
 <body>

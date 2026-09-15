@@ -54,14 +54,42 @@ class StreamTapePolicy(initialPosition: Int = 0) {
      * independent, non-overlapping stream blocks
      * @return the advance to apply (as `numberOfStreamAdvancesPriorToRunning`) for each point
      */
-    fun advancesFor(inputs: List<ModelInputs>, crnOption: Boolean): List<Int> {
-        if (inputs.isEmpty()) return emptyList()
+    fun advancesFor(inputs: List<ModelInputs>, crnOption: Boolean): List<Int> =
+        advancesFor(inputs.map { it.numReplications }, crnOption)
+
+    /**
+     * Returns the pre-run sub-stream advance for each of a sequence of runs described only by how
+     * many replications each consumes, in order, and moves the tape forward. See the class
+     * documentation for the independent vs. CRN semantics.
+     *
+     * This is the whole of the arithmetic: positioning a run on the tape depends on nothing about a
+     * point except its replication count. The [ModelInputs] overload above reads exactly that from
+     * each input and delegates here, so a harness outside `ksl.simopt` that positions replications
+     * absolutely on a sub-stream tape can reuse this policy rather than manufacture `ModelInputs`
+     * values it has no other use for, or hand-roll a weaker version of the same rule.
+     *
+     * Overloaded on the Kotlin side only: a `List<ModelInputs>` and a `List<Int>` erase to the same
+     * JVM signature, so this carries a distinct `@JvmName` and Java callers reach it as
+     * `advancesForReplicationCounts`.
+     *
+     * @param replicationCounts the replications each run will consume, in order; each must be
+     * non-negative
+     * @param crnOption true for common random numbers (every run shares the current block), false
+     * for independent, non-overlapping blocks
+     * @return the advance to apply (as `numberOfStreamAdvancesPriorToRunning`) for each run
+     */
+    @JvmName("advancesForReplicationCounts")
+    fun advancesFor(replicationCounts: List<Int>, crnOption: Boolean): List<Int> {
+        if (replicationCounts.isEmpty()) return emptyList()
+        require(replicationCounts.all { it >= 0 }) {
+            "A replication count must be non-negative; got $replicationCounts"
+        }
         if (crnOption) {
-            val advances = List(inputs.size) { myPosition }
-            myPosition += inputs.maxOf { it.numReplications }
+            val advances = List(replicationCounts.size) { myPosition }
+            myPosition += replicationCounts.max()
             return advances
         }
-        return inputs.map { modelInputs -> myPosition.also { myPosition += modelInputs.numReplications } }
+        return replicationCounts.map { count -> myPosition.also { myPosition += count } }
     }
 
     /** Resets the tape to its initial position. Primarily useful for tests. */

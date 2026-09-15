@@ -1,8 +1,15 @@
 package ksl.simopt.benchmark.io
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import ksl.simopt.benchmark.BenchmarkResultSink
 import ksl.simopt.benchmark.BenchmarkSummary
+import ksl.simopt.benchmark.BenchmarkSummaryHeader
+import ksl.simopt.benchmark.IterationTracePoint
+import ksl.simopt.benchmark.ProblemBenchmarkResult
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
@@ -44,7 +51,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     dbName: String,
     dbDirectory: Path = KSL.dbDir,
     deleteIfExists: Boolean = false
-) : SQLiteDb(dbName, dbDirectory, deleteIfExists) {
+) : SQLiteDb(dbName, dbDirectory, deleteIfExists), BenchmarkResultSink {
 
     init {
         val missing = tableDefinitions().filterNot { containsTable(it.tableName, null) }.toSet()
@@ -60,58 +67,156 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     private fun tagsToJson(map: Map<String, String>): String = myJson.encodeToString(map)
 
     /**
-     *  Persists a benchmark summary: the experiment row, its problems, solver cases and
-     *  their captured parameters, every cell run, confirmation finalists, verification
-     *  estimates, and (when captured) iteration traces keyed by run id.
+     *  Persists a complete benchmark summary: the experiment row, its problems, solver cases and
+     *  their captured parameters, every cell run with its per-constraint and per-response detail,
+     *  confirmation finalists, verification estimates, and (when captured) iteration traces and
+     *  solver state keyed by run id.
+     *
+     *  Routed through this database's own [BenchmarkResultSink] implementation, so a summary saved
+     *  in one call and an experiment streamed problem-by-problem travel the same code and cannot
+     *  drift apart. A summary is by definition finished, so it never resumes into an unfinished
+     *  record of the same name — it always gets a fresh experiment id.
      *
      *  @param summary the summary returned by a benchmark experiment's run()
      *  @param kslVersion an optional KSL version string recorded with the experiment
      *  @return the experiment id assigned to this summary within the database
      */
     fun saveSummary(summary: BenchmarkSummary, kslVersion: String? = null): Int {
+        val header = BenchmarkSummaryHeader(
+            experimentName = summary.experimentName,
+            macroReplications = summary.macroReplications,
+            replicationBudgetPerRun = summary.replicationBudgetPerRun,
+            confirmationTopK = summary.confirmation?.topK,
+            confirmationReplications = summary.confirmation?.replicationsPerCandidate,
+            verificationReplications = summary.verificationReplications,
+            numProblems = summary.problemResults.size,
+            solverCaseDescriptions = summary.solverCaseDescriptions,
+            startTime = summary.startTime,
+            tracesCaptured = summary.traces.isNotEmpty(),
+            solverStateCaptured = summary.traces.values.any { points ->
+                points.any { it.solverState.isNotEmpty() }
+            }
+        )
+        val expId = beginExperiment(header, resume = false, kslVersion = kslVersion)
+        for (pr in summary.problemResults) {
+            val cellLabels = pr.runs.map { it.cellLabel }.toSet()
+            problemCompleted(expId, pr, summary.traces.filterKeys { it in cellLabels })
+        }
+        endExperiment(expId, summary.endTime, summary.solverConfigurations)
+        return expId
+    }
+
+    // ── BenchmarkResultSink ──────────────────────────────────────────────────
+
+    override fun beginExperiment(header: BenchmarkSummaryHeader, resume: Boolean): Int =
+        beginExperiment(header, resume, kslVersion = null)
+
+    /**
+     *  As [beginExperiment], additionally recording a KSL version string on a freshly created
+     *  experiment row. Resuming leaves the existing row's version untouched: it records the version
+     *  the experiment started under, which is the one its earlier problems actually ran on.
+     */
+    private fun beginExperiment(
+        header: BenchmarkSummaryHeader,
+        resume: Boolean,
+        kslVersion: String?
+    ): Int {
+        if (resume) {
+            val unfinished = unfinishedExperimentId(header.experimentName)
+            if (unfinished != null) {
+                logger.info {
+                    "Resuming benchmark experiment '${header.experimentName}' as expId $unfinished"
+                }
+                return unfinished
+            }
+        }
         val expId = nextId("tblExperiment", "expId")
         insertDbDataIntoTable(
             ExperimentTableData(
                 expId = expId,
-                expName = summary.experimentName,
-                startTime = summary.startTime.toString(),
-                endTime = summary.endTime.toString(),
-                replicationBudgetPerRun = summary.replicationBudgetPerRun,
-                macroReplications = summary.macroReplications,
-                numProblems = summary.problemResults.size,
-                numSolverCases = summary.solverCaseDescriptions.size,
-                confirmationTopK = summary.confirmation?.topK,
-                confirmationReplications = summary.confirmation?.replicationsPerCandidate,
-                verificationReplications = summary.verificationReplications,
-                tracesCaptured = summary.traces.isNotEmpty(),
+                expName = header.experimentName,
+                startTime = header.startTime.toString(),
+                // Empty until endExperiment closes the record. That emptiness IS the unfinished
+                // marker a resume looks for, so it must not be given a placeholder value.
+                endTime = "",
+                replicationBudgetPerRun = header.replicationBudgetPerRun,
+                macroReplications = header.macroReplications,
+                numProblems = header.numProblems,
+                numSolverCases = header.solverCaseDescriptions.size,
+                confirmationTopK = header.confirmationTopK,
+                confirmationReplications = header.confirmationReplications,
+                verificationReplications = header.verificationReplications,
+                tracesCaptured = header.tracesCaptured,
+                solverStateCaptured = header.solverStateCaptured,
                 kslVersion = kslVersion
             )
         )
-        saveSolverCases(expId, summary)
-        saveProblems(expId, summary)
-        val runIdByCell = saveRuns(expId, summary)
-        saveConfirmations(expId, summary)
-        saveVerifications(expId, summary)
-        saveTraces(runIdByCell, summary)
+        insertAllDbDataIntoTable(
+            header.solverCaseDescriptions.map { (label, description) ->
+                SolverCaseTableData(expId, label, description)
+            },
+            "tblSolverCase"
+        )
         return expId
     }
 
-    private fun saveSolverCases(expId: Int, summary: BenchmarkSummary) {
-        val cases = summary.solverCaseDescriptions.map { (label, description) ->
-            SolverCaseTableData(expId, label, description)
-        }
-        insertAllDbDataIntoTable(cases, "tblSolverCase")
-        val parameters = summary.solverConfigurations.flatMap { (label, properties) ->
-            properties.map { (paramName, paramValue) ->
-                SolverCaseParameterTableData(expId, label, paramName, paramValue)
-            }
-        }
-        insertAllDbDataIntoTable(parameters, "tblSolverCaseParameter")
+    override fun problemCompleted(
+        expId: Int,
+        result: ProblemBenchmarkResult,
+        traces: Map<String, List<IterationTracePoint>>
+    ) {
+        saveProblem(expId, result)
+        saveProblemConstraints(expId, result)
+        val runIdByCell = saveRuns(expId, result)
+        saveRunConstraintsAndResponses(runIdByCell, result)
+        saveConfirmation(expId, result)
+        saveVerification(expId, result)
+        saveTraces(runIdByCell, traces)
     }
 
-    private fun saveProblems(expId: Int, summary: BenchmarkSummary) {
-        // find the problem's reference data indirectly: reference gaps carry the type
-        val rows = summary.problemResults.map { pr ->
+    override fun endExperiment(
+        expId: Int,
+        endTime: Instant,
+        solverConfigurations: Map<String, Map<String, String>>
+    ) {
+        insertAllDbDataIntoTable(
+            solverConfigurations.flatMap { (label, properties) ->
+                properties.map { (paramName, paramValue) ->
+                    SolverCaseParameterTableData(expId, label, paramName, paramValue)
+                }
+            },
+            "tblSolverCaseParameter"
+        )
+        // Stamping the end time is what marks the record finished, so it is the last write.
+        executeCommand(
+            "UPDATE tblExperiment SET endTime = '${endTime}' WHERE expId = $expId"
+        )
+    }
+
+    override fun completedProblems(expName: String): Set<String> {
+        val expId = unfinishedExperimentId(expName) ?: return emptySet()
+        return problems(expId).map { it.problemName }.toSet()
+    }
+
+    /**
+     *  The id of an unfinished experiment of this name — one whose end time was never stamped,
+     *  because its run was interrupted. Null when no such record exists, which includes the ordinary
+     *  case of every same-named experiment having completed.
+     *
+     *  The most recent is chosen when several are unfinished, so a second interruption resumes the
+     *  latest attempt rather than an older abandoned one.
+     */
+    private fun unfinishedExperimentId(expName: String): Int? {
+        return experiments()
+            .filter { it.expName == expName && it.endTime.isEmpty() }
+            .maxByOrNull { it.expId }
+            ?.expId
+    }
+
+    // ── Per-problem writers ──────────────────────────────────────────────────
+
+    private fun saveProblem(expId: Int, pr: ProblemBenchmarkResult) {
+        insertDbDataIntoTable(
             ProblemTableData(
                 expId = expId,
                 problemName = pr.problemName,
@@ -129,15 +234,31 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 winnerInputsJson = pr.winner?.let { toJson(it.inputMap.toMap()) },
                 winnerObjective = pr.winner?.average
             )
-        }
-        insertAllDbDataIntoTable(rows, "tblProblem")
+        )
     }
 
-    private fun saveRuns(expId: Int, summary: BenchmarkSummary): Map<String, Int> {
+    private fun saveProblemConstraints(expId: Int, pr: ProblemBenchmarkResult) {
+        insertAllDbDataIntoTable(
+            pr.responseConstraints.map { rc ->
+                ProblemConstraintTableData(
+                    expId = expId,
+                    problemName = pr.problemName,
+                    responseName = rc.responseName,
+                    rhsValue = rc.rhsValue,
+                    inequalityType = rc.inequalityType.name,
+                    target = rc.target,
+                    tolerance = rc.tolerance
+                )
+            },
+            "tblProblemConstraint"
+        )
+    }
+
+    private fun saveRuns(expId: Int, pr: ProblemBenchmarkResult): Map<String, Int> {
         var runId = nextId("tblRun", "runId")
         val runIdByCell = mutableMapOf<String, Int>()
         val rows = mutableListOf<RunTableData>()
-        for (run in summary.allRuns) {
+        for (run in pr.runs) {
             runIdByCell[run.cellLabel] = runId
             rows.add(
                 RunTableData(
@@ -159,6 +280,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                     numReplicationsRequested = run.numReplicationsRequested,
                     totalIterations = run.totalIterations,
                     wallClockMillis = run.wallClockMillis,
+                    cpuTimeMillis = run.cpuTimeMillis,
                     gap = run.gap,
                     gapType = run.gapType?.name,
                     errorMessage = run.errorMessage
@@ -170,41 +292,35 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         return runIdByCell
     }
 
-    private fun saveConfirmations(expId: Int, summary: BenchmarkSummary) {
-        val rows = mutableListOf<ConfirmationTableData>()
-        for (pr in summary.problemResults) {
-            val outcome = pr.confirmation ?: continue
-            for ((index, solution) in outcome.confirmedSolutions.withIndex()) {
-                rows.add(
-                    ConfirmationTableData(
-                        expId = expId,
-                        problemName = pr.problemName,
-                        candidateNum = index + 1,
-                        inputsJson = toJson(solution.inputMap.toMap()),
-                        objective = solution.average,
-                        penalizedObjective = solution.recordedPenalizedObjFncValue,
-                        numReplications = solution.count,
-                        isWinner = solution.inputMap == outcome.winner.inputMap
+    /**
+     *  Writes both per-run detail tables in one pass over the cells, since they share the run id
+     *  assigned by `saveRuns` and differ only in what they project from the same best solution.
+     */
+    private fun saveRunConstraintsAndResponses(
+        runIdByCell: Map<String, Int>,
+        pr: ProblemBenchmarkResult
+    ) {
+        val constraintRows = mutableListOf<RunConstraintTableData>()
+        val responseRows = mutableListOf<RunResponseTableData>()
+        for (run in pr.runs) {
+            val runId = runIdByCell[run.cellLabel] ?: continue
+            for (assessment in run.responseConstraintAssessments) {
+                constraintRows.add(
+                    RunConstraintTableData(
+                        runId = runId,
+                        responseName = assessment.responseName,
+                        estimate = assessment.estimate,
+                        violation = assessment.violation,
+                        ciUpperLimit = assessment.ciUpperLimit,
+                        feasibleAtCI = assessment.isFeasibleAtCI
                     )
                 )
             }
-        }
-        insertAllDbDataIntoTable(rows, "tblConfirmation")
-    }
-
-    private fun saveVerifications(expId: Int, summary: BenchmarkSummary) {
-        val rows = mutableListOf<VerificationTableData>()
-        for (pr in summary.problemResults) {
-            val verification = pr.verification ?: continue
-            val inputsJson = toJson(verification.inputMap.toMap())
-            val estimates = listOf(verification.estimatedObjFnc) + verification.responseEstimates
-            for (estimate in estimates) {
-                rows.add(
-                    VerificationTableData(
-                        expId = expId,
-                        problemName = pr.problemName,
-                        responseName = estimate.name,
-                        inputsJson = inputsJson,
+            for ((responseName, estimate) in run.responseEstimates) {
+                responseRows.add(
+                    RunResponseTableData(
+                        runId = runId,
+                        responseName = responseName,
                         average = estimate.average,
                         variance = estimate.variance,
                         count = estimate.count
@@ -212,12 +328,70 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 )
             }
         }
-        insertAllDbDataIntoTable(rows, "tblVerification")
+        insertAllDbDataIntoTable(constraintRows, "tblRunConstraint")
+        insertAllDbDataIntoTable(responseRows, "tblRunResponse")
     }
 
-    private fun saveTraces(runIdByCell: Map<String, Int>, summary: BenchmarkSummary) {
+    private fun saveConfirmation(expId: Int, pr: ProblemBenchmarkResult) {
+        val outcome = pr.confirmation ?: return
+        // Written for every problem whose confirmation stage ran, including one whose
+        // finalists collapsed to a single point and produced no candidate rows below.
+        insertDbDataIntoTable(
+            ConfirmationSummaryTableData(
+                expId = expId,
+                problemName = pr.problemName,
+                numCandidates = outcome.numCandidates,
+                numConfidentlyFeasible = outcome.numConfidentlyFeasible,
+                selectionDegenerate = outcome.selectionDegenerate,
+                numConfidentlyFeasibleAfterScreening = outcome.numConfidentlyFeasibleAfterScreening,
+                numOracleCalls = outcome.numOracleCalls,
+                numReplicationsRequested = outcome.numReplicationsRequested
+            )
+        )
+        insertAllDbDataIntoTable(
+            outcome.confirmedSolutions.mapIndexed { index, solution ->
+                ConfirmationTableData(
+                    expId = expId,
+                    problemName = pr.problemName,
+                    candidateNum = index + 1,
+                    inputsJson = toJson(solution.inputMap.toMap()),
+                    objective = solution.average,
+                    penalizedObjective = solution.recordedPenalizedObjFncValue,
+                    numReplications = solution.count,
+                    isWinner = solution.inputMap == outcome.winner.inputMap
+                )
+            },
+            "tblConfirmation"
+        )
+    }
+
+    private fun saveVerification(expId: Int, pr: ProblemBenchmarkResult) {
+        val verification = pr.verification ?: return
+        val inputsJson = toJson(verification.inputMap.toMap())
+        val estimates = listOf(verification.estimatedObjFnc) + verification.responseEstimates
+        insertAllDbDataIntoTable(
+            estimates.map { estimate ->
+                VerificationTableData(
+                    expId = expId,
+                    problemName = pr.problemName,
+                    responseName = estimate.name,
+                    inputsJson = inputsJson,
+                    average = estimate.average,
+                    variance = estimate.variance,
+                    count = estimate.count
+                )
+            },
+            "tblVerification"
+        )
+    }
+
+    private fun saveTraces(
+        runIdByCell: Map<String, Int>,
+        traces: Map<String, List<IterationTracePoint>>
+    ) {
         val rows = mutableListOf<IterationTraceTableData>()
-        for ((cellLabel, points) in summary.traces) {
+        val stateRows = mutableListOf<IterationTraceStateTableData>()
+        for ((cellLabel, points) in traces) {
             val runId = runIdByCell[cellLabel] ?: continue
             for (point in points) {
                 rows.add(
@@ -228,9 +402,23 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                         bestPenalizedObjective = point.bestPenalizedObjective
                     )
                 )
+                for ((stateName, stateValue) in point.solverState) {
+                    // A solver reporting an unmeasurable quantity says so with NaN, which SQLite
+                    // stores as null. Keeping the row preserves the fact that the solver was asked
+                    // and answered; dropping it would look like the measurement never existed.
+                    stateRows.add(
+                        IterationTraceStateTableData(
+                            runId = runId,
+                            iteration = point.iteration,
+                            stateName = stateName,
+                            stateValue = stateValue
+                        )
+                    )
+                }
             }
         }
         insertAllDbDataIntoTable(rows, "tblIterationTrace")
+        insertAllDbDataIntoTable(stateRows, "tblIterationTraceState")
     }
 
     // ── Typed extraction, one per table ──────────────────────────────────────
@@ -260,9 +448,52 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         return selectTableDataIntoDbData(::RunTableData).filter { expId == null || it.expId == expId }
     }
 
+    /**
+     *  Per-constraint rows for an experiment's cells: what each cell's best achieved against each
+     *  response constraint. Restricted to one experiment by joining through its run ids.
+     */
+    fun runConstraints(expId: Int? = null): List<RunConstraintTableData> {
+        val all = selectTableDataIntoDbData(::RunConstraintTableData)
+        if (expId == null) {
+            return all
+        }
+        val runIds = runs(expId).map { it.runId }.toSet()
+        return all.filter { it.runId in runIds }
+    }
+
+    /**
+     *  Per-response estimate rows for an experiment's cells — the average, variance and count that
+     *  make a selection replayable offline. Restricted to one experiment by joining through its
+     *  run ids.
+     */
+    fun runResponses(expId: Int? = null): List<RunResponseTableData> {
+        val all = selectTableDataIntoDbData(::RunResponseTableData)
+        if (expId == null) {
+            return all
+        }
+        val runIds = runs(expId).map { it.runId }.toSet()
+        return all.filter { it.runId in runIds }
+    }
+
+    /** The response constraints of an experiment's problems, as the problems define them. */
+    fun problemConstraints(expId: Int? = null): List<ProblemConstraintTableData> {
+        return selectTableDataIntoDbData(::ProblemConstraintTableData)
+            .filter { expId == null || it.expId == expId }
+    }
+
     /** Confirmation rows, optionally restricted to one experiment. */
     fun confirmations(expId: Int? = null): List<ConfirmationTableData> {
         return selectTableDataIntoDbData(::ConfirmationTableData).filter { expId == null || it.expId == expId }
+    }
+
+    /**
+     *  Confirmation summary rows, optionally restricted to one experiment. One row per problem
+     *  whose confirmation stage ran; `selectionDegenerate` marks a problem whose winner was
+     *  chosen by constraint violation alone, with the objective unused.
+     */
+    fun confirmationSummaries(expId: Int? = null): List<ConfirmationSummaryTableData> {
+        return selectTableDataIntoDbData(::ConfirmationSummaryTableData)
+            .filter { expId == null || it.expId == expId }
     }
 
     /** Verification rows, optionally restricted to one experiment. */
@@ -273,6 +504,21 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     /** Iteration-trace rows, optionally restricted to one experiment's runs. */
     fun traces(expId: Int? = null): List<IterationTraceTableData> {
         val all = selectTableDataIntoDbData(::IterationTraceTableData)
+        if (expId == null) {
+            return all
+        }
+        val runIds = runs(expId).map { it.runId }.toSet()
+        return all.filter { it.runId in runIds }
+    }
+
+    /**
+     *  Solver-state rows for an experiment's captured traces, in long format — one row per
+     *  (run, iteration, state name). Empty when the experiment did not capture solver state;
+     *  `tblExperiment.solverStateCaptured` distinguishes that from a study whose solvers published
+     *  nothing.
+     */
+    fun traceStates(expId: Int? = null): List<IterationTraceStateTableData> {
+        val all = selectTableDataIntoDbData(::IterationTraceStateTableData)
         if (expId == null) {
             return all
         }
@@ -493,6 +739,8 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     companion object {
 
         /** Fresh table-definition prototypes for the benchmark schema. */
+        val logger: KLogger = KotlinLogging.logger {}
+
         fun tableDefinitions(): Set<ksl.utilities.io.dbutil.DbTableData> {
             return setOf(
                 ExperimentTableData(),
@@ -500,8 +748,13 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 SolverCaseTableData(),
                 SolverCaseParameterTableData(),
                 RunTableData(),
+                RunConstraintTableData(),
+                RunResponseTableData(),
+                ProblemConstraintTableData(),
                 ConfirmationTableData(),
+                ConfirmationSummaryTableData(),
                 IterationTraceTableData(),
+                IterationTraceStateTableData(),
                 VerificationTableData()
             )
         }

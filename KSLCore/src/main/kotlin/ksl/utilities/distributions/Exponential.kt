@@ -129,12 +129,38 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
         return doubleArrayOf(mean)
     }
 
+    /**
+     *  G1(x) = E[max(X - x, 0)].
+     *
+     *  For an exponential with mean `mu` (so rate `lambda = 1/mu`) this is `mu * exp(-x/mu)`.
+     *  The expression previously here, `exp(-mean * x) / mean`, was written for a RATE
+     *  parameterization while this class stores a MEAN: it put the mean in the exponent where the
+     *  rate belongs and inverted the coefficient. The two agree only at a mean of 1.0, which is the
+     *  default, so every default-constructed instance returned correct values and no other did.
+     *
+     *  Below zero the truncation never binds, because the support is non-negative, so G1(x) is
+     *  simply the mean less x.
+     */
     override fun firstOrderLossFunction(x: Double): Double {
-        return exp(-mean * x) / mean
+        if (x <= 0.0) {
+            return mean - x
+        }
+        return mean * exp(-x / mean)
     }
 
+    /**
+     *  G2(x) = (1/2) * E[max(X - x, 0)^2], which for an exponential with mean `mu` is
+     *  `mu^2 * exp(-x/mu)`, i.e. `mu * G1(x)`.
+     *
+     *  Below zero the truncation never binds, so G2(x) = (1/2) * E[(X - x)^2], and with
+     *  the second moment equal to 2*mu^2, that is (1/2) * (2*mu^2 - 2*x*mu + x^2). The two
+     *  branches agree at x = 0.
+     */
     override fun secondOrderLossFunction(x: Double): Double {
-        return firstOrderLossFunction(x) / mean
+        if (x <= 0.0) {
+            return 0.5 * (2.0 * mean * mean - 2.0 * x * mean + x * x)
+        }
+        return mean * firstOrderLossFunction(x)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): ExponentialRV {

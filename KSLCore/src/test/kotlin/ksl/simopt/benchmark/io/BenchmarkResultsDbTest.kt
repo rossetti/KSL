@@ -1,15 +1,25 @@
 package ksl.simopt.benchmark.io
 
 import ksl.simopt.benchmark.BenchmarkExperiment
+import ksl.simopt.benchmark.BenchmarkResultSink
 import ksl.simopt.benchmark.BenchmarkSolverFactoryIfc
+import ksl.simopt.benchmark.BenchmarkSummaryHeader
+import ksl.simopt.benchmark.IterationTracePoint
+import ksl.simopt.benchmark.ProblemBenchmarkResult
 import ksl.simopt.benchmark.BenchmarkSummary
 import ksl.simopt.benchmark.FunctionMemberEvaluatorFactory
 import ksl.simopt.benchmark.ProblemCase
 import ksl.simopt.benchmark.SolverCase
+import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.FeasibilityFirstComparator
 import ksl.simopt.evaluator.ResponseFunctionBuilderIfc
 import ksl.simopt.evaluator.ResponseFunctionIfc
+import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simopt.solvers.algorithms.pso.ParticleSwarmSolver
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -20,6 +30,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.io.TempDir
+import kotlinx.datetime.Instant
 import java.nio.file.Path
 
 /**
@@ -46,7 +57,10 @@ class BenchmarkResultsDbTest {
 
     private companion object {
         const val OBJ = "objFn"
+        const val TIGHT = "tight"
+        const val SLACK = "slack"
         const val BUDGET = 60
+        const val WORKERS = 2
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
@@ -81,6 +95,53 @@ class BenchmarkResultsDbTest {
         )
     }
 
+
+    // ── Constrained fixture (A1/A2/A3) ────────────────────────────────────────
+
+    /**
+     * A problem with TWO response constraints of which exactly ONE binds, which is the shape the
+     * aggregate violation cannot describe. `tight` is held near 5.0 against a limit of 1.0, so it
+     * is violated by about 4 and is confidently infeasible; `slack` is held near 0.0 against a
+     * limit of 100.0, so it is satisfied with room to spare. The noise is small relative to both
+     * margins, so neither verdict depends on the draw.
+     */
+    private fun constrainedProblem(name: String): ProblemCase {
+        val inputNames = listOf("x1", "x2")
+        return ProblemCase(
+            name = name,
+            problemDefinitionFactory = {
+                val pd = ProblemDefinition(
+                    problemName = name,
+                    modelIdentifier = name,
+                    objFnResponseName = OBJ,
+                    inputNames = inputNames,
+                    responseNames = listOf(TIGHT, SLACK)
+                )
+                for (inputName in inputNames) {
+                    pd.inputVariable(inputName, -10.0, 10.0, 0.0)
+                }
+                pd.responseConstraint(TIGHT, rhsValue = 1.0, inequalityType = InequalityType.LESS_THAN)
+                pd.responseConstraint(SLACK, rhsValue = 100.0, inequalityType = InequalityType.LESS_THAN)
+                pd
+            },
+            evaluatorFactoryProvider = { pd ->
+                FunctionMemberEvaluatorFactory(pd, ResponseFunctionBuilderIfc { streamProvider ->
+                    val stream = streamProvider.rnStream(1)
+                    ResponseFunctionIfc { inputs ->
+                        val x1 = inputs.getValue("x1")
+                        val x2 = inputs.getValue("x2")
+                        mapOf(
+                            OBJ to x1 * x1 + x2 * x2 + 0.1 * stream.randU01(),
+                            TIGHT to 5.0 + 0.01 * stream.randU01(),
+                            SLACK to 0.0 + 0.01 * stream.randU01()
+                        )
+                    }
+                })
+            },
+            tags = mapOf("family" to "constrained")
+        )
+    }
+
     private fun shcCase(label: String, repsPerEvaluation: Int): SolverCase {
         return SolverCase(
             label = label,
@@ -112,7 +173,46 @@ class BenchmarkResultsDbTest {
             replicationBudgetPerRun = BUDGET,
             captureIterationTraces = traces,
             verificationReplications = verification,
-            numWorkers = 2
+            numWorkers = WORKERS
+        ).run()
+    }
+
+
+    // ── Solver-state fixture (B1/B2/B3) ───────────────────────────────────────
+
+    /**
+     * A particle swarm on a mildly noisy sphere. PSO is the solver whose state map carries
+     * `swarmDiameter`, the measurement that says directly whether the swarm collapsed.
+     */
+    private fun psoCase(label: String): SolverCase {
+        return SolverCase(
+            label = label,
+            solverFactory = BenchmarkSolverFactoryIfc { pd, evaluator, memberIndex, name ->
+                ParticleSwarmSolver(
+                    pd, evaluator,
+                    streamNum = memberIndex + 1,
+                    swarmSize = 8,
+                    replicationsPerEvaluation = FixedReplicationsPerEvaluation(5),
+                    name = name
+                )
+            },
+            description = "PSO, swarm of 8"
+        )
+    }
+
+    private fun runPsoExperiment(
+        captureState: Boolean,
+        name: String = "psoExp"
+    ): BenchmarkSummary {
+        return BenchmarkExperiment(
+            name = name,
+            problems = listOf(sphereProblem("psoSphere")),
+            solverCases = listOf(psoCase("pso")),
+            macroReplications = 1,
+            replicationBudgetPerRun = 600,
+            captureIterationTraces = true,
+            captureSolverState = captureState,
+            numWorkers = 1
         ).run()
     }
 
@@ -167,6 +267,45 @@ class BenchmarkResultsDbTest {
         }
 
         assertTrue(db.confirmations(expId).isNotEmpty())
+
+        // CPU time is the portable cost measure: wall clock depends on the worker count and on
+        // what else the machine was doing, so it cannot be compared across runs or machines.
+        // It is measured on the member worker only, which is why it is bounded ABOVE by wall
+        // clock times the worker count and is not expected to approach it.
+        val timed = runs.filter { it.cpuTimeMillis != null }
+        assertTrue(timed.isNotEmpty()) {
+            "no cell reported CPU time; the JVM supports it here, so this is a wiring failure"
+        }
+        for (row in timed) {
+            assertTrue(row.cpuTimeMillis!! >= 0) { "cell ${row.cellLabel} reported negative CPU time" }
+            val wall = row.wallClockMillis
+            if (wall != null) {
+                assertTrue(row.cpuTimeMillis!! <= (wall + 1) * WORKERS) {
+                    "cell ${row.cellLabel} reported ${row.cpuTimeMillis} ms of CPU against " +
+                        "$wall ms of wall clock on $WORKERS workers, which is not physically " +
+                        "possible — the field is reading the wrong clock"
+                }
+            }
+        }
+        // Deliberately NOT asserting a positive value here. These cells run a single hill-climbing
+        // iteration and can finish in well under a millisecond of CPU, so a millisecond-resolution
+        // field legitimately floors to zero and an "at least one is positive" assertion is a coin
+        // flip. That the measurement is live is pinned by `cpuTimeIsActuallyMeasuredOnRealWork`,
+        // on a fixture that does enough work for the answer to be unambiguous.
+
+        // One summary row per problem whose confirmation stage ran, carrying the counts that make
+        // a degenerate selection visible. These problems are unconstrained, so no selection here
+        // can be degenerate; a true flag would mean the condition is being reported spuriously.
+        val confirmationSummaries = db.confirmationSummaries(expId)
+        assertEquals(setOf("sphereA", "sphereB"), confirmationSummaries.map { it.problemName }.toSet())
+        for (row in confirmationSummaries) {
+            assertTrue(row.numCandidates > 0)
+            assertEquals(row.numCandidates, row.numConfidentlyFeasible) {
+                "an unconstrained problem's candidates are all trivially feasible"
+            }
+            assertTrue(!row.selectionDegenerate)
+        }
+
         val verifications = db.verifications(expId)
         assertEquals(setOf("sphereA", "sphereB"), verifications.map { it.problemName }.toSet())
         assertTrue(verifications.all { it.count == 20.0 })
@@ -318,5 +457,435 @@ class BenchmarkResultsDbTest {
         )
         assertEquals(wholeProfile, pooledProfile)
         assertTrue(wholeProfile.isNotEmpty()) { "The profile fixture produced no points" }
+    }
+
+    // ── A1/A2/A3: per-constraint and per-response recording ───────────────────
+
+    private fun runConstrainedExperiment(name: String = "constrainedExp"): BenchmarkSummary {
+        return BenchmarkExperiment(
+            name = name,
+            problems = listOf(constrainedProblem("twoConstraints")),
+            solverCases = listOf(shcCase("shcA", 10)),
+            macroReplications = 2,
+            replicationBudgetPerRun = BUDGET,
+            numWorkers = WORKERS
+        ).run()
+    }
+
+    /**
+     * The aggregate `responseConstraintViolation` is a plain SUM of the per-constraint violations,
+     * so the decomposition is checkable against the number that was already being recorded rather
+     * than against a freshly computed expectation. That is the strongest available statement that
+     * the new rows describe the same run: they must add up to the old column, and they must
+     * attribute the whole of it to the one constraint that binds.
+     */
+    @Test
+    @DisplayName("Per-constraint rows attribute the aggregate violation to the constraint that binds")
+    fun perConstraintRowsDecomposeTheAggregateViolation() {
+        val db = BenchmarkResultsDb("constraints.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runConstrainedExperiment())
+
+        val runs = db.runs(expId)
+        assertTrue(runs.isNotEmpty())
+        val constraintsByRun = db.runConstraints(expId).groupBy { it.runId }
+        assertEquals(runs.size, constraintsByRun.size) { "every cell must contribute constraint rows" }
+
+        for (run in runs) {
+            val rows = constraintsByRun.getValue(run.runId).associateBy { it.responseName }
+            assertEquals(setOf(TIGHT, SLACK), rows.keys)
+
+            assertEquals(run.responseConstraintViolation, rows.values.sumOf { it.violation }, 1e-9) {
+                "the per-constraint violations must sum to the aggregate the run row already carried"
+            }
+
+            val tight = rows.getValue(TIGHT)
+            val slack = rows.getValue(SLACK)
+            assertTrue(tight.violation > 0.0) { "the tight constraint should bind, got ${tight.violation}" }
+            assertEquals(0.0, slack.violation) { "the slack constraint should not bind" }
+            assertTrue(!tight.feasibleAtCI) { "the tight constraint cannot be declared feasible" }
+            assertTrue(slack.feasibleAtCI) { "the slack constraint is satisfied with room to spare" }
+
+            // The interval is what makes "not feasible" a statistical claim rather than a point one.
+            assertNotNull(tight.ciUpperLimit)
+            assertTrue(tight.ciUpperLimit!! > 0.0) { "an infeasible constraint's upper limit exceeds zero" }
+            assertTrue(slack.ciUpperLimit!! < 0.0) { "a confidently feasible constraint's upper limit is below zero" }
+        }
+    }
+
+    /**
+     * The constraint definitions travel with the results, so "was this winner feasible?" is a join
+     * rather than a lookup in a specification document.
+     */
+    @Test
+    @DisplayName("The problem's constraints are recorded, so the database says what a run had to meet")
+    fun problemConstraintsAreSelfDescribing() {
+        val db = BenchmarkResultsDb("problemConstraints.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runConstrainedExperiment())
+
+        val defined = db.problemConstraints(expId).associateBy { it.responseName }
+        assertEquals(setOf(TIGHT, SLACK), defined.keys)
+        assertEquals(1.0, defined.getValue(TIGHT).rhsValue)
+        assertEquals(100.0, defined.getValue(SLACK).rhsValue)
+        assertTrue(defined.values.all { it.inequalityType == "LESS_THAN" })
+        assertTrue(defined.values.all { it.problemName == "twoConstraints" })
+
+        // The join the archive exists to support: every recorded constraint has a matching
+        // assessment on every cell, with no orphan on either side.
+        val assessed = db.runConstraints(expId).map { it.responseName }.toSet()
+        assertEquals(defined.keys, assessed)
+    }
+
+    /**
+     * A3's reason for existing. `tblRun` preserves the best point's INPUTS, which is enough to
+     * re-simulate but not to re-select: ranking needs each response's average, variance and count.
+     * This rebuilds solutions from the stored rows alone and asserts they rank identically to the
+     * in-memory ones under the rule confirmation actually uses — which is the precondition for
+     * replaying a selection offline instead of re-running a 32-hour search.
+     */
+    @Test
+    @DisplayName("Solutions rebuilt from stored responses rank identically to the originals")
+    fun storedResponsesAreSufficientToReplaySelection() {
+        val db = BenchmarkResultsDb("replay.db", tempDir).also { openDatabases += it }
+        val summary = runConstrainedExperiment()
+        val expId = db.saveSummary(summary)
+
+        val problemResult = summary.problemResults.single()
+        val problemDefinition = problemResult.winner!!.problemDefinition
+        val responsesByRun = db.runResponses(expId).groupBy { it.runId }
+        val runsByCell = db.runs(expId).associateBy { it.cellLabel }
+
+        val rebuilt = problemResult.runs.map { run ->
+            val row = runsByCell.getValue(run.cellLabel)
+            val stored = responsesByRun.getValue(row.runId).associateBy { it.responseName }
+            fun estimate(name: String): EstimatedResponse {
+                val r = stored.getValue(name)
+                return EstimatedResponse(name, r.average, r.variance, r.count)
+            }
+            Solution(
+                inputMap = problemDefinition.toInputMap(run.bestInputs.toMutableMap()),
+                estimatedObjFnc = estimate(OBJ),
+                responseEstimates = listOf(estimate(TIGHT), estimate(SLACK)),
+                evaluationNumber = 1
+            )
+        }
+
+        // Every response the original carried survived the round trip, value for value.
+        for ((index, run) in problemResult.runs.withIndex()) {
+            for ((name, original) in run.responseEstimates) {
+                val restored = (rebuilt[index].responseEstimates + rebuilt[index].estimatedObjFnc)
+                    .single { it.name == name }
+                assertEquals(original.average, restored.average)
+                assertEquals(original.count, restored.count)
+            }
+        }
+
+        // The ranking check. FeasibilityFirstComparator judges an infeasible candidate by its
+        // total response-constraint violation -- which tblRun recorded independently, as a single
+        // aggregate column, before any of this phase's tables existed. So ordering the rebuilt
+        // solutions with the comparator and ordering the run rows by that column are two routes to
+        // the same answer, and they must agree. If the stored per-response estimates were
+        // insufficient to reconstruct a rankable solution, they would not.
+        val comparator = FeasibilityFirstComparator()
+        val byCell = problemResult.runs.map { it.cellLabel }
+        val rebuiltOrder = problemResult.runs.indices
+            .sortedWith { a, b ->
+                val c = comparator.compare(rebuilt[a], rebuilt[b])
+                if (c != 0) c else byCell[a].compareTo(byCell[b])
+            }
+            .map { byCell[it] }
+        val expectedOrder = problemResult.runs.indices
+            .sortedWith(
+                compareBy(
+                    { runsByCell.getValue(byCell[it]).responseConstraintViolation },
+                    { byCell[it] }
+                )
+            )
+            .map { byCell[it] }
+        assertEquals(expectedOrder, rebuiltOrder) {
+            "solutions rebuilt from tblRunResponse do not rank as the recorded violations say they should"
+        }
+        assertTrue(expectedOrder.size > 1) { "a single cell cannot demonstrate an ordering" }
+
+        assertTrue(rebuilt.none { it.isResponseConstraintFeasible() }) {
+            "the fixture no longer exercises the infeasible branch"
+        }
+    }
+
+    // ── B1/B2/B3: solver state on iteration traces ────────────────────────────
+
+    /**
+     * The measurement this item exists for. PSO publishes `swarmDiameter` on every iteration and
+     * the library was discarding it, so the conclusion that a swarm collapsed prematurely rested on
+     * inference — identical results across a ninefold budget increase — rather than on the number
+     * the solver had already computed.
+     *
+     * Note what is asserted about its shape. The swarm CONTRACTS over a converging run, but it does
+     * not contract monotonically: measured on this fixture it falls from 0.58 to 0.18 while rising
+     * again on 5 of 14 steps. A strict-decrease assertion would fail a correct implementation, so
+     * the claim made here is the one that is true and that matters — the diameter is recorded, it
+     * stays within its documented range, and it ends the run a fraction of where it started.
+     */
+    @Test
+    @DisplayName("A PSO run records its swarm diameter, and the swarm contracts over the run")
+    fun solverStateIsCapturedAndTracksConvergence() {
+        val db = BenchmarkResultsDb("solverState.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runPsoExperiment(captureState = true))
+
+        assertTrue(db.experiments().single().solverStateCaptured)
+
+        val states = db.traceStates(expId)
+        assertTrue(states.isNotEmpty()) { "state capture was on but no state rows were written" }
+        assertTrue(states.any { it.stateName == "swarmDiameter" }) {
+            "expected swarmDiameter among ${states.map { it.stateName }.toSet()}"
+        }
+
+        // Long format: the key set is whatever the solver chose to publish, and every captured
+        // iteration carries the same one.
+        val byIteration = states.groupBy { it.iteration }
+        val keySets = byIteration.values.map { rows -> rows.map { it.stateName }.toSet() }.toSet()
+        assertEquals(1, keySets.size) { "the state key set varied across iterations: $keySets" }
+
+        val diameters = states.filter { it.stateName == "swarmDiameter" }
+            .sortedBy { it.iteration }
+            .map { it.stateValue }
+        assertTrue(diameters.size >= 5) { "too few iterations to say anything about contraction" }
+        assertTrue(diameters.all { it in 0.0..1.0 }) {
+            "the normalized diameter left its documented range: $diameters"
+        }
+        assertTrue(diameters.last() < diameters.first() / 2.0) {
+            "the swarm did not contract: first=${diameters.first()} last=${diameters.last()}"
+        }
+    }
+
+    /**
+     * That CPU time is really measured rather than defaulted, on a fixture that does enough work
+     * for a millisecond-resolution answer to be unambiguous. A particle swarm over several hundred
+     * evaluations cannot finish in under a millisecond of CPU, so a zero here means the measurement
+     * is not running — which is the failure a round-trip test on single-iteration cells cannot
+     * distinguish from a cell that was simply too quick to measure.
+     */
+    @Test
+    @DisplayName("CPU time is actually measured on a cell that does real work")
+    fun cpuTimeIsActuallyMeasuredOnRealWork() {
+        val db = BenchmarkResultsDb("cpuTime.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runPsoExperiment(captureState = false, name = "cpuExp"))
+        val runs = db.runs(expId)
+        assertTrue(runs.isNotEmpty())
+        for (row in runs) {
+            assertNotNull(row.cpuTimeMillis) {
+                "cell ${row.cellLabel} reported no CPU time at all; the JVM supports it here"
+            }
+            assertTrue(row.cpuTimeMillis!! > 0) {
+                "cell ${row.cellLabel} reported zero CPU time for a full swarm search, so the " +
+                    "measurement is not running"
+            }
+        }
+    }
+
+    /**
+     * The flag has to mean something on its own, or it is not a flag. Traces without state capture
+     * must produce trace rows and no state rows — and the experiment row must say so, so that an
+     * empty state table is never ambiguous between "not asked for" and "the solvers had nothing
+     * to say".
+     */
+    @Test
+    @DisplayName("Trace capture without state capture records traces and no solver state")
+    fun traceCaptureAloneWritesNoSolverState() {
+        val db = BenchmarkResultsDb("tracesOnly.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runPsoExperiment(captureState = false, name = "tracesOnlyExp"))
+
+        assertTrue(db.traces(expId).isNotEmpty()) { "the fixture captured no traces at all" }
+        assertTrue(db.traceStates(expId).isEmpty())
+        assertTrue(!db.experiments().single().solverStateCaptured)
+    }
+
+    /**
+     * Solver state rides on trace points, so asking for it without traces would record nothing and
+     * give no reason why. That is the silent no-op this whole effort is about removing, so the
+     * combination is refused at construction instead.
+     */
+    @Test
+    @DisplayName("Asking for solver state without traces is refused rather than silently ignored")
+    fun solverStateWithoutTraceCaptureIsRefused() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            BenchmarkExperiment(
+                name = "badExp",
+                problems = listOf(sphereProblem("sphereA")),
+                solverCases = listOf(shcCase("shcA", 10)),
+                macroReplications = 1,
+                replicationBudgetPerRun = BUDGET,
+                captureIterationTraces = false,
+                captureSolverState = true
+            )
+        }
+        assertTrue(error.message!!.contains("captureIterationTraces")) {
+            "the message must name the flag that is missing, got: ${error.message}"
+        }
+    }
+
+    // ── D1–D4: incremental persistence and problem-level resume ───────────────
+
+    /** Simulates a crash: delegates to the real sink but dies partway through a nominated problem. */
+    private class CrashingSink(
+        private val delegate: BenchmarkResultSink,
+        private val failOnProblemNumber: Int
+    ) : BenchmarkResultSink {
+        var problemsSeen = 0
+            private set
+
+        override fun beginExperiment(header: BenchmarkSummaryHeader, resume: Boolean): Int =
+            delegate.beginExperiment(header, resume)
+
+        override fun problemCompleted(
+            expId: Int,
+            result: ProblemBenchmarkResult,
+            traces: Map<String, List<IterationTracePoint>>
+        ) {
+            problemsSeen++
+            if (problemsSeen == failOnProblemNumber) {
+                throw IllegalStateException("simulated interruption during problem ${result.problemName}")
+            }
+            delegate.problemCompleted(expId, result, traces)
+        }
+
+        override fun endExperiment(
+            expId: Int,
+            endTime: Instant,
+            solverConfigurations: Map<String, Map<String, String>>
+        ) = delegate.endExperiment(expId, endTime, solverConfigurations)
+
+        override fun completedProblems(expName: String): Set<String> = delegate.completedProblems(expName)
+    }
+
+    private fun threeProblemExperiment(
+        sink: BenchmarkResultSink?,
+        name: String = "resumable"
+    ): BenchmarkExperiment {
+        return BenchmarkExperiment(
+            name = name,
+            problems = listOf(sphereProblem("p1"), sphereProblem("p2"), sphereProblem("p3")),
+            solverCases = listOf(shcCase("shcA", 10)),
+            macroReplications = 2,
+            replicationBudgetPerRun = BUDGET,
+            resultSink = sink,
+            numWorkers = WORKERS
+        )
+    }
+
+    /**
+     * The claim the whole sink exists to support, and the one worth watching fail: an experiment
+     * killed after its second problem, re-run, must skip the two already recorded and produce
+     * results identical to one that was never interrupted.
+     *
+     * The failure this guards is subtle. A resume that silently RE-RAN the finished problems would
+     * still end with three problems in the database and still look right; so would one that skipped
+     * them but addressed its starting points by position within the pass rather than within the
+     * study, quietly giving problem 3 the streams meant for problem 1. Both are checked here: the
+     * skipped problems must not be re-recorded, and the resumed problem's cells must match an
+     * uninterrupted run's cell for cell.
+     */
+    @Test
+    @DisplayName("An interrupted experiment resumes, skipping recorded problems and matching an uninterrupted run")
+    fun interruptedExperimentResumesWithoutRepeatingOrDrifting() {
+        val db = BenchmarkResultsDb("resume.db", tempDir).also { openDatabases += it }
+
+        // 1. Die during problem 3, so problems 1 and 2 are recorded and the record is never closed.
+        val crashing = CrashingSink(db, failOnProblemNumber = 3)
+        assertThrows(IllegalStateException::class.java) {
+            threeProblemExperiment(crashing).run()
+        }
+        val interruptedExpId = db.experiments().single().expId
+        assertEquals(setOf("p1", "p2"), db.problems(interruptedExpId).map { it.problemName }.toSet())
+        assertEquals("", db.experiments().single().endTime) {
+            "an interrupted experiment must be left unfinished; that is what makes it resumable"
+        }
+        val rowsBeforeResume = db.runs(interruptedExpId).associateBy { it.cellLabel }
+
+        // 2. Re-run. The sink reports what is already there and the experiment skips it.
+        val resumedSummary = threeProblemExperiment(db).run()
+        assertEquals(listOf("p3"), resumedSummary.problemResults.map { it.problemName }) {
+            "the resumed run must execute only the outstanding problem"
+        }
+
+        // 3. One experiment record, now closed, holding all three problems exactly once.
+        val experiment = db.experiments().single()
+        assertEquals(interruptedExpId, experiment.expId) {
+            "the resumed run must attach to the interrupted record rather than open a new one"
+        }
+        assertTrue(experiment.endTime.isNotEmpty()) { "the resumed run must close the record" }
+        assertEquals(3, experiment.numProblems) {
+            "numProblems describes the study, not the pass that happened to finish it"
+        }
+        assertEquals(setOf("p1", "p2", "p3"), db.problems(interruptedExpId).map { it.problemName }.toSet())
+
+        val allRuns = db.runs(interruptedExpId)
+        assertEquals(allRuns.size, allRuns.map { it.cellLabel }.toSet().size) {
+            "a cell was recorded twice: the resume re-ran work it should have skipped"
+        }
+
+        // The rows written before the interruption are untouched, byte for byte.
+        for ((cellLabel, before) in rowsBeforeResume) {
+            val after = allRuns.single { it.cellLabel == cellLabel }
+            assertEquals(before.bestObjective, after.bestObjective)
+            assertEquals(before.runId, after.runId)
+        }
+
+        // 4. The outstanding problem must match a run that was never interrupted. Starting points
+        //    are addressed by (problem, macro-replication) within the STUDY, so skipping problems
+        //    must not shift them.
+        val reference = BenchmarkResultsDb("reference.db", tempDir).also { openDatabases += it }
+        val referenceExpId = reference.saveSummary(threeProblemExperiment(null, name = "reference").run())
+        val referenceP3 = reference.runs(referenceExpId)
+            .filter { it.problemName == "p3" }
+            .associateBy { it.cellLabel }
+        val resumedP3 = allRuns.filter { it.problemName == "p3" }.associateBy { it.cellLabel }
+
+        assertEquals(referenceP3.keys, resumedP3.keys)
+        assertTrue(referenceP3.isNotEmpty()) { "the comparison fixture produced no cells" }
+        for ((cellLabel, expected) in referenceP3) {
+            val actual = resumedP3.getValue(cellLabel)
+            assertEquals(expected.bestObjective, actual.bestObjective) {
+                "resumed cell $cellLabel drifted from the uninterrupted run"
+            }
+            assertEquals(expected.startingPointJson, actual.startingPointJson) {
+                "resumed cell $cellLabel started somewhere else: the starting point is being " +
+                    "addressed by position within the pass rather than within the study"
+            }
+        }
+    }
+
+    /**
+     * Resume must be the exception, not the rule. A COMPLETED experiment re-run under the same name
+     * appends alongside as it always has — the append semantics the database documents — and skips
+     * nothing. Only an unfinished record is resumed into.
+     */
+    @Test
+    @DisplayName("Re-running a completed experiment appends under a fresh id and skips nothing")
+    fun completedExperimentIsNeverResumedInto() {
+        val db = BenchmarkResultsDb("noResume.db", tempDir).also { openDatabases += it }
+
+        val first = threeProblemExperiment(db, name = "finished").run()
+        assertEquals(3, first.problemResults.size)
+        assertTrue(db.completedProblems("finished").isEmpty()) {
+            "a finished experiment must report nothing as resumable"
+        }
+
+        val second = threeProblemExperiment(db, name = "finished").run()
+        assertEquals(3, second.problemResults.size) { "nothing should have been skipped" }
+        assertEquals(2, db.experiments().size)
+        assertEquals(listOf(1, 2), db.experiments().map { it.expId }.sorted())
+    }
+
+    /**
+     * Without a sink nothing changes: no skipping is possible, because the only thing that can ever
+     * cause a skip is a sink reporting a problem as already recorded.
+     */
+    @Test
+    @DisplayName("With no sink every problem runs, whatever the database already holds")
+    fun noSinkMeansNoSkipping() {
+        val db = BenchmarkResultsDb("sinkless.db", tempDir).also { openDatabases += it }
+        db.saveSummary(threeProblemExperiment(null, name = "sinkless").run())
+        val second = threeProblemExperiment(null, name = "sinkless").run()
+        assertEquals(listOf("p1", "p2", "p3"), second.problemResults.map { it.problemName })
     }
 }

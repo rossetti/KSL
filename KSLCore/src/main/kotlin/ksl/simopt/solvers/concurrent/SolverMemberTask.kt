@@ -61,6 +61,12 @@ enum class MemberStatus {
  * created and ran; null when the member never ran
  * @param status the member's lifecycle outcome
  * @param error the failure cause when status is FAILED; null otherwise
+ * @param cpuTimeMillis the CPU time the member's worker thread spent running the solver,
+ * in milliseconds. Unlike wall-clock time this does not depend on the worker count or on
+ * how busy the machine was, so it is comparable across machines. It counts only the
+ * worker thread: any work the evaluator hands to other threads is not included, so on a
+ * delegating evaluator this is below wall clock rather than above it. Null when the
+ * member never ran or when the JVM does not support or has disabled per-thread CPU time.
  */
 data class SolverMemberResult(
     val memberIndex: Int,
@@ -70,7 +76,8 @@ data class SolverMemberResult(
     val numReplicationsRequested: Int,
     val solverResult: SolverResult?,
     val status: MemberStatus,
-    val error: Throwable? = null
+    val error: Throwable? = null,
+    val cpuTimeMillis: Long? = null
 ) {
     val isSuccess: Boolean
         get() = status == MemberStatus.COMPLETED

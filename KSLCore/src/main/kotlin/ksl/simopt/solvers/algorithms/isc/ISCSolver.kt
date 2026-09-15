@@ -291,7 +291,41 @@ class ISCSolver @JvmOverloads constructor(
         numReplicationsRequested += replications
     }
 
-    override fun isStoppingCriteriaSatisfied(): Boolean = phase == Phase.DONE
+    /**
+     *  Stops when the orchestration has finished, or when an externally supplied
+     *  `solutionQualityEvaluator` says to.
+     *
+     *  The phases are checked FIRST and the criterion is an additional reason to stop, not a
+     *  replacement for them. Every other solver reads the criterion in place of its own convergence
+     *  test (`criterion?.isStoppingCriteriaReached(this) ?: ownTest()`); doing that here would mean
+     *  that supplying a criterion stopped ISC from ever noticing it had reached [Phase.DONE], and it
+     *  would keep iterating over a phase that does nothing until the iteration cap expired.
+     *
+     *  **The budget is honoured between macro-steps, not within them.** One `mainIteration` is a
+     *  whole phase step — the entire niching-GA global phase, or one seed's entire COMPASS local
+     *  search — so a budget exhausted partway through a phase is noticed only when that phase
+     *  returns. Adherence is therefore "budget plus at most one phase step", not exact. That is a
+     *  large improvement on ignoring the budget altogether, which is what this solver did before:
+     *  measured at budgets of 500, 2,000 and 10,000 it consumed 5,100 replications every time. It is
+     *  not yet equal-budget parity with the solvers that stop within an iteration, and the
+     *  complementary problem — that ISC may also UNDER-spend a large budget, since nothing makes it
+     *  use one — is a question about the algorithm's configuration rather than about this test.
+     */
+    override fun isStoppingCriteriaSatisfied(): Boolean {
+        if (phase == Phase.DONE) {
+            return true
+        }
+        val criterion = solutionQualityEvaluator ?: return false
+        if (criterion.isStoppingCriteriaReached(this)) {
+            logger.info {
+                "Solver: $name : stopping criterion reached in phase $phase after " +
+                    "$numReplicationsRequested replications; the orchestration is finalized by " +
+                    "mainIterationsEnded()."
+            }
+            return true
+        }
+        return false
+    }
 
     override fun mainIterationsEnded() {
         // Finalize with clean-up if the iteration cap interrupted the orchestration mid-stream.
