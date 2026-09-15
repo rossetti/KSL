@@ -26,7 +26,28 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 /**
  * An abstract base class for building random variables.  Implement
  * the random generation procedure in the method generate().
- * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ *
+ * **A stream number selects a stream; it does not rewind one.** Naming a stream reads as a request
+ * for reproducibility, and it delivers that only to the first consumer of the stream in the process.
+ * Two random variables constructed on the same stream number share one stream, so the second
+ * continues from wherever the first left it:
+ *
+ * <pre>
+ *   val a = ExponentialRV(10.0, streamNum = 16)
+ *   val b = ExponentialRV(10.0, streamNum = 16)
+ *   a.value  // 35.3435, 22.7308, 7.8564, ...
+ *   b.value  //  0.1540, 42.7821, 7.1780, ...   continues a's stream
+ *   b.resetStartStream()
+ *   b.value  // 35.3435, 22.7308, 7.8564, ...   now the same series
+ * </pre>
+ *
+ * `resetStartStream()` is what rewinds. A function that builds a fixed data set from a named stream
+ * therefore returns a different data set the second time it is called, and the result changes with
+ * the order tests happen to run in — silently, since nothing about a shared stream is an error.
+ * Call `resetStartStream()` after construction when the intent is "this exact series".
+ *
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream.
+ * Selecting a stream by number does not reset its position; see above.
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
