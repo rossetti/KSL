@@ -102,5 +102,7 @@ abstract class BasePlot() : PlotIfc {
      * enclosing page's `<head>` for the fragment to render correctly.
      */
     override fun toEmbeddedHTML(): String = PlotIfc.toEmbeddedHTML(buildPlot())
+
+    override fun toSelfContainedHTML(): String = PlotIfc.toSelfContainedHTML(buildPlot())
 }
 
