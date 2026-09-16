@@ -1281,8 +1281,7 @@ too — with no error and a run that looks entirely reasonable.
      *  The aisle the workers walk. Defaults to this chapter's own layout; a caller may supply
      *  another, which is how the same shop is compared against the guided-path model of the same
      *  system built in the reference implementation. The process below is untouched by the choice:
-     *  what changes is the
-     *  space, which is the whole point of comparing.
+     *  what changes is the space, which is the whole point of comparing.
      */
     val network: GuidedPathNetwork = aisleNetwork ?: createNetwork(numTransporters)
 
@@ -1300,6 +1299,12 @@ too — with no error and a run that looks entirely reasonable.
         require(homes.size == numTransporters) {
             "There are $numTransporters transporters but ${homes.size} home locations were given."
         }
+        val unknownHomes = homes.filter { network.location(it) == null }
+        require(unknownHomes.isEmpty()) {
+            "Home location(s) $unknownHomes are not intersections or stations of aisle " +
+                    "(${network.name}), which carries ${(1..numTransporters).map { "Park$it" }} " +
+                    "for parking unless a different aisle was supplied."
+        }
     }
 
     private val carts: List<GuidedTransporter> = (1..numTransporters).map { i ->
@@ -1310,7 +1315,6 @@ too — with no error and a run that looks entirely reasonable.
         ).apply { homeBase = homes[i - 1] }
     }
 
-    /** The fleet, asked for by the group rather than by name, as in the free-path model. */
     val transportWorkers = GuidedTransporterPoolWithQ(
         this, transportSystem, carts,
         ClosestByNetworkDistanceRule(), idleDispositionRule, "TransportWorkerPool"
@@ -1448,9 +1452,8 @@ one of those numbers is the textbook's.
     /**
      *  How long a part spent aboard a worker, summed over its journeys: from the instant a worker
      *  was allocated to it until it was set down, which is what the reference implementation books
-     *  as an entity's transfer
-     *  time. The wait *for* a worker is not part of it -- that is queueing, and is measured by the
-     *  transport pool's own queue.
+     *  as an entity's transfer time. The wait *for* a worker is not part of it -- that is queueing,
+     *  and is measured by the transport pool's own queue.
      */
     private val myTransferTime: Response = Response(this, "TransferTime")
     val transferTime: ResponseCIfc
@@ -1600,8 +1603,44 @@ why the four station visits are one line each.
 
 ### What it shows
 
-Run on a comparable haul as the fleet grows (the table in
-[`ksl-guidedpath` §1](ksl-guidedpath.md#1-what-this-package-is-for)):
+**This shop, both ways.** `Ch8Example5` against `Ch8Example6`, ten replications
+of ten years each, everything at its default:
+
+| statistic | free path | guide path |
+|---|---|---|
+| `TimeInSystem` | 351.56 ± 9.03 | 358.93 ± 9.06 |
+| `ProbWithinLimit` | 0.8186 ± 0.0184 | 0.8088 ± 0.0187 |
+| `NumInSystem` | 17.66 ± 0.54 | 18.03 ± 0.55 |
+| `TransportWorkerPool:FractionBusy` | **0.1561 ± 0.0010** | **0.2930 ± 0.0017** |
+| the five station utilizations | 0.7531 / 0.8583 / 0.7811 / 0.8664 / 0.8720 | identical, half-widths included |
+
+Read the station row first, because it is a check rather than a result. The five
+utilizations come out **equal to every digit reported**, and they have to: a
+station's utilization is the sum of its service times over a fixed horizon, and
+those are drawn from the same streams by the same parts in the same order
+whatever the aisle does. When a part reaches a machine cannot change how long the
+machine then works. So that row is how you confirm the two models are still the
+same shop, and its agreement is worth more than any paragraph claiming they are.
+
+Then the answer: the aisle costs this shop **about two percent** of time in
+system, 351.6 against 358.9 — a gap comfortably inside either half-width, and so
+not resolvable at ten replications. On this layout, at this load, the free-path
+model gives the right answer.
+
+What the aisle does cost, unmistakably, is **transport labour**. The pool goes
+from 15.6% busy to 29.3%, on half-widths of a tenth and two tenths of a
+percentage point. The same work, nearly twice the worker time, because a one-way
+loop makes a worker travel 100.7 metres per journey over legs the distance model
+crosses directly. The workers also block each other about 163,000 times per
+replication — real, and 0.6–1.0% of their time, which is to say not what is
+driving anything here.
+
+Those two findings belong together. At three workers the shop is nowhere near
+transport-bound, so congestion has little to bite on; the aisle shows up in what
+the fleet costs rather than in what the shop delivers.
+
+**A haul that *is* transport-bound**, for contrast — a different and tighter
+layout, from [`ksl-guidedpath` §1](ksl-guidedpath.md#1-what-this-package-is-for):
 
 | carts | free-path completions | guided | free-path time in system | guided |
 |---|---|---|---|---|
@@ -1613,19 +1652,32 @@ Run on a comparable haul as the fleet grows (the table in
 
 ### What to learn
 
-At one and two carts the two models agree — **that is a real range**, and inside
-it a free-path model is a fair approximation. Beyond it they part company. The
-guide path stops improving at four carts because the exit spur admits one cart
-at a time and no size of fleet can put two of them down it. The distance model
-has no such notion, so it goes on rewarding every cart added, for ever.
+On this shop the free-path model is right about the answer and wrong about the
+price: it under-books the transport labour by half and still puts time in system
+inside the confidence interval. **That is the benign case, and it is the common
+one.** A free-path model of a shop whose transport is not the constraint is not
+an approximation you have to apologize for.
 
-A study that sized this fleet from the free-path answer would buy eight carts,
+The second table is the case that is not benign. At one and two carts the two
+models still agree — **that is a real range** — and beyond it they part company.
+The guide path stops improving at four carts because the exit spur admits one
+cart at a time and no size of fleet can put two of them down it. The distance
+model has no such notion, so it goes on rewarding every cart added, for ever. A
+study that sized that fleet from the free-path answer would buy eight carts,
 expect thirty-one minutes, and get five hundred and thirty-eight.
 
 > **The point is not that the free-path number is wrong.** It is that nothing in
 > a free-path model is *capable* of being wrong here: there is no statistic it
 > could report, however carefully read, that would reveal the aisle it does not
-> represent.
+> represent. Which is why the two tables above are the same lesson — in the first
+> the aisle happens not to matter, and the free-path model cannot tell you that
+> either.
+
+One thing not to read off the per-worker rows: `Worker1` does roughly three times
+`Worker3`'s share of the work, and that is a tie-break, not a layout effect.
+Every parking spur hangs off the diagnostic end at the same length, so the
+workers are interchangeable by network distance and
+`ClosestByNetworkDistanceRule` settles the tie in declaration order.
 
 ---
 

@@ -49,9 +49,28 @@ import ksl.utilities.random.rvariable.TriangularRV
  *  vehicle standing in the traffic: without them the first worker to finish would stop wherever it
  *  happened to be, and everything behind it would stop too.
  *
+ *  **How to check that the work really is identical.** Run this model and its free-path twin over
+ *  the same horizon and compare the five station utilizations: they come out equal to every digit
+ *  reported, half-widths included. They have to. A station's utilization is the sum of its
+ *  service times over a fixed horizon, and those times are drawn from the same streams by the
+ *  same parts in the same order whatever the aisle does -- when a part reaches a machine cannot
+ *  change how long the machine then works. So any difference in the station rows would mean the
+ *  two models are no longer the same shop, and the absence of one is worth more than the
+ *  paragraph above claiming it.
+ *
  *  @param parent the containing model element
  *  @param numTransporters how many carts to run, which is the parameter worth sweeping
+ *  @param timeBtwArrivals mean time between part arrivals, in minutes
  *  @param name a name for the model
+ *  @param aisleNetwork an aisle to use in place of this chapter's layout; it must carry the five
+ *  station names this model asks for, and a home for every transporter
+ *  @param transporterVelocity how fast the workers walk; defaults to the free-path model's own
+ *  walking-speed distribution, which is what keeps the comparison about the space
+ *  @param transporterHomes where each worker parks, one name per transporter, in order; defaults
+ *  to the parking spurs this model builds for itself
+ *  @param transporterPhysicalLength how long a worker is, in metres; null leaves it at one zone
+ *  @param zoneControlRule when a moving worker releases the zone behind it
+ *  @param idleDispositionRule where a worker goes when it runs out of work
  */
 class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     parent: ModelElement,
@@ -122,6 +141,11 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
      *  travel one way round, and can be held up by another worker in front of it.
      */
     private fun createNetwork(numSpurs: Int, networkName: String = "ShopAisle"): GuidedPathNetwork {
+        // The coordinates place the stations for drawing; the declared `length` is what a worker
+        // travels. The two do not have to agree and here they deliberately do not: Aisle5 is the
+        // free-path model's 110 metres from repair back to diagnostics, where the straight line
+        // between those two points is about 70. A guide path is not required to be Euclidean --
+        // an aisle bends, and the bends are in the length rather than in the picture.
         var b = GuidedPathNetwork.builder(networkName)
             .intersection(diagnosticStation, x = 0.0, y = 0.0)
             .intersection(testStation1, x = 40.0, y = 0.0)
@@ -150,8 +174,7 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
      *  The aisle the workers walk. Defaults to this chapter's own layout; a caller may supply
      *  another, which is how the same shop is compared against the guided-path model of the same
      *  system built in the reference implementation. The process below is untouched by the choice:
-     *  what changes is the
-     *  space, which is the whole point of comparing.
+     *  what changes is the space, which is the whole point of comparing.
      */
     val network: GuidedPathNetwork = aisleNetwork ?: createNetwork(numTransporters)
 
@@ -169,6 +192,17 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
         require(homes.size == numTransporters) {
             "There are $numTransporters transporters but ${homes.size} home locations were given."
         }
+        // And that the aisle carries them. A name it does not carry is caught either way, because
+        // the space raises when it resolves the placement -- but that happens at the first
+        // replication, and the likeliest way to get here is supplying `transporterHomes` without
+        // also supplying `aisleNetwork`, which leaves this model's own parking spurs in place
+        // under names the caller never mentioned. Better said now, beside the count.
+        val unknownHomes = homes.filter { network.location(it) == null }
+        require(unknownHomes.isEmpty()) {
+            "Home location(s) $unknownHomes are not intersections or stations of aisle " +
+                    "(${network.name}), which carries ${(1..numTransporters).map { "Park$it" }} " +
+                    "for parking unless a different aisle was supplied."
+        }
     }
 
     private val carts: List<GuidedTransporter> = (1..numTransporters).map { i ->
@@ -179,7 +213,19 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
         ).apply { homeBase = homes[i - 1] }
     }
 
-    /** The fleet, asked for by the group rather than by name, as in the free-path model. */
+    /**
+     *  The fleet, asked for by the group rather than by name, as in the free-path model.
+     *
+     *  Read the per-worker utilizations with care. Under this model's defaults every worker
+     *  returns to a parking spur off the diagnostic end of the aisle, all of them the same
+     *  length, so by network distance the three are interchangeable -- and
+     *  [ClosestByNetworkDistanceRule] then settles the tie in the order they were declared.
+     *  `Worker1` ends up with roughly three times `Worker3`'s share of the work, which looks like
+     *  a finding about the layout and is nothing of the kind. Two things would make the split
+     *  mean something: a least-used allocation rule, which breaks the tie by load rather than by
+     *  declaration order, or a park-in-place `idleDispositionRule`, which leaves the workers
+     *  where they finish so that they stop being equidistant in the first place.
+     */
     val transportWorkers = GuidedTransporterPoolWithQ(
         this, transportSystem, carts,
         ClosestByNetworkDistanceRule(), idleDispositionRule, "TransportWorkerPool"
@@ -260,9 +306,8 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     /**
      *  How long a part spent aboard a worker, summed over its journeys: from the instant a worker
      *  was allocated to it until it was set down, which is what the reference implementation books
-     *  as an entity's transfer
-     *  time. The wait *for* a worker is not part of it -- that is queueing, and is measured by the
-     *  transport pool's own queue.
+     *  as an entity's transfer time. The wait *for* a worker is not part of it -- that is queueing,
+     *  and is measured by the transport pool's own queue.
      */
     private val myTransferTime: Response = Response(this, "TransferTime")
     val transferTime: ResponseCIfc
