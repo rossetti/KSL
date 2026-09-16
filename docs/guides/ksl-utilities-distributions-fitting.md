@@ -342,6 +342,9 @@ supply your own.
 
 ## 7. See also
 
+- **When no single distribution fits:** [`ksl-mixture`](ksl-mixture.md) — fitting a
+  mixture of distributions to multimodal data, for when the catalog's best score is
+  still a bad fit.
 - **The distributions themselves:** `ksl.utilities.distributions` (see the
   companion guide) — the objects you fit and then convert with
   `randomVariable(...)`.

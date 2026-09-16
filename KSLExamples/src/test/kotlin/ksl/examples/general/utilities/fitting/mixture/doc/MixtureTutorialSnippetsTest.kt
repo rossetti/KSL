@@ -21,6 +21,7 @@ class MixtureTutorialSnippetsTest {
 
     private companion object {
         const val TUTORIAL = "docs/guides/ksl-mixture-tutorial.md"
+        const val GUIDE = "docs/guides/ksl-mixture.md"
         const val HOST =
             "KSLExamples/src/test/kotlin/ksl/examples/general/utilities/fitting/mixture/doc/" +
                 "MixtureTutorialSnippets.kt"
@@ -68,14 +69,16 @@ class MixtureTutorialSnippetsTest {
         return false
     }
 
-    @Test
-    fun everyCodeBlockInTheTutorialAppearsInTheCompiledSnippetHost() {
-        val tutorial = repoFile(TUTORIAL).readText()
+    /**
+     *  Both documents are checked against the same host, so a snippet shared between the guide
+     *  and the tutorial is written once and verified once.
+     */
+    private fun assertBlocksAppearInHost(document: String, leastBlocks: Int) {
         val host = significant(repoFile(HOST).readText())
-        val blocks = kotlinBlocks(tutorial)
+        val blocks = kotlinBlocks(repoFile(document).readText())
 
         println()
-        println("ksl-mixture-tutorial.md: ${blocks.size} Kotlin blocks; host has ${host.size} significant lines")
+        println("$document: ${blocks.size} Kotlin blocks; host has ${host.size} significant lines")
 
         val missing = mutableListOf<String>()
         for ((i, block) in blocks.withIndex()) {
@@ -87,16 +90,26 @@ class MixtureTutorialSnippetsTest {
         missing.forEach { println("  MISSING  $it") }
 
         assertTrue(
-            blocks.size >= 10,
-            "only ${blocks.size} code blocks were found in the tutorial. Either it lost its " +
-                "examples or the fence parser stopped matching them, and in both cases the rest " +
-                "of this test would pass by having nothing to check"
+            blocks.size >= leastBlocks,
+            "only ${blocks.size} code blocks were found in $document, fewer than the $leastBlocks " +
+                "expected. Either it lost its examples or the fence parser stopped matching them, " +
+                "and in both cases the rest of this check would pass by having nothing to check"
         )
         assertTrue(
             missing.isEmpty(),
-            "these tutorial snippets do not appear in MixtureTutorialSnippets.kt, so they are " +
+            "these snippets in $document do not appear in MixtureTutorialSnippets.kt, so they are " +
                 "not compile-verified and may reference an API that no longer exists: $missing"
         )
+    }
+
+    @Test
+    fun everyCodeBlockInTheTutorialAppearsInTheCompiledSnippetHost() {
+        assertBlocksAppearInHost(TUTORIAL, leastBlocks = 10)
+    }
+
+    @Test
+    fun everyCodeBlockInTheGuideAppearsInTheCompiledSnippetHost() {
+        assertBlocksAppearInHost(GUIDE, leastBlocks = 8)
     }
 
     /**

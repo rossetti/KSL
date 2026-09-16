@@ -19,7 +19,10 @@ import ksl.utilities.distributions.fitting.mixture.refine.ClassificationEMRefine
 import ksl.utilities.distributions.fitting.mixture.scoring.MixtureBICCriterion
 import ksl.utilities.distributions.fitting.mixture.search.SeparableCMLSelector
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.report.extensions.asHTML
+import ksl.utilities.io.report.extensions.asMarkdown
 import ksl.utilities.io.report.extensions.showHTMLInBrowser
+import ksl.utilities.io.report.extensions.toReport
 
 /**
  * Compile-only host for every code snippet in `docs/guides/ksl-mixture-tutorial.md`.
@@ -141,6 +144,43 @@ private object MixtureTutorialSnippets {
         val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
         println(results.componentsAsDataFrame())
         println(results.criterionProfileAsDataFrame())
+    }
+
+    // -- The standard report ---------------------------------------------------
+
+    fun theOneLineReport() {
+        val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+        results.showHTMLInBrowser(heldOut = receptionDeskHoldOut())
+    }
+
+    fun theWholeStoryInOneReport() {
+        val data = receptionDeskData()
+        val modeler = MixtureModeler(data)
+        val results = modeler.fit(numComponentsRange = 1..6)
+        val report = results.showHTMLInBrowser(
+            heldOut = receptionDeskHoldOut(),
+            title = "Reception desk service times",
+            description = modeler.describe(),
+            stability = modeler.partitionStability(results),
+            adequacy = modeler.assessFitAdequacy(results),
+            bootstrap = MixtureBootstrap.componentCountFrequency(data, numBootstrapSamples = 100),
+            variableName = "service time (minutes)"
+        )
+        println(report.absolutePath)
+    }
+
+    fun keepTheReportRatherThanShowIt() {
+        val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+        val html = results.asHTML(heldOut = receptionDeskHoldOut())
+        val markdown = results.asMarkdown(heldOut = receptionDeskHoldOut())
+    }
+
+    fun addYourOwnSectionToTheReport() {
+        val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+        val document = results.toReport(title = "Reception desk service times") {
+            heading("Why we fitted this", level = 2)
+            paragraph("Three kinds of visitor share one queue, so one distribution will not do.")
+        }
     }
 
     // -- Part VII: how much to believe it -------------------------------------

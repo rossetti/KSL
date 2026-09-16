@@ -6,6 +6,10 @@ mixture report extensions in `ksl.utilities.io.report.extensions`.
 
 **New in R1.7.**
 
+> **Status: experimental.** These packages are released as experimental. Their public API may
+> change in future releases without notice. Pin your KSL version if you build against them for
+> production use.
+
 A hands-on walkthrough in eight steps, each backed by a runnable file. For the API reference —
 what the key types are and when to reach for each — see [`ksl-mixture`](ksl-mixture.md).
 
@@ -28,6 +32,7 @@ The runnable files are in
 - [Part VI — Your own data](#part-vi--your-own-data)
 - [Part VII — The diagnostics](#part-vii--the-diagnostics)
 - [Part VIII — How much should you believe it?](#part-viii--how-much-should-you-believe-it)
+- [Part IX — One report with all of it](#part-ix--one-report-with-all-of-it)
 - [Appendix A — The runnable files](#appendix-a--the-runnable-files)
 
 ---
@@ -250,7 +255,17 @@ Those are weaker than knowing the answer, and it is worth being honest that they
 
 A fitted mixture is an ordinary continuous distribution, so every diagnostic the library already
 offers applies to it unchanged — the four-panel fit plot, and the Anderson–Darling, Cramér–von
-Mises and Kolmogorov–Smirnov tests:
+Mises and Kolmogorov–Smirnov tests.
+
+You rarely need to assemble any of that yourself. One line produces the standard report — every
+section below, plots included, as a self-contained HTML page:
+
+```kotlin
+val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+results.showHTMLInBrowser(heldOut = receptionDeskHoldOut())
+```
+
+The plots and the written report side by side:
 
 ```kotlin
 val data = receptionDeskData()
@@ -322,6 +337,63 @@ down. Neither alone is the whole story.
 
 This costs a full refit per resample — about 30 seconds for the 200 resamples above on the
 tutorial data. Start small on your own data before asking for hundreds.
+
+---
+
+## Part IX — One report with all of it
+
+Parts I through VIII each compute one piece of the picture: what the data looked like before
+fitting, which component counts the criteria preferred, whether the cuts matter, whether the fit is
+adequate, and how much the answer moves under resampling. **The standard report takes all of them
+at once**, so the walkthrough you have just done by hand becomes a single page you can send to
+someone:
+
+```kotlin
+val data = receptionDeskData()
+val modeler = MixtureModeler(data)
+val results = modeler.fit(numComponentsRange = 1..6)
+val report = results.showHTMLInBrowser(
+    heldOut = receptionDeskHoldOut(),
+    title = "Reception desk service times",
+    description = modeler.describe(),
+    stability = modeler.partitionStability(results),
+    adequacy = modeler.assessFitAdequacy(results),
+    bootstrap = MixtureBootstrap.componentCountFrequency(data, numBootstrapSamples = 100),
+    variableName = "service time (minutes)"
+)
+println(report.absolutePath)
+```
+
+Each optional argument adds its own section, and leaving one out simply omits that section — so
+start with `heldOut` alone and add the others as you decide you want them. They are not free:
+`assessFitAdequacy` refits on simulated replicates and `componentCountFrequency` refits once per
+resample, which is where the time goes.
+
+To keep a report rather than open one:
+
+```kotlin
+val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+val html = results.asHTML(heldOut = receptionDeskHoldOut())
+val markdown = results.asMarkdown(heldOut = receptionDeskHoldOut())
+```
+
+`asMarkdown` defaults to omitting plots, which is what you want for a report that will be read in a
+terminal or committed to a repository.
+
+The report is a document you can add to. The trailing block appends your own sections using the
+same builder the report itself is written with:
+
+```kotlin
+val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+val document = results.toReport(title = "Reception desk service times") {
+    heading("Why we fitted this", level = 2)
+    paragraph("Three kinds of visitor share one queue, so one distribution will not do.")
+}
+```
+
+That matters more than it looks. The report states what the fit found; it cannot state why anyone
+fitted it, what the data is, or what decision hangs on it — and a reader six months from now needs
+those more than another table.
 
 ---
 
