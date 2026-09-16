@@ -17,6 +17,8 @@
  */
 package ksl.modeling.agv
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.fleet.FleetSystem
 import ksl.modeling.fleet.FleetVehicle
 
@@ -79,6 +81,7 @@ open class AgvSystem @JvmOverloads constructor(
      * initial value comes from the same system property, so switching checking on for a run switches
      * it on for both paradigms rather than only for one of them.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var checkInvariants: Boolean
         get() = spaceSystem.checkInvariants
         set(value) {
@@ -93,6 +96,7 @@ open class AgvSystem @JvmOverloads constructor(
      * of its assignment and one that has lost track of the zone it is standing on are the same kind
      * of failure seen from two sides.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     override var auditAtReplicationEnd: Boolean
         get() = spaceSystem.auditAtReplicationEnd
         set(value) {
@@ -110,6 +114,7 @@ open class AgvSystem @JvmOverloads constructor(
      * A model that wants to know *where* its congestion is has no other way to ask. Fleet-level
      * rows say how much blocking there was; these say which aisles produced it.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var collectLinkStatistics: Boolean
         get() = spaceSystem.collectLinkStatistics
         set(value) {
@@ -125,6 +130,7 @@ open class AgvSystem @JvmOverloads constructor(
      * registers a thousand responses, so this is off by default and worth switching on for a
      * diagnostic run rather than for a study.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var collectZoneStatistics: Boolean
         get() = spaceSystem.collectZoneStatistics
         set(value) {

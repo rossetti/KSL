@@ -17,6 +17,8 @@
  */
 package ksl.modeling.guidedpath
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.Resource
@@ -211,6 +213,50 @@ class GuidedTransporter @JvmOverloads constructor(
     val physicalLength: Double? = null,
     val loadCapacity: Int = 1
 ) : Resource(system, name, 1), ksl.modeling.spatial.VehicleMovementIfc, ZoneHolderIfc {
+
+    /**
+     * How many units of itself the transporter has to give: one when it is in service, zero when it
+     * is not.
+     *
+     * Narrowed from [Resource], and the narrowing is the point. A transporter is a **vehicle**: it
+     * stands on one zone, and a zone holds one vehicle, so there is no such thing as two units of
+     * it. [ksl.modeling.spatial.MovableResource] narrows the same property for the same reason on
+     * the free path.
+     *
+     * Without this the inherited control accepted any non-negative integer, and the consequence was
+     * worse than an exception would have been. Nothing in the movement machinery reads the capacity
+     * -- a pool offers a transporter only while `numBusy == 0` -- so a larger capacity changed no
+     * journey and no delivery time. What it did change was the utilization statistics, which
+     * [Resource] forms as `numBusy / capacity`: a capacity of five reported a fifth of the true
+     * utilization. A study sweeping this control would have seen flat throughput against utilization
+     * falling by exactly `1/capacity` and read it as a capacity effect, when it was arithmetic on a
+     * fleet that never changed.
+     */
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0,
+        upperBound = 1.0
+    )
+    override var initialCapacity: Int
+        get() = super.initialCapacity
+        set(value) {
+            require((value == 0) || (value == 1)) {
+                "The initial capacity of transporter ($name) must be 0 or 1, but was $value. A " +
+                        "transporter occupies one zone and carries for one entity at a time; use " +
+                        "loadCapacity for how many loads it may hold, or add a transporter to the " +
+                        "pool for more carrying power."
+            }
+            super.initialCapacity = value
+        }
+
+    override var capacity: Int
+        get() = super.capacity
+        set(value) {
+            require((value == 0) || (value == 1)) {
+                "The capacity of transporter ($name) must be 0 or 1, but was $value."
+            }
+            super.capacity = value
+        }
 
     init {
         if (physicalLength != null) {

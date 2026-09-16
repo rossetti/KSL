@@ -1,5 +1,7 @@
 package ksl.modeling.fleet
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.agent.AgentMessage
 import ksl.modeling.agent.AgentModel
 import ksl.modeling.fleet.policies.AssignmentPolicyIfc
@@ -65,6 +67,7 @@ abstract class FleetSystem @JvmOverloads constructor(
      * that has lost track of its assignment and one that has lost track of the space it is standing
      * on are the same kind of failure seen from two sides.
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     open var auditAtReplicationEnd: Boolean = true
 
     /**

@@ -835,6 +835,32 @@ The statistics are the crossing's own: `turnsTaken`, `crossingsMade`,
 during it is refused exactly as one arriving mid-turn is), `waitToCross`
 and `numWaitingResponse`.
 
+### …build a network from JSON, or write one out?
+
+A network is a **specification** before it is an object, and the specification
+is serializable:
+
+```kotlin
+val network = GuidedPathNetwork.fromJson(jsonText)     // or fromData(spec)
+val spec: GuidedPathNetworkData = network.currentSettings()
+val json: String = network.settingsToJson()
+```
+
+`GuidedPathNetworkData` holds the links, any intersection overrides and the
+station aliases. `LinkData.byZoneLength` and `LinkData.byZoneCount` are the two
+ways to say how a link is cut, so a specification never has to state a length
+and a zone count that could disagree. A document that is malformed fails
+exactly where a hand-written builder would, with the same message.
+
+**It is configured from JSON at construction, and only there.** Unlike
+`DistancesModel`, a `GuidedPathNetwork` does not implement
+`JsonSettingsIfc`: that interface's `configureFromJson` reconfigures an object
+in place, and a built network cannot be. Its zones are cut when the links are
+declared, and the routes, the zone identities and the vehicles standing on them
+all refer to those zones. A distance table is a map that can be emptied and
+refilled; a guide path is not. Build a new network instead — which is what a
+scenario over layouts does anyway, since the layout is structural.
+
 ### …animate it?
 
 Nothing to switch on. When an animation sink is active the system emits

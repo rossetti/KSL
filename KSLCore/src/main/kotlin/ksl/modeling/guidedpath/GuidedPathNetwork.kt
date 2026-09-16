@@ -419,9 +419,24 @@ class GuidedPathNetwork private constructor(
 
     // ---- specification ------------------------------------------------------------------------
 
+    // Deliberately NOT a JsonSettingsIfc<GuidedPathNetworkData>, though two of that interface's
+    // three members are here with matching signatures. The third, `configureFromJson`, reconfigures
+    // an object in place, and a built network cannot be reconfigured: its zones are cut when the
+    // links are declared, and every route, every zone identity and every vehicle placement in a
+    // running model refers to them. DistancesModel implements the interface because a distance
+    // table is a map that can be emptied and refilled; there is no corresponding operation here.
+    //
+    // A network is therefore configured from JSON at construction, through `fromJson`/`fromData`,
+    // and reports itself through the two members below. Claiming the interface and throwing from
+    // `configureFromJson` would advertise a capability that does not exist, which is worse than
+    // not claiming it.
+
     /**
      * This network expressed as data, which reconstructs an equivalent network through
      * `fromData`. Derived quantities are not carried: they are recomputed on reconstruction.
+     *
+     * Named to match [ksl.utilities.io.JsonSettingsIfc], whose reconfiguring half this class
+     * deliberately does not implement -- see the note above.
      */
     fun currentSettings(): GuidedPathNetworkData = GuidedPathNetworkData(
         name = name,
