@@ -93,7 +93,13 @@ Four types carry the model:
   network: it owns which transporter holds which zone, resets all of it
   between replications, and reports congestion.
 - **`GuidedTransporter`** — a vehicle. It is a capacity-one `Resource`, so
-  it is seized and released by the machinery you already know.
+  it is seized and released by the machinery you already know. Capacity one
+  is enforced rather than merely intended: the inherited `initialCapacity`
+  control is narrowed to 0 or 1, as `MovableResource` narrows it on the free
+  path. Zero takes the vehicle out of service; anything above one is refused,
+  because a vehicle stands on one zone and a zone holds one vehicle. Use
+  `loadCapacity` for how many loads it may hold, and add transporters to the
+  pool for more carrying power.
 - **`GuidedTransporterPoolWithQ`** — a fleet asked for by the group. It is
   an `AbstractResourcePool` with a `RequestQ`, so it is seized exactly as
   a resource pool or a movable resource pool is: a request is enqueued on
@@ -986,7 +992,7 @@ though it had worked.
 | `Zone` | The atom of contended space: `LinkZone` along a link, `IntersectionZone` at a junction. Held by at most one thing, which need not be a transporter. `refusalFor(claimant)` says whether it would refuse a claim, and why. |
 | `GuidedPathSpace` | The `ModelElement` operating a network. Owns zone occupancy, resets between replications, reports congestion. Knows nothing about how a vehicle is asked for, which is why the AGV subsystem runs on it too. |
 | `GuidedPathTransportSystem` | A `GuidedPathSpace` plus this paradigm's own transport time, request to set-down. What a passive model constructs. |
-| `GuidedTransporter` | A vehicle; a capacity-one `Resource`. |
+| `GuidedTransporter` | A vehicle; a capacity-one `Resource`, with the capacity bound enforced at 0 or 1. |
 | `GuidedTransporterCIfc` | Controlled access to one: what a modeller sets, where it is, how its time was spent. The guide-path counterpart of `MoveableResourceCIfc`. |
 | `GuidedTransporterPoolWithQ` | A fleet asked for by the group, with the queue of entities waiting for one. |
 | `GuidedTransporterPoolCIfc` | Controlled access to a pool, including both rules by object and by name, as `ResourcePoolCIfc` carries its own. |

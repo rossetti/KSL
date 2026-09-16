@@ -379,6 +379,36 @@ The selection rule orders what the policy *sees*: `FifoTaskSelection`,
 from the policy because "which task next" and "which vehicle for it" are
 separate questions.
 
+**To vary the policy from a scenario rather than in code**, set it by name:
+
+```kotlin
+runner.addScenario(model, name = "LeastUsed",
+    inputs = mapOf("Agv:Dispatcher.assignmentPolicyName" to "LeastUsedVehicle"))
+```
+
+`assignmentPolicyName` is a `@KSLStringControl`, and it offers five of the
+nine: `PullFromBoard`, `NearestVehicle`, `FurthestVehicle`,
+`LeastUsedVehicle`, `Consolidating`. **A policy has a name only when a name
+is all it takes to define it.** The other four take a window, a deadline, a
+threshold, a stream or a scoring function, and those arguments are not
+tunings of a policy — they *are* the policy. A thirty-second batching window
+and a five-minute one are different dispatching rules that share an
+implementation, so a name standing for one of them would let a study vary
+the label while freezing the number, then report the result as a comparison
+of rules.
+
+So the parameterised four are set by assigning the object, and reading the
+name reports what is in force either way:
+
+```kotlin
+agv.dispatcher.assignmentPolicy = BatchedAssignmentPolicy(window = 30.0)
+println(agv.dispatcher.assignmentPolicyName)   // BatchedAssignmentPolicy(window=30.0)
+```
+
+A study over a policy's *parameter* is a study over a number, and belongs in
+the model that chooses it — which is what `DispatchingRuleComparison` does,
+naming its own design points `BatchedWindow30` and `ContractNetDeadline5`.
+
 ### …wait and decide over a batch?
 
 ```kotlin
@@ -1280,7 +1310,8 @@ val shipment = process {
 |---|---|
 | `FleetSystem` | The fleet and its dispatcher. An `AgentModel`. Substrate-independent; a subclass binds it to one. |
 | `FleetVehicle` | The vehicle a modeller names. Composes a body; holds a per-replication agent. |
-| `AgvSystem` / `AgvVehicle` | The **guide-path binding** (`ksl.modeling.agv`): builds the space layer, adds the zone and blocking rows. |
+| `FleetVehicleCIfc` | Controlled access to one: the four policies it carries, what it is doing, and how its time was spent. Reports the same four fractions of time as `GuidedTransporterCIfc`, so the two paradigms' vehicles can be compared through their contracts and not only their implementations. A vehicle is *assigned*, never seized, so there is no capacity here and `fracTimeOnTask` takes utilization's place. |
+| `AgvSystem` / `AgvVehicle` | The **guide-path binding** (`ksl.modeling.agv`): builds the space layer, adds the zone and blocking rows. Re-exposes the space's six diagnostic flags — `checkInvariants`, `auditAtReplicationEnd`, `deadlockDetectionEnabled`, `strictObstructionPolicy`, `collectLinkStatistics`, `collectZoneStatistics` — as controls under its own name, so an active model reaches them as `Agv.checkInvariants` rather than only through the inner element. |
 | `FreePathFleet` / `FreePathVehicle` | The **free-path binding**: the same fleet over a spatial model, where nothing blocks. |
 | `VehicleBodyIfc` | What the fleet needs from a vehicle's physical presence: a manifest, its time, something seizable, something that can be stopped. |
 | `Dispatcher` | Decides who goes where; owns the `TaskQ`, which is the only queue this subsystem reports. |
