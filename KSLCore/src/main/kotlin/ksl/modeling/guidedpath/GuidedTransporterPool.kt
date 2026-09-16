@@ -78,6 +78,9 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
             addResource(t)
             t.joinPool(this)
         }
+        // So the space can count entities waiting here when the horizon falls: a journey that never
+        // started is invisible from the space's own hold queues.
+        system.registerPool(this)
     }
 
     /**

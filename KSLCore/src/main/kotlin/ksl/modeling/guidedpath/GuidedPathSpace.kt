@@ -145,6 +145,16 @@ open class GuidedPathSpace @JvmOverloads constructor(
 
     private val myTransporters = mutableListOf<GuidedTransporter>()
 
+    private val myPools = mutableListOf<GuidedTransporterPoolWithQ>()
+
+    /**
+     * Records a pool operating on this guide path, so that the truncation responses below can see
+     * the entities waiting for a transporter as well as those already on a journey.
+     */
+    internal fun registerPool(pool: GuidedTransporterPoolWithQ) {
+        if (myPools.none { it === pool }) myPools.add(pool)
+    }
+
     /** The transporters on this guide path, in the order they were declared. */
     val transporters: List<GuidedTransporter>
         get() = myTransporters
@@ -519,6 +529,49 @@ open class GuidedPathSpace @JvmOverloads constructor(
     // question is answered instead by the vehicle's own `fracTimeMovingEmpty` and
     // `fracTimeTransporting`, which are time-weighted and mean exactly what they say at every
     // capacity. These two answer the protocol question, and always can.
+
+    // ---- work in flight when the horizon fell --------------------------------------------------
+    //
+    // The passive counterparts of the fleet subsystem's three truncation responses, and named to be
+    // read beside them. On one shop modelled both ways they agree term for term, which is worth
+    // knowing because it is the only way to tell truncation apart from a difference between the
+    // paradigms:
+    //
+    //   passive                                active
+    //   NumTransportsNeverStarted          =   NumTasksNeverAssigned
+    //   NumTransportsUnfinished            =   NumAssignmentsStillOpen
+    //   the two of them summed             =   NumEntitiesNeverResumed
+    //
+    // There are deliberately two rows here and not three. The fleet subsystem reports the total as
+    // well, but it may not be reported *here* under that name: `StatisticNamingTest` holds the two
+    // subsystems' own row names disjoint, because a quantity both paradigms report belongs to the
+    // layer they share and a label carried by both separately is two measurements wearing one name.
+    // The total is the sum of the two rows beside it, so nothing is lost by leaving it out -- and a
+    // derived row that a reader can add up is not worth a name it would have to fight for.
+    //
+    // A terminating run that does not drain always leaves some, so these are observations about the
+    // horizon rather than symptoms. What they are for is deciding whether a run was long enough:
+    // a figure that is a rounding error against throughput is truncation, and one that is not says
+    // the averages describe a smaller problem than the one posed.
+
+    /**
+     * Entities still waiting for a transporter when the replication ended, over every pool on this
+     * guide path. They never started a journey, so nothing about them is in any journey statistic.
+     */
+    private val myNumTransportsNeverStarted =
+        Response(this, name = "${this.name}:NumTransportsNeverStarted")
+    val numTransportsNeverStarted: ResponseCIfc
+        get() = myNumTransportsNeverStarted
+
+    /**
+     * Entities part-way through a journey when the replication ended: waiting for a transporter to
+     * arrive, riding one, or driving one. The passive analogue of an assignment left open, and the
+     * reason a run that looks like it ran out of work can be told from one that was cut off.
+     */
+    private val myNumTransportsUnfinished =
+        Response(this, name = "${this.name}:NumTransportsUnfinished")
+    val numTransportsUnfinished: ResponseCIfc
+        get() = myNumTransportsUnfinished
 
     private val myApproachTime = Response(this, name = "${this.name}:ApproachTime")
 
@@ -1939,6 +1992,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
                 coverage.withinReplicationStatistic.weightedAverage / link.numZones
         }
         reportUnfilledRequests()
+        reportWorkInFlight()
         val stuck = blockedTransporters
         if (stuck.isEmpty()) return
         logger.warn {
@@ -1999,6 +2053,28 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * ([GuidedTransporter.isPermanentlyStationary]) was never going to drain at all, and that is
      * said in those words rather than left for the reader to work out.
      */
+    /**
+     * Counts the work this subsystem still had in hand when the horizon fell, and says so once.
+     *
+     * At INFO rather than WARN, deliberately. Every terminating run that does not drain ends in
+     * this state, and the fleet subsystem reports the identical condition on the identical model --
+     * so a warning would make a normal fact look like a fault, and would do it in exactly the
+     * comparison where the two paradigms are supposed to agree.
+     */
+    private fun reportWorkInFlight() {
+        val waitingForOne = myPools.sumOf { it.waitingQ.size }
+        val onAJourney = awaitingPickupHoldQ.size + ridingHoldQ.size + drivingHoldQ.size
+        myNumTransportsNeverStarted.value = waitingForOne.toDouble()
+        myNumTransportsUnfinished.value = onAJourney.toDouble()
+        if (waitingForOne + onAJourney == 0) return
+        logger.info {
+            "${this::class.simpleName} ($name): ${waitingForOne + onAJourney} entit(ies) were " +
+                    "still suspended when replication ${model.currentReplicationNumber} ended -- " +
+                    "$waitingForOne waiting for a transporter, $onAJourney part-way through a " +
+                    "journey. Their waits are not observations and are not in the statistics."
+        }
+    }
+
     private fun reportUnfilledRequests() {
         val waiting = waitingRequests
         if (waiting.isEmpty()) return

@@ -580,12 +580,22 @@ abstract class FleetSystem @JvmOverloads constructor(
         val orphaned = dispatcher.board.tasks.filter { it.assignedAt.isNaN() }
         myNumTasksNeverAssigned.value = orphaned.size.toDouble()
         if (orphaned.isEmpty()) return
-        logger.warn {
+        // INFO, not WARN. Any terminating run that does not drain leaves work outstanding, so this
+        // is a fact about the horizon rather than a sign of a defect, and [numTasksNeverAssigned]
+        // is where a study should read it. What *would* deserve a warning is the size of it
+        // relative to what was served, and that is a judgement only the modeller can make: a
+        // fleet that served a third of its demand and one that was cut off mid-delivery produce
+        // the same condition here and want opposite responses.
+        logger.info {
+            "Fleet ($name): ${orphaned.size} task(s) were posted and never assigned before " +
+                    "replication ${model.currentReplicationNumber} ended. Statistics are computed " +
+                    "over the loads that were served, so this run's averages describe a smaller " +
+                    "problem than the one posed."
+        }
+        logger.debug {
             buildString {
-                append("Fleet ($name): ${orphaned.size} task(s) were posted and never assigned ")
-                append("before replication ${model.currentReplicationNumber} ended. ")
-                append("Statistics are computed over the loads that were served, so this run's ")
-                append("averages describe a smaller problem than the one posed.")
+                append("Fleet ($name): tasks never assigned in replication ")
+                append("${model.currentReplicationNumber}:")
                 for (t in orphaned) {
                     append(System.lineSeparator())
                     append("  (${t.name}) posted at ${t.timeEnteredQueue}, ")
@@ -608,13 +618,21 @@ abstract class FleetSystem @JvmOverloads constructor(
         val stranded = awaitingPickupHoldQ.size + inTransitHoldQ.size
         myNumEntitiesNeverResumed.value = stranded.toDouble()
         if (stranded == 0) return
-        logger.warn {
+        // INFO for the same reason as [reportTasksNeverAssigned]: a journey under way when the
+        // clock stops is truncation, not a defect. The passive subsystem leaves exactly the same
+        // work in flight on the same model -- `GuidedPathSpace.numEntitiesNeverResumed` is its
+        // count of it -- so a warning here would make one paradigm look ill and the other well
+        // for a condition they share.
+        logger.info {
+            "Fleet ($name): $stranded entit(ies) were still suspended when replication " +
+                    "${model.currentReplicationNumber} ended -- ${awaitingPickupHoldQ.size} " +
+                    "awaiting collection, ${inTransitHoldQ.size} aboard a vehicle. Their waits " +
+                    "are not observations and are not in the statistics."
+        }
+        logger.debug {
             buildString {
-                append("Fleet ($name): $stranded entit(ies) were still suspended when ")
-                append("replication ${model.currentReplicationNumber} ended -- ")
-                append("${awaitingPickupHoldQ.size} awaiting collection, ")
-                append("${inTransitHoldQ.size} aboard a vehicle. ")
-                append("Their waits are not observations and are not in the statistics.")
+                append("Fleet ($name): entities still suspended in replication ")
+                append("${model.currentReplicationNumber}:")
                 for (e in awaitingPickupHoldQ.immutableList) {
                     append(System.lineSeparator())
                     append("  (${e.name}) awaiting collection")
@@ -633,10 +651,16 @@ abstract class FleetSystem @JvmOverloads constructor(
         val open = myVehicles.flatMap { v -> v.assignments.map { v to it } }
         myNumAssignmentsStillOpen.value = open.size.toDouble()
         if (open.isEmpty()) return
-        logger.warn {
+        // INFO: the third of the three truncation reports. A vehicle part-way through a task at
+        // the horizon is the ordinary state of a fleet that still had work.
+        logger.info {
+            "Fleet ($name): ${open.size} assignment(s) were still open when replication " +
+                    "${model.currentReplicationNumber} ended."
+        }
+        logger.debug {
             buildString {
-                append("Fleet ($name): ${open.size} assignment(s) were still open when ")
-                append("replication ${model.currentReplicationNumber} ended.")
+                append("Fleet ($name): assignments still open in replication ")
+                append("${model.currentReplicationNumber}:")
                 for ((v, a) in open) {
                     append(System.lineSeparator())
                     append("  (${v.name}) was ${a.state} on task (${a.task.name}), ")

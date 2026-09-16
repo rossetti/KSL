@@ -99,6 +99,25 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  That last one is worth reading twice: "on task" is not the same as "moving", and neither
  *  contains the other. A cart is on task while it stands still being loaded, and it is moving but
  *  not on task while it returns to its depot.
+ *
+ *  ## Three rows that are not a difference between the paradigms
+ *
+ *  The passive report ends with `Space:NumTransportsNeverStarted` and
+ *  `Space:NumTransportsUnfinished`; the active one with `Agv:NumTasksNeverAssigned`,
+ *  `Agv:NumAssignmentsStillOpen` and their total, `Agv:NumEntitiesNeverResumed`. They count the
+ *  work still in hand when the clock stopped: about two parts out of the hundred and seventy-five
+ *  delivered.
+ *
+ *  The passive side reports two rows where the active one reports three, and that is a naming rule
+ *  rather than a gap: a quantity both paradigms report belongs to the layer they share, so a total
+ *  carried separately by each of them under one label would be two measurements wearing one name.
+ *  Add the two rows to compare against the third.
+ *
+ *  **They agree term for term, and that is the point of having them.** Any terminating run that
+ *  does not drain ends in this state, so the question a reader needs answered is whether the two
+ *  paradigms are cut off in the same place -- and they are. `WorkInFlightParityTest` holds it that
+ *  way. Without those rows the only way to find out was to reach into one subsystem's hold queues
+ *  and the other's task board and compare them by hand.
  */
 private val entryStation = "EntryStation"
 private val exitStation = "ExitStation"
