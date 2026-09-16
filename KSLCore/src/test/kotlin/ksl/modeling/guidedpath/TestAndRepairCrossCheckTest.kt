@@ -122,6 +122,16 @@ class TestAndRepairCrossCheckTest {
         const val VELOCITY = 30.0               // metres per minute
         const val CART_LENGTH = 1.0             // "It is 1 meter in length" -- Exercise 7.13
         const val HOME = "I1"
+
+        // The shop asks for its stations by name, so a network built here has to carry the same
+        // five. They are written out rather than read off the shop: the shop keeps them private,
+        // as its free-path twin does, and a name that drifted would raise at the first journey
+        // rather than quietly produce a different answer.
+        const val DIAGNOSTIC = "DiagnosticStation"
+        const val TEST1 = "TestStation1"
+        const val TEST2 = "TestStation2"
+        const val TEST3 = "TestStation3"
+        const val REPAIR = "RepairStation"
     }
 
     /**
@@ -155,11 +165,11 @@ class TestAndRepairCrossCheckTest {
         .link("L8", "I8", "I9", length = 17.0, zoneLength = 17.0, type = LinkType.BIDIRECTIONAL, beginDirection = 180.0)
         .link("L9", "I9", "I2", length = 13.0, zoneLength = 13.0, type = LinkType.BIDIRECTIONAL, beginDirection = 180.0)
         .link("L10", "I9", "I5", length = 23.0, zoneLength = 23.0, type = LinkType.BIDIRECTIONAL, beginDirection = 90.0)
-        .station(TestAndRepairShopWithGuidedTransporters.DIAGNOSTIC, "I3")
-        .station(TestAndRepairShopWithGuidedTransporters.TEST1, "I4")
-        .station(TestAndRepairShopWithGuidedTransporters.TEST2, "I6")
-        .station(TestAndRepairShopWithGuidedTransporters.REPAIR, "I7")
-        .station(TestAndRepairShopWithGuidedTransporters.TEST3, "I9")
+        .station(DIAGNOSTIC, "I3")
+        .station(TEST1, "I4")
+        .station(TEST2, "I6")
+        .station(REPAIR, "I7")
+        .station(TEST3, "I9")
         .build()
 
     /**
@@ -194,11 +204,11 @@ class TestAndRepairCrossCheckTest {
         .link("L8", "I8", "I9", length = 17.0, zoneLength = 17.0, beginDirection = 180.0)
         .link("L9", "I9", "I2", length = 13.0, zoneLength = 13.0, beginDirection = 180.0)
         .link("L10", "I5", "I9", length = l10Length, zoneLength = l10Length, beginDirection = 270.0)
-        .station(TestAndRepairShopWithGuidedTransporters.DIAGNOSTIC, "I3")
-        .station(TestAndRepairShopWithGuidedTransporters.TEST1, "I4")
-        .station(TestAndRepairShopWithGuidedTransporters.TEST2, "I6")
-        .station(TestAndRepairShopWithGuidedTransporters.REPAIR, "I7")
-        .station(TestAndRepairShopWithGuidedTransporters.TEST3, "I9")
+        .station(DIAGNOSTIC, "I3")
+        .station(TEST1, "I4")
+        .station(TEST2, "I6")
+        .station(REPAIR, "I7")
+        .station(TEST3, "I9")
         .build()
 
     private fun referenceFixture(resource: String): Map<String, Pair<Double, Double>> {

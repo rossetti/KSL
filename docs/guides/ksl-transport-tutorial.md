@@ -209,16 +209,15 @@ class SimpleAGVExample(
     private val loopZoneLength = 12.0
     private val homeSpurZoneLength = 6.0
 
-
     private val network: GuidedPathNetwork = buildNetwork()
 ```
 
-The names live in the model class's **companion object**, which is the KSL
-convention for a model's vocabulary: the class is `SimpleAGVExample`, named for its
-file, and `SimpleAGVExample.ENTRY_STATION` is how a caller — the study function in
-part 8, a test, or the disturbances model of case 11, which reuses this very layout —
-names a place without repeating a string. The constants are the vocabulary of
-everything below.
+The names are `private val`s on the model class, which is the KSL convention for a
+model's vocabulary: the class is `SimpleAGVExample`, named for its file, and
+`entryStation` is how the network builder and the part's process name the same place
+without repeating a string. They are private because nothing outside the model has any
+business naming its stations — a study varies the model's **inputs**, and part 8 shows
+what that looks like. The values are the vocabulary of everything below.
 
 The two zone lengths are the interesting pair. **A zone is the unit of exclusion on a
 guide path — one zone holds one vehicle** — so choosing 12 for the loop says that two
@@ -227,7 +226,7 @@ the physical minimum. The home spurs are six feet long altogether: one cart, one
 A single network-wide zone size could not express both, which is the argument for
 `zoneLength` being an argument of `link`, as it is in part 3.
 
-`AGV1_HOME` and `AGV2_HOME` are intersection names rather than station names, and that
+`agv1Home` and `agv2Home` are intersection names rather than station names, and that
 is legal: anywhere the model asks for a place, an intersection name will do. A station
 is a *named* intersection, nothing more.
 
@@ -374,7 +373,7 @@ occupancy, moves vehicles, detects blocking, and keeps the statistics part 9 rea
 A `GuidedTransporter` takes, in order: the system it belongs to, where it starts, how
 fast it goes, how many zones long it is, its zone-control rule, and its name.
 
-- `TransporterPlacement.At(AGV1_HOME)` starts the cart on its own parking spur.
+- `TransporterPlacement.At(agv1Home)` starts the cart on its own parking spur.
   Starting both carts at the same place would be an error on a guide path — one zone,
   one vehicle.
 - `ConstantRV(10.0)` is the velocity. A distribution would be equally acceptable; a
@@ -463,7 +462,7 @@ Everything a part does, in a dozen lines.
 `process(isDefaultProcess = true)` declares the entity's behaviour as a coroutine and
 marks it the one the generator activates. Inside it:
 
-- `currentLocation = network.requireLocation(ENTRY_STATION)` — the part states where it
+- `currentLocation = network.requireLocation(entryStation)` — the part states where it
   is standing. This is **required** on a guide path and it is the API surfacing a
   physical fact: a transporter is summoned to a named junction. `requireLocation` throws
   on a name the network does not know, which turns a typo into an immediate failure
@@ -1198,62 +1197,65 @@ spaces.
 #### 3. The station names and the aisle
 
 ```kotlin
-    /** Station names, which double as the guide path's addresses. */
-    companion object {
-        const val DIAGNOSTIC: String = "DiagnosticStation"
-        const val TEST1: String = "TestStation1"
-        const val TEST2: String = "TestStation2"
-        const val TEST3: String = "TestStation3"
-        const val REPAIR: String = "RepairStation"
+    // Station names, which double as the guide path's addresses: a part asks to be carried to a
+    // station by name, and a caller supplying its own aisle must name its stations the same. A
+    // name the network does not carry raises at the first journey rather than running on.
+    private val diagnosticStation = "DiagnosticStation"
+    private val testStation1 = "TestStation1"
+    private val testStation2 = "TestStation2"
+    private val testStation3 = "TestStation3"
+    private val repairStation = "RepairStation"
 
-        /** The aisle is discretized at five meters, which divides every leg of the loop exactly. */
-        const val ZONE_LENGTH: Double = 5.0
+    // The aisle is discretized at five meters, which divides every leg of the loop exactly.
+    private val zoneLength = 5.0
 
-        /**
-         *  The one-way aisle through the five stations, plus a parking spur per transporter.
-         *
-         *  Leg lengths are the free-path model's own distances along this cycle, so the two models
-         *  place the stations the same distance apart. What differs is that here a worker can only
-         *  travel one way round, and can be held up by another worker in front of it.
-         */
-        fun createNetwork(numSpurs: Int, networkName: String = "ShopAisle"): GuidedPathNetwork {
-            var b = GuidedPathNetwork.builder(networkName)
-                .intersection(DIAGNOSTIC, x = 0.0, y = 0.0)
-                .intersection(TEST1, x = 40.0, y = 0.0)
-                .intersection(TEST2, x = 50.0, y = 0.0)
-                .intersection(TEST3, x = 50.0, y = -65.0)
-                .intersection(REPAIR, x = 25.0, y = -65.0)
-                .link("Aisle1", DIAGNOSTIC, TEST1, length = 40.0, zoneLength = ZONE_LENGTH, beginDirection = 0.0)
-                .link("Aisle2", TEST1, TEST2, length = 10.0, zoneLength = ZONE_LENGTH, beginDirection = 0.0)
-                .link("Aisle3", TEST2, TEST3, length = 65.0, zoneLength = ZONE_LENGTH, beginDirection = 270.0)
-                .link("Aisle4", TEST3, REPAIR, length = 25.0, zoneLength = ZONE_LENGTH, beginDirection = 180.0)
-                .link("Aisle5", REPAIR, DIAGNOSTIC, length = 110.0, zoneLength = ZONE_LENGTH, beginDirection = 90.0)
-            // A parking spur per transporter, off the diagnostic end of the aisle. An idle worker
-            // left standing in the aisle would block everything behind it, with no error and a run
-            // that finishes looking entirely reasonable.
-            for (i in 1..numSpurs) {
-                b = b.intersection("Park$i", x = -10.0, y = -10.0 * i)
-                b = b.link(
-                    "ParkSpur$i", DIAGNOSTIC, "Park$i", length = ZONE_LENGTH, zoneLength = ZONE_LENGTH,
-                    type = LinkType.SPUR, beginDirection = 180.0
-                )
-            }
-            return b.build()
+    /**
+     *  The one-way aisle through the five stations, plus a parking spur per transporter.
+     *
+     *  Leg lengths are the free-path model's own distances along this cycle, so the two models
+     *  place the stations the same distance apart. What differs is that here a worker can only
+     *  travel one way round, and can be held up by another worker in front of it.
+     */
+    private fun createNetwork(numSpurs: Int, networkName: String = "ShopAisle"): GuidedPathNetwork {
+        var b = GuidedPathNetwork.builder(networkName)
+            .intersection(diagnosticStation, x = 0.0, y = 0.0)
+            .intersection(testStation1, x = 40.0, y = 0.0)
+            .intersection(testStation2, x = 50.0, y = 0.0)
+            .intersection(testStation3, x = 50.0, y = -65.0)
+            .intersection(repairStation, x = 25.0, y = -65.0)
+            .link("Aisle1", diagnosticStation, testStation1, length = 40.0, zoneLength = zoneLength, beginDirection = 0.0)
+            .link("Aisle2", testStation1, testStation2, length = 10.0, zoneLength = zoneLength, beginDirection = 0.0)
+            .link("Aisle3", testStation2, testStation3, length = 65.0, zoneLength = zoneLength, beginDirection = 270.0)
+            .link("Aisle4", testStation3, repairStation, length = 25.0, zoneLength = zoneLength, beginDirection = 180.0)
+            .link("Aisle5", repairStation, diagnosticStation, length = 110.0, zoneLength = zoneLength, beginDirection = 90.0)
+        // A parking spur per transporter, off the diagnostic end of the aisle. An idle worker
+        // left standing in the aisle would block everything behind it, with no error and a run
+        // that finishes looking entirely reasonable.
+        for (i in 1..numSpurs) {
+            b = b.intersection("Park$i", x = -10.0, y = -10.0 * i)
+            b = b.link(
+                "ParkSpur$i", diagnosticStation, "Park$i", length = zoneLength, zoneLength = zoneLength,
+                type = LinkType.SPUR, beginDirection = 180.0
+            )
         }
+        return b.build()
     }
 ```
 
-The five station names are `const val`s in a companion object so that a caller —
-including the free-path twin — can address the same places.
+The five station names are `private val`s, exactly as in the free-path twin, whose
+stations are `private val diagnosticStation = dm.Location("DiagnosticStation")` and so
+on. A caller that supplies its own aisle has to name its stations the same, and the
+model says so at the first journey rather than later: the part asks for its station by
+name and `requireLocation` raises on one the network does not carry.
 
 `createNetwork` builds the cycle Figure 3 draws: five links, one way round,
-`DIAGNOSTIC → TEST1 → TEST2 → TEST3 → REPAIR → DIAGNOSTIC`. **The five leg lengths
+diagnostic → test 1 → test 2 → test 3 → repair → diagnostic. **The five leg lengths
 are the free-path model's own distances between those pairs**, which is what makes
 the two models agree about how far apart things are.
 
 What they do *not* agree about is everything else. The free-path model holds a
 distance for **every** pair — TestStation3 to TestStation1 is 80 there — while here
-a worker at TEST3 must go round through REPAIR and DIAGNOSTIC to reach TEST1, which
+a worker at test 3 must go round through repair and diagnostics to reach test 1, which
 is 25 + 110 + 40 = 175. Nothing in the free-path model could report that, and
 nothing in this one could fail to.
 
@@ -1372,32 +1374,21 @@ find that a run has to be repeated.
     )
 
     private val testPlan1 = listOf(
-        TestPlanStep(myTest2, t11, TEST2), TestPlanStep(myTest3, t12, TEST3),
-        TestPlanStep(myTest2, t13, TEST2), TestPlanStep(myTest1, t14, TEST1)
+        TestPlanStep(myTest2, t11, testStation2), TestPlanStep(myTest3, t12, testStation3),
+        TestPlanStep(myTest2, t13, testStation2), TestPlanStep(myTest1, t14, testStation1)
     )
     private val testPlan2 = listOf(
-        TestPlanStep(myTest3, t21, TEST3),
-        TestPlanStep(myTest1, t22, TEST1)
+        TestPlanStep(myTest3, t21, testStation3),
+        TestPlanStep(myTest1, t22, testStation1)
     )
     private val testPlan3 = listOf(
-        TestPlanStep(myTest1, t31, TEST1), TestPlanStep(myTest3, t32, TEST3),
-        TestPlanStep(myTest1, t33, TEST1)
+        TestPlanStep(myTest1, t31, testStation1), TestPlanStep(myTest3, t32, testStation3),
+        TestPlanStep(myTest1, t33, testStation1)
     )
     private val testPlan4 = listOf(
-        TestPlanStep(myTest2, t41, TEST2),
-        TestPlanStep(myTest3, t42, TEST3)
+        TestPlanStep(myTest2, t41, testStation2),
+        TestPlanStep(myTest3, t42, testStation3)
     )
-
-    private val repairTimes = mapOf(
-        testPlan1 to r1,
-        testPlan2 to r2,
-        testPlan3 to r3,
-        testPlan4 to r4
-    )
-
-    private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
-    private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
-    private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 ```
 
 `TestPlanStep` binds three things: which machine, how long it takes, and **where it
@@ -1416,8 +1407,20 @@ one of those numbers is the textbook's.
 #### 7. Arrivals, and six statistics
 
 ```kotlin
+    private val repairTimes = mapOf(
+        testPlan1 to r1,
+        testPlan2 to r2,
+        testPlan3 to r3,
+        testPlan4 to r4
+    )
+
+    private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
+    private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
+    private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
+
+    // Named, so that its own TimeBtwEventsRV has a stable key a study or a catalog can name.
     private val tba = ExponentialRV(timeBtwArrivals)
-    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba, name = "PartArrivals")
     val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
@@ -1449,10 +1452,15 @@ one of those numbers is the textbook's.
     private val myNumberOut: Counter = Counter(this, "NumberOut")
     val numberOut: CounterCIfc
         get() = myNumberOut
+
 ```
 
-`EntityGenerator(::Part, tba, tba)` is the arrival process, exponential with the
-constructor's mean.
+`EntityGenerator(::Part, tba, tba, name = "PartArrivals")` is the arrival process,
+exponential with the constructor's mean. The generator is **named** because it wraps
+both variates in model elements of its own, called `PartArrivals:TimeBtwEventsRV` and
+`PartArrivals:TimeUntilFirstEventRV` — so naming it is what gives the arrival rate a
+key a study or a catalog can name. An unnamed element gets `ID_<n>`, which is not
+something anything can nominate.
 
 The statistics are worth naming individually because they are the model's whole
 output:
@@ -1484,9 +1492,9 @@ part 5.
             // Where the part is has to be tracked explicitly: a transporter is asked to come to a
             // named junction, and the part is not carried from wherever it happens to be but from
             // the station it is standing at.
-            var at = DIAGNOSTIC
+            var at = diagnosticStation
             var carried = 0.0
-            currentLocation = network.requireLocation(DIAGNOSTIC)
+            currentLocation = network.requireLocation(diagnosticStation)
             wip.increment()
             myNumberIn.increment()
             timeStamp = time
@@ -1499,7 +1507,7 @@ part 5.
                 at = tp.testStation
                 use(tp.testMachine, delayDuration = tp.processTime)
             }
-            val lastLeg = guidedTransport(transportWorkers, destination = REPAIR, pickupLocation = at)
+            val lastLeg = guidedTransport(transportWorkers, destination = repairStation, pickupLocation = at)
             carried += lastLeg.approachTime + lastLeg.rideTime
             use(repairWorkers, delayDuration = repairTimes[plan]!!)
             myTransferTime.value = carried
@@ -1516,7 +1524,7 @@ repair, leave.
 Two lines are about the guide path and the rest is the shop:
 
 ```kotlin
-            var at = DIAGNOSTIC
+            var at = diagnosticStation
 ```
 
 and, in the loop,
@@ -3289,7 +3297,7 @@ A pallet appears at a random pick face, is carried to the dock, and leaves. The 
 appears twice — as `loadingDelay` and `unLoadingDelay` — which is the picker loading it and the
 dock taking it off.
 
-`myWhichFace.value.toInt().coerceIn(0, NUM_AISLES - 1)` is defensive about the boundary:
+`myWhichFace.value.toInt().coerceIn(0, numAisles - 1)` is defensive about the boundary:
 `UniformRV(0.0, 3.0)` can in principle return exactly 3.0, and `pickFace(3)` names no station.
 
 The source loops forever rather than for a fixed count, because these runs are terminated by
@@ -3318,7 +3326,7 @@ private fun deadlockOutcome(participants: Int) = Outcome(
 )
 ```
 
-The comment on `MEAN_TBA` is load-bearing. With demand *below* capacity the throughput column
+The comment on `meanTimeBetweenArrivals` is load-bearing. With demand *below* capacity the throughput column
 flattens at the **arrival rate**, and a reader concludes that the aisles bind when nothing of
 the sort has been shown — the trap this tutorial's closing section names in three of its ten
 cases.
@@ -4270,10 +4278,11 @@ fun main() {
 }
 ```
 
-The corpus convention: the study body stays in the model class's companion object, and a
-top-level `fun main()` runs it. Keeping it that way means the benchmark can be invoked from a
-test or another example without going through a `main` — which is exactly what case 10 does
-with `GuidedPathThroughputBenchmark.run()`.
+The corpus convention: the model class, then top-level functions, then a `fun main()` that
+runs them. `runGuidedPathBenchmark` and `createBenchmarkTorus` are deliberately **not** private
+to this file, because the benchmark has to be invocable without going through a `main` — which
+is exactly what case 10 does with both of them. `reportGuidedPathBenchmark` is private: nothing
+outside this file prints this table.
 
 ### What to learn
 
@@ -4582,8 +4591,9 @@ fun main() {
 }
 ```
 
-The same shape as case 9: the body in the model class's companion object, a top-level
-`fun main()` to run it.
+The same shape as case 9: the model class, then the run and the report as file-private
+top-level functions, then a `fun main()`. Private here rather than public, because this file
+imports case 9's benchmark and nothing imports this one.
 
 ### What it shows
 
@@ -4831,8 +4841,10 @@ class GuidePathDisturbancesExample(
     // ---- the process route: spills, which arrive and are cleaned ---------------------------
 ```
 
-The layout is case 1's, read from `SimpleAGVExample.createNetwork` rather
-than restated, so the disturbed and quiet runs cannot drift apart. The
+The layout is case 1's, rebuilt here rather than borrowed: the two examples are read
+side by side, and a reader who has to go and find the aisle in another file to see what
+this one closes has lost the thread. Both runs of *this* study share it, which is what
+stops the disturbed and quiet cells drifting apart. The
 `disturbed` flag is the only difference between the two scenarios, and it
 gates the spills and the maintenance window without touching the fleet, the
 arrivals or the policies.
@@ -5347,7 +5359,7 @@ the mistake this example was written to make visible.
 ```
 
 One loop, three policies, and the only branch is what to do about null.
-ABSORB gives up and records that it did. DEFER waits `RETRY_AFTER` and asks
+ABSORB gives up and records that it did. DEFER waits `retryAfter` and asks
 again. RELOCATE asks for different space. The call that may be refused is
 the same in all three.
 

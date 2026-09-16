@@ -383,6 +383,9 @@ class TestAndRepairShopWithGuidedTransportersModelBuilder : ModelBuilderIfc {
         model.numberOfReplications = 10
         model.lengthOfReplication = 52.0 * 5.0 * 2.0 * 480.0
         model.curateCatalog {
+            rvParameter("PartArrivals:TimeBtwEventsRV", "mean") {
+                displayName = "Mean Time Between Arrivals"; unit = "min"
+            }
             rvParameter(shop.diagnosticTimeRV, "mean") {
                 displayName = "Mean Diagnostic Time"; unit = "min"
             }

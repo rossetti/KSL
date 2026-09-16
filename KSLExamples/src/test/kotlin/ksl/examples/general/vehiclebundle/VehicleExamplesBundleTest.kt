@@ -190,6 +190,8 @@ class VehicleExamplesBundleTest {
                     "PartArrivals:TimeBtwEventsRV.mean",
                     "SpillArrivals:TimeBtwEventsRV.mean"
                 ),
+                VehicleBundleFixture.TEST_AND_REPAIR_GUIDED_TRANSPORTERS to
+                    listOf("PartArrivals:TimeBtwEventsRV.mean"),
             )) {
                 val catalog = assertNotNull(
                     match.descriptorFor(id).catalog, "Model '$id' must carry a catalog"

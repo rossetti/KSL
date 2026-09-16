@@ -90,54 +90,60 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
     private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0))
 
-    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
+    // Named, so that a study -- or the vehicle-examples bundle's catalog -- can nominate its mean
+    // as an input. An unnamed random variable has no stable key to nominate.
+    private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0), name = "DiagnosticTime")
+
+    /** How long diagnosis takes; its mean is the shop's headline load parameter. */
+    val diagnosticTimeRV: RandomVariableCIfc
+        get() = diagnosticTime
 
     // The same walking speed as the free-path model, in meters per minute. Sharing it is what makes
     // the comparison about the space rather than about how fast anybody walks.
     private val myWalkingSpeedRV = TriangularRV(22.86, 45.72, 52.5)
 
-    /** Station names, which double as the guide path's addresses. */
-    companion object {
-        const val DIAGNOSTIC: String = "DiagnosticStation"
-        const val TEST1: String = "TestStation1"
-        const val TEST2: String = "TestStation2"
-        const val TEST3: String = "TestStation3"
-        const val REPAIR: String = "RepairStation"
+    // Station names, which double as the guide path's addresses: a part asks to be carried to a
+    // station by name, and a caller supplying its own aisle must name its stations the same. A
+    // name the network does not carry raises at the first journey rather than running on.
+    private val diagnosticStation = "DiagnosticStation"
+    private val testStation1 = "TestStation1"
+    private val testStation2 = "TestStation2"
+    private val testStation3 = "TestStation3"
+    private val repairStation = "RepairStation"
 
-        /** The aisle is discretized at five meters, which divides every leg of the loop exactly. */
-        const val ZONE_LENGTH: Double = 5.0
+    // The aisle is discretized at five meters, which divides every leg of the loop exactly.
+    private val zoneLength = 5.0
 
-        /**
-         *  The one-way aisle through the five stations, plus a parking spur per transporter.
-         *
-         *  Leg lengths are the free-path model's own distances along this cycle, so the two models
-         *  place the stations the same distance apart. What differs is that here a worker can only
-         *  travel one way round, and can be held up by another worker in front of it.
-         */
-        fun createNetwork(numSpurs: Int, networkName: String = "ShopAisle"): GuidedPathNetwork {
-            var b = GuidedPathNetwork.builder(networkName)
-                .intersection(DIAGNOSTIC, x = 0.0, y = 0.0)
-                .intersection(TEST1, x = 40.0, y = 0.0)
-                .intersection(TEST2, x = 50.0, y = 0.0)
-                .intersection(TEST3, x = 50.0, y = -65.0)
-                .intersection(REPAIR, x = 25.0, y = -65.0)
-                .link("Aisle1", DIAGNOSTIC, TEST1, length = 40.0, zoneLength = ZONE_LENGTH, beginDirection = 0.0)
-                .link("Aisle2", TEST1, TEST2, length = 10.0, zoneLength = ZONE_LENGTH, beginDirection = 0.0)
-                .link("Aisle3", TEST2, TEST3, length = 65.0, zoneLength = ZONE_LENGTH, beginDirection = 270.0)
-                .link("Aisle4", TEST3, REPAIR, length = 25.0, zoneLength = ZONE_LENGTH, beginDirection = 180.0)
-                .link("Aisle5", REPAIR, DIAGNOSTIC, length = 110.0, zoneLength = ZONE_LENGTH, beginDirection = 90.0)
-            // A parking spur per transporter, off the diagnostic end of the aisle. An idle worker
-            // left standing in the aisle would block everything behind it, with no error and a run
-            // that finishes looking entirely reasonable.
-            for (i in 1..numSpurs) {
-                b = b.intersection("Park$i", x = -10.0, y = -10.0 * i)
-                b = b.link(
-                    "ParkSpur$i", DIAGNOSTIC, "Park$i", length = ZONE_LENGTH, zoneLength = ZONE_LENGTH,
-                    type = LinkType.SPUR, beginDirection = 180.0
-                )
-            }
-            return b.build()
+    /**
+     *  The one-way aisle through the five stations, plus a parking spur per transporter.
+     *
+     *  Leg lengths are the free-path model's own distances along this cycle, so the two models
+     *  place the stations the same distance apart. What differs is that here a worker can only
+     *  travel one way round, and can be held up by another worker in front of it.
+     */
+    private fun createNetwork(numSpurs: Int, networkName: String = "ShopAisle"): GuidedPathNetwork {
+        var b = GuidedPathNetwork.builder(networkName)
+            .intersection(diagnosticStation, x = 0.0, y = 0.0)
+            .intersection(testStation1, x = 40.0, y = 0.0)
+            .intersection(testStation2, x = 50.0, y = 0.0)
+            .intersection(testStation3, x = 50.0, y = -65.0)
+            .intersection(repairStation, x = 25.0, y = -65.0)
+            .link("Aisle1", diagnosticStation, testStation1, length = 40.0, zoneLength = zoneLength, beginDirection = 0.0)
+            .link("Aisle2", testStation1, testStation2, length = 10.0, zoneLength = zoneLength, beginDirection = 0.0)
+            .link("Aisle3", testStation2, testStation3, length = 65.0, zoneLength = zoneLength, beginDirection = 270.0)
+            .link("Aisle4", testStation3, repairStation, length = 25.0, zoneLength = zoneLength, beginDirection = 180.0)
+            .link("Aisle5", repairStation, diagnosticStation, length = 110.0, zoneLength = zoneLength, beginDirection = 90.0)
+        // A parking spur per transporter, off the diagnostic end of the aisle. An idle worker
+        // left standing in the aisle would block everything behind it, with no error and a run
+        // that finishes looking entirely reasonable.
+        for (i in 1..numSpurs) {
+            b = b.intersection("Park$i", x = -10.0, y = -10.0 * i)
+            b = b.link(
+                "ParkSpur$i", diagnosticStation, "Park$i", length = zoneLength, zoneLength = zoneLength,
+                type = LinkType.SPUR, beginDirection = 180.0
+            )
         }
+        return b.build()
     }
 
     /**
@@ -207,20 +213,20 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     )
 
     private val testPlan1 = listOf(
-        TestPlanStep(myTest2, t11, TEST2), TestPlanStep(myTest3, t12, TEST3),
-        TestPlanStep(myTest2, t13, TEST2), TestPlanStep(myTest1, t14, TEST1)
+        TestPlanStep(myTest2, t11, testStation2), TestPlanStep(myTest3, t12, testStation3),
+        TestPlanStep(myTest2, t13, testStation2), TestPlanStep(myTest1, t14, testStation1)
     )
     private val testPlan2 = listOf(
-        TestPlanStep(myTest3, t21, TEST3),
-        TestPlanStep(myTest1, t22, TEST1)
+        TestPlanStep(myTest3, t21, testStation3),
+        TestPlanStep(myTest1, t22, testStation1)
     )
     private val testPlan3 = listOf(
-        TestPlanStep(myTest1, t31, TEST1), TestPlanStep(myTest3, t32, TEST3),
-        TestPlanStep(myTest1, t33, TEST1)
+        TestPlanStep(myTest1, t31, testStation1), TestPlanStep(myTest3, t32, testStation3),
+        TestPlanStep(myTest1, t33, testStation1)
     )
     private val testPlan4 = listOf(
-        TestPlanStep(myTest2, t41, TEST2),
-        TestPlanStep(myTest3, t42, TEST3)
+        TestPlanStep(myTest2, t41, testStation2),
+        TestPlanStep(myTest3, t42, testStation3)
     )
 
     private val repairTimes = mapOf(
@@ -234,8 +240,9 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
+    // Named, so that its own TimeBtwEventsRV has a stable key a study or a catalog can name.
     private val tba = ExponentialRV(timeBtwArrivals)
-    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba, name = "PartArrivals")
     val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
@@ -275,9 +282,9 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
             // Where the part is has to be tracked explicitly: a transporter is asked to come to a
             // named junction, and the part is not carried from wherever it happens to be but from
             // the station it is standing at.
-            var at = DIAGNOSTIC
+            var at = diagnosticStation
             var carried = 0.0
-            currentLocation = network.requireLocation(DIAGNOSTIC)
+            currentLocation = network.requireLocation(diagnosticStation)
             wip.increment()
             myNumberIn.increment()
             timeStamp = time
@@ -290,7 +297,7 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
                 at = tp.testStation
                 use(tp.testMachine, delayDuration = tp.processTime)
             }
-            val lastLeg = guidedTransport(transportWorkers, destination = REPAIR, pickupLocation = at)
+            val lastLeg = guidedTransport(transportWorkers, destination = repairStation, pickupLocation = at)
             carried += lastLeg.approachTime + lastLeg.rideTime
             use(repairWorkers, delayDuration = repairTimes[plan]!!)
             myTransferTime.value = carried
