@@ -170,4 +170,38 @@ class VehicleExamplesBundleTest {
             }
         }
     }
+
+    /**
+     *  An arrival rate nominated through a generator's own random variable is nominated by
+     *  **name**, and a name that does not resolve is dropped with a recorded problem rather than
+     *  raised -- so the catalog would simply come back one input short and every other check here
+     *  would still pass. This is the check that would not: the two models whose load is driven by a
+     *  named [ksl.modeling.elements.EventGenerator] must carry that generator's mean time between
+     *  events as an input. It fails if a generator is renamed, or if its name is dropped and the
+     *  element falls back to an `ID_n` key.
+     */
+    @Test
+    @DisplayName("each generator-driven model nominates its arrival rate by the generator's name")
+    fun `generator driven models nominate their arrival rate`() {
+        withVehicleBundle { match ->
+            for ((id, keys) in listOf(
+                VehicleBundleFixture.SIMPLE_AGV_SHOP to listOf("PartArrivals:TimeBtwEventsRV.mean"),
+                VehicleBundleFixture.GUIDE_PATH_DISTURBANCES to listOf(
+                    "PartArrivals:TimeBtwEventsRV.mean",
+                    "SpillArrivals:TimeBtwEventsRV.mean"
+                ),
+            )) {
+                val catalog = assertNotNull(
+                    match.descriptorFor(id).catalog, "Model '$id' must carry a catalog"
+                )
+                val nominated = catalog.nominatedInputs.map { it.key }
+                for (key in keys) {
+                    assertTrue(
+                        key in nominated,
+                        "Model '$id' must nominate '$key'; it nominates $nominated"
+                    )
+                }
+            }
+        }
+    }
 }

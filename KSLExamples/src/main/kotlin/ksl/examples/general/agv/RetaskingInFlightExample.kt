@@ -103,10 +103,16 @@ import ksl.utilities.random.rvariable.ConstantRV
 class RetaskingInFlightExample(
     parent: ModelElement,
     policy: AssignmentPolicyIfc,
-    private val nearArrivesAt: Double
-) : ProcessModel(parent, "Shop") {
+    private val nearArrivesAt: Double,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
-    val network = createNetwork()
+    private val nearPickup = "NearStation"
+    private val farPickup = "FarStation"
+    private val shipping = "Shipping"
+    private val depot = "Depot"
+
+    val network: GuidedPathNetwork = buildNetwork()
 
     init {
         spatialModel = network
@@ -115,96 +121,86 @@ class RetaskingInFlightExample(
     val agv = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
 
     val cart = AgvVehicle(
-        agv, TransporterPlacement.At(DEPOT), ConstantRV(10.0), name = "Cart"
-    ).apply { homeBase = DEPOT }
+        agv, TransporterPlacement.At(depot), ConstantRV(10.0), name = "Cart"
+    ).apply { homeBase = depot }
 
     val delivered = linkedMapOf<String, FleetTransportResult>()
 
-    inner class Load(private val label: String, private val from: String) : Entity(label) {
+    private inner class Load(private val label: String, private val from: String) : Entity(label) {
         val production = process(isDefaultProcess = true) {
             currentLocation = network.requireLocation(from)
-            delivered[label] = transportByFleet(agv, destination = SHIPPING, origin = from)
+            delivered[label] = transportByFleet(agv, destination = shipping, origin = from)
         }
     }
 
     override fun initialize() {
         delivered.clear()
-        activate(Load("far", FAR_PICKUP).production)
-        activate(Load("near", NEAR_PICKUP).production, timeUntilActivation = nearArrivesAt)
+        activate(Load("far", farPickup).production)
+        activate(Load("near", nearPickup).production, timeUntilActivation = nearArrivesAt)
     }
 
-    companion object {
+    /** A square ring with a parking spur, so both pickups are the same distance from the depot. */
+    private fun buildNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
+        .intersection("N", x = 0.0, y = 100.0)
+        .intersection("E", x = 100.0, y = 0.0)
+        .intersection("S", x = 0.0, y = -100.0)
+        .intersection("W", x = -100.0, y = 0.0)
+        .intersection("Park", x = 0.0, y = 140.0)
+        .link("NE", "N", "E", length = 100.0, zoneLength = 10.0, beginDirection = 315.0)
+        .link("ES", "E", "S", length = 100.0, zoneLength = 10.0, beginDirection = 225.0)
+        .link("SW", "S", "W", length = 100.0, zoneLength = 10.0, beginDirection = 135.0)
+        .link("WN", "W", "N", length = 100.0, zoneLength = 10.0, beginDirection = 45.0)
+        .link("ParkSpur", "N", "Park", length = 20.0, zoneLength = 20.0,
+            type = LinkType.SPUR, beginDirection = 90.0)
+        .station(nearPickup, "E")
+        .station(farPickup, "W")
+        .station(shipping, "S")
+        .station(depot, "Park")
+        .build()
+}
 
-        const val NEAR_PICKUP: String = "NearStation"
-        const val FAR_PICKUP: String = "FarStation"
-        const val SHIPPING: String = "Shipping"
-        const val DEPOT: String = "Depot"
+/** Runs one deterministic replication of the shop under a policy and an arrival time. */
+private fun runRetasking(policy: AssignmentPolicyIfc, nearArrivesAt: Double): RetaskingInFlightExample {
+    val m = Model("Retasking")
+    val shop = RetaskingInFlightExample(m, policy, nearArrivesAt, name = "Shop")
+    m.numberOfReplications = 1
+    m.lengthOfReplication = 2_000.0
+    m.simulate()
+    return shop
+}
 
-        fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
-            .intersection("N", x = 0.0, y = 100.0)
-            .intersection("E", x = 100.0, y = 0.0)
-            .intersection("S", x = 0.0, y = -100.0)
-            .intersection("W", x = -100.0, y = 0.0)
-            .intersection("Park", x = 0.0, y = 140.0)
-            .link("NE", "N", "E", length = 100.0, zoneLength = 10.0, beginDirection = 315.0)
-            .link("ES", "E", "S", length = 100.0, zoneLength = 10.0, beginDirection = 225.0)
-            .link("SW", "S", "W", length = 100.0, zoneLength = 10.0, beginDirection = 135.0)
-            .link("WN", "W", "N", length = 100.0, zoneLength = 10.0, beginDirection = 45.0)
-            .link("ParkSpur", "N", "Park", length = 20.0, zoneLength = 20.0,
-                type = LinkType.SPUR, beginDirection = 90.0)
-            .station(NEAR_PICKUP, "E")
-            .station(FAR_PICKUP, "W")
-            .station(SHIPPING, "S")
-            .station(DEPOT, "Park")
-            .build()
-
-        fun run(policy: AssignmentPolicyIfc, nearArrivesAt: Double): RetaskingInFlightExample {
-            val m = Model("Retasking")
-            val shop = RetaskingInFlightExample(m, policy, nearArrivesAt)
-            m.numberOfReplications = 1
-            m.lengthOfReplication = 2_000.0
-            m.simulate()
-            return shop
-        }
-
-        private fun report(title: String, shop: RetaskingInFlightExample) {
-            println("  $title")
-            for ((label, r) in shop.delivered) {
-                println(
-                    "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
-                        label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
-                    )
-                )
-            }
-            println(
-                "    revocations: %.0f".format(
-                    shop.agv.dispatcher.numAssignmentsRevoked.value
-                )
+private fun reportRetasking(title: String, shop: RetaskingInFlightExample) {
+    println("  $title")
+    for ((label, r) in shop.delivered) {
+        println(
+            "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
+                label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
             )
-            println()
-        }
-
-        fun report() {
-            println()
-            println("Re-tasking a cart in mid-journey - what the passive paradigm has no place for")
-            println()
-
-            report(
-                "Without re-tasking: the cart commits at t=0 and finishes what it started.",
-                run(NearestVehiclePolicy(), nearArrivesAt = 2.0)
-            )
-            report(
-                "With re-tasking, near job at t=2 (worth 200 units): the cart is turned round.",
-                run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 2.0)
-            )
-            report(
-                "With re-tasking, near job at t=15 (would cost 200): the rule declines the swap.",
-                run(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 15.0)
-            )
-        }
+        )
     }
+    println(
+        "    revocations: %.0f".format(
+            shop.agv.dispatcher.numAssignmentsRevoked.value
+        )
+    )
+    println()
 }
 
 fun main() {
-    RetaskingInFlightExample.report()
+    println()
+    println("Re-tasking a cart in mid-journey - what the passive paradigm has no place for")
+    println()
+
+    reportRetasking(
+        "Without re-tasking: the cart commits at t=0 and finishes what it started.",
+        runRetasking(NearestVehiclePolicy(), nearArrivesAt = 2.0)
+    )
+    reportRetasking(
+        "With re-tasking, near job at t=2 (worth 200 units): the cart is turned round.",
+        runRetasking(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 2.0)
+    )
+    reportRetasking(
+        "With re-tasking, near job at t=15 (would cost 200): the rule declines the swap.",
+        runRetasking(ReassigningPolicy(improvementThreshold = 20.0), nearArrivesAt = 15.0)
+    )
 }

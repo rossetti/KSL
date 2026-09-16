@@ -44,6 +44,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import java.io.PrintWriter
 
 /**
  *  The same shop under six dispatching rules, on common random numbers.
@@ -130,97 +131,69 @@ class DispatchingRuleComparison(
     name: String? = "Shop"
 ) : ProcessModel(parent, name) {
 
-    companion object {
+    private val northPickup = "NorthPickup"
+    private val southPickup = "SouthPickup"
+    private val shipping = "Shipping"
+    private val depotA = "DepotA"
+    private val depotB = "DepotB"
+    private val depotC = "DepotC"
 
-        const val NORTH_PICKUP: String = "NorthPickup"
-        const val SOUTH_PICKUP: String = "SouthPickup"
-        const val SHIPPING: String = "Shipping"
-        const val DEPOT_A: String = "DepotA"
-        const val DEPOT_B: String = "DepotB"
-        const val DEPOT_C: String = "DepotC"
+    private val meanTimeBetweenArrivals = 26.0
+    private val arrivalStream = 1
+    private val numArrivals = 600
 
-        /**
-         *  A one-way ring of four legs with a depot spur for each of the three carts.
-         *
-         *  Two pickup stations, at opposite corners, for the reason in this file's header.
-         */
-        fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("RingShop")
-            .intersection("N", x = 0.0, y = 100.0)
-            .intersection("E", x = 100.0, y = 0.0)
-            .intersection("S", x = 0.0, y = -100.0)
-            .intersection("W", x = -100.0, y = 0.0)
-            .intersection("PA", x = 0.0, y = 150.0)
-            .intersection("PB", x = 150.0, y = 0.0)
-            .intersection("PC", x = 0.0, y = -150.0)
-            .link("NE", "N", "E", length = 120.0, zoneLength = 12.0, beginDirection = 315.0)
-            .link("ES", "E", "S", length = 120.0, zoneLength = 12.0, beginDirection = 225.0)
-            .link("SW", "S", "W", length = 120.0, zoneLength = 12.0, beginDirection = 135.0)
-            .link("WN", "W", "N", length = 120.0, zoneLength = 12.0, beginDirection = 45.0)
-            .link("SpurA", "N", "PA", length = 24.0, zoneLength = 24.0,
-                type = LinkType.SPUR, beginDirection = 90.0)
-            .link("SpurB", "E", "PB", length = 24.0, zoneLength = 24.0,
-                type = LinkType.SPUR, beginDirection = 0.0)
-            .link("SpurC", "S", "PC", length = 24.0, zoneLength = 24.0,
-                type = LinkType.SPUR, beginDirection = 270.0)
-            .station(NORTH_PICKUP, "N")
-            .station(SOUTH_PICKUP, "S")
-            .station(SHIPPING, "W")
-            .station(DEPOT_A, "PA")
-            .station(DEPOT_B, "PB")
-            .station(DEPOT_C, "PC")
-            .build()
+    /**
+     *  A one-way ring of four legs with a depot spur for each of the three carts.
+     *
+     *  Two pickup stations, at opposite corners, for the reason in this file's header.
+     */
+    private fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("RingShop")
+        .intersection("N", x = 0.0, y = 100.0)
+        .intersection("E", x = 100.0, y = 0.0)
+        .intersection("S", x = 0.0, y = -100.0)
+        .intersection("W", x = -100.0, y = 0.0)
+        .intersection("PA", x = 0.0, y = 150.0)
+        .intersection("PB", x = 150.0, y = 0.0)
+        .intersection("PC", x = 0.0, y = -150.0)
+        .link("NE", "N", "E", length = 120.0, zoneLength = 12.0, beginDirection = 315.0)
+        .link("ES", "E", "S", length = 120.0, zoneLength = 12.0, beginDirection = 225.0)
+        .link("SW", "S", "W", length = 120.0, zoneLength = 12.0, beginDirection = 135.0)
+        .link("WN", "W", "N", length = 120.0, zoneLength = 12.0, beginDirection = 45.0)
+        .link("SpurA", "N", "PA", length = 24.0, zoneLength = 24.0,
+            type = LinkType.SPUR, beginDirection = 90.0)
+        .link("SpurB", "E", "PB", length = 24.0, zoneLength = 24.0,
+            type = LinkType.SPUR, beginDirection = 0.0)
+        .link("SpurC", "S", "PC", length = 24.0, zoneLength = 24.0,
+            type = LinkType.SPUR, beginDirection = 270.0)
+        .station(northPickup, "N")
+        .station(southPickup, "S")
+        .station(shipping, "W")
+        .station(depotA, "PA")
+        .station(depotB, "PB")
+        .station(depotC, "PC")
+        .build()
 
-        const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 26.0
-        const val ARRIVAL_STREAM: Int = 1
-        const val NUM_ARRIVALS: Int = 600
-
-        const val REPLICATIONS: Int = 15
-        const val HORIZON: Double = 10_000.0
-        const val WARM_UP: Double = 1_500.0
-
-        /**
-         *  The six rules, in the order they are reported. Scenario names are also experiment names in
-         *  the runner's database and directory names on disk, so they carry no punctuation.
-         */
-        /** The policy object a rule name stands for, made fresh. */
-        fun policyFor(ruleName: String): AssignmentPolicyIfc =
-            requireNotNull(rules().toMap()[ruleName]) {
-                "unknown dispatching rule '$ruleName'; expected one of ${rules().map { it.first }}"
-            }
-
-        fun rules(): List<Pair<String, AssignmentPolicyIfc>> = listOf(
+    /**
+     *  The six rules, in the order they are reported, made fresh on each call: a batching or
+     *  contract-net policy carries state between decisions. Scenario names are also experiment
+     *  names in the runner's database and directory names on disk, so they carry no punctuation.
+     */
+    private fun rules(): List<Pair<String, AssignmentPolicyIfc>> = listOf(
             "NearestVehicle" to NearestVehiclePolicy(),
             "FurthestVehicle" to FurthestVehiclePolicy(),
             "LeastUsed" to LeastUsedVehiclePolicy(),
             "BatchedWindow30" to BatchedAssignmentPolicy(30.0),
             "ContractNetInstant" to ContractNetAssignmentPolicy(0.0),
             "ContractNetDeadline5" to ContractNetAssignmentPolicy(5.0)
-        )
+    )
 
-        /**
-         *  Builds the runner with one scenario per rule. Every scenario gets its own model and the same
-         *  run parameters, and the runner leaves the random streams alone, so the six runs see the same
-         *  arrivals -- which is what makes the paired comparison below valid.
-         */
-        fun buildRunner(): ScenarioRunner {
-            val runner = ScenarioRunner("DispatchingRules")
-            for ((label, _) in rules()) {
-                val m = Model("DispatchRules_$label")
-                DispatchingRuleComparison(m, label)
-                runner.addScenario(
-                    model = m,
-                    name = label,
-                    inputs = emptyMap(),
-                    numberReplications = REPLICATIONS,
-                    lengthOfReplication = HORIZON,
-                    lengthOfReplicationWarmUp = WARM_UP
-                )
+    /** The policy object a rule name stands for. */
+    private fun policyFor(rule: String): AssignmentPolicyIfc =
+            requireNotNull(rules().toMap()[rule]) {
+                "unknown dispatching rule '$rule'; expected one of ${rules().map { it.first }}"
             }
-            return runner
-        }
-    }
 
-    val network: GuidedPathNetwork = createNetwork()
+    private val network: GuidedPathNetwork = createNetwork()
 
     init {
         spatialModel = network
@@ -249,7 +222,7 @@ class DispatchingRuleComparison(
             field = value
         }
 
-    val fleet: List<AgvVehicle> = listOf(DEPOT_A, DEPOT_B, DEPOT_C).mapIndexed { i, depot ->
+    val fleet: List<AgvVehicle> = listOf(depotA, depotB, depotC).mapIndexed { i, depot ->
         AgvVehicle(agv, TransporterPlacement.At(depot), ConstantRV(12.0), name = "Cart${i + 1}")
             .apply { homeBase = depot }
     }
@@ -276,28 +249,28 @@ class DispatchingRuleComparison(
     // A model element rather than a bare random variable, so that the arrival rate is a named
     // input a scenario can override and the report says what it was.
     private val myTimeBetweenArrivals = RandomVariable(
-        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "${this.name}:TBA"
+        this, ExponentialRV(meanTimeBetweenArrivals, arrivalStream), name = "${this.name}:TBA"
     )
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    inner class Load(private val from: String) : Entity() {
+    private inner class Load(private val from: String) : Entity() {
         val production = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(from)
-            val result = transportByFleet(agv, destination = SHIPPING, origin = from)
+            val result = transportByFleet(agv, destination = shipping, origin = from)
             myWaitForVehicle.value = result.waitForAssignment + result.waitForArrival
             myTimeInSystem.value = time - arrived
             myDelivered.increment()
         }
     }
 
-    inner class Source : Entity() {
+    private inner class Source : Entity() {
         val arrivals = process(isDefaultProcess = true) {
-            repeat(NUM_ARRIVALS) {
+            repeat(numArrivals) {
                 delay(myTimeBetweenArrivals)
                 // Alternating origins, so that which task is nearest genuinely varies.
-                val from = if (it % 2 == 0) NORTH_PICKUP else SOUTH_PICKUP
+                val from = if (it % 2 == 0) northPickup else southPickup
                 activate(Load(from).production)
             }
         }
@@ -315,28 +288,46 @@ class DispatchingRuleComparison(
 }
 
 fun main() {
-    val runner = DispatchingRuleComparison.buildRunner()
+    val replications = 15
+    val rules = listOf(
+        "NearestVehicle", "FurthestVehicle", "LeastUsed",
+        "BatchedWindow30", "ContractNetInstant", "ContractNetDeadline5"
+    )
+
+    // One scenario per rule, each with its own model and the same run parameters. The runner leaves
+    // the random streams alone, so the six runs see the same arrivals -- which is what makes the
+    // paired comparison below valid.
+    val runner = ScenarioRunner("DispatchingRules")
+    for (rule in rules) {
+        val m = Model("DispatchRules_$rule")
+        DispatchingRuleComparison(m, rule, name = "Shop")
+        runner.addScenario(
+            model = m, name = rule, inputs = emptyMap(),
+            numberReplications = replications, lengthOfReplication = 10_000.0,
+            lengthOfReplicationWarmUp = 1_500.0
+        )
+    }
     runner.simulate()
 
     // The standard half-width summary report for every scenario -- every response the model keeps,
     // with its confidence interval, rather than the four columns the author happened to think of.
     // Written to the KSL output file rather than the console: six scenarios of full reports is
     // several hundred lines, and the console is where the comparison belongs.
-    runner.write()
+    runner.write(PrintWriter(System.out, true))
     println()
     println("Full half-width summary reports for all six rules: ${KSL.outDir}")
 
     // The analyzer forms each paired difference once, in the order the data was inserted, so the
     // pair that exists is "first inserted - later". NearestVehicle is inserted first, so every
     // difference below is reported in that direction rather than being silently absent.
-    val base = DispatchingRuleComparison.rules().first().first
+    val base = rules.first()
     for ((response, label) in listOf(
         "Shop:Delivered" to "loads delivered",
         "Shop:TimeInSystem" to "time in system",
         "Shop:FleetImbalance" to "fleet imbalance"
     )) {
         val observations = runner.observationsAsMap(response)
-        check(observations.size == DispatchingRuleComparison.rules().size) {
+        check(observations.size == rules.size) {
             "expected per-replication observations of $response for every scenario, got " +
                 "${observations.keys}. An empty or partial map would print an empty table, which " +
                 "is exactly the sort of silence this study exists to avoid."
@@ -344,10 +335,10 @@ fun main() {
         val mca = MultipleComparisonAnalyzer(observations, label)
         println()
         println("Paired differences in $label, $base minus each rule")
-        println("(common random numbers, ${DispatchingRuleComparison.REPLICATIONS} replications, 95% intervals)")
+        println("(common random numbers, $replications replications, 95% intervals)")
         println()
         println("  %-22s %12s %12s %12s".format("rule", "difference", "half-width", "detectable?"))
-        for ((name, _) in DispatchingRuleComparison.rules()) {
+        for (name in rules) {
             if (name == base) continue
             val d = checkNotNull(mca.pairedDifferenceStatistic(base, name)) {
                 "no paired difference for '$base - $name'"

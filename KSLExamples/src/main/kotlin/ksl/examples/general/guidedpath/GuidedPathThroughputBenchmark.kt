@@ -63,27 +63,33 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  The model itself is twenty vehicles, each re-dispatched to a fresh random intersection the
  *  moment it arrives, so that the fleet never stops and the measurement is of movement rather than
  *  of waiting. The reference configuration -- the torus, the fleet size, the run and the report --
- *  is in the companion object.
+ *  is in this file, as top-level declarations the active benchmark of case 10 shares.
  *
  *  @param parent the containing model element
  */
-class GuidedPathThroughputBenchmark(parent: ModelElement) : ModelElement(parent, "SaturatedFleet") {
+class GuidedPathThroughputBenchmark(
+    parent: ModelElement,
+    private val numVehicles: Int = 20,
+    private val velocity: Double = 10.0,
+    private val columns: Int = 5,
+    name: String? = null
+) : ModelElement(parent, name) {
 
-    val network = createNetwork()
+    val network = createBenchmarkTorus()
     val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
     // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
     // differ only in wall-clock time.
     private val stream = RNStreamProvider().rnStream(1)
 
-    val vehicles: List<GuidedTransporter> = (0 until NUM_VEHICLES).map { i ->
+    val vehicles: List<GuidedTransporter> = (0 until numVehicles).map { i ->
         // One vehicle at the head of each of the first twenty links, which spreads the fleet
         // over the network without two of them ever sharing a zone at the start.
-        val r = i / COLUMNS
-        val c = i % COLUMNS
+        val r = i / columns
+        val c = i % columns
         GuidedTransporter(
             system, TransporterPlacement.OnZone("E${r}_$c.Zone1"),
-            ConstantRV(VELOCITY), 1, EndOfZoneControl(), "V$i"
+            ConstantRV(velocity), 1, EndOfZoneControl(), "V$i"
         )
     }
 
@@ -106,117 +112,106 @@ class GuidedPathThroughputBenchmark(parent: ModelElement) : ModelElement(parent,
             if (vehicle.sendTo(target.name)) return
         }
     }
+}
 
-    companion object {
 
-        /** Rows of the reference torus. */
-        const val ROWS: Int = 4
+private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
 
-        /** Columns of the reference torus: four by five is twenty intersections and forty links. */
-        const val COLUMNS: Int = 5
-
-        /** Zones per link, chosen so the network holds four hundred zones. */
-        const val ZONES_PER_LINK: Int = 10
-
-        /** Vehicles under saturated demand. */
-        const val NUM_VEHICLES: Int = 20
-
-        const val ZONE_LENGTH: Double = 10.0
-        const val VELOCITY: Double = 10.0
-
-        private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
-
-        /**
-         *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
-         *  the edges. Every intersection is reachable from every other, no link is two-way, and there
-         *  are exactly two links per intersection.
-         */
-        fun createNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork {
-            var b = GuidedPathNetwork.builder(networkName)
-            for (r in 0 until ROWS) {
-                for (c in 0 until COLUMNS) {
-                    b = b.intersection(nodeName(r, c), x = c * 100.0, y = -r * 100.0)
-                }
-            }
-            val length = ZONE_LENGTH * ZONES_PER_LINK
-            for (r in 0 until ROWS) {
-                for (c in 0 until COLUMNS) {
-                    b = b.link(
-                        "E${r}_$c", nodeName(r, c), nodeName(r, (c + 1) % COLUMNS),
-                        length = length, zoneLength = ZONE_LENGTH, beginDirection = 0.0
-                    )
-                    b = b.link(
-                        "S${r}_$c", nodeName(r, c), nodeName((r + 1) % ROWS, c),
-                        length = length, zoneLength = ZONE_LENGTH, beginDirection = 270.0
-                    )
-                }
-            }
-            return b.build()
-        }
-
-        /** What one run measured. */
-        data class Result(
-            val zoneTraversals: Double,
-            val eventsScheduled: Double,
-            val wallClockSeconds: Double
-        ) {
-            /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
-            val traversalsPerWallClockMinute: Double
-                get() = zoneTraversals / wallClockSeconds * 60.0
-
-            val eventsPerTraversal: Double
-                get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
-        }
-
-        /**
-         *  Runs the reference configuration.
-         *
-         *  @param replicationLength how long to run, in simulated minutes
-         *  @param replications how many replications to run
-         */
-        fun run(replicationLength: Double = 200_000.0, replications: Int = 1): Result {
-            val m = Model("GuidedPathThroughputBenchmark")
-            val fleet = GuidedPathThroughputBenchmark(m)
-            // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
-            fleet.system.checkInvariants = false
-            m.numberOfReplications = replications
-            m.lengthOfReplication = replicationLength
-            val started = System.nanoTime()
-            m.simulate()
-            val elapsed = (System.nanoTime() - started) / 1e9
-            return Result(
-                zoneTraversals = fleet.system.numZoneTraversals.value,
-                eventsScheduled = fleet.system.numEventsScheduled.value,
-                wallClockSeconds = elapsed
-            )
-        }
-
-        fun report() {
-            val warmUp = run(replicationLength = 20_000.0)
-            println("warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in ${"%.2f".format(warmUp.wallClockSeconds)} s")
-            val result = run()
-            println()
-            val described = createNetwork("Describe")
-            println("Guided path throughput benchmark - reference configuration")
-            println(
-                "  network            : $ROWS x $COLUMNS torus, ${described.intersections.size} intersections, " +
-                        "${described.links.size} links, ${described.zones.size} zones " +
-                        "(${described.links.size * ZONES_PER_LINK} on links, one per intersection)"
-            )
-            println("  vehicles           : $NUM_VEHICLES, saturated")
-            println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
-            println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
-            println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
-            println("  wall clock         : ${"%.2f".format(result.wallClockSeconds)} s")
-            println("  throughput         : ${"%,.0f".format(result.traversalsPerWallClockMinute)} zone traversals per wall-clock minute")
-            println()
-            println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
-            println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-            println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
+/**
+ *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
+ *  the edges. Every intersection is reachable from every other, no link is two-way, and there
+ *  are exactly two links per intersection.
+ */
+fun createBenchmarkTorus(
+    rows: Int = 4,
+    columns: Int = 5,
+    zonesPerLink: Int = 10,
+    zoneLength: Double = 10.0,
+    networkName: String = "BenchmarkTorus"
+): GuidedPathNetwork {
+    var b = GuidedPathNetwork.builder(networkName)
+    for (r in 0 until rows) {
+        for (c in 0 until columns) {
+            b = b.intersection(nodeName(r, c), x = c * 100.0, y = -r * 100.0)
         }
     }
+    val length = zoneLength * zonesPerLink
+    for (r in 0 until rows) {
+        for (c in 0 until columns) {
+            b = b.link(
+                "E${r}_$c", nodeName(r, c), nodeName(r, (c + 1) % columns),
+                length = length, zoneLength = zoneLength, beginDirection = 0.0
+            )
+            b = b.link(
+                "S${r}_$c", nodeName(r, c), nodeName((r + 1) % rows, c),
+                length = length, zoneLength = zoneLength, beginDirection = 270.0
+            )
+        }
+    }
+    return b.build()
+}
+
+/** What one run measured. */
+data class GuidedPathBenchmarkResult(
+    val zoneTraversals: Double,
+    val eventsScheduled: Double,
+    val wallClockSeconds: Double
+) {
+    /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
+    val traversalsPerWallClockMinute: Double
+        get() = zoneTraversals / wallClockSeconds * 60.0
+
+    val eventsPerTraversal: Double
+        get() = if (zoneTraversals > 0.0) eventsScheduled / zoneTraversals else Double.NaN
+}
+
+/**
+ *  Runs the reference configuration.
+ *
+ *  @param replicationLength how long to run, in simulated minutes
+ *  @param replications how many replications to run
+ */
+fun runGuidedPathBenchmark(replicationLength: Double = 200_000.0, replications: Int = 1): GuidedPathBenchmarkResult {
+    val m = Model("GuidedPathThroughputBenchmark")
+    val fleet = GuidedPathThroughputBenchmark(m, name = "SaturatedFleet")
+    // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
+    fleet.system.checkInvariants = false
+    m.numberOfReplications = replications
+    m.lengthOfReplication = replicationLength
+    val started = System.nanoTime()
+    m.simulate()
+    val elapsed = (System.nanoTime() - started) / 1e9
+    return GuidedPathBenchmarkResult(
+        zoneTraversals = fleet.system.numZoneTraversals.value,
+        eventsScheduled = fleet.system.numEventsScheduled.value,
+        wallClockSeconds = elapsed
+    )
+}
+
+private fun reportGuidedPathBenchmark() {
+    val warmUp = runGuidedPathBenchmark(replicationLength = 20_000.0)
+    println("warm-up (JIT): ${"%,.0f".format(warmUp.zoneTraversals)} traversals in ${"%.2f".format(warmUp.wallClockSeconds)} s")
+    val result = runGuidedPathBenchmark()
+    println()
+    val described = createBenchmarkTorus(networkName = "Describe")
+    println("Guided path throughput benchmark - reference configuration")
+    println(
+        "  network            : 4 x 5 torus, ${described.intersections.size} intersections, " +
+                "${described.links.size} links, ${described.zones.size} zones " +
+                "(${described.links.size * 10} on links, one per intersection)"
+    )
+    println("  vehicles           : 20, saturated")
+    println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
+    println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
+    println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
+    println("  wall clock         : ${"%.2f".format(result.wallClockSeconds)} s")
+    println("  throughput         : ${"%,.0f".format(result.traversalsPerWallClockMinute)} zone traversals per wall-clock minute")
+    println()
+    println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
+    println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+    println("  processors         : ${Runtime.getRuntime().availableProcessors()}")
 }
 
 fun main() {
-    GuidedPathThroughputBenchmark.report()
+    reportGuidedPathBenchmark()
 }

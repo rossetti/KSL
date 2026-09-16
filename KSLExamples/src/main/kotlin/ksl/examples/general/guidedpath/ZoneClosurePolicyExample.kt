@@ -109,8 +109,9 @@ private class Crew(override val name: String) : ZoneHolderIfc {
  */
 class ZoneClosurePolicyExample(
     parent: ModelElement,
-    val policy: OverlapPolicy
-) : ProcessModel(parent, "Aisle") {
+    val policy: OverlapPolicy,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
     /** What a model does when the space it asked for is already promised to somebody else. */
     enum class OverlapPolicy {
@@ -124,41 +125,26 @@ class ZoneClosurePolicyExample(
         RELOCATE
     }
 
-    companion object {
+    // The arrangement, in whole and half minutes. A zone is a minute here, so every one of these
+    // lands where the timeline says it does and every line of the output can be checked by hand.
+    private val crewAsksAt = 2.5
+    private val spillAsksAt = 2.6
+    private val retryAfter = 3.0
+    private val crewHoldsFor = 4.0
+    private val cleanupTakes = 2.0
 
-        const val CREW_ASKS_AT: Double = 2.5
-        const val SPILL_ASKS_AT: Double = 2.6
-        const val RETRY_AFTER: Double = 3.0
-        const val CREW_HOLDS_FOR: Double = 4.0
-        const val CLEANUP_TAKES: Double = 2.0
-
-        /** Long enough for every arranged event, and for the crew's hold to end. */
-        const val HORIZON: Double = 20.0
-
-        /** Runs the aisle once under one policy and hands back what happened, in order. */
-        fun timelineFor(policy: OverlapPolicy): List<String> {
-            val m = Model("ClosurePolicy_$policy")
-            val aisle = ZoneClosurePolicyExample(m, policy)
-            aisle.system.checkInvariants = true
-            m.numberOfReplications = 1
-            m.lengthOfReplication = HORIZON
-            m.simulate()
-            return aisle.timeline.toList()
-        }
-    }
-
-    val network: GuidedPathNetwork = GuidedPathNetwork.builder("Aisle")
+    private val network: GuidedPathNetwork = GuidedPathNetwork.builder("Aisle")
         .link("L1", "A", "B", length = 72.0, zoneLength = 12.0)
         .build()
 
     val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
-    val cart = GuidedTransporter(
+    private val cart = GuidedTransporter(
         system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart"
     )
 
     /** Where a closure waits while the space it asked for finishes draining. */
-    val closureQ = HoldQueue(this, "ClosureQ")
+    private val closureQ = HoldQueue(this, "ClosureQ")
 
     private val crew = Crew("Crew")
 
@@ -214,7 +200,7 @@ class ZoneClosurePolicyExample(
 
     // ---- the process route: a spill that has to decide ---------------------------------------
 
-    inner class Spill : Entity("Spill") {
+    private inner class Spill : Entity("Spill") {
         @Suppress("unused")
         val cleanup = process(isDefaultProcess = true) {
             var wanted = spillWants
@@ -227,7 +213,7 @@ class ZoneClosurePolicyExample(
                 val taken = trySeizeZones(system, wanted, closureQ)
                 if (taken != null) {
                     note("Spill", "takes ${namesOf(taken.zones)}")
-                    delay(CLEANUP_TAKES)
+                    delay(cleanupTakes)
                     releaseZones(system)
                     note("Spill", "gives back ${namesOf(wanted)}")
                     return@process
@@ -238,8 +224,8 @@ class ZoneClosurePolicyExample(
                         return@process
                     }
                     OverlapPolicy.DEFER -> {
-                        note("Spill", "deferring $RETRY_AFTER minutes and asking again")
-                        delay(RETRY_AFTER)
+                        note("Spill", "deferring $retryAfter minutes and asking again")
+                        delay(retryAfter)
                     }
                     OverlapPolicy.RELOCATE -> {
                         if (relocated) {
@@ -264,9 +250,9 @@ class ZoneClosurePolicyExample(
         schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
         schedule({ _: KSLEvent<Nothing> ->
             note("Crew", "asks for ${namesOf(crewWants)} -- the cart is still crossing Zone3")
-            system.tryHoldZonesFor(crew, crewWants, CREW_HOLDS_FOR, crewAction)
-        }, CREW_ASKS_AT)
-        schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, SPILL_ASKS_AT)
+            system.tryHoldZonesFor(crew, crewWants, crewHoldsFor, crewAction)
+        }, crewAsksAt)
+        schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, spillAsksAt)
     }
 }
 
@@ -276,9 +262,15 @@ fun main() {
     println("A zone is a minute. The cart reaches Zone k at time k and holds it until k+1.")
 
     for (policy in ZoneClosurePolicyExample.OverlapPolicy.entries) {
+        val m = Model("ClosurePolicy_$policy")
+        val aisle = ZoneClosurePolicyExample(m, policy, name = "Aisle")
+        aisle.system.checkInvariants = true
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        m.simulate()
         println()
         println("$policy")
-        for (line in ZoneClosurePolicyExample.timelineFor(policy)) {
+        for (line in aisle.timeline) {
             println(line)
         }
     }

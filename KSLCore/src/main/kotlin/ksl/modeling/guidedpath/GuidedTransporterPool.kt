@@ -47,7 +47,11 @@ import ksl.simulation.ModelElement
  * @param system the runtime whose guide path these transporters run on
  * @param transporters the fleet, which must all belong to that system
  * @param allocationRule which idle transporter to send
- * @param idleDispositionRule what a released transporter does when nothing is waiting
+ * @param idleDispositionRule what a released transporter does when nothing is waiting. Settable,
+ * because where a fleet idles is a design question a study wants to vary rather than a structural
+ * property of the pool. It is read at the moment a transporter is released, so a change takes
+ * effect from the next release; the shipped rules carry no state, so none needs resetting between
+ * replications.
  * @param name a name for the pool
  */
 open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
@@ -55,7 +59,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
     val system: GuidedPathTransportSystem,
     transporters: List<GuidedTransporter>,
     val allocationRule: GuidedTransporterAllocationRuleIfc = ClosestByNetworkDistanceRule(),
-    val idleDispositionRule: IdleDispositionRuleIfc = ParkInPlaceRule(),
+    var idleDispositionRule: IdleDispositionRuleIfc = ParkInPlaceRule(),
     name: String? = null
 ) : AbstractResourcePool<GuidedTransporter>(parent, name) {
 

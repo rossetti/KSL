@@ -69,7 +69,7 @@ import ksl.utilities.random.rvariable.ConstantRV
  *
  *  ## Deterministic
  *
- *  No randomness at all: walkers arrive every `WALKER_EVERY` minutes and carts every `CART_EVERY`,
+ *  No randomness at all: walkers arrive every `walkerEvery` minutes and carts every `cartEvery`,
  *  and a zone is a minute. So every figure below can be checked by hand, and the example is a
  *  specification of behaviour rather than an estimate of it.
  */
@@ -80,61 +80,22 @@ import ksl.utilities.random.rvariable.ConstantRV
  */
 class CrossingArbiterExample(
     parent: ModelElement,
-    arbiter: CrossingArbiterIfc
-) : ProcessModel(parent, "Town") {
+    arbiterName: String = "PedestrianPriority",
+    name: String? = null
+) : ProcessModel(parent, name) {
 
-    companion object {
+    /** Zones are twelve feet and everything moves twelve feet a minute, so a zone is a minute. */
+    private val zone = 12.0
 
-        const val HORIZON: Double = 120.0
-
-        /** Zones are twelve feet and everything moves twelve feet a minute, so a zone is a minute. */
-        const val ZONE: Double = 12.0
-
-        const val WALKER_EVERY: Double = 1.5
-        const val CART_EVERY: Double = 4.0
-        const val WALK_TIME: Double = 2.0
-
-        /** The four disciplines, made fresh for each run so none inherits another's state. */
-        fun arbiters(): Map<String, CrossingArbiterIfc> = linkedMapOf(
-            "PedestrianPriority" to PedestrianPriorityArbiter(),
-            "VehiclePriority" to VehiclePriorityArbiter(),
-            "Alternating" to AlternatingArbiter(walkTime = 6.0, driveTime = 6.0),
-            "BoundedBatch" to BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
-        )
-
-        /** What one discipline did over the horizon. */
-        class Outcome(
-            val name: String,
-            val cartTrips: Int,
-            val walkersAcross: Int,
-            val fracBarred: Double,
-            val meanWaitToCross: Double,
-            val turns: Double
-        )
-
-        fun runWith(name: String, arbiter: CrossingArbiterIfc): Outcome {
-            val m = Model("Crossing_$name")
-            val town = CrossingArbiterExample(m, arbiter)
-            town.system.checkInvariants = true
-            m.numberOfReplications = 1
-            m.lengthOfReplication = HORIZON
-            m.simulate()
-            return Outcome(
-                name = name,
-                cartTrips = town.cartTrips,
-                walkersAcross = town.walkersAcross,
-                fracBarred = town.crossing.fracTimeBarred.withinReplicationStatistic.weightedAverage,
-                meanWaitToCross = town.crossing.waitToCross.withinReplicationStatistic.weightedAverage,
-                turns = town.crossing.turnsTaken.value
-            )
-        }
-    }
+    private val walkerEvery = 1.5
+    private val cartEvery = 4.0
+    private val walkTime = 2.0
 
     // A one-way loop rather than a single aisle, so the cart can keep circulating: a
     // one-way link cannot be run backwards, and sending a cart home along one raises.
-    val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
-        .link("Aisle", "A", "B", length = 6 * ZONE, zoneLength = ZONE)
-        .link("Return", "B", "A", length = 6 * ZONE, zoneLength = ZONE)
+    private val network: GuidedPathNetwork = GuidedPathNetwork.builder("Town")
+        .link("Aisle", "A", "B", length = 6 * zone, zoneLength = zone)
+        .link("Return", "B", "A", length = 6 * zone, zoneLength = zone)
         .build()
 
     init {
@@ -143,13 +104,27 @@ class CrossingArbiterExample(
 
     val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
-    val cart = GuidedTransporter(
-        system, TransporterPlacement.At("A"), ConstantRV(ZONE), 1, name = "Cart"
+    private val cart = GuidedTransporter(
+        system, TransporterPlacement.At("A"), ConstantRV(zone), 1, name = "Cart"
     )
 
     val crossing = ZoneCrossing(
-        this, system, listOf(network.zone("Aisle.Zone3")!!), arbiter, name = "Walkway"
+        this, system, listOf(network.zone("Aisle.Zone3")!!), arbiterFor(arbiterName), name = "Walkway"
     )
+
+    private val disciplines =
+        listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
+
+    /** The four disciplines, made fresh on each call so none inherits another's turn state. */
+    private fun arbiterFor(discipline: String): CrossingArbiterIfc = when (discipline) {
+        "PedestrianPriority" -> PedestrianPriorityArbiter()
+        "VehiclePriority" -> VehiclePriorityArbiter()
+        "Alternating" -> AlternatingArbiter(walkTime = 6.0, driveTime = 6.0)
+        "BoundedBatch" -> BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
+        else -> throw IllegalArgumentException(
+            "unknown crossing discipline '$discipline'; expected one of $disciplines"
+        )
+    }
 
     /**
      *  The discipline the crossing runs under, by name, so that a scenario or an app can change it
@@ -165,26 +140,22 @@ class CrossingArbiterExample(
         allowedValues = ["PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch"],
         comment = "Which admission discipline the crossing runs under"
     )
-    var arbiterName: String = arbiter::class.simpleName!!.removeSuffix("Arbiter")
+    var arbiterName: String = arbiterName
         set(value) {
-            // Made fresh, exactly as arbiters() does: an arbiter carries turn state, and handing
-            // two models the same one would let the second inherit the first's.
-            crossing.arbiter = requireNotNull(arbiters()[value]) {
-                "unknown crossing discipline '$value'; expected one of ${arbiters().keys}"
-            }
+            crossing.arbiter = arbiterFor(value)
             field = value
         }
 
-    val walkQ = HoldQueue(this, "WalkQ")
+    private val walkQ = HoldQueue(this, "WalkQ")
 
     var cartTrips: Int = 0
         private set
     var walkersAcross: Int = 0
         private set
 
-    inner class Walker : Entity() {
+    private inner class Walker : Entity() {
         val walk = process(isDefaultProcess = true) {
-            crossOnFoot(crossing, WALK_TIME, walkQ)
+            crossOnFoot(crossing, walkTime, walkQ)
             walkersAcross++
         }
     }
@@ -194,7 +165,7 @@ class CrossingArbiterExample(
     private inner class WalkerAction : EventActionIfc<Nothing> {
         override fun action(event: KSLEvent<Nothing>) {
             activate(Walker().walk)
-            schedule(this, WALKER_EVERY)
+            schedule(this, walkerEvery)
         }
     }
 
@@ -205,7 +176,7 @@ class CrossingArbiterExample(
             if (!cart.isMoving) {
                 cart.sendTo(if (cart.currentLocation?.name == "B") "A" else "B")
             }
-            schedule(this, CART_EVERY)
+            schedule(this, cartEvery)
         }
     }
 
@@ -223,24 +194,49 @@ class CrossingArbiterExample(
     override fun initialize() {
         cartTrips = 0
         walkersAcross = 0
-        schedule(myWalkerAction, WALKER_EVERY)
+        schedule(myWalkerAction, walkerEvery)
         schedule(myCartAction, 0.5)
     }
 }
 
 
 fun main() {
+    val horizon = 120.0
+    val disciplines = listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
+
+    /** What one discipline did over the horizon. */
+    class Outcome(
+        val name: String,
+        val cartTrips: Int,
+        val walkersAcross: Int,
+        val fracBarred: Double,
+        val meanWaitToCross: Double,
+        val turns: Double
+    )
+
     println()
-    println("One crossing, four disciplines, over ${CrossingArbiterExample.HORIZON.toInt()} minutes")
-    println("A walker every ${CrossingArbiterExample.WALKER_EVERY} minutes, a cart dispatched every " +
-            "${CrossingArbiterExample.CART_EVERY}, and a zone is a minute.")
+    println("One crossing, four disciplines, over ${horizon.toInt()} minutes")
+    println("A walker every 1.5 minutes, a cart dispatched every 4.0, and a zone is a minute.")
     println()
     println("  %-20s %11s %11s %11s %11s %8s".format(
         "discipline", "cart trips", "walkers", "frac barred", "mean wait", "turns"
     ))
 
-    val outcomes = CrossingArbiterExample.arbiters().map { (name, arbiter) ->
-        CrossingArbiterExample.runWith(name, arbiter)
+    val outcomes = disciplines.map { discipline ->
+        val m = Model("Crossing_$discipline")
+        val town = CrossingArbiterExample(m, discipline, name = "Town")
+        town.system.checkInvariants = true
+        m.numberOfReplications = 1
+        m.lengthOfReplication = horizon
+        m.simulate()
+        Outcome(
+            name = discipline,
+            cartTrips = town.cartTrips,
+            walkersAcross = town.walkersAcross,
+            fracBarred = town.crossing.fracTimeBarred.withinReplicationStatistic.weightedAverage,
+            meanWaitToCross = town.crossing.waitToCross.withinReplicationStatistic.weightedAverage,
+            turns = town.crossing.turnsTaken.value
+        )
     }
     for (o in outcomes) {
         // A discipline under which nobody ever crosses has no wait to report, and printing NaN

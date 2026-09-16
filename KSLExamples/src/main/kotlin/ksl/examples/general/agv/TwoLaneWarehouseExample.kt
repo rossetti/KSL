@@ -147,64 +147,7 @@ class TwoLaneWarehouseExample(
     private val meanTBA: Double = 9.0
 ) : ProcessModel(parent, name) {
 
-    companion object {
-        const val NUM_AISLES: Int = 3
-        const val AISLE_SPACING: Double = 40.0
-        const val AISLE_LENGTH: Double = 120.0
-        const val ZONE: Double = 20.0
-        const val SPUR: Double = 10.0
-        const val VELOCITY: Double = 25.0
-
-        fun pickFace(i: Int): String = "Pick$i"
-        const val DOCK: String = "Dock"
-
-        /**
-         *  The same building either way. A span is two opposed one-way links when [twoLane], and a
-         *  single bidirectional link when not -- which is the only line that differs between the
-         *  two studies below.
-         */
-        fun build(numCarts: Int, twoLane: Boolean, name: String): GuidedPathNetwork {
-            val b = GuidedPathNetwork.builder(name)
-            for (i in 0 until NUM_AISLES) {
-                b.intersection("B$i", x = i * AISLE_SPACING, y = 0.0)
-                b.intersection("T$i", x = i * AISLE_SPACING, y = AISLE_LENGTH)
-            }
-            // The bottom cross-aisle continues east into a parking row, one spur per cart, so that
-            // no two carts are ever sent to the same parking place. A staging area stages one
-            // vehicle; the rest stop on the approach and are still "available" while stuck.
-            for (k in 0 until numCarts) {
-                b.intersection("K$k", x = (NUM_AISLES + k) * AISLE_SPACING, y = 0.0)
-                b.intersection("P$k", x = (NUM_AISLES + k) * AISLE_SPACING, y = -SPUR)
-                b.link("K$k-P$k", "K$k", "P$k", length = SPUR, zoneLength = SPUR, type = LinkType.SPUR)
-            }
-            b.intersection("D", x = 0.0, y = -SPUR)
-            b.link("B0-D", "B0", "D", length = SPUR, zoneLength = SPUR, type = LinkType.SPUR)
-
-            fun span(from: String, to: String, length: Double) {
-                if (twoLane) {
-                    b.link("$from-$to", from, to, length = length, zoneLength = ZONE)
-                    b.link("$to-$from", to, from, length = length, zoneLength = ZONE)
-                } else {
-                    b.link("$from~$to", from, to, length = length, zoneLength = ZONE,
-                        type = LinkType.BIDIRECTIONAL)
-                }
-            }
-
-            for (i in 0 until NUM_AISLES) span("B$i", "T$i", AISLE_LENGTH)          // the pick aisles
-            for (i in 0 until NUM_AISLES - 1) {
-                span("B$i", "B${i + 1}", AISLE_SPACING)                              // bottom cross-aisle
-                span("T$i", "T${i + 1}", AISLE_SPACING)                              // top cross-aisle
-            }
-            // Bottom cross-aisle onward into the parking row.
-            span("B${NUM_AISLES - 1}", "K0", AISLE_SPACING)
-            for (k in 0 until numCarts - 1) span("K$k", "K${k + 1}", AISLE_SPACING)
-
-            for (i in 0 until NUM_AISLES) b.station(pickFace(i), "T$i")
-            return b.station(DOCK, "D").build()
-        }
-    }
-
-    val network: GuidedPathNetwork = build(numCarts, twoLane, "${name}Net")
+    val network: GuidedPathNetwork = buildWarehouseNetwork(numCarts, twoLane, "${name}Net")
 
     init {
         spatialModel = network
@@ -214,7 +157,7 @@ class TwoLaneWarehouseExample(
 
     val carts: List<AgvVehicle> = List(numCarts) { k ->
         AgvVehicle(
-            agv, TransporterPlacement.At("P$k"), ConstantRV(VELOCITY), name = "Cart${k + 1}"
+            agv, TransporterPlacement.At("P$k"), ConstantRV(cartVelocity), name = "Cart${k + 1}"
         ).apply { homeBase = "P$k" }
     }
 
@@ -241,7 +184,7 @@ class TwoLaneWarehouseExample(
         get() = myTimeBetweenArrivals
 
     private val myWhichFace = RandomVariable(
-        this, UniformRV(0.0, NUM_AISLES.toDouble(), streamNum = 2), name = "${this.name}:WhichFace"
+        this, UniformRV(0.0, numAisles.toDouble(), streamNum = 2), name = "${this.name}:WhichFace"
     )
     val whichFaceRV: RandomVariableCIfc
         get() = myWhichFace
@@ -250,13 +193,13 @@ class TwoLaneWarehouseExample(
     val pickTimeRV: RandomVariableCIfc
         get() = myPickTime
 
-    inner class Pallet : Entity() {
+    private inner class Pallet : Entity() {
         val movement = process(isDefaultProcess = true) {
             val arrived = time
-            val face = pickFace(myWhichFace.value.toInt().coerceIn(0, NUM_AISLES - 1))
+            val face = pickFace(myWhichFace.value.toInt().coerceIn(0, numAisles - 1))
             currentLocation = network.requireLocation(face)
             transportByFleet(
-                agv, destination = DOCK, origin = face,
+                agv, destination = dock, origin = face,
                 loadingDelay = myPickTime, unLoadingDelay = myPickTime
             )
             myTimeInSystem.value = time - arrived
@@ -264,7 +207,7 @@ class TwoLaneWarehouseExample(
         }
     }
 
-    inner class Source : Entity() {
+    private inner class Source : Entity() {
         val arrivals = process(isDefaultProcess = true) {
             while (true) {
                 delay(myTimeBetweenArrivals)
@@ -284,10 +227,65 @@ class TwoLaneWarehouseExample(
     }
 }
 
+private val numAisles = 3
+private val aisleSpacing = 40.0
+private val aisleLength = 120.0
+private val zoneLength = 20.0
+private val spurLength = 10.0
+private val cartVelocity = 25.0
+
+private fun pickFace(i: Int): String = "Pick$i"
+private val dock = "Dock"
+
+/**
+ *  The same building either way. A span is two opposed one-way links when [twoLane], and a
+ *  single bidirectional link when not -- which is the only line that differs between the
+ *  two studies below.
+ */
+private fun buildWarehouseNetwork(numCarts: Int, twoLane: Boolean, name: String): GuidedPathNetwork {
+    val b = GuidedPathNetwork.builder(name)
+    for (i in 0 until numAisles) {
+        b.intersection("B$i", x = i * aisleSpacing, y = 0.0)
+        b.intersection("T$i", x = i * aisleSpacing, y = aisleLength)
+    }
+    // The bottom cross-aisle continues east into a parking row, one spur per cart, so that
+    // no two carts are ever sent to the same parking place. A staging area stages one
+    // vehicle; the rest stop on the approach and are still "available" while stuck.
+    for (k in 0 until numCarts) {
+        b.intersection("K$k", x = (numAisles + k) * aisleSpacing, y = 0.0)
+        b.intersection("P$k", x = (numAisles + k) * aisleSpacing, y = -spurLength)
+        b.link("K$k-P$k", "K$k", "P$k", length = spurLength, zoneLength = spurLength, type = LinkType.SPUR)
+    }
+    b.intersection("D", x = 0.0, y = -spurLength)
+    b.link("B0-D", "B0", "D", length = spurLength, zoneLength = spurLength, type = LinkType.SPUR)
+
+    fun span(from: String, to: String, length: Double) {
+        if (twoLane) {
+            b.link("$from-$to", from, to, length = length, zoneLength = zoneLength)
+            b.link("$to-$from", to, from, length = length, zoneLength = zoneLength)
+        } else {
+            b.link("$from~$to", from, to, length = length, zoneLength = zoneLength,
+                type = LinkType.BIDIRECTIONAL)
+        }
+    }
+
+    for (i in 0 until numAisles) span("B$i", "T$i", aisleLength)          // the pick aisles
+    for (i in 0 until numAisles - 1) {
+        span("B$i", "B${i + 1}", aisleSpacing)                              // bottom cross-aisle
+        span("T$i", "T${i + 1}", aisleSpacing)                              // top cross-aisle
+    }
+    // Bottom cross-aisle onward into the parking row.
+    span("B${numAisles - 1}", "K0", aisleSpacing)
+    for (k in 0 until numCarts - 1) span("K$k", "K${k + 1}", aisleSpacing)
+
+    for (i in 0 until numAisles) b.station(pickFace(i), "T$i")
+    return b.station(dock, "D").build()
+}
+
 // ---- the studies -------------------------------------------------------------------------------
 
 /** Demand deliberately above what the building can serve, so that the layout is the constraint. */
-private const val MEAN_TBA: Double = 3.0
+private val meanTimeBetweenArrivals = 3.0
 
 private class Outcome(
     val delivered: Double,
@@ -299,12 +297,12 @@ private class Outcome(
     val deadlockedAmong: Int = 0
 ) {
     val deadlocked: Boolean get() = deadlockedAmong > 0
-
-    companion object {
-        fun deadlock(participants: Int) =
-            Outcome(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, participants)
-    }
 }
+
+/** The row a design point that ended in a circular wait reports. */
+private fun deadlockOutcome(participants: Int) = Outcome(
+    Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, participants
+)
 
 /**
  *  This sweep is run by hand rather than through a [ksl.controls.experiments.ScenarioRunner], and
@@ -318,7 +316,7 @@ private class Outcome(
 private fun runFleet(carts: Int, twoLane: Boolean): Outcome {
     val tag = if (twoLane) "Two" else "One"
     val m = Model("Warehouse$tag$carts")
-    val shop = TwoLaneWarehouseExample(m, carts, twoLane, "W$tag$carts", MEAN_TBA)
+    val shop = TwoLaneWarehouseExample(m, carts, twoLane, "W$tag$carts", meanTimeBetweenArrivals)
     m.numberOfReplications = 10
     m.lengthOfReplication = 5000.0
     m.lengthOfReplicationWarmUp = 1000.0
@@ -336,7 +334,7 @@ private fun runFleet(carts: Int, twoLane: Boolean): Outcome {
         // A domain outcome, not a defect: this layout cannot carry this fleet. The report names
         // every participant in the cycle, which is what says whether it closed through a lane or
         // through the junctions.
-        Outcome.deadlock(e.report.participants.size)
+        deadlockOutcome(e.report.participants.size)
     }
 }
 
@@ -368,9 +366,9 @@ fun main() {
     val oneLaneSizes = listOf(1, 2, 3, 4)
 
     println()
-    println("A two-lane warehouse grid: ${TwoLaneWarehouseExample.NUM_AISLES} pick aisles and two cross-aisles,")
+    println("A two-lane warehouse grid: $numAisles pick aisles and two cross-aisles,")
     println("every span a pair of opposed one-way lanes. Pallets from the pick faces to one dock.")
-    println("10 replications of 5000 after a 1000 warm-up, arrivals every %.0f -- above capacity on".format(MEAN_TBA))
+    println("10 replications of 5000 after a 1000 warm-up, arrivals every %.0f -- above capacity on".format(meanTimeBetweenArrivals))
     println("purpose, so that the building rather than the arrival stream is what limits the answer.")
 
     val two = twoLaneSizes.associateWith { runFleet(it, twoLane = true) }

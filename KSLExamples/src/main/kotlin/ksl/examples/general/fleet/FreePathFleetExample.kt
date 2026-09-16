@@ -38,6 +38,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import java.io.PrintWriter
 
 /**
  *  A dispatcher, tours and multi-load consolidation over a **plain spatial model** -- no guide path,
@@ -140,11 +141,11 @@ class FreePathFleetExample(
 
     // Named without the model's own name in front, so that every cell of the study reports the
     // same response and the cells can be paired replication by replication.
-    private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
+    private val myTimeInSystem = Response(this, "TimeInSystem")
     val timeInSystem: ResponseCIfc
         get() = myTimeInSystem
 
-    private val myDelivered = Counter(this, DELIVERED)
+    private val myDelivered = Counter(this, "Delivered")
     val delivered: CounterCIfc
         get() = myDelivered
 
@@ -154,7 +155,7 @@ class FreePathFleetExample(
     val timeBetweenArrivalsRV: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    inner class Pallet : Entity() {
+    private inner class Pallet : Entity() {
         val movement = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = fleet.space.requireLocation("Press")
@@ -165,7 +166,7 @@ class FreePathFleetExample(
         }
     }
 
-    inner class Source : Entity() {
+    private inner class Source : Entity() {
         val arrivals = process(isDefaultProcess = true) {
             repeat(600) {
                 delay(myTimeBetweenArrivals)
@@ -178,61 +179,51 @@ class FreePathFleetExample(
         activate(Source().arrivals)
     }
 
-    companion object {
-        const val TIME_IN_SYSTEM: String = "TimeInSystem"
-        const val DELIVERED: String = "Delivered"
-        const val REPLICATIONS: Int = 40
-        const val HORIZON: Double = 8000.0
-        const val WARM_UP: Double = 1000.0
-
-        /** The four cells of the study: two cart capacities against two batching windows. */
-        fun cells(): List<Triple<String, Int, Double>> = listOf(
-            Triple("Capacity1Window25", 1, 25.0),
-            Triple("Capacity4Window25", 4, 25.0),
-            Triple("Capacity1Window40", 1, 40.0),
-            Triple("Capacity4Window40", 4, 40.0)
-        )
-
-        /**
-         *  One scenario per cell. Load capacity is a property of the vehicles and the batching
-         *  window a property of the policy, so both are fixed when the model is built: this is a
-         *  runner over model instances rather than over control values.
-         */
-        fun buildRunner(): ScenarioRunner {
-            val runner = ScenarioRunner("FreePathFleetYard")
-            for ((label, capacity, window) in cells()) {
-                val m = Model("FreePathYard_$label")
-                FreePathFleetExample(m, capacity, label, batchWindow = window)
-                runner.addScenario(
-                    model = m, name = label, inputs = emptyMap(),
-                    numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-                    lengthOfReplicationWarmUp = WARM_UP
-                )
-            }
-            return runner
-        }
-    }
 }
 
 fun main() {
-    val runner = FreePathFleetExample.buildRunner()
+    val replications = 40
+    val horizon = 8000.0
+    val warmUp = 1000.0
+
+    /** The four cells of the study: two cart capacities against two batching windows. */
+    val cells = listOf(
+        Triple("Capacity1Window25", 1, 25.0),
+        Triple("Capacity4Window25", 4, 25.0),
+        Triple("Capacity1Window40", 1, 40.0),
+        Triple("Capacity4Window40", 4, 40.0)
+    )
+
+    // One scenario per cell. Load capacity is a property of the vehicles and the batching window a
+    // property of the policy, so both are fixed when the model is built: this is a runner over
+    // model instances rather than over control values.
+    val runner = ScenarioRunner("FreePathFleetYard")
+    for ((label, capacity, window) in cells) {
+        val m = Model("FreePathYard_$label")
+        FreePathFleetExample(m, capacity, label, batchWindow = window)
+        runner.addScenario(
+            model = m, name = label, inputs = emptyMap(),
+            numberReplications = replications, lengthOfReplication = horizon,
+            lengthOfReplicationWarmUp = warmUp
+        )
+    }
+
     runner.simulate()
-    // Full half-width summary reports for all four cells go to the KSL output file; the console
-    // gets the comparison.
-    runner.write()
+    // Full half-width summary reports for all four cells; the console then gets the comparison.
+    runner.write(PrintWriter(System.out, true))
 
     println()
     println("A dispatcher over a plane -- no guide path, nothing that blocks")
-    println("Two carts, pallets from Press to Ship, ${FreePathFleetExample.REPLICATIONS} replications " +
-        "of ${FreePathFleetExample.HORIZON.toInt()} after a ${FreePathFleetExample.WARM_UP.toInt()} warm-up")
+    println("Two carts, pallets from Press to Ship, ${replications} replications " +
+        "of ${horizon.toInt()} after a ${warmUp.toInt()} warm-up")
     println()
     println("  %-20s %11s %8s %11s %8s %9s %11s".format(
         "", "delivered", "hw", "in system", "hw", "blocked", "loads/move"))
-    for ((label, _, _) in FreePathFleetExample.cells()) {
+    for ((label, _, _) in cells) {
         val run = checkNotNull(runner.scenarioByName(label)?.simulationRun) { "$label did not run" }
         val stats = run.acrossReplicationStatistics()
-        val d = checkNotNull(stats[FreePathFleetExample.DELIVERED]) { "no delivered response" }
-        val t = checkNotNull(stats[FreePathFleetExample.TIME_IN_SYSTEM]) { "no time in system" }
+        val d = checkNotNull(stats["Delivered"]) { "no delivered response" }
+        val t = checkNotNull(stats["TimeInSystem"]) { "no time in system" }
         val b = checkNotNull(stats["Cart1:Body:FracTimeBlocked"]) { "no blocked response" }
         val loads = stats["Cart1:Body:LoadsPerLoadedMove"]
         println("  %-20s %11.1f %8.1f %11.2f %8.2f %9.4f %11s".format(
@@ -248,7 +239,7 @@ fun main() {
         println("Window $window: $one minus $four, paired by replication (95% intervals)")
         println()
         println("  %-16s %13s %13s %13s".format("response", "difference", "half-width", "detectable?"))
-        for (response in listOf(FreePathFleetExample.DELIVERED, FreePathFleetExample.TIME_IN_SYSTEM)) {
+        for (response in listOf("Delivered", "TimeInSystem")) {
             val observations = runner.observationsAsMap(response).filterKeys { it == one || it == four }
             check(observations.size == 2) {
                 "expected $response for both $one and $four, got ${observations.keys}"

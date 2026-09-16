@@ -56,14 +56,14 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  waits again for it to arrive, rides it, and gives it back.
  *
  *  ```
- *  guidedTransport(carts, destination = EXIT, pickupLocation = ENTRY)
+ *  guidedTransport(carts, destination = exitStation, pickupLocation = entryStation)
  *  ```
  *
  *  Active: the part states what it needs and suspends. It never chooses a cart, never waits for a
  *  particular one, and cannot tell which came.
  *
  *  ```
- *  transportByFleet(agv, destination = EXIT, origin = ENTRY)
+ *  transportByFleet(agv, destination = exitStation, origin = entryStation)
  *  ```
  *
  *  The two lines look similar and mean something quite different. Under the passive paradigm the
@@ -100,14 +100,14 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  contains the other. A cart is on task while it stands still being loaded, and it is moving but
  *  not on task while it returns to its depot.
  */
-private const val ENTRY: String = "EntryStation"
-private const val EXIT: String = "ExitStation"
-private const val DEPOT: String = "CartDepot"
+private val entryStation = "EntryStation"
+private val exitStation = "ExitStation"
+private val cartDepot = "CartDepot"
 
 /** Both shops name their statistics identically, so the two runs can be compared replication
  *  by replication rather than only average by average. */
-private const val TIME_IN_SYSTEM: String = "TimeInSystem"
-private const val DELIVERED: String = "Delivered"
+private val timeInSystemName = "TimeInSystem"
+private val deliveredName = "Delivered"
 
 /**
  *  A one-way loop with a spur to the exit and a parking spur for the cart.
@@ -115,7 +115,7 @@ private const val DELIVERED: String = "Delivered"
  *  Built here rather than imported because the layout is part of the lesson, and identical in
  *  both runs because anything else would confound the comparison.
  */
-private fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("ShopFloor")
+private fun createShopFloorNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("ShopFloor")
     .intersection("I1", x = 0.0, y = 72.0)
     .intersection("I2", x = 48.0, y = 72.0)
     .intersection("I3", x = 48.0, y = 0.0)
@@ -130,20 +130,18 @@ private fun createNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Shop
         type = LinkType.SPUR, beginDirection = 270.0)
     .link("DepotSpur", "I2", "I6", length = 6.0, zoneLength = 6.0,
         type = LinkType.SPUR, beginDirection = 0.0)
-    .station(ENTRY, "I1")
-    .station(EXIT, "I5")
-    .station(DEPOT, "I6")
+    .station(entryStation, "I1")
+    .station(exitStation, "I5")
+    .station(cartDepot, "I6")
     .build()
 
-private const val MEAN_TIME_BETWEEN_ARRIVALS: Double = 40.0
-private const val ARRIVAL_STREAM: Int = 1
-private const val NUM_ARRIVALS: Int = 400
-private const val CART_SPEED: Double = 10.0
-
 /** The part steers the cart: ask for one, be collected, be carried, hand it back. */
-class PassiveShop(parent: ModelElement) : ProcessModel(parent, "PassiveShop") {
+class PassiveShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    val network = createNetwork()
+    private val numArrivals = 400
+    private val cartSpeed = 10.0
+
+    val network = createShopFloorNetwork()
 
     init {
         spatialModel = network
@@ -152,40 +150,40 @@ class PassiveShop(parent: ModelElement) : ProcessModel(parent, "PassiveShop") {
     val space = GuidedPathTransportSystem(this, network, name = "Space")
 
     val cart = GuidedTransporter(
-        space, TransporterPlacement.At(DEPOT), ConstantRV(CART_SPEED), name = "Cart"
-    ).apply { homeBase = DEPOT }
+        space, TransporterPlacement.At(cartDepot), ConstantRV(cartSpeed), name = "Cart"
+    ).apply { homeBase = cartDepot }
 
     val carts = GuidedTransporterPoolWithQ(
         this, space, listOf(cart), ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
     )
 
-    private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
+    private val myTimeInSystem = Response(this, timeInSystemName)
     val timeInSystem: ResponseCIfc
         get() = myTimeInSystem
 
-    private val myDelivered = Counter(this, DELIVERED)
+    private val myDelivered = Counter(this, deliveredName)
     val delivered: CounterCIfc
         get() = myDelivered
 
     private val myTimeBetweenArrivals = RandomVariable(
-        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "TBA"
+        this, ExponentialRV(40.0, streamNum = 1), name = "TBA"
     )
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    inner class Part : Entity() {
+    private inner class Part : Entity() {
         val production = process(isDefaultProcess = true) {
             val arrived = time
-            currentLocation = network.requireLocation(ENTRY)
-            guidedTransport(carts, destination = EXIT, pickupLocation = ENTRY)
+            currentLocation = network.requireLocation(entryStation)
+            guidedTransport(carts, destination = exitStation, pickupLocation = entryStation)
             myTimeInSystem.value = time - arrived
             myDelivered.increment()
         }
     }
 
-    inner class Source : Entity() {
+    private inner class Source : Entity() {
         val arrivals = process(isDefaultProcess = true) {
-            repeat(NUM_ARRIVALS) {
+            repeat(numArrivals) {
                 delay(myTimeBetweenArrivals)
                 activate(Part().production)
             }
@@ -198,9 +196,12 @@ class PassiveShop(parent: ModelElement) : ProcessModel(parent, "PassiveShop") {
 }
 
 /** The part states what it needs and suspends. A dispatcher and a vehicle do the rest. */
-class ActiveShop(parent: ModelElement) : ProcessModel(parent, "ActiveShop") {
+class ActiveShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    val network = createNetwork()
+    private val numArrivals = 400
+    private val cartSpeed = 10.0
+
+    val network = createShopFloorNetwork()
 
     init {
         spatialModel = network
@@ -209,36 +210,36 @@ class ActiveShop(parent: ModelElement) : ProcessModel(parent, "ActiveShop") {
     val agv = AgvSystem(this, network, name = "Agv")
 
     val cart = AgvVehicle(
-        agv, TransporterPlacement.At(DEPOT), ConstantRV(CART_SPEED), name = "Cart"
-    ).apply { homeBase = DEPOT }
+        agv, TransporterPlacement.At(cartDepot), ConstantRV(cartSpeed), name = "Cart"
+    ).apply { homeBase = cartDepot }
 
-    private val myTimeInSystem = Response(this, TIME_IN_SYSTEM)
+    private val myTimeInSystem = Response(this, timeInSystemName)
     val timeInSystem: ResponseCIfc
         get() = myTimeInSystem
 
-    private val myDelivered = Counter(this, DELIVERED)
+    private val myDelivered = Counter(this, deliveredName)
     val delivered: CounterCIfc
         get() = myDelivered
 
     private val myTimeBetweenArrivals = RandomVariable(
-        this, ExponentialRV(MEAN_TIME_BETWEEN_ARRIVALS, ARRIVAL_STREAM), name = "TBA"
+        this, ExponentialRV(40.0, streamNum = 1), name = "TBA"
     )
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    inner class Part : Entity() {
+    private inner class Part : Entity() {
         val production = process(isDefaultProcess = true) {
             val arrived = time
-            currentLocation = network.requireLocation(ENTRY)
-            transportByFleet(agv, destination = EXIT, origin = ENTRY)
+            currentLocation = network.requireLocation(entryStation)
+            transportByFleet(agv, destination = exitStation, origin = entryStation)
             myTimeInSystem.value = time - arrived
             myDelivered.increment()
         }
     }
 
-    inner class Source : Entity() {
+    private inner class Source : Entity() {
         val arrivals = process(isDefaultProcess = true) {
-            repeat(NUM_ARRIVALS) {
+            repeat(numArrivals) {
                 delay(myTimeBetweenArrivals)
                 activate(Part().production)
             }
@@ -250,48 +251,41 @@ class ActiveShop(parent: ModelElement) : ProcessModel(parent, "ActiveShop") {
     }
 }
 
-private const val REPLICATIONS: Int = 20
-private const val HORIZON: Double = 8_000.0
-private const val WARM_UP: Double = 1_000.0
+fun main() {
+    val replications = 20
+    val horizon = 8_000.0
+    val warmUp = 1_000.0
+    val passiveName = "Passive"
+    val activeName = "Active"
 
-private const val PASSIVE: String = "Passive"
-private const val ACTIVE: String = "Active"
-
-/**
- *  One scenario per paradigm. Both build the same network from the same function, run the same
- *  replications over the same horizon, and draw arrivals from the same stream, so anything that
- *  differs between them is the paradigm and nothing else.
- */
-private fun buildRunner(): ScenarioRunner {
+    // One scenario per paradigm. Both build the same network from the same function, run the same
+    // replications over the same horizon, and draw arrivals from the same stream, so anything that
+    // differs between them is the paradigm and nothing else.
     val runner = ScenarioRunner("TwoParadigms")
     val passiveModel = Model("TwoParadigms_Passive")
-    PassiveShop(passiveModel)
+    PassiveShop(passiveModel, name = "PassiveShop")
     runner.addScenario(
-        model = passiveModel, name = PASSIVE, inputs = emptyMap(),
-        numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-        lengthOfReplicationWarmUp = WARM_UP
+        model = passiveModel, name = passiveName, inputs = emptyMap(),
+        numberReplications = replications, lengthOfReplication = horizon,
+        lengthOfReplicationWarmUp = warmUp
     )
     val activeModel = Model("TwoParadigms_Active")
-    ActiveShop(activeModel)
+    ActiveShop(activeModel, name = "ActiveShop")
     runner.addScenario(
-        model = activeModel, name = ACTIVE, inputs = emptyMap(),
-        numberReplications = REPLICATIONS, lengthOfReplication = HORIZON,
-        lengthOfReplicationWarmUp = WARM_UP
+        model = activeModel, name = activeName, inputs = emptyMap(),
+        numberReplications = replications, lengthOfReplication = horizon,
+        lengthOfReplicationWarmUp = warmUp
     )
-    return runner
-}
 
-fun main() {
-    val runner = buildRunner()
     runner.simulate()
     runner.print()
 
     println()
-    println("One shop, modelled two ways: ${PASSIVE} minus ${ACTIVE}")
-    println("(paired by replication, ${REPLICATIONS} replications, 95% intervals)")
+    println("One shop, modelled two ways: $passiveName minus $activeName")
+    println("(paired by replication, $replications replications, 95% intervals)")
     println()
     println("  %-22s %14s %14s %14s".format("response", "difference", "half-width", "detectable?"))
-    for (response in listOf(DELIVERED, TIME_IN_SYSTEM)) {
+    for (response in listOf(deliveredName, timeInSystemName)) {
         val observations = runner.observationsAsMap(response)
         check(observations.size == 2) {
             "expected per-replication observations of $response for both paradigms, got " +
@@ -300,7 +294,7 @@ fun main() {
         }
         val mca = MultipleComparisonAnalyzer(observations, response)
         val d = checkNotNull(
-            mca.pairedDifferenceStatistic(PASSIVE, ACTIVE)
+            mca.pairedDifferenceStatistic(passiveName, activeName)
         ) { "no paired difference for $response" }
         val detectable = if (kotlin.math.abs(d.average) > d.halfWidth) "yes" else "no"
         println("  %-22s %14.6f %14.6f %14s".format(response, d.average, d.halfWidth, detectable))

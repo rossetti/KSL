@@ -69,8 +69,10 @@ private const val WARM_UP: Double = 1_000.0
 /**
  *  Named, discoverable [ModelBuilderIfc] for the simple AGV shop: two carts on a one-way loop.
  *
- *  Both zone lengths, the layout and the station names come from the example's own companion
- *  object; what the catalog nominates is the pair of handling times and the two headline responses.
+ *  What the catalog nominates is the load on the shop and what handling a part costs, against the
+ *  two headline responses. The arrival rate is named through the generator's own time-between-events
+ *  random variable -- naming the generator is what gives that variable a stable key -- and the time
+ *  to the *first* event is left alone: it is drawn once per replication and falls inside the warm-up.
  */
 class SimpleAgvShopModelBuilder : ModelBuilderIfc {
     override fun build(
@@ -79,11 +81,14 @@ class SimpleAgvShopModelBuilder : ModelBuilderIfc {
     ): Model {
         // The child element's name must differ from the model's own.
         val model = Model("SimpleAgvShop", autoCSVReports = false)
-        val shop = SimpleAGVExample(model)
+        val shop = SimpleAGVExample(model, name = "AgvShop")
         model.numberOfReplications = REPLICATIONS
         model.lengthOfReplication = HORIZON
         model.lengthOfReplicationWarmUp = WARM_UP
         model.curateCatalog {
+            rvParameter("PartArrivals:TimeBtwEventsRV", "mean") {
+                displayName = "Mean Time Between Arrivals"; unit = "min"
+            }
             rvParameter(shop.loadingTimeRV, "value") {
                 displayName = "Loading Time"; unit = "min"
             }
@@ -101,7 +106,9 @@ class SimpleAgvShopModelBuilder : ModelBuilderIfc {
  *  Named, discoverable [ModelBuilderIfc] for the shop with spills and a maintenance window.
  *
  *  The disturbances are the point, so the catalog nominates what drives them -- how often a spill
- *  lands and how long it takes to clear -- against the blocked-cause decomposition they show up in.
+ *  lands and how long it takes to clear -- alongside the load, against the blocked-cause
+ *  decomposition they show up in. Both arrival rates are named through their generators' own
+ *  time-between-events random variables, which is what the generators are named for.
  */
 class GuidePathDisturbancesModelBuilder : ModelBuilderIfc {
     override fun build(
@@ -109,13 +116,19 @@ class GuidePathDisturbancesModelBuilder : ModelBuilderIfc {
         experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = Model("GuidePathDisturbances", autoCSVReports = false)
-        val shop = GuidePathDisturbancesExample(model, disturbed = true)
+        val shop = GuidePathDisturbancesExample(model, disturbed = true, name = "DisturbedShop")
         model.numberOfReplications = REPLICATIONS
         model.lengthOfReplication = HORIZON
         model.lengthOfReplicationWarmUp = WARM_UP
         model.curateCatalog {
             // Named by the example, not formatted here: a spill's cleanup time and the interval
             // between maintenance windows are the two rates the disturbances are made of.
+            rvParameter("PartArrivals:TimeBtwEventsRV", "mean") {
+                displayName = "Mean Time Between Arrivals"; unit = "min"
+            }
+            rvParameter("SpillArrivals:TimeBtwEventsRV", "mean") {
+                displayName = "Mean Time Between Spills"; unit = "min"
+            }
             rvParameter("CleanupTime", "mean") {
                 displayName = "Mean Spill Cleanup Time"; unit = "min"
             }
@@ -240,7 +253,7 @@ class PassiveTransporterShopModelBuilder : ModelBuilderIfc {
         experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = Model("PassiveTransporterShop", autoCSVReports = false)
-        val shop = PassiveShop(model)
+        val shop = PassiveShop(model, name = "PassiveShop")
         model.numberOfReplications = REPLICATIONS
         model.lengthOfReplication = HORIZON
         model.lengthOfReplicationWarmUp = WARM_UP
@@ -268,7 +281,7 @@ class ActiveFleetShopModelBuilder : ModelBuilderIfc {
         experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = Model("ActiveFleetShop", autoCSVReports = false)
-        val shop = ActiveShop(model)
+        val shop = ActiveShop(model, name = "ActiveShop")
         model.numberOfReplications = REPLICATIONS
         model.lengthOfReplication = HORIZON
         model.lengthOfReplicationWarmUp = WARM_UP
@@ -330,9 +343,9 @@ class PedestrianCrossingModelBuilder : ModelBuilderIfc {
         experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = Model("PedestrianCrossing", autoCSVReports = false)
-        val town = CrossingArbiterExample(model, CrossingArbiterExample.arbiters().getValue("BoundedBatch"))
+        val town = CrossingArbiterExample(model, "BoundedBatch", name = "Town")
         model.numberOfReplications = 1
-        model.lengthOfReplication = CrossingArbiterExample.HORIZON
+        model.lengthOfReplication = 120.0
         model.curateCatalog {
             input("${town.name}.arbiterName") {
                 displayName = "Crossing Discipline"

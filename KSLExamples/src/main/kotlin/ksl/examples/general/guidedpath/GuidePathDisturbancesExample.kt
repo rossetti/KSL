@@ -19,6 +19,7 @@
 package ksl.examples.general.guidedpath
 
 import ksl.controls.experiments.ScenarioRunner
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.guidedpath.GuidedPathNetwork
@@ -26,6 +27,7 @@ import ksl.modeling.guidedpath.GuidedPathSpace
 import ksl.modeling.guidedpath.GuidedPathTransportSystem
 import ksl.modeling.guidedpath.GuidedTransporter
 import ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
+import ksl.modeling.guidedpath.LinkType
 import ksl.modeling.guidedpath.TransporterPlacement
 import ksl.modeling.guidedpath.Zone
 import ksl.modeling.guidedpath.ZoneAllocation
@@ -48,6 +50,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
+import java.io.PrintWriter
 
 /*
  *  Guide-path space taken by things that are not vehicles: a spill, and a maintenance window.
@@ -130,8 +133,9 @@ class MaintenanceWindow(
     private val space: GuidedPathSpace,
     private val zones: () -> List<Zone>,
     timeBetween: Double,
-    windowLength: Double
-) : ModelElement(parent, "MaintenanceWindow"), ZoneHoldActionIfc {
+    windowLength: Double,
+    name: String? = null
+) : ModelElement(parent, name), ZoneHoldActionIfc {
 
     private val myTimeBetween = RandomVariable(
         this, ExponentialRV(timeBetween, streamNum = 4), name = "TimeBetweenWindows"
@@ -186,61 +190,39 @@ class MaintenanceWindow(
 class GuidePathDisturbancesExample(
     parent: ModelElement,
     disturbed: Boolean,
-    timeBtwArrivals: Double = 20.0
-) : ProcessModel(parent, "DisturbedShop") {
+    name: String? = null
+) : ProcessModel(parent, name) {
 
-    companion object {
+    private val entryStation = "EntryStation"
+    private val exitStation = "ExitStation"
+    private val agv1Home = "I6"
+    private val agv2Home = "I7"
 
-        const val QUIET: String = "NoDisturbances"
-        const val DISTURBED: String = "SpillsAndMaintenance"
-        const val SYSTEM_NAME: String = "AgvSystem"
-        const val REPLICATIONS: Int = 20
-        const val HORIZON: Double = 8_000.0
-        const val WARM_UP: Double = 1_000.0
+    private val loopZoneLength = 12.0
+    private val homeSpurZoneLength = 6.0
 
-        /** The link closed for maintenance: a leg of the one-way loop, six zones taken as one. */
-        const val MAINTAINED_LINK: String = "Link2"
+    /** The link closed for maintenance: a leg of the one-way loop, six zones taken as one. */
+    private val maintainedLink = "Link2"
 
-        fun buildRunner(): ScenarioRunner {
-            val runner = ScenarioRunner("GuidePathDisturbances")
-            // Disturbed first, because MultipleComparisonAnalyzer keys each paired difference
-            // "first - second" in the order the scenarios were added, and the reading that makes sense
-            // here is what the disturbances cost rather than what their absence saves.
-            for ((label, disturbed) in listOf(DISTURBED to true, QUIET to false)) {
-                val m = Model("Disturbances_$label")
-                GuidePathDisturbancesExample(m, disturbed = disturbed)
-                runner.addScenario(
-                    model = m,
-                    name = label,
-                    inputs = emptyMap(),
-                    numberReplications = REPLICATIONS,
-                    lengthOfReplication = HORIZON,
-                    lengthOfReplicationWarmUp = WARM_UP
-                )
-            }
-            return runner
-        }
-    }
-
-    val network: GuidedPathNetwork = SimpleAGVExample.createNetwork("DisturbedNet")
+    private val network: GuidedPathNetwork = buildNetwork()
 
     init {
         spatialModel = network
     }
 
-    val system = GuidedPathTransportSystem(this, network, name = SYSTEM_NAME)
+    val system = GuidedPathTransportSystem(this, network, name = "AgvSystem")
 
-    val cart1 = GuidedTransporter(
-        system, TransporterPlacement.At(SimpleAGVExample.AGV1_HOME), ConstantRV(10.0), 1,
+    private val cart1 = GuidedTransporter(
+        system, TransporterPlacement.At(agv1Home), ConstantRV(10.0), 1,
         EndOfZoneControl(), "Cart1"
-    ).apply { homeBase = SimpleAGVExample.AGV1_HOME }
+    ).apply { homeBase = agv1Home }
 
-    val cart2 = GuidedTransporter(
-        system, TransporterPlacement.At(SimpleAGVExample.AGV2_HOME), ConstantRV(10.0), 1,
+    private val cart2 = GuidedTransporter(
+        system, TransporterPlacement.At(agv2Home), ConstantRV(10.0), 1,
         EndOfZoneControl(), "Cart2"
-    ).apply { homeBase = SimpleAGVExample.AGV2_HOME }
+    ).apply { homeBase = agv2Home }
 
-    val carts = GuidedTransporterPoolWithQ(
+    private val carts = GuidedTransporterPoolWithQ(
         this, system, listOf(cart1, cart2),
         ClosestByNetworkDistanceRule(), ReturnToHomeBaseRule(), "Carts"
     )
@@ -253,21 +235,53 @@ class GuidePathDisturbancesExample(
     val completed: CounterCIfc
         get() = myCompleted
 
-    @Suppress("unused")
-    private val generator = EntityGenerator(
-        ::Part, ExponentialRV(timeBtwArrivals, streamNum = 1),
-        ExponentialRV(timeBtwArrivals, streamNum = 1)
-    )
+    private val tba = ExponentialRV(20.0, 1)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba, name = "PartArrivals")
+    val generator: EventGeneratorRVCIfc
+        get() = myArrivalGenerator
 
-    inner class Part : Entity() {
-        @Suppress("unused")
+    /**
+     *  The same one-way loop the simple AGV shop runs on, built here rather than borrowed so that
+     *  this file is readable on its own: entry at `I1`, exit down a spur off `I4`, and a parking
+     *  spur per cart. `Link2` is the leg the maintenance window closes.
+     */
+    private fun buildNetwork(): GuidedPathNetwork =
+        GuidedPathNetwork.builder("DisturbedNet")
+            .intersection("I1", x = 0.0, y = 72.0)
+            .intersection("I2", x = 48.0, y = 72.0)
+            .intersection("I3", x = 48.0, y = 0.0)
+            .intersection("I4", x = 0.0, y = 0.0)
+            .intersection("I5", x = 0.0, y = -36.0)
+            .intersection("I6", x = 54.0, y = 72.0)
+            .intersection("I7", x = 54.0, y = 0.0)
+            .link("Link1", "I1", "I2", length = 48.0, zoneLength = loopZoneLength, beginDirection = 0.0)
+            .link("Link2", "I2", "I3", length = 72.0, zoneLength = loopZoneLength, beginDirection = 270.0)
+            .link("Link3", "I3", "I4", length = 48.0, zoneLength = loopZoneLength, beginDirection = 180.0)
+            .link("Link4", "I4", "I1", length = 72.0, zoneLength = loopZoneLength, beginDirection = 90.0)
+            .link(
+                "Spur", "I4", "I5", length = 36.0, zoneLength = loopZoneLength,
+                type = LinkType.SPUR, beginDirection = 270.0
+            )
+            .link(
+                "Link5", "I2", "I6", length = 6.0, zoneLength = homeSpurZoneLength,
+                type = LinkType.SPUR, beginDirection = 0.0
+            )
+            .link(
+                "Link6", "I3", "I7", length = 6.0, zoneLength = homeSpurZoneLength,
+                type = LinkType.SPUR, beginDirection = 0.0
+            )
+            .station(entryStation, "I1")
+            .station(exitStation, "I5")
+            .build()
+
+    private inner class Part : Entity() {
         val delivery = process(isDefaultProcess = true) {
             val arrived = time
-            currentLocation = network.requireLocation(SimpleAGVExample.ENTRY_STATION)
+            currentLocation = network.requireLocation(entryStation)
             guidedTransport(
                 carts,
-                destination = SimpleAGVExample.EXIT_STATION,
-                pickupLocation = SimpleAGVExample.ENTRY_STATION,
+                destination = exitStation,
+                pickupLocation = entryStation,
                 loadingDelay = ConstantRV(0.5),
                 unLoadingDelay = ConstantRV(0.5)
             )
@@ -279,7 +293,7 @@ class GuidePathDisturbancesExample(
     // ---- the process route: spills, which arrive and are cleaned ---------------------------
 
     /** Where a spill waits while the zones it landed on finish draining. */
-    val spillQ = HoldQueue(this, "SpillQ")
+    private val spillQ = HoldQueue(this, "SpillQ")
 
     // Three and four: the maintained link is left to the maintenance window, so the only
     // closures that can collide here are two spills in the same aisle.
@@ -307,8 +321,7 @@ class GuidePathDisturbancesExample(
      *  Where it lands, how much of the aisle it covers and how long it takes to clean are all
      *  drawn here, at run time, and any number of spills may be in progress at once.
      */
-    inner class Spill : Entity() {
-        @Suppress("unused")
+    private inner class Spill : Entity() {
         val cleanup = process(isDefaultProcess = true) {
             val link = network.link("Link${mySpillLink.value.toInt()}")!!
             val extent = link.zones.take(mySpillExtent.value.toInt())
@@ -330,45 +343,63 @@ class GuidePathDisturbancesExample(
         }
     }
 
-    @Suppress("unused")
-    private val spills = if (disturbed) {
-        EntityGenerator(
-            ::Spill, ExponentialRV(90.0, streamNum = 2), ExponentialRV(90.0, streamNum = 2)
-        )
+    private val tbs = ExponentialRV(90.0, 2)
+    private val mySpillGenerator = if (disturbed) {
+        EntityGenerator(::Spill, tbs, tbs, name = "SpillArrivals")
     } else {
         null
     }
+
+    /** How often a spill lands, when there are spills at all. Null in the quiet configuration. */
+    val spillGenerator: EventGeneratorRVCIfc?
+        get() = mySpillGenerator
 
     // ---- the event route: a maintenance window on a whole link ------------------------------
 
     @Suppress("unused")
     private val maintenance = if (disturbed) {
         MaintenanceWindow(
-            this, system, { network.link(MAINTAINED_LINK)!!.zones },
-            timeBetween = 300.0, windowLength = 30.0
+            this, system, { network.link(maintainedLink)!!.zones },
+            timeBetween = 300.0, windowLength = 30.0, name = "MaintenanceWindow"
         )
     } else {
         null
     }
 }
 
-/**
- *  One scenario per configuration, with the same replications, horizon, warm-up and arrival
- *  stream, because the only thing being compared is whether the guide path is disturbed.
- */
-
 fun main() {
-    val runner = GuidePathDisturbancesExample.buildRunner()
-    runner.simulate()
-    runner.print()
+    val quiet = "NoDisturbances"
+    val disturbed = "SpillsAndMaintenance"
+    val sys = "AgvSystem"
+    val replications = 20
 
-    val quiet = GuidePathDisturbancesExample.QUIET
-    val disturbed = GuidePathDisturbancesExample.DISTURBED
-    val sys = GuidePathDisturbancesExample.SYSTEM_NAME
+    // Whether the guide path is disturbed decides which model elements exist at all -- there is no
+    // spill generator and no maintenance window in the quiet configuration -- so this is a runner
+    // over model instances rather than over control values.
+    //
+    // Disturbed first, because MultipleComparisonAnalyzer keys each paired difference
+    // "first - second" in the order the scenarios were added, and the reading that makes sense
+    // here is what the disturbances cost rather than what their absence saves.
+    val runner = ScenarioRunner("GuidePathDisturbances")
+    for ((label, isDisturbed) in listOf(disturbed to true, quiet to false)) {
+        val m = Model("Disturbances_$label")
+        GuidePathDisturbancesExample(m, disturbed = isDisturbed, name = "DisturbedShop")
+        runner.addScenario(
+            model = m,
+            name = label,
+            inputs = emptyMap(),
+            numberReplications = replications,
+            lengthOfReplication = 8000.0,
+            lengthOfReplicationWarmUp = 1000.0
+        )
+    }
+    runner.simulate()
+    // An autoflush writer: print() builds an unflushed one internally, whose output can be lost.
+    runner.write(PrintWriter(System.out, true))
 
     println()
     println("What the disturbances cost: $disturbed minus $quiet, paired by replication")
-    println("(${GuidePathDisturbancesExample.REPLICATIONS} replications, 95% intervals)")
+    println("($replications replications, 95% intervals)")
     println()
     println("  %-44s %12s %12s %12s".format("response", "difference", "half-width", "detectable?"))
     val differences = mutableMapOf<String, Double>()
