@@ -208,6 +208,15 @@ class DispatchingRuleComparison(
      *  in `main` can equally be run as one model with one input -- which is what a scenario, or an
      *  app's input panel, wants. A rule is made fresh on assignment for the same reason [rules]
      *  makes them fresh: a batching or contract-net policy carries state between decisions.
+     *
+     *  **This is the study's own control, and not the library's.**
+     *  [ksl.modeling.fleet.Dispatcher] carries an `assignmentPolicyName` too, and it offers only
+     *  the policies a name defines completely -- nearest, furthest, least used, and the two that
+     *  take nothing. Three of the six names here are parameterised, and the parameters are written
+     *  into the names on purpose: `BatchedWindow30` and `ContractNetDeadline5` are design points of
+     *  *this* comparison, not policies the package ships. A study over which family of rule to use
+     *  is a study over a name; a study over a rule's window or deadline is a study over a number,
+     *  and the number belongs to whoever chose it.
      */
     @set:KSLStringControl(
         allowedValues = [

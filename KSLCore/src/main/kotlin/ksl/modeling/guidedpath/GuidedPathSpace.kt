@@ -19,11 +19,14 @@ package ksl.modeling.guidedpath
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
+import ksl.controls.KSLStringControl
 import ksl.modeling.guidedpath.exceptions.GuidedPathDeadlockException
 import ksl.modeling.guidedpath.exceptions.GuidedPathNetworkException
 import ksl.modeling.guidedpath.exceptions.GuidedPathObstructionException
 import ksl.modeling.guidedpath.internal.DeadlockDetector
 import ksl.modeling.guidedpath.internal.MovementEngine
+import ksl.modeling.guidedpath.rules.createZoneContentionRule
+import ksl.modeling.guidedpath.rules.nameOfZoneContentionRule
 import ksl.modeling.guidedpath.rules.FIFOZoneContentionRule
 import ksl.modeling.guidedpath.rules.ZoneContentionRuleIfc
 import ksl.modeling.guidedpath.internal.ZoneInvariantChecker
@@ -99,7 +102,7 @@ internal enum class MovementWait {
 open class GuidedPathSpace @JvmOverloads constructor(
     parent: ModelElement,
     val network: GuidedPathNetwork,
-    val zoneContentionRule: ZoneContentionRuleIfc = FIFOZoneContentionRule(),
+    zoneContentionRule: ZoneContentionRuleIfc = FIFOZoneContentionRule(),
     collectLinkStatistics: Boolean = false,
     collectZoneStatistics: Boolean = false,
     name: String? = null
@@ -109,6 +112,36 @@ open class GuidedPathSpace @JvmOverloads constructor(
         network.attachTo(this.name)
         spatialModel = network
     }
+
+    /**
+     * Which of several transporters waiting for one zone is let in when it frees.
+     *
+     * Substitutable while the model is not running. It is read at the moment a zone is handed over
+     * rather than captured, so the rule in force is always the one set; the guard is here because
+     * a rule swapped mid-replication would apply to part of a run and not the rest, and no
+     * statistic would say which part.
+     */
+    var zoneContentionRule: ZoneContentionRuleIfc = zoneContentionRule
+        set(value) {
+            require(model.isNotRunning) {
+                "The zone contention rule of ($name) cannot be changed while the model is running."
+            }
+            field = value
+        }
+
+    /**
+     * The contention rule by name, so a scenario or an app can change it without holding a rule
+     * object. Reading it reports the rule's own `toString` when the rule is one no name stands for.
+     */
+    @set:KSLStringControl(
+        allowedValues = ["FIFO", "LoadedFirst"],
+        comment = "Which waiting transporter is let into a zone when it frees"
+    )
+    var zoneContentionRuleName: String
+        get() = nameOfZoneContentionRule(zoneContentionRule) ?: zoneContentionRule.toString()
+        set(value) {
+            zoneContentionRule = createZoneContentionRule(value)
+        }
 
     private val myTransporters = mutableListOf<GuidedTransporter>()
 

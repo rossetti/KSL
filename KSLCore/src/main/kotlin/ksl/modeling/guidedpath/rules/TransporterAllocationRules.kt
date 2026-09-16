@@ -206,3 +206,39 @@ class CyclicalTransporterRule : GuidedTransporterAllocationRuleIfc {
 
     override fun toString(): String = "CyclicalTransporterRule"
 }
+
+// ---- naming ------------------------------------------------------------------------------------
+//
+// [RandomTransporterRule] is absent below because it takes a random number stream, which no name
+// could carry; it is set by assigning the object. See the note in `IdleDispositionRules.kt`.
+
+/** The allocation rules a name can select, in the order an interface should offer them. */
+val transporterAllocationRuleNames: List<String> =
+    listOf("Closest", "Furthest", "LeastUsed", "Cyclical")
+
+/**
+ * The rule a name stands for, made fresh -- which matters for [CyclicalTransporterRule], whose
+ * turn-taking is state that must not be inherited from a rule the pool used before.
+ *
+ * @throws IllegalArgumentException if the name is not one of [transporterAllocationRuleNames]
+ */
+fun createTransporterAllocationRule(name: String): GuidedTransporterAllocationRuleIfc = when (name) {
+    "Closest" -> ClosestByNetworkDistanceRule()
+    "Furthest" -> FurthestByNetworkDistanceRule()
+    "LeastUsed" -> LeastUsedTransporterRule()
+    "Cyclical" -> CyclicalTransporterRule()
+    else -> throw IllegalArgumentException(
+        "Unknown transporter allocation rule '$name'; expected one of " +
+                "$transporterAllocationRuleNames. A rule that takes an argument, such as " +
+                "RandomTransporterRule, is set by assigning it."
+    )
+}
+
+/** The name of a rule, or null when it is one no name stands for. */
+fun nameOfTransporterAllocationRule(rule: GuidedTransporterAllocationRuleIfc): String? = when (rule) {
+    is ClosestByNetworkDistanceRule -> "Closest"
+    is FurthestByNetworkDistanceRule -> "Furthest"
+    is LeastUsedTransporterRule -> "LeastUsed"
+    is CyclicalTransporterRule -> "Cyclical"
+    else -> null
+}

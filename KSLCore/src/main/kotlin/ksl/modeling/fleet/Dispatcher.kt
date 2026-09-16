@@ -1,5 +1,8 @@
 package ksl.modeling.fleet
 
+import ksl.controls.KSLStringControl
+import ksl.modeling.fleet.policies.createAssignmentPolicy
+import ksl.modeling.fleet.policies.nameOfAssignmentPolicy
 import ksl.modeling.fleet.exceptions.FleetDispatchException
 import ksl.modeling.fleet.exceptions.FleetProtocolException
 import ksl.modeling.fleet.policies.TourPolicyIfc
@@ -47,6 +50,26 @@ open class Dispatcher @JvmOverloads constructor(
         set(value) {
             require(model.isNotRunning) { "The assignment policy cannot be changed while the model is running." }
             field = value
+        }
+
+    /**
+     * The assignment policy by name, so a scenario or an app can change it without holding a policy
+     * object.
+     *
+     * **Only the policies that a name fully defines have names.** A batching window, a contract-net
+     * deadline, a re-assignment threshold and a scoring function are not tunings of a policy -- they
+     * are the policy -- so a name standing for one of them would let a study vary the label while
+     * freezing the number. Assign the policy to use those, and read this property to see what is in
+     * force: it reports the policy's own `toString` when no name stands for it.
+     */
+    @set:KSLStringControl(
+        allowedValues = ["PullFromBoard", "NearestVehicle", "FurthestVehicle", "LeastUsedVehicle", "Consolidating"],
+        comment = "Which rule the dispatcher uses to assign a vehicle to a task"
+    )
+    var assignmentPolicyName: String
+        get() = nameOfAssignmentPolicy(assignmentPolicy) ?: assignmentPolicy.toString()
+        set(value) {
+            assignmentPolicy = createAssignmentPolicy(value)
         }
 
     /**

@@ -80,3 +80,31 @@ class LoadedFirstZoneContentionRule : ZoneContentionRuleIfc {
 
     override fun toString(): String = "LoadedFirstZoneContentionRule"
 }
+
+// ---- naming ------------------------------------------------------------------------------------
+//
+// Both shipped rules are fully defined by their family, so both are nameable. See the note in
+// `IdleDispositionRules.kt` for why that is the test.
+
+/** The contention rules a name can select, in the order an interface should offer them. */
+val zoneContentionRuleNames: List<String> = listOf("FIFO", "LoadedFirst")
+
+/**
+ * The rule a name stands for, made fresh.
+ *
+ * @throws IllegalArgumentException if the name is not one of [zoneContentionRuleNames]
+ */
+fun createZoneContentionRule(name: String): ZoneContentionRuleIfc = when (name) {
+    "FIFO" -> FIFOZoneContentionRule()
+    "LoadedFirst" -> LoadedFirstZoneContentionRule()
+    else -> throw IllegalArgumentException(
+        "Unknown zone contention rule '$name'; expected one of $zoneContentionRuleNames."
+    )
+}
+
+/** The name of a rule, or null when it is one no name stands for. */
+fun nameOfZoneContentionRule(rule: ZoneContentionRuleIfc): String? = when (rule) {
+    is FIFOZoneContentionRule -> "FIFO"
+    is LoadedFirstZoneContentionRule -> "LoadedFirst"
+    else -> null
+}

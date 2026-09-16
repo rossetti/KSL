@@ -17,6 +17,11 @@
  */
 package ksl.modeling.guidedpath
 
+import ksl.controls.KSLStringControl
+import ksl.modeling.guidedpath.rules.createIdleDispositionRule
+import ksl.modeling.guidedpath.rules.createTransporterAllocationRule
+import ksl.modeling.guidedpath.rules.nameOfIdleDispositionRule
+import ksl.modeling.guidedpath.rules.nameOfTransporterAllocationRule
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.AbstractResourcePool
 import ksl.modeling.entity.Allocation
@@ -58,7 +63,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
     parent: ModelElement,
     val system: GuidedPathTransportSystem,
     transporters: List<GuidedTransporter>,
-    val allocationRule: GuidedTransporterAllocationRuleIfc = ClosestByNetworkDistanceRule(),
+    allocationRule: GuidedTransporterAllocationRuleIfc = ClosestByNetworkDistanceRule(),
     var idleDispositionRule: IdleDispositionRuleIfc = ParkInPlaceRule(),
     name: String? = null
 ) : AbstractResourcePool<GuidedTransporter>(parent, name) {
@@ -74,6 +79,54 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
             t.joinPool(this)
         }
     }
+
+    /**
+     * Which idle transporter is sent to a pickup.
+     *
+     * Substitutable while the model is not running. Unlike the disposition rule, an allocation rule
+     * may carry state -- a rule that takes turns remembers whose turn it was -- so a swap
+     * mid-replication would let one run be dispatched two ways. [initialize] resets whichever rule
+     * is in force at the start of every replication, so a rule never inherits the end of the one
+     * before it.
+     */
+    var allocationRule: GuidedTransporterAllocationRuleIfc = allocationRule
+        set(value) {
+            require(model.isNotRunning) {
+                "The allocation rule of pool ($name) cannot be changed while the model is running."
+            }
+            field = value
+        }
+
+    /**
+     * The allocation rule by name, so a scenario or an app can change it without holding a rule
+     * object. Reading it reports the rule's own `toString` when the rule is one no name stands for
+     * -- a [ksl.modeling.guidedpath.rules.RandomTransporterRule], say, which takes a stream.
+     */
+    @set:KSLStringControl(
+        allowedValues = ["Closest", "Furthest", "LeastUsed", "Cyclical"],
+        comment = "Which idle transporter of the pool is sent to a pickup"
+    )
+    var allocationRuleName: String
+        get() = nameOfTransporterAllocationRule(allocationRule) ?: allocationRule.toString()
+        set(value) {
+            allocationRule = createTransporterAllocationRule(value)
+        }
+
+    /**
+     * Where an idle transporter waits, by name, so a scenario or an app can change it without
+     * holding a rule object. Reading it reports the rule's own `toString` when the rule is one no
+     * name stands for -- a [ksl.modeling.guidedpath.rules.MoveToStagingAreaRule], say, which takes
+     * a location.
+     */
+    @set:KSLStringControl(
+        allowedValues = ["ParkInPlace", "ReturnToHomeBase"],
+        comment = "What a released transporter does when nothing is waiting for it"
+    )
+    var idleDispositionRuleName: String
+        get() = nameOfIdleDispositionRule(idleDispositionRule) ?: idleDispositionRule.toString()
+        set(value) {
+            idleDispositionRule = createIdleDispositionRule(value)
+        }
 
     /** The fleet, in declaration order, which is the order ties are broken in. */
     val transporters: List<GuidedTransporter>

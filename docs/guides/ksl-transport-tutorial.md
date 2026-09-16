@@ -5619,13 +5619,20 @@ the first's.
 ```kotlin
     /**
      *  The discipline the crossing runs under, by name, so that a scenario or an app can change it
-     *  without holding an arbiter object.
+     *  without holding an arbiter object. The constructor takes the same name, so building the
+     *  model and changing it afterwards say the same thing.
      *
-     *  The constructor still takes the arbiter itself, because that is the point of the construct
-     *  and `main` below reads better for it. This property is the same choice spelled as a
-     *  **control**: [ksl.controls.KSLStringControl] declares the names it will accept, which is
-     *  what lets a study over disciplines be expressed as an input rather than as six models. The
-     *  initial value is read off the arbiter's own class, so the two can never disagree.
+     *  **This is the example's own control, and not the library's.**
+     *  [ksl.modeling.guidedpath.ZoneCrossing] carries an `arbiterName` too, but it offers only the
+     *  two priority disciplines -- the two that a name defines completely. The other two here are
+     *  parameterised, and the parameters are not incidental: `Alternating` at six minutes each way
+     *  and `BoundedBatch` at two with a five-minute cap are *this study's design points*, chosen so
+     *  the four rows are comparable. Naming them is the study's business, which is why the names
+     *  and the numbers behind them live here rather than in the package.
+     *
+     *  That is the general shape of it. A study over which family of rule to use is a study over a
+     *  name, and the library offers it; a study over a rule's parameter is a study over a number,
+     *  and belongs in the model that chooses it.
      */
     @set:KSLStringControl(
         allowedValues = ["PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch"],

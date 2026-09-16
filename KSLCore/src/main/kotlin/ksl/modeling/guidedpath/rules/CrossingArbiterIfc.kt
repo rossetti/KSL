@@ -260,3 +260,37 @@ class BoundedBatchArbiter(
         turnSize = 0
     }
 }
+
+// ---- naming ------------------------------------------------------------------------------------
+//
+// Only the two priority disciplines are nameable. [AlternatingArbiter] and [BoundedBatchArbiter]
+// take the times and counts that *are* the discipline -- a bounded batch of two with a five-minute
+// cap is a different policy from a batch of ten with a one-minute cap, not the same policy
+// differently tuned -- so naming either would mean choosing those numbers on the modeller's behalf
+// and hiding the choice inside a string. They are set by assigning the object. See the note in
+// `IdleDispositionRules.kt`.
+
+/** The crossing disciplines a name can select, in the order an interface should offer them. */
+val crossingArbiterNames: List<String> = listOf("PedestrianPriority", "VehiclePriority")
+
+/**
+ * The arbiter a name stands for, made fresh.
+ *
+ * @throws IllegalArgumentException if the name is not one of [crossingArbiterNames]
+ */
+fun createCrossingArbiter(name: String): CrossingArbiterIfc = when (name) {
+    "PedestrianPriority" -> PedestrianPriorityArbiter()
+    "VehiclePriority" -> VehiclePriorityArbiter()
+    else -> throw IllegalArgumentException(
+        "Unknown crossing discipline '$name'; expected one of $crossingArbiterNames. An arbiter " +
+                "whose timings are part of the discipline, such as AlternatingArbiter or " +
+                "BoundedBatchArbiter, is set by assigning it."
+    )
+}
+
+/** The name of an arbiter, or null when it is one no name stands for. */
+fun nameOfCrossingArbiter(arbiter: CrossingArbiterIfc): String? = when (arbiter) {
+    is PedestrianPriorityArbiter -> "PedestrianPriority"
+    is VehiclePriorityArbiter -> "VehiclePriority"
+    else -> null
+}

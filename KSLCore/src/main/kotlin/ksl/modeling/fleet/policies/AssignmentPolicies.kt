@@ -712,3 +712,51 @@ class ChargeReservePolicy @JvmOverloads constructor(
 
     override fun toString(): String = "ChargeReservePolicy(inner=$inner, safetyFactor=$safetyFactor)"
 }
+
+// ---- naming ------------------------------------------------------------------------------------
+//
+// A policy is offered by name only when a name is all it takes to define it. Six of the eleven are
+// absent below: [RandomAssignmentPolicy] needs a stream, [BatchedAssignmentPolicy] a window,
+// [ContractNetAssignmentPolicy] a deadline, [ReassigningPolicy] a threshold, [ChargeReservePolicy]
+// an inner policy, and [ScoringAssignmentPolicy] a scoring function, which no string could carry at
+// all. Each is set by assigning the object.
+//
+// The line is drawn there on purpose. "Batched" is not one policy: a thirty-second window and a
+// five-minute window are different dispatching rules that happen to share an implementation, and a
+// name that stood for one of them would let a study vary the label while freezing the number. A
+// study over windows is a study over a *number*, and belongs in the model that chooses it -- which
+// is why `DispatchingRuleComparison` keeps its own richer set of names, with the parameters written
+// into them, rather than delegating to this one.
+
+/** The assignment policies a name can select, in the order an interface should offer them. */
+val assignmentPolicyNames: List<String> =
+    listOf("PullFromBoard", "NearestVehicle", "FurthestVehicle", "LeastUsedVehicle", "Consolidating")
+
+/**
+ * The policy a name stands for, made fresh -- which matters for a policy that carries state between
+ * decisions, so that one never inherits the end of a run it was not part of.
+ *
+ * @throws IllegalArgumentException if the name is not one of [assignmentPolicyNames]
+ */
+fun createAssignmentPolicy(name: String): AssignmentPolicyIfc = when (name) {
+    "PullFromBoard" -> PullFromBoardPolicy()
+    "NearestVehicle" -> NearestVehiclePolicy()
+    "FurthestVehicle" -> FurthestVehiclePolicy()
+    "LeastUsedVehicle" -> LeastUsedVehiclePolicy()
+    "Consolidating" -> ConsolidatingPolicy()
+    else -> throw IllegalArgumentException(
+        "Unknown assignment policy '$name'; expected one of $assignmentPolicyNames. A policy that " +
+                "takes an argument -- a window, a deadline, a threshold, a stream or an inner " +
+                "policy -- is set by assigning it."
+    )
+}
+
+/** The name of a policy, or null when it is one no name stands for. */
+fun nameOfAssignmentPolicy(policy: AssignmentPolicyIfc): String? = when (policy) {
+    is PullFromBoardPolicy -> "PullFromBoard"
+    is NearestVehiclePolicy -> "NearestVehicle"
+    is FurthestVehiclePolicy -> "FurthestVehicle"
+    is LeastUsedVehiclePolicy -> "LeastUsedVehicle"
+    is ConsolidatingPolicy -> "Consolidating"
+    else -> null
+}

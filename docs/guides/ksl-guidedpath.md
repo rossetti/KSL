@@ -286,6 +286,54 @@ This is the decision that most often decides whether a model works at all.
 See §6. Three rules ship: `ParkInPlaceRule` (the default, and the one to
 change), `ReturnToHomeBaseRule`, and `MoveToStagingAreaRule`.
 
+### …vary a rule from a scenario, rather than in code?
+
+Each substitutable slot carries a **name** beside the object, declared as a
+`@KSLStringControl`, so a study can sweep it as an input:
+
+| control | values |
+|---|---|
+| `<pool>.allocationRuleName` | `Closest`, `Furthest`, `LeastUsed`, `Cyclical` |
+| `<pool>.idleDispositionRuleName` | `ParkInPlace`, `ReturnToHomeBase` |
+| `<system>.zoneContentionRuleName` | `FIFO`, `LoadedFirst` |
+| `<crossing>.arbiterName` | `PedestrianPriority`, `VehiclePriority` |
+| `<dispatcher>.assignmentPolicyName` | `PullFromBoard`, `NearestVehicle`, `FurthestVehicle`, `LeastUsedVehicle`, `Consolidating` |
+
+```kotlin
+runner.addScenario(model, name = "LeastUsed",
+    inputs = mapOf("Carts.allocationRuleName" to "LeastUsed"))
+```
+
+**A rule has a name only when a name is all it takes to define it.** The
+lists above are shorter than the list of rules that ship, and deliberately
+so: `MoveToStagingAreaRule` takes a location, `RandomTransporterRule` a
+stream, `BoundedBatchArbiter` a batch size and a cap,
+`BatchedAssignmentPolicy` a window. Those arguments are not tunings of a
+rule — they *are* the rule. A batch of two with a five-minute cap is a
+different discipline from a batch of ten with a one-minute cap, and a name
+that stood for one of them would let a study vary the label while freezing
+the number, then report the result as a comparison of disciplines.
+
+So they are set by assigning the object:
+
+```kotlin
+crossing.arbiter = BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
+println(crossing.arbiterName)   // BoundedBatchArbiter(batchSize=2, maxWait=5.0)
+```
+
+Reading a name always reports what is in force — the name when one stands
+for the rule, the rule's own `toString` when none does — so a model using a
+parameterised rule can still say what it is using. Setting one always makes
+a **fresh** rule, so a rule that takes turns never inherits the end of a
+configuration it was not part of.
+
+A study over a rule's *parameter* is a study over a number, and belongs in
+the model that chooses it. That is what `DispatchingRuleComparison` does:
+its own `ruleName` control offers `BatchedWindow30` and
+`ContractNetDeadline5`, with the parameters written into the names, because
+those are design points of that study rather than policies the library
+ships.
+
 ### …give a vehicle a physical length?
 
 Two ways, and they are not interchangeable. `lengthInZones` is the usual

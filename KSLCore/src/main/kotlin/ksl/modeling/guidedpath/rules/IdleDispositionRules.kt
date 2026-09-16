@@ -102,3 +102,35 @@ class MoveToStagingAreaRule(val locationName: String) : IdleDispositionRuleIfc {
 
     override fun toString(): String = "MoveToStagingAreaRule($locationName)"
 }
+
+// ---- naming ------------------------------------------------------------------------------------
+//
+// A rule is offered by name only when a name is all it takes to define it. [MoveToStagingAreaRule]
+// is absent below because it takes a location that no name could carry; it is set by assigning the
+// object. That line is deliberate throughout the package: a name that silently stood for one
+// parameterisation out of many would let a study vary the label while freezing the number, and
+// report the result as a comparison of rules.
+
+/** The idle dispositions a name can select, in the order an interface should offer them. */
+val idleDispositionRuleNames: List<String> = listOf("ParkInPlace", "ReturnToHomeBase")
+
+/**
+ * The rule a name stands for, made fresh.
+ *
+ * @throws IllegalArgumentException if the name is not one of [idleDispositionRuleNames]
+ */
+fun createIdleDispositionRule(name: String): IdleDispositionRuleIfc = when (name) {
+    "ParkInPlace" -> ParkInPlaceRule()
+    "ReturnToHomeBase" -> ReturnToHomeBaseRule()
+    else -> throw IllegalArgumentException(
+        "Unknown idle disposition rule '$name'; expected one of $idleDispositionRuleNames. A rule " +
+                "that takes an argument, such as MoveToStagingAreaRule, is set by assigning it."
+    )
+}
+
+/** The name of a rule, or null when it is one no name stands for. */
+fun nameOfIdleDispositionRule(rule: IdleDispositionRuleIfc): String? = when (rule) {
+    is ParkInPlaceRule -> "ParkInPlace"
+    is ReturnToHomeBaseRule -> "ReturnToHomeBase"
+    else -> null
+}

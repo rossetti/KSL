@@ -104,6 +104,38 @@ open class AgvSystem @JvmOverloads constructor(
         }
 
     /**
+     * Whether the guide path underneath watches for a circular wait and raises when it finds one.
+     *
+     * On by default, and it belongs on this facade as much as on the space: a deadlock among active
+     * vehicles is a deadlock of the aisles they are standing in, detected by the layer that owns the
+     * zones. Switching it off is for a study that means to run a design point into gridlock and read
+     * the result rather than catch an exception -- see the two-lane warehouse example, where "this
+     * layout cannot carry this fleet" is the finding.
+     */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
+    var deadlockDetectionEnabled: Boolean
+        get() = spaceSystem.deadlockDetectionEnabled
+        set(value) {
+            spaceSystem.deadlockDetectionEnabled = value
+        }
+
+    /**
+     * Whether a vehicle obstructed by one that is idle is treated as an error rather than as
+     * traffic.
+     *
+     * Off by default, because a fleet that parks on the guide path obstructs itself by design and a
+     * model may mean it to. Switching it on turns the most common silent modelling mistake -- an
+     * idle vehicle left standing where everything behind it must pass -- into a failure at the
+     * moment it happens rather than a run that finishes looking reasonable.
+     */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
+    var strictObstructionPolicy: Boolean
+        get() = spaceSystem.strictObstructionPolicy
+        set(value) {
+            spaceSystem.strictObstructionPolicy = value
+        }
+
+    /**
      * Whether the space layer registers a response per **link**.
      *
      * Off by default, because a large network would otherwise put a row on every report and in every

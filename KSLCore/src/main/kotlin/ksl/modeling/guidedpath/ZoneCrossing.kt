@@ -17,6 +17,9 @@
  */
 package ksl.modeling.guidedpath
 
+import ksl.controls.KSLStringControl
+import ksl.modeling.guidedpath.rules.createCrossingArbiter
+import ksl.modeling.guidedpath.rules.nameOfCrossingArbiter
 import ksl.modeling.guidedpath.rules.BoundedBatchArbiter
 import ksl.modeling.guidedpath.rules.CrossingArbiterIfc
 import ksl.modeling.variable.Counter
@@ -91,6 +94,26 @@ class ZoneCrossing(
     var arbiter: CrossingArbiterIfc = BoundedBatchArbiter(batchSize = 3, maxWait = 5.0),
     name: String? = null
 ) : ModelElement(parent, name), ZonePopulationHostIfc, ZoneHoldActionIfc {
+
+    /**
+     * The discipline by name, so a scenario or an app can change it without holding an arbiter.
+     *
+     * **Only the two priority disciplines have names.** An alternating or bounded-batch arbiter
+     * takes the times and counts that *are* its discipline -- a batch of two with a five-minute cap
+     * is a different policy from a batch of ten with a one-minute cap, not the same policy tuned
+     * differently -- so naming one would mean choosing those numbers on the modeller's behalf and
+     * hiding the choice inside a string. Assign the arbiter to use those, and read this property to
+     * see what is in force: it reports the arbiter's own `toString` when no name stands for it.
+     */
+    @set:KSLStringControl(
+        allowedValues = ["PedestrianPriority", "VehiclePriority"],
+        comment = "Which admission discipline the crossing runs under"
+    )
+    var arbiterName: String
+        get() = nameOfCrossingArbiter(arbiter) ?: arbiter.toString()
+        set(value) {
+            arbiter = createCrossingArbiter(value)
+        }
 
     init {
         require(zones.isNotEmpty()) { "Crossing (${this.name}) covers no zones at all." }
