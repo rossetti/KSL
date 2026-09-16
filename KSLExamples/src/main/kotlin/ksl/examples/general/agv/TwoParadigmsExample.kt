@@ -82,6 +82,11 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *  way of modelling the same world; it would be a different world, and every comparison a researcher
  *  wanted to make between paradigms would be confounded by the modelling choice itself.
  *
+ *  Being load-bearing, it is asserted rather than only printed. `TwoParadigmsExactAgreementTest`
+ *  runs these two scenarios and requires the paired differences to be zero with a zero half-width,
+ *  which is a statement about the mechanism as well as the result: a half-width can only vanish if
+ *  the two scenarios are still drawing common random numbers, replication for replication.
+ *
  *  ## What only the active model can tell you
  *
  *  The bottom half of the output is the reason to reach for it. A passive pool has no object that
@@ -190,7 +195,7 @@ class PassiveShop(parent: ModelElement, name: String? = null) : ProcessModel(par
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val production = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)
@@ -246,7 +251,7 @@ class ActiveShop(parent: ModelElement, name: String? = null) : ProcessModel(pare
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val production = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)

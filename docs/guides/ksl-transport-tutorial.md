@@ -802,7 +802,7 @@ class PassiveShop(parent: ModelElement, name: String? = null) : ProcessModel(par
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val production = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)
@@ -886,7 +886,7 @@ class ActiveShop(parent: ModelElement, name: String? = null) : ProcessModel(pare
     val timeBetweenArrivals: RandomVariableCIfc
         get() = myTimeBetweenArrivals
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val production = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)
