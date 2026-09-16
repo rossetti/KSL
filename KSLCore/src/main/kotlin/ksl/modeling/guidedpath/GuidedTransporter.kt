@@ -207,12 +207,13 @@ class GuidedTransporter @JvmOverloads constructor(
     val system: GuidedPathSpace,
     initialPlacement: TransporterPlacement,
     velocity: RVariableIfc,
-    val lengthInZones: Int = 1,
+    override val lengthInZones: Int = 1,
     val zoneControlRule: ZoneControlRuleIfc = EndOfZoneControl(),
     name: String? = null,
-    val physicalLength: Double? = null,
-    val loadCapacity: Int = 1
-) : Resource(system, name, 1), ksl.modeling.spatial.VehicleMovementIfc, ZoneHolderIfc {
+    override val physicalLength: Double? = null,
+    override val loadCapacity: Int = 1
+) : Resource(system, name, 1), GuidedTransporterCIfc, ksl.modeling.spatial.VehicleMovementIfc,
+    ZoneHolderIfc {
 
     /**
      * How many units of itself the transporter has to give: one when it is in service, zero when it
@@ -291,7 +292,7 @@ class GuidedTransporter @JvmOverloads constructor(
     }
 
     /** Where this transporter stands at the start of every replication. */
-    var initialPlacement: TransporterPlacement = initialPlacement
+    override var initialPlacement: TransporterPlacement = initialPlacement
         set(value) {
             require(model.isNotRunning) {
                 "The initial placement cannot be changed while the model is running."
@@ -305,7 +306,7 @@ class GuidedTransporter @JvmOverloads constructor(
      * Named rather than resolved, so that a network can be rebuilt from data without the fleet
      * holding stale references into the old one.
      */
-    var homeBase: String? = null
+    override var homeBase: String? = null
         set(value) {
             require(model.isNotRunning) {
                 "The home base cannot be changed while the model is running."
@@ -314,7 +315,7 @@ class GuidedTransporter @JvmOverloads constructor(
         }
 
     /** How often the velocity is drawn when it is random. */
-    var velocitySampling: VelocitySampling = VelocitySampling.PER_MOVE
+    override var velocitySampling: VelocitySampling = VelocitySampling.PER_MOVE
         set(value) {
             require(model.isNotRunning) {
                 "The velocity sampling policy cannot be changed while the model is running."
@@ -326,7 +327,7 @@ class GuidedTransporter @JvmOverloads constructor(
         RandomVariable(this, velocity, name = "${this.name}:VelocityRV")
 
     /** The velocity source. */
-    val velocityRV: RandomVariableCIfc
+    override val velocityRV: RandomVariableCIfc
         get() = myVelocity
 
     private val mySpatialElement: SpatialElement =
@@ -357,10 +358,15 @@ class GuidedTransporter @JvmOverloads constructor(
      * briefly between zones, covering none and holding only this one.
      */
     var claimedZone: Zone? = null
+        // Written by the movement engine as the vehicle travels, never from outside the
+        // library: it is the engine's account of where this vehicle is in its journey, and
+        // a model that set it would be telling the engine something untrue about its own
+        // bookkeeping. Readable, because a model that watches a fleet or writes its own
+        // dispatching rule needs to see it.
         internal set
 
     /** Every zone the transporter denies to others: the ones it covers, plus the one it is entering. */
-    val heldZones: List<Zone>
+    override val heldZones: List<Zone>
         get() = claimedZone?.let { myCoveredZones + it } ?: myCoveredZones
 
     /** The zone at the leading edge, or null before the transporter has been placed. */
@@ -376,6 +382,11 @@ class GuidedTransporter @JvmOverloads constructor(
      * whether the resource is busy or idle rather than what the vehicle is up to.
      */
     var transporterState: TransporterState = TransporterState.IDLE
+        // Written by the movement engine as the vehicle travels, never from outside the
+        // library: it is the engine's account of where this vehicle is in its journey, and
+        // a model that set it would be telling the engine something untrue about its own
+        // bookkeeping. Readable, because a model that watches a fleet or writes its own
+        // dispatching rule needs to see it.
         internal set(value) {
             // Blocked time is accumulated here rather than read back off the time-weighted
             // statistic, because that statistic reports an average over the post-warm-up interval
@@ -430,7 +441,7 @@ class GuidedTransporter @JvmOverloads constructor(
     internal var stateBeforeBlocking: TransporterState = TransporterState.IDLE
 
     /** True while the transporter is travelling, whatever the reason. */
-    val isMoving: Boolean
+    override val isMoving: Boolean
         get() = transporterState == TransporterState.MOVING_EMPTY ||
                 transporterState == TransporterState.MOVING_LOADED ||
                 transporterState == TransporterState.RETURNING_HOME ||
@@ -455,6 +466,11 @@ class GuidedTransporter @JvmOverloads constructor(
 
     /** The route being followed, or null when the transporter is not travelling. */
     var currentRoute: Route? = null
+        // Written by the movement engine as the vehicle travels, never from outside the
+        // library: it is the engine's account of where this vehicle is in its journey, and
+        // a model that set it would be telling the engine something untrue about its own
+        // bookkeeping. Readable, because a model that watches a fleet or writes its own
+        // dispatching rule needs to see it.
         internal set
 
     /**
@@ -507,6 +523,11 @@ class GuidedTransporter @JvmOverloads constructor(
      * through its reservation instead, not through this property.
      */
     override var awaitedZone: Zone? = null
+        // Written by the movement engine as the vehicle travels, never from outside the
+        // library: it is the engine's account of where this vehicle is in its journey, and
+        // a model that set it would be telling the engine something untrue about its own
+        // bookkeeping. Readable, because a model that watches a fleet or writes its own
+        // dispatching rule needs to see it.
         internal set
 
     /**
@@ -518,10 +539,20 @@ class GuidedTransporter @JvmOverloads constructor(
      * in the way is what lets it be woken by the right event.
      */
     var awaitedLink: Link? = null
+        // Written by the movement engine as the vehicle travels, never from outside the
+        // library: it is the engine's account of where this vehicle is in its journey, and
+        // a model that set it would be telling the engine something untrue about its own
+        // bookkeeping. Readable, because a model that watches a fleet or writes its own
+        // dispatching rule needs to see it.
         internal set
 
     /** The direction it faces on a link, which decides where it may go next. */
     var travellingForward: Boolean = true
+        // Written by the movement engine as the vehicle travels, never from outside the
+        // library: it is the engine's account of where this vehicle is in its journey, and
+        // a model that set it would be telling the engine something untrue about its own
+        // bookkeeping. Readable, because a model that watches a fleet or writes its own
+        // dispatching rule needs to see it.
         internal set
 
     /** The velocity in force for the current movement, held when sampling is per movement. */
@@ -542,7 +573,7 @@ class GuidedTransporter @JvmOverloads constructor(
         }
 
     /** True while something other than this transporter is moving it. */
-    val isUnderTow: Boolean
+    override val isUnderTow: Boolean
         get() = towVelocity != null
 
     /** The velocity to use for the next zone, drawn according to the sampling policy. */
@@ -593,19 +624,19 @@ class GuidedTransporter @JvmOverloads constructor(
     private val myFracTimeMoving = TWResponse(this, name = "${this.name}:FracTimeMoving")
 
     /** The fraction of time spent travelling, for or without an entity. */
-    val fracTimeMoving: TWResponseCIfc
+    override val fracTimeMoving: TWResponseCIfc
         get() = myFracTimeMoving
 
     private val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
 
     /** The fraction of time spent travelling with an entity aboard. */
-    val fracTimeTransporting: TWResponseCIfc
+    override val fracTimeTransporting: TWResponseCIfc
         get() = myFracTimeTransporting
 
     private val myFracTimeMovingEmpty = TWResponse(this, name = "${this.name}:FracTimeMovingEmpty")
 
     /** The fraction of time spent travelling with nothing aboard. */
-    val fracTimeMovingEmpty: TWResponseCIfc
+    override val fracTimeMovingEmpty: TWResponseCIfc
         get() = myFracTimeMovingEmpty
 
     private val myFracTimeBlocked = TWResponse(this, name = "${this.name}:FracTimeBlocked")
@@ -614,13 +645,13 @@ class GuidedTransporter @JvmOverloads constructor(
      * The fraction of time spent unable to claim the space ahead. The statistic a free-path model
      * cannot produce, and the one that says how much a fleet is getting in its own way.
      */
-    val fracTimeBlocked: TWResponseCIfc
+    override val fracTimeBlocked: TWResponseCIfc
         get() = myFracTimeBlocked
 
     private val myNumTimesBlocked = Counter(this, name = "${this.name}:NumTimesBlocked")
 
     /** How many times the transporter has been unable to claim the space ahead. */
-    val numTimesBlocked: CounterCIfc
+    override val numTimesBlocked: CounterCIfc
         get() = myNumTimesBlocked
 
     internal fun countBlocking() {
@@ -693,7 +724,7 @@ class GuidedTransporter @JvmOverloads constructor(
      * how many zones a particular journey crossed. The route knows how many it *intends* to cross,
      * which is a different number the moment a journey is redirected or interrupted part way.
      */
-    val zonesEntered: Int
+    override val zonesEntered: Int
         get() = myZonesEntered
 
     /** Opens a traversal for the odometer. Called by the engine as it schedules the arrival. */
@@ -730,15 +761,15 @@ class GuidedTransporter @JvmOverloads constructor(
      * active one carries whatever its tour has picked up, and a fixed-route one carries whoever
      * boarded. One list, one derivation, one set of statistics.
      */
-    val manifest: List<ProcessModel.Entity>
+    override val manifest: List<ProcessModel.Entity>
         get() = myManifest
 
     /** How many loads are aboard. */
-    val numLoadsAboard: Int
+    override val numLoadsAboard: Int
         get() = myManifest.size
 
     /** How many more this transporter could take. */
-    val spareCapacity: Int
+    override val spareCapacity: Int
         get() = loadCapacity - myManifest.size
 
     /** True when anything at all is aboard. */
@@ -761,7 +792,7 @@ class GuidedTransporter @JvmOverloads constructor(
         if (loadCapacity <= 1) null else TWResponse(this, "${this.name}:NumLoadsAboard")
 
     /** The mean number of loads aboard, over the replication. Null for a single-load transporter. */
-    val numLoadsAboardResponse: TWResponseCIfc?
+    override val numLoadsAboardResponse: TWResponseCIfc?
         get() = myNumLoadsAboard
 
     private val myCapacityUtilization: TWResponse? =
@@ -775,7 +806,7 @@ class GuidedTransporter @JvmOverloads constructor(
      * it as utilization on a multi-load fleet reports a vehicle moving one pallet at a time in a
      * four-pallet body as fully utilised. This is the one that answers the question people mean.
      */
-    val capacityUtilization: TWResponseCIfc?
+    override val capacityUtilization: TWResponseCIfc?
         get() = myCapacityUtilization
 
     private val myFracTimeAtCapacity: TWResponse? =
@@ -789,7 +820,7 @@ class GuidedTransporter @JvmOverloads constructor(
      * half full, which wants smaller ones. The two call for opposite decisions and the mean is the
      * same.
      */
-    val fracTimeAtCapacity: TWResponseCIfc?
+    override val fracTimeAtCapacity: TWResponseCIfc?
         get() = myFracTimeAtCapacity
 
     private val myLoadsPerLoadedMove: Response? =
@@ -803,7 +834,7 @@ class GuidedTransporter @JvmOverloads constructor(
      * plainly. Observed when a movement begins rather than per journey, so a transporter redirected
      * mid-move records the new movement as well -- which is right, because it is a different move.
      */
-    val loadsPerLoadedMove: ResponseCIfc?
+    override val loadsPerLoadedMove: ResponseCIfc?
         get() = myLoadsPerLoadedMove
 
     /** Republishes what the manifest currently is. Called whenever it changes. */
@@ -955,7 +986,7 @@ class GuidedTransporter @JvmOverloads constructor(
      * A pool sends only dispatchable transporters, and an allocation rule is offered only these, so
      * a rule never has to know this property exists.
      */
-    val isDispatchable: Boolean
+    override val isDispatchable: Boolean
         get() = numBusy == 0 && !isHalted && !isUnderTow
 
     private val myPools = mutableListOf<GuidedTransporterPoolWithQ>()
@@ -1090,7 +1121,7 @@ class GuidedTransporter @JvmOverloads constructor(
     private val myShift: ShiftControl = ShiftControl(this)
 
     /** True while this transporter has been taken off shift. */
-    val isOffShift: Boolean
+    override val isOffShift: Boolean
         get() = myShift.isOffShift
 
     /**

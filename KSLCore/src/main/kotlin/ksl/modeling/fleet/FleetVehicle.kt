@@ -59,10 +59,10 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * not been built yet. A body's capacity is built from this same number, so there is one figure
      * rather than two that could disagree.
      */
-    val loadCapacity: Int = 1,
+    override val loadCapacity: Int = 1,
     val battery: Battery? = null,
     val failureModel: FailureModel? = null
-) : ModelElement(system, name) {
+) : ModelElement(system, name), FleetVehicleCIfc {
 
     /**
      * The physical presence: what carries the loads, moves, and records how the time was spent.
@@ -93,7 +93,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
     }
 
     /** Where the vehicle waits when it has nothing to do, or null to wait where it stops. */
-    var homeBase: String? = null
+    override var homeBase: String? = null
         set(value) {
             require(model.isNotRunning) { "The home base cannot be changed while the model is running." }
             field = value
@@ -102,10 +102,10 @@ abstract class FleetVehicle @JvmOverloads constructor(
 
     /** What it does with itself when the dispatcher has no work. Per vehicle, so a fleet may be
      *  heterogeneous. */
-    var dispositionPolicy: DispositionPolicyIfc = ReturnToHomeBaseDisposition()
+    override var dispositionPolicy: DispositionPolicyIfc = ReturnToHomeBaseDisposition()
 
     /** What it offers when a dispatcher calls for proposals. Consulted from the negotiated phase. */
-    var bidPolicy: BidPolicyIfc = NetworkDistanceBid()
+    override var bidPolicy: BidPolicyIfc = NetworkDistanceBid()
 
     /**
      * What happens when this vehicle stops and cannot carry on by itself.
@@ -113,7 +113,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * Per vehicle, so a fleet may be heterogeneous -- which is the realistic case, since a fleet is
      * rarely all one age. The default repairs where the vehicle stands and leaves a flat one flat.
      */
-    var interruptionPolicy: InterruptionPolicyIfc = RepairInPlacePolicy()
+    override var interruptionPolicy: InterruptionPolicyIfc = RepairInPlacePolicy()
 
     /**
      * Who decides, stop by stop, whether this vehicle serves the next place in its tour.
@@ -122,7 +122,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * setting nothing changes nothing. Replace it with `TimetableControl` for a scheduled service or
      * `DispatcherStopControl` for one a controller can run express or turn short.
      */
-    var stopControl: StopControlIfc = AlwaysServe()
+    override var stopControl: StopControlIfc = AlwaysServe()
 
     /** The live agent for this replication. Non-null only between `initialize` and the horizon, and
      *  **replaced** rather than reused each replication -- a retained agent would read the previous
@@ -145,7 +145,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * interpolated substrate answers with the interpolated point. A substrate that cannot say
      * answers with the place it set out from, and says so by not interpolating.
      */
-    val currentLocationName: String
+    override val currentLocationName: String
         get() = movement.positionNow.name
 
     /**
@@ -162,10 +162,10 @@ abstract class FleetVehicle @JvmOverloads constructor(
 
     /** True when it has declared itself available and holds no assignment. Asserted by the vehicle,
      *  never inferred by the dispatcher. */
-    val isAvailable: Boolean
+    override val isAvailable: Boolean
         get() = system.dispatcher.isAvailable(this)
 
-    val currentAssignment: Assignment?
+    override val currentAssignment: Assignment?
         get() = agent?.assignment
 
     /** Everything this vehicle is committed to. One at a time while capacity is one. */
@@ -173,7 +173,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
         get() = agent?.assignments ?: emptyList()
 
     /** True when the vehicle is committed to anything at all. */
-    val hasAssignment: Boolean
+    override val hasAssignment: Boolean
         get() = agent?.assignments?.isNotEmpty() == true
 
     // ---- statistics ---------------------------------------------------------------------------
@@ -181,11 +181,11 @@ abstract class FleetVehicle @JvmOverloads constructor(
     // so that a model built both ways can be compared row by row. The element *names* still differ
     // by a ":Body" suffix, which the equivalence benchmark maps; see the note in FleetSystem.
 
-    val fracTimeMoving: TWResponseCIfc get() = body.fracTimeMoving
-    val fracTimeTransporting: TWResponseCIfc get() = body.fracTimeTransporting
-    val fracTimeMovingEmpty: TWResponseCIfc get() = body.fracTimeMovingEmpty
-    val fracTimeBlocked: TWResponseCIfc get() = body.fracTimeBlocked
-    val numTimesBlocked: CounterCIfc get() = body.numTimesBlocked
+    override val fracTimeMoving: TWResponseCIfc get() = body.fracTimeMoving
+    override val fracTimeTransporting: TWResponseCIfc get() = body.fracTimeTransporting
+    override val fracTimeMovingEmpty: TWResponseCIfc get() = body.fracTimeMovingEmpty
+    override val fracTimeBlocked: TWResponseCIfc get() = body.fracTimeBlocked
+    override val numTimesBlocked: CounterCIfc get() = body.numTimesBlocked
 
     /**
      * The fraction of time the vehicle holds an assignment.
@@ -195,7 +195,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * could report this, because there is nothing that holds a commitment.
      */
     private val myFracTimeOnTask = TWResponse(this, "${this.name}:FracTimeOnTask")
-    val fracTimeOnTask: TWResponseCIfc
+    override val fracTimeOnTask: TWResponseCIfc
         get() = myFracTimeOnTask
 
     private val myNumTasksCompleted = Counter(this, "${this.name}:NumTasksCompleted")
@@ -215,7 +215,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * It is here rather than on the body because a tour is not physical: a substrate knows nothing
      * about rounds, only about journeys.
      */
-    val loadsPerTour: ResponseCIfc?
+    override val loadsPerTour: ResponseCIfc?
         get() = myLoadsPerTour
 
     /** Records what a finished round carried. Called once per tour, whatever it was for. */
@@ -233,7 +233,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
     // a model does not have is a question its reader has to answer every time they meet it.
 
     /** The mean number aboard, or null for a single-load vehicle. */
-    val numLoadsAboardResponse: TWResponseCIfc?
+    override val numLoadsAboardResponse: TWResponseCIfc?
         get() = body.numLoadsAboardResponse
 
     /**
@@ -242,7 +242,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * The row `FracTimeTransporting` is often read as answering this and does not: that is a
      * fraction of *time*, and reads 1.0 whether the vehicle is carrying one load or four.
      */
-    val capacityUtilization: TWResponseCIfc?
+    override val capacityUtilization: TWResponseCIfc?
         get() = body.capacityUtilization
 
     /**
@@ -530,8 +530,11 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * It keeps its assignment and its load throughout: a failure interrupts the tour, it does not
      * hand the work back. See [FailureModel].
      */
-    var isFailed: Boolean = false
-        private set
+    override var isFailed: Boolean = false
+        // Written by the failure model and the service verbs, never by a modeller: a vehicle is
+        // broken or withdrawn by something that happened to it, and setting the flag directly would
+        // leave the machinery that tracks it disagreeing with the flag.
+        internal set
 
     /** How far the basis quantity has advanced, in whatever units the basis is measured in. */
     private fun basisValue(): Double = when (failureModel?.basis) {
@@ -742,8 +745,11 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * battery is out of service without having failed. It is what [FleetSystem.numVehiclesOutOfService]
      * counts, and it is why a vehicle that broke down between tours is no longer reported as idle.
      */
-    var isOutOfService: Boolean = false
-        private set
+    override var isOutOfService: Boolean = false
+        // Written by the failure model and the service verbs, never by a modeller: a vehicle is
+        // broken or withdrawn by something that happened to it, and setting the flag directly would
+        // leave the machinery that tracks it disagreeing with the flag.
+        internal set
 
     /**
      * Whether the vehicle can carry on from where it stands.

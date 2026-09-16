@@ -64,9 +64,9 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
     val system: GuidedPathTransportSystem,
     transporters: List<GuidedTransporter>,
     allocationRule: GuidedTransporterAllocationRuleIfc = ClosestByNetworkDistanceRule(),
-    var idleDispositionRule: IdleDispositionRuleIfc = ParkInPlaceRule(),
+    override var idleDispositionRule: IdleDispositionRuleIfc = ParkInPlaceRule(),
     name: String? = null
-) : AbstractResourcePool<GuidedTransporter>(parent, name) {
+) : AbstractResourcePool<GuidedTransporter>(parent, name), GuidedTransporterPoolCIfc {
 
     init {
         require(transporters.isNotEmpty()) { "A transporter pool must contain at least one transporter." }
@@ -89,7 +89,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
      * is in force at the start of every replication, so a rule never inherits the end of the one
      * before it.
      */
-    var allocationRule: GuidedTransporterAllocationRuleIfc = allocationRule
+    override var allocationRule: GuidedTransporterAllocationRuleIfc = allocationRule
         set(value) {
             require(model.isNotRunning) {
                 "The allocation rule of pool ($name) cannot be changed while the model is running."
@@ -106,7 +106,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
         allowedValues = ["Closest", "Furthest", "LeastUsed", "Cyclical"],
         comment = "Which idle transporter of the pool is sent to a pickup"
     )
-    var allocationRuleName: String
+    override var allocationRuleName: String
         get() = nameOfTransporterAllocationRule(allocationRule) ?: allocationRule.toString()
         set(value) {
             allocationRule = createTransporterAllocationRule(value)
@@ -122,14 +122,14 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
         allowedValues = ["ParkInPlace", "ReturnToHomeBase"],
         comment = "What a released transporter does when nothing is waiting for it"
     )
-    var idleDispositionRuleName: String
+    override var idleDispositionRuleName: String
         get() = nameOfIdleDispositionRule(idleDispositionRule) ?: idleDispositionRule.toString()
         set(value) {
             idleDispositionRule = createIdleDispositionRule(value)
         }
 
     /** The fleet, in declaration order, which is the order ties are broken in. */
-    val transporters: List<GuidedTransporter>
+    override val transporters: List<GuidedTransporter>
         get() = myResources
 
     /**
@@ -149,7 +149,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
     internal val myWaitingQ: RequestQ = RequestQ(this, "${this.name}:Q")
 
     /** Entities waiting for any transporter of this pool to become free. */
-    val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
+    override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
     /**
@@ -164,11 +164,11 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
      * Use [transporters] for the whole fleet and [haltedTransporters] for the ones a gate is
      * holding.
      */
-    val idleTransporters: List<GuidedTransporter>
+    override val idleTransporters: List<GuidedTransporter>
         get() = myResources.filter { it.isDispatchable }
 
     /** True when some transporter of the pool could be sent now. */
-    val hasIdleTransporter: Boolean
+    override val hasIdleTransporter: Boolean
         get() = myResources.any { it.isDispatchable }
 
     /**
@@ -176,7 +176,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
      * tow. They are not offered to the allocation rule, and they are here so that a model which
      * installs a gate can report on what its gate is doing.
      */
-    val haltedTransporters: List<GuidedTransporter>
+    override val haltedTransporters: List<GuidedTransporter>
         get() = myResources.filter { it.numBusy == 0 && !it.isDispatchable }
 
     /**

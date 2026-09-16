@@ -987,7 +987,9 @@ though it had worked.
 | `GuidedPathSpace` | The `ModelElement` operating a network. Owns zone occupancy, resets between replications, reports congestion. Knows nothing about how a vehicle is asked for, which is why the AGV subsystem runs on it too. |
 | `GuidedPathTransportSystem` | A `GuidedPathSpace` plus this paradigm's own transport time, request to set-down. What a passive model constructs. |
 | `GuidedTransporter` | A vehicle; a capacity-one `Resource`. |
+| `GuidedTransporterCIfc` | Controlled access to one: what a modeller sets, where it is, how its time was spent. The guide-path counterpart of `MoveableResourceCIfc`. |
 | `GuidedTransporterPoolWithQ` | A fleet asked for by the group, with the queue of entities waiting for one. |
+| `GuidedTransporterPoolCIfc` | Controlled access to a pool, including both rules by object and by name, as `ResourcePoolCIfc` carries its own. |
 | `GuidedTransportRequest` | An entity's claim on a transporter. Inert after release. |
 | `GuidedTransportResult` | What a journey cost, including `blockedTime`. |
 | `awaitingPickupHoldQ` / `ridingHoldQ` / `drivingHoldQ` | Where a waiter on a journey is suspended, split by what the wait is. Mechanism, not measurement: none of them reports. |
@@ -1004,6 +1006,17 @@ though it had worked.
 | `CrossingArbiterIfc` | Whose turn it is. **Two** decisions, plus `reviewAt` for a rule that depends on elapsed time. Four ship. |
 | `ZonePopulationHostIfc` | A holder that admits a population onto space it holds — the one exception to "a held zone admits nobody", and what makes a crossing possible. |
 | `ZoneClosureDriver` | Closes the same space over and over on a schedule. Packaging, not semantics. |
+
+**There is no `GuidedPathSpaceCIfc`, and that is deliberate.** A `*CIfc` in
+this library is the contract something is *held by* — a resource in a pool,
+a vehicle in a fleet — and it is small: `MoveableResourceCIfc` has seven
+members. A transport system is a **substrate**, like `Conveyor` or
+`DistancesModel`, neither of which has one either. Nothing seizes it; models
+ask it for space, set its diagnostic flags, and read its statistics, and all
+of that is legitimately public. An interface mirroring forty members would
+be a second copy of the class rather than a contract, so the system is public
+and concrete, and the things you hold by contract are the transporter and the
+pool.
 
 The first two are one object in a passive model: a transport system
 **is** a space. The distinction matters only when you are writing

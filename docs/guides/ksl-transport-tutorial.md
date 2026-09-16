@@ -313,7 +313,6 @@ class SimpleAGVExample(
     private val loopZoneLength = 12.0
     private val homeSpurZoneLength = 6.0
 
-
     private val network: GuidedPathNetwork = buildNetwork()
 
     init {
@@ -321,7 +320,18 @@ class SimpleAGVExample(
         spatialModel = network
     }
 
-    private val system = GuidedPathTransportSystem(this, network, name = "AgvSystem")
+    /**
+     *  The guide path's runtime: zone occupancy, the movement of the carts, and every statistic the
+     *  report below is drawn from.
+     *
+     *  Public and concrete, as a [ksl.modeling.entity.Conveyor] is. A transport system is a
+     *  **substrate** rather than a resource -- nothing seizes it, models ask it for space and read
+     *  its statistics -- so it has no controlled-access interface and needs none. The things a model
+     *  does hold by contract are the transporter and the pool, which do:
+     *  [ksl.modeling.guidedpath.GuidedTransporterCIfc] and
+     *  [ksl.modeling.guidedpath.GuidedTransporterPoolCIfc].
+     */
+    val system = GuidedPathTransportSystem(this, network, name = "AgvSystem")
 ```
 
 `SimpleAGVExample` extends `ProcessModel`, which is what allows the `Part` class further down to
