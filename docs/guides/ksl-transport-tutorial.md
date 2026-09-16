@@ -2150,8 +2150,14 @@ Paired differences in fleet imbalance, NearestVehicle minus each rule
   ContractNetDeadline5         19.000        4.170          yes
 ```
 
-For scale: the half-width on any **one** rule's delivered count is about 7.35 loads. The
-paired half-width is under 0.6.
+For scale: the half-width on any **one** rule's delivered count is about 7.35 loads, and
+the paired half-width is under 0.6 — in four of the five rows. Batching's is 7.30, and
+that is worth a moment rather than a footnote. Pairing works by cancelling what the two
+runs share, and what these runs share is the arrival stream. Batching's own throughput is
+nearly deterministic — its unpaired half-width is 0.23 — so there is no arrival
+variability on its side of the subtraction to cancel, and the difference inherits
+nearest-vehicle's variance whole. **Pairing buys almost everything when both rules carry
+the same noise, and nothing when only one of them does.**
 
 ### What to learn
 
@@ -2172,6 +2178,15 @@ differences are far outside their intervals. Least-used costs 9.06 ± 0.59 in ti
 system and buys 68.93 ± 4.55 in imbalance. Whether that trade is worth making depends on
 whether the cost being managed is time or wear — a modelling question, not a library one.
 
+Read the imbalance column at the other end too, because it holds the one result here
+that argues against the obvious choice: **nearest-vehicle is the least even rule in the
+study.** About 70 completions separate its busiest cart from its idlest, against 47 for
+furthest-vehicle and 1 for least-used. The rule included in order to *be* bad spreads
+the work more evenly than the default does. That follows from what nearest-vehicle
+optimises — it never asks who has been working — and it is not something a throughput
+table could ever show you. A study that sized cart maintenance from this fleet would
+want that column and not the first one.
+
 **Batching is the exception, instructively.** It is the one rule that loses throughput
 detectably: 39.8 ± 7.3 loads, and 829 ± 113 time units of waiting. A window pays for
 itself when a fleet has slack and the board has choices to weigh; this fleet is
@@ -2179,12 +2194,15 @@ saturated, so the window delays every decision and the delay compounds. The rule
 broken — it is being asked to do the thing it is worst at, which is what a comparison is
 for.
 
-**And one check rather than a coincidence:** the instant auction reproduces
-nearest-vehicle **exactly** — a paired difference of zero with a half-width of zero, in
-throughput and in imbalance alike. With distance bidding the vehicles quote what the
-rule would have computed, so the negotiation machinery is shown not to change the answer
-by itself. The deadline row then shows what it costs once negotiating is charged for:
-9.95 ± 0.58 in time in system.
+**And one check rather than a coincidence:** the instant auction matches nearest-vehicle
+**exactly in throughput** — a paired difference of zero with a half-width of zero — and
+is indistinguishable from it in the other two without being identical: −0.016 ± 0.200 in
+time in system, −0.467 ± 1.712 in imbalance. Read those two rows carefully, because they
+say more than exact agreement everywhere would have. With distance bidding the vehicles
+quote what the rule would have computed, so the auction sometimes reaches a *different*
+assignment — and it costs nothing measurable. The negotiation machinery is shown not to
+change the answer, rather than shown not to act. The deadline row then shows what it
+costs once negotiating is charged for: 9.95 ± 0.58 in time in system.
 
 **`FurthestVehiclePolicy` is deliberately poor** and exists so that "nearest is better"
 can be a finding rather than an assertion — here, 15.05 ± 0.59 worse in time in system.

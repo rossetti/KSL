@@ -46,7 +46,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import java.io.PrintWriter
 
-/**
+/*
  *  The same shop under six dispatching rules, on common random numbers.
  *
  *  This is what the active paradigm is *for*. Deciding who goes where is a substitutable object, so
@@ -91,24 +91,42 @@ import java.io.PrintWriter
  *  and concluded that the rules were equivalent in throughput. The half-width on a single rule's
  *  throughput is about seven loads. Nothing on that page could have distinguished a real
  *  difference of five loads from no difference at all; the pairing can, and the pairing is what
- *  is reported now. *
+ *  is reported now.
+ *
  *  ## Reading the three tables
  *
- *  **Throughput.** The half-width on any one rule's delivered count is about seven loads, and the
- *  paired half-width is under one. Five of the six rules are indistinguishable from
- *  nearest-vehicle in throughput -- a finding here, and an assertion back when this example
- *  printed six unpaired averages. Batching is the exception and is detectably worse: on a
- *  saturated fleet the window delays every decision.
+ *  **Throughput.** Five of the six rules are indistinguishable in throughput -- a finding here,
+ *  and an assertion back when this example printed six unpaired averages. Batching is the sixth,
+ *  and is detectably worse: on a saturated fleet the window delays every decision.
+ *
+ *  The half-width on any one rule's delivered count is about seven loads; on the paired
+ *  differences it is under six tenths of a load -- for four of the five rows. Batching's is 7.3,
+ *  which is worth understanding rather than glossing. Pairing works by cancelling what the two
+ *  runs share, and what these runs share is the arrival stream. Batching's own throughput is
+ *  nearly deterministic -- its unpaired half-width is 0.23 -- so there is no arrival variability
+ *  on its side of the subtraction to cancel, and the difference inherits nearest-vehicle's
+ *  variance whole. Pairing buys almost everything when both rules carry the same noise, and
+ *  nothing when only one of them does.
  *
  *  **Time in system and imbalance** are where the rules actually differ, and both differences are
  *  far outside their intervals. Least-used trades time for evenness on purpose; furthest-vehicle
  *  is deliberately poor so that "nearest is better" can be measured rather than asserted.
  *
- *  **The instant auction reproduces nearest-vehicle replication for replication** -- a difference
- *  of zero with a half-width of zero. That is a check rather than a coincidence: with distance
- *  bidding the vehicles quote what the rule would have computed, so the negotiation machinery is
- *  shown not to change the answer by itself. The deadline row then shows what it costs once
- *  negotiating is charged for.
+ *  Read the imbalance column at the other end too, because it is the one result here that argues
+ *  against the obvious choice: **nearest-vehicle is the least even rule in the study.** Its
+ *  imbalance is about 70 completions between the busiest and idlest cart, against 47 for
+ *  furthest-vehicle and 1 for least-used. The rule included in order to be bad spreads the work
+ *  more evenly than the default does, which follows from what nearest-vehicle optimises -- it
+ *  never asks who has been working -- and is not a thing a throughput table would ever show.
+ *
+ *  **The instant auction matches nearest-vehicle exactly in throughput** -- a paired difference of
+ *  zero with a half-width of zero -- and is indistinguishable from it in the other two, but not
+ *  identical: time in system differs by -0.016 +/- 0.200 and imbalance by -0.467 +/- 1.712. That
+ *  is the check, and it is a better one than exact agreement everywhere would have been. With
+ *  distance bidding the vehicles quote what the rule would have computed, so the auction sometimes
+ *  reaches a different assignment and it costs nothing measurable: the negotiation machinery is
+ *  shown not to change the answer, rather than shown not to act. The deadline row then shows what
+ *  it costs once negotiating is charged for.
  *
  *  Where a table says no, the honest statement is "no detectable difference at this sample size",
  *  not "the rules are the same".

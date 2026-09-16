@@ -41,7 +41,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 
-/**
+/*
  *  A hospital on two floors, joined by a lift -- and there is no lift class anywhere in it.
  *
  *  A guide path routes on **declared link lengths**, never on coordinates, so nothing in the network
