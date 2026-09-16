@@ -265,6 +265,18 @@ val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
 results.showHTMLInBrowser(heldOut = receptionDeskHoldOut())
 ```
 
+**`heldOut` is optional.** Without it you get the same report minus one row — the held-out
+coverage line in the doubts section — and everything else is unchanged:
+
+```kotlin
+val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+results.showHTMLInBrowser()
+```
+
+Supply it when you can spare the data, though. That one row is the only check in the report
+that the data did not also choose the model for, and the rest of this part is about why that
+distinction matters.
+
 The plots and the written report side by side:
 
 ```kotlin

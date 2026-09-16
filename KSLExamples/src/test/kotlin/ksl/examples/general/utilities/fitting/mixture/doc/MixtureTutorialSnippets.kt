@@ -153,6 +153,11 @@ private object MixtureTutorialSnippets {
         results.showHTMLInBrowser(heldOut = receptionDeskHoldOut())
     }
 
+    fun theReportWithoutHeldOutData() {
+        val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
+        results.showHTMLInBrowser()
+    }
+
     fun theWholeStoryInOneReport() {
         val data = receptionDeskData()
         val modeler = MixtureModeler(data)
