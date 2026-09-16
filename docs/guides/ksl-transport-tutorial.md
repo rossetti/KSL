@@ -2256,7 +2256,6 @@ class RetaskingInFlightExample(
     ...
     name: String? = null
 
-    /** A square ring with a parking spur, so both pickups are the same distance from the depot. */
 
 
         .intersection("N", x = 0.0, y = 100.0)
@@ -2326,7 +2325,6 @@ class RetaskingInFlightExample(
         activate(Load("near", nearPickup).production, timeUntilActivation = nearArrivesAt)
     }
 
-    /** A square ring with a parking spur, so both pickups are the same distance from the depot. */
     private fun buildNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
         .intersection("N", x = 0.0, y = 100.0)
         .intersection("E", x = 100.0, y = 0.0)
@@ -2378,7 +2376,7 @@ private fun reportRetasking(title: String, shop: RetaskingInFlightExample) {
     println("  $title")
     for ((label, r) in shop.delivered) {
         println(
-            "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
+            "    %-6s in system %7.1f   waited %6.1f   reassignments %d".format(
                 label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
             )
         )
@@ -2421,7 +2419,7 @@ private fun reportRetasking(title: String, shop: RetaskingInFlightExample) {
     println("  $title")
     for ((label, r) in shop.delivered) {
         println(
-            "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
+            "    %-6s in system %7.1f   waited %6.1f   reassignments %d".format(
                 label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
             )
         )
@@ -2443,9 +2441,11 @@ Read the three calls as a designed experiment with two factors and three cells.
 - **Run 2** — `ReassigningPolicy(improvementThreshold = 20.0)`, near job at t = 2. At that
   instant the cart has travelled 20 and stands at `N`; its own pickup at `W` is 300 ahead
   and the new one at `E` is 100. The swap saves 200 and the rule takes it.
-- **Run 3** — the same policy, near job at t = 15. Now the cart is fifty units past `E`;
-  its own pickup is 150 ahead and the new one 350, all the way back round. The swap would
-  *cost* 200 and the rule declines.
+- **Run 3** — the same policy, near job at t = 15. The cart has travelled 150, twenty of
+  it the parking spur, so it is thirty units past `E`; its own pickup is 170 ahead and the
+  new one 370, all the way back round. The swap would *cost* 200 and the rule declines.
+  Anywhere on `ES` that gap is exactly 200 — a unit forward brings both pickups a unit
+  nearer — so run 3 is robust rather than finely tuned.
 
 **Run 3 is what makes run 2 a finding.** A policy that always swapped would produce run 2's
 numbers exactly and run 3's wrongly, and on a busy floor it would churn.
@@ -2489,16 +2489,33 @@ test or another example without going through a `main`.
 ### What it shows
 
 ```
+  Without re-tasking: the cart commits at t=0 and finishes what it started.
+    far    in system    62.0   waited   32.0   reassignments 0
+    near   in system   100.0   waited   90.0   reassignments 0
+    revocations: 0
+
   With re-tasking, near job at t=2 (worth 200 units): the cart is turned round.
-    near   delivered at    60.0   waited   50.0   reassignments 0
-    far    delivered at   102.0   waited   72.0   reassignments 1
+    near   in system    20.0   waited   10.0   reassignments 0
+    far    in system    62.0   waited   32.0   reassignments 1
     revocations: 1
 
   With re-tasking, near job at t=15 (would cost 200): the rule declines the swap.
-    far    delivered at    62.0   waited   32.0   reassignments 0
-    near   delivered at    87.0   waited   77.0   reassignments 0
+    far    in system    62.0   waited   32.0   reassignments 0
+    near   in system    87.0   waited   77.0   reassignments 0
     revocations: 0
 ```
+
+Read run 1 against run 2 column by column, because the comparison is sharper than
+"the near load did better". The near load goes from 100 to 20 — it is collected on
+the cart's first pass of `E` at t = 12 instead of after a full circuit — and **the far
+load is unchanged at 62**. Nobody pays for it. That is possible because the cart's
+total travel falls from 1020 to 620: serving the near pickup on the way past is not
+a reordering of the same work, it is less work.
+
+A re-tasking that merely reordered the two loads would show up here as far's figure
+rising by whatever near's fell, and it is worth knowing what that would have meant —
+that the cart was driving the same ground in a different order, and the threshold was
+buying nothing.
 
 ### What to learn
 

@@ -1020,6 +1020,18 @@ abstract class FleetSystem @JvmOverloads constructor(
                     // have left it somewhere else entirely, on a spur it was pushed to. The tour
                     // survives that because a tour names *stops*, not routes.
                     while (true) {
+                        // Asked before the leg as well as after it, and the "before" is what makes
+                        // re-tasking work rather than merely survive. A revocation re-aims the
+                        // body -- the space layer takes a second `beginTravelTo` as a redirection
+                        // and applies it at the next zone boundary -- but it does not rewrite this
+                        // tour, whose stops still belong to the task that was taken away. Without
+                        // this test the vehicle arrives where it was re-aimed, finds that the stop
+                        // it set off for is no longer its own, and then *drives* to each remaining
+                        // stale stop to discover the same thing about it, before starting its real
+                        // tour from wherever that left it. On a one-way ring that is a full lap per
+                        // re-tasking, and it shows up as a re-tasked vehicle reaching the new
+                        // pickup, passing it, and coming back round for it.
+                        if (!stillOurs(stop)) break
                         // beginTravelTo commands the body and returns whether a journey is under
                         // way. `this@VehicleAgent` is the waiter: the AGENT sits in the space
                         // layer's movement queue, never the load.

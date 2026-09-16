@@ -59,6 +59,13 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  swap -- the task never left the queue -- so a load that has been waiting longest still looks
  *  like one, and the fact that it was passed over is reported rather than absorbed.
  *
+ *  And note what the put-back load's figure does *not* do: it does not get worse. Run 1 delivers
+ *  `far` at 62 and `near` at 100; run 2 delivers `near` at 20 and `far` still at 62. Re-tasking
+ *  here is not a reordering that moves the waiting from one load to the other -- the cart's own
+ *  travel falls from 1020 to 620, because collecting at `E` on the way past is less driving than
+ *  going round for it afterwards. If a re-tasking ever shows one load improving by exactly what
+ *  another loses, the swap bought nothing and the threshold is the thing to look at.
+ *
  *  ## The layout, and why the arithmetic is unambiguous
  *
  *  A one-way ring of four legs of 100, with the cart parked on a spur off `N`.
@@ -75,9 +82,14 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  At **t = 2** the cart has travelled 20 and stands at `N`. Its own pickup at `W` is 300 ahead; the
  *  new one at `E` is 100. The swap saves 200 and is worth making.
  *
- *  At **t = 15** the cart has travelled 150 and is fifty units past `E`. Its own pickup at `W` is now
- *  150 ahead; the new one at `E` is 350, all the way back round the one-way ring. The swap is
- *  genuinely worse, and the rule declines it.
+ *  At **t = 15** the cart has travelled 150 -- twenty of it the parking spur -- so it is thirty
+ *  units past `E`. Its own pickup at `W` is now 170 ahead; the new one at `E` is 370, all the way
+ *  back round the one-way ring. The swap is genuinely worse, and the rule declines it.
+ *
+ *  Once the cart is anywhere on `ES` the gap is exactly 200 whatever the moment: going forward by a
+ *  unit brings `W` a unit nearer and `E` a unit nearer too, so the difference does not move. That is
+ *  why the second case is robust rather than finely tuned -- and it is the reason to state where the
+ *  cart actually is, since the figures either side of the gap do depend on it.
  *
  *  Both numbers come from the layout rather than from a confidence interval, which is what makes the
  *  second case worth running: without it, a rule that simply always swapped would look identical.
@@ -139,7 +151,14 @@ class RetaskingInFlightExample(
         activate(Load("near", nearPickup).production, timeUntilActivation = nearArrivesAt)
     }
 
-    /** A square ring with a parking spur, so both pickups are the same distance from the depot. */
+    /**
+     *  A square ring with a parking spur, one way round.
+     *
+     *  The two pickups are the same distance from the depot **as drawn** -- `E` and `W` are each
+     *  141 from `N` on the plane -- and 120 against 320 as *travelled*, because the ring runs one
+     *  way. The declared lengths are what a cart drives; the coordinates only place the stations
+     *  for a picture. That asymmetry is not incidental here, it is the whole example.
+     */
     private fun buildNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("Ring")
         .intersection("N", x = 0.0, y = 100.0)
         .intersection("E", x = 100.0, y = 0.0)
@@ -173,7 +192,7 @@ private fun reportRetasking(title: String, shop: RetaskingInFlightExample) {
     println("  $title")
     for ((label, r) in shop.delivered) {
         println(
-            "    %-6s delivered at %7.1f   waited %6.1f   reassignments %d".format(
+            "    %-6s in system %7.1f   waited %6.1f   reassignments %d".format(
                 label, r.totalTime, r.waitForAssignment + r.waitForArrival, r.numReassignments
             )
         )
