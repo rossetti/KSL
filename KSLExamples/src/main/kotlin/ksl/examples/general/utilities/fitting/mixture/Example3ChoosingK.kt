@@ -63,6 +63,8 @@ fun main() {
     println("charge per parameter, so they are reported side by side rather than combined.")
     println("Averaging them would manufacture an agreement the evidence does not support.")
     println()
-    println("Across the designed experiment the best of them recovers the true count under 40%")
-    println("of the time. Example 8 measures how stable the answer is on your own data.")
+    println("Recovering the true number of components is genuinely hard. On data where the truth")
+    println("is known, the best of these criteria gets it right well under half the time, so a")
+    println("single fit's answer deserves less confidence than its precision suggests. Example 8")
+    println("measures how stable the answer is on your own data.")
 }

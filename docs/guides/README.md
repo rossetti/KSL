@@ -81,6 +81,8 @@ web console.
 | [`ksl-utilities-distributions`](ksl-utilities-distributions.md) | The distribution catalog and `CDFIfc` |
 | [`ksl-utilities-distributions-fitting`](ksl-utilities-distributions-fitting.md) | PDF / distribution fitting |
 | [`ksl-metalog`](ksl-metalog.md) | The metalog family: fitting, elicitation from quantiles, when not to use one |
+| [`ksl-mixture`](ksl-mixture.md) | Fitting a mixture of distributions to multimodal data: the modeler, the five pieces behind it, and how much to trust the component count |
+| [`ksl-mixture-tutorial`](ksl-mixture-tutorial.md) | **Start here for mixtures.** Eight runnable steps on one shipped dataset: why one distribution is not enough, fitting a mixture, choosing k, taking the facade apart, judging the result against a known truth, and asking whether the answer survives resampling |
 | [`ksl-utilities-statistic`](ksl-utilities-statistic.md) | `Statistic`, `WeightedStatistic`, `TimeWeighted`, batch-means |
 
 ## I/O, reporting, decision analysis
