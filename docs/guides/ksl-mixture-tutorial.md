@@ -20,6 +20,18 @@ it into the Distribution app; every run of every example sees the same numbers.
 The runnable files are in
 `KSLExamples/src/main/kotlin/ksl/examples/general/utilities/fitting/mixture/`.
 
+**The output shown throughout is real.** Every figure below was produced by running the example
+named at the head of its part, against the shipped data.
+
+The fitting is deterministic, so Parts II through VII reproduce exactly: the data is a file rather
+than a fresh draw, and the same data gives the same fit. `MixtureTutorialNumbersTest` re-derives
+those headline figures on every build, so a number here that stops being true is a failing test
+rather than a stale document.
+
+**Part VIII is the exception, deliberately.** Bootstrapping draws fresh resamples on each run, so
+its percentages move — and Part VIII shows two runs side by side, because that movement is part of
+what it is trying to teach.
+
 ---
 
 ## Table of contents
@@ -77,7 +89,37 @@ println(results)
 
 The modeler sorts the data, cuts it into contiguous groups, fits every family in the catalog to
 each group, assembles the best combination, and repeats that for each component count you asked
-for.
+for. Here is what it says:
+
+```text
+MixtureModelingResults
+  certificate: AdmissibilityCertificate(n=400, distinct=400, minGroupSize=5, minDistinct=2, maxFeasibleGroups=80)
+  candidates evaluated: 6
+  cache hit rate: 0.765
+  recommended k = 5
+  better than the best single distribution by 123.536 BIC
+  MixtureCandidate(k=5, p=14)
+  w=0.5250  n=210  Gamma(shape=24.786637396978193, scale=0.12307388987685326)
+  w=0.2075  n=83  Uniform(minimum=4.920089602927546, maximum=9.53950208083152)
+  w=0.1400  n=56  Uniform(minimum=9.390685635192964, maximum=15.379140470251254)
+  w=0.0875  n=35  Uniform(minimum=16.080074627721352, maximum=22.93585098488488)
+  w=0.0400  n=16  Lognormal(mean=26.868755218244363, variance=1.903303378770423)
+```
+
+**Read the second line of that first.** It recommends **five** components. The data was generated
+from **three**. This is not a contrived failure — it is the ordinary behaviour of the method, on
+clean simulated data, with the truth comfortably inside the range searched. Everything after this
+point in the tutorial is about understanding that gap rather than apologising for it.
+
+Now read the first component: `Gamma(shape=24.79, scale=0.1231)`. A gamma's mean is shape times
+scale, which is 3.05, and its variance is shape times scale squared, which is 0.376. The true first
+component was `Normal(3.0, 0.36)`. **The family label is wrong and the density is very nearly
+exact** — a gamma with large shape is indistinguishable from a normal. Hold on to that: it is the
+single most important thing this method does and does not do.
+
+The other components tell the rest of the story. The true `Lognormal(9, 12)` has been carved into
+three uniform slabs, because the partition is contiguous and a long skewed component covers a lot
+of number line. Nothing went wrong; the shape of the search produced it.
 
 The recommendation comes apart into its components:
 
@@ -89,6 +131,25 @@ for (j in 0 until mixture.numComponents) {
     println("component ${j + 1}: weight = ${mixture.weights[j]}, ${mixture.components[j].name}")
 }
 ```
+
+The score at each component count is the evidence behind that choice of five:
+
+```text
+Best score at each number of components
+---------------------------------------
+  k = 1:  2244.293
+  k = 2:  2222.152
+  k = 3:  2124.958
+  k = 4:  2125.360
+  k = 5:  2120.756  <-- recommended
+  k = 6:  2133.720
+```
+
+Going from one component to three buys 119 BIC. Going from three to five buys **4.2** more. The
+recommendation is not wrong by its own rule — 2120.756 really is the smallest — but it is winning a
+race that was over at k = 3. A difference of four on this scale is not evidence, and reporting
+"five components" as though it were settled would be reading far more into the number than it
+carries.
 
 **The payoff is that the result is an ordinary KSL distribution.** It has a mean, a CDF, an
 inverse CDF, and it will hand you a random variable to drive a simulation — which is usually the
@@ -120,6 +181,32 @@ afterwards:
 val results = MixtureModeler(receptionDeskData()).fit(numComponentsRange = 1..6)
 println(results.criterionSummary())
 ```
+
+```text
+  k =                  1           2           3           4           5           6
+  AIC             2236.3      2202.2      2089.0      2081.5      2064.9      2065.9
+  HQC             2239.5      2210.1      2103.3      2098.8      2087.0      2092.7
+  BIC             2244.3      2222.2      2125.0      2125.4      2120.8      2133.7
+  ICL-BIC         2244.3      2277.0      2141.9      2140.5      2137.3      2157.9
+  EBIC            2246.5      2226.5      2131.5      2134.1      2131.7      2146.9
+
+  AIC        chooses k = 5
+  HQC        chooses k = 5
+  BIC        chooses k = 5
+  ICL-BIC    chooses k = 5
+  EBIC       chooses k = 3
+```
+
+Four of the five choose k = 5. **EBIC chooses k = 3, and EBIC is the one that is right** — it
+charges extra for having selected the component families from a catalog, which is exactly what
+happened here. That is worth noticing and worth not over-reading: one criterion agreeing with the
+truth on one dataset is not a reason to adopt it and ignore the rest. What the table actually shows
+is that the answer depends on which penalty you chose, which is a fact about the question rather
+than about these five candidates.
+
+Look along the BIC row rather than at its minimum: 2125.0, 2125.4, 2120.8. Three values within 5 of
+one another. The criteria are not disagreeing because one is broken; they are disagreeing because
+the data does not distinguish these models.
 
 Two things to look for, and the second is easy to miss:
 
@@ -177,9 +264,36 @@ val classified = ClassificationEMRefiner().refine(sorted, initial, certificate, 
 `BreakShiftRefiner` nudges one cut at a time and keeps a move if it helps. `ClassificationEMRefiner`
 solves the assignment problem *exactly* with a dynamic program, refits, and repeats.
 
-You would expect the exact one to win. Often it does not — solving one sub-problem perfectly is
-not the same as solving the whole problem. Run the example and see which wins on this data, then
-remember that one dataset settles nothing.
+You would expect the exact one to win. On this data it does not even move:
+
+```text
+Starting point (Jenks)
+  cut positions : 249, 349
+  group sizes   : 249, 100, 51
+  BIC           : 2174.381
+
+After BreakShiftRefiner (local search, 7 iterations, CONVERGED)
+  cut positions : 224, 353
+  group sizes   : 224, 129, 47
+  BIC           : 2124.958
+
+After ClassificationEMRefiner (exact reassignment, 1 iterations, CONVERGED)
+  cut positions : 249, 349
+  group sizes   : 249, 100, 51
+  BIC           : 2174.381
+```
+
+The crude local search improves the starting point by 49 BIC. The exact refiner converges in one
+iteration back to exactly where it started, having changed nothing.
+
+That is not a bug, and it is worth understanding. `ClassificationEMRefiner` answers the question
+"given these components, which contiguous grouping is best?" perfectly. But the components are
+themselves refitted from the grouping, so the fixed point it converges to is the one it began at —
+it is solving a sub-problem exactly rather than the problem. `BreakShiftRefiner`, which has no such
+guarantee, moves a cut, refits, and discovers the move was worth it.
+
+Whichever wins on your data, one dataset settles nothing: these two trade places depending on the
+shape of the data.
 
 ---
 
@@ -203,7 +317,38 @@ println(recovery.hellinger)
 println(recovery.numComponentsCorrect)
 ```
 
-**Did it identify the right components?** Usually not.
+```text
+Question 3: how close is the density?
+-------------------------------------
+  Hellinger distance  = 0.13290   (0 = identical, 1 = disjoint)
+  L1 distance         = 0.16760
+  Kolmogorov distance = 0.04064
+
+  true mean     = 8.1000     fitted mean     = 7.6173
+  true variance = 53.4200     fitted variance = 42.7617
+```
+
+A Hellinger distance of 0.13 on a scale where 1 means disjoint, and a Kolmogorov distance of 0.04,
+mean the fitted density tracks the true one closely. The mean is 6% low and the variance 20% low,
+the latter because the three uniform slabs standing in for a lognormal have thinner tails than the
+thing they replaced.
+
+**Did it identify the right components?** Usually not — and here, not:
+
+```text
+Question 2: did it find the right families?
+-------------------------------------------
+  j    true family    fitted family    true w    fit w
+  1    Normal         Gamma             0.500    0.525
+  2    Lognormal      Uniform           0.350    0.208
+  3    Uniform        Uniform           0.150    0.140
+  4    —              Uniform               —    0.088
+  5    —              Lognormal             —    0.040
+```
+
+One family of three matched. The first row is the near-exact gamma standing in for a normal from
+Part II — counted as a miss by the label, though the density is right. **This is the finding, in
+one table: the density is good and the decomposition is not.**
 
 That distinction decides what the method is good for. For input modelling — generating service
 times that behave like the real ones — the first question is the one that matters. For claiming
@@ -326,8 +471,50 @@ val boot = MixtureBootstrap.componentCountFrequency(
 println(boot)
 ```
 
+```text
+  resamples       : 100, of which 100 produced a recommendation
+  distinct values : 253 per resample on average, against 400 in the data
+
+  recommended number of components across resamples:
+    k = 3        3    3.0%  #
+    k = 4       12   12.0%  ####
+    k = 5       61   61.0%  ########################
+    k = 6       24   24.0%  #########
+
+  most often recommended: k = 5, on 61.0% of resamples
+```
+
 A single tall bar means the component count is well determined by the data. Several comparable
 bars mean it is not, and any single number you quote from one fit is one draw from that spread.
+
+**Now read it against the truth, which is three.** k = 5 wins 61% of resamples and k = 3 wins 3%.
+The bar chart is fairly firm, and it is firmly pointing at the wrong answer.
+
+Run it again and the numbers move, because each run draws fresh resamples:
+
+```text
+    k = 3        7    7.0%  ##
+    k = 4       16   16.0%  ######
+    k = 5       55   55.0%  ######################
+    k = 6       22   22.0%  ########
+
+  most often recommended: k = 5, on 55.0% of resamples
+```
+
+61% and 55% from two runs of the same procedure on the same data. The conclusion is unchanged and
+the second decimal place was never meaningful — worth knowing before you quote one of these
+percentages in a report. Pass `streamNum` to `componentCountFrequency` if you need a run you can
+reproduce exactly.
+
+That is the most useful thing in this tutorial. **A bootstrap measures how much the data pin down
+the procedure's answer, not whether the answer is right.** A tight distribution means you would get
+the same answer from another sample; it says nothing about whether that answer corresponds to
+anything real. Reported without that caveat, "k = 5, stable across 100 resamples" sounds like
+strong evidence for five mechanisms, and it is not evidence for that at all.
+
+The family table in the same output makes the identifiability problem concrete — among resamples
+choosing k = 5, the first component came back as Normal 27 times, Gamma 21 times and Weibull 5
+times. Those are three names for very nearly the same fitted density.
 
 There is a second version, which samples from the fitted mixture itself rather than from the data:
 

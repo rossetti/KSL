@@ -105,16 +105,16 @@ fun main() {
         println("  It is undefined because at least one held-out value fell where the fitted")
         println("  mixture has no density at all. A mixture built from bounded pieces — uniform,")
         println("  triangular, beta — covers a union of intervals, not the whole line, and fresh")
-        println("  data can land in a gap between them. The report treats how much data falls in")
-        println("  such gaps as a result in its own right rather than as a nuisance.")
+        println("  data can land in a gap between them. Treat how much data falls in such gaps")
+        println("  as a result in its own right rather than as a nuisance.")
     }
     println()
 
     println("What to take from this")
     println("----------------------")
     println("A small Hellinger distance with the wrong families is the normal outcome, not a")
-    println("surprise. The report measures it across the whole design: density recovery is good,")
-    println("family recovery is under 50% even when the component count is right.")
+    println("surprise, and the two questions above are why. Density recovery is good; family")
+    println("recovery is under 50% even when the component count is right.")
     println()
     println("Example 6 shows how to run this on data of your own.")
 }
