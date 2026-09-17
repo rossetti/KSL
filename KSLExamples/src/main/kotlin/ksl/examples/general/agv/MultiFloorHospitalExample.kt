@@ -99,7 +99,16 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *
  *  Identical in every respect except that the ride is 2 time units instead of 8, with the corridors
  *  lengthened to keep the circuit at 400. One porter is therefore no faster than before, and that is
- *  the control: any difference in the table belongs to the shaft's capacity and to nothing else.
+ *  the control: any difference of consequence in the table belongs to the shaft's capacity.
+ *
+ *  Not *every* difference, and the exception is worth stating rather than rounding away. At three
+ *  and four porters, where the shaft binds in neither study, the fast lift is fractionally the
+ *  worse of the two -- 7.457 against 7.486, 9.943 against 10.000. The half-widths are 0.00, so this
+ *  is deterministic rather than noise, and it is about four parts in a thousand. Holding the
+ *  circuit at 400 equalises the distance a porter travels; it does not equalise how that distance is
+ *  cut into zones, and a 120-unit corridor has more boundaries to negotiate than a 60-unit one. It
+ *  is far too small to touch anything the studies conclude, and it is not the same kind of fact as
+ *  the ceiling.
  *
  *  ## Why the orders recirculate
  *
@@ -152,10 +161,33 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *  is also why cycle time here is a number about the hospital rather than about the length of the
  *  run.
  *
- *  The warnings above each table are the horizon diagnostics doing their job and finding nothing
- *  wrong. A closed system necessarily has its whole population outstanding when the clock stops, so
- *  those counts never exceed the orders-out column -- which is exactly the reading that would tell
- *  you something was wrong if they did.
+ *  ## The warnings above each table
+ *
+ *  Both sweeps print several of these before their table, and they are worth reading rather than
+ *  scrolling past:
+ *
+ *  ```
+ *  WARN GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 1 ended.
+ *       The guide path may have stopped moving rather than run out of work.
+ *    (Porter2:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter1:Body)
+ *  ```
+ *
+ *  That is the space layer's blocked-transporter check, and it is a genuinely useful one: a guide
+ *  path that has seized up looks exactly like this, and on most models a porter still waiting at the
+ *  horizon is a question worth asking. Here it is not a question, it is **the answer**. Study 2
+ *  exists to show that porters past the fifth queue instead of delivering, so a run that ended with
+ *  none of them queueing would mean the study had failed to load the shaft at all.
+ *
+ *  Read the named pair rather than the count. `Porter2` waiting on `G3`, which `Porter1` holds, is
+ *  one porter behind another in the ordinary way, and it resolves as soon as `Porter1` moves. What
+ *  would be alarming is a *cycle* -- two porters each holding what the other waits for -- and the
+ *  space reports deadlocks separately (`NumDeadlocksDetected`, zero throughout here) rather than
+ *  leaving you to spot one in this list.
+ *
+ *  The entity-side counts are the other half and are quiet for a different reason. A closed system
+ *  necessarily has its whole population outstanding when the clock stops, so those never exceed the
+ *  orders-out column -- which is exactly the reading that would tell you something was wrong if
+ *  they did.
  *
  *  ## What none of this needed
  *
@@ -302,9 +334,11 @@ private fun createHospitalNetwork(shaftLength: Double): GuidedPathNetwork {
         .station(lobby, "G1")
         .station(ward, "G2")
         .station(pharmacy, "F2")
-    // A spur per porter. Without one, porters "at the lobby" would be several vehicles in one
-    // zone, which a guide path does not allow -- and a porter left standing on the circuit
-    // would deny that space to everyone else for the rest of the run.
+    // Parking for the largest fleet studied, whatever this configuration runs -- so the network is
+    // the same object at every fleet size and a sweep over porters really is a sweep over porters.
+    // A spur each rather than a shared lobby because porters "at the lobby" would be several
+    // vehicles in one zone, which a guide path does not allow, and a porter left standing on the
+    // circuit would deny that space to everyone else for the rest of the run.
     for (i in 1..maxPorters) {
         builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
             .link(
@@ -327,9 +361,15 @@ private fun ordersFor(numPorters: Int): Int = numPorters + 2
 private fun throughputPer100(deliveries: Double): Double = 100.0 * deliveries / (horizon - warmUp)
 
 /**
- *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because
- *  the fleet size is structural -- the network carries one parking spur per porter -- so this
- *  is a runner over model instances rather than over control values.
+ *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because the
+ *  fleet size is structural: `numPorters` decides how many [AgvVehicle] elements the model builds,
+ *  and a model element cannot be added to a model that has already been built. So this is a runner
+ *  over model instances rather than over control values, and no [ksl.controls.KSLControl] could
+ *  make it otherwise.
+ *
+ *  The *network* is not what makes it structural. It carries parking for the largest fleet studied
+ *  in every configuration, which is deliberate: the layout is then identical across the sweep, and
+ *  a difference between two rows cannot be a difference between two networks.
  */
 private fun buildHospitalRunner(name: String, shaftLength: Double, sizes: List<Int>): ScenarioRunner {
     val runner = ScenarioRunner(name)
@@ -370,7 +410,7 @@ private fun fleetTable(title: String, name: String, shaftLength: Double, sizes: 
     runner.write()
     println("  $title")
     println(
-        "  a ride costs %.1f time units, so the shaft passes at most %.2f porters per 100"
+        "  a ride costs %.1f time units, so the shaft passes at most %.2f deliveries per 100"
             .format(rideTime, 100.0 / rideTime)
     )
     println()

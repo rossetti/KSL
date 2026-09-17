@@ -2676,9 +2676,11 @@ private fun createHospitalNetwork(shaftLength: Double): GuidedPathNetwork {
         .station(lobby, "G1")
         .station(ward, "G2")
         .station(pharmacy, "F2")
-    // A spur per porter. Without one, porters "at the lobby" would be several vehicles in one
-    // zone, which a guide path does not allow -- and a porter left standing on the circuit
-    // would deny that space to everyone else for the rest of the run.
+    // Parking for the largest fleet studied, whatever this configuration runs -- so the network is
+    // the same object at every fleet size and a sweep over porters really is a sweep over porters.
+    // A spur each rather than a shared lobby because porters "at the lobby" would be several
+    // vehicles in one zone, which a guide path does not allow, and a porter left standing on the
+    // circuit would deny that space to everyone else for the rest of the run.
     for (i in 1..maxPorters) {
         builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
             .link(
@@ -2903,9 +2905,15 @@ private fun ordersFor(numPorters: Int): Int = numPorters + 2
 private fun throughputPer100(deliveries: Double): Double = 100.0 * deliveries / (horizon - warmUp)
 
 /**
- *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because
- *  the fleet size is structural -- the network carries one parking spur per porter -- so this
- *  is a runner over model instances rather than over control values.
+ *  One scenario per fleet size, all on the same lift. Every scenario is a fresh model because the
+ *  fleet size is structural: `numPorters` decides how many [AgvVehicle] elements the model builds,
+ *  and a model element cannot be added to a model that has already been built. So this is a runner
+ *  over model instances rather than over control values, and no [ksl.controls.KSLControl] could
+ *  make it otherwise.
+ *
+ *  The *network* is not what makes it structural. It carries parking for the largest fleet studied
+ *  in every configuration, which is deliberate: the layout is then identical across the sweep, and
+ *  a difference between two rows cannot be a difference between two networks.
  */
 private fun buildHospitalRunner(name: String, shaftLength: Double, sizes: List<Int>): ScenarioRunner {
     val runner = ScenarioRunner(name)
@@ -2929,9 +2937,15 @@ never waits for one and no more, so the fleet is what is being measured rather t
 supply. Holding the population fixed while sweeping the fleet would starve the small fleets or
 flood the large ones.
 
-`buildHospitalRunner` makes one scenario per fleet size. The fleet size is structural — the network
-carries one parking spur per porter — so this is a runner over **model instances** rather than
-over control values, exactly as in cases 1 and 4.
+`buildHospitalRunner` makes one scenario per fleet size. The fleet size is structural — `numPorters`
+decides how many `AgvVehicle` elements the model builds, and a model element cannot be added to a
+model that is already built — so this is a runner over **model instances** rather than over control
+values, exactly as in cases 1 and 4. No control could make it otherwise.
+
+The network is *not* what makes it structural, which is worth being clear about because the code
+looks as though it might be. It lays down parking for the largest fleet studied in every
+configuration, so the layout is identical at every fleet size and a difference between two rows of
+the table cannot be a difference between two networks.
 
 #### 6. Running the studies
 
@@ -2961,7 +2975,7 @@ private fun fleetTable(title: String, name: String, shaftLength: Double, sizes: 
     runner.write()
     println("  $title")
     println(
-        "  a ride costs %.1f time units, so the shaft passes at most %.2f porters per 100"
+        "  a ride costs %.1f time units, so the shaft passes at most %.2f deliveries per 100"
             .format(rideTime, 100.0 / rideTime)
     )
     println()
