@@ -91,9 +91,13 @@ import ksl.utilities.random.rvariable.UniformRV
  *  **Study 1 sweeps the fleet on the two-lane grid**, and finds three things:
  *
  *  1. **Throughput plateaus.** Around six carts the completion count stops rising in any way worth
- *     paying for -- the last four carts buy a gain smaller than the interval around it. A free-path
- *     model would go on rewarding every cart added, for ever, because nothing in it can represent
- *     an aisle. Where the reward stops is the number a fleet-sizing study exists to find.
+ *     paying for. The last four carts buy 1.6 deliveries against intervals summing to 0.9, so the
+ *     gain is **real and negligible** -- and those are different verdicts, which is why the run
+ *     prints which one it reached rather than asserting either. A gain inside the intervals would
+ *     be "not distinguishable from none"; this one is outside them and still not worth four carts.
+ *     A free-path model would go on rewarding every cart added, for ever, because nothing in it
+ *     can represent an aisle. Where the reward stops is the number a fleet-sizing study exists to
+ *     find.
  *  2. **The carts you add past that are not idle -- they are blocked.** Fleet time blocked roughly
  *     triples between six carts and ten while throughput does not move. Buying vehicles past the
  *     plateau buys congestion.
@@ -112,9 +116,13 @@ import ksl.utilities.random.rvariable.UniformRV
  *
  *  **Study 2 asks what the second lane bought**, by running the same building with single
  *  bidirectional aisles. A bidirectional link is *one* lane used by one direction at a time under a
- *  direction lock, and here it deadlocks at **two** carts -- against twelve for the two-lane
- *  layout. That is what the second lane is worth on this building, stated as the fleet size each
- *  design can carry rather than as an opinion about aisle width.
+ *  direction lock, and here it deadlocks at **two** carts, where the two-lane layout ran to
+ *  twelve before it did.
+ *
+ *  Those are the thresholds at which each design fails; the number a study wants is the one below
+ *  it. Single two-way aisles **carry one cart**; paired one-way lanes **carry ten** -- which is
+ *  what the run prints, and what the second lane is worth on this building, stated as a fleet size
+ *  rather than as an opinion about aisle width.
  *
  *  A run that deadlocks **raises**, which is deliberate: the model is valid and the answer is "this
  *  configuration deadlocks", which is often the finding a study is after. Both sweeps catch it and
@@ -133,17 +141,44 @@ import ksl.utilities.random.rvariable.UniformRV
  *  junction node; where they genuinely cross, sharing a node is the honest model. See
  *  `JunctionOccupancyTest` for both, measured.
  *
- *  The horizon warnings above the tables are the closing audit doing its job, not a fault: each
- *  replication ends with carts mid-delivery and loads still waiting, which is what an over-loaded
- *  warehouse looks like when the clock stops. The deadlock reports are logged at ERROR by the space
- *  layer at the point of detection, so they appear before the table that records the design point
- *  as infeasible -- read the tables last.
+ *  ## The noise above the tables, and which of it matters
+ *
+ *  A run of this example prints a great deal before its first table, and almost none of it is a
+ *  fault. Read the tables last, and read the rest as three separate things.
+ *
+ *  **The blocked-transporter warning**, from the space layer, many times over: `N transporter(s)
+ *  were still waiting when replication N ended`. Demand here is above capacity on purpose, so
+ *  every replication ends with carts queueing and loads outstanding. That is what an over-loaded
+ *  warehouse looks like when the clock stops, and a run of study 1 that ended otherwise would mean
+ *  the building had not been loaded at all.
+ *
+ *  **The bidirectional-link advisory**, from the network, once per study-2 configuration:
+ *  `Two transporters meeting head on cannot pass, so these are the usual source of deadlock.
+ *  Prefer a pair of unidirectional links where the layout allows it.` The advice is correct and
+ *  study 2 is deliberately ignoring it -- that is the entire point of study 2, which exists to put
+ *  a number on what following that advice is worth. A reader who takes the warning at face value
+ *  here would conclude the study was misconfigured, when in fact it is the experiment.
+ *
+ *  **The deadlock reports, twice each.** The space layer logs the cycle at ERROR at the point of
+ *  detection, which is the part worth reading: it names every participant and so says whether the
+ *  cycle closed through a lane or through the junctions. The model then logs its own much longer
+ *  block -- `A RuntimeException occurred near this event`, the report again, and a page of
+ *  replication state, including an `Elapsed Execution Time` of some tens of millions of days,
+ *  which is the aborted-run clock rather than a measurement. Four design points deadlock here, so
+ *  that block appears four times. It looks like a crash and is not one: the exception is caught
+ *  below, the design point is recorded as infeasible, and the sweep carries on.
  */
 class TwoLaneWarehouseExample(
     parent: ModelElement,
     private val numCarts: Int,
     twoLane: Boolean,
     name: String,
+    // Nine, and the studies below pass three. Both are deliberate and the difference is the
+    // point. The studies want demand *above* capacity so that the building is what limits the
+    // answer, which costs them a time in system that is partly a fact about the horizon. The
+    // default is for a caller who wants the warehouse stable -- the vehicle-examples catalog
+    // builds it this way and nominates this mean as a parameter to sweep, and a starting point
+    // whose queues grow without bound would make every output there a function of run length.
     private val meanTBA: Double = 9.0
 ) : ProcessModel(parent, name) {
 

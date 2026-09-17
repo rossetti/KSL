@@ -3648,6 +3648,19 @@ Both sweeps catch it and record the design point as infeasible. Do not "fix" it
 by disabling detection — the run would still deadlock and would simply stop
 saying so.
 
+**What the console looks like while that happens** is worth knowing before you
+run it, because most of it is not a fault. Every replication ends with carts
+queueing, so the space layer's blocked-transporter warning fires throughout —
+demand is above capacity on purpose, and a run that ended otherwise would mean
+the building was never loaded. Study 2 also draws the network's advisory that
+bidirectional links are the usual source of deadlock: correct advice, which
+study 2 exists to ignore in order to price it. And each of the four deadlocked
+design points logs the cycle twice — once from the space layer, which is the copy
+to read, and once from the model as a `RuntimeException occurred near this event`
+block with a page of replication state and an `Elapsed Execution Time` of tens
+of millions of days, which is the aborted-run clock rather than a measurement.
+It looks like a crash. The sweep catches it and carries on.
+
 ---
 
 ## 8. A dispatcher with no aisles
