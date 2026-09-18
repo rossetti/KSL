@@ -18,6 +18,8 @@
 
 package ksl.examples.general.agv
 
+import ksl.examples.general.guidedpath.benchmarkColumns
+import ksl.examples.general.guidedpath.benchmarkRows
 import ksl.examples.general.guidedpath.createBenchmarkTorus
 import ksl.examples.general.guidedpath.runGuidedPathBenchmark
 import ksl.modeling.agv.AgvSystem
@@ -52,12 +54,30 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  A large gap would mean the two subsystems are not moving the same vehicles over the same aisles,
  *  which would make every other comparison between them suspect.
  *
+ *  That first question is what the **events per traversal** row answers, and it answers it by
+ *  coming out identical: 1.007 on both sides, run after run. It has to, and that is the point of
+ *  reading it -- `AgvSystem.numEventsScheduled` delegates to the *space* layer's counter, so both
+ *  paradigms are being asked how many events it took to move vehicles over zones, and the same
+ *  answer means the same movement. A gap here would mean the aisles were being walked differently.
+ *
  *  The second is **what deciding costs**. The passive fleet is dispatched by a rule evaluated
  *  inside the asking entity's own process; here a dispatcher agent wakes, considers the board, and
  *  awards. That is strictly more machinery, and the honest thing to do with it is measure it rather
- *  than assert it is cheap. Events per zone traversal is where it shows up: the passive engine's
- *  floor is one, and whatever this reports above that is the price of having somewhere to put a
- *  dispatching decision.
+ *  than assert it is cheap.
+ *
+ *  **It does not show up in events per traversal, and it cannot.** That counter is the space
+ *  layer's; a dispatcher's own events are not in it. The executive counts every event in the run,
+ *  but those totals are internal to the library, so this benchmark has no count of dispatching
+ *  work to report. What it has is the **wall-clock ratio**, and that is worth more here than a
+ *  wall-clock figure usually is: both halves are run back to back inside one JVM by
+ *  [reportAgvBenchmark], so the machine, the heap and the JIT state are shared and only the
+ *  paradigm differs. Three runs on this container measured active/passive at 1.39, 1.65 and 1.74.
+ *  Deciding costs something like half again as much wall clock for the same movement, and the
+ *  spread across those three is a fair statement of how precisely a single pair of runs can say it.
+ *
+ *  Read the ratio, not the two figures it is made of. The absolute seconds move by more than the
+ *  ratio does -- the passive half alone has measured 1.21, 1.53 and 2.24 s on the same container --
+ *  which is exactly why a comparison held inside one process is the one to trust.
  *
  *  ## Saturation, expressed the way this paradigm expresses work
  *
@@ -73,9 +93,9 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  ever runs. Choosing a rule that would send vehicles home would measure a repositioning that a
  *  saturated fleet never does.
  *
- *  The invariant harness is off, as it is there, because it walks every zone and leaving it on
- *  would benchmark the harness. Deadlock detection is left **on**, because that is the configuration
- *  a model actually runs in.
+ *  The invariant harness and the link statistics are both off, as they are there, because each
+ *  walks every zone and leaving either on would benchmark it rather than the engine. Deadlock
+ *  detection is left **on**, because that is the configuration a model actually runs in.
  *
  *  ## Why this reports no confidence intervals
  *
@@ -89,8 +109,8 @@ class AgvThroughputBenchmark(
     private val numLoads: Int = 40,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
-    private val rows: Int = 4,
-    private val columns: Int = 5,
+    private val rows: Int = benchmarkRows,
+    private val columns: Int = benchmarkColumns,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
@@ -156,16 +176,23 @@ class AgvThroughputBenchmark(
  *  measurements are of one layout and stay that way.
  */
 private fun createAgvBenchmarkNetwork(
-    rows: Int = 4,
-    columns: Int = 5,
+    rows: Int = benchmarkRows,
+    columns: Int = benchmarkColumns,
     networkName: String = "BenchmarkTorus"
 ): GuidedPathNetwork = createBenchmarkTorus(rows = rows, columns = columns, networkName = networkName)
 
-/** What one run measured. The same three quantities the passive benchmark reports. */
+/**
+ *  What one run measured: the three quantities the passive benchmark also reports, plus two this
+ *  paradigm has and it does not -- the tasks its dispatcher completed, and how much of the fleet
+ *  was idle. The second is here to check this file's own claim that a standing population of forty
+ *  loads keeps twenty vehicles busy; a saturated fleet should leave it at or near zero, and a
+ *  benchmark of a fleet that was partly idle would understate the engine while looking fine.
+ */
 private data class AgvBenchmarkResult(
     val zoneTraversals: Double,
     val eventsScheduled: Double,
     val tasksCompleted: Double,
+    val meanVehiclesIdle: Double,
     val wallClockSeconds: Double
 ) {
     val traversalsPerWallClockMinute: Double
@@ -184,7 +211,12 @@ private data class AgvBenchmarkResult(
 private fun runAgvBenchmark(replicationLength: Double = 200_000.0, replications: Int = 1): AgvBenchmarkResult {
     val m = Model("AgvThroughputBenchmark")
     val fleet = AgvThroughputBenchmark(m, name = "SaturatedFleet")
+    // Both, though only the first has to be: `checkInvariants` is initialised from a system
+    // property and so can arrive switched on, while `collectLinkStatistics` merely defaults to
+    // false. Stating both means a later change of default cannot quietly turn this into a
+    // measurement of the diagnostic.
     fleet.agv.checkInvariants = false
+    fleet.agv.collectLinkStatistics = false
     m.numberOfReplications = replications
     m.lengthOfReplication = replicationLength
     val started = System.nanoTime()
@@ -194,6 +226,7 @@ private fun runAgvBenchmark(replicationLength: Double = 200_000.0, replications:
         zoneTraversals = fleet.agv.numZoneTraversals.value,
         eventsScheduled = fleet.agv.numEventsScheduled.value,
         tasksCompleted = fleet.agv.dispatcher.numTasksCompleted.value,
+        meanVehiclesIdle = fleet.agv.numVehiclesIdle.acrossReplicationStatistic.average,
         wallClockSeconds = elapsed
     )
 }
@@ -211,7 +244,7 @@ private fun reportAgvBenchmark() {
     println()
     println("AGV throughput benchmark - reference configuration, both paradigms")
     println(
-        "  network            : 4 x 5 torus, " +
+        "  network            : $benchmarkRows x $benchmarkColumns torus, " +
                 "${described.intersections.size} intersections, ${described.links.size} links, " +
                 "${described.zones.size} zones"
     )
@@ -251,6 +284,11 @@ private fun reportAgvBenchmark() {
         )
     )
     println("  %-22s %18s %18s".format("tasks completed", "%,.0f".format(active.tasksCompleted), "--"))
+    println(
+        "  %-22s %18s %18s".format(
+            "vehicles idle (mean)", "%.3f".format(active.meanVehiclesIdle), "--"
+        )
+    )
     println()
     println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
     println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")

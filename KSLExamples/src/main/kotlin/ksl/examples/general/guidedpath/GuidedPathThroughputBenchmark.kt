@@ -29,6 +29,17 @@ import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.ConstantRV
 
 /**
+ *  The reference configuration's dimensions.
+ *
+ *  Named rather than repeated, so the torus, the fleets placed on it and the line each benchmark
+ *  prints about it cannot disagree. Both benchmarks read these; the active one imports them.
+ */
+val benchmarkRows: Int = 4
+
+/** @see benchmarkRows */
+val benchmarkColumns: Int = 5
+
+/**
  *  The reference throughput benchmark for guided path transporters.
  *
  *  This is **not** a test and is deliberately not one: it measures wall-clock time, so its answer
@@ -73,8 +84,8 @@ class GuidedPathThroughputBenchmark(
     parent: ModelElement,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
-    private val rows: Int = 4,
-    private val columns: Int = 5,
+    private val rows: Int = benchmarkRows,
+    private val columns: Int = benchmarkColumns,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -161,8 +172,8 @@ private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
  *  are exactly two links per intersection.
  */
 fun createBenchmarkTorus(
-    rows: Int = 4,
-    columns: Int = 5,
+    rows: Int = benchmarkRows,
+    columns: Int = benchmarkColumns,
     zonesPerLink: Int = 10,
     zoneLength: Double = 10.0,
     networkName: String = "BenchmarkTorus"
@@ -241,7 +252,7 @@ private fun reportGuidedPathBenchmark() {
     val described = createBenchmarkTorus(networkName = "Describe")
     println("Guided path throughput benchmark - reference configuration")
     println(
-        "  network            : 4 x 5 torus, ${described.intersections.size} intersections, " +
+        "  network            : $benchmarkRows x $benchmarkColumns torus, ${described.intersections.size} intersections, " +
                 "${described.links.size} links, ${described.zones.size} zones " +
                 "(${described.links.size * 10} on links, one per intersection)"
     )

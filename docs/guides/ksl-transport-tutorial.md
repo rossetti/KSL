@@ -4161,8 +4161,8 @@ class GuidedPathThroughputBenchmark(
     parent: ModelElement,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
-    private val rows: Int = 4,
-    private val columns: Int = 5,
+    private val rows: Int = benchmarkRows,
+    private val columns: Int = benchmarkColumns,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -4190,14 +4190,18 @@ distribution you chose.
 ```kotlin
 private fun nodeName(row: Int, column: Int): String = "N${row}_$column"
 
+val benchmarkRows: Int = 4
+
+val benchmarkColumns: Int = 5
+
 /**
  *  A torus of one-way aisles: each intersection sends one link east and one south, wrapping at
  *  the edges. Every intersection is reachable from every other, no link is two-way, and there
  *  are exactly two links per intersection.
  */
 fun createBenchmarkTorus(
-    rows: Int = 4,
-    columns: Int = 5,
+    rows: Int = benchmarkRows,
+    columns: Int = benchmarkColumns,
     zonesPerLink: Int = 10,
     zoneLength: Double = 10.0,
     networkName: String = "BenchmarkTorus"
@@ -4431,7 +4435,7 @@ private fun reportGuidedPathBenchmark() {
     val described = createBenchmarkTorus(networkName = "Describe")
     println("Guided path throughput benchmark - reference configuration")
     println(
-        "  network            : 4 x 5 torus, ${described.intersections.size} intersections, " +
+        "  network            : $benchmarkRows x $benchmarkColumns torus, ${described.intersections.size} intersections, " +
                 "${described.links.size} links, ${described.zones.size} zones " +
                 "(${described.links.size * 10} on links, one per intersection)"
     )
@@ -4516,8 +4520,8 @@ class AgvThroughputBenchmark(
     private val numLoads: Int = 40,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
-    private val rows: Int = 4,
-    private val columns: Int = 5,
+    private val rows: Int = benchmarkRows,
+    private val columns: Int = benchmarkColumns,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
@@ -4533,8 +4537,8 @@ class AgvThroughputBenchmark(
 
 ```kotlin
 private fun createAgvBenchmarkNetwork(
-    rows: Int = 4,
-    columns: Int = 5,
+    rows: Int = benchmarkRows,
+    columns: Int = benchmarkColumns,
     networkName: String = "BenchmarkTorus"
 ): GuidedPathNetwork = createBenchmarkTorus(rows = rows, columns = columns, networkName = networkName)
 ```
@@ -4659,6 +4663,7 @@ private data class AgvBenchmarkResult(
     val zoneTraversals: Double,
     val eventsScheduled: Double,
     val tasksCompleted: Double,
+    val meanVehiclesIdle: Double,
     val wallClockSeconds: Double
 ) {
     val traversalsPerWallClockMinute: Double
@@ -4678,6 +4683,7 @@ private fun runAgvBenchmark(replicationLength: Double = 200_000.0, replications:
     val m = Model("AgvThroughputBenchmark")
     val fleet = AgvThroughputBenchmark(m, name = "SaturatedFleet")
     fleet.agv.checkInvariants = false
+    fleet.agv.collectLinkStatistics = false
     m.numberOfReplications = replications
     m.lengthOfReplication = replicationLength
     val started = System.nanoTime()
@@ -4687,6 +4693,7 @@ private fun runAgvBenchmark(replicationLength: Double = 200_000.0, replications:
         zoneTraversals = fleet.agv.numZoneTraversals.value,
         eventsScheduled = fleet.agv.numEventsScheduled.value,
         tasksCompleted = fleet.agv.dispatcher.numTasksCompleted.value,
+        meanVehiclesIdle = fleet.agv.numVehiclesIdle.acrossReplicationStatistic.average,
         wallClockSeconds = elapsed
     )
 }
@@ -4716,7 +4723,7 @@ private fun reportAgvBenchmark() {
     println()
     println("AGV throughput benchmark - reference configuration, both paradigms")
     println(
-        "  network            : 4 x 5 torus, " +
+        "  network            : $benchmarkRows x $benchmarkColumns torus, " +
                 "${described.intersections.size} intersections, ${described.links.size} links, " +
                 "${described.zones.size} zones"
     )
@@ -4756,6 +4763,11 @@ private fun reportAgvBenchmark() {
         )
     )
     println("  %-22s %18s %18s".format("tasks completed", "%,.0f".format(active.tasksCompleted), "--"))
+    println(
+        "  %-22s %18s %18s".format(
+            "vehicles idle (mean)", "%.3f".format(active.meanVehiclesIdle), "--"
+        )
+    )
     println()
     println("  JVM                : ${System.getProperty("java.vm.name")} ${System.getProperty("java.version")}")
     println("  OS                 : ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
