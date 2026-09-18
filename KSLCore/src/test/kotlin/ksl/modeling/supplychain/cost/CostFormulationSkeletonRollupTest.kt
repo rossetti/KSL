@@ -43,13 +43,13 @@ class CostFormulationSkeletonRollupTest {
 
         // Every per-tier rollup must exist and report 0.0.
         for (tier in NodeTier.all) {
-            val r = f.byTierResponse(tier)
+            val r = f.byTierResponse(tier, CostBasis.PerReplication)
                 ?: error("byTierResponse($tier) returned null")
             assertEquals(0.0, r.value, 1e-12,
                 "per-tier rollup for $tier should be 0.0 in skeleton")
         }
 
         // Grand total = 0.0.
-        assertEquals(0.0, f.totalCostResponse.value, 1e-12)
+        assertEquals(0.0, f.totalCostResponse(CostBasis.PerReplication).value, 1e-12)
     }
 }

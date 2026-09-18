@@ -1,5 +1,6 @@
 package ksl.examples.general.supplychain
 
+import ksl.modeling.supplychain.cost.CostBasis
 import ksl.modeling.supplychain.SupplyChainModel
 import ksl.modeling.supplychain.cost.CostParams
 import ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation
@@ -89,11 +90,11 @@ fun main() {
     println("Ratio                          : %.4f (expected 2.0)".format(highHolding / standardHolding))
 
     println()
-    println("=== grand totals ===")
-    println("Standard total : %.2f".format(standardFormulation.totalCostResponse.value))
-    println("High total     : %.2f".format(highCarryingFormulation.totalCostResponse.value))
+    println("=== total cost ($ over the run) ===")
+    println("Standard total : %.2f".format(standardFormulation.totalCostResponse(CostBasis.PerReplication).value))
+    println("High total     : %.2f".format(highCarryingFormulation.totalCostResponse(CostBasis.PerReplication).value))
 
-    // Note: net.totalCostResponse reads from the *first* attached
+    // Note: net.totalCostResponse(CostBasis.PerReplication) reads from the *first* attached
     // formulation (here `standardFormulation`).  If you want a
     // specific formulation, read its property directly.
 }

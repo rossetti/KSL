@@ -51,7 +51,7 @@ class CostFormulationMultiAttachTest {
 
         // Independent rollup Response instances per formulation.
         assertTrue(
-            standard.totalCostResponse !== highRate.totalCostResponse,
+            standard.totalCostResponse(CostBasis.PerReplication) !== highRate.totalCostResponse(CostBasis.PerReplication),
             "expected independent totalCostResponse instances",
         )
 

@@ -1,5 +1,6 @@
 package ksl.examples.general.supplychain
 
+import ksl.modeling.supplychain.cost.CostBasis
 import ksl.modeling.supplychain.SupplyChainModel
 import ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation
 import ksl.modeling.supplychain.network.MultiEchelonNetwork
@@ -13,7 +14,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
  * (`ksl.controls`): discovering the model's controllable parameters by key, setting
  * them without referencing the model classes, and running replications that all begin
  * under the configured initial conditions — plus reading the cost formulation's
- * Responses, including the grand-total network cost that a simulation-optimization
+ * Responses, including the total network cost that a simulation-optimization
  * problem uses as its objective function.
  *
  * The model is built with the `MultiEchelonNetwork` API (the supported construction
@@ -36,9 +37,11 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *    control values is valid and the keys can be set independently, in any order.
  * 4. **Cost as a controllable output.** The cost formulation surfaces network-level
  *    rate controls (carrying, ordering, backorder, stockout) and rollup Responses:
- *    per line, per tier, per node (location), and the grand total — whose name
- *    (`totalCostResponseName`) is exactly what an optimization problem's
- *    `objFnResponseName` should reference.
+ *    per line, per tier, per node (location), and the total. A rollup that spans
+ *    lines spans both denominations, so it is asked for in one: `CostBasis.PerReplication`
+ *    for dollars over the run, `CostBasis.PerUnitTime` for a cost rate. Either is a
+ *    sound `objFnResponseName`; the rate is the one to use when runs may differ in
+ *    length.
  *
  * This is how `ksl.controls.experiments` (factorial designs, scenarios) and the simopt
  * machinery parameterize models — this demo just does it by hand so the mechanics are
@@ -95,17 +98,22 @@ fun main() {
     model.numberOfReplications = 5
     model.simulate()
 
-    // 4. Read the cost rollups: the grand total is the simopt objective function.
+    // 4. Read the cost rollups: either total is a sound simopt objective.
     println("Cost results (averages across ${model.numberOfReplications} replications):")
-    println("   objective response name = ${costs.totalCostResponseName}")
-    println("   grand total network cost = " +
-            "${costs.totalCostResponse.acrossReplicationStatistic.average}")
+    for (basis in CostBasis.entries) {
+        val total = costs.totalCostResponse(basis)
+        println("   ${total.name} = ${total.acrossReplicationStatistic.average}")
+    }
     for (nodeName in costs.trackedNodeNames.sorted()) {
-        val nodeTotal = costs.byNodeResponse(nodeName)!!
+        val nodeTotal = costs.byNodeResponse(nodeName, CostBasis.PerReplication)!!
         println("   node '$nodeName' total cost = " +
                 "${nodeTotal.acrossReplicationStatistic.average}")
     }
     println()
     println("An optimization problem over this model would use:")
-    println("   ProblemDefinition(objFnResponseName = \"${costs.totalCostResponseName}\", ...)")
+    val objective = costs.totalCostResponse(CostBasis.PerReplication).name
+    println("   ProblemDefinition(objFnResponseName = \"$objective\", ...)")
+    println("   ...or the cost rate, " +
+            "\"${costs.totalCostResponse(CostBasis.PerUnitTime).name}\", " +
+            "when runs may differ in length.")
 }

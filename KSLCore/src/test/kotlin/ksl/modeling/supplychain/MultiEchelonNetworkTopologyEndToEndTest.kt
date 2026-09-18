@@ -1,5 +1,6 @@
 package ksl.modeling.supplychain
 
+import ksl.modeling.supplychain.cost.CostBasis
 import ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation
 import ksl.modeling.supplychain.inventory.*
 import ksl.modeling.supplychain.network.*
@@ -77,13 +78,13 @@ class MultiEchelonIHPTopologyEndToEndTest {
                 "to the ES (got ${middleInv.orderCounterWithinReplication})")
 
         // Cost responses populate on both tiers.
-        assertTrue(net.totalIHPCostResponse!!.value > 0.0,
-            "IHP-tier cost should be > 0 (got ${net.totalIHPCostResponse!!.value})")
-        assertTrue(net.totalExternalSupplierLoadingCostResponse!!.value > 0.0,
+        assertTrue(net.totalIHPCostResponse(CostBasis.PerReplication)!!.value > 0.0,
+            "IHP-tier cost should be > 0 (got ${net.totalIHPCostResponse(CostBasis.PerReplication)!!.value})")
+        assertTrue(net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value > 0.0,
             "ES loading cost should be > 0 " +
-                "(got ${net.totalExternalSupplierLoadingCostResponse!!.value})")
+                "(got ${net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value})")
         // No cross-docks in this topology.
-        assertEquals(0.0, net.totalCrossDockCostResponse!!.value, 1e-9)
+        assertEquals(0.0, net.totalCrossDockCostResponse(CostBasis.PerReplication)!!.value, 1e-9)
     }
 
     @Test

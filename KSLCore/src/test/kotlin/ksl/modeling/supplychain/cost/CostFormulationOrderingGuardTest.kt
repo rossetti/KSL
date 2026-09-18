@@ -121,6 +121,6 @@ class CostFormulationOrderingGuardTest {
         m.numberOfReplications = 2
         m.lengthOfReplication = 10.0
         m.simulate()  // must not throw
-        assertTrue(f.totalCostResponse.value >= 0.0)
+        assertTrue(f.totalCostResponse(CostBasis.PerReplication).value >= 0.0)
     }
 }

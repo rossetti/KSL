@@ -1,5 +1,6 @@
 package ksl.modeling.supplychain.report
 
+import ksl.modeling.supplychain.cost.CostBasis
 import ksl.modeling.supplychain.cost.CostFormulation
 import ksl.modeling.supplychain.cost.CostLine
 import ksl.modeling.supplychain.cost.NodeTier
@@ -120,44 +121,57 @@ fun ReportBuilder.supplyChainCostSummary(
             heading(f.displayName(), level = 3)
 
             fun active(v: Double) = v.isFinite() && v != 0.0
-            val tiers = NodeTier.all.filter { active(f.byTierResponse(it)?.avgOrZero() ?: 0.0) }
+            val tiers = NodeTier.all.filter {
+                active(f.byTierResponse(it, CostBasis.PerReplication)?.avgOrZero() ?: 0.0)
+            }
             val lines = CostLine.all.filter { active(f.byLineResponse(it)?.avgOrZero() ?: 0.0) }
             if (lines.isEmpty()) {
                 paragraph("No non-zero cost lines (was the model simulated?).")
                 continue
             }
 
-            val headers = listOf("Cost line") + tiers.map { it.displayName } + "Total"
+            // A line's own value is in its own denomination, so the column it sits
+            // in holds two different units and a reader needs to be told which is
+            // which. The TOTAL row is not that column's sum: it is the tier total
+            // brought to dollars, which is why it is labelled with its units.
+            val headers = listOf("Cost line", "Units") + tiers.map { it.displayName } + "Total"
             val rows = lines.map { line ->
-                listOf(line.displayName) +
+                listOf(line.displayName, line.basis.unitLabel()) +
                     tiers.map { tier -> num(f.byTierAndLineResponse(tier, line)?.avgOrZero() ?: 0.0) } +
                     num(f.byLineResponse(line)?.avgOrZero() ?: 0.0)
             }
-            val totalRow = listOf("TOTAL") +
-                tiers.map { num(f.byTierResponse(it)?.avgOrZero() ?: 0.0) } +
-                num(f.totalCostResponse.avgOrZero())
+            val totalRow = listOf("TOTAL", CostBasis.PerReplication.unitLabel()) +
+                tiers.map {
+                    num(f.byTierResponse(it, CostBasis.PerReplication)?.avgOrZero() ?: 0.0)
+                } +
+                num(f.totalCostResponse(CostBasis.PerReplication).avgOrZero())
             dataTable(headers, rows + listOf(totalRow), "Average cost by tier x line")
 
-            val gt = f.totalCostResponse
-            paragraph(
-                "Grand total: ${num(gt.avgOrZero())} +/- ${num(gt.halfWidthAt(confidenceLevel))} " +
-                    "(${(confidenceLevel * 100).toInt()}% half-width).",
-            )
+            val pct = (confidenceLevel * 100).toInt()
+            for (basis in CostBasis.entries) {
+                val t = f.totalCostResponse(basis)
+                paragraph(
+                    "Total cost (${basis.unitLabel()}): ${num(t.avgOrZero())} " +
+                        "+/- ${num(t.halfWidthAt(confidenceLevel))} ($pct% half-width).",
+                )
+            }
         }
 
         if (formulations.size > 1) {
             heading("Comparison", level = 3)
-            val rows = formulations.map { f ->
-                listOf(
-                    f.displayName(),
-                    num(f.totalCostResponse.avgOrZero()),
-                    num(f.totalCostResponse.halfWidthAt(confidenceLevel)),
+            for (basis in CostBasis.entries) {
+                val rows = formulations.map { f ->
+                    listOf(
+                        f.displayName(),
+                        num(f.totalCostResponse(basis).avgOrZero()),
+                        num(f.totalCostResponse(basis).halfWidthAt(confidenceLevel)),
+                    )
+                }
+                dataTable(
+                    listOf("Formulation", "Total cost (${basis.unitLabel()})", "+/- Half-width"),
+                    rows, "Total-cost comparison (${basis.unitLabel()})",
                 )
             }
-            dataTable(
-                listOf("Formulation", "Grand total", "+/- Half-width"),
-                rows, "Grand-total comparison",
-            )
         }
     }
 }
@@ -216,4 +230,13 @@ fun MultiEchelonNetwork.resultsReport(
         supplyChainCostSummary(net, confidenceLevel)
         supplyChainInventoryPerformance(net, confidenceLevel)
     }
+}
+
+/**
+ * How a basis is written in a report column, short enough to sit beside a
+ * number without crowding it.
+ */
+private fun CostBasis.unitLabel(): String = when (this) {
+    CostBasis.PerUnitTime -> "$/time"
+    CostBasis.PerReplication -> "$"
 }

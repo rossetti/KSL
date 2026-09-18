@@ -174,16 +174,26 @@ class CostFormulationNetworkTimeBasedTest {
         assertEquals(expESLoading,
             f.byLineResponse(CostLine.ESLoading)!!.value, 1e-9)
 
-        // IHP-tier rollup.
-        val expIHPTotal =
-            expHolding + expInTransit + expOrdering + expBackorder +
-            expStockout + expLostSale + expUnitShortage +
+        // The tier and total rollups are denominated, so the hand-computed lines
+        // have to be brought to a common denomination before they are added.
+        // Holding, InTransit and Backorder are per-unit-time; the rest are
+        // already dollars. (ShipmentBuilderHolding is 0 here: no formation.)
+        val observed = m.lengthOfReplication - m.lengthOfReplicationWarmUp
+        val expIHPPerUnitTime = expHolding + expInTransit + expBackorder
+        val expIHPPerReplication =
+            expOrdering + expStockout + expLostSale + expUnitShortage +
             expLoading + expShipping + expUnloadingIHP
+
+        // IHP-tier rollup, in dollars over the observed window.
+        val expIHPTotal = expIHPPerUnitTime * observed + expIHPPerReplication
         assertEquals(expIHPTotal,
-            f.byTierResponse(NodeTier.IHP)!!.value, 1e-9)
+            f.byTierResponse(NodeTier.IHP, CostBasis.PerReplication)!!.value, 1e-9)
         assertEquals(expESLoading,
-            f.byTierResponse(NodeTier.ES)!!.value, 1e-9)
+            f.byTierResponse(NodeTier.ES, CostBasis.PerReplication)!!.value, 1e-9)
         assertEquals(expIHPTotal + expESLoading,
-            f.totalCostResponse.value, 1e-9)
+            f.totalCostResponse(CostBasis.PerReplication).value, 1e-9)
+        assertEquals(
+            expIHPPerUnitTime + (expIHPPerReplication + expESLoading) / observed,
+            f.totalCostResponse(CostBasis.PerUnitTime).value, 1e-9)
     }
 }

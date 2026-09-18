@@ -389,17 +389,45 @@ m.simulate()
 val cost = result.network.costFormulations.first()
 val holding: Double  = cost.byLineResponse(CostLine.Holding)!!
     .acrossReplicationStatistic.average
-val ihpTotal: Double = cost.byTierResponse(NodeTier.IHP)!!
+val ihpTotal: Double = cost.byTierResponse(NodeTier.IHP, CostBasis.PerReplication)!!
     .acrossReplicationStatistic.average
-val grand: Double    = cost.totalCostResponse.acrossReplicationStatistic.average
+val total: Double    = cost.totalCostResponse(CostBasis.PerReplication)
+    .acrossReplicationStatistic.average
+val rate: Double     = cost.totalCostResponse(CostBasis.PerUnitTime)
+    .acrossReplicationStatistic.average
 ```
 
 The (tier × line) grid is the rollup surface:
 `byTierAndLineResponse(tier, line)` for a specific cell,
-`byLineResponse(line)` for column totals, `byTierResponse(tier)` for
-row totals, `totalCostResponse` for the grand total. Each is a normal
-KSL `ResponseCIfc`, so half-widths, observers, and DataFrame export
+`byLineResponse(line)` for column totals, `byTierResponse(tier, basis)` for
+row totals, `totalCostResponse(basis)` for the whole formulation. Each is a
+normal KSL `ResponseCIfc`, so half-widths, observers, and DataFrame export
 all work as usual.
+
+#### Why a rollup asks for a basis
+
+Cost lines come in two denominations, and each is the natural one for its
+line. `Holding`, `InTransit`, `Backorder` and `ShipmentBuilderHolding` are
+rates, in dollars per unit of your time unit; the other eight are dollars
+accumulated over the replication. Every line declares which it is, as
+`CostLine.basis`.
+
+A rollup that spans lines therefore spans both, and there is no single
+number it can report until you say which denomination you want:
+
+| basis | units | use it when |
+|---|---|---|
+| `CostBasis.PerReplication` | dollars over the observed window | reporting one run, or optimizing at a fixed run length |
+| `CostBasis.PerUnitTime` | dollars per unit time | comparing runs of unequal length, or reporting a steady-state rate |
+
+The observed window is the replication's ending time less its warm-up, taken
+from the clock — so a run that ends on an empty calendar is scaled by the time
+it actually observed rather than by the length it was allowed.
+
+Either is a sound `objFnResponseName` for a simulation-optimization problem.
+Earlier releases published a single mixed `GrandTotal` that added rate lines to
+per-replication lines; it was neither denomination, and it has been removed.
+See the R1.7 release notes.
 
 ### ...vary cost by node
 
@@ -436,8 +464,8 @@ supplyChain("Compare") {
 }
 ```
 
-Each formulation's responses are prefixed with its name (`standard:GrandTotal`,
-`highCarrying:GrandTotal`, …), and validation requires distinct,
+Each formulation's responses are prefixed with its name (`standard:TotalCost`,
+`highCarrying:TotalCostRate`, …), and validation requires distinct,
 non-null names when more than one formulation is attached.
 
 ### ...get a digestible results report

@@ -211,7 +211,7 @@ class SupplyChainDslTest {
         m.lengthOfReplication = 1000.0
         m.lengthOfReplicationWarmUp = 200.0
         m.simulate()
-        assertTrue(m.responses.any { it.name.contains("GrandTotal") })
+        assertTrue(m.responses.any { it.name.contains("TotalCost") })
     }
 
     // -- DSL output survives a serialization round-trip -----------------

@@ -52,30 +52,50 @@ class CostFormulationControlsTest {
     // ── B: per-node rollups ───────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Per-node totals exist, and node totals plus ES equal the grand total")
-    fun perNodeRollupsSumToGrandTotal() {
+    @DisplayName("Per-node totals exist, and node totals plus ES reproduce the total, in either basis")
+    fun perNodeRollupsSumToTheTotal() {
         val f = Fixture { net -> DefaultMultiEchelonCostFormulation(net, name = "Costs") }
         f.model.simulate()
 
         assertTrue("P" in f.formulation.trackedNodeNames) {
             "expected node P to be tracked; got ${f.formulation.trackedNodeNames}"
         }
-        val nodeTotal = f.formulation.byNodeResponse("P")
-        assertNotNull(nodeTotal)
-        assertTrue(nodeTotal!!.value > 0.0, "node P must accrue cost")
 
-        // The only calculators without an owning node are the external supplier's
-        // own outbound, whose contribution is the ES tier rollup — so node totals
-        // plus the ES tier must reproduce the grand total.
-        val esTier = f.formulation.byTierResponse(NodeTier.ES)!!.value
+        // Additivity has to hold in each basis separately, and it could not be
+        // stated that way before: the rollups it relates were mixed sums, so the
+        // identity held only because both sides were wrong the same way.
+        for (basis in CostBasis.entries) {
+            val nodeTotal = f.formulation.byNodeResponse("P", basis)
+            assertNotNull(nodeTotal, "node P has no total in $basis")
+            assertTrue(nodeTotal!!.value > 0.0, "node P must accrue cost in $basis")
+
+            // The only calculators without an owning node are the external
+            // supplier's own outbound, whose contribution is the ES tier rollup.
+            val esTier = f.formulation.byTierResponse(NodeTier.ES, basis)!!.value
+            assertEquals(
+                f.formulation.totalCostResponse(basis).value,
+                nodeTotal.value + esTier,
+                1e-9,
+                "node totals + ES-owned cost must reproduce the total in $basis"
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("the totals are published under the names an objective will reference")
+    fun totalResponsesCarryTheirPublishedNames() {
+        val f = Fixture { net -> DefaultMultiEchelonCostFormulation(net, name = "Costs") }
+        // These strings go into ProblemDefinition(objFnResponseName = ...) and into
+        // saved configurations, so they are part of the published surface and a
+        // rename is a breaking change rather than a tidy-up.
         assertEquals(
-            f.formulation.totalCostResponse.value,
-            nodeTotal.value + esTier,
-            1e-9,
-            "node totals + ES-owned cost must equal the grand total"
+            "Costs:TotalCost",
+            f.formulation.totalCostResponse(CostBasis.PerReplication).name,
         )
-        // and the convenience name points at the grand-total Response
-        assertEquals("Costs:GrandTotal", f.formulation.totalCostResponseName)
+        assertEquals(
+            "Costs:TotalCostRate",
+            f.formulation.totalCostResponse(CostBasis.PerUnitTime).name,
+        )
     }
 
     // ── C: network-level rate controls ────────────────────────────────────────
@@ -105,7 +125,7 @@ class CostFormulationControlsTest {
         assertEquals(0.0, f.formulation.byLineResponse(CostLine.Backorder)!!.value, 1e-12)
         assertEquals(0.0, f.formulation.byLineResponse(CostLine.Stockout)!!.value, 1e-12)
         // flow lines still accrue — the controls changed only the four rates
-        assertTrue(f.formulation.totalCostResponse.value > 0.0,
+        assertTrue(f.formulation.totalCostResponse(CostBasis.PerReplication).value > 0.0,
             "flow-side costs must remain after zeroing the inventory-side rates")
     }
 

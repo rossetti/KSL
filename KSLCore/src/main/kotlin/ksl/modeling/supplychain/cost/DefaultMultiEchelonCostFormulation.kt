@@ -193,19 +193,23 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         CostLine.all.associateWith { line ->
             Response(this, name = "${this.name}:Total:$line")
         }
-    private val myByTier: Map<NodeTier, Response> =
+    // Every rollup that spans more than one line spans more than one basis, so
+    // each carries one Response per basis rather than a single mixed number.
+    private val myByTier: Map<NodeTier, Map<CostBasis, Response>> =
         NodeTier.all.associateWith { tier ->
-            Response(this, name = "${this.name}:Total:Tier:$tier")
+            mapOf(
+                CostBasis.PerReplication to
+                    Response(this, name = "${this.name}:Tier:$tier:TotalCost"),
+                CostBasis.PerUnitTime to
+                    Response(this, name = "${this.name}:Tier:$tier:TotalCostRate"),
+            )
         }
-    private val myTotal: Response =
-        Response(this, name = "${this.name}:GrandTotal")
 
-    // The two dimensionally consistent totals.  Both are computed from
-    // line.basis in replicationEnded, and both are summed per calculator
-    // rather than from the per-line rollups: whether a cost counts toward a
-    // total is a property of which calculator produced it, not of which line
-    // it lands on, which is what lets a calculator be excluded later without
-    // disturbing the per-line reporting.
+    // The totals.  Both are computed from line.basis in replicationEnded, and
+    // both are summed per calculator rather than from the per-line rollups:
+    // whether a cost counts toward a total is a property of which calculator
+    // produced it, not of which line it lands on, which is what lets a
+    // calculator be excluded later without disturbing the per-line reporting.
     private val myTotalCost: Response =
         Response(this, name = "${this.name}:TotalCost")
     private val myTotalCostRate: Response =
@@ -213,30 +217,22 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
 
     // Per-node (location) rollup Responses, keyed by node name. Allocated in the
     // init block after buildCalculators so the tracked node set is known.
-    private val myByNode: MutableMap<String, Response> = mutableMapOf()
+    private val myByNode: MutableMap<String, Map<CostBasis, Response>> = mutableMapOf()
 
-    override fun byNodeResponse(nodeName: String): ResponseCIfc? =
-        myByNode[nodeName]
+    override fun byNodeResponse(nodeName: String, basis: CostBasis): ResponseCIfc? =
+        myByNode[nodeName]?.get(basis)
 
     override val trackedNodeNames: Set<String>
         get() = myByNode.keys
 
-    /** The name of the grand-total Response — the string an optimization
-     *  problem's objective-function response name should reference. */
-    val totalCostResponseName: String
-        get() = myTotal.name
-
     override fun byLineResponse(line: CostLine): ResponseCIfc? =
         myByLine[line]
 
-    override fun byTierResponse(tier: NodeTier): ResponseCIfc? =
-        myByTier[tier]
+    override fun byTierResponse(tier: NodeTier, basis: CostBasis): ResponseCIfc? =
+        myByTier[tier]?.get(basis)
 
     override fun byTierAndLineResponse(tier: NodeTier, line: CostLine): ResponseCIfc? =
         myByTierAndLine[tier]?.get(line)
-
-    override val totalCostResponse: ResponseCIfc
-        get() = myTotal
 
     /**
      * The total cost in the requested [CostBasis] — the Response an optimization
@@ -249,7 +245,7 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
      * [CostBasis.PerUnitTime] for dollars per unit time, which is the one to
      * compare runs of unequal length with.
      */
-    fun totalCostResponse(basis: CostBasis): ResponseCIfc = when (basis) {
+    override fun totalCostResponse(basis: CostBasis): ResponseCIfc = when (basis) {
         CostBasis.PerReplication -> myTotalCost
         CostBasis.PerUnitTime -> myTotalCostRate
     }
@@ -318,33 +314,56 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
             }
         }
 
-        // Per-line: sum the per-(tier, line) Responses across tiers.
-        var grand = 0.0
+        // Per-line: sum the per-(tier, line) Responses across tiers.  One line,
+        // one basis, so this stays a single number.
         for ((line, agg) in myByLine) {
             var sum = 0.0
             for (tier in NodeTier.all) {
                 sum += myByTierAndLine[tier]?.get(line)?.value ?: 0.0
             }
             agg.value = sum
-            grand += sum
         }
 
-        // Per-tier: sum the per-(tier, line) Responses across lines.
-        for ((tier, agg) in myByTier) {
-            var sum = 0.0
-            for (line in CostLine.all) {
-                sum += myByTierAndLine[tier]?.get(line)?.value ?: 0.0
-            }
-            agg.value = sum
+        val observed = observedTime()
+
+        // Per-tier, per basis.
+        for ((tier, byBasis) in myByTier) {
+            val split = splitByBasis(myCalculators.filter { it.tier === tier })
+            assign(byBasis, split, observed)
         }
 
-        myTotal.value = grand
+        // Whole formulation, per basis.
+        val total = splitByBasis(myCalculators)
+        myTotalCost.value = total.perReplication(observed)
+        myTotalCostRate.value = total.perUnitTime(observed)
 
-        // The consistent totals.  Partition the calculators' lines by basis and
-        // bring the two halves to a common denomination before adding them.
+        // Per-node (location), per basis, using the same ownership attribution
+        // the params resolver uses.
+        for ((nodeName, byBasis) in myByNode) {
+            val owned = myCalculators.filter { myCalculatorOwners[it] == nodeName }
+            assign(byBasis, splitByBasis(owned), observed)
+        }
+    }
+
+    /**
+     * A set of calculators' cost lines gathered into the two denominations, so
+     * that either total can be formed without summing across them.
+     */
+    private class BasisSplit(val perUnitTime: Double, val perReplication: Double) {
+
+        /** Dollars over the observed window; zero when nothing was observed. */
+        fun perReplication(observed: Double): Double =
+            if (observed > 0.0) perUnitTime * observed + perReplication else 0.0
+
+        /** Dollars per unit time; zero when nothing was observed. */
+        fun perUnitTime(observed: Double): Double =
+            if (observed > 0.0) perUnitTime + perReplication / observed else 0.0
+    }
+
+    private fun splitByBasis(calculators: Collection<CostCalculator>): BasisSplit {
         var perUnitTime = 0.0
         var perReplication = 0.0
-        for (calc in myCalculators) {
+        for (calc in calculators) {
             for ((line, r) in calc.lineResponses) {
                 when (line.basis) {
                     CostBasis.PerUnitTime -> perUnitTime += r.value
@@ -352,29 +371,12 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
                 }
             }
         }
-        val observed = observedTime()
-        if (observed > 0.0) {
-            myTotalCost.value = perUnitTime * observed + perReplication
-            myTotalCostRate.value = perUnitTime + perReplication / observed
-        } else {
-            // Nothing was observed, so both counters and time-weighted averages
-            // are still at their post-warm-up reset and every line is zero.
-            myTotalCost.value = 0.0
-            myTotalCostRate.value = 0.0
-        }
+        return BasisSplit(perUnitTime, perReplication)
+    }
 
-        // Per-node (location): sum every line of every calculator owned by the
-        // node, using the same ownership attribution the params resolver uses.
-        for ((nodeName, agg) in myByNode) {
-            var sum = 0.0
-            for (calc in myCalculators) {
-                if (myCalculatorOwners[calc] != nodeName) continue
-                for (r in calc.lineResponses.values) {
-                    sum += r.value
-                }
-            }
-            agg.value = sum
-        }
+    private fun assign(byBasis: Map<CostBasis, Response>, split: BasisSplit, observed: Double) {
+        byBasis[CostBasis.PerReplication]?.value = split.perReplication(observed)
+        byBasis[CostBasis.PerUnitTime]?.value = split.perUnitTime(observed)
     }
 
     init {
@@ -389,7 +391,12 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         // calculators were attributed to (the external supplier's own outbound
         // has no owning node and contributes only to the grand total).
         for (nodeName in myCalculatorOwners.values.filterNotNull().distinct()) {
-            myByNode[nodeName] = Response(this, name = "${this.name}:Node:$nodeName:Total")
+            myByNode[nodeName] = mapOf(
+                CostBasis.PerReplication to
+                    Response(this, name = "${this.name}:Node:$nodeName:TotalCost"),
+                CostBasis.PerUnitTime to
+                    Response(this, name = "${this.name}:Node:$nodeName:TotalCostRate"),
+            )
         }
 
         // Suppress the standard half-width report rows for rollup
@@ -488,8 +495,10 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         for ((line, response) in myByLine) {
             if (line !in producedLines) response.defaultReportingOption = false
         }
-        for ((tier, response) in myByTier) {
-            if (tier !in producedTiers) response.defaultReportingOption = false
+        for ((tier, byBasis) in myByTier) {
+            if (tier !in producedTiers) {
+                for (response in byBasis.values) response.defaultReportingOption = false
+            }
         }
     }
 

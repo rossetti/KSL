@@ -50,7 +50,7 @@ interface CostFormulation {
      * [tier], or null if this formulation does not produce a
      * per-tier rollup for [tier].
      */
-    fun byTierResponse(tier: NodeTier): ResponseCIfc?
+    fun byTierResponse(tier: NodeTier, basis: CostBasis): ResponseCIfc?
 
     /**
      * Per-(tier, line) rollup Response — the sum of every calculator's
@@ -71,14 +71,19 @@ interface CostFormulation {
      * supplier's own outbound has no owning node and contributes only
      * to the grand total.
      */
-    fun byNodeResponse(nodeName: String): ResponseCIfc?
+    fun byNodeResponse(nodeName: String, basis: CostBasis): ResponseCIfc?
 
     /** The names of the owning nodes this formulation tracks per-node totals for. */
     val trackedNodeNames: Set<String>
 
     /**
-     * Grand-total rollup Response — the sum across every line and
-     * every tier this formulation produces.
+     * Total-cost rollup Response across every line and every tier this
+     * formulation produces, in the requested [CostBasis].
+     *
+     * A basis is required rather than assumed. This rollup spans lines of both
+     * denominations, so until the caller says which one they want there is no
+     * number it can return that means anything — which is exactly what the
+     * former mixed grand total returned.
      */
-    val totalCostResponse: ResponseCIfc
+    fun totalCostResponse(basis: CostBasis): ResponseCIfc
 }

@@ -173,8 +173,8 @@ class CostFormulationSpecTest {
         SupplyChainBuilder.build(m, spec)
         run(m)
 
-        val stdTotal = m.responses.first { it.name == "standard:GrandTotal" }
-        val highTotal = m.responses.first { it.name == "highCarrying:GrandTotal" }
+        val stdTotal = m.responses.first { it.name == "standard:TotalCost" }
+        val highTotal = m.responses.first { it.name == "highCarrying:TotalCost" }
         // Both formulations observed the same sample path; the higher
         // carrying rate yields the larger total cost.
         assertTrue(stdTotal.acrossReplicationStatistic.average > 0.0)

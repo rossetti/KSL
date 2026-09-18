@@ -153,10 +153,10 @@ fun main() {
     m.simulate()
 
     // Compare the two cost regimes from the same run.
-    val baseline = m.responses.first { it.name == "baseline:GrandTotal" }.acrossReplicationStatistic.average
-    val dcHeavy = m.responses.first { it.name == "dcHeavy:GrandTotal" }.acrossReplicationStatistic.average
-    println("baseline grand total : %.2f".format(baseline))
-    println("dcHeavy  grand total : %.2f  (CentralDC carryingRate 0.10 -> 0.35)".format(dcHeavy))
+    val baseline = m.responses.first { it.name == "baseline:TotalCost" }.acrossReplicationStatistic.average
+    val dcHeavy = m.responses.first { it.name == "dcHeavy:TotalCost" }.acrossReplicationStatistic.average
+    println("baseline total cost : %.2f".format(baseline))
+    println("dcHeavy  total cost : %.2f  (CentralDC carryingRate 0.10 -> 0.35)".format(dcHeavy))
 
     println()
     println("=== full half-width summary report ===")

@@ -27,7 +27,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *  purely box-constrained on the inputs.
  *
  *  Objective: the network-wide total cost surfaced by the cost formulation's
- *  grand-total response. Constraints: a first-fill-rate requirement at each retailer.
+ *  total-cost response, in dollars over the run. Constraints: a first-fill-rate
+ *  requirement at each retailer.
  *
  *  There is no known optimum; a best-known reference should be maintained as benchmark
  *  results accumulate (until then, runs are gapped against the best found within the
@@ -46,7 +47,7 @@ fun main() {
 }
 
 private const val MODEL_IDENTIFIER = "MultiEchelonNetworkOptModel"
-private const val TOTAL_COST_RESPONSE = "Costs:GrandTotal"
+private const val TOTAL_COST_RESPONSE = "Costs:TotalCost"
 private val retailerNames = listOf("R1", "R2", "R3")
 
 /** The multi-echelon network problem as a benchmark problem case. */

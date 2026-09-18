@@ -151,7 +151,7 @@ class SupplyChainBuilderTest {
     // -- cost formulation (built last) ----------------------------------
 
     @Test
-    fun `default cost formulation is attached and produces a grand-total response`() {
+    fun `default cost formulation is attached and produces a total-cost response`() {
         val m = Model("cost")
         val spec = minimalSpec(
             costFormulations = listOf(
@@ -162,8 +162,8 @@ class SupplyChainBuilderTest {
         assertEquals(1, result.network.costFormulations.size)
         shortRun(m)
         assertTrue(
-            m.responses.any { it.name.contains("GrandTotal") },
-            "expected a cost grand-total response; got ${m.responses.map { it.name }}",
+            m.responses.any { it.name.contains("TotalCost") },
+            "expected a cost total response; got ${m.responses.map { it.name }}",
         )
     }
 
@@ -182,7 +182,7 @@ class SupplyChainBuilderTest {
         val result = SupplyChainBuilder.build(m, spec)
         assertEquals(1, result.network.costFormulations.size)
         shortRun(m)
-        assertTrue(m.responses.any { it.name == "PN:GrandTotal" })
+        assertTrue(m.responses.any { it.name == "PN:TotalCost" })
     }
 
     // -- validation gate -------------------------------------------------

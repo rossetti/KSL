@@ -712,8 +712,8 @@ open class MultiEchelonNetwork @JvmOverloads constructor(
     // cost-computation block in `replicationEnded()` were retired in
     // Phase 4; the new architecture computes line items via per-source
     // observer calculators owned by the formulation, which roll up to
-    // per-line, per-tier, per-(tier, line), and grand-total Responses
-    // on the formulation itself.
+    // per-line, per-tier, per-(tier, line), and total Responses on the
+    // formulation itself, the last three in each basis.
 
     private val firstDefaultFormulation:
         ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation?
@@ -722,29 +722,37 @@ open class MultiEchelonNetwork @JvmOverloads constructor(
         >().firstOrNull()
 
     /**
-     * Top-line total-cost Response from the first attached
-     * [ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation],
+     * Top-line total-cost Response, in the requested basis, from the first
+     * attached [ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation],
      * or null when no default formulation is attached.  Construct one
      * via `DefaultMultiEchelonCostFormulation(network, params)` after
      * building the topology to populate this accessor.
      */
-    val totalCostResponse: ksl.modeling.variable.ResponseCIfc?
-        get() = firstDefaultFormulation?.totalCostResponse
+    fun totalCostResponse(
+        basis: ksl.modeling.supplychain.cost.CostBasis
+    ): ksl.modeling.variable.ResponseCIfc? =
+        firstDefaultFormulation?.totalCostResponse(basis)
 
-    /** IHP-tier rollup Response from the first attached default formulation. */
-    val totalIHPCostResponse: ksl.modeling.variable.ResponseCIfc?
-        get() = firstDefaultFormulation?.byTierResponse(
-            ksl.modeling.supplychain.cost.NodeTier.IHP)
+    /** IHP-tier rollup Response, in the requested basis, from the first attached default formulation. */
+    fun totalIHPCostResponse(
+        basis: ksl.modeling.supplychain.cost.CostBasis
+    ): ksl.modeling.variable.ResponseCIfc? =
+        firstDefaultFormulation?.byTierResponse(
+            ksl.modeling.supplychain.cost.NodeTier.IHP, basis)
 
-    /** Cross-dock-tier rollup Response from the first attached default formulation. */
-    val totalCrossDockCostResponse: ksl.modeling.variable.ResponseCIfc?
-        get() = firstDefaultFormulation?.byTierResponse(
-            ksl.modeling.supplychain.cost.NodeTier.CD)
+    /** Cross-dock-tier rollup Response, in the requested basis, from the first attached default formulation. */
+    fun totalCrossDockCostResponse(
+        basis: ksl.modeling.supplychain.cost.CostBasis
+    ): ksl.modeling.variable.ResponseCIfc? =
+        firstDefaultFormulation?.byTierResponse(
+            ksl.modeling.supplychain.cost.NodeTier.CD, basis)
 
-    /** External-supplier-tier rollup Response from the first attached default formulation. */
-    val totalExternalSupplierLoadingCostResponse: ksl.modeling.variable.ResponseCIfc?
-        get() = firstDefaultFormulation?.byTierResponse(
-            ksl.modeling.supplychain.cost.NodeTier.ES)
+    /** External-supplier-tier rollup Response, in the requested basis, from the first attached default formulation. */
+    fun totalExternalSupplierLoadingCostResponse(
+        basis: ksl.modeling.supplychain.cost.CostBasis
+    ): ksl.modeling.variable.ResponseCIfc? =
+        firstDefaultFormulation?.byTierResponse(
+            ksl.modeling.supplychain.cost.NodeTier.ES, basis)
 
     /**
      * Per-line Backorder rollup Response from the first attached

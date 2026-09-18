@@ -47,7 +47,7 @@ class NetworkSpecFileLoadTest {
         m.lengthOfReplication = 1000.0
         m.lengthOfReplicationWarmUp = 200.0
         m.simulate()
-        assertTrue(m.responses.any { it.name.contains("GrandTotal") })
+        assertTrue(m.responses.any { it.name.contains("TotalCost") })
     }
 
     @Test
@@ -76,11 +76,11 @@ class NetworkSpecFileLoadTest {
         m.lengthOfReplicationWarmUp = 300.0
         m.simulate()
 
-        // Each named formulation produced its own grand-total response,
+        // Each named formulation produced its own total-cost response,
         // and higher carrying rates cost more on the same sample path.
-        val std = m.responses.first { it.name == "standard:GrandTotal" }.acrossReplicationStatistic.average
-        val high = m.responses.first { it.name == "highCarrying:GrandTotal" }.acrossReplicationStatistic.average
-        val whHeavy = m.responses.first { it.name == "warehouseHeavy:GrandTotal" }.acrossReplicationStatistic.average
+        val std = m.responses.first { it.name == "standard:TotalCost" }.acrossReplicationStatistic.average
+        val high = m.responses.first { it.name == "highCarrying:TotalCost" }.acrossReplicationStatistic.average
+        val whHeavy = m.responses.first { it.name == "warehouseHeavy:TotalCost" }.acrossReplicationStatistic.average
         assertTrue(std > 0.0)
         assertTrue(high > std, "highCarrying ($high) should exceed standard ($std)")
         assertTrue(whHeavy > std, "warehouseHeavy ($whHeavy) should exceed standard ($std)")

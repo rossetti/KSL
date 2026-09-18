@@ -1,5 +1,6 @@
 package ksl.modeling.supplychain
 
+import ksl.modeling.supplychain.cost.CostBasis
 import ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation
 import ksl.modeling.supplychain.inventory.*
 import ksl.modeling.supplychain.network.*
@@ -46,11 +47,11 @@ class MultiEchelonNetworkCostTest {
         m.lengthOfReplication = 12.0
         m.simulate()
 
-        assertTrue(net.totalCostResponse!!.value >= 0.0)
+        assertTrue(net.totalCostResponse(CostBasis.PerReplication)!!.value >= 0.0)
         // ES tier rollup is 0 — no ESCostCalculator built under
         // SharedCarrier because no per-edge counter exists.
         assertEquals(0.0,
-            net.totalExternalSupplierLoadingCostResponse!!.value, 1e-9)
+            net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value, 1e-9)
     }
 
     @Test
@@ -80,19 +81,19 @@ class MultiEchelonNetworkCostTest {
 
         // Replenishments triggered → ES shipped → IHP received → IHP
         // shipped to generator. All tiers should show activity.
-        assertTrue(net.totalExternalSupplierLoadingCostResponse!!.value > 0.0,
+        assertTrue(net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value > 0.0,
             "ES loading cost should be > 0 (got " +
-                "${net.totalExternalSupplierLoadingCostResponse!!.value})")
-        assertTrue(net.totalIHPCostResponse!!.value > 0.0,
+                "${net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value})")
+        assertTrue(net.totalIHPCostResponse(CostBasis.PerReplication)!!.value > 0.0,
             "IHP tier cost should be > 0 (got " +
-                "${net.totalIHPCostResponse!!.value})")
+                "${net.totalIHPCostResponse(CostBasis.PerReplication)!!.value})")
         // No cross-docks in this topology.
-        assertEquals(0.0, net.totalCrossDockCostResponse!!.value, 1e-9)
+        assertEquals(0.0, net.totalCrossDockCostResponse(CostBasis.PerReplication)!!.value, 1e-9)
         // Top-line total = IHP + CD + ES; CD is zero so total = IHP + ES.
-        val expected = net.totalIHPCostResponse!!.value +
-            net.totalCrossDockCostResponse!!.value +
-            net.totalExternalSupplierLoadingCostResponse!!.value
-        assertEquals(expected, net.totalCostResponse!!.value, 1e-9)
+        val expected = net.totalIHPCostResponse(CostBasis.PerReplication)!!.value +
+            net.totalCrossDockCostResponse(CostBasis.PerReplication)!!.value +
+            net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value
+        assertEquals(expected, net.totalCostResponse(CostBasis.PerReplication)!!.value, 1e-9)
     }
 
     @Test
@@ -130,6 +131,6 @@ class MultiEchelonNetworkCostTest {
         m.lengthOfReplication = 30.0
         m.simulate()
 
-        assertTrue(net.totalIHPCostResponse!!.value > 0.0)
+        assertTrue(net.totalIHPCostResponse(CostBasis.PerReplication)!!.value > 0.0)
     }
 }

@@ -84,11 +84,12 @@ class SupplyChainReportTest {
         assertTrue("whHeavy" in md, "missing whHeavy formulation")
         assertTrue("Comparison" in md, "missing multi-formulation comparison")
 
-        // Cost matrix produced the flow + holding lines, with a grand total.
+        // Cost matrix produced the flow + holding lines, with a total in each basis.
         assertTrue("HOLDING" in md, "missing HOLDING line")
         assertTrue("LOADING" in md, "missing LOADING line")
         assertTrue("TOTAL" in md, "missing TOTAL row")
-        assertTrue("Grand total" in md, "missing grand total")
+        assertTrue("Total cost ($)" in md, "missing the per-replication total")
+        assertTrue("Total cost ($/time)" in md, "missing the cost rate")
 
         // Topology + inventory rows are present.
         assertTrue("Warehouse" in md && "R1" in md && "R2" in md, "missing nodes")

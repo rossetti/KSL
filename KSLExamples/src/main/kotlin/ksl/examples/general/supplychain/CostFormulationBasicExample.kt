@@ -1,5 +1,6 @@
 package ksl.examples.general.supplychain
 
+import ksl.modeling.supplychain.cost.CostBasis
 import ksl.modeling.supplychain.SupplyChainModel
 import ksl.modeling.supplychain.cost.DefaultMultiEchelonCostFormulation
 import ksl.modeling.supplychain.network.MultiEchelonNetwork
@@ -17,9 +18,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *
  * The default-parameter cost responses appear in the report under
  * names like "DefaultMultiEchelonCostFormulation:Total:Tier:IHP"
- * and "DefaultMultiEchelonCostFormulation:GrandTotal".  Users who
+ * and "DefaultMultiEchelonCostFormulation:TotalCost".  Users who
  * want shorter property-style access can still read
- * `net.totalCostResponse!!.value`, `net.totalIHPCostResponse!!.value`,
+ * `net.totalCostResponse(CostBasis.PerReplication)!!.value`, `net.totalIHPCostResponse(CostBasis.PerReplication)!!.value`,
  * etc. — those properties delegate to the formulation's rollups.
  *
  * Try running this; the report shows confidence intervals for each
@@ -71,10 +72,11 @@ fun main() {
     // Top-line cost accessors for quick programmatic inspection.
     println()
     println("=== top-line cost responses (last-replication values) ===")
-    println("Grand total              : ${net.totalCostResponse!!.value}")
-    println("IHP-tier total           : ${net.totalIHPCostResponse!!.value}")
-    println("CD-tier total            : ${net.totalCrossDockCostResponse!!.value}")
-    println("ES-tier total            : ${net.totalExternalSupplierLoadingCostResponse!!.value}")
+    println("Total cost ($)           : ${net.totalCostResponse(CostBasis.PerReplication)!!.value}")
+    println("Total cost rate ($/time) : ${net.totalCostResponse(CostBasis.PerUnitTime)!!.value}")
+    println("IHP-tier total           : ${net.totalIHPCostResponse(CostBasis.PerReplication)!!.value}")
+    println("CD-tier total            : ${net.totalCrossDockCostResponse(CostBasis.PerReplication)!!.value}")
+    println("ES-tier total            : ${net.totalExternalSupplierLoadingCostResponse(CostBasis.PerReplication)!!.value}")
     println("Backorder cost           : ${net.totalBackorderCostResponse!!.value}")
     println("Stockout cost            : ${net.totalStockoutCostResponse!!.value}")
     println("Lost-sale cost           : ${net.totalLostSaleCostResponse!!.value}")

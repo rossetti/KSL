@@ -81,11 +81,11 @@ class CostFormulationReportSuppressionTest {
 
         // -- Per-tier rollups: CD tier should be suppressed; IHP and
         //    ES tiers stay visible (they have calculators).
-        assertFalse(rep(f.byTierResponse(NodeTier.CD)),
+        assertFalse(rep(f.byTierResponse(NodeTier.CD, CostBasis.PerReplication)),
             "CD tier total should be suppressed (no CDs)")
-        assertTrue(rep(f.byTierResponse(NodeTier.IHP)),
+        assertTrue(rep(f.byTierResponse(NodeTier.IHP, CostBasis.PerReplication)),
             "IHP tier total should be visible")
-        assertTrue(rep(f.byTierResponse(NodeTier.ES)),
+        assertTrue(rep(f.byTierResponse(NodeTier.ES, CostBasis.PerReplication)),
             "ES tier total should be visible")
 
         // -- Per-line rollups: ShipmentBuilderHolding should be
@@ -99,7 +99,7 @@ class CostFormulationReportSuppressionTest {
             "ESLoading per-line total should be visible")
 
         // -- Grand total stays visible.
-        assertTrue(rep(f.totalCostResponse),
+        assertTrue(rep(f.totalCostResponse(CostBasis.PerReplication)),
             "Grand total should be visible")
 
         // -- Suppression should not affect programmatic readability.
@@ -111,7 +111,7 @@ class CostFormulationReportSuppressionTest {
         assertEquals(0.0,
             f.byTierAndLineResponse(NodeTier.CD, CostLine.Holding)!!.value, 1e-12)
         assertEquals(0.0,
-            f.byTierResponse(NodeTier.CD)!!.value, 1e-12)
+            f.byTierResponse(NodeTier.CD, CostBasis.PerReplication)!!.value, 1e-12)
     }
 
     @Test
@@ -138,7 +138,7 @@ class CostFormulationReportSuppressionTest {
 
         // -- CD-tier total should be visible (a CD exists → Loading,
         //    Shipping, Unloading calculators were built for it).
-        assertTrue(rep(f.byTierResponse(NodeTier.CD)),
+        assertTrue(rep(f.byTierResponse(NodeTier.CD, CostBasis.PerReplication)),
             "CD tier total should be visible when CDs exist")
         // -- And the CD × Loading specific cell should be visible.
         assertTrue(rep(f.byTierAndLineResponse(NodeTier.CD, CostLine.Loading)),
