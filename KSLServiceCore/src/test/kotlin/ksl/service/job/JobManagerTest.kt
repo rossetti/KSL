@@ -37,21 +37,23 @@ import kotlin.test.assertNull
  * the job has finished still replays every event from offset 0 — the bounded
  * `SharedFlow` replay no longer governs delivery.
  */
+/** A directly-driven [JobHandleView]; the spine is an interface, so no real
+ *  session is needed to test the manager. Shared with the tests in
+ *  [JobManagerCapacityReleaseTest], which drive the same fake on a real
+ *  dispatcher. */
+internal class FakeJob<E, R>(override val jobId: String) : JobHandleView<E, R> {
+    private val _events = MutableSharedFlow<E>(replay = 64, extraBufferCapacity = 64)
+    override val events: SharedFlow<E> = _events
+    private val _result = CompletableDeferred<R>()
+    override val result: Deferred<R> = _result
+    var cancelledWith: String? = null
+    override fun cancel(reason: String) { cancelledWith = reason }
+    suspend fun emit(event: E) = _events.emit(event)
+    fun finish(result: R) = _result.complete(result)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class JobManagerTest {
-
-    /** A directly-driven [JobHandleView]; the spine is an interface, so no real
-     *  session is needed to test the manager. */
-    private class FakeJob<E, R>(override val jobId: String) : JobHandleView<E, R> {
-        private val _events = MutableSharedFlow<E>(replay = 64, extraBufferCapacity = 64)
-        override val events: SharedFlow<E> = _events
-        private val _result = CompletableDeferred<R>()
-        override val result: Deferred<R> = _result
-        var cancelledWith: String? = null
-        override fun cancel(reason: String) { cancelledWith = reason }
-        suspend fun emit(event: E) = _events.emit(event)
-        fun finish(result: R) = _result.complete(result)
-    }
 
     @Test
     fun `late subscriber replays the full journal from offset zero`() = runTest {

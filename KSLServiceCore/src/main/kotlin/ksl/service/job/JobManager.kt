@@ -80,6 +80,10 @@ data class JobRecord(
  *
  * This is why the transports fetch a result only once status reads TERMINAL
  * (see `ksl.service.capability.run.RunApplicationService.getRunResult`).
+ *
+ * The concurrency limit is the one read that deliberately does not wait for
+ * TERMINAL: a job whose result has settled is no longer occupying a slot,
+ * whatever the journal is still doing. See [register].
  */
 class JobManager<E, R>(
     private val scope: CoroutineScope,
@@ -100,10 +104,20 @@ class JobManager<E, R>(
      * Submits and begins tracking a job. [submit] is invoked only after the
      * capacity check passes, so a rejected submission never starts work.
      *
+     * A job stops consuming a slot as soon as its result settles, which is
+     * deliberately earlier than TERMINAL. Capacity therefore cannot be read from
+     * `terminatedAt` alone: that field is published last, after the journal is
+     * drained and closed, and the coroutine that publishes it races every caller
+     * of [result] awaiting the same deferred. A caller that has its result and
+     * immediately registers again would otherwise be refused by a job that has
+     * already finished. Reading the deferred's own completion state instead
+     * makes the slot's release independent of when that coroutine is scheduled,
+     * while leaving `terminatedAt` — and so [status] and [list] — untouched.
+     *
      * @throws JobAtCapacityException if [maxConcurrent] jobs are already running
      */
     fun register(submit: () -> JobHandleView<E, R>): JobRecord {
-        val running = entries.values.count { it.terminatedAt == null }
+        val running = entries.values.count { it.terminatedAt == null && !it.handle.result.isCompleted }
         if (running >= maxConcurrent) throw JobAtCapacityException(maxConcurrent)
 
         val handle = submit()

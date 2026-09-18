@@ -218,7 +218,8 @@ class ModaServiceTest {
             held.release()
             runBlocking { withTimeout(30_000) { jobs.result(running.jobId) } }
 
-            // With the place free again, another study is taken.
+            // The slot is released when the study's result settles, not when the manager
+            // finishes journaling it, so the place is free by the time the await returns.
             val next = jobs.register { service.submit(document("After")) }
             assertNotNull(runBlocking { withTimeout(30_000) { jobs.result(next.jobId) } })
         } finally {
