@@ -1299,11 +1299,23 @@ vehicles under saturated demand:
 
 ```
 zone traversals    : 4,379,615
+events scheduled   : 4,412,312
 events / traversal : 1.007
-wall clock         : 4.60 s
-throughput         : 57,156,149 zone traversals per wall-clock minute
+wall clock         : 1.4 s
+throughput         : ~190,000,000 zone traversals per wall-clock minute
 JVM                : OpenJDK 64-Bit Server VM 21.0.10, Linux amd64, 4 processors
 ```
+
+**Two of those lines are reproducible and two are not.** The workload is
+deterministic, so the traversal count and events per traversal come out
+identical on every machine and every run — if either moves, the engine's
+behaviour moved. Wall clock and throughput are properties of the machine, and
+the machine is not adequately described by the three lines the benchmark prints
+about it: the same workload on containers reporting the same JVM, the same
+`Linux amd64` and the same four processors has measured 4.60 s, 2.33 s and
+1.38 s. Read the throughput figure as an order of magnitude, take your own on
+the hardware you care about, and compare a change against a figure you measured
+yourself rather than against this one.
 
 Events per traversal is the number to watch. One is the floor — a
 transporter with a clear path ahead schedules a single event per zone.

@@ -89,11 +89,22 @@ class AgvThroughputBenchmark(
     private val numLoads: Int = 40,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
+    private val rows: Int = 4,
     private val columns: Int = 5,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    val network = createAgvBenchmarkNetwork()
+    init {
+        // As in the passive benchmark: placement indexes the east links, so the fleet has to fit.
+        require(numVehicles <= rows * columns) {
+            "This benchmark places one vehicle at the head of each east link, and a ${rows}x$columns " +
+                    "torus has ${rows * columns} of them; $numVehicles vehicles will not fit."
+        }
+    }
+
+    // To the dimensions above, not to the function's defaults: the placement arithmetic reads
+    // `columns`, so a network that did not follow it would name zones the torus does not have.
+    val network = createAgvBenchmarkNetwork(rows = rows, columns = columns)
 
     init {
         spatialModel = network
@@ -144,8 +155,11 @@ class AgvThroughputBenchmark(
  *  The same torus the passive benchmark uses, borrowed rather than rebuilt so that the two
  *  measurements are of one layout and stay that way.
  */
-private fun createAgvBenchmarkNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork =
-    createBenchmarkTorus(networkName = networkName)
+private fun createAgvBenchmarkNetwork(
+    rows: Int = 4,
+    columns: Int = 5,
+    networkName: String = "BenchmarkTorus"
+): GuidedPathNetwork = createBenchmarkTorus(rows = rows, columns = columns, networkName = networkName)
 
 /** What one run measured. The same three quantities the passive benchmark reports. */
 private data class AgvBenchmarkResult(
@@ -192,7 +206,7 @@ private fun reportAgvBenchmark() {
     )
     val active = runAgvBenchmark()
     val passive = runGuidedPathBenchmark()
-    val described = createAgvBenchmarkNetwork("Describe")
+    val described = createAgvBenchmarkNetwork(networkName = "Describe")
 
     println()
     println("AGV throughput benchmark - reference configuration, both paradigms")

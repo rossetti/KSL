@@ -36,7 +36,9 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  somebody else's laptop. Run it with `main`, record the figure alongside the hardware, and
  *  compare like with like.
  *
- *  The reference configuration is a twenty-intersection, forty-link network of four hundred zones
+ *  The reference configuration is a twenty-intersection, forty-link network of 420 zones -- four
+ *  hundred on the links and one per intersection, and the intersection zones are not a rounding
+ *  detail, since a junction admits one vehicle at a time and is where a grid queues --
  *  carrying twenty vehicles under saturated demand: every vehicle is given a fresh destination the
  *  instant it arrives, so none is ever idle and the engine is doing nothing but move things. The
  *  layout is a four-by-five torus of one-way aisles, which keeps every intersection reachable from
@@ -71,11 +73,25 @@ class GuidedPathThroughputBenchmark(
     parent: ModelElement,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
+    private val rows: Int = 4,
     private val columns: Int = 5,
     name: String? = null
 ) : ModelElement(parent, name) {
 
-    val network = createBenchmarkTorus()
+    init {
+        // Placement below indexes the east links by row and column, so a fleet larger than there
+        // are east links would ask for a link that does not exist. Checked here rather than left
+        // to fail inside the space layer, which would name a zone and not the reason.
+        require(numVehicles <= rows * columns) {
+            "This benchmark places one vehicle at the head of each east link, and a ${rows}x$columns " +
+                    "torus has ${rows * columns} of them; $numVehicles vehicles will not fit."
+        }
+    }
+
+    // Built to the dimensions above rather than to the function's own defaults: the placement
+    // arithmetic reads `columns`, so a network that did not follow it would send vehicles to zones
+    // the torus does not have.
+    val network = createBenchmarkTorus(rows = rows, columns = columns)
     val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
     // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
@@ -103,14 +119,36 @@ class GuidedPathThroughputBenchmark(
         for (v in vehicles) dispatch(v)
     }
 
+    /**
+     *  How many arrivals ended without the vehicle being sent anywhere.
+     *
+     *  Should be zero, and the benchmark reports it rather than trusting that. A destination the
+     *  vehicle already stands on is refused, so the loop below retries; with twenty intersections
+     *  the chance of eight consecutive self-picks is about four in a hundred thousand million. But
+     *  the headline figure is only about twenty saturated vehicles if all twenty stayed moving, and
+     *  a vehicle that stopped would quietly shrink the fleet while the number still looked fine.
+     *  A count printed beside the result turns that from a hope into a statement.
+     */
+    var undispatchedArrivals: Int = 0
+        private set
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        if (undispatchedArrivals > 0) {
+            logger.warn {
+                "Benchmark ($name): $undispatchedArrivals arrival(s) ended without the vehicle " +
+                        "being re-dispatched, so the fleet was not saturated for the whole run and " +
+                        "the throughput figure understates the engine."
+            }
+        }
+    }
+
     private fun dispatch(vehicle: GuidedTransporter) {
-        // Keep trying until the vehicle is actually sent somewhere: a destination it already
-        // stands on is refused, and a vehicle left undispatched would quietly stop and make the
-        // benchmark measure a smaller fleet than it claims.
         repeat(8) {
             val target = network.intersections[stream.randInt(0, network.intersections.size - 1)]
             if (vehicle.sendTo(target.name)) return
         }
+        undispatchedArrivals++
     }
 }
 
@@ -155,9 +193,10 @@ fun createBenchmarkTorus(
 data class GuidedPathBenchmarkResult(
     val zoneTraversals: Double,
     val eventsScheduled: Double,
-    val wallClockSeconds: Double
+    val wallClockSeconds: Double,
+    val undispatchedArrivals: Int = 0
 ) {
-    /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
+    /** The headline figure: zone traversals per minute of wall-clock time. */
     val traversalsPerWallClockMinute: Double
         get() = zoneTraversals / wallClockSeconds * 60.0
 
@@ -174,8 +213,13 @@ data class GuidedPathBenchmarkResult(
 fun runGuidedPathBenchmark(replicationLength: Double = 200_000.0, replications: Int = 1): GuidedPathBenchmarkResult {
     val m = Model("GuidedPathThroughputBenchmark")
     val fleet = GuidedPathThroughputBenchmark(m, name = "SaturatedFleet")
-    // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
+    // Two diagnostics walk every zone, and leaving either on would benchmark it rather than the
+    // engine. Both are set here even though only one has to be: `checkInvariants` is initialised
+    // from a system property and so can arrive switched on, while `collectLinkStatistics` merely
+    // defaults to false. Stating both means a later change of default cannot quietly turn this
+    // into a measurement of the diagnostic.
     fleet.system.checkInvariants = false
+    fleet.system.collectLinkStatistics = false
     m.numberOfReplications = replications
     m.lengthOfReplication = replicationLength
     val started = System.nanoTime()
@@ -184,7 +228,8 @@ fun runGuidedPathBenchmark(replicationLength: Double = 200_000.0, replications: 
     return GuidedPathBenchmarkResult(
         zoneTraversals = fleet.system.numZoneTraversals.value,
         eventsScheduled = fleet.system.numEventsScheduled.value,
-        wallClockSeconds = elapsed
+        wallClockSeconds = elapsed,
+        undispatchedArrivals = fleet.undispatchedArrivals
     )
 }
 
@@ -200,7 +245,7 @@ private fun reportGuidedPathBenchmark() {
                 "${described.links.size} links, ${described.zones.size} zones " +
                 "(${described.links.size * 10} on links, one per intersection)"
     )
-    println("  vehicles           : 20, saturated")
+    println("  vehicles           : 20, saturated (${result.undispatchedArrivals} arrival(s) left undispatched)")
     println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
     println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
     println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")

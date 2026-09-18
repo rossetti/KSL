@@ -4161,11 +4161,19 @@ class GuidedPathThroughputBenchmark(
     parent: ModelElement,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
+    private val rows: Int = 4,
     private val columns: Int = 5,
     name: String? = null
 ) : ModelElement(parent, name) {
 
-    val network = createBenchmarkTorus()
+    init {
+        require(numVehicles <= rows * columns) {
+            "This benchmark places one vehicle at the head of each east link, and a ${rows}x$columns " +
+                    "torus has ${rows * columns} of them; $numVehicles vehicles will not fit."
+        }
+    }
+
+    val network = createBenchmarkTorus(rows = rows, columns = columns)
 ```
 
 Six constants and the benchmark is specified: 4 × 5 = 20 intersections, two links
@@ -4243,7 +4251,7 @@ that occasionally deadlocked would be measuring deadlock recovery.
 
 ```kotlin
 class GuidedPathThroughputBenchmark(
-    val network = createBenchmarkTorus()
+    val network = createBenchmarkTorus(rows = rows, columns = columns)
     val system = GuidedPathTransportSystem(this, network, name = "Sys")
 
     // A stream of its own, so the benchmark repeats exactly and two runs on the same machine
@@ -4271,14 +4279,26 @@ class GuidedPathThroughputBenchmark(
         for (v in vehicles) dispatch(v)
     }
 
+    var undispatchedArrivals: Int = 0
+        private set
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        if (undispatchedArrivals > 0) {
+            logger.warn {
+                "Benchmark ($name): $undispatchedArrivals arrival(s) ended without the vehicle " +
+                        "being re-dispatched, so the fleet was not saturated for the whole run and " +
+                        "the throughput figure understates the engine."
+            }
+        }
+    }
+
     private fun dispatch(vehicle: GuidedTransporter) {
-        // Keep trying until the vehicle is actually sent somewhere: a destination it already
-        // stands on is refused, and a vehicle left undispatched would quietly stop and make the
-        // benchmark measure a smaller fleet than it claims.
         repeat(8) {
             val target = network.intersections[stream.randInt(0, network.intersections.size - 1)]
             if (vehicle.sendTo(target.name)) return
         }
+        undispatchedArrivals++
     }
         }
 ```
@@ -4338,9 +4358,10 @@ of their own, so two runs on the same machine differ only in wall-clock time.
 data class GuidedPathBenchmarkResult(
     val zoneTraversals: Double,
     val eventsScheduled: Double,
-    val wallClockSeconds: Double
+    val wallClockSeconds: Double,
+    val undispatchedArrivals: Int = 0
 ) {
-    /** The figure the goal is stated in: zone traversals per minute of wall-clock time. */
+    /** The headline figure: zone traversals per minute of wall-clock time. */
     val traversalsPerWallClockMinute: Double
         get() = zoneTraversals / wallClockSeconds * 60.0
 
@@ -4370,8 +4391,8 @@ exchange rate.
 fun runGuidedPathBenchmark(replicationLength: Double = 200_000.0, replications: Int = 1): GuidedPathBenchmarkResult {
     val m = Model("GuidedPathThroughputBenchmark")
     val fleet = GuidedPathThroughputBenchmark(m, name = "SaturatedFleet")
-    // Both are diagnostics that walk every zone. Leaving them on would benchmark them.
     fleet.system.checkInvariants = false
+    fleet.system.collectLinkStatistics = false
     m.numberOfReplications = replications
     m.lengthOfReplication = replicationLength
     val started = System.nanoTime()
@@ -4380,7 +4401,8 @@ fun runGuidedPathBenchmark(replicationLength: Double = 200_000.0, replications: 
     return GuidedPathBenchmarkResult(
         zoneTraversals = fleet.system.numZoneTraversals.value,
         eventsScheduled = fleet.system.numEventsScheduled.value,
-        wallClockSeconds = elapsed
+        wallClockSeconds = elapsed,
+        undispatchedArrivals = fleet.undispatchedArrivals
     )
 }
 ```
@@ -4413,7 +4435,7 @@ private fun reportGuidedPathBenchmark() {
                 "${described.links.size} links, ${described.zones.size} zones " +
                 "(${described.links.size * 10} on links, one per intersection)"
     )
-    println("  vehicles           : 20, saturated")
+    println("  vehicles           : 20, saturated (${result.undispatchedArrivals} arrival(s) left undispatched)")
     println("  zone traversals    : ${"%,.0f".format(result.zoneTraversals)}")
     println("  events scheduled   : ${"%,.0f".format(result.eventsScheduled)}")
     println("  events / traversal : ${"%.3f".format(result.eventsPerTraversal)}")
@@ -4494,16 +4516,27 @@ class AgvThroughputBenchmark(
     private val numLoads: Int = 40,
     private val numVehicles: Int = 20,
     private val velocity: Double = 10.0,
+    private val rows: Int = 4,
     private val columns: Int = 5,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    val network = createAgvBenchmarkNetwork()
+    init {
+        require(numVehicles <= rows * columns) {
+            "This benchmark places one vehicle at the head of each east link, and a ${rows}x$columns " +
+                    "torus has ${rows * columns} of them; $numVehicles vehicles will not fit."
+        }
+    }
+
+    val network = createAgvBenchmarkNetwork(rows = rows, columns = columns)
 ```
 
 ```kotlin
-private fun createAgvBenchmarkNetwork(networkName: String = "BenchmarkTorus"): GuidedPathNetwork =
-    createBenchmarkTorus(networkName = networkName)
+private fun createAgvBenchmarkNetwork(
+    rows: Int = 4,
+    columns: Int = 5,
+    networkName: String = "BenchmarkTorus"
+): GuidedPathNetwork = createBenchmarkTorus(rows = rows, columns = columns, networkName = networkName)
 ```
 
 **The network is read from the passive benchmark, not copied.** So are the fleet
@@ -4678,7 +4711,7 @@ private fun reportAgvBenchmark() {
     )
     val active = runAgvBenchmark()
     val passive = runGuidedPathBenchmark()
-    val described = createAgvBenchmarkNetwork("Describe")
+    val described = createAgvBenchmarkNetwork(networkName = "Describe")
 
     println()
     println("AGV throughput benchmark - reference configuration, both paradigms")
