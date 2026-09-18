@@ -200,6 +200,17 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
     private val myTotal: Response =
         Response(this, name = "${this.name}:GrandTotal")
 
+    // The two dimensionally consistent totals.  Both are computed from
+    // line.basis in replicationEnded, and both are summed per calculator
+    // rather than from the per-line rollups: whether a cost counts toward a
+    // total is a property of which calculator produced it, not of which line
+    // it lands on, which is what lets a calculator be excluded later without
+    // disturbing the per-line reporting.
+    private val myHorizonTotal: Response =
+        Response(this, name = "${this.name}:HorizonTotal")
+    private val myTotalCostRate: Response =
+        Response(this, name = "${this.name}:TotalCostRate")
+
     // Per-node (location) rollup Responses, keyed by node name. Allocated in the
     // init block after buildCalculators so the tracked node set is known.
     private val myByNode: MutableMap<String, Response> = mutableMapOf()
@@ -226,6 +237,34 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
 
     override val totalCostResponse: ResponseCIfc
         get() = myTotal
+
+    /**
+     * The total cost in the requested [TotalForm] — the Response an optimization
+     * objective should reference.
+     *
+     * Both forms are dimensionally consistent, which the grand total is not: it
+     * sums rate lines with per-event lines, so it is neither dollars nor dollars
+     * per unit time. Choose [TotalForm.HorizonTotal] for dollars over the
+     * observed window, or [TotalForm.Rate] for dollars per unit time, which is
+     * the form to compare runs of unequal length with.
+     */
+    fun totalCostResponse(form: TotalForm): ResponseCIfc = when (form) {
+        TotalForm.HorizonTotal -> myHorizonTotal
+        TotalForm.Rate -> myTotalCostRate
+    }
+
+    /**
+     * The window the replication actually observed: its current time less the
+     * warm-up length.
+     *
+     * Read from the clock rather than from `lengthOfReplication` on purpose, so
+     * that a replication ended by its event calendar rather than by a fixed
+     * horizon is scaled by the time it observed rather than by the time it was
+     * allowed. Floored at zero for the degenerate case of a run no longer than
+     * its own warm-up, where nothing was observed and every line is zero anyway.
+     */
+    private fun observedTime(): Double =
+        (time - model.lengthOfReplicationWarmUp).coerceAtLeast(0.0)
 
     /**
      * Roll up the calculators' line Responses into the per-(tier, line),
@@ -299,6 +338,29 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         }
 
         myTotal.value = grand
+
+        // The consistent totals.  Partition the calculators' lines by basis and
+        // bring the two halves to a common denomination before adding them.
+        var ratePerTime = 0.0
+        var perReplication = 0.0
+        for (calc in myCalculators) {
+            for ((line, r) in calc.lineResponses) {
+                when (line.basis) {
+                    CostBasis.RatePerTime -> ratePerTime += r.value
+                    CostBasis.PerReplicationTotal -> perReplication += r.value
+                }
+            }
+        }
+        val observed = observedTime()
+        if (observed > 0.0) {
+            myHorizonTotal.value = ratePerTime * observed + perReplication
+            myTotalCostRate.value = ratePerTime + perReplication / observed
+        } else {
+            // Nothing was observed, so both counters and time-weighted averages
+            // are still at their post-warm-up reset and every line is zero.
+            myHorizonTotal.value = 0.0
+            myTotalCostRate.value = 0.0
+        }
 
         // Per-node (location): sum every line of every calculator owned by the
         // node, using the same ownership attribution the params resolver uses.
