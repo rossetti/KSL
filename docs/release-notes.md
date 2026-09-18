@@ -391,11 +391,14 @@ here — there is no statistic it could report that would reveal the aisle it do
   intersection coordinates are carried for layout and animation and are never read by the engine.
   Model a turn cost as a `velocityFactor`, or as an intersection whose length represents the time
   to negotiate it.
-- Throughput on the reference benchmark (4x5 torus, 420 zones, 20 vehicles, saturated) is
-  57,156,149 zone traversals per wall-clock minute at 1.007 events per traversal, on OpenJDK 21
-  under Linux amd64 with 4 processors. One zone traversal is one scheduled event, so halving zone
-  size doubles the event count for the same motion: choose zone size from the granularity at which
-  the real control system reserves space, not from how smooth the animation looks.
+- On the reference benchmark (4x5 torus, 420 zones, 20 vehicles, saturated) the workload is
+  4,379,615 zone traversals at 1.007 events per traversal. Those two figures are deterministic and
+  reproduce exactly; throughput in traversals per wall-clock minute is a property of the machine
+  and has measured between roughly 57 and 219 million on containers all reporting OpenJDK 21,
+  Linux amd64 and 4 processors, so take your own rather than comparing against a recorded one.
+  One zone traversal is one scheduled event, so halving zone size doubles the event count for the
+  same motion: choose zone size from the granularity at which the real control system reserves
+  space, not from how smooth the animation looks.
 
 ## R1.6.2
 

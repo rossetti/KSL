@@ -4809,10 +4809,19 @@ imports case 9's benchmark and nothing imports this one.
   zone traversals                 4,379,794          4,379,615
   events scheduled                4,412,310          4,412,312
   events / traversal                  1.007              1.007
-  wall clock (s)                       8.63               6.63
-  traversals / minute            30,437,160         39,662,497
+  wall clock (s)                       2.12               1.20
+  traversals / minute           124,225,041        218,964,759
   tasks completed                    55,564                 --
+  vehicles idle (mean)                0.000                 --
 ```
+
+**Four of those rows reproduce and two do not.** The workload is deterministic, so
+the traversal counts, the event counts, events per traversal and the idle figure
+come out identical on every machine and every run — if any of them moves, the
+model's behaviour moved. Wall clock and traversals per minute belong to the
+machine: the same workload on containers reporting the same JVM, the same
+`Linux amd64` and the same four processors has measured the passive half at 1.20,
+1.53 and 2.24 seconds. Take your own figures and compare a change against those.
 
 ### What to learn
 
@@ -4823,9 +4832,24 @@ subsystems are moving the same vehicles over the same aisles. A large gap would
 mean every other comparison between the paradigms was suspect.
 
 **Events per traversal is 1.007 in both.** Deciding costs *nothing* in engine
-events, because a dispatching pass is not a zone traversal. The wall-clock gap — 30% on
-the run above, and machine-dependent — is the dispatcher's and the vehicle agents'
-coroutines, which is what an object that can hold an opinion costs.
+events, because a dispatching pass is not a zone traversal — `numEventsScheduled`
+is the space layer's counter, so a dispatcher's own events were never in it. That
+is worth stating as a limit rather than a result: the metric cannot price
+dispatching, and the executive's own event totals are internal to the library.
+
+**The wall-clock ratio is where deciding shows up**, and it is a fair measurement
+here despite wall clock being machine-bound, because `reportAgvBenchmark` runs both
+halves back to back inside one JVM — same heap, same JIT state, only the paradigm
+differs. Three runs on this container measured active against passive at 1.39,
+1.65 and 1.74 while the passive half alone moved between 1.20 and 2.24 seconds.
+Deciding costs something like half again as much wall clock for the same movement,
+and that spread is a fair statement of how precisely one pair of runs can say it.
+What is being paid for is the dispatcher's and the vehicle agents' coroutines —
+what an object that can hold an opinion costs.
+
+**And the fleet was never idle**, which is what makes "20, saturated" a statement
+rather than a hope: forty circulating loads kept twenty vehicles busy for the whole
+run.
 
 Saturation is expressed differently on the two sides, necessarily. The passive
 benchmark re-dispatches each vehicle the instant it arrives, which it can do
