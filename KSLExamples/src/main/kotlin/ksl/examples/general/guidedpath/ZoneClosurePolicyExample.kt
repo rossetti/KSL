@@ -60,7 +60,9 @@ import ksl.utilities.random.rvariable.ConstantRV
  *    nothing is held yet.
  *  - **2.6** a spill wants `Zone4` and `Zone5`. `Zone4` is promised, so the answer is null -- and
  *    what happens next is the policy.
- *  - **5.0** the cart clears `Zone4`, the crew's set has drained, and the crew takes it.
+ *  - **5.0** the cart clears `Zone4`, the crew's set has drained, and the crew takes it -- under
+ *    the first two policies. Under the third the spill is in the cart's way and this slips to 5.6,
+ *    which is the one line of the arrangement that the policy moves.
  *
  *  ## The three answers
  *
@@ -76,6 +78,13 @@ import ksl.utilities.random.rvariable.ConstantRV
  *    once, and the cart, which reaches `B` at 6.0 under the other two policies, is held up behind
  *    the relocated closure and reaches it at 6.6.
  *
+ *    That 0.6 is the one figure not read straight off the arrangement, so here is where it comes
+ *    from. End-of-zone control means a cart claims the zone ahead as it begins to leave the one it
+ *    is in, so the cart claims `Zone5` at **4.0**, not on arriving there at 5.0. The relocated
+ *    spill holds `Zone5` until 4.6. The cart therefore waits 0.6, and everything downstream of it
+ *    moves by 0.6 as well: it reaches `B` at 6.6 rather than 6.0, and because it clears `Zone4`
+ *    0.6 late the crew's set drains 0.6 late and the crew takes at 5.6 rather than 5.0.
+ *
  *  None is more correct than the others. Which one a model wants is a statement about the thing
  *  being modelled -- spilled fluid spreads, an inspection waits, a work crew goes where it is needed
  *  -- and no library can read that off the geometry.
@@ -88,6 +97,20 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  asking for a held zone succeeds and waits. A guard written as "is anything closing *or holding*
  *  this zone?" would turn away the DEFER retry at 5.6, which is a closure that works perfectly
  *  well.
+ *
+ *  ## The warning above the timelines
+ *
+ *  Every run prints this once per policy, and it is the layout rather than a fault:
+ *
+ *  ```
+ *  WARN GuidedPathNetwork (Aisle): 1 ordered intersection pair(s) have no path.
+ *       Requesting a route between one of them raises. First few: B -> A
+ *  ```
+ *
+ *  The aisle is a single one-way link from `A` to `B`, so there is no way back and the network
+ *  says so. On a layout meant to be a circuit that warning is worth acting on -- a one-way loop
+ *  with a leg pointing the wrong way strands everything downstream of it. Here the aisle is the
+ *  whole network and the cart makes one trip along it, so there is nothing to return to.
  *
  *  ## Both routes, one decision
  *
@@ -165,25 +188,33 @@ class ZoneClosurePolicyExample(
     private fun namesOf(zs: List<Zone>) =
         zs.joinToString(", ", "[", "]") { it.name.removePrefix("L1.") }
 
+    /** What a request is about to be told, as something the run can check rather than only print. */
+    private enum class Prospect { REFUSED, ACCEPTED }
+
     /**
      *  What is about to happen to a request, and why, in the terms the modeller decides about.
      *
      *  Read **before** asking, because the answer is what the example is about. Note that the
      *  held case is *observed* here and never acted on -- deciding on a hold is precisely the
      *  mistake this example exists to show. Only the promised case is a decision.
+     *
+     *  The verdict is returned alongside the wording so that the process below can hold the
+     *  library to it. Everything here is arranged, so a prediction that failed to come true would
+     *  mean the promised/held distinction had moved underneath the example -- which is exactly the
+     *  regression a file about that distinction should not be able to survive quietly.
      */
-    private fun prospects(wanted: List<Zone>): String {
+    private fun prospects(wanted: List<Zone>): Pair<Prospect, String> {
         val promised = system.firstPromisedZone(wanted)
         if (promised != null) {
-            return " -- refused: ${promised.name.removePrefix("L1.")} is promised to " +
-                    "${promised.closingFor?.name}, still waiting for it to drain"
+            return Prospect.REFUSED to (" -- refused: ${promised.name.removePrefix("L1.")} is " +
+                    "promised to ${promised.closingFor?.name}, still waiting for it to drain")
         }
         val held = wanted.firstOrNull { it.holder != null && it.holder !is GuidedTransporter }
         if (held != null) {
-            return " -- accepted: ${held.name.removePrefix("L1.")} is *held* by " +
-                    "${held.holder?.name}, which is not a collision; waiting for the hold to end"
+            return Prospect.ACCEPTED to (" -- accepted: ${held.name.removePrefix("L1.")} is *held* " +
+                    "by ${held.holder?.name}, which is not a collision; waiting for the hold to end")
         }
-        return " -- accepted: the space is free"
+        return Prospect.ACCEPTED to " -- accepted: the space is free"
     }
 
     // ---- the event route: a scheduled maintenance closure -----------------------------------
@@ -209,8 +240,15 @@ class ZoneClosurePolicyExample(
                 // The one call that can come back empty-handed. Everything a request must
                 // satisfy besides an overlap still raises, so a null here means exactly one
                 // thing: some zone of the set is promised to a closure still waiting for it.
-                note("Spill", "asks for ${namesOf(wanted)}${prospects(wanted)}")
+                val (expected, why) = prospects(wanted)
+                note("Spill", "asks for ${namesOf(wanted)}$why")
                 val taken = trySeizeZones(system, wanted, closureQ)
+                val answered = if (taken == null) Prospect.REFUSED else Prospect.ACCEPTED
+                check(answered == expected) {
+                    "at $time the spill was told $answered for ${namesOf(wanted)} where reading " +
+                            "the zones said $expected. The promised/held distinction this example " +
+                            "is about has moved."
+                }
                 if (taken != null) {
                     note("Spill", "takes ${namesOf(taken.zones)}")
                     delay(cleanupTakes)
@@ -250,7 +288,12 @@ class ZoneClosurePolicyExample(
         schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
         schedule({ _: KSLEvent<Nothing> ->
             note("Crew", "asks for ${namesOf(crewWants)} -- the cart is still crossing Zone3")
-            system.tryHoldZonesFor(crew, crewWants, crewHoldsFor, crewAction)
+            // The arrangement depends on this one succeeding: nothing is promised at 2.5, and a
+            // refusal here would leave the spill colliding with a closure that never happened.
+            checkNotNull(system.tryHoldZonesFor(crew, crewWants, crewHoldsFor, crewAction)) {
+                "the crew was refused ${namesOf(crewWants)} at $time, so the collision the rest of " +
+                        "this example is about never arises"
+            }
         }, crewAsksAt)
         schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, spillAsksAt)
     }
@@ -264,6 +307,11 @@ fun main() {
     for (policy in ZoneClosurePolicyExample.OverlapPolicy.entries) {
         val m = Model("ClosurePolicy_$policy")
         val aisle = ZoneClosurePolicyExample(m, policy, name = "Aisle")
+        // On, where the benchmarks force it off. It walks every zone on every change, which is
+        // why a throughput measurement cannot afford it -- and why a twenty-minute run over six
+        // zones can afford it easily. This example makes claims about which zone is promised to
+        // whom at which instant, so the harness that checks the space's own bookkeeping against
+        // itself is worth more here than the microseconds it costs.
         aisle.system.checkInvariants = true
         m.numberOfReplications = 1
         m.lengthOfReplication = 20.0

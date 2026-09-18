@@ -5473,18 +5473,20 @@ class ZoneClosurePolicyExample(
     private fun namesOf(zs: List<Zone>) =
         zs.joinToString(", ", "[", "]") { it.name.removePrefix("L1.") }
 
-    private fun prospects(wanted: List<Zone>): String {
+    private enum class Prospect { REFUSED, ACCEPTED }
+
+    private fun prospects(wanted: List<Zone>): Pair<Prospect, String> {
         val promised = system.firstPromisedZone(wanted)
         if (promised != null) {
-            return " -- refused: ${promised.name.removePrefix("L1.")} is promised to " +
-                    "${promised.closingFor?.name}, still waiting for it to drain"
+            return Prospect.REFUSED to (" -- refused: ${promised.name.removePrefix("L1.")} is " +
+                    "promised to ${promised.closingFor?.name}, still waiting for it to drain")
         }
         val held = wanted.firstOrNull { it.holder != null && it.holder !is GuidedTransporter }
         if (held != null) {
-            return " -- accepted: ${held.name.removePrefix("L1.")} is *held* by " +
-                    "${held.holder?.name}, which is not a collision; waiting for the hold to end"
+            return Prospect.ACCEPTED to (" -- accepted: ${held.name.removePrefix("L1.")} is *held* " +
+                    "by ${held.holder?.name}, which is not a collision; waiting for the hold to end")
         }
-        return " -- accepted: the space is free"
+        return Prospect.ACCEPTED to " -- accepted: the space is free"
     }
 
     // ---- the event route: a scheduled maintenance closure -----------------------------------
@@ -5528,8 +5530,15 @@ the mistake this example was written to make visible.
                 // The one call that can come back empty-handed. Everything a request must
                 // satisfy besides an overlap still raises, so a null here means exactly one
                 // thing: some zone of the set is promised to a closure still waiting for it.
-                note("Spill", "asks for ${namesOf(wanted)}${prospects(wanted)}")
+                val (expected, why) = prospects(wanted)
+                note("Spill", "asks for ${namesOf(wanted)}$why")
                 val taken = trySeizeZones(system, wanted, closureQ)
+                val answered = if (taken == null) Prospect.REFUSED else Prospect.ACCEPTED
+                check(answered == expected) {
+                    "at $time the spill was told $answered for ${namesOf(wanted)} where reading " +
+                            "the zones said $expected. The promised/held distinction this example " +
+                            "is about has moved."
+                }
                 if (taken != null) {
                     note("Spill", "takes ${namesOf(taken.zones)}")
                     delay(cleanupTakes)
@@ -5569,7 +5578,10 @@ the mistake this example was written to make visible.
         schedule({ _: KSLEvent<Nothing> -> cart.sendTo("B") }, 0.0)
         schedule({ _: KSLEvent<Nothing> ->
             note("Crew", "asks for ${namesOf(crewWants)} -- the cart is still crossing Zone3")
-            system.tryHoldZonesFor(crew, crewWants, crewHoldsFor, crewAction)
+            checkNotNull(system.tryHoldZonesFor(crew, crewWants, crewHoldsFor, crewAction)) {
+                "the crew was refused ${namesOf(crewWants)} at $time, so the collision the rest of " +
+                        "this example is about never arises"
+            }
         }, crewAsksAt)
         schedule({ _: KSLEvent<Nothing> -> activate(Spill().cleanup) }, spillAsksAt)
     }
