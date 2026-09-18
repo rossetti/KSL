@@ -5029,7 +5029,7 @@ class GuidePathDisturbancesExample(
                 type = LinkType.SPUR, beginDirection = 270.0
             )
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val delivery = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)
@@ -5088,7 +5088,7 @@ arrivals or the policies.
      *  Where it lands, how much of the aisle it covers and how long it takes to clean are all
      *  drawn here, at run time, and any number of spills may be in progress at once.
      */
-    private inner class Spill : Entity() {
+    private inner class Spill : Entity("Spill") {
         val cleanup = process(isDefaultProcess = true) {
             val link = network.link("Link${mySpillLink.value.toInt()}")!!
             val extent = link.zones.take(mySpillExtent.value.toInt())
@@ -5324,10 +5324,21 @@ cart waiting on a cart. None of the 0.13 was fitted to anything.
 aisle another spill was still having closed, where `trySeizeZones` answered
 null and this model chose to absorb them.
 
-Run it and you will also see a few end-of-replication warnings — a cart
-still waiting on the exit spur when the horizon arrived, named along with
-what it holds and what it wants. That is the guide path reporting that it
-stopped moving rather than ran out of work, and at a horizon it is benign.
+Run it and you will also see a few end-of-replication warnings, in two
+shapes. Most are a cart still waiting on the exit spur when the horizon
+arrived — the guide path reporting that it stopped moving rather than ran
+out of work, which at a horizon is benign. The other shape is worth
+stopping on:
+
+```
+(Cart1) holds [Link3.Zone4] and waits for zone (I4), which is held by (Cart2)
+(Cart2) holds [I4] and waits for zone (Link4.Zone1), which is held by (Spill)
+```
+
+That is this example's subject caught in the act — a chain of two carts
+ending at something that is not a vehicle at all. It is also why the
+entities here are named: a holder reported as `ID_11475` would tell you
+something is in the way while withholding what.
 
 ### What to learn
 

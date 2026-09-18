@@ -99,9 +99,34 @@ import java.io.PrintWriter
  *  ## What to read in the output
  *
  *  `NumZonesClosed` is the mean amount of guide path denied to traffic, and `NumBlockedByOccupier`
- *  is the mean number of carts held up by it. Together with `NumBlockedByVehicle` they account for
- *  all of the blocked time, which is what turns one fitted fudge into separately observable
- *  quantities.
+ *  is the mean number of carts held up by it. With `NumBlockedByVehicle` -- a cart waiting on
+ *  another cart -- and `NumBlockedByPopulation`, the three account for **all** of the blocked
+ *  time, which is what turns one fitted fudge into separately observable quantities. The `check`
+ *  at the end of `main` is that claim asserted rather than printed.
+ *
+ *  The third of them reads exactly zero throughout, in both configurations, and is reported
+ *  anyway. A zone here admits one vehicle, so there is no population limit for anyone to queue
+ *  behind and no mechanism that could make it non-zero -- but leaving it out of the sum would make
+ *  the decomposition true by omission rather than by arithmetic, and a model that gave a zone a
+ *  larger population would find the row waiting for it.
+ *
+ *  ## What the end-of-replication warnings say
+ *
+ *  Some replications end with a cart still waiting, and the guide path says so. Two shapes turn up
+ *  and the second is the more interesting:
+ *
+ *  ```
+ *  (Cart1) holds [Link3.Zone4] and waits for link (Spur)
+ *
+ *  (Cart1) holds [Link3.Zone4] and waits for zone (I4), which is held by (Cart2)
+ *  (Cart2) holds [I4] and waits for zone (Link4.Zone1), which is held by (Spill)
+ *  ```
+ *
+ *  The first is a cart queued for the exit spur when the horizon arrived, which at a horizon is
+ *  benign. The second is this example's whole subject caught in the act: a chain of two carts
+ *  ending at a spill, one cart waiting on another that is waiting on something that is not a
+ *  vehicle at all. It is also why the entities here carry names -- a holder reported as `ID_11475`
+ *  would tell a reader that something is in the way while withholding what.
  */
 
 /**
@@ -184,8 +209,10 @@ class MaintenanceWindow(
  *  Parts carried from the entry station to the exit station, with spills on the loop.
  *
  *  @param parent the containing model element
- *  @param disturbed whether spills occur and maintenance windows are taken
- *  @param timeBtwArrivals the mean time between part arrivals, in minutes
+ *  @param disturbed whether spills occur and maintenance windows are taken. It decides which model
+ *  elements exist rather than what they do: the quiet configuration has no spill generator and no
+ *  maintenance window at all, which is why the study below is a runner over model instances
+ *  @param name a name for the model element
  */
 class GuidePathDisturbancesExample(
     parent: ModelElement,
@@ -274,7 +301,7 @@ class GuidePathDisturbancesExample(
             .station(exitStation, "I5")
             .build()
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val delivery = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)
@@ -321,7 +348,7 @@ class GuidePathDisturbancesExample(
      *  Where it lands, how much of the aisle it covers and how long it takes to clean are all
      *  drawn here, at run time, and any number of spills may be in progress at once.
      */
-    private inner class Spill : Entity() {
+    private inner class Spill : Entity("Spill") {
         val cleanup = process(isDefaultProcess = true) {
             val link = network.link("Link${mySpillLink.value.toInt()}")!!
             val extent = link.zones.take(mySpillExtent.value.toInt())
