@@ -2052,8 +2052,9 @@ fun main() {
     // The standard half-width summary report for every scenario -- every response the model keeps,
     // with its confidence interval, rather than the four columns the author happened to think of.
     // Written to the KSL output file rather than the console: six scenarios of full reports is
-    // several hundred lines, and the console is where the comparison belongs.
-    runner.write(PrintWriter(System.out, true))
+    // several hundred lines, and the console is where the comparison belongs. `write()` defaults
+    // to `KSL.out`; passing a writer over `System.out` is what would put them on the console.
+    runner.write()
     println()
     println("Full half-width summary reports for all six rules: ${KSL.outDir}")
 
@@ -3816,6 +3817,17 @@ position queries, not the arrival time.
 #### 4. The statistics and the pallet
 
 ```kotlin
+    private val myFleetBlocked = Response(this, "FleetFracBlocked")
+    val fleetBlocked: ResponseCIfc
+        get() = myFleetBlocked
+
+    private val myFleetLoadsPerMove: Response? =
+        if (carts.none { it.loadsPerLoadedMove != null }) null
+        else Response(this, "FleetLoadsPerLoadedMove")
+
+    val fleetLoadsPerMove: ResponseCIfc?
+        get() = myFleetLoadsPerMove
+
     // Named without the model's own name in front, so that every cell of the study reports the
     // same response and the cells can be paired replication by replication.
     private val myTimeInSystem = Response(this, "TimeInSystem")
@@ -3855,7 +3867,29 @@ position queries, not the arrival time.
     override fun initialize() {
         activate(Source().arrivals)
     }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        myFleetBlocked.value =
+            carts.sumOf { it.fracTimeBlocked.withinReplicationStatistic.weightedAverage } / carts.size
+        myFleetLoadsPerMove?.let { response ->
+            val loads = carts.sumOf { it.loadsPerLoadedMove?.withinReplicationWeightedSum ?: 0.0 }
+            val moves = carts.sumOf { it.loadsPerLoadedMove?.withinReplicationSumOfWeights ?: 0.0 }
+            if (moves > 0.0) response.value = loads / moves
+        }
+    }
 ```
+
+**Two of those responses are the fleet's, and no vehicle holds them.** `replicationEnded` runs
+after the horizon and before any response harvests itself, so every cart's within-replication
+figure is complete and none has been reset. Writing a `Response` exactly once there gives it one
+observation per replication — which is what puts a confidence interval on a quantity no single
+element measures. Reading one cart instead would be wrong here by a third: both carts are homed
+at the depot, the inner nearest-vehicle rule ties on nearly every decision and breaks toward
+`Cart1`, and `Cart1` takes the batched groups while `Cart2` mops up singletons — 1.32 against 1.00
+loads per loaded move. Consolidation is combined as total loads over total loaded moves rather
+than as the mean of the two means, because a cart that made four loaded moves should count four
+times as much as one that made one.
 
 **The response names carry no model name.** Every cell of the study is a different model, and
 naming the responses identically is what lets `observationsAsMap` line them up for a paired
@@ -3945,8 +3979,10 @@ fun main() {
     }
 
     runner.simulate()
-    // Full half-width summary reports for all four cells; the console then gets the comparison.
-    runner.write(PrintWriter(System.out, true))
+    // To the KSL output file rather than the console: four cells of full reports is several hundred
+    // lines, and the console is where the comparison belongs. `write()` defaults to `KSL.out`;
+    // passing a writer over `System.out` is what would put them on the console instead.
+    runner.write()
 
     println()
     println("A dispatcher over a plane -- no guide path, nothing that blocks")
@@ -3960,8 +3996,10 @@ fun main() {
         val stats = run.acrossReplicationStatistics()
         val d = checkNotNull(stats["Delivered"]) { "no delivered response" }
         val t = checkNotNull(stats["TimeInSystem"]) { "no time in system" }
-        val b = checkNotNull(stats["Cart1:Body:FracTimeBlocked"]) { "no blocked response" }
-        val loads = stats["Cart1:Body:LoadsPerLoadedMove"]
+        val b = checkNotNull(stats["FleetFracBlocked"]) { "no fleet blocked response" }
+        // Absent, not zero, when a cart holds one load: the response is registered only above a
+        // capacity of one, because a cart that cannot consolidate has no consolidation to report.
+        val loads = stats["FleetLoadsPerLoadedMove"]
         println("  %-20s %11.1f %8.1f %11.2f %8.2f %9.4f %11s".format(
             label, d.average, d.halfWidth, t.average, t.halfWidth, b.average,
             loads?.let { "%.3f".format(it.average) } ?: "--"))
@@ -4019,9 +4057,9 @@ Forty replications of 8,000 after a 1,000 warm-up:
 ```
                          delivered       hw   in system       hw   blocked  loads/move
   Capacity1Window25          347.7      6.0       43.89     0.76    0.0000          --
-  Capacity4Window25          347.6      5.9       35.70     0.10    0.0000       1.319
+  Capacity4Window25          347.6      5.9       35.70     0.10    0.0000       1.200
   Capacity1Window40          339.1      3.1      243.53    32.52    0.0000          --
-  Capacity4Window40          347.8      5.9       43.35     0.19    0.0000       1.563
+  Capacity4Window40          347.8      5.9       43.35     0.19    0.0000       1.405
 ```
 
 and, within each window, capacity 1 against capacity 4 paired by replication:

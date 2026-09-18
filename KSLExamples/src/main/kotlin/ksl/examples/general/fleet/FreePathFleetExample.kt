@@ -38,7 +38,6 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
-import java.io.PrintWriter
 
 /**
  *  A dispatcher, tours and multi-load consolidation over a **plain spatial model** -- no guide path,
@@ -139,6 +138,31 @@ class FreePathFleetExample(
         ).apply { homeBase = "Depot" }
     }
 
+    /**
+     *  The fleet's blocked fraction and its consolidation, each observed once per replication.
+     *
+     *  Both are fleet quantities and neither can be read off one vehicle. `Cart1` and `Cart2` are
+     *  homed at the same depot, so the inner nearest-vehicle rule ties on almost every decision and
+     *  breaks toward `Cart1`; `Cart1` takes the batched groups and `Cart2` mops up the singletons.
+     *  At a window of 25 the two carts run at 1.32 and 1.00 loads per loaded move, so quoting
+     *  either one as "the fleet" is out by a third.
+     *
+     *  Consolidation is combined as **total loads over total loaded moves**, not as the mean of the
+     *  two carts' means: a cart that made four loaded moves should count four times as much as one
+     *  that made one, and averaging the averages would weight them equally.
+     */
+    private val myFleetBlocked = Response(this, "FleetFracBlocked")
+    val fleetBlocked: ResponseCIfc
+        get() = myFleetBlocked
+
+    private val myFleetLoadsPerMove: Response? =
+        if (carts.none { it.loadsPerLoadedMove != null }) null
+        else Response(this, "FleetLoadsPerLoadedMove")
+
+    /** Null when a cart holds one load: with nothing to consolidate there is nothing to report. */
+    val fleetLoadsPerMove: ResponseCIfc?
+        get() = myFleetLoadsPerMove
+
     // Named without the model's own name in front, so that every cell of the study reports the
     // same response and the cells can be paired replication by replication.
     private val myTimeInSystem = Response(this, "TimeInSystem")
@@ -179,6 +203,27 @@ class FreePathFleetExample(
         activate(Source().arrivals)
     }
 
+    /**
+     *  Read every cart's within-replication statistic and write one observation apiece.
+     *
+     *  This runs after the horizon and before any response harvests itself, so the carts' figures
+     *  are complete and nothing has been reset. Writing a [Response] exactly once here gives it one
+     *  observation per replication, which is what puts a confidence interval on a fleet quantity
+     *  that no single element measures.
+     */
+    override fun replicationEnded() {
+        super.replicationEnded()
+        myFleetBlocked.value =
+            carts.sumOf { it.fracTimeBlocked.withinReplicationStatistic.weightedAverage } / carts.size
+        myFleetLoadsPerMove?.let { response ->
+            val loads = carts.sumOf { it.loadsPerLoadedMove?.withinReplicationWeightedSum ?: 0.0 }
+            val moves = carts.sumOf { it.loadsPerLoadedMove?.withinReplicationSumOfWeights ?: 0.0 }
+            // A replication in which nobody made a loaded move has nothing to report, and writing
+            // a zero would claim it carried nothing rather than that it carried nothing measurable.
+            if (moves > 0.0) response.value = loads / moves
+        }
+    }
+
 }
 
 fun main() {
@@ -209,8 +254,10 @@ fun main() {
     }
 
     runner.simulate()
-    // Full half-width summary reports for all four cells; the console then gets the comparison.
-    runner.write(PrintWriter(System.out, true))
+    // To the KSL output file rather than the console: four cells of full reports is several hundred
+    // lines, and the console is where the comparison belongs. `write()` defaults to `KSL.out`;
+    // passing a writer over `System.out` is what would put them on the console instead.
+    runner.write()
 
     println()
     println("A dispatcher over a plane -- no guide path, nothing that blocks")
@@ -224,8 +271,10 @@ fun main() {
         val stats = run.acrossReplicationStatistics()
         val d = checkNotNull(stats["Delivered"]) { "no delivered response" }
         val t = checkNotNull(stats["TimeInSystem"]) { "no time in system" }
-        val b = checkNotNull(stats["Cart1:Body:FracTimeBlocked"]) { "no blocked response" }
-        val loads = stats["Cart1:Body:LoadsPerLoadedMove"]
+        val b = checkNotNull(stats["FleetFracBlocked"]) { "no fleet blocked response" }
+        // Absent, not zero, when a cart holds one load: the response is registered only above a
+        // capacity of one, because a cart that cannot consolidate has no consolidation to report.
+        val loads = stats["FleetLoadsPerLoadedMove"]
         println("  %-20s %11.1f %8.1f %11.2f %8.2f %9.4f %11s".format(
             label, d.average, d.halfWidth, t.average, t.halfWidth, b.average,
             loads?.let { "%.3f".format(it.average) } ?: "--"))

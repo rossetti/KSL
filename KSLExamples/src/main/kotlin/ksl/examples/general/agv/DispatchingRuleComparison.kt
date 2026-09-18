@@ -44,7 +44,6 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
-import java.io.PrintWriter
 
 /*
  *  The same shop under six dispatching rules, on common random numbers.
@@ -339,8 +338,9 @@ fun main() {
     // The standard half-width summary report for every scenario -- every response the model keeps,
     // with its confidence interval, rather than the four columns the author happened to think of.
     // Written to the KSL output file rather than the console: six scenarios of full reports is
-    // several hundred lines, and the console is where the comparison belongs.
-    runner.write(PrintWriter(System.out, true))
+    // several hundred lines, and the console is where the comparison belongs. `write()` defaults
+    // to `KSL.out`; passing a writer over `System.out` is what would put them on the console.
+    runner.write()
     println()
     println("Full half-width summary reports for all six rules: ${KSL.outDir}")
 
