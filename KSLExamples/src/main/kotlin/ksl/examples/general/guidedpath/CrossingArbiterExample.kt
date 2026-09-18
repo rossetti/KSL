@@ -49,8 +49,13 @@ import ksl.utilities.random.rvariable.ConstantRV
  *  - Decide only "should vehicles be held?" and traffic never leaves a long enough gap, so
  *    **pedestrians never cross**.
  *
- *  Both are run here. Neither raises, neither warns, and each produces a perfectly plausible table
- *  of numbers for a model that does not represent what it claims to.
+ *  Both are run here, and neither raises. In the table below they are obvious -- `cart trips 0`
+ *  and `walkers 0` are not numbers anybody would accept -- but that is an artefact of the crossing
+ *  being the whole model. Put the same crossing in a shop with fifteen other responses and those
+ *  become two rows among many, both of them plausible in isolation: a crossing that vehicles
+ *  rarely use, a crossing that pedestrians rarely use. Nothing raises, nothing warns, and the
+ *  throughput the study cares about is still a number. That is the failure mode, and it is why
+ *  the two questions have to be asked together rather than one at a time.
  *
  *  The two failures do not fail alike, which is worth knowing before trusting either. Under
  *  pedestrian priority the guide path reports a transporter still waiting when the replication
@@ -112,9 +117,6 @@ class CrossingArbiterExample(
         this, system, listOf(network.zone("Aisle.Zone3")!!), arbiterFor(arbiterName), name = "Walkway"
     )
 
-    private val disciplines =
-        listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
-
     /** The four disciplines, made fresh on each call so none inherits another's turn state. */
     private fun arbiterFor(discipline: String): CrossingArbiterIfc = when (discipline) {
         "PedestrianPriority" -> PedestrianPriorityArbiter()
@@ -122,7 +124,7 @@ class CrossingArbiterExample(
         "Alternating" -> AlternatingArbiter(walkTime = 6.0, driveTime = 6.0)
         "BoundedBatch" -> BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
         else -> throw IllegalArgumentException(
-            "unknown crossing discipline '$discipline'; expected one of $disciplines"
+            "unknown crossing discipline '$discipline'; expected one of $crossingDisciplines"
         )
     }
 
@@ -160,7 +162,7 @@ class CrossingArbiterExample(
     var walkersAcross: Int = 0
         private set
 
-    private inner class Walker : Entity() {
+    private inner class Walker : Entity("Walker") {
         val walk = process(isDefaultProcess = true) {
             crossOnFoot(crossing, walkTime, walkQ)
             walkersAcross++
@@ -207,9 +209,19 @@ class CrossingArbiterExample(
 }
 
 
+/**
+ *  The four disciplines, named once.
+ *
+ *  The `@KSLStringControl` below writes them out a second time and has to: an annotation's
+ *  `allowedValues` must be a compile-time literal, so it cannot read this list. That duplicate is
+ *  forced; a third copy in `main` was not.
+ */
+private val crossingDisciplines =
+    listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
+
 fun main() {
     val horizon = 120.0
-    val disciplines = listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
+    val disciplines = crossingDisciplines
 
     /** What one discipline did over the horizon. */
     class Outcome(
@@ -232,10 +244,20 @@ fun main() {
     val outcomes = disciplines.map { discipline ->
         val m = Model("Crossing_$discipline")
         val town = CrossingArbiterExample(m, discipline, name = "Town")
+        // On, where the benchmarks force it off. It walks every zone on every change, which a
+        // throughput measurement cannot afford and a two-hour run over twelve zones can. This
+        // example asserts who holds the crossing at which instant, so the harness that checks the
+        // space's bookkeeping against itself earns its cost here.
         town.system.checkInvariants = true
         m.numberOfReplications = 1
         m.lengthOfReplication = horizon
         m.simulate()
+        // Read after the run rather than in `replicationEnded`, which is correct **because there
+        // is one replication** and would quietly stop being correct with more. A Response resets
+        // its within-replication statistic in `beforeReplication`, so with ten replications these
+        // three lines would report replication ten rather than an average of the ten, and nothing
+        // would say so. A study wanting more than one replication should observe these in
+        // `replicationEnded` -- one write per replication, which is what carries an interval.
         Outcome(
             name = discipline,
             cartTrips = town.cartTrips,

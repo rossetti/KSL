@@ -5724,9 +5724,6 @@ class CrossingArbiterExample(
     private val cartEvery = 4.0
     private val walkTime = 2.0
 
-    private val disciplines =
-        listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
-
     /** The four disciplines, made fresh on each call so none inherits another's turn state. */
     private fun arbiterFor(discipline: String): CrossingArbiterIfc = when (discipline) {
         "PedestrianPriority" -> PedestrianPriorityArbiter()
@@ -5734,7 +5731,7 @@ class CrossingArbiterExample(
         "Alternating" -> AlternatingArbiter(walkTime = 6.0, driveTime = 6.0)
         "BoundedBatch" -> BoundedBatchArbiter(batchSize = 2, maxWait = 5.0)
         else -> throw IllegalArgumentException(
-            "unknown crossing discipline '$discipline'; expected one of $disciplines"
+            "unknown crossing discipline '$discipline'; expected one of $crossingDisciplines"
         )
     }
 ```
@@ -5775,7 +5772,7 @@ ever catches.
     var walkersAcross: Int = 0
         private set
 
-    private inner class Walker : Entity() {
+    private inner class Walker : Entity("Walker") {
         val walk = process(isDefaultProcess = true) {
             crossOnFoot(crossing, walkTime, walkQ)
             walkersAcross++
@@ -5885,7 +5882,12 @@ them.
 ```kotlin
 fun main() {
     val horizon = 120.0
-    val disciplines = listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
+private val crossingDisciplines =
+    listOf("PedestrianPriority", "VehiclePriority", "Alternating", "BoundedBatch")
+
+fun main() {
+    val horizon = 120.0
+    val disciplines = crossingDisciplines
 
     /** What one discipline did over the horizon. */
     class Outcome(
