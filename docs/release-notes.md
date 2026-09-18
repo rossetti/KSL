@@ -318,6 +318,74 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.7
+
+*In preparation.* This section is being assembled; the entry below covers the supply-chain
+costing change only.
+
+### Changed — supply-chain costing (`ksl.modeling.supplychain.cost`)
+
+**`GrandTotal` is removed.** It summed twelve cost lines that come in two different
+denominations: four are rates, in dollars per unit of your time unit (`Holding`, `InTransit`,
+`Backorder`, `ShipmentBuilderHolding`), and eight are dollars accumulated over the replication.
+Adding the two produced a number denominated in nothing, and the library's own KDoc nominated it
+as the response an optimization objective should reference — so following the documentation led
+into the defect rather than around it.
+
+**The distortion scaled with the run.** Because only the per-event half grew with the observed
+window, the error factor was the window length itself. A short validation run looked very nearly
+right and a long production run was badly wrong, which is the reverse of the order most people
+check in. On a study with a 3,600-unit window the per-event lines carried roughly 3,600 times
+the weight they should have against holding, making inventory effectively free; the optimizer
+walked five of eight decision variables to their bounds with every fill-rate constraint slack,
+and nothing warned.
+
+**Two totals replace it, and you choose which.** Every rollup that spans lines now takes a
+`CostBasis`:
+
+| basis | units | use it when |
+|---|---|---|
+| `CostBasis.PerReplication` | dollars over the observed window | reporting one run, or optimizing at a fixed run length |
+| `CostBasis.PerUnitTime` | dollars per unit time | comparing runs of unequal length, or reporting a steady-state rate |
+
+Either is a sound `objFnResponseName`. The observed window is taken from the clock, as the
+replication's ending time less its warm-up, so a run that ends on an empty calendar is scaled by
+the time it actually observed rather than the length it was allowed.
+
+**`byTierResponse` and `byNodeResponse` had the same defect** for anyone doing cost attribution,
+with no optimization involved, and are corrected the same way rather than documented as hazards.
+The package now holds one rule: no shipped Response mixes denominations.
+
+**Your prior numbers are not comparable.** Any result computed on `GrandTotal` mixed the two
+denominations, and the discrepancy grows with the run length, so it cannot be reconciled with a
+number from either replacement by a constant factor. Re-run rather than convert. If cost
+parameters were calibrated against `GrandTotal`, they were calibrated against a distorted
+objective and are worth revisiting: fixing the units alone does not repair a study, it makes the
+remaining problem visible.
+
+`ksl.modeling.supplychain` is released as experimental, and this is the kind of change that
+status exists to permit.
+
+### Breaking
+
+| Removed or changed | Replacement |
+|---|---|
+| `GrandTotal` Response | `:TotalCost` or `:TotalCostRate`, by basis |
+| `DefaultMultiEchelonCostFormulation.totalCostResponseName` | name the response you want directly |
+| `CostFormulation.totalCostResponse: ResponseCIfc` | `totalCostResponse(basis: CostBasis)` |
+| `byTierResponse(tier)` | `byTierResponse(tier, basis)` |
+| `byNodeResponse(node)` | `byNodeResponse(node, basis)` |
+| `MultiEchelonNetwork.totalCostResponse` and the three tier accessors, as properties | the same names as functions taking a `CostBasis` |
+| `CostLine(displayName)` | `CostLine(displayName, basis)` — sealed, so no caller constructs one |
+
+### Added
+
+- `CostBasis`, and `CostLine.basis` declaring it on every line. The sealed constructor requires
+  it, so a line cannot be added without saying which denomination it is — which is what kept the
+  old classification correct only by hand.
+
+---
+
 ## R1.6.2
 
 *24 August 2026.* A correctness release for simulation optimization, almost entirely about one
