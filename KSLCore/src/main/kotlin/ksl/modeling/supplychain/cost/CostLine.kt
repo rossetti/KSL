@@ -19,43 +19,43 @@ package ksl.modeling.supplychain.cost
  */
 sealed class CostLine(val displayName: String, val basis: CostBasis) {
     /** On-hand inventory holding cost (per (IHP, item)). */
-    object Holding : CostLine("HOLDING", CostBasis.RatePerTime)
+    object Holding : CostLine("HOLDING", CostBasis.PerUnitTime)
 
     /** Goods-in-transit holding cost (per (IHP, item)). */
-    object InTransit : CostLine("IN_TRANSIT", CostBasis.RatePerTime)
+    object InTransit : CostLine("IN_TRANSIT", CostBasis.PerUnitTime)
 
     /** Replenishment ordering cost (per (IHP, item)). */
-    object Ordering : CostLine("ORDERING", CostBasis.PerReplicationTotal)
+    object Ordering : CostLine("ORDERING", CostBasis.PerReplication)
 
     /** Continuous-rate backorder cost (per IHP). */
-    object Backorder : CostLine("BACKORDER", CostBasis.RatePerTime)
+    object Backorder : CostLine("BACKORDER", CostBasis.PerUnitTime)
 
     /** Per-event stockout cost (per (IHP, item)). */
-    object Stockout : CostLine("STOCKOUT", CostBasis.PerReplicationTotal)
+    object Stockout : CostLine("STOCKOUT", CostBasis.PerReplication)
 
     /** Per-event lost-sale cost (per (IHP, item)). */
-    object LostSale : CostLine("LOST_SALE", CostBasis.PerReplicationTotal)
+    object LostSale : CostLine("LOST_SALE", CostBasis.PerReplication)
 
     /** Per-unit-short shortage cost (per (IHP, item)). */
-    object UnitShortage : CostLine("UNIT_SHORTAGE", CostBasis.PerReplicationTotal)
+    object UnitShortage : CostLine("UNIT_SHORTAGE", CostBasis.PerReplication)
 
     /** Per-edge inbound shipment unloading cost (per IHP / CD). */
-    object Unloading : CostLine("UNLOADING", CostBasis.PerReplicationTotal)
+    object Unloading : CostLine("UNLOADING", CostBasis.PerReplication)
 
     /** Per-edge outbound shipment loading cost. */
-    object Loading : CostLine("LOADING", CostBasis.PerReplicationTotal)
+    object Loading : CostLine("LOADING", CostBasis.PerReplication)
 
     /** Per-edge outbound shipment transport cost. */
-    object Shipping : CostLine("SHIPPING", CostBasis.PerReplicationTotal)
+    object Shipping : CostLine("SHIPPING", CostBasis.PerReplication)
 
     /**
      * Shipment-builder on-hand holding cost (per (IHP / CD, builder,
      * item) when shipment formation is enabled).
      */
-    object ShipmentBuilderHolding : CostLine("SHIPMENT_BUILDER_HOLDING", CostBasis.RatePerTime)
+    object ShipmentBuilderHolding : CostLine("SHIPMENT_BUILDER_HOLDING", CostBasis.PerUnitTime)
 
     /** ES-tier outbound loading cost. */
-    object ESLoading : CostLine("ES_LOADING", CostBasis.PerReplicationTotal)
+    object ESLoading : CostLine("ES_LOADING", CostBasis.PerReplication)
 
     override fun toString(): String = displayName
 

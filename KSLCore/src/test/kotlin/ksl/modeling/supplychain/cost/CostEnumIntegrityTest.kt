@@ -39,13 +39,13 @@ class CostEnumIntegrityTest {
                 CostLine.Backorder,
                 CostLine.ShipmentBuilderHolding,
             ),
-            CostLine.all.filter { it.basis == CostBasis.RatePerTime }.toSet(),
-            "the rate-denominated lines are exactly the four formed as a " +
+            CostLine.all.filter { it.basis == CostBasis.PerUnitTime }.toSet(),
+            "the per-unit-time lines are exactly the four formed as a " +
                 "time-weighted average times a rate",
         )
         assertEquals(
             CostLine.all.size - 4,
-            CostLine.all.count { it.basis == CostBasis.PerReplicationTotal },
+            CostLine.all.count { it.basis == CostBasis.PerReplication },
             "every remaining line must be a per-replication total",
         )
     }

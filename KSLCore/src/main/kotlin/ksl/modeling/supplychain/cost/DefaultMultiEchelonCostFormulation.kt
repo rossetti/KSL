@@ -206,8 +206,8 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
     // total is a property of which calculator produced it, not of which line
     // it lands on, which is what lets a calculator be excluded later without
     // disturbing the per-line reporting.
-    private val myHorizonTotal: Response =
-        Response(this, name = "${this.name}:HorizonTotal")
+    private val myTotalCost: Response =
+        Response(this, name = "${this.name}:TotalCost")
     private val myTotalCostRate: Response =
         Response(this, name = "${this.name}:TotalCostRate")
 
@@ -239,18 +239,19 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         get() = myTotal
 
     /**
-     * The total cost in the requested [TotalForm] — the Response an optimization
+     * The total cost in the requested [CostBasis] — the Response an optimization
      * objective should reference.
      *
-     * Both forms are dimensionally consistent, which the grand total is not: it
-     * sums rate lines with per-event lines, so it is neither dollars nor dollars
-     * per unit time. Choose [TotalForm.HorizonTotal] for dollars over the
-     * observed window, or [TotalForm.Rate] for dollars per unit time, which is
-     * the form to compare runs of unequal length with.
+     * Both denominations are dimensionally consistent, which the grand total is
+     * not: it sums per-unit-time lines with per-replication lines, so it is
+     * neither dollars nor dollars per unit time. Ask for
+     * [CostBasis.PerReplication] for dollars over the observed window, or
+     * [CostBasis.PerUnitTime] for dollars per unit time, which is the one to
+     * compare runs of unequal length with.
      */
-    fun totalCostResponse(form: TotalForm): ResponseCIfc = when (form) {
-        TotalForm.HorizonTotal -> myHorizonTotal
-        TotalForm.Rate -> myTotalCostRate
+    fun totalCostResponse(basis: CostBasis): ResponseCIfc = when (basis) {
+        CostBasis.PerReplication -> myTotalCost
+        CostBasis.PerUnitTime -> myTotalCostRate
     }
 
     /**
@@ -341,24 +342,24 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
 
         // The consistent totals.  Partition the calculators' lines by basis and
         // bring the two halves to a common denomination before adding them.
-        var ratePerTime = 0.0
+        var perUnitTime = 0.0
         var perReplication = 0.0
         for (calc in myCalculators) {
             for ((line, r) in calc.lineResponses) {
                 when (line.basis) {
-                    CostBasis.RatePerTime -> ratePerTime += r.value
-                    CostBasis.PerReplicationTotal -> perReplication += r.value
+                    CostBasis.PerUnitTime -> perUnitTime += r.value
+                    CostBasis.PerReplication -> perReplication += r.value
                 }
             }
         }
         val observed = observedTime()
         if (observed > 0.0) {
-            myHorizonTotal.value = ratePerTime * observed + perReplication
-            myTotalCostRate.value = ratePerTime + perReplication / observed
+            myTotalCost.value = perUnitTime * observed + perReplication
+            myTotalCostRate.value = perUnitTime + perReplication / observed
         } else {
             // Nothing was observed, so both counters and time-weighted averages
             // are still at their post-warm-up reset and every line is zero.
-            myHorizonTotal.value = 0.0
+            myTotalCost.value = 0.0
             myTotalCostRate.value = 0.0
         }
 

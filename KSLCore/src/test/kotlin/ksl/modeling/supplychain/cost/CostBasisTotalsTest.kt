@@ -15,13 +15,14 @@ import kotlin.math.abs
 /**
  *  States the mixed-basis costing defect as a property rather than as an anecdote.
  *
- *  Four of the twelve cost lines are denominated in $/time (`Holding`, `InTransit`,
- *  `Backorder`, `ShipmentBuilderHolding`); the other eight are $ per replication.
+ *  Four of the twelve cost lines are denominated per unit time (`Holding`,
+ *  `InTransit`, `Backorder`, `ShipmentBuilderHolding`); the other eight are
+ *  dollars per replication.
  *  The grand total sums all twelve regardless, so it is neither a total nor a rate:
  *  doubling the observed window doubles the event lines while leaving the rate lines
  *  where they were, and the sum lands somewhere in between.
  *
- *  The fixture is fully deterministic — every `ConstantRV` — and every horizon here
+ *  The fixture is fully deterministic — every `ConstantRV` — and every window here
  *  is a whole number of the inventory's five-unit replenishment cycle, so the
  *  time-weighted averages are identical across the two runs to within solver noise.
  *  That is what lets this assert exact scaling instead of a confidence interval.
@@ -33,7 +34,7 @@ import kotlin.math.abs
  *
  *  See `.claude/plans/kslcore-costing-change-plan.md` §11, step 0.
  */
-class CostBasisHorizonScalingTest {
+class CostBasisTotalsTest {
 
     /**
      *  The single-node PerIHPTimeBased network from `CostFormulationControlsTest`,
@@ -75,8 +76,8 @@ class CostBasisHorizonScalingTest {
         fun lines(): Map<CostLine, Double> =
             CostLine.all.associateWith { formulation.byLineResponse(it)?.value ?: 0.0 }
 
-        fun total(form: TotalForm): Double =
-            formulation.totalCostResponse(form).value
+        fun total(basis: CostBasis): Double =
+            formulation.totalCostResponse(basis).value
     }
 
     companion object {
@@ -88,7 +89,7 @@ class CostBasisHorizonScalingTest {
         private const val DEMAND_COUNT = 60L
 
         /** The four lines the calculators form as a time-weighted average times a rate. */
-        private val RATE_LINES = setOf(
+        private val PER_UNIT_TIME_LINES = setOf(
             CostLine.Holding, CostLine.InTransit,
             CostLine.Backorder, CostLine.ShipmentBuilderHolding,
         )
@@ -106,7 +107,7 @@ class CostBasisHorizonScalingTest {
             val l = long[line] ?: 0.0
             if (abs(s) < 1e-12 && abs(l) < 1e-12) continue
             val ratio = if (abs(s) < 1e-12) Double.NaN else l / s
-            val expect = if (line in RATE_LINES) "1.0 (\$/time)" else "2.0 (\$)"
+            val expect = if (line in PER_UNIT_TIME_LINES) "1.0 (\$/time)" else "2.0 (\$)"
             sb.append("  %-24s %12.4f %12.4f %9.4f  %s%n".format(line.displayName, s, l, ratio, expect))
         }
         return sb.toString()
@@ -124,16 +125,16 @@ class CostBasisHorizonScalingTest {
 
         // The fixture has to actually exercise both kinds of line, or the property
         // below would hold vacuously.
-        val rateSum = RATE_LINES.sumOf { shortLines[it] ?: 0.0 }
-        val eventSum = CostLine.all.filter { it !in RATE_LINES }.sumOf { shortLines[it] ?: 0.0 }
-        assertTrue(rateSum > 0.0, "fixture accrued no rate-based cost; the property would be vacuous$detail")
-        assertTrue(eventSum > 0.0, "fixture accrued no event-based cost; the property would be vacuous$detail")
+        val perUnitTime = PER_UNIT_TIME_LINES.sumOf { shortLines[it] ?: 0.0 }
+        val perReplication = CostLine.all.filter { it !in PER_UNIT_TIME_LINES }.sumOf { shortLines[it] ?: 0.0 }
+        assertTrue(perUnitTime > 0.0, "fixture accrued no per-unit-time cost; the property would be vacuous$detail")
+        assertTrue(perReplication > 0.0, "fixture accrued no per-replication cost; the property would be vacuous$detail")
 
         // The property. A total denominated in dollars over the observed window must
         // double when the window doubles. The grand total does not, because its rate
         // lines contribute the same number to both runs.
-        val shortTotal = short.total(TotalForm.HorizonTotal)
-        val longTotal = long.total(TotalForm.HorizonTotal)
+        val shortTotal = short.total(CostBasis.PerReplication)
+        val longTotal = long.total(CostBasis.PerReplication)
         assertEquals(
             2.0 * shortTotal,
             longTotal,
@@ -150,8 +151,8 @@ class CostBasisHorizonScalingTest {
         val long = Fixture(LONG).run()
         val detail = report(short.lines(), long.lines())
 
-        val shortRate = short.total(TotalForm.Rate)
-        val longRate = long.total(TotalForm.Rate)
+        val shortRate = short.total(CostBasis.PerUnitTime)
+        val longRate = long.total(CostBasis.PerUnitTime)
 
         // The complementary half: read as a rate, the same quantity must not move
         // when the window changes. The grand total fails this too -- it is affine in
@@ -225,16 +226,16 @@ class CostBasisHorizonScalingTest {
         )
 
         val lines = CostLine.all.associateWith { f.formulation.byLineResponse(it)?.value ?: 0.0 }
-        val rateSum = lines.filterKeys { it.basis == CostBasis.RatePerTime }.values.sum()
-        val eventSum = lines.filterKeys { it.basis == CostBasis.PerReplicationTotal }.values.sum()
-        assertTrue(rateSum > 0.0, "no rate-based cost accrued, so the scale factor is unobservable")
+        val perUnitTimeSum = lines.filterKeys { it.basis == CostBasis.PerUnitTime }.values.sum()
+        val perReplicationSum = lines.filterKeys { it.basis == CostBasis.PerReplication }.values.sum()
+        assertTrue(perUnitTimeSum > 0.0, "no per-unit-time cost accrued, so the scale factor is unobservable")
 
-        val horizonTotal = f.formulation.totalCostResponse(TotalForm.HorizonTotal).value
+        val totalCost = f.formulation.totalCostResponse(CostBasis.PerReplication).value
 
         // Invert the total to recover the window it was scaled by, and check that
         // window is the observed one. Scaling by the nominal length instead would
         // put this out by the ratio of the two.
-        val impliedWindow = (horizonTotal - eventSum) / rateSum
+        val impliedWindow = (totalCost - perReplicationSum) / perUnitTimeSum
         assertTrue(
             impliedWindow.isFinite(),
             "the total was scaled by a non-finite window, so it was taken from the " +
@@ -257,10 +258,10 @@ class CostBasisHorizonScalingTest {
             // could drift apart -- each internally consistent across horizons, and
             // disagreeing about the same run.
             assertEquals(
-                f.total(TotalForm.Rate) * window,
-                f.total(TotalForm.HorizonTotal),
-                f.total(TotalForm.HorizonTotal) * 1.0e-9,
-                "rate times the observed window must reproduce the horizon total, " +
+                f.total(CostBasis.PerUnitTime) * window,
+                f.total(CostBasis.PerReplication),
+                f.total(CostBasis.PerReplication) * 1.0e-9,
+                "the rate times the observed window must reproduce the total, " +
                     "at window $window"
             )
         }
