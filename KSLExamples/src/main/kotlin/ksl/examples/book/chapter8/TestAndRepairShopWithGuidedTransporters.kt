@@ -320,7 +320,7 @@ class TestAndRepairShopWithGuidedTransporters @JvmOverloads constructor(
     val numberOut: CounterCIfc
         get() = myNumberOut
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val plan: List<TestPlanStep> = planList.randomElement
 
         val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {

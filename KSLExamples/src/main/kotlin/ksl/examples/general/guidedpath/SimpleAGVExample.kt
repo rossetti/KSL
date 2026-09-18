@@ -157,6 +157,13 @@ class SimpleAGVExample(
     val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
+    // Handling is deterministic and deliberately small. Half a minute to put a part on the cart
+    // and half a minute to take it off is one minute against a loaded move of 204 feet at 10 feet
+    // per minute -- about five percent of the journey. That is the proportion this example is
+    // built to have: the queueing a reader sees here comes from carts waiting on zones, not from
+    // waiting at the stations, so a constant keeps handling out of the way of what is being shown.
+    // It is still a real quantity rather than a placeholder, and the catalog nominates it for
+    // exactly that reason: sweeping its `value` asks what faster handling would buy the shop.
     private val myLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "LoadingTime")
     val loadingTimeRV: RandomVariableCIfc
         get() = myLoadingTime
@@ -211,7 +218,7 @@ class SimpleAGVExample(
             .station(exitStation, "I5")
             .build()
 
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val delivery = process(isDefaultProcess = true) {
             val arrived = time
             currentLocation = network.requireLocation(entryStation)

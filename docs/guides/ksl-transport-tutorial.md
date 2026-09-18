@@ -411,6 +411,13 @@ anything ever reads them.
     val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
+    // Handling is deterministic and deliberately small. Half a minute to put a part on the cart
+    // and half a minute to take it off is one minute against a loaded move of 204 feet at 10 feet
+    // per minute -- about five percent of the journey. That is the proportion this example is
+    // built to have: the queueing a reader sees here comes from carts waiting on zones, not from
+    // waiting at the stations, so a constant keeps handling out of the way of what is being shown.
+    // It is still a real quantity rather than a placeholder, and the catalog nominates it for
+    // exactly that reason: sweeping its `value` asks what faster handling would buy the shop.
     private val myLoadingTime = RandomVariable(this, ConstantRV(0.5), name = "LoadingTime")
     val loadingTimeRV: RandomVariableCIfc
         get() = myLoadingTime
@@ -440,7 +447,10 @@ anything at all, which is a frustrating way to discover that a run has to be rep
 Wrapping a distribution in a `RandomVariable` makes it a model element: it gets a name in
 the report, a stream the model manages across replications, and — through the
 `RandomVariableCIfc` accessor — a handle a study can use to change the input without
-editing the model.
+editing the model. That handle is what the vehicle-examples catalog nominates, and it is
+why a constant is wrapped at all: a deterministic input is still an input you may want to
+vary, and one minute of handling against a twenty-minute loaded move is a choice about
+where this example puts its queueing, not a number left behind.
 
 `EntityGenerator(::Part, timeUntilFirst, timeBtwEvents)` is the standard arrival process.
 It takes a **constructor reference** and calls it on a schedule, activating each new
@@ -1498,7 +1508,7 @@ part 5.
 #### 8. The part, and the one line the guide path forces
 
 ```kotlin
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val plan: List<TestPlanStep> = planList.randomElement
 
         val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {
