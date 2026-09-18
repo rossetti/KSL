@@ -1,5 +1,6 @@
 package ksl.modeling.supplychain.cost
 
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -21,6 +22,31 @@ class CostEnumIntegrityTest {
             CostLine::class.sealedSubclasses.mapNotNull { it.objectInstance }.toSet(),
             CostLine.all.toSet(),
             "CostLine.all must contain exactly the declared line objects",
+        )
+    }
+
+    @Test
+    @DisplayName("every cost line declares a basis, and exactly four are rates")
+    fun costLineBasisAssignmentsArePinned() {
+        // Pinned by enumeration rather than by counting, so that adding a line
+        // fails here and forces a deliberate choice. A line that silently
+        // defaulted to the wrong basis would produce a wrong total with no
+        // error anywhere -- that is the failure this guards.
+        assertEquals(
+            setOf(
+                CostLine.Holding,
+                CostLine.InTransit,
+                CostLine.Backorder,
+                CostLine.ShipmentBuilderHolding,
+            ),
+            CostLine.all.filter { it.basis == CostBasis.RatePerTime }.toSet(),
+            "the rate-denominated lines are exactly the four formed as a " +
+                "time-weighted average times a rate",
+        )
+        assertEquals(
+            CostLine.all.size - 4,
+            CostLine.all.count { it.basis == CostBasis.PerReplicationTotal },
+            "every remaining line must be a per-replication total",
         )
     }
 
