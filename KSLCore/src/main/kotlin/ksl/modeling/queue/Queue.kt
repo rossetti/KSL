@@ -403,20 +403,21 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
 
     /**
      * Finds and removes all the QObjects in the Queue that satisfy the
-     * condition and adds them to the deletedItems collection
+     * condition and returns them. The order of the returned items will not
+     * maintain the queue discipline; it is the same order that filter() uses.
+     * Use filteredOrderedList() first if discipline order matters.
      *
      * @param predicate The condition to check
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return a list of the removed items, which may be empty if none are removed
      */
     fun remove(predicate: (T) -> Boolean, waitStats: Boolean = waitTimeStatOption): MutableList<T> {
-        val removedItems: MutableList<T> = mutableListOf()
-        for (i in myList.indices) {
-            val qo = myList[i]
-            if (predicate.invoke(qo)) {
-                removedItems.add(qo)
-                remove(qo, waitStats)
-            }
+        // The matches must be collected before any removal. Removing shifts the
+        // remaining elements down, so traversing live indices would skip the
+        // element after every match and then run past the shrunken end.
+        val removedItems: MutableList<T> = myList.filter(predicate).toMutableList()
+        for (qo in removedItems) {
+            remove(qo, waitStats)
         }
         return removedItems
     }
@@ -585,7 +586,9 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
     fun removeAll(c: Collection<T>, statFlag: Boolean = waitTimeStatOption): Boolean {
         var removedFlag = false
         for (qObj in c) {
-            removedFlag = remove(qObj, statFlag)
+            if (remove(qObj, statFlag)) {
+                removedFlag = true
+            }
         }
         return removedFlag
     }
@@ -607,7 +610,9 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         var removedFlag = false
         while (c.hasNext()) {
             val qo = c.next()
-            removedFlag = remove(qo, statFlag)
+            if (remove(qo, statFlag)) {
+                removedFlag = true
+            }
         }
         return removedFlag
     }
