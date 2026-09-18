@@ -21,7 +21,8 @@ import ksl.simulation.ModelElement
  * (inbound and outbound), per load builder, plus one for the ES.
  *
  * Pre-allocates a [Response] for every line × tier combination plus
- * per-line, per-tier, and grand-total Responses; sums them in
+ * per-line Responses, and a [CostBasis] pair for each rollup that
+ * spans lines (per tier, per node, and the whole formulation); sums them in
  * [replicationEnded].  KSL's tree walk visits the calculator
  * children before this formulation's `replicationEnded`, guaranteeing
  * the calculators' Responses are populated by the time the
@@ -180,9 +181,9 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
     override val calculators: Collection<CostCalculator>
         get() = myCalculators
 
-    // Pre-allocated rollup Responses.  Per-(tier, line) is the
-    // finest granularity; per-line and per-tier are derived sums in
-    // replicationEnded, as is the grand total.
+    // Pre-allocated rollup Responses.  Per-(tier, line) is the finest
+    // granularity; per-line, per-tier and the totals are derived in
+    // replicationEnded.
     private val myByTierAndLine: Map<NodeTier, Map<CostLine, Response>> =
         NodeTier.all.associateWith { tier ->
             CostLine.all.associateWith { line ->
@@ -238,9 +239,7 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
      * The total cost in the requested [CostBasis] — the Response an optimization
      * objective should reference.
      *
-     * Both denominations are dimensionally consistent, which the grand total is
-     * not: it sums per-unit-time lines with per-replication lines, so it is
-     * neither dollars nor dollars per unit time. Ask for
+     * Both denominations are dimensionally consistent. Ask for
      * [CostBasis.PerReplication] for dollars over the observed window, or
      * [CostBasis.PerUnitTime] for dollars per unit time, which is the one to
      * compare runs of unequal length with.
@@ -264,8 +263,9 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
         (time - model.lengthOfReplicationWarmUp).coerceAtLeast(0.0)
 
     /**
-     * Roll up the calculators' line Responses into the per-(tier, line),
-     * per-line, per-tier, and grand-total Responses.
+     * Roll up the calculators' line Responses into the per-(tier, line) and
+     * per-line Responses, and into the per-tier, per-node and whole-formulation
+     * totals in each [CostBasis].
      *
      * **Ordering contract (audit finding F).** Each [CostCalculator]'s
      * work happens in a `ModelElementObserver` attached to its *source*
@@ -389,7 +389,7 @@ open class DefaultMultiEchelonCostFormulation @JvmOverloads constructor(
 
         // Allocate one per-node (location) total Response per owning node the
         // calculators were attributed to (the external supplier's own outbound
-        // has no owning node and contributes only to the grand total).
+        // has no owning node and reaches the totals through its tier).
         for (nodeName in myCalculatorOwners.values.filterNotNull().distinct()) {
             myByNode[nodeName] = mapOf(
                 CostBasis.PerReplication to

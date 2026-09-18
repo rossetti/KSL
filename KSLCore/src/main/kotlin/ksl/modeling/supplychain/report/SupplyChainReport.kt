@@ -103,9 +103,12 @@ fun ReportBuilder.supplyChainOverview(network: MultiEchelonNetwork) {
 /**
  * A cost-summary section: for each attached [CostFormulation], a compact
  * **tier × line** matrix of average costs (only the tiers and lines the
- * topology actually produces), a TOTAL row, and the grand total with a
- * confidence half-width.  When more than one formulation is attached, a
- * grand-total comparison table is appended for the comparative study.
+ * topology actually produces), a TOTAL row, and the formulation's total in
+ * each [ksl.modeling.supplychain.cost.CostBasis] with a confidence
+ * half-width.  Each line is labelled with its units, because a column holds
+ * lines of both denominations and the TOTAL row is not that column's sum.
+ * When more than one formulation is attached, a comparison table per basis
+ * is appended for the comparative study.
  *
  * @param confidenceLevel level for the reported cost half-widths
  */

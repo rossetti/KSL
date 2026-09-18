@@ -4,8 +4,9 @@ import ksl.modeling.variable.ResponseCIfc
 
 /**
  * A cost formulation is a container of [CostCalculator]s plus the
- * rollup Responses (per line, per tier, grand total) that summarize
- * them at every replication's end.
+ * rollup Responses (per line, per tier, and the formulation's total)
+ * that summarize them at every replication's end.  Every rollup that
+ * spans lines is denominated by a [CostBasis] the caller asks for.
  *
  * **Lifecycle.** A formulation is constructed before
  * `model.simulate()` runs, walks the `MultiEchelonNetwork` at
@@ -68,8 +69,8 @@ interface CostFormulation {
      * (an inventory's / backlog's / load-builder's holder, an outbound
      * edge's supplier, an inbound edge's customer), or null when the
      * formulation tracks no node with that name. The external
-     * supplier's own outbound has no owning node and contributes only
-     * to the grand total.
+     * supplier's own outbound has no owning node and reaches the
+     * formulation's totals through its tier rather than through a node.
      */
     fun byNodeResponse(nodeName: String, basis: CostBasis): ResponseCIfc?
 

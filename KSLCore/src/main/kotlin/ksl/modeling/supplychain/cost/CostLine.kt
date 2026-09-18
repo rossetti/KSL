@@ -12,10 +12,12 @@ package ksl.modeling.supplychain.cost
  * Every line declares its [CostBasis].  The constructor requires it, so a
  * line cannot be added without saying whether it is a rate or a
  * per-replication total — which is what keeps a rollup from silently
- * summing the two.  See [CostBasis] for why the distinction matters.  v2 line items (introduced by Phase 5 — backorder,
- * stockout, lost-sale, unit-shortage) are included here from the
- * start so the formulation infrastructure does not need to grow as
- * those calculators land.
+ * summing the two.  See [CostBasis] for why the distinction matters.
+ *
+ * v2 line items (introduced by Phase 5 — backorder, stockout,
+ * lost-sale, unit-shortage) are included here from the start so the
+ * formulation infrastructure does not need to grow as those
+ * calculators land.
  */
 sealed class CostLine(val displayName: String, val basis: CostBasis) {
     /** On-hand inventory holding cost (per (IHP, item)). */
