@@ -39,11 +39,15 @@ import kotlin.test.assertFailsWith
  *  already walked. Rewriting history would let a vehicle be told to collect a load it has already
  *  set down, and the symptom would be a delivery counted twice rather than an exception.
  *
- *  Removal is by **task** rather than by stop, and that is the load-bearing choice here. The two
- *  stops of a transport are not independent: taking out a pickup and leaving its set-down would
- *  route a vehicle to put down something it never collected. A task whose pickup has already been
- *  reached cannot be removed at all -- which is the same statement `A4` makes about revocation,
- *  arrived at from the other side.
+ *  Editing is by **task** rather than by stop, in both directions, and that is the load-bearing
+ *  choice here. The two stops of a transport are not independent: taking out a pickup and leaving
+ *  its set-down would route a vehicle to put down something it never collected, and putting in a
+ *  pickup without its set-down would have it collect something it never puts down. A task whose
+ *  pickup has already been reached cannot be removed at all -- which is the same statement `A4`
+ *  makes about revocation, arrived at from the other side.
+ *
+ *  Only a transport's stops name a task. A repositioning errand and a line's cycle name none, and
+ *  neither has a pairing to protect, so both go in as the ordinary block of stops they are.
  *
  *  Nothing calls [Tour.insert] or [Tour.remove] yet. They are here, tested, ahead of the tour
  *  policy that will use them, because the invariant they protect is easier to state now than to
@@ -88,7 +92,7 @@ class TourEditingTest {
     @DisplayName("A stop inserted at position zero is the one the vehicle goes to next")
     fun insertAtTheFront() {
         val tour = Tour(listOf(stop("A"), stop("B")))
-        tour.insert(stop("Z"), 0)
+        tour.insert(listOf(stop("Z")), 0)
         assertEquals("Z", tour.nextStop?.location)
         assertEquals(listOf("Z", "A", "B"), tour.stops.map { it.location })
     }
@@ -97,7 +101,7 @@ class TourEditingTest {
     @DisplayName("A stop can be inserted at the end, which is what appending a task means")
     fun insertAtTheEnd() {
         val tour = Tour(listOf(stop("A"), stop("B")))
-        tour.insert(stop("Z"), 2)
+        tour.insert(listOf(stop("Z")), 2)
         assertEquals(listOf("A", "B", "Z"), tour.stops.map { it.location })
     }
 
@@ -106,7 +110,7 @@ class TourEditingTest {
     fun positionsAreRelativeToTheCursor() {
         val tour = Tour(listOf(stop("A"), stop("B"), stop("C")))
         tour.advance()                       // A is history
-        tour.insert(stop("Z"), 0)
+        tour.insert(listOf(stop("Z")), 0)
         assertEquals(
             listOf("A", "Z", "B", "C"), tour.stops.map { it.location },
             "position 0 must mean next, not first: a vehicle past A cannot be sent to a new first stop"
@@ -120,9 +124,9 @@ class TourEditingTest {
         val tour = Tour(listOf(stop("A"), stop("B"), stop("C")))
         tour.advance()
         tour.advance()
-        assertFailsWith<IllegalArgumentException> { tour.insert(stop("Z"), -1) }
+        assertFailsWith<IllegalArgumentException> { tour.insert(listOf(stop("Z")), -1) }
         assertFailsWith<IllegalArgumentException>("only one stop is left, so 2 is past the end") {
-            tour.insert(stop("Z"), 2)
+            tour.insert(listOf(stop("Z")), 2)
         }
     }
 
@@ -175,5 +179,85 @@ class TourEditingTest {
         val tour = Tour(listOf(TourStop("A", PickUp(one)), TourStop("B", SetDown(one))))
         assertEquals(0, tour.remove(other))
         assertEquals(2, tour.stops.size)
+    }
+
+    @Test
+    @DisplayName("A task goes in whole, its stops contiguous and in order")
+    fun insertionIsByTask() {
+        val shop = shop()
+        val one = shop.task("One", "A", "B")
+        val two = shop.task("Two", "B", "C")
+        val tour = Tour(listOf(TourStop("A", PickUp(one)), TourStop("B", SetDown(one))))
+        tour.insert(listOf(TourStop("B", PickUp(two)), TourStop("C", SetDown(two))), 1)
+        assertEquals(
+            listOf("A", "B", "C", "B"), tour.stops.map { it.location },
+            "the block goes in where it was asked to, in the order given"
+        )
+        assertEquals(
+            2, tour.remove(two),
+            "a task put in whole comes out whole, which is the point of putting it in whole"
+        )
+    }
+
+    @Test
+    @DisplayName("Stops of two different tasks cannot be put in together")
+    fun aBlockBelongsToOneTask() {
+        val shop = shop()
+        val one = shop.task("One", "A", "B")
+        val two = shop.task("Two", "B", "C")
+        val tour = Tour(listOf(stop("A")))
+        val thrown = assertFailsWith<IllegalArgumentException>(
+            "splitting a transport across two insertions is what this refuses to make possible"
+        ) { tour.insert(listOf(TourStop("A", PickUp(one)), TourStop("C", SetDown(two))), 0) }
+        assertEquals(true, thrown.message!!.contains("must belong to one task"))
+        assertEquals(1, tour.stops.size, "a refused insertion must leave the tour alone")
+    }
+
+    @Test
+    @DisplayName("A task already in the tour cannot be put in again")
+    fun aTaskCannotBeInsertedTwice() {
+        val shop = shop()
+        val one = shop.task("One", "A", "B")
+        val stops = listOf(TourStop("A", PickUp(one)), TourStop("B", SetDown(one)))
+        val tour = Tour(stops)
+        val thrown = assertFailsWith<IllegalArgumentException> { tour.insert(stops, 0) }
+        assertEquals(true, thrown.message!!.contains("already in this tour"))
+        assertEquals(2, tour.stops.size, "a refused insertion must leave the tour alone")
+    }
+
+    @Test
+    @DisplayName("A task already reached still counts as in the tour")
+    fun aTaskBehindTheCursorStillBlocksReinsertion() {
+        val shop = shop()
+        val one = shop.task("One", "A", "B")
+        val stops = listOf(TourStop("A", PickUp(one)), TourStop("B", SetDown(one)))
+        val tour = Tour(stops)
+        tour.advance()                       // the pickup has happened; the load is aboard
+        val thrown = assertFailsWith<IllegalArgumentException>(
+            "a load aboard must not get a second pickup, and remove already refuses the mirror case"
+        ) { tour.insert(stops, 0) }
+        assertEquals(
+            true, thrown.message!!.contains("already in this tour"),
+            "it must be the identity guard that refuses this, not the position check"
+        )
+    }
+
+    @Test
+    @DisplayName("An empty block is refused rather than silently doing nothing")
+    fun anEmptyBlockIsRefused() {
+        val tour = Tour(listOf(stop("A")))
+        assertFailsWith<IllegalArgumentException> { tour.insert(emptyList(), 0) }
+    }
+
+    @Test
+    @DisplayName("Task-less stops have no pairing to protect and go in freely")
+    fun taskLessStopsAreUnrestricted() {
+        val tour = Tour(listOf(stop("A")))
+        tour.insert(listOf(stop("Z"), stop("Y")), 0)
+        tour.insert(listOf(stop("Z")), 0)
+        assertEquals(
+            listOf("Z", "Z", "Y", "A"), tour.stops.map { it.location },
+            "a repositioning errand and a line's cycle name no task, so nothing is being split"
+        )
     }
 }
