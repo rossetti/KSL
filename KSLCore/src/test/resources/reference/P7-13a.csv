@@ -1,0 +1,36 @@
+# Reference-implementation results for Exercise 7.13(a): the Test and Repair shop served by ONE AGV on a guided path
+# whose links are bidirectional -- which is safe only because there is one vehicle, and which is
+# what makes this case worth having: nothing else in the suite validates the direction lock against
+# anything but itself.
+#
+# Source model: P7-13aNew, run on 2026-08-31; report and results are from the
+# same file. Exported from P7-13aNew_rpt.xlsm, archived on branch agv-files of rossetti-org/tmp4321.
+#
+# 10 replications of 4160 hours = 249,600 minutes, no warm-up. Reports are in minutes. Unlike the
+# simple AGV example this model is stochastic, so the comparison is statistical: half-widths are
+# the reference implementation's own 95% figures and are carried here so the test can say what "agrees" means.
+#
+# The quantities split into two groups that are worth reading separately. The service statistics --
+# value-added time, the machine utilizations, the queue waits -- test whether the two models are the
+# same *shop*, and are almost independent of the guide path. Transfer time and transporter
+# utilization test whether they are the same *aisle*.
+statistic,value,halfWidth
+diagnosticQueueWait,38.15063789185915,1.7530212816637618
+diagnosticUtilization,0.75065371970074,0.00601756600988482
+entityTotalTime,345.97713719866806,8.596749454466671
+entityTransferTime,7.524391441902738,0.014764620829194377
+entityVATime,132.18536643944802,0.2602454459760562
+entityWIP,17.259288861490067,0.5232523652002672
+entityWaitTime,206.26737931731813,8.665550161870858
+numberIn,12456.6,73.44888301112516
+numberOut,12439.4,74.51792767840858
+probWithinContractLimit,0.8308120820651604,0.016166142929289844
+repair1Utilization,0.8657374720118352,0.00506220357045625
+repairQueueWait,24.931129831346592,2.3685470306456455
+test1QueueWait,52.96568212708151,4.874700488012129
+test1Utilization,0.8537827640701281,0.0075199509415690285
+test2QueueWait,41.680224350284746,2.6752480032648243
+test2Utilization,0.7784693972574108,0.006430506689521023
+test3QueueWait,50.46428801360563,2.791017309990819
+test3Utilization,0.8593523638419512,0.005536415792580969
+transporterUtilization,0.3752595833709572,0.0023046837118830253

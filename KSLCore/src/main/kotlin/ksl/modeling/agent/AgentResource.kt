@@ -197,7 +197,7 @@ open class AgentResource @JvmOverloads constructor(
         // previous replication, then start() re-registers the chart's
         // arrival listener on the now-clean mailbox.
         mailbox.reset()
-        offShift = false
+        myShift.initialize()
         statechart?.start()
     }
 
@@ -207,20 +207,22 @@ open class AgentResource @JvmOverloads constructor(
     }
 
     /**
-     *  Tracks whether [goOffShift] is in effect. Kept explicitly rather
-     *  than inferred from `capacity == 0`, so a resource legitimately
-     *  constructed or driven to zero capacity is not mistaken for
-     *  off-shift (and [goOffShift] / [goOnShift] behave correctly).
-     *  Reset to on-shift at the start of each replication.
+     *  Drives the capacity for [goOffShift] and [goOnShift].
+     *
+     *  The pattern is shared with the other vehicle kinds rather than
+     *  reimplemented here: a free-path `MovableResource` and a
+     *  `GuidedTransporter` go off shift the same way, through the same
+     *  object, so the three cannot drift apart.
      */
-    private var offShift: Boolean = false
+    private val myShift: ksl.modeling.entity.ShiftControl =
+        ksl.modeling.entity.ShiftControl(this, onShiftCapacity)
 
     /**
      *  Whether the resource is currently off-shift (taken off via
      *  [goOffShift]).
      */
     val isOffShift: Boolean
-        get() = offShift
+        get() = myShift.isOffShift
 
     /**
      *  Take the resource off-shift indefinitely. New seize requests
@@ -229,24 +231,14 @@ open class AgentResource @JvmOverloads constructor(
      *  [ksl.modeling.entity.Resource.capacityChangeRule] (IGNORE by
      *  default).
      */
-    fun goOffShift() {
-        if (offShift) return
-        offShift = true
-        changeCapacity(CapacityChangeNotice(capacity = 0, duration = Double.POSITIVE_INFINITY))
-    }
+    fun goOffShift() = myShift.goOffShift()
 
     /**
      *  Bring the resource back on-shift, restoring its
      *  [onShiftCapacity]. Any requests waiting in the resource's
      *  request queue are notified per the capacity-change rule.
      */
-    fun goOnShift() {
-        if (!offShift) return
-        offShift = false
-        changeCapacity(
-            CapacityChangeNotice(capacity = onShiftCapacity, duration = Double.POSITIVE_INFINITY)
-        )
-    }
+    fun goOnShift() = myShift.goOnShift()
 
     init {
         // Register with the model so this resource-agent participates in the registry snapshot

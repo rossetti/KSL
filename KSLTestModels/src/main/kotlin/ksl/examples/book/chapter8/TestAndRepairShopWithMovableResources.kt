@@ -143,7 +143,7 @@ class TestAndRepairShopWithMovableResources(parent: ModelElement, name: String? 
         get() = myContractLimit
 
     // define the process
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
         val plan: List<TestPlanStep> = planList.randomElement
 
         val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {

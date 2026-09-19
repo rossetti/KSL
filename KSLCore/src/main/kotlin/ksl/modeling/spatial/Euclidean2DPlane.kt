@@ -50,6 +50,19 @@ class Euclidean2DPlane() : SpatialModel() {
         return b1 && b2
     }
 
+    /** A plane can always say where between two points is: the straight line is the path. */
+    override fun interpolate(
+        fromLocation: LocationIfc,
+        toLocation: LocationIfc,
+        fraction: Double
+    ): LocationIfc {
+        require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
+        require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
+        val f = fromLocation as Point
+        val t = toLocation as Point
+        return Point(f.x + (t.x - f.x) * fraction, f.y + (t.y - f.y) * fraction)
+    }
+
     /** Represents a location within this spatial model.
      *
      * @param aName the name of the location, will be assigned based on ID_id if null

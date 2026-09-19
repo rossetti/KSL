@@ -73,7 +73,9 @@ fun LocationIfc.toPoint2D(): Point2D? = when (this) {
  *     independent even when they share coordinates.
  *   - Each call to [ContinuousProjection.asSpatialModel] produces
  *     a *new* `ProjectionSpatialModel`. Locations created in one
- *     are not valid for another. Call once and store the result.
+ *     are not valid for another. Prefer
+ *     [ContinuousProjection.spatialModel], which is one per
+ *     projection and created on first use.
  *
  *  Deeper integration — including a `MovableResource` whose
  *  position is the projection's source of truth — is a separate
@@ -122,6 +124,22 @@ class ProjectionSpatialModel(
         // who want tolerance-based comparison should compare via
         // distance() instead.
         return f.point == t.point
+    }
+
+    /**
+     *  A projection can always say where between two points is, and it takes the delta through the
+     *  projection so that a torus interpolates the short way round -- which is the way an agent
+     *  crossing it would actually go.
+     */
+    override fun interpolate(
+        fromLocation: LocationIfc,
+        toLocation: LocationIfc,
+        fraction: Double,
+    ): LocationIfc {
+        val f = (fromLocation as ProjectedLocation).point
+        val t = (toLocation as ProjectedLocation).point
+        val d = projection.delta(f, t)
+        return ProjectedLocation(Point2D(f.x + d.x * fraction, f.y + d.y * fraction))
     }
 
     /**

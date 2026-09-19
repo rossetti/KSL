@@ -1,0 +1,29 @@
+# Reference-implementation results for Exercise 7.13(b): the same Test and Repair shop with TWO AGVs on a guided path
+# made ONE-WAY, which is what the exercise prescribes to avoid the deadlock two vehicles could
+# otherwise reach on two-way aisles.
+#
+# Source model: P7-13bNew, run on 2026-08-31; report and results are from the
+# same file. Exported from P7-13bNew_rpt.xlsm, archived on branch agv-files of rossetti-org/tmp4321.
+#
+# 10 replications of 4160 hours = 249,600 minutes, no warm-up. Reports are in minutes.
+#
+# Read against P7-13a.csv, this is NOT a controlled comparison of one vehicle against two: link L10
+# changes as well, from I9->I5 at 23 metres to I5->I9 at 9, so the network is different too. The two
+# are two validation cases rather than a fleet-size experiment.
+statistic,value,halfWidth
+diagnosticQueueWait,39.20779207754694,2.246017095567856
+diagnosticUtilization,0.7520382816485964,0.006634853375273225
+entityTotalTime,353.8255611129982,8.565199482368854
+entityTransferTime,15.825589970296003,0.054362194933284765
+entityWIP,17.6491125207141,0.5182858165766553
+numberIn,12455.3,78.1854882048461
+numberOut,12441.9,78.45294542379636
+probWithinContractLimit,0.8198692664937102,0.01944033265958328
+repairQueueWait,25.252091255895653,1.7939618173907175
+test1QueueWait,52.7379257973043,4.948837066624588
+test1Utilization,0.8536986820243415,0.006774830857795836
+test2QueueWait,40.25878414815499,3.0344647558535294
+test2Utilization,0.7750012794257484,0.007965052592645735
+test3QueueWait,51.03084072414357,2.5428530135560337
+test3Utilization,0.859582207677243,0.005883801915866429
+transporterUtilization,0.40158115245743764,0.0016708221573839188

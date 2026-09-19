@@ -556,6 +556,104 @@ fun readMovementStats(forklift: MovableResourceWithQ) {
 `fracTimeMovingEmpty` is the cost of deadheading. Together they're a
 quick utilization-of-motion diagnostic.
 
+Two odometers sit beside them and answer a different question — not
+what fraction of the time, but how much:
+
+```kotlin
+val km      = forklift.distanceTravelled   // this replication, however it was moved
+val running = forklift.operatingTime       // how long it spent moving
+```
+
+They count every journey the resource made, whether by `move`,
+`moveWith`, `transportWith` or `driveTo`. An odometer that depended on
+which verb was used would be worse than none.
+
+### ...ask where a resource is *right now*
+
+`currentLocation` is where a resource last **arrived**. It is what every
+`move` verb sets, what everything observing a spatial element sees, and
+what you want when you ask where something is in the ordinary sense.
+
+`positionNow` is where it is **at this instant**. The two agree except
+during a journey started with `driveTo`, over a spatial model that can
+say where between two places is — and there `positionNow` is the live
+answer:
+
+```kotlin
+val nearest = fleet.minByOrNull { it.pathDistanceTo(pickupPoint) }
+```
+
+Use `positionNow` (and `pathDistanceTo`, which is measured from it) for
+**any decision about which vehicle to send**. A rule that scores
+proximity from `currentLocation` scores every vehicle as of wherever it
+last stopped, which on a busy fleet is a decision made about the wrong
+fleet.
+
+Whether the position is live is a property of the **spatial model**, not
+of the resource. A `Euclidean2DPlane` and a rectangular grid can
+interpolate; a `DistancesModel` is a table of pairwise distances with
+nothing between two places, so there a journey is a single delay and
+`positionNow` honestly reports the place the resource set out from until
+it arrives. Give your own `SpatialModel` an `interpolate` override to
+join in.
+
+### ...interrupt or redirect a move
+
+`move`, `moveWith` and `transportWith` are one delay to the destination
+and cannot be stopped part way. `driveTo` can:
+
+```kotlin
+val arrived = driveTo(forklift, dock)   // false when something stopped it short
+if (!arrived) {
+    // it is where it stopped, not where it was going
+    repair(forklift)
+    forklift.resumeHalted()
+    driveTo(forklift, dock)
+}
+```
+
+- **Stop it**: `forklift.halt()` from anywhere — a breakdown, a flat
+  battery, a controller's recall. Whoever halted it owns starting it
+  again.
+- **Redirect it**: call `beginTravelTo` again (or `driveTo` from another
+  process) with a new destination. The odometer keeps growing across the
+  turn, because a vehicle that turns round has still covered the ground
+  it covered.
+
+Both take effect at the next decision point, which `stepSize` sets:
+
+```kotlin
+val forklift = MovableResource(this, dock, ConstantRV(3.0), stepSize = 0.5)
+```
+
+Smaller means sooner and more events. It is ignored entirely on a
+spatial model that cannot interpolate, where there is no next point
+until arrival.
+
+### ...take a vehicle off shift
+
+All three kinds of vehicle — a free-path `MovableResource`, a
+`GuidedTransporter`, and an agent-layer `MovableAgentResource` — go off
+shift the same way:
+
+```kotlin
+forklift.goOffShift()    // cannot be seized; requests for it queue
+forklift.goOnShift()     // back to its on-shift capacity
+if (forklift.isOffShift) { … }
+```
+
+It is not a new mechanism: a resource with no capacity cannot be seized
+and requests for it wait, which is what being off shift means. Work
+already allocated finishes under the resource's own
+`capacityChangeRule` (`IGNORE` by default), so a vehicle part way
+through a job finishes it and then goes home.
+
+> A `GuidedTransporter` off shift **stays where it is and keeps the
+> space it occupies.** That is what a real vehicle parked at the end of
+> a shift does, and the blocking that follows is a fact about the
+> layout. Send it somewhere out of the way first if that is what your
+> site does.
+
 ---
 
 ## 5. The key types at a glance
@@ -596,6 +694,35 @@ A compact tour. Member-level detail is on the Dokka pages.
 
 - `VelocityIfc` — the trait; every velocity-bearing object exposes
   `velocity: GetValueIfc`.
+
+**Moving a vehicle**
+
+- `VehicleMovementIfc` — what a fleet needs from whatever moves its
+  vehicles: `positionNow`, `pathDistanceTo`, `beginTravelTo`,
+  `isHalted` / `resumeHalted`, and two odometers. Implemented by
+  `MovableResource` (free path), `GuidedTransporter` (guide path) and
+  `MovableAgentResource` (continuous projection), so code written
+  against it runs over all three.
+- `MovePurpose` — what a journey is *for* (`SERVICE`, `HOME`, `TOW`).
+  Never what the vehicle is carrying, which the substrate reads for
+  itself.
+- `MovePathIfc` — the geometry half: how far apart two places are and
+  where between them is. `positionAlong` may answer null, and a
+  geometry that cannot say makes a journey one step.
+- `InterpolatedMovement` — the clockwork half: plan a step, wait,
+  advance, re-plan. Driven by events the vehicle owns rather than by
+  the traveller's process, which is what lets a fleet command a vehicle
+  from outside it.
+- `ShiftControl` (in `ksl.modeling.entity`) — takes a resource off
+  shift and back by driving its capacity.
+- `FleetSpaceIfc` — the other half of the seam: what and where
+  "somewhere" is. A fleet asks a space to name a location and to say how
+  far apart two are, and knows nothing else about it.
+
+A `MovableResource` seized by an entity is the passive use of all this. To
+put the decision the other way round — a dispatcher that tasks the fleet,
+batches, negotiates and takes work back — `FreePathFleet` binds that
+machinery to a spatial model. See [`ksl-fleet`](ksl-fleet.md).
 
 **Movable resources**
 
@@ -675,6 +802,10 @@ A compact tour. Member-level detail is on the Dokka pages.
   serves.
 - `ksl-station.md` — uses these resources for movable-server stations.
 - `ksl-agent.md` — the parallel spatial system in agent-based models.
+- `ksl-fleet.md` — dispatcher-driven vehicles over this substrate
+  (`FreePathFleet`), and over a guide path.
+- `ksl-transport.md` — the overview: which of the four transport
+  subsystems to use, and the measurement that separates them.
 - `ksl-modeling.md` — the underlying modeling primitives.
 - `ksl-utilities-random.md` — velocity distributions, stream control.
 

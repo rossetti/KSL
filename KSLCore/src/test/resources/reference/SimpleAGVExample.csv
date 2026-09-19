@@ -1,0 +1,30 @@
+# Reference-implementation results for the simple AGV example of the chapter on entity movement.
+#
+# Source model: SimpleAGVExample, re-saved under a newer version of that tool and run
+# 2026-08-31; both are the same model. Exported from the reference implementation's statistics workbook,
+# SimpleAGVExampleNew_rpt.xlsm, archived with the model on branch agv-files of rossetti-org/tmp4321.
+#
+# One replication of 480 minutes, no warm-up. The model is deterministic -- constant arrivals every
+# 25 minutes from time 0, constant load and unload delays of 20, constant velocity 10 -- so these
+# are exact values and not estimates. There is no confidence interval to quote and none is wanted.
+#
+# the reference implementation's timing categories: an entity is in Wait while queued for a transporter, in Transfer from
+# the instant one is allocated until it is freed, and in Other during a Delay declared with
+# Allocation = Other, which is what the two 20-minute delays are. Hence
+# Total = Wait + Transfer + Other, which these values satisfy exactly.
+statistic,value
+entityTotalTime,131.9
+entityTransferTime,32.2333333333332
+entityWaitTime,59.6666666666665
+entityOtherTime,40.0
+entityWIP,4.83916666666666
+requestQueueNumberWaiting,2.89124999999999
+requestQueueWaitingTime,70.1999999999998
+transporterNumberBusy,1.94791666666667
+transporterUtilization,0.973958333333333
+numberIn,20
+numberOut,12
+entityObservations,12
+queueObservations,14
+# Mean x count, kept as a second reading of the same fact.
+requestQueueTotalWaitingTime,982.7999999999972

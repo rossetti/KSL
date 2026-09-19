@@ -173,6 +173,59 @@ var colour: String = "WHITE"
 var axleWeights: List<Double> = listOf(4500.0, 6000.0, 6000.0)
 ```
 
+#### The shape a string control usually takes in practice
+
+The `Van` above is a teaching fixture: its `fuelType` really is a `String`. Most string
+controls in the KSL itself are not. They are **name adapters** over a property whose real
+type is an object or an enum, added so a scenario, a designed experiment or a GUI can
+choose a policy by name without holding the policy object or importing its class:
+
+```kotlin
+@set:KSLStringControl(
+    allowedValues = ["Closest", "Furthest", "LeastUsed", "Cyclical"],
+    comment = "Which idle transporter of the pool is sent to a pickup"
+)
+override var allocationRuleName: String
+    get() = nameOfTransporterAllocationRule(allocationRule) ?: allocationRule.toString()
+    set(value) {
+        allocationRule = createTransporterAllocationRule(value)
+    }
+```
+
+Three things about that shape are worth copying:
+
+- **The typed property stays.** `allocationRule` is still there and is still how a model
+  written in Kotlin sets the rule. The adapter adds a control surface; it does not become
+  the API.
+- **The getter never throws.** A rule that no name stands for — one constructed with a
+  stream or a location, say — is reported through its own `toString`. Reading a control is
+  a question, and a question about a state the name set cannot express should answer
+  honestly rather than fail.
+- **`allowedValues` lists only the values a name fully defines.** A policy that is
+  constituted by its numbers — a batch of two with a five-minute cap is a different policy
+  from a batch of ten with a one-minute cap, not the same policy tuned differently — gets
+  no name, because a name standing for one would let a study vary the label while silently
+  freezing the number.
+
+The library's own string controls, all of this shape, are worth reading as worked
+examples:
+
+| Property | On | Chooses |
+|---|---|---|
+| `allocationRuleName` | `GuidedTransporterPool` | Which idle transporter is sent to a pickup |
+| `idleDispositionRuleName` | `GuidedTransporterPool` | Where a released transporter waits |
+| `zoneContentionRuleName` | `GuidedPathSpace` | Which waiting transporter is let into a freed zone |
+| `arbiterName` | `ZoneCrossing` | The crossing's admission discipline |
+| `assignmentPolicyName` | `Dispatcher` | How a fleet task is assigned to a vehicle |
+| `loadFormingOptionName` | `DemandLoadBuilder` | The automatic load-formation strategy |
+
+**Not everything numeric is a control, and that is deliberate.** A vehicle's
+`lengthInZones`, `loadCapacity` and `physicalLength` are constructor `val`s and are not
+sweepable. Widening them would need an `isNotRunning` guard and, more to the point, an
+answer to what a mid-study change to a vehicle's *size* means for the zones it is
+standing on at that instant. Until that has an answer, these stay construction-time
+facts: vary them by building the model differently, not by setting a control.
+
 ### ...discover the controls in a model?
 
 ```kotlin

@@ -18,7 +18,14 @@
 
 package ksl.modeling.agent
 
+import ksl.modeling.entity.HoldQueue
+import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
+import ksl.modeling.spatial.InterpolatedMovement
+import ksl.modeling.spatial.LocationIfc
+import ksl.modeling.spatial.MovePathIfc
+import ksl.modeling.spatial.MovePurpose
+import ksl.modeling.spatial.VehicleMovementIfc
 
 /**
  *  An [AgentResource] whose position is tracked in a
@@ -90,8 +97,22 @@ import ksl.modeling.entity.RequestQ
  *    position. Must hold `AgentLike` (or compatible) members.
  *  @param initPosition starting position in the projection.
  *  @param name optional name; defaults to `MovableAgentResource_<id>`.
+ *  It also implements [VehicleMovementIfc], the movement seam a
+ *  fleet is written against, so tours, dispatching and a manifest
+ *  can be driven over a continuous projection by exactly the code
+ *  that drives them over a guide path. See "The seam" below.
+ *
  *  @param capacity initial resource capacity (default 1).
  *  @param queue optional shared request queue.
+ *  @param velocity how fast [beginTravelTo] moves it. A property of
+ *    the vehicle rather than of each call, because the seam's caller
+ *    is a fleet that knows what a journey is *for* and not how fast
+ *    this particular vehicle goes. [travelTo] still takes its own
+ *    velocity per call and is unaffected.
+ *  @param stepSize the interpolation step, in coordinate units. What
+ *    a journey is discretised into, and therefore how quickly a
+ *    redirection or a halt is observed: at most `stepSize/velocity`
+ *    later.
  */
 open class MovableAgentResource @JvmOverloads constructor(
     agentModel: AgentModel,
@@ -100,7 +121,14 @@ open class MovableAgentResource @JvmOverloads constructor(
     name: String? = null,
     capacity: Int = Defaults.capacity,
     queue: RequestQ? = null,
-) : AgentResource(agentModel, name, capacity, queue) {
+    var velocity: Double = Defaults.velocity,
+    var stepSize: Double = Travel.Defaults.stepSize,
+) : AgentResource(agentModel, name, capacity, queue), VehicleMovementIfc {
+
+    init {
+        require(velocity > 0.0) { "velocity must be positive; was $velocity" }
+        require(stepSize > 0.0) { "stepSize must be positive; was $stepSize" }
+    }
 
     /**
      *  Mutable global defaults for [MovableAgentResource] construction.
@@ -108,11 +136,44 @@ open class MovableAgentResource @JvmOverloads constructor(
     companion object Defaults {
         /** Default on-shift capacity for new movable agent resources. Must be positive. */
         var capacity: Int by positive(1)
+
+        /** Default travel velocity for the movement seam. Must be positive. */
+        var velocity: Double by positive(1.0)
     }
+
+    /**
+     *  Where it starts each replication.
+     *
+     *  Held rather than consumed, because a replication has to be able to put it back. See
+     *  [initialize].
+     */
+    val initialPosition: Point2D = initPosition
 
     init {
         space.context.add(this)
-        space.placeAt(this, initPosition)
+        space.placeAt(this, initialPosition)
+    }
+
+    /**
+     *  Puts the resource back where it was declared, at the start of every replication.
+     *
+     *  **Without this a replication began wherever the previous one stopped.** The context restores
+     *  *membership* between replications -- an agent added during model construction stays a member
+     *  -- but nothing restored a *position*, because the position was set once in an `init` block
+     *  that runs at construction and never again. So replication 1 started at the declared point and
+     *  every replication after it started whereever replication 1 happened to end, silently: the run
+     *  completes, the statistics look plausible, and only a model whose answer depends on where
+     *  vehicles begin would show it.
+     *
+     *  This is the same defect a manifest surviving a replication is, and it has the same shape: an
+     *  interface cannot enforce it, so the class that owns the state has to be a `ModelElement` and
+     *  override this. Membership is re-established defensively as well, so that a model which
+     *  removed the resource from its context mid-replication still starts the next one whole.
+     */
+    override fun initialize() {
+        super.initialize()
+        if (this !in space.context) space.context.add(this)
+        space.placeAt(this, initialPosition)
     }
 
     /**
@@ -133,4 +194,132 @@ open class MovableAgentResource @JvmOverloads constructor(
     fun placeAt(point: Point2D) {
         space.placeAt(this, point)
     }
+
+    // ---- the movement seam ---------------------------------------------------------------------
+    //
+    // `VehicleMovementIfc` is what a fleet needs from whatever moves its vehicles, and the guide
+    // path was its first implementer. This is the second, and the point of there being two is that
+    // the machinery above -- tours, stops, dispatching, the manifest -- is written once.
+    //
+    // **The seam could not be satisfied by handing it a TravelHandle, and that is the finding.**
+    // `startTravel`/`awaitTravel` put the integration loop inside the *traveller's own process*: it
+    // is `awaitTravel` that delays, steps and re-plans. The seam requires the opposite -- a command
+    // that does not suspend, handing back the queue its caller must wait in -- because a fleet's
+    // control loop has to be able to command a vehicle from somewhere other than the vehicle's
+    // process, and because the two ends of a wait must not disagree about where the wake comes
+    // from.
+    //
+    // So the clockwork is `InterpolatedMovement`, which lives in `ksl.modeling.spatial` -- below
+    // this package and below `guidedpath`, which is where a thing both of them need belongs. What
+    // is here is the *geometry*: how far apart two points on this projection are, where a fraction
+    // of the way between them is, and how to put the resource there. `travelTo` and `awaitTravel`
+    // are untouched and remain the way an agent moves itself; this is the way a fleet moves it.
+
+    /** The plane this vehicle's positions are expressed in. One per projection. */
+    val plane: ProjectionSpatialModel
+        get() = space.spatialModel
+
+    /** This projection, as a geometry the shared clockwork can move through. */
+    private inner class ProjectionPath : MovePathIfc {
+
+        override val positionNow: LocationIfc
+            get() = plane.location(position)
+
+        override fun distanceBetween(from: LocationIfc, to: LocationIfc): Double =
+            space.distance(pointOf(from), pointOf(to))
+
+        override fun isReachable(destination: LocationIfc): Boolean {
+            if (destination !is ProjectionSpatialModel.ProjectedLocation) return false
+            if (destination.spatialModel !== plane) return false
+            val p = destination.point
+            return space.torus || (p.x in space.xRange && p.y in space.yRange)
+        }
+
+        /**
+         *  A plane can always say where between two points is. The delta is taken through the
+         *  projection so that a torus interpolates the short way round, which is the way the
+         *  vehicle would actually go.
+         */
+        override fun positionAlong(from: LocationIfc, to: LocationIfc, fraction: Double): LocationIfc {
+            val f = pointOf(from)
+            val d = space.delta(f, pointOf(to))
+            return plane.location(Point2D(f.x + d.x * fraction, f.y + d.y * fraction))
+        }
+
+        override fun placeAt(location: LocationIfc) {
+            space.moveTo(this@MovableAgentResource, pointOf(location))
+        }
+
+        private fun pointOf(location: LocationIfc): Point2D =
+            (location as? ProjectionSpatialModel.ProjectedLocation)?.point
+                ?: error(
+                    "location (${location.name}) is not a location on projection " +
+                            "(${space.name}); make one with space.spatialModel.location(x, y)"
+                )
+    }
+
+    private val myMovement: InterpolatedMovement =
+        InterpolatedMovement(this, ProjectionPath(), stepSize, { velocity })
+
+    /** Where the vehicle is now, interpolated to this instant by the step that last completed. */
+    override val positionNow: LocationIfc
+        get() = plane.location(position)
+
+    /**
+     *  Straight-line distance across the projection, which on a plane **is** the path the vehicle
+     *  would take. Wraps where the projection is a torus, because there the short way round is the
+     *  way it would actually go.
+     */
+    override fun pathDistanceTo(destination: LocationIfc): Double =
+        space.distance(position, pointOf(destination))
+
+    /** True for any location on this plane and inside the projection's bounds. */
+    override fun isReachable(destination: LocationIfc): Boolean {
+        if (destination !is ProjectionSpatialModel.ProjectedLocation) return false
+        if (destination.spatialModel !== plane) return false
+        val p = destination.point
+        return space.torus || (p.x in space.xRange && p.y in space.yRange)
+    }
+
+    override fun beginTravelTo(
+        destination: LocationIfc,
+        purpose: MovePurpose,
+        waiter: ProcessModel.Entity
+    ): HoldQueue? {
+        myMovement.stepSize = stepSize
+        return myMovement.beginTravelTo(destination, waiter)
+    }
+
+    override val isHalted: Boolean
+        get() = myMovement.isHalted
+
+    /**
+     *  Stops the vehicle where it stands and wakes whoever was waiting for it.
+     *
+     *  The substrate's way of stopping a vehicle part way -- the counterpart of a guide path's
+     *  movement gate refusing at a boundary. Whoever called this owns starting it again.
+     */
+    fun halt() = myMovement.halt()
+
+    override fun resumeHalted() = myMovement.resumeHalted()
+
+    override val distanceTravelled: Double
+        get() = myMovement.distanceTravelled
+
+    /**
+     *  How long it has spent travelling this replication.
+     *
+     *  Accumulated a step at a time, so it is a step function rather than a continuous one. It does
+     *  not include time seized-but-standing: what a vehicle has been *held* for is the resource's
+     *  own busy time and is already reported as that.
+     */
+    override val operatingTime: Double
+        get() = myMovement.operatingTime
+
+    private fun pointOf(location: LocationIfc): Point2D =
+        (location as? ProjectionSpatialModel.ProjectedLocation)?.point
+            ?: error(
+                "location (${location.name}) is not a location on projection (${space.name}); " +
+                        "make one with space.spatialModel.location(x, y)"
+            )
 }

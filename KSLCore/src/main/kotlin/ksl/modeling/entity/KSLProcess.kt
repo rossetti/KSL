@@ -34,6 +34,13 @@ import ksl.modeling.entity.ProcessModel.Companion.WAIT_FOR_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.YIELD_PRIORITY
 import ksl.modeling.entity.ProcessModel.Entity
 import ksl.modeling.queue.Queue
+import ksl.modeling.guidedpath.*
+import ksl.modeling.fleet.FleetSystem
+import ksl.modeling.fleet.FleetVehicle
+import ksl.modeling.fleet.FleetTransportResult
+import ksl.modeling.fleet.Dispatcher
+import ksl.modeling.fleet.Stop
+import ksl.modeling.fleet.TransitResult
 import ksl.modeling.spatial.*
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -2230,4 +2237,785 @@ interface KSLProcessBuilder {
             entryLocation, exitPriority, requestPriority, requestResumePriority, suspensionName)
     }
 
+    // ---- guided path transporters -------------------------------------------------------------
+    //
+    // These sit beside transportWith(), and are written in the same shape, because they answer the
+    // same question at a higher fidelity: transportWith() moves a resource that passes through
+    // everything in its way, while these move one that has to claim the space ahead of it before it
+    // can go there. A model that cares about congestion needs the second and cannot get it from the
+    // first.
+
+    /**
+     * Asks for a transporter from a pool and waits until one has come to collect the entity.
+     *
+     * The entity waits twice, and for two different things: first for a transporter to become free
+     * at all, then for the one chosen to travel to the pickup. Both are ordinary waiting and both
+     * are reflected in the pool's and the transporter's statistics.
+     *
+     * The returned request is the entity's claim on that transporter. Hold it until the journey is
+     * done, then release it.
+     *
+     * @param pool the transporters to ask
+     * @param pickupLocation the junction or station the transporter should come to
+     * @param requestPriority orders this request against others made at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the claim on the transporter that came
+     */
+    /**
+     *  Requests any transporter of a guided-path pool, waiting for one if the fleet is busy.
+     *
+     *  The same shape as the seize of a resource pool or a movable resource pool, and for the same
+     *  reasons: the request is queued whether or not it waits, so its wait is observed even when it
+     *  is zero; the release of a transporter reserves the pool's availability for whoever is next;
+     *  and *which* transporter is chosen is decided at allocation rather than when the request
+     *  queues, so an entity that has waited is given the transporter that is best for it now.
+     *
+     *  @param pool the fleet to request from
+     *  @param pickup where the transporter is wanted, which is what the allocation rule ranks by
+     *  @param seizePriority orders this request against others made at the same instant
+     *  @param suspensionName names this suspension point when a process has several
+     *  @return the allocation of the chosen transporter
+     */
+    suspend fun seize(
+        pool: GuidedTransporterPoolWithQ,
+        pickup: GuidedPathNetwork.Intersection,
+        seizePriority: Int = SEIZE_PRIORITY,
+        suspensionName: String? = null
+    ): Allocation
+
+    suspend fun requestGuidedTransporter(
+        pool: GuidedTransporterPoolWithQ,
+        pickupLocation: String,
+        requestPriority: Int = TRANSPORT_REQUEST_PRIORITY,
+        suspensionName: String? = null
+    ): GuidedTransportRequest {
+        val system = pool.system
+        val pickup = system.network.requireLocation(pickupLocation)
+        val requestedAt = pool.time
+        // One seize against the pool, exactly as a resource pool or a movable resource pool is
+        // seized. The entity queues whether or not it waits, and which transporter it gets is
+        // decided when one is allocated rather than when it joined the queue -- so it is never
+        // committed to a particular transporter before a nearer one comes back.
+        val allocation = seize(pool, pickup, requestPriority, suspensionName)
+        val chosen = allocation.myResource as GuidedTransporter
+        val request = GuidedTransportRequest(chosen, entity, pool, allocation, pool.time)
+        request.requestedAt = requestedAt
+        // Taken before the empty move, so that blocking on the way to collect the entity counts
+        // against the journey it belongs to.
+        request.blockedAtAllocation = chosen.cumulativeBlockedTime
+        // Fetch the entity. A transporter already standing there has nothing to do.
+        val startedEmpty = pool.time
+        val fetching = system.beginJourney(
+            chosen, pickupLocation, MovePurpose.SERVICE, entity, MovementWait.AWAITING_PICKUP
+        )
+        if (fetching != null) {
+            hold(fetching, suspensionName = "$suspensionName:emptyMove:${chosen.name}")
+        }
+        request.approachTime = pool.time - startedEmpty
+        return request
+    }
+
+    /**
+     * Carries the entity to a destination on the transporter it has claimed.
+     *
+     * The loading and unloading delays are the time the entity spends being put on and taken off,
+     * during which the transporter is stationary and still holding its space -- which is why they
+     * belong here rather than being left to a separate delay: a transporter loading in a junction
+     * blocks that junction for exactly as long.
+     *
+     * @param request the claim obtained from requestGuidedTransporter
+     * @param destination the junction or station to be carried to
+     * @param loadingDelay how long it takes to load the entity
+     * @param unLoadingDelay how long it takes to unload it
+     * @param loadingPriority orders the loading delay against other events at the same instant
+     * @param unLoadingPriority orders the unloading delay likewise
+     * @param suspensionName names this suspension point when a process has several
+     * @return what the journey cost, including any time spent unable to claim the space ahead
+     */
+    suspend fun transportBy(
+        request: GuidedTransportRequest,
+        destination: String,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
+        loadingPriority: Int = DELAY_PRIORITY,
+        unLoadingPriority: Int = DELAY_PRIORITY,
+        suspensionName: String? = null
+    ): GuidedTransportResult {
+        request.requireUsable("carry entity (${entity.name}) to ($destination)")
+        require(request.entity === entity) {
+            "Entity (${entity.name}) tried to be carried using a request belonging to entity " +
+                    "(${request.entity.name})."
+        }
+        val transporter = request.transporter
+        // The space layer, for the journey; the pool's transport system, for the total. They are the
+        // same object in a passive model -- a transport system *is* a space -- but only the second
+        // has the figure this paradigm reports.
+        val system = transporter.system
+        if (loadingDelay != ConstantRV.ZERO) {
+            delay(loadingDelay, loadingPriority, "$suspensionName:loading")
+        }
+        val startedLoaded = system.time
+        // Aboard before the journey begins, which is what makes the loaded state a fact about the
+        // manifest rather than an assertion this call makes about itself.
+        transporter.board(entity)
+        val riding = system.beginJourney(
+            transporter, destination, MovePurpose.SERVICE, entity, MovementWait.RIDING
+        )
+        // Read while the journey is under way. The route is cleared on arrival, so asking after the
+        // hold returns nothing and the journey appears to have covered no ground at all.
+        val route = transporter.currentRoute
+        if (riding != null) {
+            hold(riding, suspensionName = "$suspensionName:transport:${transporter.name}")
+        }
+        request.rideTime = system.time - startedLoaded
+        request.zonesTraversed = route?.zonesTraversed ?: 0
+        request.routeLength = route?.totalLength ?: 0.0
+        // The entity is where the transporter is, which is what makes distance-based logic later in
+        // the process work without the modeler having to say so.
+        entity.currentLocation = transporter.currentLocation
+        if (unLoadingDelay != ConstantRV.ZERO) {
+            delay(unLoadingDelay, unLoadingPriority, "$suspensionName:unloading")
+        }
+        transporter.alight(entity)
+        val result = GuidedTransportResult(
+            totalTime = system.time - request.requestedAt,
+            approachTime = request.approachTime,
+            rideTime = request.rideTime,
+            blockedTime = (transporter.cumulativeBlockedTime - request.blockedAtAllocation).coerceAtLeast(0.0),
+            zonesTraversed = request.zonesTraversed,
+            routeLength = request.routeLength
+        )
+        // Reported to the process and accumulated for the fleet, so that neither a per-entity
+        // tabulation nor a fleet summary needs an observer written for it.
+        request.pool.system.collectTransportResult(result)
+        return result
+    }
+
+    /**
+     * Gives the transporter back to its pool.
+     *
+     * If anything is waiting for a transporter, this one goes straight to whoever has waited
+     * longest and the idle rule is not consulted: sending it off to a home base while work waits
+     * would be worse than useless. Otherwise the pool's idle rule decides where it waits, and the
+     * entity does not wait for it to get there.
+     *
+     * The request is inert afterwards.
+     *
+     * @param request the claim to give up
+     * @param pool the pool the transporter came from
+     * @param suspensionName names this suspension point when a process has several
+     */
+    suspend fun releaseGuidedTransporter(
+        request: GuidedTransportRequest,
+        pool: GuidedTransporterPoolWithQ,
+        suspensionName: String? = null
+    ) {
+        request.requireUsable("release transporter (${request.transporter.name})")
+        val transporter = request.transporter
+        // The release processes the pool's queue on the pool's behalf, because the allocation
+        // records the pool it came from -- so whoever is next is offered the transporter before any
+        // question of sending it home arises.
+        release(request.allocation)
+        request.state = GuidedTransportRequestState.COMPLETED
+        pool.disposeIfUnwanted(transporter)
+    }
+
+    /**
+     * Asks for a transporter, is carried to a destination, and gives the transporter back.
+     *
+     * The whole of an ordinary transport in one call, and the form most models want. Where a
+     * process has to do something between being loaded and being unloaded, use the three verbs it
+     * is built from instead.
+     *
+     * @param pool the transporters to ask
+     * @param destination the junction or station to be carried to
+     * @param pickupLocation where the transporter should collect the entity, by default wherever
+     *   the entity already is
+     * @param loadingDelay how long it takes to load the entity
+     * @param unLoadingDelay how long it takes to unload it
+     * @param requestPriority orders this request against others made at the same instant
+     * @param loadingPriority orders the loading delay against other events at the same instant
+     * @param unLoadingPriority orders the unloading delay likewise
+     * @param suspensionName names this suspension point when a process has several
+     * @return what the journey cost
+     */
+    suspend fun guidedTransport(
+        pool: GuidedTransporterPoolWithQ,
+        destination: String,
+        pickupLocation: String = entity.currentLocation.name,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
+        requestPriority: Int = TRANSPORT_REQUEST_PRIORITY,
+        loadingPriority: Int = DELAY_PRIORITY,
+        unLoadingPriority: Int = DELAY_PRIORITY,
+        suspensionName: String? = null
+    ): GuidedTransportResult {
+        val request = requestGuidedTransporter(pool, pickupLocation, requestPriority, suspensionName)
+        val result = transportBy(
+            request, destination, loadingDelay, unLoadingDelay,
+            loadingPriority, unLoadingPriority, suspensionName
+        )
+        releaseGuidedTransporter(request, pool, suspensionName)
+        return result
+    }
+
+
+
+    // ---- holding guide-path space, without being a vehicle -------------------------------------
+    //
+    // The process face of general occupancy. A spill, a picker at a rack face, a crew closing an
+    // aisle: each is an entity that takes guide-path space, works, and gives it back, and each
+    // arrives at run time in numbers nobody states in advance. The event-scheduling route --
+    // GuidedPathSpace.requestZones and holdZonesFor -- is the same mechanism seen from the other
+    // side and is not a lesser one; these verbs are built on those calls rather than beside them.
+    //
+    // The holder is the entity and is implicit, as it is in seize(), and the queue is required, as
+    // it is in seize().
+
+    /**
+     * Takes a zone, waiting for whatever is in it to leave, and suspends until the zone is held.
+     *
+     * Nothing is evicted. Whatever vehicle is crossing the zone finishes crossing and leaves in its
+     * own time, and only then does this entity have the zone -- which is why this suspends at all.
+     * A zone that was already empty is granted inside the call and the process does not suspend.
+     *
+     * @param space the guide path whose space is wanted
+     * @param zone the zone to take, which must be on that guide path
+     * @param queue where to wait while the zone drains
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, which names the zone and when the hold began
+     */
+    suspend fun seizeZone(
+        space: GuidedPathSpace,
+        zone: Zone,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
+    ): ZoneAllocation =
+        seizeZones(space, listOf(zone), queue, requestPriority, suspensionName, onOverlap)
+
+    /**
+     * Takes a set of zones **together**, waiting for all of them to drain, and suspends until held.
+     *
+     * All or nothing, and that is a rule rather than a convenience: an entity that held part of a
+     * region while waiting for the rest could be waiting on a vehicle that is waiting on the part
+     * it holds. The rule prevents that outright, and it is also why
+     * [ProcessModel.Entity.awaitedZone] can honestly be null -- an entity is never both holding
+     * space and queuing for more. Traffic already inside the region is let out rather than trapped,
+     * which is what makes the drain terminate however busy the region is.
+     *
+     * The extent is chosen here, at run time, and costs nothing: a link's zones by name, a
+     * junction's zone, a zone at a station, or a sample drawn from the network.
+     *
+     * ```
+     * inner class Spill : Entity() {
+     *     val cleanup = process {
+     *         val aisle = network.link("Aisle${myAisle.value.toInt()}")!!
+     *         seizeZones(system, aisle.zones.take(myExtent.value.toInt()), cleanupQ)
+     *         delay(myCleanupTime)
+     *         releaseZones(system)
+     *     }
+     * }
+     * ```
+     *
+     * @param space the guide path whose space is wanted
+     * @param zones the zones to take, all on that guide path, distinct, at least one
+     * @param queue where to wait while they drain
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, which names the zones and when the hold began
+     */
+    suspend fun seizeZones(
+        space: GuidedPathSpace,
+        zones: List<Zone>,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null,
+        onOverlap: ZoneOverlap = ZoneOverlap.RAISE
+    ): ZoneAllocation {
+        val request = space.requestZones(entity, zones, ZoneSeizeAction(entity, queue), onOverlap)
+        // Suspending only when there was something to drain is the same contract a journey has:
+        // space that was free is held in the instant it was asked for, and a process that suspended
+        // anyway would need somebody to wake it for nothing.
+        if (!request.isGranted) {
+            hold(queue, requestPriority, suspensionName)
+        }
+        return request.allocation!!
+    }
+
+    /**
+     * Takes a set of zones, and answers **null** when some zone of it is already promised.
+     *
+     * [seizeZones] with the one refusable condition turned into an answer, and the form a model
+     * wants whenever a closure lands where it lands rather than where it was told to. A zone
+     * carries one promise at a time, and by default a second asker is refused rather than queued
+     * behind the first -- `ZoneOverlap.QUEUE` is the opt-in for waiting instead. So a model with
+     * spills at random locations has to say what an overlap means. This is how it says it, in
+     * one call that cannot be got wrong.
+     *
+     * ```
+     * inner class Spill : Entity() {
+     *     val cleanup = process {
+     *         val extent = aisle.zones.take(myExtent.value.toInt())
+     *         // A spill landing where one is already being dealt with is part of that spill.
+     *         if (trySeizeZones(system, extent, spillQ) == null) {
+     *             myAbsorbed.increment()
+     *             return@process
+     *         }
+     *         delay(myCleanupTime)
+     *         releaseZones(system)
+     *     }
+     * }
+     * ```
+     *
+     * Null is answered without suspending. A zone another holder already **holds** is not an
+     * overlap and does not answer null: that is the ordinary case, and this waits for the hold to
+     * end exactly as [seizeZones] would.
+     *
+     * @param space the guide path whose space is wanted
+     * @param zones the zones to take, all on that guide path, distinct, at least one
+     * @param queue where to wait while they drain
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, or null when some zone of the set is already promised to another holder
+     */
+    suspend fun trySeizeZones(
+        space: GuidedPathSpace,
+        zones: List<Zone>,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ): ZoneAllocation? {
+        val request = space.tryRequestZones(entity, zones, ZoneSeizeAction(entity, queue))
+            ?: return null
+        if (!request.isGranted) {
+            hold(queue, requestPriority, suspensionName)
+        }
+        return request.allocation!!
+    }
+
+    /**
+     * Takes one zone unless it is already promised to another holder, in which case: null.
+     *
+     * [trySeizeZones] with one zone. Null means an overlap -- another closure has been promised
+     * this zone and has not yet been granted it -- and is a question for the model rather than a
+     * failure. A zone another holder merely **holds** is not an overlap: this waits for the hold to
+     * end exactly as [seizeZone] would.
+     *
+     * @param space the guide path whose space is wanted
+     * @param zone the zone to take, which must be on that guide path
+     * @param queue where to wait while it drains
+     * @param requestPriority orders this entity against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return the hold, or null when the zone is already promised to another holder
+     */
+    suspend fun trySeizeZone(
+        space: GuidedPathSpace,
+        zone: Zone,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ): ZoneAllocation? = trySeizeZones(space, listOf(zone), queue, requestPriority, suspensionName)
+
+    /**
+     * Gives back every zone this entity holds on the guide path, and wakes whoever was waiting.
+     *
+     * Harmless when it holds none, which is what lets a process release unconditionally rather than
+     * asking first. On space asked for and still draining, this gives up the request instead.
+     *
+     * Not suspending: giving space back takes no time, and whoever gets it next is woken through
+     * the same handover a vehicle's release uses.
+     *
+     * @param space the guide path to give the space back to
+     */
+    fun releaseZones(space: GuidedPathSpace) {
+        space.releaseZones(entity)
+    }
+
+    /**
+     * Waits for a turn, crosses guide-path space on foot, and steps off the other side.
+     *
+     * The whole of a pedestrian's part in a crossing, in one verb, because the three steps have to
+     * happen together: joining the queue, stepping on once the crossing's arbiter opens a turn, and
+     * -- above all -- **stepping off**. A walker that steps on and does not step off leaves a
+     * population behind that no vehicle can pass, which is the error the construct exists to make
+     * unlikely, so the verb does not offer the halves separately.
+     *
+     * Does not suspend at all when a turn is already open and the arbiter admits: the walker steps
+     * on in the instant it arrives, waits `crossingTime`, and steps off.
+     *
+     * Whether the walker waits, and for how long, is the [ZoneCrossing]'s arbiter's business, not
+     * this verb's -- which is the point of the arbiter being substitutable. The walk itself is a
+     * plain delay: the crossing is space, not a server.
+     *
+     * ```
+     * inner class Pedestrian : Entity() {
+     *     val walk = process {
+     *         crossOnFoot(crossing, crossingTime, crossingQ)
+     *     }
+     * }
+     * ```
+     *
+     * @param crossing the crossing to use
+     * @param crossingTime how long this walker takes to get across, strictly positive
+     * @param queue where to wait for a turn
+     * @param requestPriority orders this walker against others queued at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     */
+    suspend fun crossOnFoot(
+        crossing: ZoneCrossing,
+        crossingTime: Double,
+        queue: HoldQueue,
+        requestPriority: Int = QUEUE_PRIORITY,
+        suspensionName: String? = null
+    ) {
+        require(crossingTime > 0.0) {
+            "Entity ${entity.id} was given $crossingTime to cross (${crossing.name}), which is " +
+                    "not a duration."
+        }
+        entity.crossingJoined(crossing)
+        if (!crossing.joinAndTryToCross(entity, queue)) {
+            hold(queue, requestPriority, suspensionName)
+            crossing.stepOnAfterWaiting()
+        }
+        delay(crossingTime, suspensionName = suspensionName)
+        crossing.stepOff()
+        entity.crossingLeft(crossing)
+    }
+
+    // ---- active guided vehicles ---------------------------------------------------------------
+    //
+    // These sit beside the guided-path verbs above and answer the same question under a different
+    // modelling paradigm. There, the entity holds a claim on a particular transporter and steers
+    // it: request one, be carried, release it. Here the entity states what it needs and suspends.
+    // It never chooses a vehicle, never waits for a particular one, and cannot tell which came --
+    // because the choice belongs to a dispatcher that can see the whole fleet and the whole board,
+    // and can take time to decide.
+    //
+    // The shorter surface is the point. The passive verbs expose a protocol because the entity
+    // drives it; these expose a request because it does not.
+
+    /**
+     * Asks for transport and waits until it has been delivered.
+     *
+     * The entity waits twice and for two different things -- for a vehicle to be assigned and to
+     * arrive, then for the ride itself -- but both are the same suspension from the process's point
+     * of view, which is why this is one verb rather than three. Use
+     * [requestFleetTransport]/[awaitFleetTransport] when the process must act in between.
+     *
+     * @param system the fleet to ask
+     * @param destination the junction or station to be delivered to
+     * @param origin where the vehicle should collect the entity; where it is now by default
+     * @param loadingDelay how long it takes to put the entity aboard, during which the vehicle is
+     *   stationary and still holding its space
+     * @param unLoadingDelay how long it takes to take it off
+     * @param priority orders this request against others posted at the same instant
+     * @param suspensionName names this suspension point when a process has several
+     * @return what the transport cost
+     */
+    suspend fun transportByFleet(
+        system: FleetSystem,
+        destination: String,
+        origin: String = entity.currentLocation.name,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
+        priority: Int = TRANSPORT_REQUEST_PRIORITY,
+        suspensionName: String? = null
+    ): FleetTransportResult {
+        val task = requestFleetTransport(
+            system, destination, origin, loadingDelay, unLoadingDelay, priority
+        )
+        return awaitFleetTransport(task, suspensionName)
+    }
+
+    /**
+     * Posts a transport request and returns immediately, without waiting for it.
+     *
+     * For a process that must do something between asking and being carried -- finishing an
+     * operation, releasing a machine -- so that the vehicle can be on its way while that happens.
+     * The returned task must be passed to [awaitFleetTransport]; abandoning it would leave the
+     * vehicle to collect an entity that never suspends.
+     *
+     * @return the posted task, which is also where its wait is recorded
+     */
+    suspend fun requestFleetTransport(
+        system: FleetSystem,
+        destination: String,
+        origin: String = entity.currentLocation.name,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
+        priority: Int = TRANSPORT_REQUEST_PRIORITY
+    ): Dispatcher.TransportTask {
+        // The dispatcher is the factory as well as the owner of the wait: posting enqueues the task
+        // on its queue, which is where the reported waiting statistics accrue. There is deliberately
+        // no window in which a caller holds an unposted task.
+        return system.dispatcher.postTransport(
+            entity, origin, destination, loadingDelay, unLoadingDelay, priority
+        )
+    }
+
+    /**
+     * Waits until a task posted by [requestFleetTransport] has been delivered.
+     *
+     * @param task the task returned by [requestFleetTransport]
+     * @param suspensionName names this suspension point when a process has several
+     * @return what the transport cost
+     */
+    suspend fun awaitFleetTransport(
+        task: Dispatcher.TransportTask,
+        suspensionName: String? = null
+    ): FleetTransportResult {
+        require(task.load === entity) {
+            "Entity (${entity.name}) tried to wait on a transport task belonging to entity " +
+                    "(${task.load.name})."
+        }
+        val system = task.dispatcher.system
+        val posted = task.timeEnteredQueue
+        // Two holds, and neither reports anything: they carry the suspension, while the wait itself
+        // is recorded on the task in the dispatcher's queue. Making these the statistics would put
+        // two rows on the report that look like waiting lines, one of which -- riding -- is not one.
+        hold(system.awaitingPickupHoldQ, suspensionName = "$suspensionName:awaitingVehicle")
+        val pickedUp = system.time
+        hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
+        // The vehicle resumed us, having set currentLocation before doing so.
+        val delivered = system.time
+        system.recordTimeAboard(delivered - pickedUp)
+        // What the carry cost the guide path, reported to the layer that owns those five responses
+        // so that an active model publishes them as a passive one does. The vehicle recorded the
+        // pieces on the task as it went; nothing is recomputed here.
+        system.recordCarry(task)
+        // The assignment instant is read off the task rather than recomputed, so the decomposition
+        // cannot drift from the queue's own figure: the two waits sum to pickedUp - posted, which
+        // is exactly the task's time in queue.
+        return FleetTransportResult(
+            totalTime = delivered - posted,
+            waitForAssignment = task.assignedAt - posted,
+            waitForArrival = pickedUp - task.assignedAt,
+            timeAboard = delivered - pickedUp,
+            blockedTime = task.blockedTime,
+            failedTime = task.failedTime,
+            routeLength = task.loadedRouteLength,
+            vehicleName = task.carriedBy?.name ?: "",
+            numReassignments = task.numReassignments
+        )
+    }
+
+    // ---- driving a vehicle through the movement seam --------------------------------------------
+
+    /**
+     *  Sends [vehicle] to [destination] and waits for the journey to end, however it ends.
+     *
+     *  The one verb written against [ksl.modeling.spatial.VehicleMovementIfc] rather than against a
+     *  substrate, so a process that drives a vehicle does not have to know whether it runs on a
+     *  guide path, a continuous projection or a free path. What it buys over `move` is that the
+     *  journey **can be stopped part way**: a breakdown, a flat battery or a controller's recall
+     *  ends the wait short of the destination, and this reports that rather than pretending it
+     *  arrived.
+     *
+     *  `move`, `moveWith` and `transportWith` are unchanged and are still the way to move a
+     *  resource directly; they are a single delay to the destination and cannot be interrupted.
+     *
+     *  @param vehicle whatever is being moved
+     *  @param destination where it is to go
+     *  @param purpose what the journey is for. Never what the vehicle is carrying, which the
+     *    substrate reads for itself
+     *  @param suspensionName names this suspension point when a process has several
+     *  @return true when it arrived, false when something stopped it short. A caller that ignores
+     *    the answer gets the behaviour `move` has always had
+     */
+    suspend fun driveTo(
+        vehicle: ksl.modeling.spatial.VehicleMovementIfc,
+        destination: ksl.modeling.spatial.LocationIfc,
+        purpose: ksl.modeling.spatial.MovePurpose = ksl.modeling.spatial.MovePurpose.SERVICE,
+        suspensionName: String? = null
+    ): Boolean {
+        val q = vehicle.beginTravelTo(destination, purpose, entity) ?: return true
+        hold(q, suspensionName = suspensionName ?: "drivingTo:${destination.name}")
+        return !vehicle.isHalted
+    }
+
+    // ---- riding a declared service -------------------------------------------------------------
+    //
+    // The third protocol, and the one that is neither of the other two. Under the passive verbs the
+    // entity holds a claim on a particular transporter and steers it. Under the active verbs it
+    // states what it needs and a dispatcher decides who comes. Here it does neither: it stands at a
+    // stop and gets on whatever comes past with room and somewhere useful to go. Nothing is posted,
+    // nothing is assigned, and the wait is a function of headway and capacity rather than of any
+    // decision -- which is why a stop reports its own waiting line rather than sharing the
+    // dispatcher's (`A11`).
+
+    /**
+     * Waits at a stop for a service going to [destination], rides it, and gets off there.
+     *
+     * The whole of an ordinary ride in one call. Use [requestRide]/[awaitRide] where the process
+     * must act between joining the line and being carried.
+     *
+     * **A vehicle takes it only if the vehicle is going where it is going**, which is read from
+     * that vehicle's remaining tour rather than from any timetable. A destination no service calls
+     * at is therefore not an error and not a hang that raises: it is a load that stands at the stop
+     * for the rest of the replication and is reported, by the stop's queue, as having done so.
+     *
+     * @param stop where to wait
+     * @param destination the location to be carried to
+     * @param suspensionName names this suspension point when a process has several
+     * @return what the ride cost
+     */
+    suspend fun rideFrom(
+        stop: Stop,
+        destination: String,
+        suspensionName: String? = null
+    ): TransitResult = awaitRide(requestRide(stop, destination), suspensionName)
+
+    /**
+     * Joins the line at a stop and returns immediately, without waiting to be carried.
+     *
+     * For a process that must do something between joining and boarding. The returned ride must be
+     * passed to [awaitRide]; abandoning it would leave a vehicle to collect a load that never
+     * suspends.
+     *
+     * @return the ride, which is also where its wait is recorded
+     */
+    suspend fun requestRide(stop: Stop, destination: String): Stop.Ride =
+        stop.join(entity, destination)
+
+    /**
+     * Waits until a ride joined by [requestRide] has been taken and completed.
+     *
+     * @param ride the ride returned by [requestRide]
+     * @param suspensionName names this suspension point when a process has several
+     * @return what the ride cost
+     */
+    suspend fun awaitRide(
+        ride: Stop.Ride,
+        suspensionName: String? = null
+    ): TransitResult {
+        require(ride.rider === entity) {
+            "Entity (${entity.name}) tried to wait on a ride belonging to entity " +
+                    "(${ride.rider.name})."
+        }
+        val system = ride.stop.system
+        val joined = ride.timeEnteredQueue
+        // Two holds, neither of which reports anything: the wait itself is recorded by the stop's
+        // own queue, and riding is not a waiting line at all.
+        hold(system.awaitingBoardingHoldQ, suspensionName = "$suspensionName:awaitingVehicle")
+        val boarded = system.time
+        hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
+        // The vehicle resumed us, having set currentLocation before doing so.
+        val alighted = system.time
+        return TransitResult(
+            totalTime = alighted - joined,
+            waitForVehicle = boarded - joined,
+            timeAboard = alighted - boarded,
+            origin = ride.stop.location,
+            destination = entity.currentLocation.name,
+            vehicleName = ride.carriedBy?.name ?: "",
+            numVehiclesPassed = ride.numVehiclesPassed
+        )
+    }
+
+}
+
+/**
+ * Pushes a stopped vehicle along the guide path to somewhere it is out of the way, and waits for it
+ * to get there.
+ *
+ * **The vehicle stays on the guide path throughout**, claiming and giving up zones exactly as a
+ * driving one does. That is not a simplification: a vehicle being pushed down an aisle blocks that
+ * aisle every bit as much as one driving down it, and a model in which it did not would understate
+ * what a breakdown costs. What changes at the far end is where it ends up -- on a spur, in a
+ * cross-aisle, at a maintenance bay -- and therefore what it is standing on for the rest of the
+ * repair.
+ *
+ * **A vehicle under tow is exempt from its own faults.** It is not deciding anything and it is not
+ * driving; somebody is pushing it. So neither a flat battery nor the failure it is being towed away
+ * from may stop it part way, and the movement gate lets it through every boundary until it arrives.
+ *
+ * The velocity is the *pusher's*, not the vehicle's, and overrides its velocity distribution
+ * entirely for the duration. How fast a person can move a dead AGV has nothing to do with how fast
+ * it drives.
+ *
+ * Called from an [ksl.modeling.fleet.InterruptionPolicyIfc], which runs inside the vehicle's own agent -- which is what
+ * makes this a plain suspension rather than a message to somebody else. When it returns, the vehicle
+ * is at [to] and its tour, if it had one, is untouched: the tour names stops, not routes, so it
+ * finishes from wherever the vehicle now stands.
+ *
+ * @param vehicle the vehicle to move
+ * @param to an intersection name or station alias to push it to
+ * @param atVelocity how fast it is pushed, in the network's length units per model time unit
+ * @param suspensionName a name for the wait, for tracing
+ */
+suspend fun KSLProcessBuilder.tow(
+    vehicle: FleetVehicle,
+    to: String,
+    atVelocity: Double,
+    suspensionName: String? = null
+) {
+    require(atVelocity > 0.0) {
+        "Vehicle (${vehicle.name}) cannot be towed at $atVelocity. A tow velocity must be > 0.0."
+    }
+    val agent = vehicle.agent
+    checkNotNull(agent) {
+        "Vehicle (${vehicle.name}) has no live agent, so it cannot be towed. `tow` is called from " +
+                "an interruption policy, which runs inside the vehicle's own agent; calling it from " +
+                "anywhere else has nothing to suspend."
+    }
+    val queue = vehicle.beginTow(to, atVelocity, agent)
+    if (queue != null) {
+        hold(queue, suspensionName = suspensionName ?: "${vehicle.name}:towedTo:$to")
+    }
+    vehicle.endTow()
+}
+
+/**
+ * Holds a vehicle on a charger until its battery is full, and waits.
+ *
+ * The vehicle must already be at a charger -- this does not move it, because moving a vehicle that
+ * cannot drive is [tow] and moving one that can is the dispatcher's business. What it does is the
+ * part that is not movement: work out how long a full charge takes from where the battery actually
+ * is, wait that long, and put the charge back.
+ *
+ * The duration is **net of the hotel load**, which keeps drawing while the vehicle sits on the
+ * charger. A [ksl.modeling.fleet.Battery] refuses a charging rate that does not outpace its own idle draw, so the
+ * answer is always positive and finite.
+ *
+ * Harmless on a vehicle with no battery: there is nothing to charge and no time passes.
+ *
+ * @param vehicle the vehicle on the charger
+ * @param suspensionName a name for the wait, for tracing
+ */
+suspend fun KSLProcessBuilder.charge(vehicle: FleetVehicle, suspensionName: String? = null) {
+    if (vehicle.battery == null) return
+    val duration = vehicle.beginCharging()
+    if (duration > 0.0) {
+        delay(duration, suspensionName = suspensionName ?: "${vehicle.name}:charging")
+    }
+    vehicle.endCharging()
+}
+
+/**
+ * Wakes the entity when the guide path has finished draining and the space is its own.
+ *
+ * The suspending verbs and the event-scheduling verbs are the same mechanism, and this is the whole
+ * of the difference between them: where an event-driven model supplies its own action and decides
+ * what to do next, a process *is* what happens next, so the action's only job is to let it continue.
+ *
+ * Nothing to do on the ending side, and that is the point rather than an omission: the process
+ * itself releases and carries straight on from the call, so there is nobody to tell.
+ */
+private class ZoneSeizeAction(
+    private val entity: ProcessModel.Entity,
+    private val queue: HoldQueue
+) : ZoneHoldActionIfc {
+
+    override fun holdBegan(allocation: ZoneAllocation) {
+        // Only when the process actually suspended. Space that was free is granted inside
+        // seizeZones, before the entity has queued, and there is then nothing to resume.
+        if (entity.isQueued) {
+            queue.removeAndResume(entity)
+        }
+    }
+
+    override fun holdEnded(allocation: ZoneAllocation) {}
 }

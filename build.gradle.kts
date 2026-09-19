@@ -50,6 +50,22 @@ allprojects {
         // @DisabledIfHeadless: forcing headless here would make them skip instead of run. An accessory
         // process still has a full display connection, so they keep running -- just invisibly.
         systemProperty("apple.awt.UIElement", "true")
+        // Check the guide path's space invariants continuously, in every test that builds one.
+        //
+        // Set here rather than forwarded, because the check is worth most exactly where it is least
+        // likely to be asked for. Thirteen of the twenty-seven test classes covering the passive
+        // guide path switched it on by hand and none of the thirty-four covering the active one did,
+        // which is not a judgement anybody made -- it is what happens when an opt-in has to be
+        // remembered once per test class, forever. Setting it here covers the tests that do not
+        // exist yet, and the modules that do not have guide-path tests today.
+        //
+        // Costs nothing where no guide path is built, and measured at no difference over the 311
+        // tests that build one. Still overridable, for a run measuring something time-sensitive:
+        //   ./gradlew test -Dksl.guidedpath.checkInvariants=false
+        systemProperty(
+            "ksl.guidedpath.checkInvariants",
+            System.getProperty("ksl.guidedpath.checkInvariants") ?: "true"
+        )
     }
 }
 

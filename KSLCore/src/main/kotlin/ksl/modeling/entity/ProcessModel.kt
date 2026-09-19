@@ -29,6 +29,13 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.elements.GeneratorActionIfc
+import ksl.modeling.guidedpath.GuidedPathNetwork
+import ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
+import ksl.modeling.guidedpath.GuidedPathSpace
+import ksl.modeling.guidedpath.Zone
+import ksl.modeling.guidedpath.ZoneCrossing
+import ksl.modeling.guidedpath.ZoneHolderIfc
+import ksl.modeling.guidedpath.ZoneHolderRecordIfc
 import ksl.modeling.spatial.*
 import ksl.utilities.Identity
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -418,7 +425,121 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * @param aName an optional name for the entity
      */
     open inner class Entity(aName: String? = null) : QObject(aName),
-        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc {
+        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc,
+        ZoneHolderIfc, ZoneHolderRecordIfc {
+
+        // ---- holding guide-path space ----------------------------------------------------------
+
+        /**
+         *  Always null: an entity holding guide-path space waits for no more of it.
+         *
+         *  The queuing edge of the guide path's wait-for graph, and it is honestly null because a
+         *  set of zones is taken together or not at all: an entity is never both holding space and
+         *  queuing for more, so it has no zone to name. A vehicle stopped behind an entity that is
+         *  merely holding space is obstructed, not deadlocked.
+         *
+         *  This is not a claim that nothing can deadlock through an entity holding space. What a
+         *  *pending* request waits for is every vehicle in its reserved zones, and the detector
+         *  follows that through the reservation rather than through this property.
+         *
+         *  An entity riding a transporter is a separate matter: the *transporter* holds the zones
+         *  and waits for the next one, and it is the transporter that appears in the graph.
+         */
+        final override val awaitedZone: Zone?
+            get() = null
+
+        /**
+         *  Which guide paths this entity holds space on, so that space can be given back when the
+         *  process ends -- however it ends.
+         *
+         *  A back-pointer and nothing more: what is held stays the space's, which is the single
+         *  owner of that. This is the same two-sidedness as [resourceAllocations], and for the same
+         *  reason -- the space needs its records to guarantee exclusivity, and the entity needs to
+         *  know whom to ask when somebody else decides its life is over.
+         */
+        private val myZoneSpaces: MutableSet<GuidedPathSpace> = mutableSetOf()
+
+        override fun zoneSpaceEngaged(space: GuidedPathSpace) {
+            myZoneSpaces.add(space)
+        }
+
+        override fun zoneSpaceFinished(space: GuidedPathSpace) {
+            myZoneSpaces.remove(space)
+        }
+
+        /**
+         *  True while this entity holds space on any guide path, or has asked for some and is
+         *  waiting for it to drain.
+         *
+         *  Both count, because both leave the guide path worse off if the entity vanishes: a hold
+         *  denies the zones, and a reservation that is never taken up denies them just as
+         *  completely and with nothing named as the holder.
+         */
+        val usesZoneSpace: Boolean
+            get() = myZoneSpaces.isNotEmpty()
+
+        /** Names what is held or asked for and where, for the message when a process ends. */
+        fun zoneSpaceAsString(): String = myZoneSpaces.joinToString(System.lineSeparator()) { space ->
+            val holds = space.allocationFor(this)?.zones?.joinToString { it.name }
+            val wants = space.requestFor(this)?.zones?.joinToString { it.name }
+            when {
+                holds != null -> "\t${space.name} : holding $holds"
+                wants != null -> "\t${space.name} : waiting for $wants to drain"
+                else -> "\t${space.name} : nothing"
+            }
+        }
+
+        /**
+         *  Gives back every zone this entity holds, on every guide path it holds space on.
+         *
+         *  Harmless when it holds none, and it also gives up a request still draining, which is the
+         *  state a terminated entity is most likely to be caught in: asked for an aisle, waiting for
+         *  it to empty, and killed in between. A reservation left behind would close that aisle to
+         *  traffic for the rest of the replication with nothing holding it and nothing coming to
+         *  release it.
+         */
+        // ---- standing on a crossing ------------------------------------------------------
+
+        private val myCrossings: MutableSet<ZoneCrossing> = mutableSetOf()
+
+        internal fun crossingJoined(crossing: ZoneCrossing) {
+            myCrossings.add(crossing)
+        }
+
+        internal fun crossingLeft(crossing: ZoneCrossing) {
+            myCrossings.remove(crossing)
+        }
+
+        /** True while this entity is waiting for, or standing on, a crossing. */
+        val isUsingCrossing: Boolean
+            get() = myCrossings.isNotEmpty()
+
+        /**
+         *  Takes this entity off every crossing it is waiting for or standing on.
+         *
+         *  The population edge the design record calls the single most likely hand-rolling error: a
+         *  walker that is interrupted or destroyed must still leave the count, or the crossing
+         *  stays shut to vehicles for the rest of the replication with nobody on it and nothing
+         *  coming to say so.
+         */
+        fun leaveAllCrossings() {
+            for (crossing in myCrossings.toList()) {
+                crossing.abandon(this)
+            }
+            myCrossings.clear()
+        }
+
+        fun releaseAllZones() {
+            // Copied, because each release calls back to remove the space from the set.
+            for (space in myZoneSpaces.toList()) {
+                space.releaseZones(this)
+            }
+            myZoneSpaces.clear()
+        }
+
+        /** True while this entity is waiting for guide-path space to drain. */
+        val isWaitingForZoneSpace: Boolean
+            get() = myZoneSpaces.any { it.isWaitingForZones(this) }
 
         /**
          * The default velocity for the entity's movement within the spatial model
@@ -713,6 +834,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         ) : Request(amountRequested = 1){
             override val resource: ResourceIfc
                 get() = myMovableResourcePool
+        }
+
+        /**
+         *  A request for any transporter of a guided-path pool. Names the **pool**, because which
+         *  transporter is chosen is decided at allocation rather than when the request queues.
+         */
+        inner class GuidedTransporterPoolRequest internal constructor (
+            internal var myGuidedTransporterPool: GuidedTransporterPoolWithQ
+        ) : Request(amountRequested = 1){
+            override val resource: ResourceIfc
+                get() = myGuidedTransporterPool
         }
 
         /**
@@ -1100,6 +1232,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     msg.append(allocationsAsString())
                     throw IllegalStateException(msg.toString())
                 }
+                // The same rule for guide-path space, and it has to be the same rule: space that is
+                // never given back stays closed to traffic for the rest of the replication with
+                // nothing holding it, which does not raise anywhere and shows up only as a guide
+                // path that quietly stopped moving.
+                if (usesZoneSpace) {
+                    val msg = StringBuilder()
+                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id held guide-path space when ending process $completedProcess")
+                    msg.appendLine()
+                    msg.appendLine("You likely did not match a seizeZones() with a releaseZones() call.")
+                    msg.appendLine(zoneSpaceAsString())
+                    throw IllegalStateException(msg.toString())
+                }
+                // A crossing needs no check of its own here, and the absence is deliberate.
+                // Seizing and releasing guide-path space are two verbs a model can fail to pair;
+                // crossing is one verb that steps on, walks and steps off, so completing a process
+                // while still on a crossing is not something a model can express. The termination
+                // path below is a different matter -- an unwound process never reaches its own
+                // step-off -- and that one does clean up.
                 // okay to dispose of the entity
                 if (autoDispose) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id is being disposed by ${processModel.name}" }
@@ -2333,6 +2483,47 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return allocation
             }
 
+            override suspend fun seize(
+                pool: GuidedTransporterPoolWithQ,
+                pickup: GuidedPathNetwork.Intersection,
+                seizePriority: Int,
+                suspensionName: String?
+            ): Allocation {
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SEIZE
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: GUIDED TRANSPORTER POOL: ${pool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                yield(seizePriority, "SEIZE yield for guided transporter pool ${pool.name}")
+                val queue = pool.myWaitingQ
+                val request = GuidedTransporterPoolRequest(myGuidedTransporterPool = pool)
+                request.priority = entity.priority
+                queue.enqueue(request) // put the request in the queue, whether or not it will wait
+                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, pool.name, queue.name, 1) }
+                try {
+                    if (!pool.hasIdleTransporter) {
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                        emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, pool.name) }
+                        entity.state.waitForResource()
+                        suspend()
+                        entity.state.activate()
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    }
+                    queue.remove(request) // take the request out of the queue after possible wait
+                } finally {
+                    // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
+                    (request.queue as? RequestQ)?.remove(request, false)
+                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
+                val thePool = request.myGuidedTransporterPool
+                require(thePool.hasIdleTransporter) { "r = ${model.currentReplicationNumber} : $time > No transporter can be allocated to entity_id = ${entity.id} resuming after waiting for pool ${thePool.name}" }
+                // The allocation rule runs here rather than when the request queued, so an entity
+                // that has waited gets the transporter that is best for it now.
+                val allocation = thePool.allocateFor(entity, pickup, suspensionName)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated transporter ${allocation.myResource.name} : allocation_id = ${allocation.id}" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return allocation
+            }
+
             override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
                 require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0 in process, ($this)" }
                 require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
@@ -2430,6 +2621,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 inMoveDelay = false
                 spatialElement.currentLocation = toLoc
                 spatialElement.isMoving = false
+                // A movable resource's odometers are about the resource, not about which verb
+                // happened to move it. This path is a single delay and does not go through the
+                // movement seam's clockwork, so the journey is booked here instead; without it a
+                // model that uses `move` would report a vehicle that never travelled.
+                (spatialElement.modelElement as? ksl.modeling.spatial.MovableResource)
+                    ?.recordMove(d, t)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > spatial element ${spatialElement.spatialName} completed move to ${toLoc.name}" }
                 emitAnimation { AnimationEvent.SpatialElementMoveCompleted(time, spatialElement.spatialName, toLoc.x, toLoc.y, toLoc.z) }
             }
@@ -3007,6 +3204,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (hasAllocations) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
+                }
+                // And the guide-path space, for the same reason and with the same shape. Done
+                // before the isQueued branch below only because that branch may remove the entity
+                // from the very HoldQueue it is waiting in for space; either order is correct, and
+                // this one keeps the guide path's own bookkeeping closest to the resource layer's.
+                if (usesZoneSpace) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all guide-path space." }
+                    releaseAllZones()
+                }
+                if (isUsingCrossing) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity leaving all crossings." }
+                    leaveAllCrossings()
                 }
                 //TODO need to handle blockages in termination. This entity has been terminated, what to do about blocked entities?
                 if (isQueued) {
@@ -3703,6 +3912,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  The default priority for resuming from a blockage. The default is KSLEvent.VERY_HIGH_PRIORITY -10
          */
         const val BLOCKAGE_PRIORITY : Int = KSLEvent.HIGH_PRIORITY - 10
+
+        /**
+         *  The default priority for a guided path transporter re-attempting its claim on a zone
+         *  that has just been released. The default is KSLEvent.HIGH_PRIORITY - 1.
+         *
+         *  The value is chosen relative to two neighbours. It is a higher priority than
+         *  MOVE_PRIORITY so that a woken transporter settles its claim before other transporters
+         *  finish traversals at the same instant, which is what keeps the order in which a zone is
+         *  freed and re-claimed observable and reproducible. It is a lower priority than
+         *  RESUME_PRIORITY so that it never preempts a process resumption already in flight. It is
+         *  one step ahead of SEIZE_PRIORITY so that space is settled before resource seizes at the
+         *  same instant read transporter state.
+         */
+        const val ZONE_CLAIM_PRIORITY : Int = KSLEvent.HIGH_PRIORITY - 1
 
         val logger: KLogger = KotlinLogging.logger {}
     }

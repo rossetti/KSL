@@ -222,6 +222,29 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      */
     abstract fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean
 
+    /**
+     *  Where [fraction] of the way from [fromLocation] to [toLocation] is, or **null when this
+     *  spatial model cannot say**.
+     *
+     *  Null is a supported answer and the default one. A plane knows where a third of the way
+     *  between two points is; a table of pairwise distances does not, and neither does a network
+     *  whose places are junctions rather than coordinates. Returning null is how such a model says
+     *  so, and machinery that interpolates -- [InterpolatedMovement] -- then makes a journey a
+     *  single step: the vehicle waits out the whole leg and arrives, which is what a free-path move
+     *  has always done.
+     *
+     *  A model that overrides this must return a location valid within itself, and must satisfy
+     *  `interpolate(a, b, 0.0) == a` and `interpolate(a, b, 1.0) == b` by its own
+     *  [compareLocations].
+     *
+     *  @param fraction between 0.0 and 1.0
+     */
+    open fun interpolate(
+        fromLocation: LocationIfc,
+        toLocation: LocationIfc,
+        fraction: Double
+    ): LocationIfc? = null
+
     /** Represents a location within this spatial model.
      *
      * @param aName the name of the location, will be assigned based on ID_id if null

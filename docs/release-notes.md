@@ -385,6 +385,87 @@ status exists to permit.
   old classification correct only by hand.
 
 ---
+## R1.6.3
+
+*30 August 2026.* One new package, `ksl.modeling.guidedpath`, marked **experimental**. Nothing
+existing changes behaviour; the only edits outside the new package are additive.
+
+**Guided path transporters.** Vehicles that travel a fixed network of aisles and must claim the
+space ahead of them before moving into it. `MovableResource` over a `DistancesModel` already
+carries an entity from A to B in `distance / velocity` time, and for a fork-lift in an open
+warehouse that is right — two people can share a corridor. Automated guided vehicles cannot. An
+aisle holds one vehicle at a time, a one-way loop cannot be run backwards, and a vehicle parked at
+the end of a spur is in the way of anything that needs to pass it.
+
+The difference is not a rounding error. On the same haul — same distances, same velocity, same
+arrival stream, same policies — the two families agree at one and two vehicles and then part
+company:
+
+| carts | free-path completions | guided completions | free-path time in system | guided |
+|---|---|---|---|---|
+| 2 | 128 | 128 | 752.4 | 754.6 |
+| 8 | 492 | 236 | 31.0 | 538.6 |
+
+The guide path stops improving at four carts because the exit spur admits one at a time and no
+size of fleet can put two down it. The distance model has no such notion and goes on rewarding
+every cart added. A study sizing this fleet from the free-path answer would buy eight carts,
+expect thirty-one minutes, and get five hundred and thirty-eight. The point is not that the
+free-path number is wrong; it is that nothing in a free-path model is *capable* of being wrong
+here — there is no statistic it could report that would reveal the aisle it does not represent.
+
+### Added
+
+- **`ksl.modeling.guidedpath`.** `GuidedPathNetwork` (an immutable geometry that is also a
+  `SpatialModel`), `GuidedPathTransportSystem`, `GuidedTransporter` (a capacity-one `Resource`),
+  and `GuidedTransporterPoolWithQ`. Zones are the atom of contended space: a zone holds at most one
+  transporter, and each transporter propels itself rather than being advanced by a fleet-wide
+  engine, so a blocked vehicle schedules nothing at all and costs the executive nothing while it
+  waits.
+- **Four process verbs on `KSLProcessBuilder`**, in the shape of the conveyor family:
+  `requestGuidedTransporter` / `transportBy` / `releaseGuidedTransporter`, plus the composed
+  `guidedTransport`. An uncongested guided journey takes *exactly* as long as its free-path
+  equivalent over matched distances — asserted to 1e-9 — so any difference a study measures is
+  congestion and not an artifact of the two families meaning different things by the same words.
+- **Five replaceable policies**, all implementable from outside the package: route selection, zone
+  contention, zone control (how closely vehicles may follow), transporter allocation, and idle
+  disposition.
+- **Deadlock detection and obstruction diagnosis.** A circular wait raises
+  `GuidedPathDeadlockException` carrying a report naming every participant, at the instant the
+  cycle forms. Separately — and this is the case the reference tools cannot detect at all — a
+  vehicle stopped behind an *idle* one that will never move is reported as an
+  `IdleTransporterObstruction`: warned and counted rather than raised, because unlike a cycle it
+  can resolve itself. `strictObstructionPolicy` promotes it for a study that wants certainty.
+  Nobody sets out to build a cycle, but everybody leaves a vehicle parked where it finished its
+  last job, and the symptom is a replication that completes, reports no error, and quietly
+  contains a fleet that stopped working halfway through.
+- **Opt-in congestion statistics.** Per-link, per-intersection and per-zone occupancy, off by
+  default: a thousand-zone network would otherwise register a thousand responses in every report
+  and every output database. System-level aggregates are always registered, since they are O(1) in
+  network size and answer the first question anyone asks.
+- **Animation.** `GuidedPathDefined`, `GuidedTransporterMoved` and `GuidedTransporterStateChanged`
+  events, guarded so they cost nothing without an active sink. The guide path carries its own
+  coordinates, so unlike a conveyor it needs no authored layout.
+- **`ProcessModel.ZONE_CLAIM_PRIORITY`**, so a woken vehicle's claim resolves before other
+  vehicles' traversals complete at the same instant.
+- **Guide and examples.** [`docs/guides/ksl-guidedpath.md`](guides/ksl-guidedpath.md);
+  `SimpleAGVExample` and `GuidedPathThroughputBenchmark` in `KSLExamples`; and the chapter-eight
+  test-and-repair shop re-modelled with its transport on an aisle.
+
+### Notes
+
+- Acceleration, deceleration and turn penalties are **not** modelled in this version. Traversal
+  time is exactly `zoneLength / (velocity * velocityFactor)`. Link direction in degrees and
+  intersection coordinates are carried for layout and animation and are never read by the engine.
+  Model a turn cost as a `velocityFactor`, or as an intersection whose length represents the time
+  to negotiate it.
+- On the reference benchmark (4x5 torus, 420 zones, 20 vehicles, saturated) the workload is
+  4,379,615 zone traversals at 1.007 events per traversal. Those two figures are deterministic and
+  reproduce exactly; throughput in traversals per wall-clock minute is a property of the machine
+  and has measured between roughly 57 and 219 million on containers all reporting OpenJDK 21,
+  Linux amd64 and 4 processors, so take your own rather than comparing against a recorded one.
+  One zone traversal is one scheduled event, so halving zone size doubles the event count for the
+  same motion: choose zone size from the granularity at which the real control system reserves
+  space, not from how smooth the animation looks.
 
 ## R1.6.2
 

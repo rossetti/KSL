@@ -120,6 +120,28 @@ tasks.test {
     System.getProperty("moda.baseline.record")?.let { systemProperty("moda.baseline.record", it) }
 }
 
+/**
+ * Everything except the long-running validation runs.
+ *
+ * Measured: the suite is 395 tests in about 22 minutes, and **one test accounts for 19 of them** --
+ * `PaintingFlowLineCrossCheckTest`, which reproduces a published shop against a reference tool.
+ * With that and the three other `slow`-tagged classes excluded, all 365 remaining tests finish in
+ * under three seconds.
+ *
+ * So this is the task to run while working, and `test` is for a milestone: a merge, a release, or
+ * any change to the movement engine or the space layer, where reproducing the validated shops is
+ * the point rather than an overhead. Tagging is by class, on the four that are validation runs
+ * rather than unit tests.
+ */
+val fastTest by tasks.registering(Test::class) {
+    description = "Runs every test except the long validation runs tagged 'slow'."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { excludeTags("slow") }
+    System.getProperty("moda.baseline.record")?.let { systemProperty("moda.baseline.record", it) }
+}
+
 kotlin {
     jvmToolchain(21)
     //TODO revisit

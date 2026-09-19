@@ -128,6 +128,16 @@ class ContinuousProjection<A : AgentLike> @JvmOverloads constructor(
     }
 
     /** Number of agents currently placed in this projection. */
+    /**
+     *  This projection's coordinates, seen as a spatial-layer [ksl.modeling.spatial.SpatialModel].
+     *
+     *  One per projection, created on first use. That matters: locations made by one
+     *  `ProjectionSpatialModel` are not valid in another, so two pieces of code that each called
+     *  [asSpatialModel] would produce coordinates that look identical and are refused by every
+     *  distance query. Use this unless a second, deliberately separate model is what you want.
+     */
+    val spatialModel: ProjectionSpatialModel by lazy { ProjectionSpatialModel(this) }
+
     val size: Int
         get() = positions.size
 

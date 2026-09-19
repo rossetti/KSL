@@ -33,6 +33,26 @@
     "multiple servers",
     "resource selection"
   ],
+  "ksl.modeling.guidedpath.GuidedPathTransportSystem": [
+    "guided path transporters",
+    "automated guided vehicle agv",
+    "vehicles blocking each other",
+    "zone occupancy congestion",
+    "aisle network one way loop"
+  ],
+  "ksl.modeling.guidedpath.GuidedPathNetwork": [
+    "guide path network",
+    "intersections links zones",
+    "spur bidirectional link",
+    "shortest path between stations",
+    "vehicle network layout"
+  ],
+  "ksl.modeling.guidedpath.GuidedTransporterPoolWithQ": [
+    "fleet of guided vehicles",
+    "dispatch nearest transporter",
+    "idle vehicle home base parking spur",
+    "guidedTransport process verb"
+  ],
   "ksl.modeling.queue.Queue": [
     "waiting line queue",
     "queue discipline fifo lifo priority",

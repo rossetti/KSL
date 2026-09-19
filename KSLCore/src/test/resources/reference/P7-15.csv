@@ -1,0 +1,41 @@
+# Reference-implementation results for Exercise 7.15: the two-colour painting flow line of Exercise 5.180 with three
+# AGVs on a one-way guided path and a staging area at intersection 12.
+#
+# Source model: P7-15New, run on 2026-08-31; report and results are from the same
+# file. Exported from P7-15New_rpt.xlsm, archived on branch agv-files of rossetti-org/tmp4321.
+#
+# 10 replications of 600,000 minutes with a 50,000 minute warm-up, so each reported figure is over
+# 550,000 minutes. Reports are in minutes.
+#
+# Two of the reference implementation's own entity statistics are deliberately NOT taken from that report. Its model moves
+# an idle vehicle to the staging area by duplicating the entity that has just been set down and
+# having the copy ride the vehicle there, so its per-entity Total, Transfer, Wait, VA and Other
+# times are averages over roughly 2.86 entity instances per part -- most of them short-lived copies
+# that never visit a station. The flow times below are the model's own tallies, recorded against the
+# part's arrival time, and those are unaffected. Likewise NumberOut here is PACKER.NumberSeized, the
+# count of parts packed, rather than System.NumberOut, which counts the copies too.
+statistic,value,halfWidth
+systemTime,194.6551162776672,2.442941269484664
+oldPartSystemTime,183.0256097970736,2.2343855215228454
+newPartSystemTime,221.728623638118,2.902721186743672
+numberIn,19615.6,118.72875113144924
+numberOut,19615.8,118.66820241139406
+workerUtilization,0.8203009007589394,0.004984944132504445
+painterUtilization,0.549381420535608,0.003233154758115975
+newPainterUtilization,0.5251872327943345,0.00601525755517528
+packerUtilization,0.8155719428102757,0.004965782395947875
+workStationQueueWait,50.41516638114108,1.6503100887163762
+paintQueueWait,2.511270282242262,0.034198927335504746
+newPaintQueueWait,17.87775441953328,0.883095367903499
+packQueueWait,16.342083245800943,0.6604019259627999
+workStationQueueLength,1.7984099951452888,0.06734949479968937
+paintQueueLength,0.06265537416718318,0.0009278724599683134
+newPaintQueueLength,0.1917508272776534,0.011421849546877095
+packQueueLength,0.5830563488318371,0.026718423823055008
+enterRequestWait,0.8700302073667814,0.020034244521324955
+workStationRequestWait,0.36156930220060063,0.0067783671515157405
+paintRequestWait,0.4939192567311813,0.010407796307304491
+newPaintRequestWait,0.44287276234793865,0.010944611893333057
+packRequestWait,0.42283517513581825,0.009665194861976548
+agvNumberBusy,2.078872627125893,0.0037761551973910287
+agvUtilization,0.6929575423752977,0.0012587183991292225

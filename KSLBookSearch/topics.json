@@ -1269,6 +1269,16 @@
     "spatial element tracking",
     "pickup delivery requests"
   ],
+  "sec-guidedPathTransporters": [
+    "guided path transporters",
+    "automated guided vehicles agv",
+    "fixed path vehicle network",
+    "zone control start end distance",
+    "vehicle blocking and deadlock",
+    "spur and one way aisle",
+    "idle vehicle obstruction",
+    "free path versus guided path"
+  ],
   "sec-secTQMWM": [
     "tandem queue with distances",
     "loading dock example",

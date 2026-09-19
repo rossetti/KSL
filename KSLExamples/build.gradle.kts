@@ -110,6 +110,53 @@ tasks.register<JavaExec>("bookExamplesBundleJar") {
     )
 }
 
+// ── Vehicle Examples bundle (the guided-path, AGV and free-path fleet models) ─
+// Mirrors the animation pair: a plain builders JAR assembled by `kslpkg assemble` into a manifest
+// bundle. Dropped into the user's KSLWork/bundles folder, it makes every bundled vehicle example
+// pickable in the apps' Open Model… picker.
+//
+//     ./gradlew :KSLExamples:vehicleExamplesBundleJar
+//     -> KSLExamples/build/libs/vehicle-examples.jar   (drop into KSLWork/bundles)
+//
+// The models are NOT copied into the bundle package: the includes below reach them where they live,
+// so the file a reader runs, the file the transport tutorial quotes, and the file this bundle ships
+// are one file. The book bundle keeps its own copies instead, which is two of everything.
+tasks.register<Jar>("vehicleBuildersJar") {
+    description = "Plain builders JAR for the vehicle-examples bundle (input to kslpkg assemble)."
+    archiveBaseName.set("vehicle-builders")
+    archiveVersion.set("")
+    dependsOn(tasks.named("classes"))
+    from(sourceSets["main"].output) {
+        include("ksl/examples/general/vehiclebundle/**")          // the builders
+        include("ksl/examples/general/guidedpath/**")             // simple AGV shop, disturbances, crossing
+        include("ksl/examples/general/agv/**")                    // hospital, warehouse, both paradigms, rules
+        include("ksl/examples/general/fleet/**")                  // the free-path yard
+        // Named for the CLASS, not the file: an include matching a file name packages nothing.
+        include("ksl/examples/book/chapter8/TestAndRepairShopWithGuidedTransporters*")
+    }
+}
+
+tasks.register<JavaExec>("vehicleExamplesBundleJar") {
+    group = "ksl bundle"
+    description = "Assemble the KSL Vehicle Examples manifest bundle JAR (kslpkg assemble)."
+    dependsOn("vehicleBuildersJar")
+    classpath = kslpkgClasspath
+    mainClass.set("ksl.bundle.tools.MainKt")
+    args(
+        "assemble", layout.buildDirectory.file("libs/vehicle-builders.jar").get().asFile.path,
+        "--id", "edu.uark.ksl.vehicle-examples",
+        "--name", "KSL Vehicle Examples",
+        "--version", "1.0.0",
+        "--description", "Curated, decision-relevant vehicle models: transporters on a guided path " +
+            "where they contend for the space they travel through, an active fleet whose dispatcher " +
+            "decides, and the same fleet over a free path where nothing blocks. Each carries an " +
+            "authored catalog of headline inputs and outputs. The guided-path subsystem is " +
+            "experimental.",
+        "-o", layout.buildDirectory.file("libs/vehicle-examples.jar").get().asFile.path,
+        "--force",
+    )
+}
+
 // ── Animation Examples bundle (the worked animation gallery models) ───────────
 // Mirrors bookExamplesBundleJar: a plain builders JAR (the ModelBuilderIfc
 // wrappers + the example models' class closure) assembled by `kslpkg assemble`
@@ -146,6 +193,13 @@ tasks.register<Jar>("animationBuildersJar") {
 // missing and nothing says so until a user opens it. AnimationBundleClosureTest loads every builder out of
 // this jar to prove otherwise, which means the jar has to exist when tests run.
 tasks.named<Test>("test") {
+    // VehicleBundleClosureTest loads every vehicle builder out of this jar, for the same reason:
+    // the include list is matched against paths, so a model class nobody added to it ships missing.
+    dependsOn("vehicleBuildersJar")
+    val vehicleJar = tasks.named<Jar>("vehicleBuildersJar").flatMap { it.archiveFile }
+    inputs.file(vehicleJar)
+    doFirst { systemProperty("vehicleBundleJar", vehicleJar.get().asFile.absolutePath) }
+
     dependsOn("animationBuildersJar")
     val jar = tasks.named<Jar>("animationBuildersJar").flatMap { it.archiveFile }
     inputs.file(jar)
@@ -273,4 +327,99 @@ tasks.register<JavaExec>("showcaseCapture") {
     listOf("modelName", "out").forEach { p ->
         if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
     }
+}
+
+// Runs the guided-path throughput benchmark (docs/guides/ksl-guidedpath.md, performance section).
+// It measures wall-clock time, so it is a task rather than a test: its answer depends on the
+// machine and has no business failing a build on somebody else's.
+tasks.register<JavaExec>("guidedPathBenchmark") {
+    group = "verification"
+    description = "Run the guided path throughput benchmark and print the reference figures."
+    mainClass.set("ksl.examples.general.guidedpath.GuidedPathThroughputBenchmarkKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+// The same benchmark for the active paradigm, which also re-runs the passive one and prints the
+// two side by side. A task rather than a test, for the same reason.
+tasks.register<JavaExec>("agvBenchmark") {
+    group = "verification"
+    description = "Run the AGV throughput benchmark, active against passive, on one layout."
+    mainClass.set("ksl.examples.general.agv.AgvThroughputBenchmarkKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+// Runs the simple AGV example of the guided-path guide, twice: as the source text designs it, and
+// with the idle carts left where they stop so the failure mode is visible side by side.
+tasks.register<JavaExec>("simpleAgvExample") {
+    group = "application"
+    description = "Run the simple AGV guided-path example."
+    mainClass.set("ksl.examples.general.guidedpath.SimpleAGVExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("freePathFleetExample") {
+    group = "examples"
+    description = "Runs the free-path fleet example"
+    mainClass.set("ksl.examples.general.fleet.FreePathFleetExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("twoLaneWarehouseExample") {
+    group = "examples"
+    description = "Run the two-lane warehouse grid study: fleet sizing, and what the second lane bought."
+    mainClass.set("ksl.examples.general.agv.TwoLaneWarehouseExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("twoParadigmsExample") {
+    group = "examples"
+    description = "Run the same shop both ways: a passive pool and an active dispatcher."
+    mainClass.set("ksl.examples.general.agv.TwoParadigmsExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("dispatchingRuleComparison") {
+    group = "examples"
+    description = "Run six dispatching rules on common random numbers."
+    mainClass.set("ksl.examples.general.agv.DispatchingRuleComparisonKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+// Both ways of taking guide-path space without being a vehicle, on one layout: spills as
+// processes, a maintenance window as scheduled events, against the same shop undisturbed.
+tasks.register<JavaExec>("guidePathDisturbancesExample") {
+    group = "examples"
+    description = "Run the guide-path disturbance study: spills and a maintenance window."
+    mainClass.set("ksl.examples.general.guidedpath.GuidePathDisturbancesExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+// One condition -- the space asked for is already promised -- and three reasonable answers to it,
+// as three hand-checkable timelines. The example the try verbs exist for.
+tasks.register<JavaExec>("zoneClosurePolicyExample") {
+    group = "examples"
+    description = "Three answers to an overlapping guide-path closure, as timelines."
+    mainClass.set("ksl.examples.general.guidedpath.ZoneClosurePolicyExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("crossingArbiterExample") {
+    group = "examples"
+    description = "One pedestrian crossing, four admission disciplines, and two broken models."
+    mainClass.set("ksl.examples.general.guidedpath.CrossingArbiterExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("retaskingExample") {
+    group = "examples"
+    description = "Run the re-tasking in flight example."
+    mainClass.set("ksl.examples.general.agv.RetaskingInFlightExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("multiFloorHospitalExample") {
+    group = "examples"
+    description = "Run the two-floor hospital study: lifts as one-zone links."
+    mainClass.set("ksl.examples.general.agv.MultiFloorHospitalExampleKt")
+    classpath = sourceSets["main"].runtimeClasspath
 }

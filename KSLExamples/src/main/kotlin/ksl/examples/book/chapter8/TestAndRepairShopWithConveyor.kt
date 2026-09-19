@@ -122,7 +122,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     }
 
     // define the process
-    private inner class Part : Entity() {
+    private inner class Part : Entity("Part") {
 
         // determine the test plan
         val plan: List<TestPlanStep> = planList.randomElement
