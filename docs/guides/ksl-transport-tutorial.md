@@ -1772,7 +1772,7 @@ classes: `ScenarioRunner` to run the six configurations under identical conditio
 class DispatchingRuleComparison(
     parent: ModelElement,
     ruleName: String = "NearestVehicle",
-    name: String? = "Shop"
+    name: String? = null
 ) : ProcessModel(parent, name) {
 
     private val northPickup = "NorthPickup"
@@ -1846,7 +1846,7 @@ than merely averaged over.
 class DispatchingRuleComparison(
     parent: ModelElement,
     ruleName: String = "NearestVehicle",
-    name: String? = "Shop"
+    name: String? = null
 ) : ProcessModel(parent, name) {
 
     private val network: GuidedPathNetwork = createNetwork()

@@ -18,8 +18,8 @@
 
 package ksl.examples.general.agv
 
-import ksl.controls.experiments.ScenarioRunner
 import ksl.controls.KSLStringControl
+import ksl.controls.experiments.ScenarioRunner
 import ksl.modeling.agv.AgvSystem
 import ksl.modeling.agv.AgvVehicle
 import ksl.modeling.entity.ProcessModel
@@ -133,7 +133,7 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
 /**
  *  Three carts on the ring, dispatched by the rule [ruleName] names.
  *
- *  The rule is taken **by name** rather than as a policy object, and the reason is in [rules]:
+ *  The rule is taken **by name** rather than as a policy object, and the reason is in `rules()`:
  *  two of the six are the same class with different terms, so the class cannot tell them apart
  *  and only a name can. That the name is what varies is also what lets the whole study be
  *  expressed as one model with one input -- see [ruleName].
@@ -145,7 +145,7 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
 class DispatchingRuleComparison(
     parent: ModelElement,
     ruleName: String = "NearestVehicle",
-    name: String? = "Shop"
+    name: String? = null
 ) : ProcessModel(parent, name) {
 
     private val northPickup = "NorthPickup"
@@ -223,7 +223,7 @@ class DispatchingRuleComparison(
      *
      *  [ksl.controls.KSLStringControl] declares the names it will accept, so the six-way comparison
      *  in `main` can equally be run as one model with one input -- which is what a scenario, or an
-     *  app's input panel, wants. A rule is made fresh on assignment for the same reason [rules]
+     *  app's input panel, wants. A rule is made fresh on assignment for the same reason `rules()`
      *  makes them fresh: a batching or contract-net policy carries state between decisions.
      *
      *  **This is the study's own control, and not the library's.**

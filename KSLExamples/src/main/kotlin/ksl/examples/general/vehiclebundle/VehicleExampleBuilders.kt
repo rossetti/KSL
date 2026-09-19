@@ -308,7 +308,7 @@ class DispatchingRulesRingShopModelBuilder : ModelBuilderIfc {
         experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = Model("DispatchingRulesRingShop", autoCSVReports = false)
-        val shop = DispatchingRuleComparison(model)
+        val shop = DispatchingRuleComparison(model, name = "Shop")
         model.numberOfReplications = 15
         model.lengthOfReplication = 10_000.0
         model.lengthOfReplicationWarmUp = 1_500.0
