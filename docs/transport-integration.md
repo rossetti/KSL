@@ -94,9 +94,11 @@ where conflicts will be.
 - `TransportTutorialCodeTest` will fail if the guides drift from the code during integration. That
   is a feature — it means the documentation cannot silently rot while the API is being adjusted.
 
-Note that the normalisation script and baseline captures used during development were kept outside
-the repository and **do not travel with a clone**. The example tasks do travel; re-baseline against
-your own build, which is the right thing to do anyway.
+The gate harness is committed at `KSLExamples/gate/` — `gate.sh`, `norm.py`, a 6,532-line
+baseline and a README. `gate.sh mytag --diff` runs the twelve and exits non-zero on any
+difference. **Re-baseline once on the landing build** (`gate.sh baseline --save`) before trusting
+a diff: the committed baseline was captured on one machine against one build, and a diff against
+an inherited baseline you have not reproduced tells you nothing useful.
 
 ## Known to be unfinished
 
