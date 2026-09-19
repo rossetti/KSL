@@ -18,7 +18,16 @@
 
 package ksl.utilities.distributions
 
-/**
+/** Represents the 1st order loss function.
+ *
+ * `G1(x) = E[max(X-x,0)]` is one expression for every support, discrete and continuous alike,
+ * so unlike [SecondOrderLossFunctionIfc] there is nothing here to choose between. Stated
+ * explicitly because the higher orders *do* split, and the two should not be brought into
+ * line with each other: G1 is the same function for both families and G2 is not.
+ *
+ * G1 is defined for every real x, not only whole numbers, and is continuous and decreasing in
+ * it. An integer-supported distribution whose closed form is derived for integral arguments
+ * must therefore still answer correctly between them — see `DiscreteLossFunctionInterpolation`.
  *
  * @author rossetti
  */

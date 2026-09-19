@@ -125,6 +125,7 @@ class Normal(mean: Double = 0.0, variance: Double = 1.0, name: String? = null) :
         return standardDeviation() * stdNormalFirstOrderLossFunction((x - this@Normal.mean) / standardDeviation())
     }
 
+    /** The second order loss function, (1/2)E[max(X-x,0)^2]. */
     override fun secondOrderLossFunction(x: Double): Double {
         return this@Normal.variance * stdNormalSecondOrderLossFunction((x - this@Normal.mean) / standardDeviation())
     }
@@ -321,9 +322,9 @@ class Normal(mean: Double = 0.0, variance: Double = 1.0, name: String? = null) :
         }
 
         /** Computes the 2nd order loss function for the standard normal
-         * distribution function for given value of z, G2(z) = (1/2)E[max(Z-z,0)*max(Z-z-1,0)]
+         * distribution function for given value of z, G2(z) = (1/2)E[max(Z-z,0)^2]
          * @param z The value to be evaluated
-         * @return The loss function value, (1/2)E[max(Z-z,0)*max(Z-z-1,0)]
+         * @return The loss function value, (1/2)E[max(Z-z,0)^2]
          */
         fun stdNormalSecondOrderLossFunction(z: Double): Double {
             return 0.5 * ((z * z + 1.0) * stdNormalComplementaryCDF(z) - z * stdNormalPDF(z))

@@ -156,6 +156,7 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
      *  the second moment equal to 2*mu^2, that is (1/2) * (2*mu^2 - 2*x*mu + x^2). The two
      *  branches agree at x = 0.
      */
+    /** The second order loss function, (1/2)E[max(X-x,0)^2]. */
     override fun secondOrderLossFunction(x: Double): Double {
         if (x <= 0.0) {
             return 0.5 * (2.0 * mean * mean - 2.0 * x * mean + x * x)

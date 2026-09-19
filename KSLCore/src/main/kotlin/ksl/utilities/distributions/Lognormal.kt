@@ -216,6 +216,7 @@ class Lognormal(mean: Double = 1.0, variance: Double = 1.0, name: String? = null
         return mean() * t1 - x * t2
     }
 
+    /** The second order loss function, (1/2)E[max(X-x,0)^2]. */
     override fun secondOrderLossFunction(x: Double): Double {
         val m = this@Lognormal.mean
         val m2 = this@Lognormal.variance + m * m

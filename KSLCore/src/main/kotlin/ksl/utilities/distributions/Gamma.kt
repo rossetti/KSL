@@ -309,6 +309,7 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         return ((shape - mu * x) * complementaryCDF(x) + x * pdf(x)) / mu
     }
 
+    /** The second order loss function, (1/2)E[max(X-x,0)^2]. */
     override fun secondOrderLossFunction(x: Double): Double {
         if (x <= 0.0) {
             val m = mean()

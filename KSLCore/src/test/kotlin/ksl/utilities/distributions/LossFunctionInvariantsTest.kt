@@ -200,6 +200,43 @@ class LossFunctionInvariantsTest {
     private fun referenceG2(case: Case, b: Double): Double =
         if (case.isDiscrete) bruteForceG2Discrete(case.distribution, b) else quadratureG2(case, b)
 
+    /**
+     *  `G2(b)` read as the tail accumulation of `G1`, which is what *defines* it:
+     *  a sum over the integers above `b` on a discrete support, an integral from `b` on a
+     *  continuous one. Computed here from the distribution's own `G1` and nothing else, so a
+     *  disagreement localizes to `G2`.
+     */
+    private fun accumulatedG1(case: Case, b: Double): Double {
+        if (case.isDiscrete) {
+            var total = 0.0
+            var negligibleRun = 0
+            var j = floor(b).toInt() + 1
+            while (j <= HARD_SUM_CAP) {
+                val term = case.distribution.firstOrderLossFunction(j.toDouble())
+                total += term
+                if (term <= 1.0e-18 * max(1.0, total)) negligibleRun++ else negligibleRun = 0
+                if (negligibleRun >= 50) break
+                j++
+            }
+            return total
+        }
+        val upper = continuousUpperLimit(case.distribution)
+        val g1 = { u: Double -> case.distribution.firstOrderLossFunction(u) }
+        // Integrate from b itself, NOT from the support's edge. [integrationLowerLimit]'s
+        // reasoning does not transfer here: its integrand carries a density and so vanishes
+        // below the support, while G1 does not -- below a non-negative support G1(u) = E[X] - u,
+        // which is where most of this integral lives when b is negative. Clamping to zero cost
+        // Exponential(1) its whole answer, 1.0 against a correct 5.0 at b = -2.
+        //
+        // That same region is where G1 has a kink, at the support's edge, and Simpson assumes
+        // smoothness across a panel. Splitting there keeps each piece smooth; the lower piece is
+        // linear, which Simpson integrates exactly.
+        if (case.isNonNegative && b < 0.0) {
+            return simpson(b, 0.0, 200, g1) + simpson(0.0, upper, 20_000, g1)
+        }
+        return simpson(b, upper, 20_000, g1)
+    }
+
     /** Relative where the magnitude allows it, absolute near zero. */
     private fun closeEnough(expected: Double, actual: Double, tolerance: Double): Boolean {
         val scale = max(1.0, abs(expected))
@@ -305,6 +342,40 @@ class LossFunctionInvariantsTest {
         assertTrue(failures.isEmpty()) {
             "${case.label} disagrees with the definition between whole numbers:\n  " +
                 failures.joinToString("\n  ")
+        }
+    }
+
+    // ── Invariant 4 ───────────────────────────────────────────────────────────
+
+    /**
+     * `G2` is the tail accumulation of `G1`, in the measure belonging to the support.
+     *
+     * This is the *definition* rather than a consequence of it, which makes it the invariant
+     * that pins the denomination question. Carried out, the relation yields two different
+     * closed forms — `(1/2)E[max(X-x,0)*max(X-x-1,0)]` for an integer support and
+     * `(1/2)E[max(X-x,0)^2]` for a continuous one — and an implementation that adopts the
+     * wrong one for its family is wrong by roughly half a mean while still looking plausible
+     * and staying non-negative, so Invariants 1 and 2 would pass it.
+     *
+     * Whole-number arguments only: on a discrete support the relation sums `G1` over the
+     * integers strictly above `b`, which is stated for integral `b`.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Invariant 4: G2 is the tail accumulation of G1 for its own support")
+    fun secondOrderLossIsTheTailAccumulationOfTheFirst(case: Case) {
+        val tolerance = if (case.isDiscrete) 1.0e-9 else 1.0e-5
+        val failures = mutableListOf<String>()
+        for (b in WHOLE_ARGUMENTS) {
+            val expected = accumulatedG1(case, b)
+            val actual = case.distribution.secondOrderLossFunction(b)
+            if (!closeEnough(expected, actual, tolerance)) {
+                failures.add("G2($b): accumulated G1 gives $expected, G2 returned $actual")
+            }
+        }
+        val how = if (case.isDiscrete) "sum of G1 over the integers above b" else "integral of G1 from b"
+        assertTrue(failures.isEmpty()) {
+            "${case.label}: G2 is not the $how:\n  " + failures.joinToString("\n  ")
         }
     }
 }
