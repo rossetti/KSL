@@ -313,6 +313,16 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     }
 
     /**
+     * Whether every support point is a whole number.
+     *
+     * The support is supplied by the caller and is not constrained to the integers, but the
+     * discrete second order loss function is. See [secondOrderLossFunction].
+     */
+    private val hasWholeNumberSupport: Boolean by lazy {
+        myProbabilityPoints.all { isWholeNumber(it.value) }
+    }
+
+    /**
      * Second order loss function G2(x) = (1/2)E[max(X-x,0)*max(X-x-1,0)].
      *
      * Both factors are clamped at zero, as the definition says. Guarding only the first would admit
@@ -321,8 +331,26 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
      * quantities — cannot be negative. Unlike the integer-supported distributions, an empirical
      * support can place a point anywhere, so the second guard is load-bearing here rather than
      * redundant.
+     *
+     * **Requires a whole-number support.** Each order of a loss function is the accumulation of
+     * the order below it, over the integers on a discrete support. A support placed off the
+     * integers has no such accumulation, and the sum below would then return a quantity that is
+     * neither it nor the continuous (1/2)E[max(X-x,0)^2] — for support (2.3, 5.1, 9.8, 14.4) it
+     * returns 32.9995 at x = 0, against 36.7895 for the integral and 33.08 for the sum over the
+     * integers. Rather than pick one silently, this refuses. [firstOrderLossFunction] is the
+     * same expression on every support and carries no such restriction.
+     *
+     * @throws IllegalArgumentException if any support point is not a whole number
      */
     override fun secondOrderLossFunction(x: Double): Double {
+        require(hasWholeNumberSupport) {
+            "The second order loss function requires a whole-number support. This distribution " +
+                "has support ${myProbabilityPoints.map { it.value }}. G2 is defined as the " +
+                "accumulation of G1 over the integers above x, so a support off the integers " +
+                "has no such accumulation and the formula below would return a number that is " +
+                "neither that sum nor the continuous (1/2)E[max(X-x,0)^2]. The first order " +
+                "loss function is unaffected and may be used on any support."
+        }
         var m = 0.0
         for (probPoint in myProbabilityPoints) {
             val first = probPoint.value - x

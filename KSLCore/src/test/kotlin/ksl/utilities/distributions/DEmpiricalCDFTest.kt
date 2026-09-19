@@ -1,6 +1,8 @@
 package ksl.utilities.distributions
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -165,5 +167,57 @@ class DEmpiricalCDFTest {
         val cdf = doubleArrayOf(0.20, 0.50, 0.85, 1.00)
         val expected = 2.0 * 0.20 + 5.0 * 0.30 + 9.0 * 0.35 + 14.0 * 0.15
         assertEquals(expected, DEmpiricalCDF(values, cdf).mean(), 1.0e-12)
+    }
+
+    // ── The second order loss function needs the integers ─────────────────────
+
+    /**
+     *  The support is caller-supplied and unconstrained, but G2 is not: it is the accumulation of
+     *  G1 over the integers above x. Off the integers there is no such accumulation, and the
+     *  falling-factorial sum returns a number belonging to neither reading -- 32.9995 at x = 0 for
+     *  the support below, against 36.7895 for the integral of G1 and 33.08 for the sum of G1 over
+     *  the integers. Refusing is what stops a third plausible number entering circulation.
+     */
+    @Test
+    @DisplayName("the second order loss function refuses a support off the integers")
+    fun secondOrderLossRefusesANonIntegerSupport() {
+        val d = DEmpiricalCDF(
+            doubleArrayOf(2.3, 5.1, 9.8, 14.4),
+            doubleArrayOf(0.20, 0.50, 0.85, 1.0)
+        )
+        val error = assertThrows<IllegalArgumentException> { d.secondOrderLossFunction(0.0) }
+        assertTrue(error.message!!.contains("whole-number support")) {
+            "the refusal should name the reason, was: ${error.message}"
+        }
+    }
+
+    /**
+     *  G1(x) = E[max(X-x,0)] is the same expression whatever the support, so the restriction on G2
+     *  must not spread to it. Pinned because guarding both together is the obvious over-correction.
+     */
+    @Test
+    @DisplayName("the first order loss function accepts a support off the integers")
+    fun firstOrderLossAcceptsANonIntegerSupport() {
+        val d = DEmpiricalCDF(
+            doubleArrayOf(2.3, 5.1, 9.8, 14.4),
+            doubleArrayOf(0.20, 0.50, 0.85, 1.0)
+        )
+        // E[X] = .2(2.3) + .3(5.1) + .35(9.8) + .15(14.4) = .46 + 1.53 + 3.43 + 2.16 = 7.58
+        assertEquals(7.58, d.firstOrderLossFunction(0.0), 1.0e-9)
+        // Below the smallest support point every outcome exceeds x, so G1(x) = E[X] - x.
+        assertEquals(7.58 - 2.0, d.firstOrderLossFunction(2.0), 1.0e-9)
+    }
+
+    /**
+     *  Whole numbers, not consecutive ones. The accumulation runs over every integer above x
+     *  whether or not the support occupies it, so gaps are irrelevant and a guard that rejected
+     *  them would break the fixture the rest of this file uses.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("supports")
+    @DisplayName("a whole-number support is accepted however it is spaced")
+    fun secondOrderLossAcceptsAnyWholeNumberSupport(support: Support) {
+        val d = DEmpiricalCDF(support.values, support.cdf)
+        assertDoesNotThrow { d.secondOrderLossFunction(0.0) }
     }
 }
