@@ -28,7 +28,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.*
 
 class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) : Distribution(name),
-    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, RVParametersTypeIfc by RVType.Binomial{
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc,
+    RVParametersTypeIfc by RVType.Binomial{
 
     init {
         require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }
@@ -185,6 +186,23 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * @param x the value to evaluate
      * @return the sum of the complementary CDF
      */
+    /**
+     * G3(x) = (1/6) * E[max(X - x, 0) * max(X - x - 1, 0) * max(X - x - 2, 0)].
+     *
+     * Accumulated from G2, as G2 is from G1. The third binomial moment of a binomial is
+     * C(n,3)*p^3, which is where the accumulation starts.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
+        }
+        val n = numTrials.toDouble()
+        val p = probOfSuccess
+        // C(n,3) * p^3, the third binomial moment, zero when there are fewer than 3 trials.
+        val tbm = if (n < 3.0) 0.0 else n * (n - 1.0) * (n - 2.0) / 6.0 * p * p * p
+        return accumulatedThirdOrderLoss(this, x, tbm)
+    }
+
     private fun sumCCDF(x: Double): Double {
         if (x <= 0.0) {
             return 0.0

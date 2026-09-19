@@ -24,7 +24,8 @@ package ksl.utilities.distributions
  * @param theShift the shift
  */
 class ShiftedLossFunctionDistribution(theLossDistribution: LossFunctionDistributionIfc, theShift: Double) :
-    ShiftedDistribution(theLossDistribution as DistributionIfc, theShift, null), LossFunctionDistributionIfc {
+    ShiftedDistribution(theLossDistribution as DistributionIfc, theShift, null),
+    LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc {
 
     override fun firstOrderLossFunction(x: Double): Double {
         val cdf = distribution as LossFunctionDistributionIfc
@@ -34,6 +35,22 @@ class ShiftedLossFunctionDistribution(theLossDistribution: LossFunctionDistribut
     override fun secondOrderLossFunction(x: Double): Double {
         val cdf = distribution as LossFunctionDistributionIfc
         return cdf.secondOrderLossFunction(x - shift)
+    }
+
+    /**
+     * The third order loss function of the shifted distribution.
+     *
+     * @throws IllegalArgumentException if the wrapped distribution does not compute a third
+     * order loss function. Not every implementor of [LossFunctionDistributionIfc] does, and
+     * the constructor cannot require one without narrowing what may be shifted.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        val third = distribution as? ThirdOrderLossFunctionIfc
+        require(third != null) {
+            "The shifted distribution ${distribution::class.simpleName} does not compute a " +
+                "third order loss function."
+        }
+        return third.thirdOrderLossFunction(x - shift)
     }
 }
 

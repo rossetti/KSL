@@ -38,7 +38,8 @@ import kotlin.math.sqrt
  * @param name an optional name/label
  */
 class Lognormal(mean: Double = 1.0, variance: Double = 1.0, name: String? = null) :
-    Distribution(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc,
+    Distribution(name), ContinuousDistributionIfc, LossFunctionDistributionIfc,
+    ThirdOrderLossFunctionIfc, InverseCDFIfc,
     GetRVariableIfc, RVParametersTypeIfc by RVType.Lognormal, MomentsIfc {
 
     init {
@@ -228,6 +229,35 @@ class Lognormal(mean: Double = 1.0, variance: Double = 1.0, name: String? = null
             val t2 = Normal.stdNormalCDF(normalStdDev - z)
             val t3 = Normal.stdNormalCDF(-z)
             0.5 * (m2 * t1 - 2.0 * x * m * t2 + x * x * t3)
+        }
+    }
+
+    /**
+     * The third order loss function, (1/6)E[max(X-x,0)^3].
+     *
+     * The partial-expectation expansion of [secondOrderLossFunction] carried one order up:
+     * expanding (u-x)^3 inside the integral leaves H3 - 3x*H2 + 3x^2*H1 - x^3*G0, where
+     * H_k(x) = E[X^k] * Phi(k*sigma - z) is the kth partial expectation above x.
+     *
+     * Note that E[X^3] = exp(3*mu + 4.5*sigma^2) on the log scale, which is the first place
+     * this family's moments become large: a heavy-tailed fit can carry it past the range of a
+     * Double while the lower orders stay finite, so the result is reported as infinite rather
+     * than as a silently wrong finite number.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        val m = this@Lognormal.mean
+        val m2 = this@Lognormal.variance + m * m
+        val m3 = exp(3.0 * normalMean + 4.5 * normalStdDev * normalStdDev)
+        return if (x <= 0.0) {
+            // Nothing truncates, so this is the third moment about x.
+            (m3 - 3.0 * x * m2 + 3.0 * x * x * m - x * x * x) / 6.0
+        } else {
+            val z = (ln(x) - normalMean) / normalStdDev
+            val h3 = m3 * Normal.stdNormalCDF(3.0 * normalStdDev - z)
+            val h2 = m2 * Normal.stdNormalCDF(2.0 * normalStdDev - z)
+            val h1 = m * Normal.stdNormalCDF(normalStdDev - z)
+            val g0 = Normal.stdNormalCDF(-z)
+            (h3 - 3.0 * x * h2 + 3.0 * x * x * h1 - x * x * x * g0) / 6.0
         }
     }
 

@@ -33,7 +33,7 @@ import kotlin.math.sqrt
  */
 class Normal(mean: Double = 0.0, variance: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc,
-    LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc, InverseCDFIfc, GetRVariableIfc,
     RVParametersTypeIfc by RVType.Normal, MomentsIfc {
 
     init {
@@ -128,6 +128,12 @@ class Normal(mean: Double = 0.0, variance: Double = 1.0, name: String? = null) :
     /** The second order loss function, (1/2)E[max(X-x,0)^2]. */
     override fun secondOrderLossFunction(x: Double): Double {
         return this@Normal.variance * stdNormalSecondOrderLossFunction((x - this@Normal.mean) / standardDeviation())
+    }
+
+    /** The third order loss function, (1/6)E[max(X-x,0)^3]. */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        val s = standardDeviation()
+        return s * s * s * stdNormalThirdOrderLossFunction((x - this@Normal.mean) / s)
     }
 
     /** Sets the parameters for the distribution
@@ -326,6 +332,21 @@ class Normal(mean: Double = 0.0, variance: Double = 1.0, name: String? = null) :
          * @param z The value to be evaluated
          * @return The loss function value, (1/2)E[max(Z-z,0)^2]
          */
+        /** Computes the 3rd order loss function for the standard normal
+         * distribution function for given value of z, G3(z) = (1/6)E[max(Z-z,0)^3]
+         *
+         * Expanding (u-z)^3 inside the integral and collecting the partial moments of the
+         * standard normal leaves only the density and the complementary distribution
+         * function. Note the units: G1 scales by sigma, G2 by sigma^2 and G3 by sigma^3, so
+         * a missing power of sigma shows up as an answer of the wrong magnitude.
+         * @param z The value to be evaluated
+         * @return The loss function value, (1/6)E[max(Z-z,0)^3]
+         */
+        fun stdNormalThirdOrderLossFunction(z: Double): Double {
+            return ((z * z + 2.0) * stdNormalPDF(z) -
+                z * (z * z + 3.0) * stdNormalComplementaryCDF(z)) / 6.0
+        }
+
         fun stdNormalSecondOrderLossFunction(z: Double): Double {
             return 0.5 * ((z * z + 1.0) * stdNormalComplementaryCDF(z) - z * stdNormalPDF(z))
         }

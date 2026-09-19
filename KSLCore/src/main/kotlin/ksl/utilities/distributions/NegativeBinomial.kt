@@ -31,7 +31,8 @@ import kotlin.math.*
  */
 class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, name: String? = null) :
     Distribution(name), DiscretePMFInRangeDistributionIfc,
-    LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.NegativeBinomial {
+    LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.NegativeBinomial {
 
     init {
         require(!(probSuccess <= 0.0 || probSuccess >= 1.0)) { "Success Probability must be (0,1)" }
@@ -239,6 +240,24 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
             // x == 0.0
             sbm
         }
+    }
+
+    /**
+     * G3(x) = (1/6) * E[max(X - x, 0) * max(X - x - 1, 0) * max(X - x - 2, 0)].
+     *
+     * Accumulated from G2 rather than given a closed form. The third binomial moment of a
+     * negative binomial is r(r+1)(r+2)*b^3 with b = (1-p)/p, and the rest is the tail sum that
+     * relates consecutive orders. Deriving the closed form is more work than the loop is to
+     * run at the stock levels this is used for.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
+        }
+        val r = this@NegativeBinomial.numSuccesses
+        val b = (1.0 - probOfSuccess) / probOfSuccess
+        val tbm = r * (r + 1.0) * (r + 2.0) * b * b * b / 6.0
+        return accumulatedThirdOrderLoss(this, x, tbm)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): NegativeBinomialRV {

@@ -29,7 +29,8 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
-    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Poisson {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc,
+    GetRVariableIfc, RVParametersTypeIfc by RVType.Poisson {
 
     init {
         require(mean > 0.0) { "Mean must be > 0)" }
@@ -159,12 +160,28 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         }
     }
 
-    fun thirdOrderLossFunction(x: Double): Double {
+    /**
+     * G3(x) = (1/6) * E[max(X - x, 0) * max(X - x - 1, 0) * max(X - x - 2, 0)], in the third
+     * factorial moment form, matching [secondOrderLossFunction].
+     *
+     * At x = 0 this is mu^3 / 6, the third binomial moment of a Poisson. The closed form holds
+     * at negative whole numbers as well, so unlike the lower orders it needs no separate branch
+     * there: the complementary distribution function is 1 below the support and the expression
+     * collapses to the third moment about x.
+     *
+     * A non-whole argument is interpolated exactly from the neighbouring whole numbers. The
+     * closed form cannot be used there — its complementary distribution functions are flat
+     * between integers, so it would silently return the value at the floor.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
+        }
         val term1 = this@Poisson.mean.pow(3.0) * complementaryCDF(x - 3)
         val term2 = 3 * this@Poisson.mean * this@Poisson.mean * x * complementaryCDF(x - 2)
         val term3 = 3 * this@Poisson.mean * x * (x + 1) * complementaryCDF(x - 1)
         val term4 = x * (x + 1) * (x + 2) * complementaryCDF(x)
-        return (term1 - term2 + term3 - term4) / 3.0
+        return (term1 - term2 + term3 - term4) / 6.0
     }
 
     override fun invCDF(p: Double): Double {

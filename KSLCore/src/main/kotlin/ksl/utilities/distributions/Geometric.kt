@@ -33,7 +33,8 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(name),
-    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Geometric {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc,
+    GetRVariableIfc, RVParametersTypeIfc by RVType.Geometric {
 
     init {
         require(!(successProb < 0.0 || successProb > 1.0)) { "Probability must be [0,1]" }
@@ -206,6 +207,22 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
         {
             sbm
         }
+    }
+
+    /**
+     * The third order loss function, (1/6)E[max(X-x,0)*max(X-x-1,0)*max(X-x-2,0)].
+     *
+     * The geometric gains one factor of `b = (1-p)/p` per order against the same `q^x`, so
+     * where G1 is `b*q^x` and G2 is `b*b*q^x`, this is `b*b*b*q^x`. That form is correct at
+     * negative whole numbers too, unlike the lower orders' separate branches: at `x = -1` it
+     * gives `b^3/q`, which is `b^3 + b^2`, the accumulation running one step the other way.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        if (!isWholeNumber(x)) {
+            return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
+        }
+        val b = (1.0 - pSuccess) / pSuccess
+        return b * b * b * pFailure.pow(x)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): GeometricRV {

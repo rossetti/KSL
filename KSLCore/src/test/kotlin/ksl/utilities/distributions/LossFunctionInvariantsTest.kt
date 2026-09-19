@@ -237,6 +237,28 @@ class LossFunctionInvariantsTest {
         return simpson(b, upper, 20_000, g1)
     }
 
+    private fun bruteForceG3Discrete(d: LossFunctionDistributionIfc, b: Double): Double =
+        (1.0 / 6.0) * weightedSum(d) { k ->
+            val first = k - b
+            val second = k - b - 1.0
+            val third = k - b - 2.0
+            if (first > 0.0 && second > 0.0 && third > 0.0) first * second * third else 0.0
+        }
+
+    private fun quadratureG3(case: Case, b: Double): Double {
+        val pdf = case.distribution as PDFIfc
+        return (1.0 / 6.0) * simpson(
+            integrationLowerLimit(case, b), continuousUpperLimit(case.distribution), 20_000
+        ) { x -> (x - b) * (x - b) * (x - b) * pdf.pdf(x) }
+    }
+
+    private fun referenceG3(case: Case, b: Double): Double =
+        if (case.isDiscrete) bruteForceG3Discrete(case.distribution, b) else quadratureG3(case, b)
+
+    /** The third order implementation, or null for a case that does not compute one. */
+    private fun thirdOrder(case: Case): ThirdOrderLossFunctionIfc? =
+        case.distribution as? ThirdOrderLossFunctionIfc
+
     /** Relative where the magnitude allows it, absolute near zero. */
     private fun closeEnough(expected: Double, actual: Double, tolerance: Double): Boolean {
         val scale = max(1.0, abs(expected))
@@ -376,6 +398,134 @@ class LossFunctionInvariantsTest {
         val how = if (case.isDiscrete) "sum of G1 over the integers above b" else "integral of G1 from b"
         assertTrue(failures.isEmpty()) {
             "${case.label}: G2 is not the $how:\n  " + failures.joinToString("\n  ")
+        }
+    }
+
+    // ── Third order ───────────────────────────────────────────────────────────
+
+    /**
+     * Every case here computes a third order loss function.
+     *
+     * The tests below skip a case that does not, which is right while the coverage is being
+     * built out and wrong afterwards: a case added without `ThirdOrderLossFunctionIfc` would be
+     * silently exempted from all five. This pins that the exemption is currently used by nobody,
+     * so adding an implementor to the library without adding it here fails loudly.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Third order 0: every case implements the third order interface")
+    fun everyCaseComputesAThirdOrderLossFunction(case: Case) {
+        assertTrue(thirdOrder(case) != null) {
+            "${case.label} does not implement ThirdOrderLossFunctionIfc, so the third order " +
+                "invariants would skip it silently"
+        }
+    }
+
+    /**
+     * `G3` is a sixth of the expectation of a product of three clamped non-negative quantities,
+     * so like `G2` it cannot be negative anywhere. The cheapest check there is, and the one that
+     * caught the transposed empirical implementation one order down.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Third order 1: G3 is never negative")
+    fun thirdOrderLossIsNeverNegative(case: Case) {
+        val third = thirdOrder(case) ?: return
+        val offenders = PROBE_ARGUMENTS
+            .map { it to third.thirdOrderLossFunction(it) }
+            .filter { (_, g3) -> g3 < -1.0e-9 }
+        assertTrue(offenders.isEmpty()) {
+            "${case.label}: G3 is negative at " +
+                offenders.joinToString { (x, g3) -> "x=$x -> $g3" }
+        }
+    }
+
+    /**
+     * Agreement with the definition, at whole numbers and between them. Split from each other for
+     * the same reason the lower orders are: an implementation exact on integers and wrong on
+     * fractions is a different and much quieter fault than one that is simply wrong.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Third order 2: G3 agrees with summation or quadrature at whole numbers")
+    fun thirdOrderAgreesWithTheDefinitionAtWholeNumbers(case: Case) {
+        val third = thirdOrder(case) ?: return
+        val tolerance = if (case.isDiscrete) 1.0e-9 else 1.0e-5
+        val failures = WHOLE_ARGUMENTS.mapNotNull { b ->
+            val expected = referenceG3(case, b)
+            val actual = third.thirdOrderLossFunction(b)
+            if (closeEnough(expected, actual, tolerance)) null
+            else "G3($b): expected $expected, got $actual"
+        }
+        assertTrue(failures.isEmpty()) {
+            "${case.label} disagrees with the definition at whole numbers:\n  " +
+                failures.joinToString("\n  ")
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Third order 3: G3 agrees with summation or quadrature between whole numbers")
+    fun thirdOrderAgreesWithTheDefinitionAtFractionalArguments(case: Case) {
+        val third = thirdOrder(case) ?: return
+        val tolerance = if (case.isDiscrete) 1.0e-9 else 1.0e-5
+        val failures = PROBE_ARGUMENTS.filter { it != floor(it) }.mapNotNull { b ->
+            val expected = referenceG3(case, b)
+            val actual = third.thirdOrderLossFunction(b)
+            if (closeEnough(expected, actual, tolerance)) null
+            else "G3($b): expected $expected, got $actual"
+        }
+        assertTrue(failures.isEmpty()) {
+            "${case.label} disagrees with the definition between whole numbers:\n  " +
+                failures.joinToString("\n  ")
+        }
+    }
+
+    /**
+     * `G3(0)` is the third binomial moment for a discrete support and `E[X^3]/6` for a continuous
+     * one. Checked separately from the sweep above because it is the starting point an
+     * accumulating implementation works from — if it is wrong, every argument is wrong by the
+     * same constant, which a relative comparison against a reference computed the same way could
+     * in principle miss.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Third order 4: G3(0) is the third moment the family says it is")
+    fun thirdOrderAtZeroIsTheThirdMoment(case: Case) {
+        val third = thirdOrder(case) ?: return
+        if (!case.isNonNegative) return
+        val expected = referenceG3(case, 0.0)
+        val actual = third.thirdOrderLossFunction(0.0)
+        assertTrue(closeEnough(expected, actual, if (case.isDiscrete) 1.0e-9 else 1.0e-5)) {
+            "${case.label}: G3(0) = $actual but the third moment gives $expected"
+        }
+    }
+
+    /**
+     * The identity the third order exists to provide: a sum of second order loss functions across
+     * a band of stock levels collapses to a difference of third order ones at its endpoints. An
+     * (r, Q) policy's backorder variance is computed this way, so this is the property a caller
+     * actually depends on rather than a restatement of the definition.
+     *
+     * Discrete only. On a continuous family the band is an interval and the relation is an
+     * integral, so summing over the integers in it is not the same quantity.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    @DisplayName("Third order 5: summing G2 across a band is a difference of G3 at its ends")
+    fun summingSecondOrderAcrossABandIsADifferenceOfThirdOrder(case: Case) {
+        val third = thirdOrder(case) ?: return
+        if (!case.isDiscrete) return
+        val failures = listOf(0 to 5, 3 to 12, 9 to 14, -2 to 6).mapNotNull { (b, c) ->
+            var sum = 0.0
+            for (j in (b + 1)..c) sum += case.distribution.secondOrderLossFunction(j.toDouble())
+            val difference = third.thirdOrderLossFunction(b.toDouble()) -
+                third.thirdOrderLossFunction(c.toDouble())
+            if (closeEnough(sum, difference, 1.0e-9)) null
+            else "band ($b, $c]: sum of G2 = $sum, G3($b) - G3($c) = $difference"
+        }
+        assertTrue(failures.isEmpty()) {
+            "${case.label}: the band identity fails:\n  " + failures.joinToString("\n  ")
         }
     }
 }

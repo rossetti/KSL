@@ -138,5 +138,47 @@ internal fun interpolatedThirdOrderLoss(
         (1.0 / 6.0) * t * (1.0 + t) * (2.0 + t) * tailAboveSecondPoint
 }
 
+/**
+ *  `G3(x)` at a whole number for an integer-supported distribution, accumulated from `G2`.
+ *
+ *  Each order is the tail sum of the one below it, so with the third binomial moment in hand the
+ *  rest is one pass over the integers between 0 and [x]:
+ *
+ *  <pre>
+ *    G3(b) = G3(0) - sum over 0 &lt; y &lt;= b of G2(y)     b &gt; 0
+ *    G3(b) = G3(0) + sum over b &lt; y &lt;= 0 of G2(y)     b &lt; 0
+ *  </pre>
+ *
+ *  This is the same accumulating loop the distributions already use for `G2`, one order up, and
+ *  costs no evaluations of the mass function beyond the ones `G2` makes. Distributions with a
+ *  closed form for `G3` should use it instead; this is for the ones whose closed form would be
+ *  more work to derive than the loop is to run.
+ *
+ *  @param d the distribution, whose support is the non-negative integers
+ *  @param x a whole-number argument
+ *  @param thirdOrderAtZero `G3(0)`, one sixth of the third binomial moment `E[X(X-1)(X-2)]`
+ */
+internal fun accumulatedThirdOrderLoss(
+    d: LossFunctionDistributionIfc,
+    x: Double,
+    thirdOrderAtZero: Double
+): Double {
+    var total = thirdOrderAtZero
+    if (x > 0.0) {
+        var y = 1
+        while (y <= x) {
+            total -= d.secondOrderLossFunction(y.toDouble())
+            y++
+        }
+    } else if (x < 0.0) {
+        var y = 0
+        while (y > x) {
+            total += d.secondOrderLossFunction(y.toDouble())
+            y--
+        }
+    }
+    return total
+}
+
 /** True when [x] is a whole number, so the distribution's own closed form applies directly. */
 internal fun isWholeNumber(x: Double): Boolean = x == floor(x)

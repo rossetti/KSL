@@ -36,6 +36,7 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     Distribution(name),
     ContinuousDistributionIfc,
     LossFunctionDistributionIfc,
+    ThirdOrderLossFunctionIfc,
     InverseCDFIfc,
     GetRVariableIfc,
     RVParametersTypeIfc by RVType.Gamma, MomentsIfc
@@ -321,6 +322,32 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         g2 = g2 + (shape - mu * x + 1.0) * x * pdf(x)
         g2 = 0.5 * g2 / (mu * mu)
         return g2
+    }
+
+    /**
+     * The third order loss function, (1/6)E[max(X-x,0)^3].
+     *
+     * Via partial expectations rather than a hand-expanded cubic. Since u*g(u) for a gamma of
+     * shape a is a*scale times the density of shape a+1, each factor of u raises the shape by
+     * one, so the kth partial expectation above x is a^(k) * scale^k * G0 under shape a+k,
+     * where a^(k) is the rising factorial.
+     *
+     * No separate branch below zero: the complementary distribution functions are all 1 there
+     * and the expression collapses to the third moment about x on its own.
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        val a1 = shape
+        val a2 = shape * (shape + 1.0)
+        val a3 = shape * (shape + 1.0) * (shape + 2.0)
+        val t3 = 1.0 - Gamma(shape + 3.0, scale).cdf(x)
+        val t2 = 1.0 - Gamma(shape + 2.0, scale).cdf(x)
+        val t1 = 1.0 - Gamma(shape + 1.0, scale).cdf(x)
+        val t0 = complementaryCDF(x)
+        val value = a3 * scale * scale * scale * t3 -
+            3.0 * x * a2 * scale * scale * t2 +
+            3.0 * x * x * a1 * scale * t1 -
+            x * x * x * t0
+        return value / 6.0
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): GammaRV {

@@ -76,7 +76,7 @@ fun List<ProbPoint>.cdf(): DoubleArray {
  */
 class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null) :
     Distribution(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical,
-    LossFunctionDistributionIfc {
+    LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc {
 
     @Suppress("unused")
     constructor(
@@ -360,6 +360,36 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
             }
         }
         return 0.5 * m
+    }
+
+    /**
+     * Third order loss function G3(x) = (1/6)E[max(X-x,0)*max(X-x-1,0)*max(X-x-2,0)].
+     *
+     * All three factors are clamped. An empirical support can place a point strictly between
+     * x and x+2, where a later factor turns negative while an earlier one has not, and a
+     * product of clamped non-negative quantities cannot be negative.
+     *
+     * **Requires a whole-number support**, for the reason given on [secondOrderLossFunction]:
+     * the accumulation that defines this order runs over the integers, and a support off them
+     * has none.
+     *
+     * @throws IllegalArgumentException if any support point is not a whole number
+     */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        require(hasWholeNumberSupport) {
+            "The third order loss function requires a whole-number support. This distribution " +
+                "has support ${myProbabilityPoints.map { it.value }}. See secondOrderLossFunction."
+        }
+        var m = 0.0
+        for (probPoint in myProbabilityPoints) {
+            val first = probPoint.value - x
+            val second = probPoint.value - x - 1.0
+            val third = probPoint.value - x - 2.0
+            if (first > 0.0 && second > 0.0 && third > 0.0) {
+                m += probPoint.prob * first * second * third
+            }
+        }
+        return m / 6.0
     }
 
     companion object {

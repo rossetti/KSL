@@ -32,7 +32,7 @@ import kotlin.math.pow
  * @param name an optional label/name
  */
 class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name),
-    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, MomentsIfc,
+    LossFunctionDistributionIfc, ThirdOrderLossFunctionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, MomentsIfc,
     RVParametersTypeIfc by RVType.Exponential {
 
     /** Constructs an exponential distribution where parameter[0] is the
@@ -162,6 +162,19 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
             return 0.5 * (2.0 * mean * mean - 2.0 * x * mean + x * x)
         }
         return mean * firstOrderLossFunction(x)
+    }
+
+    /** The third order loss function, (1/6)E[max(X-x,0)^3]. */
+    override fun thirdOrderLossFunction(x: Double): Double {
+        if (x <= 0.0) {
+            // Nothing truncates, so this is a third moment about x, with E[X]=mean,
+            // E[X^2]=2*mean^2 and E[X^3]=6*mean^3.
+            val m = mean
+            return (6.0 * m * m * m - 6.0 * x * m * m + 3.0 * x * x * m - x * x * x) / 6.0
+        }
+        // mean^3 * exp(-x/mean). Each order contributes one more factor of the mean against
+        // the same exponential, which is why this reads as the order below times the mean.
+        return mean * secondOrderLossFunction(x)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): ExponentialRV {
