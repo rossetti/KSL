@@ -320,8 +320,159 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.7
 
-*In preparation.* This section is being assembled; the entries below cover the supply-chain
-costing change and the transport work.
+*In preparation.* Three new subsystems, one corrected one, and a batch of fixes that were all
+silent — they returned a plausible wrong number rather than raising. Everything new here is
+released as **experimental**.
+
+### Added — vehicle transport (`ksl.modeling.guidedpath`, `fleet`, `agv`)
+
+Sixty-six files in three packages, and two independent questions rather than three subsystems:
+does space push back, and who decides.
+
+| package | what it is |
+|---|---|
+| `guidedpath` | Zone-based guide paths. A zone holds one vehicle and a vehicle claims the space ahead before moving into it, so an aisle holds one cart, a one-way loop cannot be run backwards, and a vehicle parked at the end of a spur is in the way. A circular wait raises at the instant the cycle forms; a vehicle stopped behind an *idle* one is reported separately, because unlike a cycle it can resolve itself. |
+| `fleet` | A dispatcher that decides which vehicle goes, and is allowed to consume simulated time deciding. That clause is the package: it is what makes batching, negotiation, re-tasking in flight, consolidating loads onto one vehicle and fixed routes expressible at all. It names no substrate, and `FreePathFleet` is its free-path binding. |
+| `agv` | The guide-path binding of the fleet. Three files, which is the claim. |
+
+**The substrate is a modelling question with a measurable answer, not a matter of fidelity.** On
+one haul — same distances, velocity, arrival stream and policies — the two families agree at one
+and two carts and then part company. At eight carts the free-path model reports a time in system
+of 31.0 where the guide path delivers 538.6, because the exit spur admits one cart at a time and
+no size of fleet can put two down it. The free-path number is not wrong. Nothing in a free-path
+model is *capable* of being wrong there: no statistic it reports could reveal the aisle it does
+not represent.
+
+**The two paradigms are two models of one world, and that is a result rather than an intention.**
+With a single vehicle the pool's rule and the fleet's are the same rule, and the models agree
+*exactly*, to the digit. An uncongested guided journey takes exactly as long as its free-path
+equivalent over matched distances, asserted to 1e-9.
+
+Start at [`ksl-transport`](guides/ksl-transport.md), which maps the four cells and says which to
+use. [`ksl-guidedpath`](guides/ksl-guidedpath.md) and [`ksl-fleet`](guides/ksl-fleet.md) are the
+references, [`ksl-transport-tutorial`](guides/ksl-transport-tutorial.md) is the walkthrough, and
+twelve runnable examples ship in `KSLExamples`.
+
+#### Breaking
+
+Nothing is removed and no existing model changes behaviour. Two consequences are worth knowing.
+
+- **`ProcessModel.Entity` implements `ZoneHolderIfc`**, so seven public members and one inner
+  request class land on the base class of every process-oriented model, whether or not it has
+  anything to do with transport. Everything else here can be undone by deleting a package; this
+  cannot. It is on `Entity` because an entity can be destroyed while holding an aisle, and space
+  that is never given back stays closed to traffic for the rest of the replication with nothing
+  holding it and nothing coming to release it — which raises nowhere and shows up only as a guide
+  path that quietly stopped moving. Entities now get the guarantees resources already had: ending
+  a process while holding zones raises, naming what is held and where, and a terminated process
+  gives its zones back and steps off its crossings on the way out. `ksl.modeling.guidedpath` is
+  experimental; `ProcessModel.Entity` is not.
+- **`MovableResource` gained `@JvmOverloads`** and now implements `VehicleMovementIfc`. Kotlin
+  callers see no difference; the generated Java surface gains overloads. `AgentResource`'s shift
+  handling moved behind a new `ShiftControl`, with `goOnShift` and `goOffShift` keeping their
+  signatures and delegating to it.
+
+#### Notes
+
+- Acceleration, deceleration and turn penalties are **not** modelled. Traversal time is exactly
+  `zoneLength / (velocity * velocityFactor)`; model a turn as a `velocityFactor`, or as an
+  intersection whose length represents the time to negotiate it.
+- Per-link, per-intersection and per-zone congestion statistics are **off by default**, since a
+  thousand-zone network would otherwise register a thousand responses in every report and every
+  output database. System-level aggregates are always registered.
+- `KSLCore/build.gradle.kts` gains a `fastTest` task excluding the `slow` tag. The full `test`
+  task includes the four validation classes that reproduce published shops against reference
+  results.
+- The guide path checks its own space invariants continuously under
+  `-Dksl.guidedpath.checkInvariants=true` (`GuidedPathSpace.CHECK_INVARIANTS_PROPERTY`), which this
+  build now sets for every test module. It costs nothing where no guide path is built, and measured
+  at no difference over the 311 tests that build one.
+
+### Added — mixture distribution fitting (`ksl.utilities.distributions.fitting.mixture`)
+
+`PDFModeler` fits a catalog of named distributions to your data and ranks them, which is the right
+tool when one shape will do. When it will not, the ranking is still produced: a score compares the
+candidates you offered and says nothing about whether any of them belongs, so the recommendation
+is the best of a bad set with nothing in the output marking it as such. Data generated by more
+than one mechanism is the usual reason — service times at a desk serving three kinds of visitor,
+repair times for two failure modes.
+
+`MixtureModeler` fits a mixture to univariate data by partitioning the sorted sample into
+contiguous groups, fitting a component to each group, assembling the best combination and scoring
+it. Five seams, each an interface carrying a default: partition generator (Jenks natural breaks,
+with quantile and histogram-valley also provided), refiner, component fitter (delegating to
+`PDFModeler`), family selector, and criterion (BIC). The `diagnostics` subpackage adds modality
+analysis, which is the question to ask before reaching for a mixture at all.
+
+**A mixture always fits better than a single distribution, because it has more parameters, and
+that is not evidence for it.** Without a nameable mechanism the components will fit and will
+correspond to nothing, and the number of them will not be recoverable either. `RecoveryMeasures`
+lets a fit be judged against a truth that is known, which is how that warning is kept measurable
+rather than merely stated.
+
+[`ksl-mixture`](guides/ksl-mixture.md) is the reference,
+[`ksl-mixture-tutorial`](guides/ksl-mixture-tutorial.md) the walkthrough, and eight examples ship
+in `KSLExamples`, meant to be read in order.
+
+### Added — sequential decision making (`ksl.modeling.decision`)
+
+Declare, on a model you already have, what a decision rule may *see*, what it may *change*, what
+it is *scored on*, and *when* it decides. KSL runs the loop: at each epoch it reads the
+observations, hands them to the rule, validates and applies the action, prices the interval that
+just ended, and records the transition if you asked. Reorder points, staffing levels, dispatch
+priorities, capacities, prices — anything whose natural description is "every so often, something
+looks at the state and changes a setting".
+
+**It does not choose the rule, and that is a boundary rather than an omission.** There is no
+solver here: no value iteration, no Q-learning, no policy gradient. This package is the seam that
+makes a decision point explicit, inspectable, swappable and recordable, so that a rule you write
+or a learner you train elsewhere has somewhere to plug in. Searching over a parameterized rule's
+parameters to minimize a simulated cost is simulation optimization, and `ksl.simopt` already does
+that.
+
+A decision element is an ordinary `ModelElement` and defines no new statistic type: its objective
+is published as a `Response`. `ksl.modeling.decision.capture` writes transitions durably, so a
+model can be recorded in one run and learned from off-line in another, with a test asserting that
+recording a run does not change it. `ksl.modeling.decision.descriptor` is plain serializable data
+with JSON and TOML codecs, describing a decision surface with no reference to a model, so it can
+travel without one.
+
+[`ksl-decision`](guides/ksl-decision.md), [`ksl-decision-tutorial`](guides/ksl-decision-tutorial.md),
+and worked models in `ksl.examples.decision`.
+
+### Added — third order loss functions (`ksl.utilities.distributions`)
+
+An (r, Q) policy's backorder variance collapses a sum of second order loss functions across the
+reorder band into a difference of third order ones. The library computed to the second order, so
+`ThirdOrderLossFunctionIfc` brings the third in: ten implementations, each by the route its family
+makes cheapest, and an exact interpolation for integer-supported distributions at fractional
+arguments. The fractional case is the one that matters, since a reorder point compared against a
+continuous approximation is not a whole number.
+
+**Poisson already had a public `thirdOrderLossFunction`, on no interface and with no test, and it
+returned exactly twice the right answer at every argument.** It divided by 3 where the third order
+needs 6 — 72 against 36 at x = 0 for a mean of 6, where the value is μ³/6 by inspection — and it
+had no whole-number guard, so a fractional argument silently took the value at the floor. Both are
+fixed, and four of the five new invariants fail against the shipped version.
+
+**`SecondOrderLossFunctionIfc`'s contract was wrong, although no returned value changes.** Each
+order is the tail accumulation of the order below it in the measure belonging to the support: a
+sum over the integers on a discrete one, an integral on a continuous one. That gives two closed
+forms and the library has always implemented both correctly, but the interface documented only the
+discrete one, so four implementations silently contradicted the interface they declared. The KDoc
+now gives the defining relation first and both forms after, says they are not interchangeable, and
+says what confusing them costs: the continuous form on a Poisson overstates G² by half the mean,
+which is a few percent in an inventory cost and the wrong sign in an optimization. The relation is
+now an invariant as well as a comment.
+
+`ThirdOrderLossFunctionIfc` is deliberately **separate** from `LossFunctionDistributionIfc`.
+Adding it there would compile-break every implementor, and a numerical default would put an
+approximation behind the same signature as the exact implementations beside it — which, in a
+package whose defects have all been silent wrong numbers, is the wrong trade.
+
+`DEmpiricalCDF` now **refuses** a second order loss function when its support is placed off the
+integers, rather than returning a number that belongs to neither reading. Its first order function
+is untouched, since E[max(X−x,0)] is the same expression on every support.
 
 ### Changed — supply-chain costing (`ksl.modeling.supplychain.cost`)
 
@@ -384,237 +535,75 @@ status exists to permit.
   it, so a line cannot be added without saying which denomination it is — which is what kept the
   old classification correct only by hand.
 
-### Added — guided path transporters (`ksl.modeling.guidedpath`)
+### Changed — simulation optimization
 
-Marked **experimental**. Nothing existing changes behaviour; the only edits outside the new
-package are additive.
+- **ISC now stops when it is told to.** It was the only top-level solver whose stopping test never
+  consulted its `solutionQualityEvaluator`, so the replication budget a benchmark installs on every
+  cell solver was silently ignored. Measured on a bimodal problem at budgets of 500, 2,000 and
+  10,000, it consumed 5,100 replications every time — 10.2× over, 2.55× over, and 0.51× under —
+  while a hill climber given the same criterion stopped at the budget each time. Its own caps do
+  not close the gap: `globalBudget` defaults to null, the COMPASS cap applies per seed rather than
+  in total, and the clean-up cap applies per survivor.
+- **A benchmark checkpoints per problem and resumes where it stopped.** A study previously built
+  every problem's result in memory and wrote once at the end, so it held its entire output in heap
+  and an interruption at hour 30 of a 32-hour run lost all of it.
+- **Benchmark cells now record what confirmation could not decide.** Confirmation ranks
+  feasibility-first, and when no candidate can be declared confidently feasible, every one falls
+  through to the violation tie-break and the objective plays no part in choosing the winner.
+  Nothing in the output said so, which is how a winner verifying at P(stockout) = 0.122 against a
+  0.05 limit was reported with the same confidence as any other result. Cells also record a row
+  per constraint — the estimate it was judged on, its own violation, its one-sided upper confidence
+  limit, and whether it alone can be declared feasible — and the aggregate column is unchanged.
+- **Captured traces keep the solver state they were discarding.** Every solver publishes
+  algorithm-specific state each iteration — a swarm's diameter, a population's diversity, a
+  reference distribution's coefficient of variation — and the benchmark read three fields off each
+  snapshot and dropped the rest. Those are the direct measurement of premature convergence, which
+  previously had to be inferred from identical results across a ninefold budget increase while the
+  number itself was being computed and thrown away.
+- **`StreamTapePolicy` takes replication counts directly**, so a harness outside `ksl.simopt` can
+  position replications absolutely on a tape without manufacturing a `ModelInputs` it has no other
+  use for. The `ModelInputs` version delegates, so there is one implementation rather than two that
+  happen to agree.
+- The cross-entropy solver may report its elite spread.
 
-**Guided path transporters.** Vehicles that travel a fixed network of aisles and must claim the
-space ahead of them before moving into it. `MovableResource` over a `DistancesModel` already
-carries an entity from A to B in `distance / velocity` time, and for a fork-lift in an open
-warehouse that is right — two people can share a corridor. Automated guided vehicles cannot. An
-aisle holds one vehicle at a time, a one-way loop cannot be run backwards, and a vehicle parked at
-the end of a spur is in the way of anything that needs to pass it.
+### Fixed
 
-The difference is not a rounding error. On the same haul — same distances, same velocity, same
-arrival stream, same policies — the two families agree at one and two vehicles and then part
-company:
+Every one of these was silent. None raised; all returned a plausible wrong number.
 
-| carts | free-path completions | guided completions | free-path time in system | guided |
-|---|---|---|---|---|
-| 2 | 128 | 128 | 752.4 | 754.6 |
-| 8 | 492 | 236 | 31.0 | 538.6 |
-
-The guide path stops improving at four carts because the exit spur admits one at a time and no
-size of fleet can put two down it. The distance model has no such notion and goes on rewarding
-every cart added. A study sizing this fleet from the free-path answer would buy eight carts,
-expect thirty-one minutes, and get five hundred and thirty-eight. The point is not that the
-free-path number is wrong; it is that nothing in a free-path model is *capable* of being wrong
-here — there is no statistic it could report that would reveal the aisle it does not represent.
-
-#### Added
-
-- **`ksl.modeling.guidedpath`.** `GuidedPathNetwork` (an immutable geometry that is also a
-  `SpatialModel`), `GuidedPathTransportSystem`, `GuidedTransporter` (a capacity-one `Resource`),
-  and `GuidedTransporterPoolWithQ`. Zones are the atom of contended space: a zone holds at most one
-  transporter, and each transporter propels itself rather than being advanced by a fleet-wide
-  engine, so a blocked vehicle schedules nothing at all and costs the executive nothing while it
-  waits.
-- **Four process verbs on `KSLProcessBuilder`**, in the shape of the conveyor family:
-  `requestGuidedTransporter` / `transportBy` / `releaseGuidedTransporter`, plus the composed
-  `guidedTransport`. An uncongested guided journey takes *exactly* as long as its free-path
-  equivalent over matched distances — asserted to 1e-9 — so any difference a study measures is
-  congestion and not an artifact of the two families meaning different things by the same words.
-- **Five replaceable policies**, all implementable from outside the package: route selection, zone
-  contention, zone control (how closely vehicles may follow), transporter allocation, and idle
-  disposition.
-- **Deadlock detection and obstruction diagnosis.** A circular wait raises
-  `GuidedPathDeadlockException` carrying a report naming every participant, at the instant the
-  cycle forms. Separately — and this is the case the reference tools cannot detect at all — a
-  vehicle stopped behind an *idle* one that will never move is reported as an
-  `IdleTransporterObstruction`: warned and counted rather than raised, because unlike a cycle it
-  can resolve itself. `strictObstructionPolicy` promotes it for a study that wants certainty.
-  Nobody sets out to build a cycle, but everybody leaves a vehicle parked where it finished its
-  last job, and the symptom is a replication that completes, reports no error, and quietly
-  contains a fleet that stopped working halfway through.
-- **Opt-in congestion statistics.** Per-link, per-intersection and per-zone occupancy, off by
-  default: a thousand-zone network would otherwise register a thousand responses in every report
-  and every output database. System-level aggregates are always registered, since they are O(1) in
-  network size and answer the first question anyone asks.
-- **Animation.** `GuidedPathDefined`, `GuidedTransporterMoved` and `GuidedTransporterStateChanged`
-  events, guarded so they cost nothing without an active sink. The guide path carries its own
-  coordinates, so unlike a conveyor it needs no authored layout.
-- **`ProcessModel.ZONE_CLAIM_PRIORITY`**, so a woken vehicle's claim resolves before other
-  vehicles' traversals complete at the same instant.
-- **Guide and examples.** [`docs/guides/ksl-guidedpath.md`](guides/ksl-guidedpath.md);
-  `SimpleAGVExample` and `GuidedPathThroughputBenchmark` in `KSLExamples`; and the chapter-eight
-  test-and-repair shop re-modelled with its transport on an aisle.
-
-#### Notes
-
-- Acceleration, deceleration and turn penalties are **not** modelled in this version. Traversal
-  time is exactly `zoneLength / (velocity * velocityFactor)`. Link direction in degrees and
-  intersection coordinates are carried for layout and animation and are never read by the engine.
-  Model a turn cost as a `velocityFactor`, or as an intersection whose length represents the time
-  to negotiate it.
-- On the reference benchmark (4x5 torus, 420 zones, 20 vehicles, saturated) the workload is
-  4,379,615 zone traversals at 1.007 events per traversal. Those two figures are deterministic and
-  reproduce exactly; throughput in traversals per wall-clock minute is a property of the machine
-  and has measured between roughly 57 and 219 million on containers all reporting OpenJDK 21,
-  Linux amd64 and 4 processors, so take your own rather than comparing against a recorded one.
-  One zone traversal is one scheduled event, so halving zone size doubles the event count for the
-  same motion: choose zone size from the granularity at which the real control system reserves
-  space, not from how smooth the animation looks.
-
-### Added — dispatched fleets (`ksl.modeling.fleet`)
-
-Marked **experimental**. A second new package, and the other half of the transport work. Outside
-it: five new files in existing packages, additive members on `KSLProcessBuilder`, and one refactor
-of existing code — `AgentResource`'s shift handling moved behind a new `ShiftControl`, with
-`goOnShift` and `goOffShift` keeping their signatures and delegating to it.
-
-**Who decides, and when, becomes part of the model.** A `MovableResource` and a
-`GuidedTransporterPoolWithQ` are both passive: the entity holds the protocol, asks a pool for a
-vehicle, waits, rides, and hands it back. The choice of *which* vehicle is therefore made inside
-the asking entity's own process, at the instant it happens to ask, over whatever is free at that
-instant. There is nowhere else it could be made, because no other object is running. This package
-supplies the other object. A `Dispatcher` can see the whole fleet and the whole board, and — the
-clause that is the package — it is allowed to consume simulated time deciding.
-
-**That clause is what makes five things expressible.** Not easier to express; expressible at all,
-because a rule evaluated at the instant of asking has no window, no counterparty and no second
-load to work with. Batching: wait ten minutes, then allocate over everything that accumulated.
-Negotiation: broadcast a call, let each vehicle answer from what *it* knows about itself, and
-charge the model for the deadline. Re-tasking in flight: take a task back from a vehicle
-three-quarters of the way to a far pickup when a nearer one appears. Consolidation: decide which
-loads ride together, and in what order one vehicle collects and sets them down. Fixed routes: run
-a service that calls at stops on a cycle and carries whoever is waiting, rather than one that is
-summoned.
-
-**The fleet names no substrate.** `FleetSystem` is the dispatcher, the tasks, the tours, the
-stops, the lines, the policies and every statistic, and it knows nothing about how a vehicle
-moves. `FreePathFleet` binds it to a spatial model where nothing blocks, and `AgvSystem` — the
-next entry — binds it to a guide path. So the four ways to move a load are two independent
-questions rather than four separate subsystems: does space push back, and who decides.
-[`docs/guides/ksl-transport.md`](guides/ksl-transport.md) is the one-page map.
-
-**Two results say these are two models of one world rather than two worlds.** With a single
-vehicle the pool's "closest idle transporter" and the fleet's "nearest vehicle" are the same rule,
-since there is only ever one candidate, so the paradigms should agree — and they agree *exactly*,
-to the digit, not merely within a confidence interval (`TwoParadigmsExample`). Second, three carts
-over fifteen replications on common random numbers, every rule against nearest-vehicle
-(`DispatchingRuleComparison`):
-
-| rule, nearest-vehicle minus it | delivered | time in system | imbalance |
-|---|---|---|---|
-| `FurthestVehicle` | 0.000 ± 0.554 | -15.053 ± 0.592 | 23.333 ± 3.653 |
-| `LeastUsed` | -0.333 ± 0.401 | -9.056 ± 0.591 | 68.933 ± 4.554 |
-| `BatchedWindow30` | 39.800 ± 7.302 | -829.449 ± 113.097 | 68.800 ± 4.568 |
-| `ContractNetInstant` | 0.000 ± 0.000 | -0.016 ± 0.200 | -0.467 ± 1.712 |
-| `ContractNetDeadline5` | -0.000 ± 0.419 | -9.954 ± 0.580 | 19.000 ± 4.170 |
-
-Only batching is detectable in throughput; every other difference in the table is outside its
-interval except the whole `ContractNetInstant` row. An instant auction over distance bids quotes
-exactly what the nearest-vehicle rule would have computed, so the negotiation machinery is shown
-not to *change the answer* rather than shown not to act, which is the stronger check. The deadline
-row is then what negotiating costs once the model is charged for it, and the batching row is what
-a window costs on a saturated fleet. Read the imbalance column too: nearest-vehicle is the least
-even rule in the study — less even than the rule included in order to be poor — which follows from
-what it optimises, since it never asks who has been working, and is not something a throughput
-table would ever reveal.
-
-#### Added
-
-- **`ksl.modeling.fleet`.** `FleetSystem` (an `AgentModel`, since the vehicles and the dispatcher
-  are agents with processes and mailboxes), `FleetVehicle`, `FleetVehicleCIfc`, `Dispatcher` and
-  its `TaskQ`, plus the `FreePathFleet` / `FreePathVehicle` binding. A vehicle *composes* a body
-  through `VehicleBodyIfc` rather than inheriting one, which is what keeps the substrate
-  replaceable and keeps a self-directing vehicle from being `seize`-able as though it were a tool.
-- **Process verbs on `KSLProcessBuilder`**: `transportByFleet`, the split
-  `requestFleetTransport` / `awaitFleetTransport` for asking without waiting, `driveTo` for an
-  errand with no load, `rideFrom` and the split `requestRide` / `awaitRide` for boarding a service
-  at a stop, and `tow` and `charge` for what happens to a vehicle that has stopped.
-- **Tours, stops and lines.** A `Tour` is the itinerary that discharges what a vehicle is
-  committed to; `TourStopActionIfc` is open and **suspending**, so arriving somewhere can be a
-  dwell, a boarding or a wait. `Stop` is a permanent place where loads wait to board, `Line` a
-  declared service run cycle after cycle, and `StopControlIfc` decides stop by stop whether to
-  serve the next place — `Serve(departNotBefore)`, `Skip`, `ServeAndEndTour`, which is holding,
-  running express and turning a service short.
-- **Seven replaceable seams**, with twenty-nine implementations shipped:
-  `AssignmentPolicyIfc` and `TourPolicyIfc` on the dispatcher, `TaskSelectionRuleIfc` on its
-  queue, and `BidPolicyIfc`, `DispositionPolicyIfc`, `InterruptionPolicyIfc` and `StopControlIfc`
-  per vehicle. All are implementable from outside the package.
-- **Vehicles that stop.** `Battery` (capacity, two drain rates, a charging rate), `FailureModel`
-  (against one of four bases), and `Interruption` — `Failed` or `OutOfCharge`, carrying where the
-  vehicle is, what it holds, and who is stuck behind it. An `InterruptionPolicyIfc` runs as a
-  process and may wait for a technician, travel, assess and tow. It has no return value: when it
-  returns, the framework asks the movement gate's own question — is this vehicle fit to carry on?
-  — so a policy cannot claim to have fixed something it did not.
-- **A closing audit.** `numTasksNeverAssigned`, `numEntitiesNeverResumed`,
-  `numVehiclesFailedAtHorizon`, `numVehiclesStranded` and `numAssignmentsStillOpen` report what
-  the horizon left undone, and `FleetInvariantViolation` is raised when the subsystem's own
-  account of itself does not add up.
-- **Guide and examples.** [`docs/guides/ksl-fleet.md`](guides/ksl-fleet.md) and
-  [`docs/guides/ksl-transport.md`](guides/ksl-transport.md), plus a tutorial held to its sources
-  by `TransportTutorialCodeTest`, which fails if a quoted line drifts from the file it claims to
-  quote. Examples: `TwoParadigmsExample`, `DispatchingRuleComparison`, `RetaskingInFlightExample`,
-  `MultiFloorHospitalExample`, `TwoLaneWarehouseExample`, `FreePathFleetExample` and
-  `AgvThroughputBenchmark`.
-
-#### Notes
-
-- **There are two waiting lines and they must not be summed.** The dispatcher's `TaskQ` is where
-  a load waits to be assigned; a `Stop` holds those waiting to board a service. They count
-  different things.
-- **`TransportTime` has no active counterpart, by design.** The passive row runs from the
-  entity's request to it being set down, wait for a cart included. The active subsystem splits
-  that wait deliberately, so what corresponds to it is `WaitForAssignment` plus the wait for
-  arrival plus `TimeAboard`, or `result.totalTime` per load. The aboard-to-set-down row is called
-  `TimeAboard` rather than `TransportTime` so that a study lining rows up by name never compares
-  two different intervals.
-- `FleetSystem` is an `AgentModel`, so this package rests on `ksl.modeling.agent`, which is
-  itself experimental.
-- `MovableResource` now implements `VehicleMovementIfc` and its constructor carries
-  `@JvmOverloads`. Kotlin callers see no difference; the generated Java surface gains overloads.
-- Acceleration, deceleration and turn penalties are not modelled here either. Whatever the
-  physical layer does not represent, the fleet layer does not add.
-
-### Added — the guide-path fleet binding (`ksl.modeling.agv`)
-
-Marked **experimental**. Three files, and the size is the claim: running the fleet on a guide path
-costs an adapter, not a second implementation of anything.
-
-`AgvSystem` composes a `GuidedPathSpace` and hands the fleet the network as its layout — one
-object rather than two that could disagree about where things are, since a network's intersections
-and station aliases are already named places. It composes the space alone rather than a
-`GuidedPathTransportSystem`, because the difference between the two is the passive protocol's own
-transport time, which an active run can never fill and should not have to report. `AgvVehicle`
-composes a `GuidedTransporter` as its body, and `GuidedPathBody` is the adapter between what the
-fleet asks of a body and what the space provides.
-
-#### Added
-
-- **`AgvSystem` and `AgvVehicle`**, and the rows only a guide path can fill: `numZoneTraversals`,
-  `numDeadlocksDetected`, `numObstructionsDetected`, `numVehiclesMoving`, `numVehiclesBlocked`,
-  `zoneUtilization`, and the five per-carry figures `approachTime`, `rideTime`,
-  `transportBlockedTime`, `zonesTraversedPerTransport` and `routeLengthPerTransport`.
-- **The space's six diagnostic flags re-exposed as controls** under the system's own name —
-  `checkInvariants`, `auditAtReplicationEnd`, `deadlockDetectionEnabled`,
-  `strictObstructionPolicy`, `collectLinkStatistics`, `collectZoneStatistics` — so an experiment
-  reaches them as `Agv.checkInvariants` rather than only through the inner element.
-
-#### Notes
-
-- **Passive and active rows differ by one name segment, mechanically.** A passive system *is* a
-  guide path space, so its space rows sit at its own level; an active system *has* one, so they
-  sit under it: `Sys:NumZoneTraversals` becomes `Agv:Space:NumZoneTraversals`. The same idea a
-  level down gives `Cart1:FracTimeBlocked` as `Cart1:Body:FracTimeBlocked`, because a vehicle's
-  body is a separate model element and names are unique. Both mappings are asserted over the whole
-  set rather than a hand-kept list, by `StatisticNamingTest` and `StatisticParityTest`.
-- `Agv:Space:NumTransportersIdle` and `Agv:NumVehiclesIdle` answer different questions: the first
-  counts vehicles standing still, the second vehicles carrying no task. A vehicle repositioning to
-  its home base satisfies the second and not the first. Each row uses the word of the layer that
-  owns it, since renaming either would make the shared layer speak one consumer's dialect.
+- **`Exponential`'s loss functions were written for a rate parameterization while the class stores
+  a mean.** The mean sat in the exponent where the rate belongs and the coefficient was inverted,
+  so they agree only at a mean of 1.0 — which is the default, meaning every default-constructed
+  instance was right and no other was. At a mean of 2.5, G¹(0) returned 0.4 against a correct 2.5
+  and G¹(5) returned 0.000001 against 0.338338. These reach `RQInventoryModel`'s fill rate,
+  stockout probability, expected backorders and expected on-hand inventory.
+- **`DEmpiricalCDF` destructured `ProbPoint` positionally** in its loss functions, binding the
+  value to a variable named `p` and the probability to one named `v`, so the guard compared a
+  probability against a stock level. Its second order function now clamps both factors, as the
+  definition says. Separately, `DEmpiricalCDF.cdf` advanced its iterator twice per pass and so
+  examined every other bracket: an argument in a skipped bracket returned the wrong step, and an
+  odd-length support ran the iterator off the end and threw.
+- **`Queue.remove(predicate)` traversed a range fixed before any removal** while each removal
+  shifted the later elements down, so it skipped the element after every match and then indexed
+  past the shrunken list — throwing after the queue had already been partly modified, so the caller
+  lost the return value as well. It was correct only when nothing matched, or when exactly the last
+  element did. Both `removeAll` overloads separately reported whether the *last* removal succeeded
+  rather than whether any did.
+- **A model element could not be found by the name it was given.** A `.` in a name is replaced by
+  `_`, because the controls framework keys a control as `elementName.propertyName` and splits on
+  that character. The replacement happened when the name was stored and not when a lookup was made,
+  so asking by what you wrote returned null — the same answer as for a name that never existed. The
+  failure surfaced far from its cause, usually as a NaN in a results table, and the trigger is
+  ordinary: a parameter sweep over `Double` values produces exactly such names. Lookups now apply
+  the same rule, which has one definition in the new public `ModelElement.canonicalName`.
+- **One unusable candidate ended the whole scoring run.** `scoringResults` guarded
+  `createDistribution` against an unknown random variable type, for which null comes back, but not
+  against a known type carrying invalid parameter values, where the distribution's own `require`
+  throws. That state is reachable rather than hypothetical: constant or near-constant data produces
+  a normal with zero variance from an estimation that reported no error at all.
+- **`toEmbeddedHTML` returned a complete HTML document** — html, head, body and its own library
+  script — while its documentation promised a fragment, so a report with twelve plots emitted
+  twelve documents inside its own. It now returns a div and a script, and `toSelfContainedHTML`
+  keeps the old behaviour for anyone relying on it.
 
 ## R1.6.2
 
