@@ -172,7 +172,7 @@ sealed class Interruption(
  * Declared as a member extension on the process builder for the same reason `assign` is:
  * `KSLProcessBuilder` is `@RestrictsSuspension`, so a plain `suspend fun` on this interface would
  * not compile at the call site. Being an extension also means an implementation receives the real
- * process builder and may `seize`, `delay`, `hold` and [tow] -- rather than being confined to
+ * process builder and may `seize`, `delay`, `hold` and `tow` -- rather than being confined to
  * whatever a context object thought to offer.
  *
  * The policy runs inside **the vehicle's own agent**, so while it is running the vehicle is doing

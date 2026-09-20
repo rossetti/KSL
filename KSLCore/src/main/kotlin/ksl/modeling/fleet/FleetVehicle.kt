@@ -779,7 +779,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
     // ---- towing ----------------------------------------------------------------------------------
 
     /**
-     * Starts a tow. See [tow], which is the verb a policy calls.
+     * Starts a tow. See `tow`, which is the verb a policy calls.
      *
      * The journey itself is the substrate's, because being pushed somewhere by somebody else is
      * still a journey through whatever the vehicle moves through. A substrate that cannot express

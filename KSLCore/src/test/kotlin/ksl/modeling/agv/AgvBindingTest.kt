@@ -142,13 +142,12 @@ class AgvBindingTest {
      *  agents, so the same row is a count of moving carts wearing the name of a queue -- the most
      *  misleading row the subsystem could produce, and the one a reader is least likely to question.
      *
-     *  Note where the guarantee actually comes from. `Queue` reports by default, and it is
-     *  `GuidedPathSpace`'s own initializer that silences these three; `AgvSystem`'s initializer
-     *  repeats the call, and removing that repeat changes nothing observable. This test was written
-     *  believing the facade was the thing being tested and it is not, so it says so rather than
-     *  leaving the next reader to find out the same way. What it does pin is the property itself,
-     *  wherever it is established, and the facade's own `substrateReporting`, which is not a repeat
-     *  of anything.
+     *  Note where the guarantee comes from. `Queue` reports by default, and it is
+     *  `GuidedPathSpace`'s own initializer that silences these three. `AgvSystem` used to repeat
+     *  the call; this test was written believing the repeat was what established the property, and
+     *  a mutation showed it was not -- removing it changed nothing. The repeat has since been
+     *  deleted, so what is pinned here is the property itself, wherever it is established, and the
+     *  facade's own `substrateReporting`, which is the code that can actually break.
      */
     @Test
     @DisplayName("the movement hold queues do not report, and can be switched back on")

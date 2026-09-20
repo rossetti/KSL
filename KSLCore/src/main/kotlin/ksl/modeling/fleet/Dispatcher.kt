@@ -3,6 +3,7 @@ package ksl.modeling.fleet
 import ksl.controls.KSLStringControl
 import ksl.modeling.fleet.policies.createAssignmentPolicy
 import ksl.modeling.fleet.policies.nameOfAssignmentPolicy
+import ksl.modeling.fleet.exceptions.FleetAssignmentException
 import ksl.modeling.fleet.exceptions.FleetDispatchException
 import ksl.modeling.fleet.exceptions.FleetProtocolException
 import ksl.modeling.fleet.policies.TourPolicyIfc

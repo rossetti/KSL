@@ -116,7 +116,7 @@ abstract class FleetSystem @JvmOverloads constructor(
      * Asks to be told whenever a vehicle in this fleet stops and cannot carry on by itself.
      *
      * Any number of listeners; see [VehicleInterruptionListenerIfc] for why observation is plural
-     * where the policy that decides is singular. [ReconsiderOnInterruption] is the one most models
+     * where the policy that decides is singular. `ReconsiderOnInterruption` is the one most models
      * want.
      */
     fun attachInterruptionListener(listener: VehicleInterruptionListenerIfc) {
@@ -147,7 +147,7 @@ abstract class FleetSystem @JvmOverloads constructor(
      * Per delivered load: how much of its journey the carrying vehicle spent out of service.
      *
      * Present only when at least one vehicle in the fleet has a failure model. It is a part of
-     * [approachTime] and [timeAboard] rather than something outside them, and it is what separates
+     * `approachTime` and [timeAboard] rather than something outside them, and it is what separates
      * a fleet that is slow from one that is unreliable.
      */
     val failedTimePerTransport: ResponseCIfc?

@@ -169,19 +169,24 @@ open class AgvSystem @JvmOverloads constructor(
             spaceSystem.collectZoneStatistics = value
         }
 
-    init {
-        // The space layer's three movement hold queues, which the passive subsystem reports by
-        // default and an active model must not: under the passive paradigm that queue holds loads
-        // being carried, here it holds *vehicle agents*, so its number in queue is the number of
-        // vehicles under way. Left on, it would put a row on the report that looks like a line of
-        // loads waiting and is in fact a count of moving carts -- the most misleading row this
-        // subsystem could produce, and the one a reader is least likely to question.
-        //
-        // Switched here rather than from the base class's initializer, which runs before this
-        // subclass exists and would find no space layer to switch.
-        spaceSystem.statisticalReportingForHoldQueues(false)
-    }
-
+    /**
+     * Whether the space layer's three movement hold queues appear on the summary report.
+     *
+     * Off before this is ever called: [GuidedPathSpace] silences them in its own initializer, and
+     * this subsystem relies on that rather than repeating it. (It did repeat it, with a comment
+     * arguing the repeat was necessary. Removing the line changed nothing, which is how the
+     * repetition was found.)
+     *
+     * Worth switching on only for a model that has stopped moving and needs to be looked at,
+     * because under this paradigm the row means something other than it appears to. The passive
+     * subsystem's queue holds loads being carried, so its number in queue is a line of work
+     * waiting. Here it holds *vehicle agents*, so the same row is a count of carts under way
+     * wearing the name of a queue -- the most misleading row this subsystem could produce, and the
+     * one a reader is least likely to question.
+     *
+     * Note that this cannot be driven from the base class's initializer: it reaches the space
+     * layer, and that does not exist until this subclass's own properties are built.
+     */
     override fun substrateReporting(option: Boolean) {
         spaceSystem.statisticalReportingForHoldQueues(option)
     }
