@@ -321,10 +321,21 @@ README's build section) and are not part of the KSLCore artifact.
 ## R1.7
 
 *In preparation.* Three new subsystems, one corrected one, and a batch of fixes that were all
-silent — they returned a plausible wrong number rather than raising. Everything new here is
-released as **experimental**.
+silent — they returned a plausible wrong number rather than raising.
+
+**All three new subsystems are released as experimental**: the transport packages
+(`ksl.modeling.guidedpath`, `ksl.modeling.fleet`, `ksl.modeling.agv`), the mixture fitting packages
+(`ksl.utilities.distributions.fitting.mixture` with its subpackages, and
+`ksl.utilities.distributions.fitting.diagnostics`), and the decision packages
+(`ksl.modeling.decision` with its `capture` and `descriptor` subpackages). Their public API may
+change in a future release without notice, so pin your KSL version if you build models against
+them. Nothing else here carries that status: the third order loss functions land on ordinary
+published surface in `ksl.utilities.distributions`, and `ksl.modeling.supplychain` was already
+experimental before this release.
 
 ### Added — vehicle transport (`ksl.modeling.guidedpath`, `fleet`, `agv`)
+
+**Experimental.**
 
 Sixty-six files in three packages, and two independent questions rather than three subsystems:
 does space push back, and who decides.
@@ -390,6 +401,8 @@ Nothing is removed and no existing model changes behaviour. Two consequences are
 
 ### Added — mixture distribution fitting (`ksl.utilities.distributions.fitting.mixture`)
 
+**Experimental.**
+
 `PDFModeler` fits a catalog of named distributions to your data and ranks them, which is the right
 tool when one shape will do. When it will not, the ranking is still produced: a score compares the
 candidates you offered and says nothing about whether any of them belongs, so the recommendation
@@ -415,6 +428,8 @@ rather than merely stated.
 in `KSLExamples`, meant to be read in order.
 
 ### Added — sequential decision making (`ksl.modeling.decision`)
+
+**Experimental.**
 
 Declare, on a model you already have, what a decision rule may *see*, what it may *change*, what
 it is *scored on*, and *when* it decides. KSL runs the loop: at each epoch it reads the
