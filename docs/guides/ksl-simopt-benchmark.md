@@ -96,8 +96,8 @@ sequentially.
 
 | Package / module | Contents |
 |---|---|
-| `ksl.simopt.benchmark` (KSLCore) | The engine: `BenchmarkExperiment`, `ProblemCase`, `SolverCase`, `BenchmarkSolverFactoryIfc`, `FunctionMemberEvaluatorFactory`, result records (`BenchmarkSummary` etc.), `ReferenceSolution`/`GapType` |
-| `ksl.simopt.benchmark.io` (KSLCore) | `BenchmarkResultsDb` (SQLite) + one table-data class per table + analysis feeds (`mcbDataMap`, `performanceProfile`) |
+| `ksl.simopt.benchmark` (KSLCore) | The engine: `BenchmarkExperiment`, `ProblemCase`, `SolverCase`, `BenchmarkSolverFactoryIfc`, `FunctionMemberEvaluatorFactory`, result records (`BenchmarkSummary` etc.), `ReferenceSolution`/`GapType`, and `BenchmarkResultSink`/`BenchmarkSummaryHeader` — the per-problem checkpoint seam (§7.1) |
+| `ksl.simopt.benchmark.io` (KSLCore) | `BenchmarkResultsDb` (SQLite, and itself a `BenchmarkResultSink`) + one table-data class per table + analysis feeds (`mcbDataMap`, `performanceProfile`) + `ConfirmationReplay`, which re-selects a finished study offline (§8.7) |
 | `ksl.simopt.evaluator` (KSLCore, additions) | `ResponseFunctionIfc`/`ResponseFunctionBuilderIfc` + `ResponseFunctionOracle` — lets a response-function component stand in for a DEDS model at the oracle seam, with macro/micro replication semantics |
 | `ksl.simopt.solvers` (KSLCore, addition) | `ReplicationBudgetStoppingCriterion` — the equal-effort termination rule |
 | `ksl.examples.general.simopt` (KSLExamples) | `standardSolverCases()` registry, LK/RQ problem cases, `BenchmarkDemo`, `PilotStudy` |
@@ -339,11 +339,20 @@ BenchmarkExperiment(
     replicationBudgetPerRun = 3000,
     confirmation = ConfirmationOptions(topK = 3, replicationsPerCandidate = 50), // default; null disables
     captureIterationTraces = false,          // opt-in per-iteration progress capture
+    captureSolverState = false,              // opt-in again: solver state on each trace point
     verificationReplications = null,         // when set: re-simulate each winner at this many reps
     numWorkers = null,                       // default: min(cells, available processors)
-    experimentStreamProvider = RNStreamProvider()  // the experiment-level seed carrier
+    experimentStreamProvider = RNStreamProvider(),  // the experiment-level seed carrier
+    resultSink = null                        // when set: checkpoint per problem, and resume (§7.1)
 ).run(): BenchmarkSummary
 ```
+
+`captureSolverState` requires `captureIterationTraces` and is gated separately from it
+because the volume is an order of magnitude larger: a solver publishing six state values
+turns a study's trace rows into millions of state rows. What it buys is the direct
+measurement of premature convergence — a swarm's diameter, a population's diversity, a
+reference distribution's coefficient of variation — which otherwise has to be inferred
+from identical results across a ninefold budget increase.
 
 `run()` may be called once per instance (the experiment stream advances as
 starting points are drawn). The returned `BenchmarkSummary` is a complete
@@ -357,12 +366,22 @@ The fields of `BenchmarkRunResult` worth knowing: `status`
 `bestPenalizedObjective` (the solver's internal minimization-oriented value),
 `isBestValid` (false for a failed cell's placeholder), feasibility fields,
 `numReplicationsRequested` (**actual** consumption — use it to normalize),
-`totalIterations`, `wallClockMillis`, `gap`/`gapType`, and `errorMessage`.
+`totalIterations`, `wallClockMillis`, `cpuTimeMillis`, `gap`/`gapType`, and
+`errorMessage`.
+
+Two of its fields exist to make a cell answerable after the fact rather than only
+comparable. `responseEstimates` carries the best point's average, variance and count for
+**every** response including the objective, which is what lets a selection be replayed
+offline (§8.7) — the inputs alone are enough to re-simulate a point but not to re-rank
+it. `responseConstraintAssessments` carries the per-constraint verdict, because the
+aggregate `responseConstraintViolation` beside it cannot say *which* constraint bound,
+and "do particular solvers fail specifically on one coupling constraint?" is a question
+studies actually ask.
 
 Failures are isolated: a cell whose solver throws records `FAILED` with the
 problem's bad solution and the error message; sibling cells are unaffected.
 
-### 7.1 Running a long study in blocks
+### 7.1 Running a long study without losing it
 
 A study that takes a weekend is a study that must not be interrupted — unless it can
 be resumed. `macroReplicationRange` runs one block of the macro-replications and
@@ -389,6 +408,38 @@ Each block is saved as its own experiment row. Give the blocks distinct names if
 want them distinguishable in the database, and pool them for analysis with the
 collection-taking overloads in §8.4. The confirmation and verification stages run per
 block, on the runs that block contains.
+
+**Blocks do nothing for a study that is one experiment**, which is what the long ones
+usually are: `run()` builds every problem's result in memory and writes once at the end,
+so an interruption at hour 30 of a 32-hour run loses all of it. A `resultSink` moves the
+checkpoint boundary to where the control flow already has one — `runProblem` finishes a
+problem's cells, confirmation and verification before the next begins — so six problems
+become six checkpoints and an interruption costs at most one problem:
+
+```kotlin
+val db = BenchmarkResultsDb("study.db", KSL.dbDir, deleteIfExists = false)
+BenchmarkExperiment(name = "study", problems = sixProblems, resultSink = db, /* … */).run()
+```
+
+Re-run that same call after an interruption and it resumes: the sink is asked which
+problems an **unfinished** record of that name already holds, and those are skipped. A
+record counts as finished only once `endExperiment` stamps its end time, so a completed
+study is never resumed into — re-running one appends beside it under a fresh id, which is
+the append behaviour `saveSummary` has always had. Where several same-named records are
+unfinished, the most recent is resumed, so a second interruption continues the latest
+attempt rather than an abandoned one.
+
+`BenchmarkResultsDb` implements `BenchmarkResultSink`, and `saveSummary` is routed
+through that same implementation, so a study saved in one call and one streamed
+problem-by-problem travel identical code and cannot drift apart. Any other destination —
+a CSV writer, a remote store — is four methods: `beginExperiment`, `problemCompleted`,
+`endExperiment`, and `completedProblems`, which defaults to returning nothing so a sink
+that cannot answer never causes a problem to be skipped. Silence has to mean "run it".
+
+> **A resumed run's return value covers only this pass.** `run()` still returns a
+> `BenchmarkSummary`, but on a resume it holds the problems this pass ran and not the
+> skipped ones, which are in the sink. Read a resumed study back from the database rather
+> than from the value `run()` handed you.
 
 ## 8. The results database
 
@@ -418,7 +469,7 @@ val expId = db.saveSummary(summary, kslVersion = "R1.4")   // one BenchmarkSumma
 
 ### 8.2 How the tables relate
 
-Eight tables, hung off the experiment. Bracketed columns are the primary key;
+Thirteen tables, hung off the experiment. Bracketed columns are the primary key;
 indentation is the parent → child (logical foreign-key) direction. There are no
 enforced foreign keys — the relationships are by shared column, so you join on
 them yourself.
@@ -426,17 +477,31 @@ them yourself.
 ```
 tblExperiment            [expId]
 ├── tblProblem           [expId, problemName]
-│   ├── tblConfirmation  [expId, problemName, candidateNum]
-│   └── tblVerification  [expId, problemName, responseName]
+│   ├── tblProblemConstraint     [expId, problemName, responseName]
+│   ├── tblConfirmation          [expId, problemName, candidateNum]
+│   ├── tblConfirmationSummary   [expId, problemName]
+│   └── tblVerification          [expId, problemName, responseName]
 ├── tblSolverCase        [expId, solverLabel]
 │   └── tblSolverCaseParameter  [expId, solverLabel, paramName]
 └── tblRun               [runId]   — the cell = expId × problemName × solverLabel × repNum
-    └── tblIterationTrace [runId, iteration]
+    ├── tblRunResponse        [runId, responseName]
+    ├── tblRunConstraint      [runId, responseName]
+    └── tblIterationTrace     [runId, iteration]
+        └── tblIterationTraceState [runId, iteration, stateName]
 ```
 
-`tblRun` is the fact table (one row per benchmark *cell*); the other seven give
-it the context — what experiment, what problem, what solver configuration — plus
-the two confirmation/verification stages and the opt-in convergence trace.
+`tblRun` is the fact table (one row per benchmark *cell*); the rest give it the
+context — what experiment, what problem, what solver configuration — plus the two
+confirmation/verification stages and the opt-in convergence trace.
+
+Five of them answer questions the aggregates cannot. `tblProblemConstraint` records what
+a run had to **meet**, which the archive otherwise never held: without it, "was every
+verified winner feasible?" meant hand-coding the constraint table from the specification
+and joining it externally. `tblRunConstraint` and `tblRunResponse` decompose a cell's
+single violation figure and single objective into one row per constraint and per
+response. `tblConfirmationSummary` says what the selection stage could and could not
+decide. `tblIterationTraceState` carries the solver state that `captureSolverState`
+turns on.
 
 ### 8.3 Table-by-table field reference
 
@@ -488,6 +553,23 @@ run's numbers are uninterpretable (you can't orient them or compute a gap).
 *Use it to:* orient objectives correctly; recompute or sanity-check gaps against
 the right basis; slice results by dimension, constraint count, or tag; and read
 off the per-problem winner.
+
+**`tblProblemConstraint`** — one row per (experiment, problem, response constraint):
+the constraint as the problem *defines* it, rather than what a run achieved against it.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId`, `problemName` | Int, String **PK** → tblProblem | |
+| `responseName` | String **PK** | The constrained response. |
+| `rhsValue` | Double | The right-hand side the constraint is stated against. |
+| `inequalityType` | String | `LESS_THAN` / `GREATER_THAN`, as the problem declares it. |
+| `target` | Double | The target the assessment is made against. |
+| `tolerance` | Double | The tolerance allowed around it. |
+
+*Use it to:* make the archive self-describing. Joined to `tblVerification` it answers
+"was every verified winner actually feasible?" in one query; without it that question
+needed the specification hand-copied into a table and joined from outside, which is a
+step that rots the moment a problem's limits are retuned.
 
 **`tblSolverCase`** — one row per solver configuration in the experiment.
 
@@ -545,6 +627,44 @@ infeasible point is not a win); measure reliability by counting non-`COMPLETED`
 rows per solver; and check effort parity or compute quality-per-replication from
 `numReplicationsRequested`.
 
+**`tblRunResponse`** — one row per (run, response): the cell best's estimate for every
+response of the problem, the objective included.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `runId` | Int **PK** → tblRun | |
+| `responseName` | String **PK** | The response estimated. |
+| `average` | Double | Its sample average at the cell's best point. |
+| `variance` | Double | Its sample variance. **NaN** is what a single-observation estimate legitimately carries. |
+| `count` | Double | The number of observations behind the estimate. |
+
+*Use it to:* **replay a selection offline** (§8.7). `tblRun` preserves the best point's
+inputs, which is enough to re-simulate it but not to re-rank it — ranking a candidate
+needs each response's average, variance and count. With those stored, a different
+confirmation rule can be applied to a finished study and only the finalists it chooses
+need fresh simulation. It also answers the ordinary question of what a cell's *other*
+responses were doing while its objective improved.
+
+**`tblRunConstraint`** — one row per (run, response constraint): how the cell best stood
+against each constraint separately.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `runId` | Int **PK** → tblRun | |
+| `responseName` | String **PK** | The constrained response. |
+| `estimate` | Double | The cell best's estimate for it. |
+| `violation` | Double | By how much this constraint alone is violated. The rows sum to `tblRun.responseConstraintViolation`. |
+| `ciUpperLimit` | Double? | The one-sided upper confidence limit. **Null** when the estimate carried fewer than two observations, so there was no sample variance and no interval. |
+| `feasibleAtCI` | Boolean | Whether this constraint on its own can be declared feasible. |
+
+*Use it to:* find out **which** constraint bound. `tblRun.responseConstraintViolation` is
+retained unchanged beside this and is the aggregate; an aggregate cannot answer "do
+particular solvers fail specifically on one coupling constraint?", which is the question
+a constrained study is usually run to settle.
+
+> `feasibleAtCI = false` on a row whose `ciUpperLimit` is null means "not shown
+> feasible", not "shown infeasible". Read the two columns together.
+
 **`tblConfirmation`** — one row per confirmed finalist of a problem's
 confirmation stage (present only when confirmation ran).
 
@@ -561,7 +681,43 @@ confirmation stage (present only when confirmation ran).
 *Use it to:* make **statistically defensible** winner statements. A single macro-
 replication's "best" is partly luck; the confirmation stage re-races the top
 finalists together under CRN, so `isWinner` here (and the margin between
-finalists) is the number to report.
+finalists) is the number to report — **once you have checked
+`tblConfirmationSummary.selectionDegenerate` for that problem.** A winner drawn from a
+degenerate selection is not a defensible statement, and nothing on this table says so.
+
+**`tblConfirmationSummary`** — one row per problem whose confirmation stage ran, saying
+what that stage could and could not decide.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `expId`, `problemName` | Int, String **PK** → tblProblem | |
+| `numCandidates` | Int | How many candidates entered ranking. |
+| `numConfidentlyFeasible` | Int | How many of them could be declared feasible at the confirmation confidence level. |
+| `selectionDegenerate` | Boolean | True when **none** could. Always false for a problem with no response constraints. |
+| `numConfidentlyFeasibleAfterScreening` | Int? | The count at the screening precision, or null when no screening stage ran. |
+| `numOracleCalls` | Int | Oracle calls the stage spent. |
+| `numReplicationsRequested` | Int | Replications the stage spent — what confirmation cost, separately from the search. |
+
+*Use it to:* **decide whether the winner means anything.** Confirmation ranks
+feasibility-first, so when no candidate can be declared confidently feasible the
+comparator has nothing to discriminate on: every candidate falls through to the
+constraint-violation tie-break and the objective plays no part in choosing the winner.
+That is how a FacilitySizing winner verifying at P(stockout) = 0.122 against a 0.05 limit
+was once reported with exactly the same confidence as any other result. `isWinner` on
+`tblConfirmation` is silent about it; this row is not.
+
+Degeneracy is usually a precision problem rather than a solver problem. The estimates
+reaching confirmation come from the search, at the weakest precision anywhere in the
+pipeline: on a P(event) ≤ 0.05 constraint at 99% confidence with 30 replications per
+evaluation, only a candidate observing **zero** violations in all 30 can be declared
+feasible — one violation puts it at 0.033, comfortably inside the limit, and it is
+rejected anyway. Read `numConfidentlyFeasibleAfterScreening` beside the flag: a degenerate
+row followed by a positive count there records a selection that screening rescued, and a
+zero records a screening stage that could not.
+
+*Written whenever a confirmation stage ran*, including the case where `tblConfirmation`
+gets no rows at all because there was a single distinct finalist — which is exactly a case
+where knowing the selection could not discriminate still matters.
 
 **`tblIterationTrace`** — one row per captured iteration of a run's trace
 (opt-in via `captureIterationTraces`). The raw material for convergence curves.
@@ -575,6 +731,31 @@ finalists) is the number to report.
 
 *Use it to:* plot *how fast* each solver improved (not just where it ended);
 compute time-to-target; and drive `performanceProfile` (§8.4).
+
+**`tblIterationTraceState`** — one row per (run, iteration, state name) of a captured
+trace, holding the cell solver's algorithm-specific state. Written only when
+`captureSolverState` is on.
+
+| Field | Type | Meaning / analytical use |
+|---|---|---|
+| `runId` | Int **PK** → tblRun | |
+| `iteration` | Int **PK** | Matches `tblIterationTrace`. |
+| `stateName` | String **PK** | What the solver called the measurement. |
+| `stateValue` | Double | Its value at that iteration. |
+
+*Use it to:* measure **premature convergence directly** rather than inferring it. A
+swarm's diameter, a population's diversity, a reference distribution's coefficient of
+variation: every solver publishes something, and until these rows existed the benchmark
+computed them and threw them away, leaving "the solver collapsed early" to be argued from
+identical results across a ninefold budget increase.
+
+Long format is deliberate. Solvers publish different state, and a new solver — or a new
+measurement on an existing one — would otherwise add a column and change the schema for
+every study already in the file.
+
+> **Volume is why this has its own flag.** A solver publishing six values per iteration
+> produces roughly six times the trace row count, so a study with a couple of hundred
+> thousand trace rows lands on the order of a million here.
 
 **`tblVerification`** — one row per response of a problem's verification stage
 (opt-in). The winner re-simulated at `verificationReplications`.
@@ -602,6 +783,8 @@ higher-level feeds:
 // Typed rows (each optionally scoped to one experiment):
 db.experiments(); db.problems(expId); db.solverCases(expId); db.solverCaseParameters(expId)
 db.runs(expId); db.confirmations(expId); db.verifications(expId); db.traces(expId)
+db.problemConstraints(expId); db.runConstraints(expId); db.runResponses(expId)
+db.confirmationSummaries(expId); db.traceStates(expId)
 
 // Multiple-comparison-with-the-best feed for one problem:
 //   solverLabel -> final objectives (or gaps) across the COMPLETED, valid macro-reps.
@@ -659,9 +842,13 @@ DB Browser, pandas, R's `DBI`) open it directly.
 
 | Question | Where to look |
 |---|---|
-| Which solver wins this problem, defensibly? | `tblConfirmation.isWinner`; or `mcbAnalyzer(expId, problem)` over `tblRun` |
+| Which solver wins this problem, defensibly? | `tblConfirmation.isWinner` — **after** `tblConfirmationSummary.selectionDegenerate` for that problem; or `mcbAnalyzer(expId, problem)` over `tblRun` |
 | How close to optimal did each run get? | `tblRun.gap` (with `tblProblem.gapType`/`gapBasisObjective` for the basis) |
-| Is the "winning" point actually feasible? | `tblRun.inputFeasible` + `responseConstraintViolation`, confirmed by `tblVerification` |
+| Is the "winning" point actually feasible? | `tblRun.inputFeasible` + `responseConstraintViolation`, confirmed by `tblVerification`; join `tblProblemConstraint` for what it had to meet |
+| **Which** constraint bound, and for which solver? | `tblRunConstraint` per `responseName`, grouped by `tblRun.solverLabel` |
+| Could the selection discriminate at all? | `tblConfirmationSummary.selectionDegenerate`, with `numConfidentlyFeasible` |
+| Did the solver converge prematurely? | `tblIterationTraceState` — diameter, diversity, coefficient of variation, by `stateName` |
+| Would a different selection rule have changed the winner? | replay it against `tblRunResponse` (§8.7); read `winnerChanged` |
 | Which solver improves fastest? | `tblIterationTrace` curves, or `performanceProfile` |
 | Was the comparison fair (equal effort)? | `tblExperiment.replicationBudgetPerRun` vs each `tblRun.numReplicationsRequested` |
 | Why did a solver behave that way? | `tblSolverCaseParameter` (the config that ran) |
@@ -683,6 +870,43 @@ without traces (they grow with the budget), then rerun just the problem you want
 convergence curves for with `captureIterationTraces = true` and `saveSummary`
 into the *same* database — the traces land under the new experiment's run ids and
 the old results are untouched.
+
+### 8.7 Replaying a selection without re-running the study
+
+Evaluating a change to the selection rule against a finished study used to mean running
+the study again — days of compute to answer a question about its last few minutes. The
+search is the expensive part and it does not depend on the rule: same cells, same bests.
+Only the choice among those bests changes, and with `tblRunResponse` storing each
+response's average, variance and count, the candidates that choice needs are already in
+the database.
+
+```kotlin
+val (replayExpId, results) = ConfirmationReplay.replayExperiment(
+    db, sourceExperimentName = "study", newExperimentName = "study-refeasibility",
+    problemCases = sixProblems,
+    options = ConfirmationOptions(topK = 5, replicationsPerCandidate = 200)
+)
+val flipped = results.filter { it.winnerChanged }
+```
+
+Only the finalists the new rule chooses are simulated; the rest is read back. Each
+`ProblemReplayResult` carries the rebuilt candidates, the outcome under the replayed rule,
+the winner the source experiment reported, and `winnerChanged` — the question a replay
+exists to answer. `replayProblem` does one problem; `rebuildCandidates` stops at the
+reconstructed `Solution`s if you want to rank them yourself.
+
+**The source is never mutated.** A replay is written as its own experiment under a new
+name, through the same sink an ordinary experiment uses, so every helper in §8.4 works on
+it and it can be compared with its source by the same queries. The call refuses a
+`newExperimentName` equal to the source's.
+
+> **What a replay is not.** Rebuilt candidates carry the estimates the search produced,
+> not the penalty state it carried — penalty memory is not stored. A rule that reads the
+> penalized objective would therefore not reproduce the original, which is not a
+> limitation in practice: `FeasibilityFirstComparator`, and any rule fit for
+> cross-iteration selection, is clock- and penalty-independent by design. A rule that
+> ranks on the penalized objective is the thing this library deliberately does not use
+> for selection.
 
 ## 9. The synthetic problem ladder
 
@@ -781,6 +1005,14 @@ grid was dominated entirely by the RQ problem's 80 ms replications.
 
 ## 12. Caveats and good practice
 
+- **A winner is only as good as the selection that produced it.** Confirmation ranks
+  feasibility-first, so on a chance-constrained problem where no candidate can be declared
+  confidently feasible, every candidate falls to the constraint-violation tie-break and
+  the objective plays no part in choosing the winner. The run reports a winner either way
+  and nothing in `tblConfirmation` marks it. Check
+  `tblConfirmationSummary.selectionDegenerate` before quoting one, and if it is set, the
+  remedy is precision at confirmation rather than a different solver — the estimates
+  reaching that stage came from the search, at the weakest precision in the pipeline.
 - **R-SPLINE** requires integer-ordered problems, and the requirement is stricter
   than the name suggests: the granularity must be exactly 1, not merely a grid of
   whole numbers. R-SPLINE steps one unit along a coordinate at a time in the
