@@ -321,7 +321,7 @@ README's build section) and are not part of the KSLCore artifact.
 ## R1.7
 
 *In preparation.* This section is being assembled; the entries below cover the supply-chain
-costing change and the guided path transporters.
+costing change and the transport work.
 
 ### Changed — supply-chain costing (`ksl.modeling.supplychain.cost`)
 
@@ -465,6 +465,156 @@ here — there is no statistic it could report that would reveal the aisle it do
   One zone traversal is one scheduled event, so halving zone size doubles the event count for the
   same motion: choose zone size from the granularity at which the real control system reserves
   space, not from how smooth the animation looks.
+
+### Added — dispatched fleets (`ksl.modeling.fleet`)
+
+Marked **experimental**. A second new package, and the other half of the transport work. Outside
+it: five new files in existing packages, additive members on `KSLProcessBuilder`, and one refactor
+of existing code — `AgentResource`'s shift handling moved behind a new `ShiftControl`, with
+`goOnShift` and `goOffShift` keeping their signatures and delegating to it.
+
+**Who decides, and when, becomes part of the model.** A `MovableResource` and a
+`GuidedTransporterPoolWithQ` are both passive: the entity holds the protocol, asks a pool for a
+vehicle, waits, rides, and hands it back. The choice of *which* vehicle is therefore made inside
+the asking entity's own process, at the instant it happens to ask, over whatever is free at that
+instant. There is nowhere else it could be made, because no other object is running. This package
+supplies the other object. A `Dispatcher` can see the whole fleet and the whole board, and — the
+clause that is the package — it is allowed to consume simulated time deciding.
+
+**That clause is what makes five things expressible.** Not easier to express; expressible at all,
+because a rule evaluated at the instant of asking has no window, no counterparty and no second
+load to work with. Batching: wait ten minutes, then allocate over everything that accumulated.
+Negotiation: broadcast a call, let each vehicle answer from what *it* knows about itself, and
+charge the model for the deadline. Re-tasking in flight: take a task back from a vehicle
+three-quarters of the way to a far pickup when a nearer one appears. Consolidation: decide which
+loads ride together, and in what order one vehicle collects and sets them down. Fixed routes: run
+a service that calls at stops on a cycle and carries whoever is waiting, rather than one that is
+summoned.
+
+**The fleet names no substrate.** `FleetSystem` is the dispatcher, the tasks, the tours, the
+stops, the lines, the policies and every statistic, and it knows nothing about how a vehicle
+moves. `FreePathFleet` binds it to a spatial model where nothing blocks, and `AgvSystem` — the
+next entry — binds it to a guide path. So the four ways to move a load are two independent
+questions rather than four separate subsystems: does space push back, and who decides.
+[`docs/guides/ksl-transport.md`](guides/ksl-transport.md) is the one-page map.
+
+**Two results say these are two models of one world rather than two worlds.** With a single
+vehicle the pool's "closest idle transporter" and the fleet's "nearest vehicle" are the same rule,
+since there is only ever one candidate, so the paradigms should agree — and they agree *exactly*,
+to the digit, not merely within a confidence interval (`TwoParadigmsExample`). Second, three carts
+over fifteen replications on common random numbers, every rule against nearest-vehicle
+(`DispatchingRuleComparison`):
+
+| rule, nearest-vehicle minus it | delivered | time in system | imbalance |
+|---|---|---|---|
+| `FurthestVehicle` | 0.000 ± 0.554 | -15.053 ± 0.592 | 23.333 ± 3.653 |
+| `LeastUsed` | -0.333 ± 0.401 | -9.056 ± 0.591 | 68.933 ± 4.554 |
+| `BatchedWindow30` | 39.800 ± 7.302 | -829.449 ± 113.097 | 68.800 ± 4.568 |
+| `ContractNetInstant` | 0.000 ± 0.000 | -0.016 ± 0.200 | -0.467 ± 1.712 |
+| `ContractNetDeadline5` | -0.000 ± 0.419 | -9.954 ± 0.580 | 19.000 ± 4.170 |
+
+Only batching is detectable in throughput; every other difference in the table is outside its
+interval except the whole `ContractNetInstant` row. An instant auction over distance bids quotes
+exactly what the nearest-vehicle rule would have computed, so the negotiation machinery is shown
+not to *change the answer* rather than shown not to act, which is the stronger check. The deadline
+row is then what negotiating costs once the model is charged for it, and the batching row is what
+a window costs on a saturated fleet. Read the imbalance column too: nearest-vehicle is the least
+even rule in the study — less even than the rule included in order to be poor — which follows from
+what it optimises, since it never asks who has been working, and is not something a throughput
+table would ever reveal.
+
+#### Added
+
+- **`ksl.modeling.fleet`.** `FleetSystem` (an `AgentModel`, since the vehicles and the dispatcher
+  are agents with processes and mailboxes), `FleetVehicle`, `FleetVehicleCIfc`, `Dispatcher` and
+  its `TaskQ`, plus the `FreePathFleet` / `FreePathVehicle` binding. A vehicle *composes* a body
+  through `VehicleBodyIfc` rather than inheriting one, which is what keeps the substrate
+  replaceable and keeps a self-directing vehicle from being `seize`-able as though it were a tool.
+- **Process verbs on `KSLProcessBuilder`**: `transportByFleet`, the split
+  `requestFleetTransport` / `awaitFleetTransport` for asking without waiting, `driveTo` for an
+  errand with no load, `rideFrom` and the split `requestRide` / `awaitRide` for boarding a service
+  at a stop, and `tow` and `charge` for what happens to a vehicle that has stopped.
+- **Tours, stops and lines.** A `Tour` is the itinerary that discharges what a vehicle is
+  committed to; `TourStopActionIfc` is open and **suspending**, so arriving somewhere can be a
+  dwell, a boarding or a wait. `Stop` is a permanent place where loads wait to board, `Line` a
+  declared service run cycle after cycle, and `StopControlIfc` decides stop by stop whether to
+  serve the next place — `Serve(departNotBefore)`, `Skip`, `ServeAndEndTour`, which is holding,
+  running express and turning a service short.
+- **Seven replaceable seams**, with twenty-nine implementations shipped:
+  `AssignmentPolicyIfc` and `TourPolicyIfc` on the dispatcher, `TaskSelectionRuleIfc` on its
+  queue, and `BidPolicyIfc`, `DispositionPolicyIfc`, `InterruptionPolicyIfc` and `StopControlIfc`
+  per vehicle. All are implementable from outside the package.
+- **Vehicles that stop.** `Battery` (capacity, two drain rates, a charging rate), `FailureModel`
+  (against one of four bases), and `Interruption` — `Failed` or `OutOfCharge`, carrying where the
+  vehicle is, what it holds, and who is stuck behind it. An `InterruptionPolicyIfc` runs as a
+  process and may wait for a technician, travel, assess and tow. It has no return value: when it
+  returns, the framework asks the movement gate's own question — is this vehicle fit to carry on?
+  — so a policy cannot claim to have fixed something it did not.
+- **A closing audit.** `numTasksNeverAssigned`, `numEntitiesNeverResumed`,
+  `numVehiclesFailedAtHorizon`, `numVehiclesStranded` and `numAssignmentsStillOpen` report what
+  the horizon left undone, and `FleetInvariantViolation` is raised when the subsystem's own
+  account of itself does not add up.
+- **Guide and examples.** [`docs/guides/ksl-fleet.md`](guides/ksl-fleet.md) and
+  [`docs/guides/ksl-transport.md`](guides/ksl-transport.md), plus a tutorial held to its sources
+  by `TransportTutorialCodeTest`, which fails if a quoted line drifts from the file it claims to
+  quote. Examples: `TwoParadigmsExample`, `DispatchingRuleComparison`, `RetaskingInFlightExample`,
+  `MultiFloorHospitalExample`, `TwoLaneWarehouseExample`, `FreePathFleetExample` and
+  `AgvThroughputBenchmark`.
+
+#### Notes
+
+- **There are two waiting lines and they must not be summed.** The dispatcher's `TaskQ` is where
+  a load waits to be assigned; a `Stop` holds those waiting to board a service. They count
+  different things.
+- **`TransportTime` has no active counterpart, by design.** The passive row runs from the
+  entity's request to it being set down, wait for a cart included. The active subsystem splits
+  that wait deliberately, so what corresponds to it is `WaitForAssignment` plus the wait for
+  arrival plus `TimeAboard`, or `result.totalTime` per load. The aboard-to-set-down row is called
+  `TimeAboard` rather than `TransportTime` so that a study lining rows up by name never compares
+  two different intervals.
+- `FleetSystem` is an `AgentModel`, so this package rests on `ksl.modeling.agent`, which is
+  itself experimental.
+- `MovableResource` now implements `VehicleMovementIfc` and its constructor carries
+  `@JvmOverloads`. Kotlin callers see no difference; the generated Java surface gains overloads.
+- Acceleration, deceleration and turn penalties are not modelled here either. Whatever the
+  physical layer does not represent, the fleet layer does not add.
+
+### Added — the guide-path fleet binding (`ksl.modeling.agv`)
+
+Marked **experimental**. Three files, and the size is the claim: running the fleet on a guide path
+costs an adapter, not a second implementation of anything.
+
+`AgvSystem` composes a `GuidedPathSpace` and hands the fleet the network as its layout — one
+object rather than two that could disagree about where things are, since a network's intersections
+and station aliases are already named places. It composes the space alone rather than a
+`GuidedPathTransportSystem`, because the difference between the two is the passive protocol's own
+transport time, which an active run can never fill and should not have to report. `AgvVehicle`
+composes a `GuidedTransporter` as its body, and `GuidedPathBody` is the adapter between what the
+fleet asks of a body and what the space provides.
+
+#### Added
+
+- **`AgvSystem` and `AgvVehicle`**, and the rows only a guide path can fill: `numZoneTraversals`,
+  `numDeadlocksDetected`, `numObstructionsDetected`, `numVehiclesMoving`, `numVehiclesBlocked`,
+  `zoneUtilization`, and the five per-carry figures `approachTime`, `rideTime`,
+  `transportBlockedTime`, `zonesTraversedPerTransport` and `routeLengthPerTransport`.
+- **The space's six diagnostic flags re-exposed as controls** under the system's own name —
+  `checkInvariants`, `auditAtReplicationEnd`, `deadlockDetectionEnabled`,
+  `strictObstructionPolicy`, `collectLinkStatistics`, `collectZoneStatistics` — so an experiment
+  reaches them as `Agv.checkInvariants` rather than only through the inner element.
+
+#### Notes
+
+- **Passive and active rows differ by one name segment, mechanically.** A passive system *is* a
+  guide path space, so its space rows sit at its own level; an active system *has* one, so they
+  sit under it: `Sys:NumZoneTraversals` becomes `Agv:Space:NumZoneTraversals`. The same idea a
+  level down gives `Cart1:FracTimeBlocked` as `Cart1:Body:FracTimeBlocked`, because a vehicle's
+  body is a separate model element and names are unique. Both mappings are asserted over the whole
+  set rather than a hand-kept list, by `StatisticNamingTest` and `StatisticParityTest`.
+- `Agv:Space:NumTransportersIdle` and `Agv:NumVehiclesIdle` answer different questions: the first
+  counts vehicles standing still, the second vehicles carrying no task. A vehicle repositioning to
+  its home base satisfies the second and not the first. Each row uses the word of the layer that
+  owns it, since renaming either would make the shared layer speak one consumer's dialect.
 
 ## R1.6.2
 
