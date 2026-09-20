@@ -559,6 +559,13 @@ status exists to permit.
   while a hill climber given the same criterion stopped at the budget each time. Its own caps do
   not close the gap: `globalBudget` defaults to null, the COMPASS cap applies per seed rather than
   in total, and the clean-up cap applies per survivor.
+
+  **An ISC result from R1.6.2 or earlier is not comparable with one from R1.7**, and cannot be
+  rescaled into one. The old consumption was a constant 5,100 regardless of the budget, so the
+  error is whatever the budget happened to be: 10.2 times too much effort at a budget of 500 and
+  about half too little at 10,000. It changes sign across the range. Any study that set ISC against
+  other solvers on an equal replication budget was not running an equal-effort comparison, and its
+  performance profiles and budget-normalized claims are the results to re-run rather than adjust.
 - **A benchmark checkpoints per problem and resumes where it stopped.** A study previously built
   every problem's result in memory and wrote once at the end, so it held its entire output in heap
   and an interruption at hour 30 of a 32-hour run lost all of it.
