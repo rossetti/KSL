@@ -548,8 +548,9 @@ traffic costs.
 
 Always registered, whatever the network size: `numTransportersMoving`,
 `numTransportersBlocked`, `numTransportersIdle`, `zoneUtilization`,
-`numDeadlocksDetected`, `numObstructionsDetected`, the six per-transport
-responses, and per transporter `fracTimeBlocked` and `numTimesBlocked`.
+`numDeadlocksDetected`, `numObstructionsDetected`, `numBlockedByIdleVehicle`,
+the six per-transport responses, and per transporter `fracTimeBlocked` and
+`numTimesBlocked`.
 
 ### …read how far a transporter has travelled, or how long it has worked?
 
@@ -1001,7 +1002,8 @@ though it had worked.
 | `awaitingPickupHoldQ` / `ridingHoldQ` / `drivingHoldQ` | Where a waiter on a journey is suspended, split by what the wait is. Mechanism, not measurement: none of them reports. |
 | `TransporterPlacement` | Where a transporter starts: `At(location)` or `OnZone(zoneName)`. Re-applied every replication. |
 | `GuidedPathDeadlockException` | A circular wait, carrying a `DeadlockReport` naming every participant. |
-| `IdleTransporterObstruction` | A transporter blocked behind one that will never move. Warned and counted, not thrown. |
+| `IdleTransporterObstruction` | A transporter blocked behind one that has nothing scheduled to move it. Warned and counted, not thrown. |
+| `numObstructionsDetected` / `numBlockedByIdleVehicle` | The same condition counted and timed. Read together: the first says how often, the second how much of the fleet. |
 | `ZoneHolderIfc` | Anything that can hold guide-path space: a name, and the zone it waits for. Two members and no base class, so a spill arriving at minute 137.4 can be one. |
 | `ZoneHoldActionIfc` | Told when a hold begins and when it ends. Required on every request — a hold nobody is told about is a hold nobody can act on. |
 | `ZoneRequest` | Space asked for and not yet granted. `isGranted`, `isWaiting`, `isAbandoned`. |
@@ -1046,13 +1048,19 @@ transporter), `GuidedTransporterAllocationRuleIfc` and
 ### A destination is a resource
 
 **This is the one to read.** A transporter that stops goes on holding the
-zones it stands on, for the rest of the run. So any model in which two
+zones it stands on until something moves it. So any model in which two
 transporters finish in the same place will have the first arrival block
-the second — and the second is not delayed, it waits *for ever*, because
-nothing will ever move the first.
+the second, and the second waits until work arrives that dispatches the
+first.
 
-The symptom is a run that completes, reports no error, and quietly
+How long that wait is decides whether you are looking at congestion or at
+a stall, and the two are indistinguishable at the instant the block forms.
+In a busy shop the next arrival clears it, and the cost is queueing time.
+In a quiet one, or after the last arrival, nothing comes and the wait runs
+to the horizon: a run that completes, reports no error, and quietly
 contains a fleet that stopped working halfway through.
+`numObstructionsDetected` counts the instants; the replication-end warning
+naming transporters still waiting is what tells you a wait never ended.
 
 This is what parking spurs and staging areas are for, and it is why
 `homeBase` and `ReturnToHomeBaseRule` exist. In the simple AGV shop, with
@@ -1063,13 +1071,23 @@ the carts left where they stop:
 | parts delivered | 349.9 | 349.8 |
 | time in system | 61.76 | 62.96 |
 | obstructions detected | 0.0 | 40.5 |
+| blocked behind a parked cart | 0.0000 | 0.1166 |
 | fraction of fleet blocked | 0.0052 | 0.0742 |
 
-Neither run fails. Throughput is identical, because this shop is
-arrival-limited. The *only* clear signal is the obstruction count — which
-is why that condition is counted into the standard report rather than
-merely logged. Watch `numObstructionsDetected`; a positive value means
-something in your layout is standing in the way.
+Neither run fails, and not one of those forty obstructions lasts: parts
+keep arriving, every arrival dispatches the parked cart, and throughput is
+identical because this shop is arrival-limited. What the obstructions cost
+is the 1.2 minutes of time in system.
+
+**The two obstruction rows are meant to be read together.**
+`numObstructionsDetected` counts the instants at which a cart was found
+behind a parked one; `numBlockedByIdleVehicle` is the same condition
+time-weighted, so 0.1166 is the mean number of carts waiting behind a
+parked one at any moment, a tenth of one cart out of two. Forty waits, and
+so little of the fleet held up by them, is a queue. The same count with
+most of the fleet sitting behind it is a stall — and so is a run that ends
+with transporters still waiting, which the guide path warns about
+separately by naming them.
 
 The subsystem tells you two conditions apart, and the distinction matters
 because the fixes are opposite:

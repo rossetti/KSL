@@ -65,10 +65,14 @@ import java.io.PrintWriter
  *
  *  **Each cart has a parking spur of its own.** A stopped cart goes on holding the zones it stands
  *  on, so where a fleet idles decides how much of the guide path is unavailable to everybody else.
- *  This is the single most likely way for a working-looking model to be quietly wrong, and the
- *  second scenario in `main` demonstrates it: with the carts left where they stop, the first
- *  delivery parks on the exit station, the only way off the exit spur, and every later delivery
- *  stops at the mouth for the rest of the run. Nothing raises. The run simply stops moving.
+ *  The second scenario in `main` leaves the carts where they stop, and every obstruction it
+ *  reports is on `I4`, the junction at the mouth of the exit spur: one cart stands there with
+ *  nothing to do and the other is refused it, the two taking turns about forty times a
+ *  replication. None of those waits lasts. Parts keep arriving, each arrival dispatches the parked
+ *  cart, and both configurations deliver the same load; the whole cost is time in system. The
+ *  reason to care is the shop this one is not. Let the arrivals stop, or thin out, and the same
+ *  reading becomes a fleet that has stopped -- which raises nothing either, and which the guide
+ *  path reports separately by naming the transporters still waiting when the replication ends.
  *
  *  **The zone sizes differ between links.** The loop is discretized at twelve feet, chosen so that
  *  two six-foot carts cannot close to less than six feet while moving. The home spurs are only six
@@ -266,6 +270,7 @@ fun main() {
         "PartsDelivered",
         "TimeInSystem",
         "AgvSystem:NumObstructionsDetected",
+        "AgvSystem:NumBlockedByIdleVehicle",
         "AgvSystem:NumTransportersBlocked"
     )) {
         val observations = runner.observationsAsMap(response)

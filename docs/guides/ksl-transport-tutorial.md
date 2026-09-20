@@ -553,6 +553,7 @@ behind each average.
         "PartsDelivered",
         "TimeInSystem",
         "AgvSystem:NumObstructionsDetected",
+        "AgvSystem:NumBlockedByIdleVehicle",
         "AgvSystem:NumTransportersBlocked"
     )) {
         val observations = runner.observationsAsMap(response)
@@ -570,9 +571,11 @@ behind each average.
 }
 ```
 
-`runner.print()` writes the standard half-width summary report for both scenarios: every
+`runner.write()` writes the standard half-width summary report for both scenarios: every
 response the model keeps, with a confidence interval, rather than the four columns the
-author happened to think of.
+author happened to think of. It is handed an **autoflush** writer, which is not a detail:
+`runner.print()` builds an unflushed one internally and never flushes it, so a report
+longer than 8 KB loses its tail without saying so.
 
 Then the comparison. `runner.observationsAsMap(response)` returns, for one response, a
 map of scenario name to that scenario's **per-replication** values, which is exactly what
@@ -603,12 +606,13 @@ replication by replication rather than average against average:
   PartsDelivered                                 0.1000       0.5278           no
   TimeInSystem                                  -1.2009       1.0846          yes
   AgvSystem:NumObstructionsDetected            -40.5000       5.3453          yes
+  AgvSystem:NumBlockedByIdleVehicle             -0.1166       0.0104          yes
   AgvSystem:NumTransportersBlocked              -0.1380       0.0126          yes
 ```
 
 Each row is *carts sent home* minus *carts left in place*. The full half-width summary
 report for both configurations — every response the model keeps — is printed above this
-table by `runner.print()`.
+table by `runner.write()`.
 
 ### What to learn
 
@@ -618,14 +622,32 @@ damage does not reach the headline number. The obstruction count is the signal t
 survives: 40.5 more of them, against a half-width of 5.3. That is why the condition is
 counted into the standard report rather than merely logged.
 
-> **A destination is a resource.** A transporter that stops goes on holding its
-> zones for the rest of the run. Any model in which two vehicles finish in the
-> same place will have the first arrival block the second — and the second is not
-> delayed, it waits for ever.
+**Read the next row with it.** `NumBlockedByIdleVehicle` is the same condition measured
+as a duration rather than counted, so its 0.1166 is the mean number of carts standing
+behind a parked one at any moment — a tenth of one cart, out of two. Forty waits, none
+of which lasts. That pairing is the whole reading: the count says how often the shop
+met a parked cart, the duration says how much of the fleet it cost, and only together
+do they distinguish this shop from one that has stopped, where the duration would sit
+at the number of carts that stopped and stay there.
 
-This is the single most likely way for a working-looking guide-path model to be
-quietly wrong. Watch `numObstructionsDetected`; a positive value means something
-in your layout is standing in the way.
+> **A destination is a resource.** A transporter that stops goes on holding the
+> zones it stands on until something moves it. Any model in which two vehicles
+> finish in the same place will have the first arrival block the second, and the
+> second waits until work arrives that dispatches the first.
+
+Here every one of those waits is short. Parts keep arriving, each arrival
+dispatches the parked cart, and the whole cost of forty obstructions is the 1.2
+minutes of time in system in the table above. Every one of them is on the same zone,
+`I4`, the junction where the loop meets the spur to the exit, and the two carts take
+turns being the one that waits.
+
+What makes the count worth watching is the case this shop does not reach. Nothing
+in the detector can see the future — it reports that a cart is behind one with
+nothing to do *now* — so a quiet shop, or the stretch after the last arrival,
+produces the same reading with nothing coming to clear it. Then the wait runs to
+the horizon, and the guide path says so separately, by naming every transporter
+still waiting when the replication ended. Watch `numObstructionsDetected` for the
+congestion; watch that warning for the stall.
 
 ---
 
@@ -705,6 +727,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import java.io.PrintWriter
 ```
 
 The same substrate imports as case 1, plus `AgvSystem` and `AgvVehicle` from
@@ -1004,7 +1027,11 @@ fun main() {
     )
 
     runner.simulate()
-    runner.print()
+    // An autoflush writer: print() builds an unflushed one internally and never flushes it, so
+    // everything past its first 8 KB is discarded -- silently, and cut mid-line. Which 8 KB
+    // survives depends on the report's total length, so adding one response anywhere moves the
+    // boundary and changes what this example appears to print.
+    runner.write(PrintWriter(System.out, true))
 
     println()
     println("One shop, modelled two ways: $passiveName minus $activeName")
@@ -1028,7 +1055,9 @@ fun main() {
 }
 ```
 
-`runner.print()` writes both half-width summary reports.
+`runner.write()` writes both half-width summary reports, to an autoflush writer for the
+reason case 1 gives: these two are long enough that `runner.print()` would drop the second
+one entirely.
 
 Then the paired comparison, on the two responses the shops name identically. The result
 is the strongest form the claim can take: **every paired difference is exactly zero, and

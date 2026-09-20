@@ -130,17 +130,26 @@ class GuidedPathDeadlockException(
 ) : RuntimeException(report.toString())
 
 /**
- * A transporter blocked behind another that occupies space but has nothing scheduled to make it
- * move: the situation in which a run stops advancing without any circular wait existing.
+ * A transporter blocked behind another that occupies space and has nothing scheduled to make it
+ * move: an idle, unallocated transporter parked on the path, and a second transporter that needs
+ * the space it holds.
  *
- * This is the condition a guided path system can enter when an idle, unallocated transporter is
- * left parked on the path and a second transporter needs the space it holds. There is no cycle,
- * so it is not deadlock, and it is resolvable — moving the idle transporter clears it — which is
- * why it is reported rather than thrown by default.
+ * This is a reading of one instant, and what happens next is no part of it. Most of these clear:
+ * the next piece of work seizes the parked transporter, it drives off, and the blocked one goes
+ * on. One of them is a journey that had to wait, and a busy shop can produce dozens in a run that
+ * delivers everything it was given.
  *
- * By default the condition is logged as a warning and counted, so that it appears in the standard
- * report where an analyst will see it rather than only in a log. Setting the transport system's
- * strict obstruction policy promotes it to `GuidedPathObstructionException` instead.
+ * It lasts to the end of the replication exactly when nothing arrives to move the parked
+ * transporter, which is the case worth alarm, and the replication-end audit is what reports it by
+ * naming every transporter still waiting when the horizon fell. A count that rises while the fleet
+ * keeps delivering is congestion; a run that ends with transporters still blocked is a fleet that
+ * stopped.
+ *
+ * There is no cycle here, so it is not deadlock, and moving the idle transporter clears it, which
+ * is why it is reported rather than thrown by default. It is counted as well as logged, so that it
+ * appears in the standard report where an analyst will see it rather than only in a log. Setting
+ * the transport system's strict obstruction policy promotes it to `GuidedPathObstructionException`
+ * instead.
  *
  * @param time the simulation time at which the obstruction was observed
  * @param blockedTransporterName the transporter that cannot proceed
@@ -156,9 +165,10 @@ data class IdleTransporterObstruction(
     override fun toString(): String =
         "At time $time, transporter ($blockedTransporterName) is blocked on zone " +
                 "($awaitedZoneName), which is held by idle transporter ($idleTransporterName). " +
-                "The idle transporter has nothing scheduled, so it will never move on its own and " +
-                "the blocked transporter will wait indefinitely. This is not a circular wait. " +
-                "Give idle transporters a home base or a staging area so that they leave the path."
+                "Nothing is scheduled to move the idle transporter, so this wait lasts until " +
+                "something dispatches it, and lasts to the end of the replication if nothing " +
+                "does. This is not a circular wait. Give idle transporters a home base or a " +
+                "staging area so that they leave the path."
 }
 
 /**

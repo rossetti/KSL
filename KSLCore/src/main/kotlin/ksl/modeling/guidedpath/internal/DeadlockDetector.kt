@@ -29,12 +29,13 @@ import java.util.IdentityHashMap
 
 /**
  * Decides whether a transporter that has just stopped is in a circular wait, or merely behind
- * something that will never move on its own.
+ * something that has nothing scheduled to move it.
  *
- * The two look identical from inside a run -- the clock advances and nobody goes anywhere -- and
- * they call for opposite responses. A cycle cannot resolve itself, so it ends the replication and
- * says who was in it. An obstruction can resolve itself the moment something dispatches the idle
- * transporter, so it is reported and counted and the run goes on. Telling them apart is the point
+ * The two look identical at the instant the vehicle stops -- what is in front is not moving and
+ * what is behind cannot pass -- and they call for opposite responses. A cycle cannot resolve
+ * itself, so it ends the replication and says who was in it. An obstruction can resolve itself the
+ * moment something dispatches the idle transporter, so it is reported and counted and the run goes
+ * on. Telling them apart is the point
  * of this class, and correctly classifying the second is the thing the reference tool cannot do at
  * all.
  *
@@ -164,10 +165,12 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
     /**
      * Whether this transporter is stopped behind one that has nothing to do and nothing scheduled.
      *
-     * An idle, unallocated transporter will not move on its own: no entity holds it, no journey is
-     * under way, and nothing will wake it. A transporter waiting on space it holds is therefore
-     * waiting indefinitely, and the replication will finish looking like a system that merely had
-     * no work rather than one that stopped.
+     * An idle, unallocated transporter has nothing under way to move it: no entity holds it, no
+     * journey is running, and nothing is scheduled to wake it. A transporter waiting on space it
+     * holds is therefore waiting on something outside the guide path -- work arriving that seizes
+     * the idle transporter -- rather than on anything the movement engine is already going to do.
+     * Whether that comes, and how soon, is what decides between a journey delayed and a run that
+     * finishes looking like a system which merely had no work rather than one that stopped.
      *
      * This is a judgement about one instant and it can be overtaken by events: an entity may seize
      * the idle transporter a moment later and the obstruction clears itself. That is exactly why

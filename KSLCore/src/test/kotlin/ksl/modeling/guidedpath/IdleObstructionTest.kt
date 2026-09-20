@@ -29,6 +29,8 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -188,6 +190,13 @@ class IdleObstructionTest {
         m.simulate()
         assertTrue(follower.numTimesBlocked.value > 0.0, "the follower must have blocked at least once")
         assertEquals(0.0, path.system.numObstructionsDetected.value, 0.0)
+        // The duration has to draw the same line the count draws, or a model could report time
+        // spent behind a vehicle that was driving away throughout.
+        assertEquals(
+            0.0,
+            path.system.numBlockedByIdleVehicle.withinReplicationStatistic.weightedAverage, 1e-9,
+            "none of that wait was time behind a parked vehicle"
+        )
     }
 
     // ---- the same thing in the shape a modeller will actually meet it -------------------------
@@ -197,8 +206,12 @@ class IdleObstructionTest {
      *  at the exit station, which is the only way off the exit spur, so every later delivery stops
      *  at the spur mouth. The run completes and reports nothing wrong.
      */
-    private class ParkingShop(parent: ModelElement, val idleRuleParks: Boolean) :
-        ProcessModel(parent, "ParkingShop") {
+    private class ParkingShop(
+        parent: ModelElement,
+        val idleRuleParks: Boolean,
+        val arrivals: Int = 4,
+        val interArrival: RVariableIfc? = null
+    ) : ProcessModel(parent, "ParkingShop") {
 
         val network = SimpleAgvNetwork.create()
 
@@ -237,7 +250,20 @@ class IdleObstructionTest {
 
         override fun initialize() {
             completed = 0
-            repeat(4) { activate(Part().make) }
+            // No inter-arrival time reproduces the original fixture exactly: four parts released
+            // together and nothing after them, which is what makes it stall. Given one, the shop
+            // is fed for the whole run, so a parked cart is dispatched again and again and the
+            // blocks behind it clear.
+            val tba = interArrival
+            if (tba == null) {
+                repeat(arrivals) { activate(Part().make) }
+            } else {
+                var at = 0.0
+                repeat(arrivals) {
+                    at += tba.value
+                    activate(Part().make, timeUntilActivation = at)
+                }
+            }
         }
     }
 
@@ -270,6 +296,120 @@ class IdleObstructionTest {
         assertEquals(
             0.0, goingHome.system.numObstructionsDetected.value, 0.0,
             "the source text's remedy must actually remove the condition, not merely mask it"
+        )
+    }
+
+    // ---- the duration the count cannot give ----------------------------------------------------
+    //
+    // numObstructionsDetected records the instants at which a vehicle was found behind a parked
+    // one. A count cannot tell a queue from a stall, and on these two models it gets the ordering
+    // exactly backwards: the shop that never stops produces forty of them and the fleet that
+    // stops for good produces one. numBlockedByIdleVehicle is the same condition measured as a
+    // duration, and it is what puts the two in the right order.
+
+    private fun idleBlockedAverage(system: GuidedPathTransportSystem): Double =
+        system.numBlockedByIdleVehicle.withinReplicationStatistic.weightedAverage
+
+    /** The shop fed for longer than it runs, so nothing about the reading is an end-of-run tail. */
+    private fun busyShop(): ParkingShop {
+        val m = Model("ClearingQueue")
+        val shop = ParkingShop(
+            m, idleRuleParks = true, arrivals = 900,
+            interArrival = ExponentialRV(20.0, 1)
+        )
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 7000.0
+        m.simulate()
+        return shop
+    }
+
+    @Test
+    @DisplayName("A fleet that stopped holds the idle-blocked count up for the rest of the run")
+    fun aStallIsMeasuredAsDuration() {
+        // Three twelve-foot zones at ten feet a minute, so the traveller reaches B's mouth at 3.6
+        // and nothing in this model will ever move the transporter parked on it. It is therefore
+        // still blocked at 100.0, and the time-average is the fraction of the run the fleet spent
+        // stopped. The point of the assertion is the size of it, not its sign.
+        val (m, path, _) = straightModel()
+        m.simulate()
+        assertEquals(
+            0.964, idleBlockedAverage(path.system), 1e-9,
+            "one of one vehicle stuck from 3.6 to 100.0 of a 100.0 run is 0.964, and how long " +
+                    "the fleet was stopped is what the count cannot say"
+        )
+        assertEquals(
+            1.0, path.system.numObstructionsDetected.value, 0.0,
+            "while the count sees a single instant, whatever the duration turns out to be"
+        )
+    }
+
+    @Test
+    @DisplayName("A shop that never stops reads high on the count and low on the duration")
+    fun aClearingQueueIsNotAStall() {
+        val shop = busyShop()
+        assertTrue(
+            shop.completed > 300,
+            "the shop has to keep delivering, or it is not the case this test is about: " +
+                    "${shop.completed} parts"
+        )
+        assertTrue(
+            shop.system.numObstructionsDetected.value > 20.0,
+            "and it has to meet parked carts often, or there is nothing to distinguish: " +
+                    "${shop.system.numObstructionsDetected.value} obstructions"
+        )
+        assertTrue(
+            idleBlockedAverage(shop.system) < 0.20,
+            "yet at no moment is much of the fleet standing behind one: " +
+                    idleBlockedAverage(shop.system)
+        )
+    }
+
+    @Test
+    @DisplayName("The pair puts the two readings in the order the count alone reverses")
+    fun theDurationOrdersThemAndTheCountDoesNot() {
+        // This is the whole argument for adding the response, asserted as a relation rather than
+        // as two numbers, so it survives any change that moves either model's absolute figures.
+        val (stallModel, stalled, _) = straightModel()
+        stallModel.simulate()
+        val working = busyShop()
+
+        val stallCount = stalled.system.numObstructionsDetected.value
+        val queueCount = working.system.numObstructionsDetected.value
+        assertTrue(
+            queueCount > 10.0 * stallCount,
+            "the count ranks the working shop far worse than the stopped fleet -- $queueCount " +
+                    "against $stallCount -- which is exactly why it cannot be read on its own"
+        )
+
+        val stallTime = idleBlockedAverage(stalled.system)
+        val queueTime = idleBlockedAverage(working.system)
+        assertTrue(
+            stallTime > 5.0 * queueTime,
+            "and the duration ranks them the other way round, which is the right way: " +
+                    "$stallTime against $queueTime"
+        )
+    }
+
+    @Test
+    @DisplayName("The idle split is a subset of the vehicle cause, not a fourth bucket")
+    fun theIdleSplitIsASubsetOfTheVehicleCause() {
+        val (m, path, _) = straightModel()
+        m.simulate()
+        val s = path.system
+        val byVehicle = s.numBlockedByVehicle.withinReplicationStatistic.weightedAverage
+        assertTrue(
+            idleBlockedAverage(s) <= byVehicle + 1e-9,
+            "a vehicle blocked by an idle vehicle is blocked by a vehicle, so this can never " +
+                    "exceed it: ${idleBlockedAverage(s)} against $byVehicle"
+        )
+        // And the original three still account for the whole, which is what says the new response
+        // was not quietly added to their sum.
+        val parts = byVehicle +
+                s.numBlockedByOccupier.withinReplicationStatistic.weightedAverage +
+                s.numBlockedByPopulation.withinReplicationStatistic.weightedAverage
+        assertEquals(
+            s.numTransportersBlocked.withinReplicationStatistic.weightedAverage, parts, 1e-9,
+            "the three causes must still sum to the blocked count, undisturbed by the split"
         )
     }
 }

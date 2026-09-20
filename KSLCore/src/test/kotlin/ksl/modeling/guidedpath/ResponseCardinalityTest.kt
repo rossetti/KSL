@@ -267,6 +267,11 @@ class ResponseCardinalityTest {
             // quantities. Aggregates, so they are on by default with the rest.
             ":NumZonesClosed", ":NumBlockedByVehicle", ":NumBlockedByOccupier",
             ":NumBlockedByPopulation",
+            // The split of the vehicle cause by whether what is in the way has anything to do.
+            // Always registered with the three above, and for the same reason: it is the reading
+            // that separates a queue from a fleet that has stopped, and a default that leaves it
+            // out leaves the obstruction count with nothing to be read against.
+            ":NumBlockedByIdleVehicle",
             // General occupancy's own three, and the reason they are here rather than on the
             // holders: a model may make as many holders as the run turns out to need, so a
             // response per holder would be a response count nobody can state before the run.

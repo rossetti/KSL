@@ -332,12 +332,26 @@ open class GuidedPathSpace @JvmOverloads constructor(
     private val myNumObstructions = Counter(this, name = "${this.name}:NumObstructionsDetected")
 
     /**
-     * How many times a transporter was found blocked behind an idle one that will not move.
+     * How many times a transporter was blocked behind one that had nothing to do at that instant.
+     *
+     * What this measures is parking on the travel path. Zero means idle transporters clear the
+     * running lines; a positive count means they do not, and each count is one journey that had to
+     * wait for a parked transporter to be dispatched before it could pass. The simple AGV shop
+     * takes about forty a replication when its carts are left where they stop, delivers the same
+     * number of parts as when they are sent home, and pays for the difference in time in system.
+     *
+     * It is not a stall detector, and cannot be: the detector reads one instant and an entity may
+     * seize the parked transporter the moment after. What turns a count into a stall is nothing
+     * arriving to move it, and a count cannot see that. [numBlockedByIdleVehicle] is the same
+     * condition measured as a duration and is the reading to put beside this one; the
+     * replication-end audit is the third, naming every transporter still waiting when the horizon
+     * fell. A count with a small duration beside it is congestion, and the remedy is a home base
+     * or a staging area. A count with most of the fleet behind it, or a run that ends with
+     * transporters still blocked, is a fleet that stopped, and that is the reading not to believe
+     * until it is explained.
      *
      * Counted rather than only logged so that the condition appears in the standard report, where
-     * an analyst will see it. A model that produces a positive count here has almost certainly
-     * stopped moving somewhere, and the run that produced it should not be believed until the
-     * count is explained.
+     * an analyst will see it.
      */
     val numObstructionsDetected: CounterCIfc
         get() = myNumObstructions
@@ -957,6 +971,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         var byVehicle = 0
         var byOccupier = 0
         var byPopulation = 0
+        var byIdleVehicle = 0
         for (t in myTransporters) {
             when {
                 t.transporterState == TransporterState.BLOCKED -> {
@@ -965,12 +980,28 @@ open class GuidedPathSpace @JvmOverloads constructor(
                     // here because this loop is running anyway and each transporter already records
                     // what it awaits; a transporter held up by a link is held up by the vehicles on
                     // it, so it counts as the first.
+                    //
+                    // The vehicle bucket is split again by whether what is in the way has anything
+                    // to do, which is the difference between a queue and a fleet that has stopped.
+                    // Both tests are field reads on an object already in hand, which is what keeps
+                    // them in this loop: a general two-way link would have to be scanned instead,
+                    // and scanning is the cost this method is written to avoid.
                     val zone = t.awaitedZone
+                    val link = t.awaitedLink
+                    val holder = zone?.holder
                     when {
-                        t.awaitedLink != null -> byVehicle++
+                        link != null -> {
+                            byVehicle++
+                            if (link.spurReservation?.isPermanentlyStationary == true) {
+                                byIdleVehicle++
+                            }
+                        }
                         zone == null -> Unit
-                        zone.holder is GuidedTransporter -> byVehicle++
-                        zone.holder != null -> byOccupier++
+                        holder is GuidedTransporter -> {
+                            byVehicle++
+                            if (holder.isPermanentlyStationary) byIdleVehicle++
+                        }
+                        holder != null -> byOccupier++
                         zone.numPresent > 0 -> byPopulation++
                         else -> byOccupier++   // promised to an occupier, still draining
                     }
@@ -987,6 +1018,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         myNumBlockedByVehicle.value = byVehicle.toDouble()
         myNumBlockedByOccupier.value = byOccupier.toDouble()
         myNumBlockedByPopulation.value = byPopulation.toDouble()
+        myNumBlockedByIdleVehicle.value = byIdleVehicle.toDouble()
         myZoneUtilization.value = covered.toDouble() / network.zones.size
         if (collectZoneStatistics || collectLinkStatistics) {
             refreshZoneDetail()
@@ -1395,6 +1427,8 @@ open class GuidedPathSpace @JvmOverloads constructor(
         TWResponse(this, name = "${this.name}:NumBlockedByOccupier")
     private val myNumBlockedByPopulation =
         TWResponse(this, name = "${this.name}:NumBlockedByPopulation")
+    private val myNumBlockedByIdleVehicle =
+        TWResponse(this, name = "${this.name}:NumBlockedByIdleVehicle")
 
     /**
      * Vehicle blocked time, decomposed by what was in the way: another vehicle, an occupier, or a
@@ -1411,6 +1445,8 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * that cause, and the three sum to [numTransportersBlocked]. On the space rather than on the
      * transporters, because three responses per vehicle would multiply the response count of every
      * fleet to report what three responses per guide path report just as well.
+     *
+     * [numBlockedByIdleVehicle] splits this one further and is **not** a fourth term in that sum.
      */
     val numBlockedByVehicle: TWResponseCIfc
         get() = myNumBlockedByVehicle
@@ -1422,6 +1458,38 @@ open class GuidedPathSpace @JvmOverloads constructor(
     /** Vehicles held up by a zone's population: see [numBlockedByVehicle]. */
     val numBlockedByPopulation: TWResponseCIfc
         get() = myNumBlockedByPopulation
+
+    /**
+     * How many vehicles are held up by a vehicle that has nothing to do: parked on the travel path.
+     *
+     * **A subset of [numBlockedByVehicle], not a fourth bucket.** The three causes above sum to
+     * [numTransportersBlocked] and this one does not join that sum; it says how much of the vehicle
+     * cause is a vehicle nothing is due to move. Summing four would double-count.
+     *
+     * This is the duration that [numObstructionsDetected] cannot give. That counter records the
+     * instants at which a vehicle was found behind a parked one, and a count alone cannot tell a
+     * queue from a stall: forty waits that clear and one that never does look the same in it, and
+     * on a pair of real models the count puts them in the wrong order. This is time-weighted, so
+     * its average is the mean number of vehicles standing behind a parked vehicle at any moment.
+     *
+     * The simple AGV shop with its carts left where they stop reads 40.5 obstructions a
+     * replication and 0.1166 here: a tenth of one cart out of two, waiting at any moment, which is
+     * what forty waits that each end at the next arrival come to. Sending the carts home takes
+     * both readings to zero. A fleet that has actually stopped reads the number of vehicles that
+     * stopped and holds it there -- one stuck vehicle of two is 0.96 for the rest of the run,
+     * against a count of one.
+     *
+     * What counts is judged the same way the obstruction detector judges it
+     * ([GuidedTransporter.isPermanentlyStationary]), so the two agree about any one instant. Two
+     * cases are deliberately outside it, both because resolving them means scanning rather than
+     * reading a field: a vehicle waiting for a general two-way link's direction, whose obstructors
+     * are every vehicle running that link, and a vehicle refused a free zone by a closure that has
+     * not been granted. A vehicle waiting on a **spur** is included, since a spur's reservation
+     * names one vehicle. So this reads low rather than high where it is incomplete, which is the
+     * safe direction for a diagnostic: it never invents a stall.
+     */
+    val numBlockedByIdleVehicle: TWResponseCIfc
+        get() = myNumBlockedByIdleVehicle
 
     private var myClosedZoneCount = 0
     private val myNumZonesClosed = TWResponse(this, name = "${this.name}:NumZonesClosed")

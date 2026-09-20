@@ -41,6 +41,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import java.io.PrintWriter
 
 /*
  *  One shop, modelled twice: once with a **passive** transporter the part steers, and once with an
@@ -302,7 +303,11 @@ fun main() {
     )
 
     runner.simulate()
-    runner.print()
+    // An autoflush writer: print() builds an unflushed one internally and never flushes it, so
+    // everything past its first 8 KB is discarded -- silently, and cut mid-line. Which 8 KB
+    // survives depends on the report's total length, so adding one response anywhere moves the
+    // boundary and changes what this example appears to print.
+    runner.write(PrintWriter(System.out, true))
 
     println()
     println("One shop, modelled two ways: $passiveName minus $activeName")
