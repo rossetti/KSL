@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 """Normalise an example-suite capture so two runs of the same code compare byte for byte.
 
-Masks wall-clock readings, which differ every run, and drops Gradle's own bookkeeping.
-Everything else -- every statistic, every warning, every report line -- is left alone,
-because that is the part the fingerprint exists to compare.
+Masks wall-clock readings, which differ every run, the host description, which differs
+between machines, and the output directory, which differs between checkouts. Drops Gradle's
+own bookkeeping. Everything else -- every statistic, every warning, every report line -- is
+left alone, because that is the part the fingerprint exists to compare.
+
+Masking the host was added when this work landed in the live repository. Captured on a
+4-processor Linux container under OpenJDK 21.0.10 and again on a 12-processor Mac under
+21.0.11, the twelve examples agreed on every statistic byte for byte; the only differences in
+6,532 lines were the three host lines and three absolute paths. Leaving those in would have
+forced a re-baseline per machine and per checkout, which would make the committed baseline
+useless to everyone but its author -- the opposite of what a committed fingerprint is for.
+The host lines remain in the raw capture; only the normalised copy being compared drops them.
 
 Gradle task lines are dropped in full rather than only the cached ones. Which tasks Gradle
 chose to execute depends on what happens to be up to date, so a change in a *different*
@@ -34,6 +43,12 @@ SUBS = [
     (re.compile(r'^(End Execution Time: ).*$'), r'\1<elapsed>'),
     (re.compile(r'^(Elapsed Execution Time: ).*$'), r'\1<elapsed>'),
     (re.compile(r'^(Max Allowed Execution Time: ).*$'), r'\1<elapsed>'),
+    # The host, which is a property of where the capture ran and not of the models.
+    (re.compile(r'^(\s*JVM\s+: ).*$'), r'\1<jvm>'),
+    (re.compile(r'^(\s*OS\s+: ).*$'), r'\1<os>'),
+    (re.compile(r'^(\s*processors\s+: ).*$'), r'\1<processors>'),
+    # The output directory, which is a property of the checkout.
+    (re.compile(r'^(.*reports for .*: ).*[/\\]kslOutput\s*$'), r'\1<kslOutput>'),
 ]
 
 for line in sys.stdin:

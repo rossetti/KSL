@@ -12,9 +12,9 @@ Guided path throughput benchmark - reference configuration
   wall clock         : <elapsed>
   throughput         : <rate>
 
-  JVM                : OpenJDK 64-Bit Server VM 21.0.10
-  OS                 : Linux amd64
-  processors         : 4
+  JVM                : <jvm>
+  OS                 : <os>
+  processors         : <processors>
 
 warm-up (JIT): 437,947 traversals in <elapsed>
 
@@ -32,9 +32,9 @@ AGV throughput benchmark - reference configuration, both paradigms
   tasks completed                    55,564                 --
   vehicles idle (mean)                0.000                 --
 
-  JVM                : OpenJDK 64-Bit Server VM 21.0.10
-  OS                 : Linux amd64
-  processors         : 4
+  JVM                : <jvm>
+  OS                 : <os>
+  processors         : <processors>
 
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 7 ended. The guide path may have stopped moving rather than run out of work.
   (Cart1:Body) holds [N] and waits for zone (NE.Zone1), which is held by (Cart3:Body)
@@ -5163,7 +5163,7 @@ WARN  k.m.guidedpath.GuidedPathSpace - At time 7555.0723285987815, transporter (
 WARN  k.m.guidedpath.GuidedPathSpace - At time 8422.784573944276, transporter (Cart1:Body) is blocked on zone (W), which is held by idle transporter (Cart3:Body). The idle transporter has nothing scheduled, so it will never move on its own and the blocked transporter will wait indefinitely. This is not a circular wait. Give idle transporters a home base or a staging area so that they leave the path.
 WARN  k.m.guidedpath.GuidedPathSpace - At time 8486.798272241924, transporter (Cart2:Body) is blocked on zone (W), which is held by idle transporter (Cart1:Body). The idle transporter has nothing scheduled, so it will never move on its own and the blocked transporter will wait indefinitely. This is not a circular wait. Give idle transporters a home base or a staging area so that they leave the path.
 
-Full half-width summary reports for all six rules: /home/user/tmp4321/.claude/worktrees/guidedpath/KSLExamples/kslOutput
+Full half-width summary reports for all six rules: <kslOutput>
 
 Paired differences in loads delivered, NearestVehicle minus each rule
 (common random numbers, 15 replications, 95% intervals)
@@ -5217,7 +5217,7 @@ Window 40: Capacity1Window40 minus Capacity4Window40, paired by replication (95%
   Delivered               -8.700         4.010           yes
   TimeInSystem           200.189        32.521           yes
 
-  Full half-width summary reports for all four cells: /home/user/tmp4321/.claude/worktrees/guidedpath/KSLExamples/kslOutput
+  Full half-width summary reports for all four cells: <kslOutput>
 
 
 A hospital on two floors - and no lift class anywhere in it
@@ -5276,7 +5276,7 @@ WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 2 transporte
 
     throughput per 100 units: 1:2.486, 2:4.971, 3:7.457, 4:9.943, 6:14.914, 8:19.943
 
-  Full half-width summary reports for every fleet size: /home/user/tmp4321/.claude/worktrees/guidedpath/KSLExamples/kslOutput
+  Full half-width summary reports for every fleet size: <kslOutput>
 
 
 
