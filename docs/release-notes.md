@@ -320,8 +320,8 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.7
 
-*In preparation.* Three new subsystems, one corrected one, and a batch of fixes that were all
-silent — they returned a plausible wrong number rather than raising.
+*20 September 2026.* Three new subsystems, one corrected one, and a batch of fixes that were
+all silent — they returned a plausible wrong number rather than raising.
 
 **All three new subsystems are released as experimental**: the transport packages
 (`ksl.modeling.guidedpath`, `ksl.modeling.fleet`, `ksl.modeling.agv`), the mixture fitting packages

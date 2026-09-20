@@ -186,18 +186,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.6.2"
+version = "R1.7"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.6.2")
+api("io.github.rossetti:KSLCore:R1.7")
 ```
 To your build for the latest release.
 
 ## Release Notes
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
-things released on separate cadences: the **library** (`KSLCore`, versioned R1.6.2, R1.6.1, …) and
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.7, R1.6.2, …) and
 the installable **suite** of applications and servers (versioned 0.3.8, 0.3.7, …). A suite release
 does not imply a library release, or the reverse.
 
@@ -206,19 +206,20 @@ restarting, and a configuration saved for one model is no longer quietly applied
 tells you which model the file belongs to and offers to open it. `Load JAR…` opens where your
 bundles actually live rather than in your home directory, in every application.
 
-**Current library release — R1.6.2.** A correctness release for simulation optimization, almost
-entirely about one thing: the penalty multiplier is a property of the search, not of a solution,
-and a dozen places read it as though it were. The one to know before upgrading is that a
-**benchmark could report a solution its own solvers had rejected** — the confirmation stage ranked
-candidates by penalized objective, so a cheap infeasible design beat a feasible one whenever the
-penalty was smaller than the objective gap. On a call-center model the penalty standing against an
-8,000-unit gap was 8.5, and the reported design violated four constraints while feasible ones sat
-in the same candidate list. Reported answers on **constrained** problems are now chosen
-feasibility-first and will change; where the old answer was infeasible the new one usually has a
-worse objective, which is the correction rather than a regression. Bayesian optimization also
-searches differently: its surrogate was being fitted to targets that drifted with the iteration
-counter. `Solution.penalizedObjFncValue` is deprecated in favour of `recordedPenalizedObjFncValue`
-and `penalizedObjFncValueAt(k)`. A drop-in for R1.6.1: nothing removed, no signature broken.
+**Current library release — R1.7.** Three new subsystems, all **experimental**: vehicle transport
+(`guidedpath`, `fleet`, `agv`), mixture distribution fitting, and a sequential decision-making
+layer. Each has a guide and a tutorial. The one to know before upgrading is that several loss
+functions were returning plausible wrong numbers, and they reach `RQInventoryModel`'s fill rate,
+stockout probability, expected backorders and expected on-hand inventory: `Exponential`'s were
+written for a rate parameterization while the class stores a mean, so they agreed only at a mean of
+1.0 — which is the default, meaning every default-constructed instance was right and no other was.
+`DEmpiricalCDF` bound a probability where a stock level belonged and its `cdf` examined every other
+bracket. **Re-run rather than reconcile** anything that touched them. Two more silent ones: a model
+element could not be found by a name containing a `.`, returning null exactly as an absent name
+does, and one unusable candidate ended a whole distribution-scoring run. `ksl.simopt`'s ISC now
+stops when it is told to, so its results are not comparable with R1.6.2's. The only removal is
+`GrandTotal`, from the experimental `ksl.modeling.supplychain.cost`, which summed two different
+denominations; use `CostBasis.PerReplication` or `PerUnitTime`. Otherwise a drop-in for R1.6.2.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;
