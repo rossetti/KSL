@@ -320,8 +320,8 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.7
 
-*In preparation.* This section is being assembled; the entry below covers the supply-chain
-costing change only.
+*In preparation.* This section is being assembled; the entries below cover the supply-chain
+costing change and the guided path transporters.
 
 ### Changed — supply-chain costing (`ksl.modeling.supplychain.cost`)
 
@@ -366,7 +366,7 @@ remaining problem visible.
 `ksl.modeling.supplychain` is released as experimental, and this is the kind of change that
 status exists to permit.
 
-### Breaking
+#### Breaking
 
 | Removed or changed | Replacement |
 |---|---|
@@ -378,17 +378,16 @@ status exists to permit.
 | `MultiEchelonNetwork.totalCostResponse` and the three tier accessors, as properties | the same names as functions taking a `CostBasis` |
 | `CostLine(displayName)` | `CostLine(displayName, basis)` — sealed, so no caller constructs one |
 
-### Added
+#### Added
 
 - `CostBasis`, and `CostLine.basis` declaring it on every line. The sealed constructor requires
   it, so a line cannot be added without saying which denomination it is — which is what kept the
   old classification correct only by hand.
 
----
-## R1.6.3
+### Added — guided path transporters (`ksl.modeling.guidedpath`)
 
-*30 August 2026.* One new package, `ksl.modeling.guidedpath`, marked **experimental**. Nothing
-existing changes behaviour; the only edits outside the new package are additive.
+Marked **experimental**. Nothing existing changes behaviour; the only edits outside the new
+package are additive.
 
 **Guided path transporters.** Vehicles that travel a fixed network of aisles and must claim the
 space ahead of them before moving into it. `MovableResource` over a `DistancesModel` already
@@ -413,7 +412,7 @@ expect thirty-one minutes, and get five hundred and thirty-eight. The point is n
 free-path number is wrong; it is that nothing in a free-path model is *capable* of being wrong
 here — there is no statistic it could report that would reveal the aisle it does not represent.
 
-### Added
+#### Added
 
 - **`ksl.modeling.guidedpath`.** `GuidedPathNetwork` (an immutable geometry that is also a
   `SpatialModel`), `GuidedPathTransportSystem`, `GuidedTransporter` (a capacity-one `Resource`),
@@ -451,7 +450,7 @@ here — there is no statistic it could report that would reveal the aisle it do
   `SimpleAGVExample` and `GuidedPathThroughputBenchmark` in `KSLExamples`; and the chapter-eight
   test-and-repair shop re-modelled with its transport on an aisle.
 
-### Notes
+#### Notes
 
 - Acceleration, deceleration and turn penalties are **not** modelled in this version. Traversal
   time is exactly `zoneLength / (velocity * velocityFactor)`. Link direction in degrees and
