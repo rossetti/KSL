@@ -280,3 +280,11 @@ kotlin-js-store/
 # Python bytecode from the animation polish scripts
 __pycache__/
 *.pyc
+
+# Example-gate captures. Each gate.sh run writes a few tens of megabytes of raw
+# and normalised output here; only gate.sh, norm.py and the committed baseline
+# belong in the repository. Ignored from the root rather than from a .gitignore
+# inside the gate folder, so the captures stay invisible on a branch that does
+# not carry the harness -- git leaves untracked files alone across a checkout,
+# so they otherwise surface as clutter on whichever branch predates it.
+KSLExamples/gate/out/
