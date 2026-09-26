@@ -34,6 +34,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -817,6 +818,12 @@ class KslMcpTools(
      * storage (sufficient statistics, no per-replication arrays).
      */
     private suspend fun incrementalRunConfig(config: ksl.app.config.RunConfiguration, useCache: Boolean): CallToolResult {
+        // Validated here rather than only in `run_config`, because this is the one path both document
+        // and flattened runs funnel through. `run_model` and `submit_run` never validated at all, so an
+        // out-of-bounds control on those paths produced no warning anywhere -- a wider hole than
+        // `run_config` throwing its warnings away. Errors are left to the callers that already reject
+        // on them; taking warnings here changes no run's outcome, only what the result admits to.
+        val warnings = runCatching { runService.validateRunConfig(config).warnings }.getOrDefault(emptyList())
         val salt = CacheVersion.forRun(registry, config)
         // resultId is keyed off the original config (matches IncrementalRunCache's
         // own exactKey), so redirecting the run's output below is an execution
@@ -853,7 +860,7 @@ class KslMcpTools(
             return error("run failed: ${e.message}")
         }
         if (capturesOutput) writeRunMeta(cached) // annotate the content-hash run folder (discoverability)
-        return runResult(cached)
+        return runResult(cached, warnings)
     }
 
     /** Writes a human-readable `meta.json` into a run's result folder so the content-hash directory is
@@ -900,12 +907,17 @@ class KslMcpTools(
         val (built, argError) = buildRun(arguments)
         if (argError != null) return argError
         built!!
+        // The submit path returns before the run finishes, so a warning reported only on the terminal
+        // result would reach the caller long after they could act on it -- and a caller that polls
+        // `get_run_result` may never read this envelope again. Report it here as well as there.
+        val warnings = runCatching { runService.validateRunConfig(built.config).warnings }.getOrDefault(emptyList())
         return when (val outcome = runApp.submitRun(built.config, built.key, built.request, useCache(arguments))) {
             is RunSubmitOutcome.AlreadyCached -> jobResult(buildJsonObject {
                 put("jobId", outcome.resultId)
                 put("status", JobStatus.TERMINAL.name)
                 put("resultId", outcome.resultId)
                 put("cached", true)
+                if (warnings.isNotEmpty()) put("warnings", warningsArray(warnings))
             })
             is RunSubmitOutcome.Started -> jobResult(buildJsonObject {
                 put("jobId", outcome.jobId)
@@ -913,6 +925,7 @@ class KslMcpTools(
                 put("resultId", outcome.resultId)
                 put("cached", false)
                 outcome.reusedReplications?.let { put("reusedReplications", it) }
+                if (warnings.isNotEmpty()) put("warnings", warningsArray(warnings))
             })
             is RunSubmitOutcome.AtCapacity ->
                 error("server is at capacity (${outcome.limit} concurrent runs); try again shortly")
@@ -1164,28 +1177,68 @@ class KslMcpTools(
      * ([getResult] / [getResponse] / [getDesignPoint]) remain for deep drill-down
      * on very large retained results.
      */
-    private fun runResult(stored: StoredResult, fromCache: Boolean, reused: Int = 0): CallToolResult =
-        result(runSummary(stored, fromCache), runStructured(stored, fromCache, reused))
+    private fun runResult(
+        stored: StoredResult,
+        fromCache: Boolean,
+        reused: Int = 0,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): CallToolResult =
+        result(runSummary(stored, fromCache, warnings), runStructured(stored, fromCache, reused, warnings))
 
-    private fun runResult(cached: CachedResult): CallToolResult =
-        runResult(cached.stored, cached.fromCache, cached.reusedReplications)
+    private fun runResult(
+        cached: CachedResult,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): CallToolResult =
+        runResult(cached.stored, cached.fromCache, cached.reusedReplications, warnings)
+
+    /**
+     * Pre-run validation warnings, in the shape `validate_run_config` already reports them, so a
+     * caller reads one form whether it validated first or not.
+     *
+     * These used to be computed and dropped. A run whose control value was out of bounds completed
+     * normally, reported numbers for the clamped setting, and said nothing — and `validate_run_config`
+     * is optional, so an agent that skipped it had no way to know. Warnings do not block a run; being
+     * invisible is what made them dangerous.
+     */
+    private fun warningsArray(warnings: List<ksl.app.validation.FieldError>): JsonArray =
+        buildJsonArray {
+            warnings.forEach {
+                add(buildJsonObject { put("path", it.path); put("message", it.message); put("code", it.code) })
+            }
+        }
 
     /** Full result payload + run metadata as one object (conforms to the run outputSchema). */
-    private fun runStructured(stored: StoredResult, fromCache: Boolean, reused: Int): JsonObject =
+    private fun runStructured(
+        stored: StoredResult,
+        fromCache: Boolean,
+        reused: Int,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): JsonObject =
         buildJsonObject {
             put("resultId", stored.resultId)
             put("cached", fromCache)
             if (reused > 0) put("reusedReplications", reused)
+            if (warnings.isNotEmpty()) put("warnings", warningsArray(warnings))
             // The full payload (type, summary, responses, items, best, iterations, …) wins on key conflicts.
             stored.payload.jsonObject.forEach { (k, v) -> put(k, v) }
         }
 
     /** A complete, lossless human summary of a run / experiment / optimization result. */
-    private fun runSummary(stored: StoredResult, fromCache: Boolean): String {
+    private fun runSummary(
+        stored: StoredResult,
+        fromCache: Boolean,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): String {
         val p = stored.payload.jsonObject
         val type = p["type"]?.jsonPrimitive?.contentOrNull
         return buildString {
             appendLine("Result ${stored.resultId}${if (fromCache) " (cached)" else ""} — status: ${type ?: "unknown"}")
+            if (warnings.isNotEmpty()) {
+                appendLine()
+                appendLine("${warnings.size} warning(s) — this run did NOT use every value as written:")
+                warnings.forEach { appendLine("  - ${it.path}: ${it.message}") }
+                appendLine()
+            }
             when (type) {
                 "completed" -> {
                     p["summary"]?.jsonObject?.let { s ->
@@ -1461,8 +1514,65 @@ class KslMcpTools(
     private val externalDbDirs = ConcurrentHashMap<String, java.nio.file.Path>()
 
     /** The database directory for [resultId]: a registered external database, else the result's own output dir. */
+    /**
+     * The requested report formats, or an error naming a value that is not one.
+     *
+     * This used to be two `mapNotNull` calls, so `"PDF"` simply vanished: the tool answered with the
+     * formats it *could* make, advertised a `.pdf` URL that 404s, and said nothing about the one it had
+     * dropped. A caller asking for PDF wants to know it is not coming, and a dead link is the worst way
+     * to find out. `ReportFormat` is the whole of what is supported — HTML, MARKDOWN, TEXT.
+     *
+     * @return the parsed set (defaulting to HTML when none is named), or a failure to return verbatim
+     */
+    private fun reportFormats(arguments: JsonObject?): Pair<Set<ksl.app.config.ReportFormat>?, CallToolResult?> {
+        val named = (arguments?.get("formats") as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?: return setOf(ksl.app.config.ReportFormat.HTML) to null
+        val valid = ksl.app.config.ReportFormat.entries
+        val unknown = named.filterNot { s -> valid.any { it.name.equals(s, ignoreCase = true) } }
+        if (unknown.isNotEmpty()) {
+            return null to error(
+                "unsupported report format(s) " + unknown.joinToString(", ") { "'" + it + "'" } +
+                    "; valid formats are " + valid.joinToString(", ") { it.name },
+            )
+        }
+        val parsed = named.mapNotNull { s -> valid.firstOrNull { it.name.equals(s, ignoreCase = true) } }.toSet()
+        return parsed.ifEmpty { setOf(ksl.app.config.ReportFormat.HTML) } to null
+    }
+
     private fun dbDirFor(resultId: String): java.nio.file.Path =
         externalDbDirs[resultId] ?: artifactStore.outputDirFor(resultId)
+
+    /**
+     * The "this result has no database" answer, distinguishing it from "there is no such result".
+     *
+     * Those were the same answer — a bare `present: false` — and the guidance that came with it was
+     * actively wrong for the second case: it told the caller to re-run with the database enabled when
+     * the real problem was a bad id, so a typo sent them off to repeat a run they had already done.
+     *
+     * The message also goes in `structuredContent`, not only in the text. A client that reads the
+     * structured payload (the reason `db_status` puts it there) otherwise saw `present: false` with no
+     * guidance at all.
+     *
+     * @param extra additional structured fields a particular tool's output schema requires
+     */
+    private fun dbUnavailable(resultId: String, extra: JsonObject = JsonObject(emptyMap())): CallToolResult {
+        val known = externalDbDirs.containsKey(resultId) || resultId in resultStore.allIds()
+        val message = if (known) {
+            ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE
+        } else {
+            "No result '" + resultId + "' is known to this server, so there is no database to analyze. " +
+                "Check the resultId — a run returns it as 'resultId', and list_results shows the ids " +
+                "this server is holding. Re-running with the database enabled will not help if the id " +
+                "is wrong."
+        }
+        return result(message, buildJsonObject {
+            put("present", false)
+            put("code", if (known) "NO_DATABASE" else "UNKNOWN_RESULT_ID")
+            put("message", message)
+            extra.forEach { (k, v) -> put(k, v) }
+        })
+    }
 
     /**
      * `db_open_external` — open a pre-existing KSL database the server did not produce (a SQLite
@@ -1532,7 +1642,7 @@ class KslMcpTools(
     fun dbExperiments(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val experiments = resultDb.experiments(dbDirFor(resultId))
-            ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+            ?: return dbUnavailable(resultId)
         val element = json.encodeToJsonElement(
             kotlinx.serialization.builtins.ListSerializer(ksl.service.capability.dbanalysis.ExperimentInfoDto.serializer()),
             experiments,
@@ -1553,7 +1663,7 @@ class KslMcpTools(
         } else {
             dbOutcome
         }
-        return dbJsonResult(outcome, "summary")
+        return dbJsonResult(outcome, "summary", resultId)
     }
 
     /** `db_compare` — multiple-comparison (MCB) analysis of a response, as JSON. */
@@ -1573,6 +1683,7 @@ class KslMcpTools(
                 fallbackSource = inMemoryComparisonSource(resultId),
             ),
             "comparison",
+            resultId,
         )
     }
 
@@ -1603,7 +1714,7 @@ class KslMcpTools(
     fun dbViews(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val names = resultDb.viewNames(dbDirFor(resultId))
-            ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+            ?: return dbUnavailable(resultId)
         val structured = buildJsonObject { putJsonArray("views") { names.forEach { add(it) } } }
         return result("${names.size} view(s): ${names.joinToString(", ")}", structured)
     }
@@ -1614,7 +1725,7 @@ class KslMcpTools(
         val view = arguments.string("view") ?: return error("missing required argument 'view'")
         val experiment = arguments.string("experiment")
         val limit = arguments.string("limit")?.toIntOrNull() ?: ksl.service.capability.dbanalysis.DEFAULT_VIEW_ROW_LIMIT
-        return dbJsonResult(resultDb.viewJson(dbDirFor(resultId), view, experiment, limit), "view")
+        return dbJsonResult(resultDb.viewJson(dbDirFor(resultId), view, experiment, limit), "view", resultId)
     }
 
     /** `db_compare_report` — render a comparison (MCB) report (with plots) as an artifact. */
@@ -1626,10 +1737,9 @@ class KslMcpTools(
         }
         val delta = arguments?.get("delta")?.jsonPrimitive?.doubleOrNull ?: 0.0
         val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
-        val formats = (arguments?.get("formats") as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-            ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
-            ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
+        val (formats, formatError) = reportFormats(arguments)
+        if (formatError != null) return formatError
+        formats!!
         val outcome = resultDb.renderComparisonReport(
             dbDirFor(resultId), artifactStore.dirFor(resultId),
             response, experiments, delta, level, formats,
@@ -1654,10 +1764,9 @@ class KslMcpTools(
         val experiment = arguments.string("experimentName") ?: return error("missing required argument 'experimentName'")
         val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
         val showPlots = arguments.string("showPlots")?.toBooleanStrictOrNull() ?: true
-        val formats = (arguments?.get("formats") as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-            ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
-            ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
+        val (formats, formatError) = reportFormats(arguments)
+        if (formatError != null) return formatError
+        formats!!
         val outcome = resultDb.renderExperimentSummaryReport(
             dbDirFor(resultId), artifactStore.dirFor(resultId),
             experiment, level, showPlots, formats,
@@ -1696,9 +1805,7 @@ class KslMcpTools(
             // output schema (required: ["artifacts"]); without it the SDK rejects the non-error
             // guidance result and the client sees a schema-validation error instead of the message.
             ksl.service.capability.dbanalysis.DbReportResult.NoDatabase ->
-                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject {
-                    put("present", false); putJsonArray("artifacts") {}
-                })
+                dbUnavailable(resultId, buildJsonObject { putJsonArray("artifacts") {} })
             is ksl.service.capability.dbanalysis.DbReportResult.Invalid ->
                 result(outcome.reason, buildJsonObject {
                     put("analyzable", false); put("reason", outcome.reason); putJsonArray("artifacts") {}
@@ -1732,10 +1839,18 @@ class KslMcpTools(
     /** Maps a [ksl.service.capability.dbanalysis.DbQueryResult] to a tool result:
      *  JSON in structuredContent on success, or a non-error guidance result when
      *  there is no database / the request is not analyzable. */
-    private fun dbJsonResult(outcome: ksl.service.capability.dbanalysis.DbQueryResult, key: String): CallToolResult =
+    private fun dbJsonResult(
+        outcome: ksl.service.capability.dbanalysis.DbQueryResult,
+        key: String,
+        resultId: String? = null,
+    ): CallToolResult =
         when (outcome) {
             ksl.service.capability.dbanalysis.DbQueryResult.NoDatabase ->
-                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+                if (resultId != null) dbUnavailable(resultId)
+                else result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject {
+                    put("present", false); put("code", "NO_DATABASE")
+                    put("message", ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE)
+                })
             is ksl.service.capability.dbanalysis.DbQueryResult.Invalid ->
                 result(outcome.reason, buildJsonObject { put("analyzable", false); put("reason", outcome.reason) })
             is ksl.service.capability.dbanalysis.DbQueryResult.Json -> {

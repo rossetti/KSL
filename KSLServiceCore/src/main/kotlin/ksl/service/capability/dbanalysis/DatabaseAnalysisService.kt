@@ -196,8 +196,23 @@ class DatabaseAnalysisService : AutoCloseable {
         prettyPrint: Boolean = false,
     ): DbQueryResult {
         val selection = ComparisonSelectionModel(listOf(source))
-        if (experimentNames == null) selection.selectAll()
-        else experimentNames.forEach { selection.toggleExperiment(it, true) }
+        if (experimentNames == null) {
+            selection.selectAll()
+        } else {
+            // A name that matches nothing used to be toggled and silently ignored, so a typo surfaced
+            // as "needs at least 2 experiments ... Currently: 1" -- a true statement that points at the
+            // wrong thing. Naming the unmatched ones puts the message where the mistake is.
+            val available = selection.allExperiments.map { it.name }
+            val unmatched = experimentNames.filterNot { it in available }
+            if (unmatched.isNotEmpty()) {
+                return DbQueryResult.Invalid(
+                    "No experiment named " + unmatched.joinToString(", ") { "'" + it + "'" } +
+                        " is in this database. Available: " +
+                        (if (available.isEmpty()) "(none)" else available.sorted().joinToString(", ")) + ".",
+                )
+            }
+            experimentNames.forEach { selection.toggleExperiment(it, true) }
+        }
 
         val validation = selection.validateForResponse(responseName, AnalysisType.MULTIPLE_COMPARISON)
         if (!validation.ok) return DbQueryResult.Invalid(validation.reason ?: "Comparison request is not analyzable.")

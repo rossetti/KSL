@@ -174,9 +174,15 @@ class ComparisonSelectionModel(
             ?: return ValidationResult.fail("Pick a response.")
         val participants = experimentsRecording(response)
         if (participants.isEmpty()) {
+            // List what the checked experiments DO record. Telling a caller that its response is absent
+            // without saying what is present leaves them guessing at a name, and the names are right
+            // here -- a typo is the likeliest cause and the list settles it immediately.
+            val recorded = availableResponses().map { it.name }.distinct().sorted()
             return ValidationResult.fail(
-                "No checked experiment records '$response'.  Pick a different response " +
-                    "or check experiments that record it."
+                "No checked experiment records '$response'.  " +
+                    (if (recorded.isEmpty()) "The checked experiments record no responses at all."
+                     else "They record: " + recorded.joinToString(", ") + ".") +
+                    "  Pick a different response or check experiments that record it."
             )
         }
         return when (type) {
