@@ -913,14 +913,28 @@ class KslMcpTools(
     }
 
     /**
-     * The default reports to render for a run, derived from its capture toggles:
-     * a Welch report when Welch analysis was captured, a trace report when
-     * response tracing was captured; null when neither (no post-run reporting).
+     * The reports to render for a run, derived from its capture toggles: a Welch report when Welch
+     * analysis was captured, a trace report when response tracing was; null when neither (no post-run
+     * reporting) — **in the formats `outputConfig.reports` names**.
+     *
+     * Those formats used to be ignored: both reports took their default of HTML alone, so a config
+     * asking for MARKDOWN got HTML and nothing said otherwise. That is the whole of what the field can
+     * mean on this path, and it now means it.
+     *
+     * What it does **not** mean, because its type cannot carry it: `reports` is a set of *formats*, not
+     * a set of report kinds, so naming a format does not cause a report to exist. A run that captured
+     * neither Welch analysis nor a response trace has nothing to render in any format, and
+     * `reports = ["HTML"]` alone produces no artifact. The field's own documentation describes it as
+     * driving "the Single app's pre-run auto-render workflow"; an agent reading the name as "make me a
+     * report" is reading a promise it never made, which is why the tool schema now says so as well.
      */
     private fun reportRequestFor(outputConfig: ksl.app.config.OutputConfig): ksl.service.capability.report.ReportRequest? {
+        // Empty is the default rather than "no formats": a config that cleared the set was asking for
+        // the default, not for a report with no representation.
+        val formats = outputConfig.reports.map { it.name }.ifEmpty { listOf("HTML") }
         val request = ksl.service.capability.report.ReportRequest(
-            welch = if (outputConfig.enableWelchAnalysis) ksl.service.capability.report.WelchReport() else null,
-            trace = if (outputConfig.enableResponseTrace) ksl.service.capability.report.TraceReport() else null,
+            welch = if (outputConfig.enableWelchAnalysis) ksl.service.capability.report.WelchReport(formats = formats) else null,
+            trace = if (outputConfig.enableResponseTrace) ksl.service.capability.report.TraceReport(formats = formats) else null,
         )
         return if (request.isEmpty) null else request
     }
