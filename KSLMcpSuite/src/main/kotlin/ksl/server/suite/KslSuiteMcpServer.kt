@@ -200,6 +200,20 @@ object KslSuiteMcpServer {
             // artifact needs the Authorization header like every other non-public route. The default
             // deployment is loopback and open, so the link is directly clickable there.
             if (artifactStore != null) {
+                // The listing route, which the REST transport has had (`KslRestApp.kt:505`) and the suite
+                // had not: both mint the same URL shape, but only one of them could tell you what a
+                // result holds. Without it a client had to already know an artifact's name to fetch it,
+                // so a link that was never handed out was unreachable.
+                get("/results/{resultId}/artifacts") {
+                    val resultId = call.parameters["resultId"]!!
+                    call.respondText(
+                        adminJson.encodeToString(
+                            ListSerializer(ksl.service.capability.run.dto.ArtifactRef.serializer()),
+                            artifactStore.list(resultId),
+                        ),
+                        ContentType.Application.Json,
+                    )
+                }
                 get("/results/{resultId}/artifacts/{name...}") {
                     val resultId = call.parameters["resultId"]!!
                     val name = call.parameters.getAll("name")?.joinToString("/").orEmpty()

@@ -288,6 +288,13 @@ class DatabaseAnalysisService : AutoCloseable {
         level: Double = 0.95,
         formats: Set<ReportFormat> = setOf(ReportFormat.HTML),
         reportsDir: Path,
+        /**
+         *  Which MCB direction to render. Defaults to both, which is what this always did — and what
+         *  left a caller to know that a time in system is a "smaller is better" measure and read the
+         *  right half. Naming a direction removes the guess.
+         */
+        direction: ksl.utilities.io.report.extensions.MCBDirection =
+            ksl.utilities.io.report.extensions.MCBDirection.BOTH,
     ): DbReportResult {
         val selection = ComparisonSelectionModel(listOf(handle.source))
         if (experimentNames == null) selection.selectAll()
@@ -303,6 +310,7 @@ class DatabaseAnalysisService : AutoCloseable {
             observations = selection.gatherObservationsFor(responseName),
             outputDir = reportsDir,
             formats = formats,
+            direction = direction,
             indifferenceZone = delta,
             altConfidenceLevel = level,
             diffConfidenceLevel = level,

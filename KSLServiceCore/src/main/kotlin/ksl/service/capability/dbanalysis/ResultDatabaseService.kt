@@ -117,10 +117,14 @@ class ResultDatabaseService(
         delta: Double = 0.0,
         level: Double = 0.95,
         formats: Set<ksl.app.config.ReportFormat> = setOf(ksl.app.config.ReportFormat.HTML),
+        direction: ksl.utilities.io.report.extensions.MCBDirection =
+            ksl.utilities.io.report.extensions.MCBDirection.BOTH,
     ): DbReportResult {
         val db = locate(outputDir) ?: return DbReportResult.NoDatabase
         return withDatabase(db) {
-            analysis.renderComparisonReport(it, responseName, experimentNames, delta, level, formats, reportsDir)
+            analysis.renderComparisonReport(
+                it, responseName, experimentNames, delta, level, formats, reportsDir, direction,
+            )
         }
     }
 

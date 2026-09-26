@@ -1908,9 +1908,21 @@ class KslMcpTools(
         val (formats, formatError) = reportFormats(arguments)
         if (formatError != null) return formatError
         formats!!
+        // Which half of the MCB output the report should carry. The renderer and KSLCore have had an
+        // MCBDirection all along; only the tool never exposed it, so an agent had to know that a time in
+        // system is a "smaller is better" measure and read the right half of a report containing both.
+        val direction = when (arguments.string("direction")?.uppercase()) {
+            null, "BOTH" -> ksl.utilities.io.report.extensions.MCBDirection.BOTH
+            "MAX", "LARGER", "LARGER_IS_BETTER" -> ksl.utilities.io.report.extensions.MCBDirection.MAX
+            "MIN", "SMALLER", "SMALLER_IS_BETTER" -> ksl.utilities.io.report.extensions.MCBDirection.MIN
+            else -> return error(
+                "unknown 'direction' '" + arguments.string("direction") +
+                    "'; valid values are MAX (larger is better), MIN (smaller is better), or BOTH",
+            )
+        }
         val outcome = resultDb.renderComparisonReport(
             dbDirFor(resultId), artifactStore.dirFor(resultId),
-            response, experiments, delta, level, formats,
+            response, experiments, delta, level, formats, direction,
         )
         return dbReportResult(outcome, resultId)
     }

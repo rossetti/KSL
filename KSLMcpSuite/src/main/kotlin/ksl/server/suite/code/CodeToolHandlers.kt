@@ -185,14 +185,27 @@ class CodeToolHandlers(
     }.trim()
 
     fun getServerInfo(): String = buildString {
-        appendLine("KSL Code MCP server")
+        // "KSL Code MCP server" described only this handler's own capability, on a server that also
+        // serves the simulation tools and the textbook index -- so the tool named for describing the
+        // server described a third of it.
+        appendLine("KSL MCP Suite — simulation, textbook search, and source-code search on one endpoint")
         appendLine("  server version: ${SuiteBuildInfo.version}")
+        appendLine("  health:         GET /health (liveness), /status (capabilities + call counts)")
         appendLine("  KSL ref:        ${store.meta.kslVersion}")
         appendLine("  index built:    ${store.meta.buildDate}")
         appendLine("  declarations:   ${store.meta.declarationCount}")
         appendLine("  by module:      ${store.meta.moduleCounts}")
         appendLine("  source:         ${store.meta.sourceUrl}")
-        append("This server answers from KSL ${store.meta.kslVersion}; re-index if the library has moved on.")
+        appendLine(
+            "The figures above describe the code index only. Simulation tools answer from the bundles " +
+                "list_bundles reports, and textbook tools from the book index list_chapters reports; " +
+                "ask those tools for their own state."
+        )
+        append(
+            "Code answers come from KSL ${store.meta.kslVersion}, indexed ${store.meta.buildDate}. " +
+                "If the library has been released since that date, re-index — an answer about a symbol " +
+                "added after it will be wrong rather than missing."
+        )
     }.trim()
 
     // ---- rendering helpers ----
