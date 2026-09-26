@@ -605,12 +605,24 @@ class KslMcpTools(
 
     /** A config-document scaffold result: the raw document as text (to edit and submit) plus
      *  the same parsed into `structuredContent` for typed access. */
-    private fun documentResult(documentType: String, encoded: String): CallToolResult {
+    private fun documentResult(
+        documentType: String,
+        encoded: String,
+        inputsExample: JsonObject? = null,
+    ): CallToolResult {
         val parsed = runCatching { json.parseToJsonElement(encoded) }.getOrNull()?.let(::sanitizeNonFinite)
         val structured = buildJsonObject {
             put("documentType", documentType)
             if (parsed is JsonObject) put("document", parsed)
+            if (inputsExample != null && inputsExample.isNotEmpty()) {
+                put("inputs", sanitizeNonFinite(inputsExample))
+            }
         }
+        // The text body stays *exactly* the encoded document and nothing else. Callers pipe it straight
+        // back into validate_run_config / validate_experiment_config, so it has to parse as JSON on its
+        // own -- two tests re-ingest it, and they caught an earlier version of this that appended an
+        // explanation after the closing brace. The inputs example therefore lives in structuredContent,
+        // where a client can read it without the document ceasing to be a document.
         return result(encoded, structured)
     }
 
@@ -641,7 +653,26 @@ class KslMcpTools(
         val modelId = arguments.string("modelId") ?: return error("missing required argument 'modelId'")
         val descriptor = registry.describeModel(bundleId, modelId)
             ?: return error("no model '$modelId' in bundle '$bundleId'")
-        return documentResult("RunConfiguration", RunConfigurationJson.encode(RunTemplates.runDocument(descriptor, modelId)))
+        // The template also advertises the short form, with one entry per input at its current value.
+        // Discoverability is the point: an rvOverrides entry's {rvName, paramName, value} shape appears
+        // nowhere a caller would look, and the report's author reached it only by reading the source.
+        // A filled-in example beside the document is where they looked first.
+        val inputs = buildJsonObject {
+            descriptor.controls.numericControls.forEach { put(it.keyName, it.value) }
+            descriptor.controls.stringControls.forEach { put(it.keyName, it.value) }
+            descriptor.rvParameterData.forEach {
+                put(
+                    it.rvName + ksl.utilities.random.rvariable.parameters.RVParameterSetter.rvParamConCatChar +
+                        it.paramName,
+                    it.paramValue,
+                )
+            }
+        }
+        return documentResult(
+            "RunConfiguration",
+            RunConfigurationJson.encode(RunTemplates.runDocument(descriptor, modelId)),
+            inputsExample = inputs,
+        )
     }
 
     /** `validate_run_config` — validates a RunConfiguration document without running it. */
@@ -1003,6 +1034,124 @@ class KslMcpTools(
         }
     }
 
+    /**
+     * Expands an `inputs` argument into the control and RV overrides a `RunConfiguration` carries, so a
+     * document-centric run can be written the way `run_model` already accepts — `{keyName: value}`,
+     * keyed exactly as `describe_model` advertises.
+     *
+     * Why this is an argument and not a field of the document. Two things were awkward to author: an
+     * `rvOverrides` entry whose `{rvName, paramName, value}` shape appears in no template and no tool
+     * description, and a control override that demands the whole ~14-field `ControlData` descriptor —
+     * about 2 KB of copied boilerplate for a two-scenario comparison that differs in one number.
+     * `RunInputs.bind` already resolves both from a flat map, against the model's own descriptors, and
+     * `run_model` already routes through it; only the document path did not.
+     *
+     * Putting `inputs` in the document instead would mean adding a field to `ScenarioSpec` — a format
+     * four consumers read. A document could then be saved with `inputs` and silently ignored by the
+     * desktop apps, which is worse than the boilerplate. As an argument it is expanded here and what
+     * reaches `RunConfiguration` is exactly what reaches it today: no format change, KSLCore's
+     * `ControlData` untouched, and the strict decoder's precise errors preserved.
+     *
+     * Two shapes are accepted: keyed by scenario name, `{"TwoPharmacists": {"Pharmacy.numPharmacists": 2}}`,
+     * or a flat map applied to every scenario for the single-scenario case. Existing
+     * `controlOverrides` / `rvOverrides` in the document are kept; expanded entries are appended, so
+     * the two ways of saying it compose rather than conflict.
+     *
+     * @return the config with inputs applied, or a fatal error in the second slot
+     */
+    private fun applyInputs(
+        config: RunConfiguration,
+        arguments: JsonObject?,
+    ): Pair<RunConfiguration?, CallToolResult?> {
+        val element = arguments?.get("inputs") ?: return config to null
+        val outer = element as? JsonObject
+            ?: return null to error("'inputs' must be an object of {inputKey: value}, optionally keyed by scenario name")
+        if (outer.isEmpty()) return config to null
+
+        // Keyed-by-scenario when every value is itself an object; otherwise a flat map for all scenarios.
+        val perScenario = outer.values.all { it is JsonObject }
+        val names = config.scenarios.map { it.name }
+        if (perScenario) {
+            val unknown = outer.keys.filterNot { it in names }
+            if (unknown.isNotEmpty()) {
+                return null to error(
+                    "'inputs' names scenario(s) " + unknown.joinToString(", ") { "'" + it + "'" } +
+                        " that are not in this configuration; it has " + names.joinToString(", ") { "'" + it + "'" },
+                )
+            }
+        }
+
+        val updated = mutableListOf<ksl.app.config.ScenarioSpec>()
+        for (scenario in config.scenarios) {
+            val inputs: Map<String, JsonElement> = if (perScenario) {
+                (outer[scenario.name] as? JsonObject) ?: emptyMap()
+            } else {
+                outer
+            }
+            if (inputs.isEmpty()) {
+                updated.add(scenario)
+                continue
+            }
+            // Bound against whichever reference the scenario carries. Both forms reach a descriptor:
+            // a bundle-and-model id names one exactly, and a provider id is enough on its own.
+            val descriptor = when (val ref = scenario.modelReference) {
+                is ksl.app.config.ModelReference.ByBundleAndModelId ->
+                    registry.describeModel(ref.bundleId, ref.modelId)
+                        ?: return null to error("no model '" + ref.modelId + "' in bundle '" + ref.bundleId + "'")
+                is ksl.app.config.ModelReference.ByProviderId ->
+                    registry.descriptorForModelId(ref.providerId)
+                        ?: return null to error("no model '" + ref.providerId + "' is known to this server")
+                else -> return null to error(
+                    "scenario '" + scenario.name + "' names its model in a form whose descriptor this " +
+                        "server cannot resolve (" + ref::class.simpleName + "), so 'inputs' cannot be " +
+                        "bound; write controlOverrides / rvOverrides directly, or reference the model " +
+                        "by provider id or by bundle and model id",
+                )
+            }
+            val bound = try {
+                RunInputs.bind(descriptor, inputs)
+            } catch (e: IllegalArgumentException) {
+                return null to error("scenario '" + scenario.name + "': " + (e.message ?: "invalid inputs"))
+            }
+            val existing = scenario.controlOverrides
+            updated.add(
+                scenario.copy(
+                    controlOverrides = existing.copy(
+                        modelName = existing.modelName.ifBlank { bound.controlOverrides.modelName },
+                        numericControls = existing.numericControls + bound.controlOverrides.numericControls,
+                        stringControls = existing.stringControls + bound.controlOverrides.stringControls,
+                        jsonControls = existing.jsonControls + bound.controlOverrides.jsonControls,
+                    ),
+                    rvOverrides = scenario.rvOverrides + bound.rvOverrides,
+                ),
+            )
+        }
+        return config.copy(scenarios = updated) to null
+    }
+
+    /**
+     * A document decode failure, with kotlinx's developer-facing advice replaced by something a caller
+     * can act on.
+     *
+     * The raw message for a misspelled key reads "Encountered an unknown key 'parameters' ... Use
+     * 'ignoreUnknownKeys = true' in 'Json {}' builder" — written for whoever maintains the server, and
+     * it points an agent at a fix it cannot make. The key it names is the useful part, so that is kept
+     * and the advice is replaced.
+     */
+    private fun documentError(kind: String, e: Exception): String {
+        val raw = e.message ?: return "invalid $kind document"
+        val unknownKey = Regex("""[Uu]nknown key '([^']+)'""").find(raw)?.groupValues?.get(1)
+        return if (unknownKey != null) {
+            "invalid $kind document: '$unknownKey' is not a field of this document at that position. " +
+                "Start from ${if (kind == "RunConfiguration") "run_template" else "the matching *_template tool"}, " +
+                "which emits every field with its default, and edit that — and note that a scenario's " +
+                "control and RV overrides can be given as a flat 'inputs' argument instead, keyed as " +
+                "describe_model advertises."
+        } else {
+            "invalid $kind document: $raw"
+        }
+    }
+
     /** A built single-run document plus its content key and canonical request. */
     private class BuiltRun(val config: RunConfiguration, val key: String, val request: JsonElement)
 
@@ -1079,11 +1228,16 @@ class KslMcpTools(
     suspend fun runConfig(arguments: JsonObject?): CallToolResult {
         val (text, argErr) = configDocText(arguments, "RunConfiguration")
         if (argErr != null) return argErr
-        val config = try {
+        val decoded = try {
             ConfigDocuments.decodeRun(text!!)
         } catch (e: Exception) {
-            return error("invalid RunConfiguration document: ${e.message}")
+            return error(documentError("RunConfiguration", e))
         }
+        // Applied before validation, so the validator sees the configuration that will actually run and
+        // its warnings describe the effective values rather than the document's.
+        val (config, inputsError) = applyInputs(decoded, arguments)
+        if (inputsError != null) return inputsError
+        config!!
         val validation = runService.validateRunConfig(config)
         if (!validation.isValid) return validationError(validation)
         return incrementalRunConfig(config, useCache(arguments))

@@ -121,6 +121,24 @@ object KslMcpServer {
                         add(buildJsonObject { put("type", "string") })
                     }
                 }
+                // Only the run document takes inputs: the other document types have no scenarios to
+                // bind them against.
+                if (documentType == "RunConfiguration") {
+                    putJsonObject("inputs") {
+                        put("type", "object")
+                        put(
+                            "description",
+                            "Optional. Control and RV-parameter overrides as a flat {inputKey: value} " +
+                                "map, keyed exactly as describe_model advertises (a control's keyName, " +
+                                "or '<rvName>.<paramName>' for a random-variable parameter) — the same " +
+                                "form run_model takes. Use {scenarioName: {inputKey: value}} to give " +
+                                "different values per scenario, or a flat map to apply one set to every " +
+                                "scenario. This is the short way to write what controlOverrides and " +
+                                "rvOverrides express longhand; both may be used together, and expanded " +
+                                "entries are appended to any already in the document.",
+                        )
+                    }
+                }
             },
             required = listOf("config"),
         )
