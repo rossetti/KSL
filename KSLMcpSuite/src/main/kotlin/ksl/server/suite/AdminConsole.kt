@@ -48,10 +48,23 @@ object AdminConsole {
     /** How many recent events the live feed shows (a bounded current-run window). */
     private const val FEED_LIMIT = 10
 
-    /** True when a request's remote address is the local loopback — the gate for machine-local ops. */
-    fun isLoopbackHost(host: String): Boolean {
-        val h = host.trim().lowercase()
-        return h == "localhost" || h == "::1" || h == "0:0:0:0:0:0:0:1" || h.startsWith("127.")
+    /**
+     * True when a peer address is the local loopback — the gate for machine-local ops.
+     *
+     * Takes an **address**, never a resolved name, and the distinction is the whole point. Ktor's
+     * `remoteHost` calls `InetSocketAddress.getHostName()`, which resolves; `remoteAddress` calls
+     * `getHostString()`, which does not. On a stock machine 127.0.0.1 has no reverse mapping, the
+     * resolver falls back to the literal, and either accessor happens to work — which is why gating
+     * on the name survived testing. Give 127.0.0.1 a name in the hosts file, as Docker Desktop does
+     * with `kubernetes.docker.internal`, and a name-based gate refuses every machine-local request.
+     *
+     * `::ffff:127.0.0.1` is the IPv4-mapped form a dual-stack bind can produce, and a bracketed
+     * `[::1]` is what some clients present; both are loopback and both were refused before.
+     */
+    fun isLoopbackAddress(address: String): Boolean {
+        val h = address.trim().lowercase().removeSurrounding("[", "]")
+        if (h == "localhost" || h == "::1" || h == "0:0:0:0:0:0:0:1") return true
+        return h.removePrefix("::ffff:").startsWith("127.")
     }
 
     /** The full operator console. [loopback] gates the machine-local action controls (client config, etc.). */
