@@ -1816,6 +1816,14 @@ class KslMcpTools(
                     putJsonArray("artifacts") {
                         refs.forEach { add(artifactJson(it)) }
                     }
+                    // Normally absent: a report's file name carries the parameters identifying its
+                    // analysis, so two analyses are two files. Present means this render overwrote an
+                    // identical one — which is fine, and is reported because a URL handed out earlier
+                    // silently becoming a different report is the defect this naming closed.
+                    if (outcome.replaced.isNotEmpty()) {
+                        put("replaced", true)
+                        putJsonArray("replacedFiles") { outcome.replaced.forEach { add(it) } }
+                    }
                 }
                 // Name the link for the file just written: this tool's whole point is producing a
                 // report someone opens, so a bare "downloadable via get_artifact" wastes a round trip.

@@ -310,7 +310,10 @@ class DatabaseAnalysisService : AutoCloseable {
             showAltCIPlot = true,
             showBoxPlot = true,
         )
-        return DbReportResult.Ok(outcome.written.map { it.fileName.toString() })
+        return DbReportResult.Ok(
+            outcome.written.map { it.fileName.toString() },
+            outcome.replaced.map { it.fileName.toString() },
+        )
     }
 
     /**

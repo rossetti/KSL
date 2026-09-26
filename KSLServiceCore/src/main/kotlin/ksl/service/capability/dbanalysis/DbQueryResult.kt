@@ -51,7 +51,13 @@ data class DbStatusDto(
 sealed interface DbReportResult {
     data object NoDatabase : DbReportResult
     data class Invalid(val reason: String) : DbReportResult
-    data class Ok(val files: List<String>) : DbReportResult
+    /**
+     *  A rendered report. [replaced] names any file that already existed and was overwritten — normally
+     *  empty, because a report's name carries the parameters identifying its analysis, so two different
+     *  analyses are two different files. It is reported so that a URL handed out earlier silently
+     *  becoming a different report cannot recur unnoticed.
+     */
+    data class Ok(val files: List<String>, val replaced: List<String> = emptyList()) : DbReportResult
 }
 
 /** Database export target. CSV writes one file per table; EXCEL writes a single workbook. */
