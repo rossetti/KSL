@@ -376,6 +376,13 @@ fun jvmArgsOf(project: Project): String {
 // Windows .cmd launchers (written CRLF). Batch uses %VAR% / %* / ';' and no '$', so these
 // templates need no escaping. GUI apps use javaw + start (no lingering console); the KSL-runtime
 // servers and CLIs use java. The full Java-21 check stays in the installer preflight.
+//
+// The console server keeps `java.exe` deliberately: run from a terminal, its output belongs in that
+// terminal. What that did not consider is the double-click, which install.ps1 makes likely by printing
+// the .support\Servers\<name>\ path -- a student checking whether the server works gets a bare
+// console that looks like an error, closes it, and kills the server they were testing. The banner in
+// winServerTemplate answers that without changing the interpreter, which would break the case the
+// template is right about.
 // Each also pins its own dir (cd /d "%~dp0") so a client spawning the launcher with an arbitrary
 // or stale cwd can't break it, and trusts %JAVA_HOME% only when its java(w).exe exists (else PATH java).
 val winAppTemplate = """
@@ -404,6 +411,11 @@ val winServerTemplate = """
       echo @NAME@ needs Java 21 - the same JDK you use in IntelliJ.
       exit /b 1
     )
+    echo ============================================================
+    echo  This window IS @NAME@. It is running, not reporting an error.
+    echo  Closing this window STOPS the server.
+    echo  To run it without a window, use the KSL Server tray app.
+    echo ============================================================
     "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\..\examples\bundles" "-Dksl.builtinLayouts=%~dp0..\..\..\examples\layouts"@SELFD@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
 """.trimIndent()
 

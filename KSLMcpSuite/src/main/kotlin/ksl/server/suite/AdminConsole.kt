@@ -116,6 +116,8 @@ object AdminConsole {
     private fun clientsSection(clients: List<AgentConfigurator.ClientState>, loopback: Boolean): String {
         val anyConfigured = clients.any { it.present }
         val allConfigured = clients.isNotEmpty() && clients.all { it.present }
+        // Whether each assistant is *running*, which decides whether it has read the entry Connect wrote.
+        val running = AssistantProcesses.runningByAgent(clients.map { it.agent })
         val rows = if (clients.isEmpty()) {
             "<tr><td colspan='2' class='detail'>No coding assistant found on this machine (Claude Desktop, Cursor, Windsurf, or Codex).</td></tr>"
         } else {
@@ -124,13 +126,38 @@ object AdminConsole {
                     "<span class='ok' title='${escape(c.path)}'>connected</span>"
                 else
                     "<span class='muted'>not connected</span>"
-                "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge</td></tr>"
+                // An assistant that is configured AND still running has not re-read its configuration,
+                // which is the whole of why the KSL tools have not appeared. Saying so is the point.
+                val note = when {
+                    c.present && running[c.agent] == AssistantProcesses.Running.YES ->
+                        " <span class='muted' title='A running assistant is still using the configuration " +
+                            "it loaded at start-up. Quit it fully and start it again.'>&mdash; running; " +
+                            "restart it to load the tools</span>"
+                    c.present && running[c.agent] == AssistantProcesses.Running.NO ->
+                        " <span class='muted'>&mdash; not running; the tools load when you start it</span>"
+                    else -> ""
+                }
+                "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge$note</td></tr>"
             }
         }
         // A standing reminder once configured — the tools appear only after the assistant restarts.
-        val connectedNote = if (anyConfigured)
-            "<div class=\"hint\">&#10003; Connected &mdash; <b>restart your assistant</b> so it loads the KSL tools.</div>"
-        else ""
+        // Sharpened when one is still running, because "restart" is the step students get wrong: on
+        // Windows, closing an assistant's window does not end its process, so it comes back with the
+        // configuration it already had.
+        val stillRunning = clients.any { it.present && running[it.agent] == AssistantProcesses.Running.YES }
+        val connectedNote = when {
+            // Both branches carry the same instruction -- "restart your assistant" -- so the console has
+            // one recognisable ask and AdminConsoleTest can pin it regardless of what happens to be
+            // running on the machine rendering the page. The running branch adds why it is not done yet.
+            stillRunning ->
+                "<div class=\"hint\">&#10003; Connected, but your assistant is <b>still running</b> and is " +
+                    "using the configuration it loaded before that, so you must <b>restart your assistant</b> " +
+                    "completely &mdash; on Windows, closing the window is not enough; the process keeps " +
+                    "running, so check the notification area and Task Manager.</div>"
+            anyConfigured ->
+                "<div class=\"hint\">&#10003; Connected &mdash; <b>restart your assistant</b> so it loads the KSL tools.</div>"
+            else -> ""
+        }
         val controls = when {
             !loopback ->
                 "<div class='hint'>Assistant setup is available from the console on the server's own machine.</div>"
