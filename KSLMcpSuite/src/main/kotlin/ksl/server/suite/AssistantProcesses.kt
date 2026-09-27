@@ -42,15 +42,33 @@ internal object AssistantProcesses {
      *  Command-line fragments that identify each assistant's own process, keyed by the agent name
      *  `AgentConfigurator` reports so the two can be joined.
      *
-     *  Windows is the case this exists for and the case least verifiable from a developer's Mac: an
-     *  MSIX-packaged install may not present a matchable command line at all, which is why an empty
-     *  match is reported as unknown rather than as "not running".
+     *  Windows is the case this exists for. Measured there 2026-09-27 (MSIX Claude Desktop 2.9939.2.0):
+     *  a packaged install *does* present a full command line, so the feared unmatchable case does not
+     *  arise — but a restricted platform or a container still can, which is why an empty match stays
+     *  reported as unknown rather than as "not running".
      */
     private val markers: Map<String, List<String>> = mapOf(
         "Claude Desktop" to listOf("Claude.app/Contents/MacOS/Claude", "claude.exe", "Claude Desktop"),
         "Cursor" to listOf("Cursor.app/Contents/MacOS/Cursor", "cursor.exe"),
         "Windsurf" to listOf("Windsurf.app/Contents/MacOS/Windsurf", "windsurf.exe"),
         "Codex" to listOf("codex"),
+    )
+
+    /**
+     *  Fragments that mean a marker match is *not* the assistant itself.
+     *
+     *  On Windows, Claude Code's CLI is also named `claude.exe` — it lives under
+     *  `AppData\Roaming\Claude\claude-code\<version>\` — and it runs as a *child* of Claude Desktop
+     *  with no `--type=` flag to set it apart from the main process. So the `claude.exe` marker alone
+     *  also matches a machine where Claude Desktop is closed and only a Claude Code session is open,
+     *  and reports the assistant as running: exactly the false positive this matching is meant not to
+     *  produce, telling a student to restart something that is not there. Only the path separates them.
+     *
+     *  Subtracting rather than narrowing the markers keeps a classic (non-MSIX) Claude Desktop install
+     *  matching, whose executable sits under neither `WindowsApps` nor `claude-code`.
+     */
+    private val exclusions: Map<String, List<String>> = mapOf(
+        "Claude Desktop" to listOf("claude-code"),
     )
 
     /** What is known about one assistant's process state. */
@@ -69,16 +87,35 @@ internal object AssistantProcesses {
                 .filter { it.isNotBlank() }
                 .toList()
         }.getOrNull()
+        return verdictsFrom(agents, commands)
+    }
+
+    /**
+     *  The matching itself, over a supplied command-line list rather than the live process table.
+     *
+     *  Split out so both the match and the exclusion are unit-testable without depending on what
+     *  happens to be running on the machine — the same reason `AdminConsole` keeps its render and its
+     *  gate as pure functions.
+     *
+     *  @param agents the agent names to test, as `AgentConfigurator.state` reports them
+     *  @param commands one entry per visible process command line; null or empty when the platform
+     *  gave nothing to match on
+     *  @return a verdict per agent
+     */
+    internal fun verdictsFrom(agents: List<String>, commands: List<String>?): Map<String, Running> {
         // No command lines at all means the JVM cannot see them here (a restricted platform, a
         // container). Saying "not running" then would be a confident wrong answer.
         if (commands.isNullOrEmpty()) return agents.associateWith { Running.UNKNOWN }
         return agents.associateWith { agent ->
             val fragments = markers[agent] ?: return@associateWith Running.UNKNOWN
-            if (commands.any { line -> fragments.any { line.contains(it, ignoreCase = true) } }) {
-                Running.YES
-            } else {
-                Running.NO
+            val excluded = exclusions[agent].orEmpty()
+            // Per line, not per agent: one process being Claude Code must not stop another line that
+            // really is the assistant from counting.
+            val matched = commands.any { line ->
+                fragments.any { line.contains(it, ignoreCase = true) } &&
+                    excluded.none { line.contains(it, ignoreCase = true) }
             }
+            if (matched) Running.YES else Running.NO
         }
     }
 }

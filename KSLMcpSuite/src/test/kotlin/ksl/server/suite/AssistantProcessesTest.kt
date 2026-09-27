@@ -33,6 +33,69 @@ import kotlin.test.assertTrue
  */
 class AssistantProcessesTest {
 
+    // Captured verbatim from a Windows 11 machine on 2026-09-27: MSIX Claude Desktop 2.9939.2.0, with
+    // three Claude Code sessions running as children of it. Both executables are named claude.exe, and
+    // neither the name nor the absence of a --type= flag tells the desktop's main process apart from a
+    // CLI session -- only the path does. Real strings, because a hand-written approximation is exactly
+    // what would have let the original false positive through.
+    private val windowsDesktopMain =
+        """C:\Program Files\WindowsApps\Claude_2.9939.2.0_x64__pzs8sxrjxfjjc\app\claude.exe"""
+    private val windowsClaudeCodeCli =
+        """C:\Users\grant\AppData\Roaming\Claude\claude-code\2.1.281\claude.exe --output-format stream-json""" +
+            """ --model claude-opus-5 --permission-prompt-tool stdio"""
+    private val macDesktopMain =
+        "/Applications/Claude.app/Contents/MacOS/Claude"
+
+    private fun claudeDesktop(vararg commandLines: String) =
+        AssistantProcesses.verdictsFrom(listOf("Claude Desktop"), commandLines.toList())["Claude Desktop"]
+
+    @Test
+    @DisplayName("Claude Code alone is not Claude Desktop running")
+    fun claudeCodeAloneIsNotTheAssistant() {
+        // The whole point. A student with the desktop app closed and a Claude Code session open must not
+        // be told to restart an assistant that is not there -- the false positive the markers' own KDoc
+        // promises to avoid, and the state this reports wrongly before the exclusion existed.
+        assertEquals(AssistantProcesses.Running.NO, claudeDesktop(windowsClaudeCodeCli))
+    }
+
+    @Test
+    @DisplayName("Claude Desktop running on Windows is detected, MSIX path and all")
+    fun windowsDesktopIsDetected() {
+        assertEquals(AssistantProcesses.Running.YES, claudeDesktop(windowsDesktopMain))
+    }
+
+    @Test
+    @DisplayName("the desktop app counts even when Claude Code sessions are running beside it")
+    fun desktopBesideCliIsStillRunning() {
+        // Exclusion is applied per command line, not per agent: the CLI lines must not veto the one line
+        // that really is the assistant. This is the machine the capture came from.
+        assertEquals(
+            AssistantProcesses.Running.YES,
+            claudeDesktop(windowsClaudeCodeCli, windowsDesktopMain, windowsClaudeCodeCli),
+        )
+    }
+
+    @Test
+    @DisplayName("the macOS bundle path still matches")
+    fun macDesktopIsDetected() {
+        // The exclusion is Windows-shaped; it must not cost the platform that was working already.
+        assertEquals(AssistantProcesses.Running.YES, claudeDesktop(macDesktopMain))
+    }
+
+    @Test
+    @DisplayName("no visible command lines is unknown, not 'not running'")
+    fun noCommandLinesIsUnknown() {
+        val agents = listOf("Claude Desktop", "Codex")
+        assertEquals(
+            agents.associateWith { AssistantProcesses.Running.UNKNOWN },
+            AssistantProcesses.verdictsFrom(agents, null),
+        )
+        assertEquals(
+            agents.associateWith { AssistantProcesses.Running.UNKNOWN },
+            AssistantProcesses.verdictsFrom(agents, emptyList()),
+        )
+    }
+
     @Test
     @DisplayName("an agent with no markers is unknown, never reported as not running")
     fun unmatchableAgentIsUnknown() {
