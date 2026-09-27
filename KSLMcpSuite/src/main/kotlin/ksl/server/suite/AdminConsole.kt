@@ -142,8 +142,14 @@ object AdminConsole {
         }
         // A standing reminder once configured — the tools appear only after the assistant restarts.
         // Sharpened when one is still running, because "restart" is the step students get wrong: on
-        // Windows, closing an assistant's window does not end its process, so it comes back with the
+        // Windows an assistant's process can outlive its window, and it then comes back with the
         // configuration it already had.
+        //
+        // Hedged deliberately. Measured 2026-09-27 on Windows 11 with MSIX Claude Desktop 2.9939.2.0
+        // and the menu-bar preference off, closing the window ended every process, so stating flatly
+        // that the process keeps running sends a student to a Task Manager with nothing in it — which
+        // would discredit the one note this panel exists to show. Whether it survives under other
+        // settings is untested, so the advice says "may" and still says where to look.
         val stillRunning = clients.any { it.present && running[it.agent] == AssistantProcesses.Running.YES }
         val connectedNote = when {
             // Both branches carry the same instruction -- "restart your assistant" -- so the console has
@@ -152,8 +158,8 @@ object AdminConsole {
             stillRunning ->
                 "<div class=\"hint\">&#10003; Connected, but your assistant is <b>still running</b> and is " +
                     "using the configuration it loaded before that, so you must <b>restart your assistant</b> " +
-                    "completely &mdash; on Windows, closing the window is not enough; the process keeps " +
-                    "running, so check the notification area and Task Manager.</div>"
+                    "completely &mdash; on Windows the process may keep running after you close the " +
+                    "window, so check the notification area and Task Manager.</div>"
             anyConfigured ->
                 "<div class=\"hint\">&#10003; Connected &mdash; <b>restart your assistant</b> so it loads the KSL tools.</div>"
             else -> ""

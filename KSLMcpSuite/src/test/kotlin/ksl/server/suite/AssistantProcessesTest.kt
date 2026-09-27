@@ -142,8 +142,8 @@ class AssistantProcessesTest {
                 "a running assistant must be told the restart it thinks it did was not one"
             )
             assertTrue(
-                "closing the window is not enough" in html,
-                "and why: on Windows the process outlives the window"
+                "may keep running" in html,
+                "and why, hedged: on Windows the process can outlive the window, but it does not always"
             )
             assertTrue("Task Manager" in html, "and where to look on Windows, which is the failing case")
         } else {
