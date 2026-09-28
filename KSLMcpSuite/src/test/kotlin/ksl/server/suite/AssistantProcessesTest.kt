@@ -83,6 +83,25 @@ class AssistantProcessesTest {
     }
 
     @Test
+    @DisplayName("this platform gives the JVM something to match on")
+    fun theGathererSeesSomething() {
+        // The caller-side coverage that was missing, and its absence is why Phase 6a shipped inert on
+        // Windows. Every verdictsFrom test above feeds it strings, so none of them can notice the
+        // gatherer returning nothing -- which is exactly what ProcessHandle.commandLine() does on
+        // Windows, where the JDK implements it for no process at all. Every verdict was UNKNOWN and the
+        // console's note could never render on the platform it was built for.
+        val seen = AssistantProcesses.visibleCommandLines()
+        assertTrue(
+            seen.isNotEmpty(),
+            "ProcessHandle exposed nothing about any process; every verdict would be UNKNOWN"
+        )
+        assertTrue(
+            seen.any { it.contains("java", ignoreCase = true) },
+            "this JVM's own process must be visible; got ${seen.size} entries, first: ${seen.take(3)}"
+        )
+    }
+
+    @Test
     @DisplayName("no visible command lines is unknown, not 'not running'")
     fun noCommandLinesIsUnknown() {
         val agents = listOf("Claude Desktop", "Codex")

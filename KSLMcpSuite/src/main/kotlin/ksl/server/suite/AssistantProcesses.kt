@@ -42,10 +42,11 @@ internal object AssistantProcesses {
      *  Command-line fragments that identify each assistant's own process, keyed by the agent name
      *  `AgentConfigurator` reports so the two can be joined.
      *
-     *  Windows is the case this exists for. Measured there 2026-09-27 (MSIX Claude Desktop 2.9939.2.0):
-     *  a packaged install *does* present a full command line, so the feared unmatchable case does not
-     *  arise — but a restricted platform or a container still can, which is why an empty match stays
-     *  reported as unknown rather than as "not running".
+     *  Windows is the case this exists for, and the case that gives the JVM the least to work with: the
+     *  JDK implements no `commandLine()` there at all, so matching falls back to the executable path —
+     *  see `visibleCommandLines`, which measures and explains it. An MSIX install does present a full
+     *  command line to WMI, but WMI is not the API this uses, and only what the JVM can see counts here.
+     *  Where a platform offers neither, an empty match is reported as unknown, never as "not running".
      */
     private val markers: Map<String, List<String>> = mapOf(
         "Claude Desktop" to listOf("Claude.app/Contents/MacOS/Claude", "claude.exe", "Claude Desktop"),
@@ -80,15 +81,35 @@ internal object AssistantProcesses {
      *  @param agents the agent names to test, as `AgentConfigurator.state` reports them
      *  @return a verdict per agent; [Running.UNKNOWN] when this platform gives nothing to match on
      */
-    fun runningByAgent(agents: List<String>): Map<String, Running> {
-        val commands = runCatching {
+    fun runningByAgent(agents: List<String>): Map<String, Running> =
+        verdictsFrom(agents, visibleCommandLines())
+
+    /**
+     *  One entry per process, holding whatever this platform lets the JVM see of it.
+     *
+     *  `commandLine()` is the better signal — it carries the arguments — and macOS supplies it. **Windows
+     *  supplies none of it:** the JDK does not implement command-line retrieval there. Measured
+     *  2026-09-27 on Windows 11, of **321** visible processes `commandLine()` was non-blank for **0**,
+     *  while `command()` — the executable path — was populated for 130 and named Claude in 14 of them.
+     *  Matching on `commandLine()` alone therefore made every verdict unknown on Windows, so the
+     *  console's sharpened note could never appear on the one platform it exists for.
+     *
+     *  The executable path is enough for what the markers and the exclusions need, because the thing that
+     *  distinguishes Claude Desktop from Claude Code on Windows **is** the path — both binaries are named
+     *  `claude.exe`. So: the command line where a platform gives one, the executable path otherwise.
+     *
+     *  Empty when a platform gives neither, which `verdictsFrom` reports as unknown rather than guessing.
+     */
+    internal fun visibleCommandLines(): List<String> =
+        runCatching {
             ProcessHandle.allProcesses()
-                .map { it.info().commandLine().orElse("") }
+                .map { handle ->
+                    val info = handle.info()
+                    info.commandLine().orElse("").ifBlank { info.command().orElse("") }
+                }
                 .filter { it.isNotBlank() }
                 .toList()
-        }.getOrNull()
-        return verdictsFrom(agents, commands)
-    }
+        }.getOrDefault(emptyList())
 
     /**
      *  The matching itself, over a supplied command-line list rather than the live process table.
