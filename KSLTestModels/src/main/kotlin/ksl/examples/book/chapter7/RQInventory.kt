@@ -5,7 +5,6 @@ import ksl.controls.KSLControl
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
-import kotlin.math.ceil
 
 class RQInventory(
     parent: ModelElement,
@@ -137,16 +136,12 @@ class RQInventory(
 
     override fun checkInventoryPosition() {
         if (inventoryPosition <= myReorderPt) {
-            // determine the amount to order and request the replenishment
-            // need to place an order, figure out the amount below reorder point
-            if (inventoryPosition == myReorderPt) { // hit reorder point exactly
-                requestReplenishment(myReorderQty)
-            } else {
-                val gap = (myReorderPt - inventoryPosition).toDouble()
-                // find number of batches to order
-                val n = ceil(gap / myReorderQty).toInt()
-                requestReplenishment(n * myReorderQty)
-            }
+            // Order the fewest whole batches that lift the position strictly above r:
+            // floor((r - IP)/Q) + 1. The difference is non-negative here, so integer division is
+            // the floor. A ceiling instead leaves the position exactly at r whenever r - IP is a
+            // multiple of Q, one batch short.
+            val n = (myReorderPt - inventoryPosition) / myReorderQty + 1
+            requestReplenishment(n * myReorderQty)
         }
     }
 

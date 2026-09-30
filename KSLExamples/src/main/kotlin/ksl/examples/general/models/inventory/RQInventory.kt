@@ -5,7 +5,6 @@ import ksl.controls.KSLControl
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
-import kotlin.math.ceil
 
 /**
  * A continuous-review (r, Q) inventory policy modeled as a [ModelElement]. Inventory position is
@@ -47,6 +46,9 @@ class RQInventory(
     private var myReorderPt = myInitialReorderPt
     private var myReorderQty = myInitialReorderQty
 
+    // True once RDelta has been set, so that setting Q holds r + Q fixed rather than r.
+    private var myDeltaMode = false
+
     @set:KSLControl(
         controlType = ControlType.INTEGER,
         lowerBound = 0.0
@@ -54,7 +56,31 @@ class RQInventory(
     override var initialReorderPoint: Int
         get() = myInitialReorderPt
         set(value) {
+            myDeltaMode = false
             setInitialPolicyParameters(value, myInitialReorderQty)
+        }
+
+    /**
+     *  The reorder point expressed as RDelta = r + Q, the parameterization optimizers use. Its
+     *  lower bound of 0 is exactly the class's own rule r >= -Q, so every value in a box of
+     *  (RDelta, Q) is a valid policy, including the negative reorder points that are optimal for
+     *  some cheap-backorder items and that the reorder point control's lower bound of 0 excludes.
+     *
+     *  Once this is set, setting the reorder quantity holds RDelta fixed and moves r, so the pair
+     *  can be applied in either order. Setting the reorder point directly returns to the default,
+     *  in which setting the reorder quantity holds r fixed.
+     */
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        name = "RDelta",
+        lowerBound = 0.0
+    )
+    var initialReorderPointDelta: Int
+        get() = myInitialReorderPt + myInitialReorderQty
+        set(value) {
+            require(value >= 0) { "RDelta = r + Q must be >= 0" }
+            myDeltaMode = true
+            setInitialPolicyParameters(value - myInitialReorderQty, myInitialReorderQty)
         }
 
     @set:KSLControl(
@@ -64,7 +90,11 @@ class RQInventory(
     override var initialReorderQty: Int
         get() = myInitialReorderQty
         set(value) {
-            setInitialPolicyParameters(myInitialReorderPt, value)
+            if (myDeltaMode) {
+                setInitialPolicyParameters(initialReorderPointDelta - value, value)
+            } else {
+                setInitialPolicyParameters(myInitialReorderPt, value)
+            }
         }
 
     @set:KSLControl(
@@ -158,16 +188,12 @@ class RQInventory(
 
     override fun checkInventoryPosition() {
         if (inventoryPosition <= myReorderPt) {
-            // determine the amount to order and request the replenishment
-            // need to place an order, figure out the amount below reorder point
-            if (inventoryPosition == myReorderPt) { // hit reorder point exactly
-                requestReplenishment(myReorderQty)
-            } else {
-                val gap = (myReorderPt - inventoryPosition).toDouble()
-                // find number of batches to order
-                val n = ceil(gap / myReorderQty).toInt()
-                requestReplenishment(n * myReorderQty)
-            }
+            // Order the fewest whole batches that lift the position strictly above r:
+            // floor((r - IP)/Q) + 1. The difference is non-negative here, so integer division is
+            // the floor. A ceiling instead leaves the position exactly at r whenever r - IP is a
+            // multiple of Q, one batch short.
+            val n = (myReorderPt - inventoryPosition) / myReorderQty + 1
+            requestReplenishment(n * myReorderQty)
         }
     }
 
