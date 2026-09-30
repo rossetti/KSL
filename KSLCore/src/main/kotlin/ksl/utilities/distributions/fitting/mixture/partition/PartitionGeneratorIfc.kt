@@ -31,6 +31,20 @@ import ksl.utilities.distributions.fitting.mixture.DataPartition
  *  Implementations must return a partition all of whose groups satisfy the supplied
  *  certificate, or null when they cannot. Returning a structurally invalid partition is a
  *  defect: the caller is entitled to assume the result is usable.
+ *
+ *  **Scale matters when choosing one.** A positive quantity spanning orders of magnitude is the
+ *  ordinary case in input modeling, and the generators treat it differently:
+ *
+ *  - `JenksPartitionGenerator` minimises within-group squared error on the raw scale, which on a
+ *    right-skewed sample is cheapest to reduce in the tail, so it spends its cuts there. It is
+ *    the default.
+ *  - `QuantilePartitionGenerator` cuts at equally spaced ranks, so it is scale-free, and it is
+ *    unbiased rather than shape-aware.
+ *  - `HistogramValleyPartitionGenerator` bins at equally spaced ranks and compares densities by
+ *    ratio, so it is scale-free in both, and it looks for gaps in density.
+ *
+ *  Because they fail in different places, `MixtureModeler.fitMultiStart` runs several and keeps the
+ *  best by criterion at each count.
  */
 interface PartitionGeneratorIfc {
 

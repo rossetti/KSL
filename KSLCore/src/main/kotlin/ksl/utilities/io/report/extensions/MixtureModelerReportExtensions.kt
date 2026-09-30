@@ -17,6 +17,8 @@
  */
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.distributions.fitting.mixture.unfinishedSearchWarning
+import ksl.utilities.distributions.fitting.mixture.ComponentCountBoundary
 import ksl.utilities.distributions.fitting.mixture.AdequacyVerdict
 import ksl.utilities.distributions.fitting.mixture.AdmissibleCutPlot
 import ksl.utilities.distributions.fitting.mixture.CutDependence
@@ -674,19 +676,26 @@ private fun ReportBuilder.criterionProfileContent(
         val flagBoundaries = markBoundaryMinima && !specified
         dataTable(
             listOf("Criterion", if (specified) "Prefers" else "Chooses", "Where the minimum sits"),
-            results.componentCountAgreement().entries.map { (name, chosen) ->
+            results.criterionChoices().filter { it.numComponents != null }.map { choice ->
                 val where = when {
                     !flagBoundaries -> "—"
-                    chosen == counts.last() -> "at the largest count fitted: it ran out of " +
-                            "candidates rather than finding a best"
-                    chosen == counts.first() -> "at the smallest count fitted"
+                    choice.boundary == ComponentCountBoundary.UPPER -> "at the largest count fitted: " +
+                            "it ran out of candidates rather than finding a best"
+                    choice.boundary == ComponentCountBoundary.LOWER && choice.stillImprovingAtTop ->
+                        "at the smallest count fitted, and still improving at k = ${counts.last()}: " +
+                                "the range may be too narrow"
+                    choice.boundary == ComponentCountBoundary.LOWER -> "at the smallest count fitted"
                     else -> "interior"
                 }
-                listOf(name, "$chosen", where)
+                listOf(choice.criterionName, "${choice.numComponents}", where)
             },
             if (specified) "What each criterion prefers among the counts fitted"
             else "What each criterion chose, and whether it chose at all"
         )
+        val unfinished = results.unfinishedCriteria()
+        if (flagBoundaries && unfinished.isNotEmpty()) {
+            paragraph(unfinishedSearchWarning(unfinished, counts.last()))
+        }
         if (specified) {
             paragraph(
                 "The counts were specified, not searched, so no criterion here ran out of " +

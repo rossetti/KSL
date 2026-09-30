@@ -84,12 +84,23 @@ data class ComponentCountRow(
  *  @param rows one row per candidate count, in increasing order
  *  @param hypothesisedCount the count the analyst supplied, when they supplied one
  *  @param criterionChoices what each reported criterion would choose
+ *  @param criterionChoiceDetails where each criterion's choice sits in the range fitted, and whether
+ *  it was still improving at the top of it
+ *  @param unfinishedCriteria the criteria whose search did not finish, so that a wider range could
+ *  change their answer; empty when the counts were specified
  */
 class ComponentCountEvidence(
     val rows: List<ComponentCountRow>,
     val hypothesisedCount: Int?,
-    val criterionChoices: Map<String, Int>
+    val criterionChoices: Map<String, Int>,
+    val criterionChoiceDetails: List<CriterionChoice> = emptyList(),
+    val unfinishedCriteria: List<CriterionChoice> = emptyList()
 ) {
+
+    /** Whether any reported criterion's search was unfinished; see [unfinishedCriteria]. */
+    val isSearchUnfinished: Boolean
+        get() = unfinishedCriteria.isNotEmpty()
+
 
     /**
      *  Whether every reported criterion chose the same number of components.
@@ -215,10 +226,33 @@ class ComponentCountEvidence(
                         "fault."
             )
         }
+        val largestFitted = rows.filter { it.isFeasible }.maxOfOrNull { it.numComponents }
+        if (unfinishedCriteria.isNotEmpty() && largestFitted != null) {
+            appendLine("  " + unfinishedSearchWarning(unfinishedCriteria, largestFitted))
+        }
         append(
             "  The size of a criterion's lead is how firmly it holds its view, not how likely " +
                     "that view is to be right: when these criteria choose wrongly, the median " +
                     "gap to the truth is about 19."
         )
     }
+}
+
+/**
+ *  The one-line warning every output that states a component count gives when the search did not
+ *  finish, so the wording is the same everywhere.
+ *
+ *  @param unfinished the criteria whose search did not finish
+ *  @param largestCountFitted the largest count a candidate was fitted for
+ */
+fun unfinishedSearchWarning(unfinished: List<CriterionChoice>, largestCountFitted: Int): String {
+    val parts = unfinished.joinToString("; ") { c ->
+        if (c.boundary == ComponentCountBoundary.UPPER) {
+            "${c.criterionName} chose the largest count fitted"
+        } else {
+            "${c.criterionName} chose k = ${c.numComponents} while still improving at k = $largestCountFitted"
+        }
+    }
+    return "Unfinished search: $parts. The range stopped at k = $largestCountFitted, so a wider " +
+            "numComponentsRange could change these answers."
 }
