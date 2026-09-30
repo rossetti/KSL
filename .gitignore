@@ -87,6 +87,8 @@ fabric.properties
 *.7z
 *.dmg
 *.gz
+# Compressed animation traces kept as test fixtures (e.g. a trace recorded by an earlier release).
+!KSLCore/src/test/resources/**/*.atf.gz
 *.iso
 # *.jar
 *.tar
