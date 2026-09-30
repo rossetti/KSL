@@ -112,14 +112,36 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
         }
     }
 
+    /**
+     *  The natural log of `pdf` at [x]: -ln(mean) - x/mean on the support, and the
+     *  ln(Double.MIN_VALUE) floor used by `PDFIfc` outside it. The support test is the one `pdf`
+     *  uses, so a value within numerical tolerance of zero counts as zero rather than as negative.
+     */
     override fun logLikelihood(x: Double): Double {
-        return -ln(mean) + x / mean
+        if (!isInSupport(x)) return ln(Double.MIN_VALUE)
+        return -ln(mean) - maxOf(x, 0.0) / mean
     }
 
+    /**
+     *  The sum of `logLikelihood` over [data], using the closed form for the observations on the
+     *  support and the floor for each one outside it, so the two methods agree for every input.
+     */
     override fun sumLogLikelihood(data: DoubleArray): Double {
-        val sum = data.sum()
-        return -1.0 * data.size.toDouble() * ln(mean) - (sum / mean)
+        var inSupportSum = 0.0
+        var inSupportCount = 0
+        var floorSum = 0.0
+        for (x in data) {
+            if (isInSupport(x)) {
+                inSupportSum += maxOf(x, 0.0)
+                inSupportCount++
+            } else {
+                floorSum += ln(Double.MIN_VALUE)
+            }
+        }
+        return -inSupportCount * ln(mean) - inSupportSum / mean + floorSum
     }
+
+    private fun isInSupport(x: Double): Boolean = x >= 0.0 || KSLMath.equal(x, 0.0)
 
     override fun parameters(params: DoubleArray) {
         mean = params[0]
