@@ -91,6 +91,7 @@ val sharedSources = listOf(
     "ksl/app/animation/replay/PositionInterpolator.kt",
     "ksl/app/animation/replay/ReplayCompatibility.kt",
     "ksl/app/animation/replay/ReplayModel.kt",
+    "ksl/app/animation/replay/GuidedPathReplay.kt",
     "ksl/app/animation/replay/StepTimeline.kt",
     "ksl/app/animation/replay/StreamingTraceMiner.kt",
     // ── scaffolding a layout from a trace alone (KSLApp) ──

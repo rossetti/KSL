@@ -22,6 +22,8 @@ import ksl.animation.AnimationEvent
 import ksl.app.animation.geom.BoundingBox
 import ksl.animation.AnimationLayout
 import ksl.animation.ConveyorLayoutElement
+import ksl.animation.GuidedPathLayoutElement
+import ksl.animation.GuidedTransporterLayoutElement
 import ksl.animation.LayoutPoint
 import ksl.animation.LocationLayoutElement
 import ksl.animation.MovableResourceLayoutElement
@@ -106,15 +108,21 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // don't auto-place a static resource glyph + request queue for them (they'd double the moving-agent glyph). A
     // modeler can still add either from the editor's Resource/Queue tools. Their resource name == their agent name
     // (both agent.name); their default request queue is "<name>:Q".
-    val staticResources = resourceNames.filterNot { it in agentNames }
+    //
+    // A guided transporter is a capacity-one resource too, and it is drawn on its guide path; a resource box
+    // for it would show the same vehicle twice, once standing still.
+    val transporterNames = vehicles.transporterNames
+    val staticResources = resourceNames.filterNot { it in agentNames || it in transporterNames }
     // Conveyor internal hold/access queues animate as part of the belt, so don't auto-place them either (still
     // editor-placeable). Match their stable name suffixes, scoped to a mined conveyor prefix to avoid false hits.
     val conveyorNames = conveyorAnchors.keys
     val conveyorQueueSuffixes = listOf(":ExitingHoldQ", ":RidingHoldQ", ":AccessingHoldQ", ":AccessQ")
+    // Guide path and fleet hold queues are bookkeeping for loads drawn elsewhere, so they are not auto-placed.
     val staticQueues = queueNames
         .filterNot { qn -> agentNames.any { qn == "$it:Q" } }
         .filterNot { qn -> conveyorQueueSuffixes.any { qn.endsWith(it) } &&
             (conveyorNames.isEmpty() || conveyorNames.any { qn.startsWith("$it:") }) }
+        .filterNot { vehicles.isVehicleHoldQueue(it) }
 
     // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
     // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
@@ -134,7 +142,8 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // actually happened — so agents/movers fill the view instead of clumping in a corner (P5).
     val spaceBox = effectiveSpaces.mapNotNull { spaceBounds(it) }
         .reduceOrNull { a, b -> a.union(b) }
-    val frame = listOfNotNull(spaceBox, observed)
+    // A guide path carries its own coordinates, so it frames the canvas the way movement does.
+    val frame = listOfNotNull(spaceBox, observed, guidePathBounds())
         .reduceOrNull { a, b -> a.union(b) }
     if (frame != null) {
         // Coordinate-aware layout: process elements go in a side strip scaled to the frame; named locations are
@@ -172,6 +181,23 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         val locations = location.names.sorted().mapNotNull { name ->
             location.centroids[name]?.let { LocationLayoutElement(locationName = name, position = it, label = name) }
         }
+        // The stations a guide path names (its intersections' aliases) are the places a reader looks for, and
+        // where an assignment's origin and destination are drawn; place them on the path, where they are.
+        val placedLocationNames = locations.map { it.locationName }.toSet()
+        val stationLocations = vehicles.guidePaths.values.flatMap { g ->
+            g.definition.intersections.flatMap { i -> i.aliases.map { it to g.intersectionPoint(i.name) } }
+        }.filter { (name, p) -> p != null && name !in placedLocationNames }
+            .distinctBy { it.first }
+            .map { (name, p) -> LocationLayoutElement(locationName = name, position = LayoutPoint(p!!.x, p.y), label = name) }
+        val guidedPaths = vehicles.guidePaths.keys.sorted().map { GuidedPathLayoutElement(spaceName = it) }
+        // A transporter is drawn about as long as the zones it covers, so a cart reads as a cart on its path
+        // rather than a marker the size of an aisle; bounded by the strip's element size.
+        val guidedTransporters = vehicles.transporterNames.sorted().map { name ->
+            val zones = (vehicles.transporterDef(name)?.lengthInZones ?: 1).coerceAtLeast(1)
+            val zoneLength = vehicles.transporterGuidePath(name)?.let { vehicles.guidePaths[it] }?.meanZoneLength()
+            val size = zoneLength?.let { (it * zones * 0.8).coerceIn(unit * 0.3, unit) } ?: unit
+            GuidedTransporterLayoutElement(name = name, size = size)
+        }
         val rightExtent = if (queues.isEmpty() && resources.isEmpty()) frame.maxX + margin else resColX + unit * 3
         return AnimationLayout(
             title = title ?: "Replay",
@@ -181,9 +207,11 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
             agentStateColors = agentStateColors,
             resources = resources,
             queues = queues,
-            locations = locations,
+            locations = locations + stationLocations,
             paths = pathsAmong(locations.map { it.locationName }.toSet()),
-            movableResources = movers
+            movableResources = movers,
+            guidedPaths = guidedPaths,
+            guidedTransporters = guidedTransporters
         ).withSeededObjectClasses(objectTypes, glyphSize)
     }
 
