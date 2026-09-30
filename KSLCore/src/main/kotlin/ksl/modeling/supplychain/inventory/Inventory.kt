@@ -69,6 +69,14 @@ open class Inventory @JvmOverloads constructor(
     private val myFirstFillRate: Response =
         Response(this, name = "${this.name} : First Fill Rate")
 
+    // The unit fill rate: units filled from stock on arrival over units demanded, observed once
+    // per replication. Unlike the first fill rate, which scores each demand 1 or 0, it credits the
+    // part of a lot that stock covered, which is the measure multi-echelon results usually report.
+    private val myUnitFillRate: Response =
+        Response(this, name = "${this.name} : Unit Fill Rate")
+    private var myUnitsDemanded: Double = 0.0
+    private var myUnitsFilledOnArrival: Double = 0.0
+
     private val myOrderCounter: Counter =
         Counter(this, name = "${this.name} : #Replenishments")
 
@@ -107,6 +115,14 @@ open class Inventory @JvmOverloads constructor(
     val onOrderResponse: TWResponseCIfc get() = myOnOrder
     val stockOutIndicatorResponse: TWResponseCIfc get() = myStockOutIndicator
     val firstFillRateResponse: ResponseCIfc get() = myFirstFillRate
+
+    /**
+     *  Units filled from stock on arrival over units demanded, observed once per replication (after
+     *  any warm-up). With unit demand it agrees in expectation with the first fill rate; with
+     *  lot-sized demand it credits a partially filled lot where the first fill rate scores it 0.
+     *  Demands rejected for an item-type mismatch or an unavailable filler are not counted.
+     */
+    val unitFillRateResponse: ResponseCIfc get() = myUnitFillRate
     val orderCounterCounter: CounterCIfc get() = myOrderCounter
     val timeBtwOrdersResponse: ResponseCIfc get() = myTimeBtwOrders
     val orderAmountResponse: ResponseCIfc get() = myOrderAmount
@@ -316,7 +332,13 @@ open class Inventory @JvmOverloads constructor(
         if (demandCarrier != null) {
             demand.addStateChangeListener(demandFilledShipListener)
         }
+        val unitsNeededHere = demand.remainingDemand
         demand.process(this)
+        if (demand.status != DemandStatusCode.ItemTypeMismatch &&
+            demand.status != DemandStatusCode.FillerUnavailable
+        ) {
+            myUnitsDemanded += unitsNeededHere
+        }
 
         if (demand.status == DemandStatusCode.ImmediateFill) {
             fillImmediately(demand)
@@ -499,6 +521,7 @@ open class Inventory @JvmOverloads constructor(
         // silent stock loss.  This matches backLogInitialDemand, which
         // already uses allocateInventory.
         val amt = allocateInventory(demand)
+        myUnitsFilledOnArrival += amt
         decrementOnHand(amt)
         demand.fill(amt)
         checkInventory()
@@ -507,6 +530,7 @@ open class Inventory @JvmOverloads constructor(
     private fun backLogInitialDemand(demand: SupplyChainModel.Demand) {
         myFirstFillRate.value = 0.0
         val amt = allocateInventory(demand)
+        myUnitsFilledOnArrival += amt
         if (amt > 0) {
             decrementOnHand(amt)
             demand.fill(amt)
@@ -648,7 +672,22 @@ open class Inventory @JvmOverloads constructor(
         myTimeLastOrder = 0.0
         myTimeLastDemandArrived = 0.0
         myDemandArrivalCounter = 0L
+        myUnitsDemanded = 0.0
+        myUnitsFilledOnArrival = 0.0
         checkInventoryAction.schedule(0.0)
+    }
+
+    override fun warmUp() {
+        super.warmUp()
+        myUnitsDemanded = 0.0
+        myUnitsFilledOnArrival = 0.0
+    }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        if (myUnitsDemanded > 0.0) {
+            myUnitFillRate.value = myUnitsFilledOnArrival / myUnitsDemanded
+        }
     }
 
     // ----------------------------------------------------------------- policy parameter pass-through
