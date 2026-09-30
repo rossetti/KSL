@@ -475,7 +475,7 @@ class SimulationCanvas : JPanel() {
         val base = screen(tx, q.position)
         val scale = scaleOf(tx)
         val step = q.spacing * scale
-        val dot = (8.0 * scale).coerceAtLeast(3.0)
+        val dot = (minOf(8.0, q.spacing * 0.9) * scale).coerceAtLeast(3.0) // never wider than its slot
         // Identified members (8C.2), if available; a load aboard a vehicle is drawn on the vehicle instead.
         val members = r.queueMembersAt(q.queueName, t).filter { r.vehicles.vehicleCarryingAt(it, t) == null }
         val length = if (members.isNotEmpty()) members.size

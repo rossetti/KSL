@@ -1,0 +1,142 @@
+title = "DispatchingRulesRingShop"
+baseTimeUnit = null
+width = 174.0
+height = 174.0
+background = [  ]
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Load"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[objectClasses]]
+typeName = "Source"
+shape = "CIRCLE"
+color = "#ff7f0e"
+size = 10.0
+imageRef = null
+label = null
+
+[[locations]]
+locationName = "NorthPickup"
+label = "NorthPickup"
+
+[locations.position]
+x = 0.0
+y = 100.0
+z = 0.0
+
+[[locations]]
+locationName = "SouthPickup"
+label = "SouthPickup"
+
+[locations.position]
+x = 0.0
+y = -100.0
+z = 0.0
+
+[[locations]]
+locationName = "Shipping"
+label = "Shipping"
+
+[locations.position]
+x = -100.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "DepotA"
+label = "DepotA"
+
+[locations.position]
+x = 0.0
+y = 150.0
+z = 0.0
+
+[[locations]]
+locationName = "DepotB"
+label = "DepotB"
+
+[locations.position]
+x = 150.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "DepotC"
+label = "DepotC"
+
+[locations.position]
+x = 0.0
+y = -150.0
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Agv:Space"
+scale = 1.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 2.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart1:Body"
+shape = "SQUARE"
+size = 18.75
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart2:Body"
+shape = "SQUARE"
+size = 18.75
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart3:Body"
+shape = "SQUARE"
+size = 18.75
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

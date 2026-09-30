@@ -1,0 +1,135 @@
+title = "TwoLaneWarehouse"
+baseTimeUnit = null
+width = 259.2
+height = 139.2
+background = [  ]
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Pallet"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[objectClasses]]
+typeName = "Source"
+shape = "CIRCLE"
+color = "#ff7f0e"
+size = 10.0
+imageRef = null
+label = null
+
+[[locations]]
+locationName = "Pick0"
+label = "Pick0"
+
+[locations.position]
+x = 0.0
+y = 120.0
+z = 0.0
+
+[[locations]]
+locationName = "Pick1"
+label = "Pick1"
+
+[locations.position]
+x = 40.0
+y = 120.0
+z = 0.0
+
+[[locations]]
+locationName = "Pick2"
+label = "Pick2"
+
+[locations.position]
+x = 80.0
+y = 120.0
+z = 0.0
+
+[[locations]]
+locationName = "Dock"
+label = "Dock"
+
+[locations.position]
+x = 0.0
+y = -10.0
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Fleet:Space"
+scale = 1.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 2.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart1:Body"
+shape = "SQUARE"
+size = 8.125
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart2:Body"
+shape = "SQUARE"
+size = 8.125
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart3:Body"
+shape = "SQUARE"
+size = 8.125
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart4:Body"
+shape = "SQUARE"
+size = 8.125
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

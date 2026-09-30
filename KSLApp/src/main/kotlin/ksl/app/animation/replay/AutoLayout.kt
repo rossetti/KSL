@@ -207,6 +207,16 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         // The stations a guide path names (its intersections' aliases) are the places a reader looks for, and
         // where an assignment's origin and destination are drawn; place them on the path, where they are.
         val placedLocationNames = locations.map { it.locationName }.toSet()
+        // Places the run actually used -- where loads boarded or were set down, where assignments began and
+        // ended -- name stations too, even when a station is an intersection with no alias. A junction nobody
+        // stops at is drawn by the path and needs no label; an intersection with an alias is labelled by it.
+        val usedPlaces = HashSet<String>()
+        for (e in events) when (e) {
+            is AnimationEvent.VehicleLoadBoarded -> e.locationName?.let { usedPlaces += it }
+            is AnimationEvent.VehicleLoadAlighted -> e.locationName?.let { usedPlaces += it }
+            is AnimationEvent.AgvAssignmentMade -> { usedPlaces += e.origin; usedPlaces += e.destination }
+            else -> {}
+        }
         val stationLocations = guidedPaths.flatMap { style ->
             val g = vehicles.guidePaths.getValue(style.spaceName)
             g.definition.intersections.flatMap { i ->
@@ -214,7 +224,8 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
                     style.offset.x + style.scale * i.x + i.z * (style.floorOffsetPerZ?.x ?: 0.0),
                     style.offset.y + style.scale * i.y + i.z * (style.floorOffsetPerZ?.y ?: 0.0)
                 )
-                i.aliases.map { it to p }
+                val names = if (i.aliases.isNotEmpty()) i.aliases else listOf(i.name).filter { it in usedPlaces }
+                names.map { it to p }
             }
         }.filter { (name, _) -> name !in placedLocationNames }
             .distinctBy { it.first }

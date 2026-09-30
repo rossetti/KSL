@@ -285,4 +285,29 @@ class GuidedPathReplayTest {
         assertTrue(layout.objectClasses.none { it.typeName == "VehicleAgent" }, "a control agent is not in the legend")
         assertTrue(layout.objectClasses.any { it.typeName == "Part" })
     }
+
+    @Test
+    fun onlyThePlacesARunUsesAreLabelledAndAnAliasLabelsItsIntersection() {
+        val events = listOf(
+            defined(), moved(0.0, "A"),
+            AnimationEvent.VehicleLoadBoarded(1.0, 7, "AGV1", bodyName = "Cart", locationName = "B")
+        )
+        val names = replay(events).autoLayout(events).locations.map { it.locationName }.toSet()
+        assertTrue("B" in names, "B has no alias but a load boarded there, so it is a station")
+        assertTrue("Dock" in names && "Store" in names, "aliases name their intersections")
+        assertTrue("A" !in names && "C" !in names, "an aliased intersection is labelled by its alias only")
+    }
+
+    @Test
+    fun aLayoutWithAGuidePathIsNotTurned() {
+        val layout = AnimationLayout(
+            guidedPaths = listOf(GuidedPathLayoutElement("Floor")),
+            locations = listOf(
+                ksl.animation.LocationLayoutElement("In", LayoutPoint(0.0, 100.0)),
+                ksl.animation.LocationLayoutElement("Out", LayoutPoint(0.0, 0.0))
+            )
+        )
+        assertEquals(layout, layout.withReadableOrientation(listOf("In", "Out")),
+            "turning the locations would detach them from the path, which is not turned")
+    }
 }

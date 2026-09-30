@@ -466,11 +466,14 @@ class SceneBuilder(
                 val cy = q.position.y + i * q.spacing * dy
                 val id = members.getOrNull(i)
                 val key = id?.let { model.entityTypeOf(it) ?: model.networkEntityTypeOf(it) }
+                // A member is never wider than its slot, or a queue laid out at a small world scale draws its
+                // members as one overlapping blob.
+                val dot = minOf(QUEUE_DOT_SIZE, q.spacing * 0.9)
                 if (key != null) {
-                    cmds.add(glyphFor(key, cx, cy, QUEUE_DOT_SIZE))
+                    cmds.add(glyphFor(key, cx, cy, dot))
                 } else {
                     // Length known but membership not identified: an anonymous dot still shows the queue filling.
-                    cmds.add(DrawCmd.Circle(cx, cy, Extent.world(QUEUE_DOT_SIZE / 2, minPx = 1.5), fill = QUEUE_HEAD))
+                    cmds.add(DrawCmd.Circle(cx, cy, Extent.world(dot / 2, minPx = 1.5), fill = QUEUE_HEAD))
                 }
             }
         }

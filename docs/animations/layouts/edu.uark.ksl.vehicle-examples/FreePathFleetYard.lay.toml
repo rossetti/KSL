@@ -1,0 +1,101 @@
+title = "FreePathFleetYard"
+baseTimeUnit = null
+width = 324.0
+height = 224.0
+background = [  ]
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+guidedPaths = [  ]
+guidedTransporters = [  ]
+
+[[objectClasses]]
+typeName = "Pallet"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[objectClasses]]
+typeName = "Source"
+shape = "CIRCLE"
+color = "#ff7f0e"
+size = 10.0
+imageRef = null
+label = null
+
+[[movableResources]]
+name = "Cart1:Body"
+shape = "SQUARE"
+color = "#8c564b"
+size = 16.0
+imageRef = null
+label = null
+busyColor = null
+idleImage = null
+busyImage = null
+homeBase = null
+
+[movableResources.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[movableResources]]
+name = "Cart2:Body"
+shape = "SQUARE"
+color = "#8c564b"
+size = 16.0
+imageRef = null
+label = null
+busyColor = null
+idleImage = null
+busyImage = null
+homeBase = null
+
+[movableResources.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "Depot"
+label = "Depot"
+
+[locations.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "Press"
+label = "Press"
+
+[locations.position]
+x = 300.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "Ship"
+label = "Ship"
+
+[locations.position]
+x = 0.0
+y = 200.0
+z = 0.0

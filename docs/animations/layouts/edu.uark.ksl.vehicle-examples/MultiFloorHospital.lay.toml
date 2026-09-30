@@ -1,0 +1,183 @@
+title = "MultiFloorHospital"
+baseTimeUnit = null
+width = 134.72
+height = 36.32
+background = [  ]
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Order"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[locations]]
+locationName = "Lobby"
+label = "Lobby"
+
+[locations.position]
+x = 0.0
+y = 21.6
+z = 0.0
+
+[[locations]]
+locationName = "WardA"
+label = "WardA"
+
+[locations.position]
+x = 60.0
+y = 21.6
+z = 0.0
+
+[[locations]]
+locationName = "Pharmacy"
+label = "Pharmacy"
+
+[locations.position]
+x = 60.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "Park1"
+label = "Park1"
+
+[locations.position]
+x = -22.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park2"
+label = "Park2"
+
+[locations.position]
+x = -28.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park3"
+label = "Park3"
+
+[locations.position]
+x = -34.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park4"
+label = "Park4"
+
+[locations.position]
+x = -40.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park5"
+label = "Park5"
+
+[locations.position]
+x = -46.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park6"
+label = "Park6"
+
+[locations.position]
+x = -52.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park7"
+label = "Park7"
+
+[locations.position]
+x = -58.0
+y = 5.600000000000001
+z = 0.0
+
+[[locations]]
+locationName = "Park8"
+label = "Park8"
+
+[locations.position]
+x = -64.0
+y = 5.600000000000001
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Agv:Space"
+scale = 1.0
+linkColor = "#7f7f7f"
+linkWidth = 2.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 0.0
+y = 21.6
+z = 0.0
+
+[guidedPaths.floorOffsetPerZ]
+x = 0.0
+y = -0.27
+z = 0.0
+
+[[guidedTransporters]]
+name = "Porter1:Body"
+shape = "SQUARE"
+size = 1.35
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Porter2:Body"
+shape = "SQUARE"
+size = 1.35
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Porter3:Body"
+shape = "SQUARE"
+size = 1.35
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

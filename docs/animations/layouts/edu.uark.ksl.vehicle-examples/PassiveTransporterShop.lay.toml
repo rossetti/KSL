@@ -1,0 +1,103 @@
+title = "PassiveTransporterShop"
+baseTimeUnit = null
+width = 157.14
+height = 80.64
+background = [  ]
+paths = [  ]
+resources = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Part"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[objectClasses]]
+typeName = "Source"
+shape = "CIRCLE"
+color = "#ff7f0e"
+size = 10.0
+imageRef = null
+label = null
+
+[[queues]]
+queueName = "Carts:Q"
+growthDegrees = 180.0
+spacing = 4.725
+maxShown = 5
+
+[queues.position]
+x = 116.64
+y = -27.36
+z = 0.0
+
+[[locations]]
+locationName = "EntryStation"
+label = "EntryStation"
+
+[locations.position]
+x = 0.0
+y = 72.0
+z = 0.0
+
+[[locations]]
+locationName = "ExitStation"
+label = "ExitStation"
+
+[locations.position]
+x = 0.0
+y = -36.0
+z = 0.0
+
+[[locations]]
+locationName = "CartDepot"
+label = "CartDepot"
+
+[locations.position]
+x = 54.0
+y = 72.0
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Space"
+scale = 1.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 2.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart"
+shape = "SQUARE"
+size = 6.75
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

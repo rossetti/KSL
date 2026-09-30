@@ -161,15 +161,32 @@ internal fun AnimationLayout.withModelObjectClasses(inventory: AnimationInventor
  *  positions are authoritative: override a same-named layout location's position and add any that are absent.
  *  Coordinate-free names (null position) are left for MDS placement. */
 fun AnimationLayout.withModelLocations(inventory: AnimationInventory): AnimationLayout {
+    // A place on a guide path is drawn where the placed path puts it (its offset, scale and floor separation),
+    // not at the model's raw coordinate, which on a path that climbs sits on top of the floor below.
+    val onPaths = HashMap<String, LayoutPoint>()
+    for (info in inventory.guidedPaths) {
+        val style = guidedPaths.firstOrNull { it.spaceName == info.spaceName } ?: continue
+        for (i in info.intersections) {
+            val p = LayoutPoint(
+                style.offset.x + style.scale * i.x + i.z * (style.floorOffsetPerZ?.x ?: 0.0),
+                style.offset.y + style.scale * i.y + i.z * (style.floorOffsetPerZ?.y ?: 0.0)
+            )
+            for (name in i.aliases + i.name) onPaths.putIfAbsent(name, p)
+        }
+    }
     val known = inventory.locationInfos.mapNotNull { li ->
         val x = li.x
         val y = li.y // local vals: a cross-module nullable prop won't smart-cast
+        onPaths[li.name]?.let { return@mapNotNull li.name to it }
         if (x != null && y != null) li.name to LayoutPoint(x, y) else null
     }.toMap()
     if (known.isEmpty()) return this
     val have = locations.map { it.locationName }.toSet()
     val overridden = locations.map { loc -> known[loc.locationName]?.let { loc.copy(position = it) } ?: loc }
-    val added = known.filterKeys { it !in have }.map { (name, p) -> LocationLayoutElement(name, p) }
+    // A guide path's junctions are drawn by the path; only the stations it names are places to label.
+    val junctions = inventory.guidedPaths.flatMap { p -> p.intersections.map { it.name } }.toSet() -
+        inventory.guidedPaths.flatMap { p -> p.intersections.flatMap { it.aliases } }.toSet()
+    val added = known.filterKeys { it !in have && it !in junctions }.map { (name, p) -> LocationLayoutElement(name, p) }
     return copy(locations = overridden + added)
 }
 

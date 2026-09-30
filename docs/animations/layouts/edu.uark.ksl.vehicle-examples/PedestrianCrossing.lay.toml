@@ -1,0 +1,69 @@
+title = "PedestrianCrossing"
+baseTimeUnit = null
+width = 48.75999999999999
+height = 5.759999999999999
+background = [  ]
+paths = [  ]
+resources = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+locations = [  ]
+
+[[objectClasses]]
+typeName = "Walker"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[queues]]
+queueName = "WalkQ"
+growthDegrees = 180.0
+spacing = 0.35
+maxShown = 5
+
+[queues.position]
+x = 45.75999999999999
+y = 5.759999999999999
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Sys"
+scale = 1.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 2.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart"
+shape = "SQUARE"
+size = 0.5
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

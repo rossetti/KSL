@@ -252,8 +252,9 @@ val kslBridge = evaluationDependsOn(":KSLBridge")
 
 // Curated example bundles shipped with the suite, so a fresh install can run a real model
 // immediately instead of opening an empty model picker. They are slim MANIFEST bundles
-// (~730 KB for both) — the models' dependencies are already in the shared lib/, so this is
-// 0.5% of the payload. They ship as SOFTWARE -- updates refresh them, uninstall removes them, and
+// (the book, animation and vehicle examples) — the models' dependencies are already in the
+// shared lib/, so each is a few hundred KB and together about 1% of the payload. They ship as
+// SOFTWARE -- updates refresh them, uninstall removes them, and
 // a user's own copy of the same bundleId shadows them because the apps discover this directory
 // LAST (see WorkspaceLayout.builtinBundlesDir) -- but they land in a VISIBLE examples/ folder
 // rather than inside .support, alongside the polished layouts for the animation models.
@@ -268,6 +269,7 @@ val kslExamples = evaluationDependsOn(":KSLExamples")
 val exampleBundles: List<Pair<String, String>> = listOf(
     "bookExamplesBundleJar" to "book-examples.jar",
     "animationExamplesBundleJar" to "animation-examples.jar",
+    "vehicleExamplesBundleJar" to "vehicle-examples.jar",
 )
 
 // Launchers generated from templates. "DOLLAR" stands in for a literal shell '$' so the Kotlin

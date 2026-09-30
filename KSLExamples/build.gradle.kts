@@ -215,6 +215,25 @@ tasks.named<Test>("test") {
     // moment it is most likely to be right is the moment it would silently skip.
     dependsOn("animationExamplesBundleJar")
     inputs.file(layout.buildDirectory.file("libs/animation-examples.jar"))
+    // VehicleShippedLayoutTest reads the assembled vehicle bundle's manifest, for the same reason.
+    dependsOn("vehicleExamplesBundleJar")
+    inputs.file(layout.buildDirectory.file("libs/vehicle-examples.jar"))
+}
+
+// Write a starting layout for every vehicle model that has none, keyed <bundleId>/<modelId> beside the
+// animation layouts. Existing files are never overwritten: a scaffold is where polishing starts, and the
+// polished ones are the committed files. The vehicle bundle's manifest says which models need one.
+// Usage: ./gradlew :KSLExamples:scaffoldVehicleLayouts
+tasks.register<JavaExec>("scaffoldVehicleLayouts") {
+    group = "documentation"
+    description = "Write auto-layouts for vehicle models that have no shipped layout (never overwrites)."
+    dependsOn("vehicleExamplesBundleJar", "classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("ksl.examples.general.animationbundle.showcase.VehicleLayoutScaffolderKt")
+    workingDir = rootDir
+    jvmArgs("-Djava.awt.headless=true")
+    systemProperty("bundleJar", layout.buildDirectory.file("libs/vehicle-examples.jar").get().asFile.path)
+    systemProperty("out", rootDir.resolve("docs/animations/layouts").path)
 }
 
 // Convert the polish scripts' output into the .lay.toml layouts that ship with the suite, keyed

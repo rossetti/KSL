@@ -1,0 +1,279 @@
+title = "TestAndRepairShopWithGuidedTransporters"
+baseTimeUnit = null
+width = 112.075
+height = 5.2
+background = [  ]
+paths = [  ]
+stations = [  ]
+bars = [  ]
+plots = [  ]
+clocks = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+labels = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Part"
+shape = "CIRCLE"
+color = "#1f77b4"
+size = 10.0
+imageRef = null
+label = null
+
+[[queues]]
+queueName = "DiagnosticWorkers:Q"
+growthDegrees = 180.0
+spacing = 2.84375
+maxShown = 7
+
+[queues.position]
+x = 93.3875
+y = -59.8
+z = 0.0
+
+[[queues]]
+queueName = "RepairWorkers:Q"
+growthDegrees = 180.0
+spacing = 2.84375
+maxShown = 3
+
+[queues.position]
+x = 91.35625
+y = -52.4875
+z = 0.0
+
+[[queues]]
+queueName = "Test1:Q"
+growthDegrees = 180.0
+spacing = 2.84375
+maxShown = 3
+
+[queues.position]
+x = 95.41875
+y = -45.175
+z = 0.0
+
+[[queues]]
+queueName = "Test2:Q"
+growthDegrees = 180.0
+spacing = 2.84375
+maxShown = 5
+
+[queues.position]
+x = 95.41875
+y = -37.8625
+z = 0.0
+
+[[queues]]
+queueName = "Test3:Q"
+growthDegrees = 180.0
+spacing = 2.84375
+maxShown = 5
+
+[queues.position]
+x = 95.41875
+y = -30.549999999999997
+z = 0.0
+
+[[queues]]
+queueName = "TransportWorkerPool:Q"
+growthDegrees = 180.0
+spacing = 2.84375
+maxShown = 3
+
+[queues.position]
+x = 87.7
+y = -23.237499999999997
+z = 0.0
+
+[[resources]]
+resourceName = "DiagnosticWorkers"
+size = 4.0625
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 99.8875
+y = -59.8
+z = 0.0
+
+[[resources]]
+resourceName = "RepairWorkers"
+size = 4.0625
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 99.8875
+y = -52.4875
+z = 0.0
+
+[[resources]]
+resourceName = "Test1"
+size = 4.0625
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 99.8875
+y = -45.175
+z = 0.0
+
+[[resources]]
+resourceName = "Test2"
+size = 4.0625
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 99.8875
+y = -37.8625
+z = 0.0
+
+[[resources]]
+resourceName = "Test3"
+size = 4.0625
+idleColor = "#2ca02c"
+busyColor = "#d62728"
+failedColor = "#7f7f7f"
+inactiveColor = "#cccccc"
+idleImage = null
+busyImage = null
+failedImage = null
+inactiveImage = null
+showValue = false
+
+[resources.position]
+x = 99.8875
+y = -30.549999999999997
+z = 0.0
+
+[[locations]]
+locationName = "DiagnosticStation"
+label = "DiagnosticStation"
+
+[locations.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "TestStation1"
+label = "TestStation1"
+
+[locations.position]
+x = 40.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "TestStation2"
+label = "TestStation2"
+
+[locations.position]
+x = 50.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "TestStation3"
+label = "TestStation3"
+
+[locations.position]
+x = 50.0
+y = -65.0
+z = 0.0
+
+[[locations]]
+locationName = "RepairStation"
+label = "RepairStation"
+
+[locations.position]
+x = 25.0
+y = -65.0
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "ShopTransport"
+scale = 1.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 2.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Worker1"
+shape = "SQUARE"
+size = 4.0625
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Worker2"
+shape = "SQUARE"
+size = 4.0625
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Worker3"
+shape = "SQUARE"
+size = 4.0625
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
