@@ -199,7 +199,8 @@ for real positions, falling back to the model scaffold), or **Layout from Model*
 
 - **Place** elements from the **Add ▸** toolbar — queue (head→tail click), resource,
   station, location, response/counter, movable resource, plus **Path**, **Image**,
-  **Storage**, **Text**, **Clock**, **Conveyor**. Press **Esc** to cancel a placement.
+  **Storage**, **Text**, **Clock**, **Conveyor**, and, for a model with a guide path,
+  **Guide Path** and **Transporter** ([§8](#8-vehicles)). Press **Esc** to cancel a placement.
 - **Manipulate** on the canvas — click to select, drag to move, rubber-band to
   multi-select, drag grips to rotate a queue or resize a shape, **Delete** to remove,
   **double-click** to open an element's editor.
@@ -252,11 +253,62 @@ station contents, and fit/zoom.
 | Playback crawls (long run) | 1× is real-time-per-unit. | Use **Auto** speed or a higher **Speed**; or focus an in/out slice. |
 | **Save Layout** is disabled | There's no layout yet. | Create one first — **New**, **Auto Layout**, or **Layout from Model**. |
 | The overlay **Show …** toggles do nothing | They're agent-model features. | They light up only for models that report them, when captured (Run-tab checkboxes). |
+| A vehicle model's trace is large and slow to load | Most of it is response observations, not vehicles. | Capture selected elements, or a time window ([§8](#8-vehicles)). |
 | Title shows two `*` markers | The run config and the layout are separate documents. | Save each (**File ▸ Save** for the config, **Layout ▸ Save** for the layout). |
 
 ---
 
-## 8. Gallery — what a polished layout looks like
+## 8. Vehicles
+
+Models built with `ksl.modeling.guidedpath`, `fleet` and `agv` animate like any other: run, lay out,
+replay. The **KSL Vehicle Examples** bundle ships ten of them, each with a layout.
+
+**What you see.**
+
+- **The guide path**, drawn from the model itself, so it appears with no layout at all: links between
+  intersections, a tick at each zone boundary, an arrow on a one-way link, spurs drawn lighter. A
+  guide path that climbs is separated into floors.
+- **Carts**, moving zone by zone. A cart that is standing still *stays* still: it is not slid toward
+  its next zone while it waits. That stillness is what congestion looks like.
+- **Why a cart is still.** A cart ringed **red is blocked** (the space ahead is taken); a cart ringed
+  **grey is halted** (a breakdown, a flat battery, a gate). An unringed still cart is simply idle. The
+  two ringed kinds mean opposite things about a design, so they never look alike.
+- **Closures**, shaded on the zones they hold: faint while the closure is still draining, solid once it
+  holds. Without the shading a cart stopped by a spill or a maintenance window would be stopped by
+  space that looks empty.
+- **Loads on the cart carrying them**, with a count beside the cart when more than one is aboard. A
+  load aboard is not drawn again in the queue that also records it.
+- **Assignments**: a faint line from an assigned vehicle to its next stop, the pickup until its load is
+  aboard and then the drop-off. It is the one thing on screen that says why *that* vehicle is heading
+  there rather than a nearer one.
+- **Free-path fleets** draw their vehicles as movers, ringed orange while charging and grey when failed,
+  flat, under tow or out of service.
+
+A fleet's own bookkeeping (its availability and task queues, its dispatcher and vehicle agents, each
+vehicle's body as a resource) is not placed by Auto Layout. It is still in the trace and can be placed
+by hand.
+
+**Congestion statistics** per link and per zone are off by default, since a network of a thousand zones
+would otherwise put a thousand responses in every picker and report; the system-wide ones are always
+there. To plot congestion on a particular link or zone, the model must turn them on
+(`collectLinkStatistics` / `collectZoneStatistics` on the guide path system) before the run.
+
+**Laying one out.** In the Layout tab, **Guide Path** places and styles a guide path as a whole, since
+its shape comes from the model: offset, scale, the **floor offset** that separates floors, link and
+closure colours, zone ticks and intersection markers. The form opens on what Auto Layout would give the
+path, so accepting it unchanged is a sensible start. **Transporter** sets a cart's shape, size and colour,
+and optional colours for loaded, blocked and halted; leave blocked or halted blank to keep the ring. The
+static preview draws the guide path, and each transporter at its home base, before any run.
+
+**Capturing a long run.** The default captures everything, and in a vehicle model most of a trace is
+response observations rather than vehicles, often three quarters of it or more. For a long run, capture
+only the elements you want to watch (Capture ▸ *Capture only selected elements*, with the guide path
+and the fleet included; a guide path brings its transporters with it) or a time window. Selecting
+*leaves out* what you did not choose, so include anything you mean to plot.
+
+---
+
+## 9. Gallery — what a polished layout looks like
 
 Everything above produces a layout **automatically**. Auto Layout mines the run for
 what it can — flow order, real positions, where each machine stands, the routes
@@ -323,7 +375,7 @@ the same over the MCP server.
 
 ---
 
-## 9. See also
+## 10. See also
 
 - [Common UI & concepts](common-ui.md) — models & bundles, the workspace, themes.
 - The modeling guides behind what you're watching — [`ksl-entity`](../ksl-entity.md)

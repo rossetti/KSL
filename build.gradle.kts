@@ -872,16 +872,40 @@ tasks.register<Zip>("packageAnimations") {
 // preserved). The tracked manifest.json is NOT modified in place — the release runbook
 // (docs/releasing-suite.md) copies the stamped file over it deliberately. Version comes from
 // -PreleaseVersion, else the kslSuiteVersion property.
+// The shipped code index hands students thousands of source links pinned to line ranges. Built from a
+// moving branch, every one of them drifts as the branch moves, so a release must name the KSLCore release
+// it indexes (a release branch such as R1_7_1). -PallowUnpinnedCodeIndex is for a dry run only.
+tasks.register("checkCodeIndexPinned") {
+    group = "verification"
+    description = "Fail if the bundled code index cites develop or main rather than a KSLCore release."
+    dependsOn(":KSLCodeSearch:generateCodeContent")
+    doLast {
+        val codeMeta = file("KSLCodeSearch/build/generated/code/code/meta.json")
+        require(codeMeta.isFile) { "expected ${codeMeta.path} — :KSLCodeSearch:generateCodeContent should have produced it" }
+        val indexedRef = Regex(""""kslVersion"\s*:\s*"([^"]*)"""").find(codeMeta.readText())?.groupValues?.get(1)
+        if (indexedRef in setOf(null, "develop", "main") && project.findProperty("allowUnpinnedCodeIndex") == null) {
+            throw GradleException(
+                "the code index cites '$indexedRef', a branch that moves, so its source links would drift. " +
+                    "Rebuild with -PkslVersion=<KSLCore release branch>, e.g. -PkslVersion=R1_7_1 " +
+                    "(or pass -PallowUnpinnedCodeIndex for a dry run)."
+            )
+        }
+        logger.lifecycle("checkCodeIndexPinned: the code index cites $indexedRef")
+    }
+}
+
 tasks.register("stampSuiteManifest") {
     group = "distribution"
     description = "Stamp manifest.json's suite block (version + asset URL + sha256 of ksl-suite.zip)."
     dependsOn("packageKSLWork")
+    dependsOn("checkCodeIndexPinned")
     doLast {
         val version = (project.findProperty("releaseVersion") as String?)?.takeIf { it.isNotBlank() }
             ?: (project.findProperty("kslSuiteVersion") as String?)
             ?: error("set kslSuiteVersion in gradle.properties or pass -PreleaseVersion=X.Y.Z")
         val zip = layout.buildDirectory.file("ksl-suite.zip").get().asFile
         require(zip.exists()) { "expected ${zip.path} — packageKSLWork should have produced it" }
+
 
         val md = MessageDigest.getInstance("SHA-256")
         zip.inputStream().buffered().use { ins ->

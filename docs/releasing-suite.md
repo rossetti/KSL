@@ -103,11 +103,17 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
    SHA-256 (the `items` catalog is carried over unchanged):
 
    ```
-   ./gradlew stampSuiteManifest
+   ./gradlew stampSuiteManifest -PkslVersion=R1_7_1
    ```
 
    The task builds the zip first (it depends on `packageKSLWork` → `assembleKSLWork`), then
    prints the exact `gh release create …` command for step 4.
+
+   > **`-PkslVersion` names the KSLCore release the shipped code index cites** — the release
+   > branch (`R1_7_1`, …) of the library this suite ships on. Every source link the KSL Server's
+   > code search hands a student is a line range at that ref; left on `develop` they drift as
+   > `develop` moves. The task refuses an index still citing `develop` or `main`;
+   > `-PallowUnpinnedCodeIndex` overrides that, for a dry run only.
 
    > **`-PreleaseVersion=X.Y.Z` restamps the manifest and tag *only*** — it does **not** change
    > the version baked into the jars (that is always `kslSuiteVersion`). Passing a value that

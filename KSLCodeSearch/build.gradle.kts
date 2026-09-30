@@ -19,7 +19,8 @@ repositories { mavenCentral() }
 kotlin { jvmToolchain(21) }
 
 // The KSL git ref the bundled index corresponds to (source-blob citation URLs and the reported
-// version). Pin to a release tag for a course build: -PkslVersion=v2.0.1. Defaults to develop.
+// version). A suite release pins it to the KSLCore release branch it ships, e.g. -PkslVersion=R1_7_1,
+// and stampSuiteManifest refuses one left on develop or main. Defaults to develop for development.
 val kslVersion = (findProperty("kslVersion") as String?) ?: "develop"
 
 // A second source set for the build-time declaration extractor. It depends on the Kotlin compiler

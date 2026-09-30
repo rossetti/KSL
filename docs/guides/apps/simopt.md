@@ -80,6 +80,15 @@ smallest objective difference you consider meaningful (leave 0 for full precisio
 Add bounds or linear constraints relating the variables/responses, or skip straight
 through — this step auto-completes when the problem is defined.
 
+**A constraint on a probability** — a stockout, a missed deadline, a late order — should be
+declared an **indicator**: tick *Indicator response* in the response constraint dialog. It
+applies when each replication's response is 0 or 1 (the event happened or it did not), and
+its right-hand side is then a probability. Feasibility is tested with an exact binomial
+bound instead of a normal one. That matters when the event is rare: thirty replications
+that happen to see no stockout have zero variance, and the normal test then certifies the
+constraint with no evidence, so a search can end on a design that misses the target. Leave
+it unticked for any other response.
+
 ### Step 4 — Algorithm
 
 Choose a search algorithm — **Simulated Annealing**, Stochastic Hill Climbing,

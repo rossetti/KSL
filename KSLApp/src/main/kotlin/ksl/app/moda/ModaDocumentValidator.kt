@@ -225,6 +225,20 @@ class ModaDocumentValidator(
         }
     }
 
+    /**
+     * Whether [path] is absolute on macOS, Linux **or** Windows, not only on the machine validating it.
+     *
+     * The warning exists for a study that has travelled, and the host's own `isAbsolute` cannot see one: a
+     * `/data/scores.csv` written on macOS is root-relative to Windows, and a `C:\data\scores.csv` written on
+     * Windows is a strangely named relative path to macOS. Either convention's absolute forms are recognised
+     * wherever the check runs: a leading slash or backslash, or a drive letter followed by a separator.
+     */
+    internal fun isAbsoluteOnAnyPlatform(path: String): Boolean {
+        val p = path.trim()
+        if (p.startsWith("/") || p.startsWith("\\")) return true
+        return DRIVE_PATH.containsMatchIn(p) || runCatching { Paths.get(p).isAbsolute }.getOrDefault(false)
+    }
+
     private fun checkSource(document: ModaDocument, issues: MutableList<ValidationIssue>) {
         val problem = resolver.resolutionProblem(document.source)
         if (problem != null) {
@@ -232,7 +246,7 @@ class ModaDocumentValidator(
         }
         val source = document.source
         if (source is ModaSourceReference.DelimitedFile) {
-            if (Paths.get(source.path).isAbsolute) {
+            if (isAbsoluteOnAnyPlatform(source.path)) {
                 issues.warn(
                     "source",
                     "The path '${source.path}' is absolute, so this study will only run on a machine " +
@@ -310,3 +324,6 @@ class ModaDocumentValidator(
         }
     }
 }
+
+/** A Windows drive path: a letter, a colon, then a separator of either kind. */
+private val DRIVE_PATH = Regex("""^[A-Za-z]:[\\/]""")

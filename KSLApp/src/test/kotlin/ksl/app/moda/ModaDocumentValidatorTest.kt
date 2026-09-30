@@ -46,10 +46,8 @@ class ModaDocumentValidatorTest {
      *  drive letter is root-relative, so the validator correctly did not warn and this test failed there.
      *  Deriving the root keeps the fixture honest on both.
      *
-     *  Note what this does **not** cover: a document authored on one platform and validated on the other
-     *  — a POSIX absolute path checked on Windows, or the reverse — still draws no portability warning,
-     *  though that is precisely the case the warning exists for. Deliberately left alone here; see the
-     *  0.3.10 backlog.
+     *  A document authored on one platform and validated on the other is covered separately, by
+     *  `aPathAbsoluteOnEitherPlatformIsRemarkedOnWherever...` below.
      */
     private val absolutePathForThisPlatform: String =
         File.listRoots().first().toPath().resolve("data").resolve("scores.csv").toString()
@@ -374,6 +372,25 @@ class ModaDocumentValidatorTest {
             warningsOf(document).any { it.element == "source" && it.message.contains("absolute") },
             "an absolute path was not remarked on"
         )
+    }
+
+    @Test
+    @DisplayName("a path absolute on either platform is remarked on wherever the study is checked")
+    fun aPathAbsoluteOnEitherPlatformIsRemarkedOnWhereverTheStudyIsChecked() {
+        // The case the warning exists for is a study that travelled, so both conventions are checked on
+        // whatever host runs this, not only the host's own.
+        for (path in listOf("/data/scores.csv", "C:\\data\\scores.csv", "d:/data/scores.csv", "\\\\server\\share\\scores.csv")) {
+            val document = soundDocument().copy(
+                source = ModaSourceReference.DelimitedFile(path, "alternative", listOf("Cost", "Delay"))
+            )
+            assertTrue(
+                warningsOf(document).any { it.element == "source" && it.message.contains("absolute") },
+                "'$path' is absolute somewhere and was not remarked on"
+            )
+        }
+        for (path in listOf("scores.csv", "data/scores.csv", "..\\data\\scores.csv")) {
+            assertTrue(!validator.isAbsoluteOnAnyPlatform(path), "'$path' is relative everywhere")
+        }
     }
 
     @Test
