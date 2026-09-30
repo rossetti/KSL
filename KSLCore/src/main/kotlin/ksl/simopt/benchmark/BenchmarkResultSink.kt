@@ -22,6 +22,8 @@ import kotlinx.datetime.Instant
  *  @param startTime when the experiment's run() began
  *  @param tracesCaptured whether the experiment is capturing iteration traces
  *  @param solverStateCaptured whether the experiment is capturing solver-specific state
+ *  @param kslVersion the KSL version the experiment runs on, recorded on a fresh experiment record
+ *  and left unchanged on resume, where the record keeps the version it started under
  */
 data class BenchmarkSummaryHeader(
     val experimentName: String,
@@ -34,7 +36,8 @@ data class BenchmarkSummaryHeader(
     val solverCaseDescriptions: Map<String, String>,
     val startTime: Instant,
     val tracesCaptured: Boolean,
-    val solverStateCaptured: Boolean
+    val solverStateCaptured: Boolean,
+    val kslVersion: String? = null
 )
 
 /**

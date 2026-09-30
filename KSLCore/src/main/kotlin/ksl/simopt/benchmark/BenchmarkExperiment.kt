@@ -235,8 +235,16 @@ class BenchmarkExperiment(
         solverCaseDescriptions = solverCases.associate { it.label to it.description },
         startTime = startTime,
         tracesCaptured = captureIterationTraces,
-        solverStateCaptured = captureSolverState
+        solverStateCaptured = captureSolverState,
+        kslVersion = kslVersion
     )
+
+    /**
+     *  The KSL version this experiment runs on, passed to the result sink so that a streamed, and
+     *  therefore resumable, experiment records it. Null records no version. A resumed experiment
+     *  keeps the version recorded when it started.
+     */
+    var kslVersion: String? = null
 
     /**
      *  The overall confidence at which a cell's best point is assessed against the problem's

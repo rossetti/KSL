@@ -95,9 +95,10 @@ class BenchmarkResultsDb @JvmOverloads constructor(
             tracesCaptured = summary.traces.isNotEmpty(),
             solverStateCaptured = summary.traces.values.any { points ->
                 points.any { it.solverState.isNotEmpty() }
-            }
+            },
+            kslVersion = kslVersion
         )
-        val expId = beginExperiment(header, resume = false, kslVersion = kslVersion)
+        val expId = beginExperiment(header, resume = false)
         for (pr in summary.problemResults) {
             val cellLabels = pr.runs.map { it.cellLabel }.toSet()
             problemCompleted(expId, pr, summary.traces.filterKeys { it in cellLabels })
@@ -108,19 +109,14 @@ class BenchmarkResultsDb @JvmOverloads constructor(
 
     // ── BenchmarkResultSink ──────────────────────────────────────────────────
 
-    override fun beginExperiment(header: BenchmarkSummaryHeader, resume: Boolean): Int =
-        beginExperiment(header, resume, kslVersion = null)
-
     /**
-     *  As [beginExperiment], additionally recording a KSL version string on a freshly created
-     *  experiment row. Resuming leaves the existing row's version untouched: it records the version
-     *  the experiment started under, which is the one its earlier problems actually ran on.
+     *  Records the experiment, or finds the unfinished one of the same name when [resume] is true.
+     *  The header's KSL version is recorded on a freshly created row. Resuming leaves the existing
+     *  row's version untouched: it records the version the experiment started under, which is the
+     *  one its earlier problems actually ran on.
      */
-    private fun beginExperiment(
-        header: BenchmarkSummaryHeader,
-        resume: Boolean,
-        kslVersion: String?
-    ): Int {
+    override fun beginExperiment(header: BenchmarkSummaryHeader, resume: Boolean): Int {
+        requireWritableSchema()
         if (resume) {
             val unfinished = unfinishedExperimentId(header.experimentName)
             if (unfinished != null) {
@@ -131,7 +127,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
             }
         }
         val expId = nextId("tblExperiment", "expId")
-        insertDbDataIntoTable(
+        insertOneOrFail(
             ExperimentTableData(
                 expId = expId,
                 expName = header.experimentName,
@@ -148,10 +144,10 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 verificationReplications = header.verificationReplications,
                 tracesCaptured = header.tracesCaptured,
                 solverStateCaptured = header.solverStateCaptured,
-                kslVersion = kslVersion
+                kslVersion = header.kslVersion
             )
         )
-        insertAllDbDataIntoTable(
+        insertAllOrFail(
             header.solverCaseDescriptions.map { (label, description) ->
                 SolverCaseTableData(expId, label, description)
             },
@@ -165,6 +161,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         result: ProblemBenchmarkResult,
         traces: Map<String, List<IterationTracePoint>>
     ) {
+        requireWritableSchema()
         saveProblem(expId, result)
         saveProblemConstraints(expId, result)
         val runIdByCell = saveRuns(expId, result)
@@ -179,7 +176,8 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         endTime: Instant,
         solverConfigurations: Map<String, Map<String, String>>
     ) {
-        insertAllDbDataIntoTable(
+        requireWritableSchema()
+        insertAllOrFail(
             solverConfigurations.flatMap { (label, properties) ->
                 properties.map { (paramName, paramValue) ->
                     SolverCaseParameterTableData(expId, label, paramName, paramValue)
@@ -188,9 +186,10 @@ class BenchmarkResultsDb @JvmOverloads constructor(
             "tblSolverCaseParameter"
         )
         // Stamping the end time is what marks the record finished, so it is the last write.
-        executeCommand(
-            "UPDATE tblExperiment SET endTime = '${endTime}' WHERE expId = $expId"
-        )
+        check(executeCommand("UPDATE tblExperiment SET endTime = '${endTime}' WHERE expId = $expId")) {
+            "Stamping the end time of experiment $expId failed; the database logged the SQLException. " +
+                    "The experiment remains marked unfinished."
+        }
     }
 
     override fun completedProblems(expName: String): Set<String> {
@@ -216,7 +215,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     // ── Per-problem writers ──────────────────────────────────────────────────
 
     private fun saveProblem(expId: Int, pr: ProblemBenchmarkResult) {
-        insertDbDataIntoTable(
+        insertOneOrFail(
             ProblemTableData(
                 expId = expId,
                 problemName = pr.problemName,
@@ -238,7 +237,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
     }
 
     private fun saveProblemConstraints(expId: Int, pr: ProblemBenchmarkResult) {
-        insertAllDbDataIntoTable(
+        insertAllOrFail(
             pr.responseConstraints.map { rc ->
                 ProblemConstraintTableData(
                     expId = expId,
@@ -288,7 +287,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
             )
             runId++
         }
-        insertAllDbDataIntoTable(rows, "tblRun")
+        insertAllOrFail(rows, "tblRun")
         return runIdByCell
     }
 
@@ -322,21 +321,21 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                         runId = runId,
                         responseName = responseName,
                         average = estimate.average,
-                        variance = estimate.variance,
+                        variance = estimate.variance.orNullIfNaN(),
                         count = estimate.count
                     )
                 )
             }
         }
-        insertAllDbDataIntoTable(constraintRows, "tblRunConstraint")
-        insertAllDbDataIntoTable(responseRows, "tblRunResponse")
+        insertAllOrFail(constraintRows, "tblRunConstraint")
+        insertAllOrFail(responseRows, "tblRunResponse")
     }
 
     private fun saveConfirmation(expId: Int, pr: ProblemBenchmarkResult) {
         val outcome = pr.confirmation ?: return
         // Written for every problem whose confirmation stage ran, including one whose
         // finalists collapsed to a single point and produced no candidate rows below.
-        insertDbDataIntoTable(
+        insertOneOrFail(
             ConfirmationSummaryTableData(
                 expId = expId,
                 problemName = pr.problemName,
@@ -348,7 +347,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                 numReplicationsRequested = outcome.numReplicationsRequested
             )
         )
-        insertAllDbDataIntoTable(
+        insertAllOrFail(
             outcome.confirmedSolutions.mapIndexed { index, solution ->
                 ConfirmationTableData(
                     expId = expId,
@@ -369,7 +368,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         val verification = pr.verification ?: return
         val inputsJson = toJson(verification.inputMap.toMap())
         val estimates = listOf(verification.estimatedObjFnc) + verification.responseEstimates
-        insertAllDbDataIntoTable(
+        insertAllOrFail(
             estimates.map { estimate ->
                 VerificationTableData(
                     expId = expId,
@@ -377,7 +376,7 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                     responseName = estimate.name,
                     inputsJson = inputsJson,
                     average = estimate.average,
-                    variance = estimate.variance,
+                    variance = estimate.variance.orNullIfNaN(),
                     count = estimate.count
                 )
             },
@@ -411,14 +410,14 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                             runId = runId,
                             iteration = point.iteration,
                             stateName = stateName,
-                            stateValue = stateValue
+                            stateValue = stateValue.orNullIfNaN()
                         )
                     )
                 }
             }
         }
-        insertAllDbDataIntoTable(rows, "tblIterationTrace")
-        insertAllDbDataIntoTable(stateRows, "tblIterationTraceState")
+        insertAllOrFail(rows, "tblIterationTrace")
+        insertAllOrFail(stateRows, "tblIterationTraceState")
     }
 
     // ── Typed extraction, one per table ──────────────────────────────────────
@@ -731,6 +730,67 @@ class BenchmarkResultsDb @JvmOverloads constructor(
         return profile
     }
 
+    // ── Write guards ─────────────────────────────────────────────────────────
+
+    /**
+     *  Inserts every row or fails. The shared insert routine catches the SQLException, logs it at
+     *  warn level and returns 0, and a benchmark run that ignored that return value once produced
+     *  an empty solver-state table beside a flag saying state was captured, with nothing in its logs
+     *  to say so. A benchmark database that silently loses rows misrepresents itself, so here a short
+     *  count stops the run.
+     */
+    private fun <T : ksl.utilities.io.dbutil.DbTableData> insertAllOrFail(rows: List<T>, tableName: String) {
+        if (rows.isEmpty()) return
+        val inserted = insertAllDbDataIntoTable(rows, tableName)
+        check(inserted == rows.size) {
+            "Writing ${rows.size} rows to $tableName inserted $inserted; the database logged the " +
+                    "SQLException above. Nothing from this batch was committed to $tableName."
+        }
+    }
+
+    /** As `insertAllOrFail`, for a single row. */
+    private fun <T : ksl.utilities.io.dbutil.DbTableData> insertOneOrFail(row: T) {
+        val inserted = insertDbDataIntoTable(row)
+        check(inserted == 1) {
+            "Writing a row to ${row.tableName} failed; the database logged the SQLException above."
+        }
+    }
+
+    /**
+     *  The columns of this file that R1.7 created NOT NULL although they must hold a NaN-derived
+     *  null, listed as "table.column". Empty for a file created by this version.
+     */
+    private val myNotNullLegacyColumns: List<String> by lazy {
+        NULLABLE_COLUMNS.filter { (table, column) -> isNotNull(table, column) }
+            .map { (table, column) -> "$table.$column" }
+    }
+
+    private fun isNotNull(tableName: String, columnName: String): Boolean {
+        val rowSet = fetchCachedRowSet("PRAGMA table_info($tableName)") ?: return false
+        while (rowSet.next()) {
+            if (rowSet.getString("name").equals(columnName, ignoreCase = true)) {
+                return rowSet.getInt("notnull") == 1
+            }
+        }
+        return false
+    }
+
+    /**
+     *  Refuses to write to a file whose schema cannot store what this version writes. Reading such
+     *  a file is unaffected, so its results stay available; only writing, including resuming, is
+     *  refused, and at the first write rather than hours into a run.
+     */
+    private fun requireWritableSchema() {
+        check(myNotNullLegacyColumns.isEmpty()) {
+            "This benchmark database was created by KSL R1.7, whose schema cannot store NaN solver " +
+                    "state or single-replication variances (NOT NULL: ${myNotNullLegacyColumns.joinToString()}). " +
+                    "Its results are intact and readable, but it cannot be written to or resumed. " +
+                    "Start a new database file."
+        }
+    }
+
+    private fun Double.orNullIfNaN(): Double? = if (isNaN()) null else this
+
     private fun nextId(tableName: String, columnName: String): Int {
         val rowSet = fetchCachedRowSet("SELECT MAX($columnName) FROM $tableName") ?: return 1
         return if (rowSet.next()) rowSet.getInt(1) + 1 else 1
@@ -740,6 +800,13 @@ class BenchmarkResultsDb @JvmOverloads constructor(
 
         /** Fresh table-definition prototypes for the benchmark schema. */
         val logger: KLogger = KotlinLogging.logger {}
+
+        /** Columns that hold null for a NaN value, and so must not be NOT NULL. */
+        private val NULLABLE_COLUMNS: List<Pair<String, String>> = listOf(
+            "tblIterationTraceState" to "stateValue",
+            "tblRunResponse" to "variance",
+            "tblVerification" to "variance"
+        )
 
         fun tableDefinitions(): Set<ksl.utilities.io.dbutil.DbTableData> {
             return setOf(

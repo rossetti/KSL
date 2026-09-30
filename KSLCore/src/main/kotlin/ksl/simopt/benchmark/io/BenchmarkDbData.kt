@@ -160,13 +160,14 @@ data class ProblemConstraintTableData(
  *  count per response. With those stored, an alternative confirmation rule can be applied to a
  *  finished study offline, and only the finalists it chooses need fresh simulation.
  *
- *  A variance of NaN is what a single-observation estimate legitimately carries.
+ *  A single-observation estimate legitimately has no variance. It is stored as null, since SQLite
+ *  stores NaN as NULL and a NOT NULL column would reject the whole batch the row belongs to.
  */
 data class RunResponseTableData(
     var runId: Int = -1,
     var responseName: String = "",
     var average: Double = 0.0,
-    var variance: Double = 0.0,
+    var variance: Double? = null,
     var count: Double = 0.0
 ) : DbTableData("tblRunResponse", listOf("runId", "responseName"))
 
@@ -231,12 +232,14 @@ data class IterationTraceStateTableData(
     var runId: Int = -1,
     var iteration: Int = 0,
     var stateName: String = "",
-    var stateValue: Double = 0.0
+    /** Null when the solver reported the quantity as unmeasurable (NaN). */
+    var stateValue: Double? = null
 ) : DbTableData("tblIterationTraceState", listOf("runId", "iteration", "stateName"))
 
 /**
  *  One row per response of a problem's verification stage (opt-in): the winning point
- *  re-simulated at the experiment's verification replication count.
+ *  re-simulated at the experiment's verification replication count. The variance is null when
+ *  verification used a single replication.
  */
 data class VerificationTableData(
     var expId: Int = -1,
@@ -244,6 +247,6 @@ data class VerificationTableData(
     var responseName: String = "",
     var inputsJson: String = "",
     var average: Double = 0.0,
-    var variance: Double = 0.0,
+    var variance: Double? = null,
     var count: Double = 0.0
 ) : DbTableData("tblVerification", listOf("expId", "problemName", "responseName"))
