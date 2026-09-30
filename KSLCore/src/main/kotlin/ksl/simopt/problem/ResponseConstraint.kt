@@ -3,7 +3,12 @@ package ksl.simopt.problem
 import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.Solution
 import ksl.utilities.Interval
+import ksl.utilities.distributions.Beta
 import ksl.utilities.distributions.StudentT
+import ksl.utilities.io.KSL
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.roundToLong
 
 /**
  *  A response constraint represents a general constraint of the form E[R(x)] < b or E[R(x)] > b
@@ -16,6 +21,13 @@ import ksl.utilities.distributions.StudentT
  *  as a cut-off point between desirable and unacceptable systems
  *  @param tolerance the constraint's tolerance. A parameter often used by solver methods that
  *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
+ *  @param penaltyFunction an optional penalty function for the constraint
+ *  @param indicator true when each replication's response is 0 or 1 (the event happened or it did not),
+ *  so that the estimate is a proportion and the average times the count is the number of replications
+ *  in which the event happened. Feasibility is then tested with the exact (Clopper-Pearson) binomial
+ *  bound instead of a normal-theory interval. That matters most when the event is rare: zero events in
+ *  30 replications has a sample variance of zero, and the normal-theory interval then has zero width
+ *  and certifies the constraint with no evidence at all, while the exact bound at 95% is about 0.095.
  */
 class ResponseConstraint(
     val responseName: String,
@@ -23,7 +35,8 @@ class ResponseConstraint(
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     val target: Double = 0.0,
     val tolerance: Double = 0.0,
-    val penaltyFunction: PenaltyFunction? = null
+    val penaltyFunction: PenaltyFunction? = null,
+    val indicator: Boolean = false
 ) : PenalizableConstraint {
     init {
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
@@ -213,7 +226,8 @@ class ResponseConstraint(
      *
      *  If the upper limit of the interval is less than 0.0, then we can be confident
      *  that response constraint maybe feasible. The construction of the interval assumes that the supplied
-     *  response is normally distributed.
+     *  response is normally distributed, unless the constraint is declared an `indicator`, in which case
+     *  the limit comes from the exact binomial bound on the proportion.
      *
      * @param estimatedResponse the supplied response. It must have the same name as the response associated with
      * the constraint and the number of observations (count) must be greater than or equal to 2.
@@ -227,12 +241,68 @@ class ResponseConstraint(
         require(estimatedResponse.name == responseName) { "The supplied response name was not the same as $responseName" }
         require(!(confidenceLevel <= 0.0 || confidenceLevel >= 1.0)) { "Confidence Level must be (0,1)" }
         require(estimatedResponse.count >= 2) { "The estimated response count must be at least 2" }
+        if (indicator) {
+            return Interval(Double.NEGATIVE_INFINITY, indicatorUpperLimit(estimatedResponse, confidenceLevel))
+        }
+        if (estimatedResponse.variance == 0.0 && estimatedResponse.average in 0.0..1.0) {
+            warnZeroVarianceOnce()
+        }
         val d = difference(estimatedResponse.average)
         val dof = estimatedResponse.count - 1.0
         val t = StudentT.invCDF(dof, confidenceLevel)
         val c = t * estimatedResponse.standardError
         val ul = d + c
         return Interval(Double.NEGATIVE_INFINITY, ul)
+    }
+
+    /**
+     *  The upper limit, on the difference scale, for an indicator response: the exact binomial bound
+     *  on the probability, in the direction the constraint needs, less the right-hand side. With x
+     *  events in n replications, a less-than constraint uses the upper bound (1 when x = n, otherwise
+     *  the level quantile of Beta(x + 1, n - x)) and a greater-than constraint uses the lower bound
+     *  (0 when x = 0, otherwise the 1 - level quantile of Beta(x, n - x + 1)).
+     */
+    private fun indicatorUpperLimit(estimatedResponse: EstimatedResponse, confidenceLevel: Double): Double {
+        val n = estimatedResponse.count
+        val p = estimatedResponse.average
+        require(p in 0.0..1.0) {
+            "Constraint $responseName is declared an indicator, but its average $p is outside 0..1"
+        }
+        val events = p * n
+        val x = events.roundToLong()
+        require(abs(events - x) <= 1.0e-6 * maxOf(1.0, n)) {
+            "Constraint $responseName is declared an indicator, but its average times its count " +
+                    "($events) is not a whole number of events; the response is not 0 or 1 per replication"
+        }
+        val nInt = n.roundToLong()
+        return if (inequalityType == InequalityType.LESS_THAN) {
+            val upper = when (x) {
+                nInt -> 1.0
+                0L -> 1.0 - (1.0 - confidenceLevel).pow(1.0 / n)
+                else -> Beta((x + 1).toDouble(), (nInt - x).toDouble()).invCDF(confidenceLevel)
+            }
+            upper - rhsValue
+        } else {
+            val lower = when (x) {
+                0L -> 0.0
+                nInt -> (1.0 - confidenceLevel).pow(1.0 / n)
+                else -> Beta(x.toDouble(), (nInt - x + 1).toDouble()).invCDF(1.0 - confidenceLevel)
+            }
+            rhsValue - lower
+        }
+    }
+
+    private var myZeroVarianceWarned = false
+
+    private fun warnZeroVarianceOnce() {
+        if (myZeroVarianceWarned) return
+        myZeroVarianceWarned = true
+        KSL.logger.warn {
+            "Response constraint $responseName was tested on an estimate with zero sample variance, " +
+                    "so its confidence interval has zero width and certifies feasibility from the average " +
+                    "alone. If the response is 0 or 1 per replication, declare the constraint with " +
+                    "indicator = true so an exact binomial bound is used."
+        }
     }
 
 }
