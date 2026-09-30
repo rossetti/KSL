@@ -53,6 +53,7 @@ import ksl.app.animation.io.load
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.AutoLayoutSource
 import ksl.app.animation.replay.buildAutoLayout
+import ksl.animation.animationInventory
 import ksl.animation.validateAgainst
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
@@ -510,11 +511,22 @@ class KslMcpTools(
         } catch (e: Exception) {
             return error("could not parse the layout (expected a JSON or TOML AnimationLayout): ${e.message}")
         }
-        // A standalone render (no run) — key the artifact by the layout's content hash.
-        val resultId = "layout-" + ResultStore.sha256(layoutText).take(16)
+        // A guide path's geometry is the model's, not the layout's; with a model named, draw it.
+        val bundleId = arguments.string("bundleId")
+        val modelId = arguments.string("modelId")
+        val vehicleEvents = if (bundleId != null && modelId != null) {
+            val model = try {
+                registry.modelProvider().provideModel(bundleId, modelId)
+            } catch (e: Exception) {
+                return error("failed to build model '$modelId' in bundle '$bundleId': ${e.message}")
+            }
+            ksl.app.animation.replay.guidedPathPreviewEvents(model.animationInventory().guidedPaths)
+        } else emptyList()
+        // A standalone render (no run) — key the artifact by the layout's content hash (and the model drawn with it).
+        val resultId = "layout-" + ResultStore.sha256(layoutText + "|" + (bundleId ?: "") + "|" + (modelId ?: "")).take(16)
         val pngPath = artifactStore.dirFor(resultId).resolve("layout.png")
         try {
-            ksl.service.capability.render.AnimationLayoutRenderer.renderToPng(layout, pngPath)
+            ksl.service.capability.render.AnimationLayoutRenderer.renderToPng(layout, pngPath, vehicleEvents)
         } catch (e: Exception) {
             return error("could not render the layout: ${e.message}")
         }

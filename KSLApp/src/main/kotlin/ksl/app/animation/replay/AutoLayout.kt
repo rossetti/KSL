@@ -111,8 +111,11 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     //
     // A guided transporter is a capacity-one resource too, and it is drawn on its guide path; a resource box
     // for it would show the same vehicle twice, once standing still.
+    // A fleet vehicle's body is a resource as well, drawn as the mover it is.
     val transporterNames = vehicles.transporterNames
-    val staticResources = resourceNames.filterNot { it in agentNames || it in transporterNames }
+    val staticResources = resourceNames.filterNot {
+        it in agentNames || it in transporterNames || it in vehicles.fleetVehicleNames
+    }
     // Conveyor internal hold/access queues animate as part of the belt, so don't auto-place them either (still
     // editor-placeable). Match their stable name suffixes, scoped to a mined conveyor prefix to avoid false hits.
     val conveyorNames = conveyorAnchors.keys
@@ -122,11 +125,17 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         .filterNot { qn -> agentNames.any { qn == "$it:Q" } }
         .filterNot { qn -> conveyorQueueSuffixes.any { qn.endsWith(it) } &&
             (conveyorNames.isEmpty() || conveyorNames.any { qn.startsWith("$it:") }) }
-        .filterNot { vehicles.isVehicleHoldQueue(it) }
+        .filterNot { vehicles.isVehicleInternalQueue(it) }
 
     // Seed an editable, space-scaled object-class per discovered entity/agent type, so glyphs are sized to the
     // model (not the invisible default) and appearance becomes explicit, persisted layout data (C1).
-    val objectTypes = typeAcc.result()
+    // A fleet's control agents are entities too, and would otherwise be listed in the legend as though they
+    // were drawn: the types seen only in the fleet's own queues are left out.
+    val controlTypes = events.asSequence()
+        .filterIsInstance<AnimationEvent.QObjectEnqueued>()
+        .filter { vehicles.isVehicleInternalQueue(it.queueName) && !vehicles.isVehicleHoldQueue(it.queueName) }
+        .mapNotNull { entityTypeOf(it.entityId) }.toSet()
+    val objectTypes = typeAcc.result() - controlTypes
     val glyphSize = objectGlyphSize(effectiveSpaces)
 
     // Agent state colors from the trace, so agent-state coloring works in Quick view (P5): assign a palette to the
@@ -142,8 +151,22 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     // actually happened — so agents/movers fill the view instead of clumping in a corner (P5).
     val spaceBox = effectiveSpaces.mapNotNull { spaceBounds(it) }
         .reduceOrNull { a, b -> a.union(b) }
-    // A guide path carries its own coordinates, so it frames the canvas the way movement does.
-    val frame = listOfNotNull(spaceBox, observed, guidePathBounds())
+    // A guide path carries its own coordinates, so it frames the canvas the way movement does. A path that
+    // climbs is separated into floors first, so the frame is the one the floors will actually be drawn in.
+    val guidedPaths = vehicles.guidePaths.keys.sorted().map { key ->
+        val floors = vehicles.guidePaths.getValue(key).suggestedFloorOffset()
+        if (floors == null) GuidedPathLayoutElement(spaceName = key)
+        else GuidedPathLayoutElement(spaceName = key, offset = floors.second, floorOffsetPerZ = floors.first)
+    }
+    val placedPathBounds = BoundingBox.of(
+        guidedPaths.asSequence().flatMap { style ->
+            vehicles.guidePaths.getValue(style.spaceName).definition.intersections.asSequence().map { i ->
+                (style.offset.x + style.scale * i.x + i.z * (style.floorOffsetPerZ?.x ?: 0.0)) to
+                    (style.offset.y + style.scale * i.y + i.z * (style.floorOffsetPerZ?.y ?: 0.0))
+            }
+        }
+    )
+    val frame = listOfNotNull(spaceBox, observed, placedPathBounds)
         .reduceOrNull { a, b -> a.union(b) }
     if (frame != null) {
         // Coordinate-aware layout: process elements go in a side strip scaled to the frame; named locations are
@@ -184,12 +207,18 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         // The stations a guide path names (its intersections' aliases) are the places a reader looks for, and
         // where an assignment's origin and destination are drawn; place them on the path, where they are.
         val placedLocationNames = locations.map { it.locationName }.toSet()
-        val stationLocations = vehicles.guidePaths.values.flatMap { g ->
-            g.definition.intersections.flatMap { i -> i.aliases.map { it to g.intersectionPoint(i.name) } }
-        }.filter { (name, p) -> p != null && name !in placedLocationNames }
+        val stationLocations = guidedPaths.flatMap { style ->
+            val g = vehicles.guidePaths.getValue(style.spaceName)
+            g.definition.intersections.flatMap { i ->
+                val p = LayoutPoint(
+                    style.offset.x + style.scale * i.x + i.z * (style.floorOffsetPerZ?.x ?: 0.0),
+                    style.offset.y + style.scale * i.y + i.z * (style.floorOffsetPerZ?.y ?: 0.0)
+                )
+                i.aliases.map { it to p }
+            }
+        }.filter { (name, _) -> name !in placedLocationNames }
             .distinctBy { it.first }
-            .map { (name, p) -> LocationLayoutElement(locationName = name, position = LayoutPoint(p!!.x, p.y), label = name) }
-        val guidedPaths = vehicles.guidePaths.keys.sorted().map { GuidedPathLayoutElement(spaceName = it) }
+            .map { (name, p) -> LocationLayoutElement(locationName = name, position = p, label = name) }
         // A transporter is drawn about as long as the zones it covers, so a cart reads as a cart on its path
         // rather than a marker the size of an aisle; bounded by the strip's element size.
         val guidedTransporters = vehicles.transporterNames.sorted().map { name ->

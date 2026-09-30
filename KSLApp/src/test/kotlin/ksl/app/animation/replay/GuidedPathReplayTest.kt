@@ -237,4 +237,52 @@ class GuidedPathReplayTest {
         val compat = layoutTraceCompatibility(AnimationLayout(), m)
         assertTrue(compat.animatedButUnlaid.none { "Cart" in it || "RidingHoldQ" in it }, compat.summary())
     }
+
+    @Test
+    fun aPathThatClimbsIsSeparatedIntoFloorsWithTheTopLeftInPlace() {
+        val climbing = defined().copy(
+            intersections = listOf(
+                GuidedPathIntersectionDef("A", 0.0, 0.0),
+                GuidedPathIntersectionDef("B", 100.0, 0.0),
+                GuidedPathIntersectionDef("C", 100.0, 40.0, z = 4.0) // one floor up, 4 units higher
+            )
+        )
+        val events = listOf(climbing, moved(0.0, "A"))
+        val layout = replay(events).autoLayout(events)
+        val style = layout.guidedPaths.single()
+        val perZ = assertNotNull(style.floorOffsetPerZ, "a climbing path gets a floor separation")
+        val placed = replay(events, layout).vehicles.guidePaths.getValue("Floor")
+        val a = placed.intersectionPoint("A")!!
+        val c = placed.intersectionPoint("C")!!
+        assertTrue(perZ.y < 0.0, "upper floors are drawn above")
+        assertTrue(c.y < a.y, "C, a floor up, is above A")
+        assertEquals(40.0, c.y, 1e-9, "the top floor stays where the trace put it")
+        // The upper floor spans y 0..40 as drawn; the ground floor's top edge (A, at y 0 in the trace) is below it.
+        assertTrue(a.y > 40.0, "the ground floor clears the floor above")
+    }
+
+    @Test
+    fun theFleetsOwnQueuesBodiesAndControlAgentsAreNotPlaced() {
+        val events = listOf(
+            defined(),
+            AnimationEvent.AgvAssignmentMade(1.0, "Fleet", "AGV1", 1, "Dock", "Store", bodyName = "Cart", networkName = "Net"),
+            AnimationEvent.FleetVehicleStateChanged(1.0, "Fleet", "Van", bodyName = "Van:Body", state = "AVAILABLE"),
+            AnimationEvent.EntityCreated(0.0, 90, "VehicleAgent"),
+            AnimationEvent.EntityCreated(0.0, 91, "Part"),
+            AnimationEvent.QObjectEnqueued(0.5, 90, "Fleet:AvailabilityQ"),
+            AnimationEvent.QueueLengthChanged(0.5, "Fleet:AvailabilityQ", 1),
+            AnimationEvent.QueueLengthChanged(0.5, "Fleet:Dispatcher:TaskQ", 0),
+            AnimationEvent.QueueLengthChanged(0.5, "Van:Body:HomeBaseQ", 0),
+            AnimationEvent.QueueLengthChanged(0.5, "AGV1:BodyQ", 0),
+            AnimationEvent.QueueLengthChanged(0.5, "Lathe:Q", 0),
+            AnimationEvent.ResourceStateChanged(0.0, "Van:Body", "IDLE", 0, 1),
+            AnimationEvent.ResourceStateChanged(0.0, "Lathe", "IDLE", 0, 1)
+        )
+        val m = replay(events)
+        val layout = m.autoLayout(events)
+        assertEquals(listOf("Lathe:Q"), layout.queues.map { it.queueName })
+        assertEquals(listOf("Lathe"), layout.resources.map { it.resourceName })
+        assertTrue(layout.objectClasses.none { it.typeName == "VehicleAgent" }, "a control agent is not in the legend")
+        assertTrue(layout.objectClasses.any { it.typeName == "Part" })
+    }
 }

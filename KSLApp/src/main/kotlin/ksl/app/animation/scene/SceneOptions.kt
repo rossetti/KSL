@@ -45,6 +45,7 @@ data class Viewport(val widthPx: Double, val heightPx: Double)
  * @property showHeadings draw a short tick in a continuous agent's direction of travel
  * @property showVectors draw per-agent velocity and steering-force arrows carried by the trace
  * @property showFlowField draw the flow-field gradient heatmap carried by the trace
+ * @property showAssignments draw a faint line from each assigned fleet vehicle to where its task sends it next
  */
 data class SceneOptions(
     val showLegend: Boolean = true,
@@ -55,7 +56,8 @@ data class SceneOptions(
     val showQueueExtents: Boolean = true,
     val showHeadings: Boolean = true,
     val showVectors: Boolean = true,
-    val showFlowField: Boolean = true
+    val showFlowField: Boolean = true,
+    val showAssignments: Boolean = true
 ) {
     companion object {
         /** Everything off but the essentials — for a still image or a small embedded figure. */
@@ -66,7 +68,8 @@ data class SceneOptions(
             showMarkerPulses = false,
             showHeadings = false,
             showVectors = false,
-            showFlowField = false
+            showFlowField = false,
+            showAssignments = false
         )
     }
 }

@@ -25,6 +25,11 @@ import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.replay.TransporterSnapshot
 import ksl.app.animation.replay.autoLayout
+import ksl.app.animation.geom.ViewTransform
+import ksl.app.animation.scene.Java2dSurface
+import ksl.app.animation.scene.SceneBuilder
+import ksl.app.animation.scene.SceneRenderer
+import java.awt.image.BufferedImage
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.ModelBuilderIfc
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -39,8 +44,8 @@ import kotlin.math.abs
  * Every shipped vehicle model, replayed. The contract test beside this one checks that a trace carries what a
  * renderer needs; this checks that the replay actually turns it into something drawable: every transporter has
  * a position at every instant once placed, every carried load is drawn on the vehicle carrying it, a cart does
- * not move while it is standing still by its own account, and auto-layout neither draws a transporter twice nor
- * places the hold queues its loads pass through.
+ * not move while it is standing still by its own account, and auto-layout neither draws a vehicle twice nor
+ * places the queues the vehicle machinery keeps for itself.
  */
 class VehicleReplayTest {
 
@@ -157,12 +162,32 @@ class VehicleReplayTest {
 
             // Auto-layout draws each transporter once, on its path, and leaves the hold queues out.
             val layout = model.autoLayout(events)
-            layout.resources.firstOrNull { it.resourceName in v.transporterNames }
-                ?.let { problems += "$label: transporter ${it.resourceName} placed as a resource" }
-            layout.queues.firstOrNull { v.isVehicleHoldQueue(it.queueName) }
-                ?.let { problems += "$label: hold queue ${it.queueName} placed" }
+            layout.resources.firstOrNull { it.resourceName in v.transporterNames || it.resourceName in v.fleetVehicleNames }
+                ?.let { problems += "$label: vehicle ${it.resourceName} placed as a resource" }
+            layout.queues.firstOrNull { v.isVehicleInternalQueue(it.queueName) }
+                ?.let { problems += "$label: vehicle queue ${it.queueName} placed" }
             if (v.guidePaths.keys != layout.guidedPaths.map { it.spaceName }.toSet()) {
                 problems += "$label: auto-layout guide paths ${layout.guidedPaths.map { it.spaceName }} != ${v.guidePaths.keys}"
+            }
+
+            // Viewed through its auto-layout, as a player shows a bare trace, every frame draws: the static
+            // preview and a frame every tenth of the run, through the shared scene onto a Java2D surface.
+            val viewed = ReplayModel.build(AnimationSource(layout, ksl.animation.AnimationTraceHeader(), events))
+            val builder = SceneBuilder(viewed)
+            val image = BufferedImage(640, 480, BufferedImage.TYPE_INT_RGB)
+            val g = image.createGraphics()
+            try {
+                val frames = listOf(builder.buildStatic()) + (0..10).map { builder.build(t0 + (t1 - t0) * it / 10.0) }
+                for (scene in frames) {
+                    if (v.guidePaths.isNotEmpty() && scene.commandsOf("guidePaths").isEmpty()) {
+                        problems += "$label: no guide path drawn at ${scene.simTime}"
+                    }
+                    SceneRenderer.render(scene, Java2dSurface(g, 640.0, 480.0), ViewTransform.fit(scene.worldBounds, 640.0, 480.0))
+                }
+            } catch (e: Exception) {
+                problems += "$label: drawing failed: $e"
+            } finally {
+                g.dispose()
             }
         }
         if (problems.isNotEmpty()) fail<Unit>(problems.distinct().take(40).joinToString("\n"))

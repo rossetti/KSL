@@ -38,6 +38,11 @@ import ksl.app.animation.replay.ResourceSnapshot
 import ksl.app.animation.replay.StorageMember
 import ksl.app.animation.replay.ResponseStats
 import ksl.app.animation.replay.WorldPoint
+import ksl.app.animation.geom.ViewTransform
+import ksl.app.animation.scene.DrawCmd
+import ksl.app.animation.scene.DrawSpace
+import ksl.app.animation.scene.Java2dSurface
+import ksl.app.animation.scene.VehicleSceneParts
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Graphics
@@ -66,6 +71,7 @@ class SimulationCanvas : JPanel() {
         set(value) {
             field = value
             style = VisualStyle(value?.layout)
+            vehicleParts = value?.let { VehicleSceneParts(it, ksl.app.animation.style.VisualStyle(it.layout)) }
             imageCache.clear()
             zoom = 1.0; panX = 0.0; panY = 0.0
             repaint()
@@ -85,6 +91,12 @@ class SimulationCanvas : JPanel() {
         }
 
     private var style = VisualStyle(null)
+
+    /**
+     * Guide paths, transporters, assignments and carried loads are drawn from the shared scene's commands
+     * rather than re-decided here, so the desktop shows exactly what the web player and the exported page show.
+     */
+    private var vehicleParts: VehicleSceneParts? = null
     private var zoom = 1.0
     private var panX = 0.0
     private var panY = 0.0
@@ -146,6 +158,7 @@ class SimulationCanvas : JPanel() {
         // A functional path's endpoints (from/to anchors) bracket its waypoints, so an endpoints-only path (no
         // waypoints — e.g. Enter→Station1) is visible on the static Layout tab, not just during replay motion (E1).
         layout?.let { lay -> lay.paths.forEach { path -> drawPolyline(g2, tx, lay.pathPolyline(path), Color(0xb0, 0xb0, 0xb0), 1.0f) } }
+        vehicleParts?.let { drawShared(g2, tx, it.guidePathCommands(t, static = false)) } // guide paths + closures
         for (cName in r.conveyorNames) drawBeltCells(g2, tx, r, cName, t) // belt occupancy overlay (8G.9)
         layout?.stations?.forEach {
             drawMarker(g2, tx, it.position, Color(0x55, 0x55, 0x55), "") // dot only; label honors overrides (C3)
@@ -193,6 +206,7 @@ class SimulationCanvas : JPanel() {
             // In service: drawn inside its resource's unit cell by drawResource (8A.2 + 8C.3), so skip here.
             if (r.entityServiceResourceAt(e.id, t) != null) continue
             if (r.entityQueueAt(e.id, t) != null) continue // represented by the queue's dots
+            if (r.vehicles.vehicleCarryingAt(e.id, t) != null) continue // drawn on the vehicle carrying it
             // In a named delay that has a placed storage: drawn by drawStorage, skip here (8K.4).
             val storageKey = r.entityStorageAt(e.id, t)
             if (storageKey != null && layout?.storages?.any { it.suspensionName == storageKey } == true) continue
@@ -286,8 +300,20 @@ class SimulationCanvas : JPanel() {
                     fillGlyph(g2, s.x, s.y, (mr.size * 0.55 * scaleOf(tx)).coerceAtLeast(4.0),
                         style.objectColor(key), style.objectShape(key), style.objectImageRef(key))
                 }
+                // A fleet vehicle's loads are known from boarding, and a broken-down one is ringed (shared rules).
+                vehicleParts?.let { parts ->
+                    val aboard = r.vehicles.loadsAboardAt(mr.name, t)
+                    val cmds = ArrayList<DrawCmd>()
+                    if (aboard.isNotEmpty()) cmds.addAll(parts.loadCommands(aboard, p, mr.size))
+                    parts.fleetStateRing(mr.name, t, p.x, p.y, mr.size)?.let { cmds.add(it) }
+                    drawShared(g2, tx, cmds)
+                }
                 drawElementLabel(g2, layout, screen(tx, p), ksl.animation.ElementKind.MOVABLE_RESOURCE, mr.name, mr.label ?: mr.name)
             }
+        }
+        vehicleParts?.let { parts ->
+            if (showAssignments) drawShared(g2, tx, parts.assignmentCommands(t))
+            drawShared(g2, tx, parts.transporterCommands(t, static = false))
         }
 
         layout?.clocks?.forEach { clock ->
@@ -300,6 +326,19 @@ class SimulationCanvas : JPanel() {
             g2.font = oldFont
         }
         if (showLegend) drawLegend(g2)
+    }
+
+    /** Paints shared scene commands in world space, through the same surface the server's layout image uses. */
+    private fun drawShared(g2: Graphics2D, tx: AffineTransform, commands: List<DrawCmd>) {
+        if (commands.isEmpty()) return
+        // The canvas transform is translate(margin + pan) . scale(s) . translate(-origin); as a ViewTransform that
+        // is origin (-tx/s ... ) recovered from the matrix, with the margin folded into the pan.
+        val s = tx.scaleX
+        val view = ViewTransform(originX = -tx.translateX / s, originY = -tx.translateY / s, baseScale = s, margin = 0.0)
+        val surface = Java2dSurface(g2, width.toDouble(), height.toDouble()) { loadImage(it) }
+        surface.beginLayer(DrawSpace.WORLD, view)
+        commands.forEach { surface.draw(it) }
+        surface.endLayer()
     }
 
     /** An agent resolved to its drawn world position, for the co-location fan-out (8I.3b). */
@@ -437,8 +476,10 @@ class SimulationCanvas : JPanel() {
         val scale = scaleOf(tx)
         val step = q.spacing * scale
         val dot = (8.0 * scale).coerceAtLeast(3.0)
-        val members = r.queueMembersAt(q.queueName, t) // identified members (8C.2), if available
-        val length = if (members.isNotEmpty()) members.size else r.queueLengthAt(q.queueName, t)
+        // Identified members (8C.2), if available; a load aboard a vehicle is drawn on the vehicle instead.
+        val members = r.queueMembersAt(q.queueName, t).filter { r.vehicles.vehicleCarryingAt(it, t) == null }
+        val length = if (members.isNotEmpty()) members.size
+            else if (r.vehicles.isVehicleHoldQueue(q.queueName)) 0 else r.queueLengthAt(q.queueName, t)
         val n = minOf(length, q.maxShown)
         // Head is q.position; the line extends away along growthDegrees (0deg = right, clockwise; 8I.6).
         val rad = Math.toRadians(q.growthDegrees)
@@ -1214,6 +1255,10 @@ class SimulationCanvas : JPanel() {
 
     /** Whether to draw agents' planned routes when the trace carries them (G12). Display gate. */
     var showPlannedPaths: Boolean = true
+        set(value) { field = value; repaint() }
+
+    /** Whether to draw a faint line from each assigned fleet vehicle to its task's next stop. Display gate. */
+    var showAssignments: Boolean = true
         set(value) { field = value; repaint() }
 
     /** Whether to draw agents' velocity/force vector arrows when the trace carries them (G10). Display gate. */

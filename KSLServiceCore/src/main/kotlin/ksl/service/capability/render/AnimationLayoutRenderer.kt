@@ -19,7 +19,16 @@
 package ksl.service.capability.render
 
 import ksl.animation.AnchorRef
+import ksl.animation.AnimationEvent
 import ksl.animation.AnimationLayout
+import ksl.animation.AnimationTraceHeader
+import ksl.app.animation.geom.ViewTransform
+import ksl.app.animation.io.AnimationSource
+import ksl.app.animation.replay.ReplayModel
+import ksl.app.animation.scene.Java2dSurface
+import ksl.app.animation.scene.Scene
+import ksl.app.animation.scene.SceneBuilder
+import ksl.app.animation.scene.SceneOptions
 import ksl.animation.BackgroundElement
 import ksl.animation.BackgroundKind
 import ksl.animation.ConveyorLayoutElement
@@ -53,8 +62,9 @@ import kotlin.math.sin
  * persistent "skeleton" every element has, minus any live/replay overlay). It is the propose → render →
  * look → revise loop's "look" step, and a way to polish an app-authored layout, without running a replay.
  *
- * A fresh, headless `Graphics2D` renderer: it depends only on the layout data (KSLCore) and `java.desktop`
- * (a JDK built-in that renders fine headless), so it adds no dependency on the Swing animation module. It
+ * A fresh, headless `Graphics2D` renderer: it depends on the layout data (KSLCore), the shared scene for guide
+ * paths (KSLApp), and `java.desktop` (a JDK built-in that renders fine headless), so it adds no dependency on
+ * the Swing animation module. It
  * deliberately mirrors `SimulationCanvas`'s static drawing (same coordinate transform, colors, glyph
  * conventions) so the preview matches the app; live entity motion, interactivity, editor grips, spaces,
  * backgrounds and images are out of scope here (the last three arrive in later phases).
@@ -77,9 +87,17 @@ object AnimationLayoutRenderer {
     private val NETWORK_LINE = Color(0xcc, 0xcc, 0xcc)
     private val OBSTACLE = Color(0x44, 0x44, 0x44, 0x99) // semi-opaque dark, behind the elements
 
-    /** Renders [layout] to a [BufferedImage] sized to the layout's own canvas (clamped to a sane range). */
-    fun renderToImage(layout: AnimationLayout): BufferedImage {
+    /**
+     * Renders [layout] to a [BufferedImage] sized to the layout's own canvas (clamped to a sane range).
+     *
+     * A layout styles a guide path but does not carry its geometry, which belongs to the model. [vehicleEvents]
+     * supplies it: the guide path definitions (and transporters at their home bases) synthesized from a built
+     * model by `guidedPathPreviewEvents`. They are drawn through the same scene as a replay, so the preview of a
+     * guide path is the path a run will show. Empty draws no guide path, as before.
+     */
+    fun renderToImage(layout: AnimationLayout, vehicleEvents: List<AnimationEvent> = emptyList()): BufferedImage {
         val (w, h) = canvasSize(layout)
+        val vehicleScene = vehicleScene(layout, vehicleEvents)
         val img = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
         val g = img.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -88,13 +106,14 @@ object AnimationLayoutRenderer {
         g.fillRect(0, 0, w, h)
         g.font = Font(Font.SANS_SERIF, Font.PLAIN, 11)
 
-        val tx = Transform.fit(worldBounds(layout), w, h)
+        val tx = Transform.fit(worldBounds(layout, vehicleScene?.second), w, h)
 
         // Back-to-front, matching SimulationCanvas's static skeleton order.
         drawSpaces(g, tx, layout)      // spatial-space backgrounds (continuous / grid / network)
         drawObstacles(g, tx, layout)   // model-extracted grid obstacle cells
         drawBackgrounds(g, tx, layout) // authored background geometry (line / rect / text; image ⇒ P3)
         drawPaths(g, tx, layout)
+        drawVehicleLayers(g, tx, w, h, vehicleScene?.first, "guidePaths")
         drawConveyors(g, tx, layout)
         drawStations(g, tx, layout)
         drawLocations(g, tx, layout)
@@ -102,6 +121,7 @@ object AnimationLayoutRenderer {
         drawStorages(g, tx, layout)
         drawResources(g, tx, layout)
         drawMovables(g, tx, layout)
+        drawVehicleLayers(g, tx, w, h, vehicleScene?.first, "transporters")
         drawDisplays(g, tx, layout)
 
         drawLegend(g, layout, w)
@@ -111,9 +131,31 @@ object AnimationLayoutRenderer {
         return img
     }
 
-    /** Renders [layout] to a PNG at [path]. */
-    fun renderToPng(layout: AnimationLayout, path: Path) {
-        ImageIO.write(renderToImage(layout), "png", path.toFile())
+    /** Renders [layout] to a PNG at [path]; see [renderToImage] for [vehicleEvents]. */
+    fun renderToPng(layout: AnimationLayout, path: Path, vehicleEvents: List<AnimationEvent> = emptyList()) {
+        ImageIO.write(renderToImage(layout, vehicleEvents), "png", path.toFile())
+    }
+
+    /** The static vehicle scene for [layout] and its guide path extent, or null when there are no vehicle events. */
+    private fun vehicleScene(layout: AnimationLayout, events: List<AnimationEvent>): Pair<Scene, Rectangle2D.Double>? {
+        if (events.isEmpty()) return null
+        val model = ReplayModel.build(AnimationSource(layout, AnimationTraceHeader(), events))
+        val box = model.guidePathBounds() ?: return null
+        val scene = SceneBuilder(model, SceneOptions.MINIMAL).buildStatic()
+        return scene to Rectangle2D.Double(box.minX, box.minY, box.width.coerceAtLeast(1.0), box.height.coerceAtLeast(1.0))
+    }
+
+    /** Draws the named layers of the vehicle scene through the shared Java2D surface, in this renderer's mapping. */
+    private fun drawVehicleLayers(g: Graphics2D, tx: Transform, w: Int, h: Int, scene: Scene?, vararg names: String) {
+        if (scene == null) return
+        val view = ViewTransform(tx.minX, tx.minY, tx.scale, MARGIN)
+        val surface = Java2dSurface(g, w.toDouble(), h.toDouble())
+        for (name in names) {
+            val layer = scene.layer(name) ?: continue
+            surface.beginLayer(layer.space, view)
+            layer.commands.forEach { surface.draw(it) }
+            surface.endLayer()
+        }
     }
 
     /** The pixel dimensions of the preview canvas for [layout] (its width×height, clamped to a sane range). */
@@ -132,7 +174,7 @@ object AnimationLayoutRenderer {
 
     // ── world → screen transform (fit-to-view of the world box + a 20px margin; no Y-flip) ──────────────
 
-    private class Transform(private val minX: Double, private val minY: Double, val scale: Double) {
+    private class Transform(val minX: Double, val minY: Double, val scale: Double) {
         fun x(wx: Double): Double = MARGIN + (wx - minX) * scale
         fun y(wy: Double): Double = MARGIN + (wy - minY) * scale
         fun p(pt: LayoutPoint): Point2D.Double = Point2D.Double(x(pt.x), y(pt.y))
@@ -153,7 +195,7 @@ object AnimationLayoutRenderer {
      * (and its extent), so out-of-range or coordinate-free layouts aren't clipped — the static analogue of
      * the app unioning the layout rect with the replay's coordinate bounds.
      */
-    private fun worldBounds(layout: AnimationLayout): Rectangle2D.Double {
+    private fun worldBounds(layout: AnimationLayout, guidePaths: Rectangle2D.Double? = null): Rectangle2D.Double {
         val xs = ArrayList<Double>(); val ys = ArrayList<Double>()
         fun add(x: Double, y: Double) { xs.add(x); ys.add(y) }
         fun add(p: LayoutPoint?) { if (p != null) add(p.x, p.y) }
@@ -180,6 +222,8 @@ object AnimationLayoutRenderer {
         layout.clocks.forEach { add(it.position) }
         layout.spaces.forEach { s -> spaceBounds(s).forEach { add(it) } }
         layout.background.forEach { b -> b.points.forEach { add(it) } }
+        // A guide path is content like any placed element, so it takes part in the fit-the-content rule below.
+        guidePaths?.let { addBox(it.x, it.y, it.width, it.height) }
         val rw = layout.width.coerceAtLeast(1.0); val rh = layout.height.coerceAtLeast(1.0)
         if (xs.isEmpty()) return Rectangle2D.Double(0.0, 0.0, rw, rh)
         val cx = xs.min(); val cy = ys.min()

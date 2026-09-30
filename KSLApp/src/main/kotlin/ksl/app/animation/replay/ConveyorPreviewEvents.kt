@@ -52,3 +52,34 @@ fun conveyorDefinedEvents(infos: List<ConveyorInfo>): List<AnimationEvent.Convey
     }
     AnimationEvent.ConveyorDefined(simTime = 0.0, conveyorName = info.name, anchorLocations = locs, anchorCells = cells)
 }
+
+/**
+ * Synthesizes the events that draw a model's guide paths before any run exists: one
+ * [AnimationEvent.GuidedPathDefined] per guide path in the inventory ([infos]), carrying the geometry the runtime
+ * emits, and each transporter placed at its home base when that names a place on the path. The layout editor's
+ * preview and the server's layout image both draw from these, through the same replay and scene as a real trace,
+ * so a guide path looks the same before a run as during one. A transporter with no home base on the path is
+ * left unplaced rather than guessed.
+ */
+fun guidedPathPreviewEvents(infos: List<ksl.animation.GuidedPathInfo>): List<AnimationEvent> {
+    val out = ArrayList<AnimationEvent>()
+    for (info in infos) {
+        out += AnimationEvent.GuidedPathDefined(
+            simTime = 0.0, networkName = info.networkName, intersections = info.intersections,
+            links = info.links, transporters = info.transporters, spaceName = info.spaceName
+        )
+        val byPlace = HashMap<String, String>()
+        for (i in info.intersections) {
+            byPlace[i.name] = i.name
+            for (a in i.aliases) byPlace.putIfAbsent(a, i.name)
+        }
+        for (t in info.transporters) {
+            val at = t.homeBase?.let { byPlace[it] } ?: continue
+            out += AnimationEvent.GuidedTransporterMoved(
+                simTime = 0.0, transporterName = t.name, networkName = info.networkName,
+                zoneName = at, spaceName = info.spaceName
+            )
+        }
+    }
+    return out
+}

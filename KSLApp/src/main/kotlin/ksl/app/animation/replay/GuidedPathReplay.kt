@@ -105,6 +105,27 @@ class GuidedPathGeometry(
         return if (dist2(ahead, previous) >= dist2(behind, previous)) ahead else behind
     }
 
+    /**
+     * A floor separation for a path that climbs, so its floors are not drawn on top of each other when no
+     * layout says where they go. Returns the offset per unit of height, which lifts each floor up the canvas by
+     * enough that it clears the one below, paired with the overall offset that moves the lower floors down to
+     * make room, so the top floor stays where the trace put it and nothing is lifted off the canvas. Null for
+     * a flat path. Computed from the trace's own coordinates, before any placement.
+     */
+    fun suggestedFloorOffset(): Pair<ksl.animation.LayoutPoint, ksl.animation.LayoutPoint>? {
+        val pts = definition.intersections
+        val levels = pts.map { it.z }.distinct().sorted()
+        if (levels.size < 2) return null
+        val step = levels.zipWithNext { a, b -> b - a }.filter { it > 0.0 }.minOrNull() ?: return null
+        // Every floor is drawn across the whole path's height, so that is what one floor must clear.
+        val floorHeight = pts.maxOf { it.y } - pts.minOf { it.y }
+        val width = pts.maxOf { it.x } - pts.minOf { it.x }
+        val clearance = (if (floorHeight > 0.0) floorHeight * 1.35 else width * 0.35).coerceAtLeast(1.0)
+        val perZ = -clearance / step
+        val lift = ksl.animation.LayoutPoint(0.0, -perZ * (levels.last() - levels.first()))
+        return ksl.animation.LayoutPoint(0.0, perZ) to lift
+    }
+
     /** The average drawn length of one zone over the path's links, or null when no link has a drawable length. */
     fun meanZoneLength(): Double? {
         val lengths = definition.links.mapNotNull { l ->
@@ -185,7 +206,9 @@ class VehicleReplay internal constructor(
     private val loadVehicle: Map<Long, StepTimeline<String>>,
     private val vehicleLoads: Map<String, StepTimeline<List<Long>>>,
     /** The fleet systems (dispatching AGV or free-path fleets) the trace mentions. */
-    val fleetSystemNames: Set<String> = emptySet()
+    val fleetSystemNames: Set<String> = emptySet(),
+    /** Fleet vehicles and their moving bodies, by every name the trace uses for them. */
+    val fleetVehicleNames: Set<String> = emptySet()
 ) {
     /** The guided transporters that appear in the trace. */
     val transporterNames: Set<String> get() = transporterMotion.keys + transporterDefs.keys
@@ -276,6 +299,25 @@ class VehicleReplay internal constructor(
         return queueName.substringAfterLast(':') in HOLD_QUEUE_NAMES
     }
 
+    /**
+     * Whether [queueName] belongs to the vehicle machinery rather than to the model: a hold queue for loads, or
+     * a queue a fleet, its dispatcher, a vehicle or a vehicle's body keeps for itself (availability, task
+     * board, idle dispatchers, out of service, a body's request queue, a home base). Such a queue is named by
+     * its owner followed by a colon. Its members are the fleet's own control agents or bookkeeping, which a
+     * viewer should not see queueing beside the model's parts.
+     */
+    fun isVehicleInternalQueue(queueName: String): Boolean {
+        if (isVehicleHoldQueue(queueName)) return true
+        var cut = queueName.lastIndexOf(':')
+        while (cut > 0) {
+            val owner = queueName.substring(0, cut)
+            if (owner in guidePaths || owner in fleetSystemNames || owner in fleetVehicleNames ||
+                owner in transporterNames) return true
+            cut = queueName.lastIndexOf(':', cut - 1)
+        }
+        return false
+    }
+
     val isEmpty: Boolean
         get() = guidePaths.isEmpty() && transporterMotion.isEmpty() && assignments.isEmpty() &&
             fleetStates.isEmpty() && vehicleLoads.isEmpty()
@@ -325,6 +367,7 @@ internal class GuidedPathReplayBuilder(
     private val vehicleLoads = LinkedHashMap<String, StepTimeline<List<Long>>>()
     private val aboard = HashMap<String, MutableList<Long>>()
     private val fleetSystems = LinkedHashSet<String>()
+    private val fleetVehicles = LinkedHashSet<String>()
 
     // Per transporter: where and when its front was last reported, and when its current travel began.
     private val lastFront = HashMap<String, Pair<Double, WorldPoint>>()
@@ -345,6 +388,8 @@ internal class GuidedPathReplayBuilder(
             is AnimationEvent.AgvAssignmentEnded -> assignmentEnded(event)
             is AnimationEvent.FleetVehicleStateChanged -> {
                 fleetSystems.add(event.systemName)
+                fleetVehicles.add(event.vehicleName)
+                event.bodyName?.let { fleetVehicles.add(it) }
                 val body = event.bodyName ?: bodyOfVehicle[event.vehicleName] ?: event.vehicleName
                 event.bodyName?.let { bodyOfVehicle[event.vehicleName] = it }
                 fleetStates.getOrPut(body) { StepTimeline() }
@@ -444,6 +489,8 @@ internal class GuidedPathReplayBuilder(
 
     private fun assignmentMade(event: AnimationEvent.AgvAssignmentMade) {
         fleetSystems.add(event.systemName)
+        fleetVehicles.add(event.vehicleName)
+        event.bodyName?.let { fleetVehicles.add(it) }
         val body = event.bodyName ?: bodyOfVehicle[event.vehicleName] ?: event.vehicleName
         bodyOfVehicle[event.vehicleName] = body
         // A task given to this vehicle while another was open replaces it; a task re-given to another
@@ -493,7 +540,7 @@ internal class GuidedPathReplayBuilder(
     /** The replay built from every event accepted so far. */
     fun build(): VehicleReplay = VehicleReplay(
         guidePaths, transporterSpace, transporterDefs, transporterMotion, transporterTrails, transporterStates,
-        closures, assignments, fleetStates, loadVehicle, vehicleLoads, fleetSystems
+        closures, assignments, fleetStates, loadVehicle, vehicleLoads, fleetSystems, fleetVehicles
     )
 }
 

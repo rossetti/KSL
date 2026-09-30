@@ -102,6 +102,7 @@ val sharedSources = listOf(
     "ksl/app/animation/replay/AutoLayout.kt",
     // ── replay state at a time -> a Scene (KSLApp; needs ReplayModel) ──
     "ksl/app/animation/scene/SceneBuilder.kt",
+    "ksl/app/animation/scene/VehicleSceneParts.kt",
     // ── playback state machine (KSLAppSwingAnimation; already toolkit-free) ──
     "ksl/app/swing/animation/playback/PlaybackController.kt",
 )
