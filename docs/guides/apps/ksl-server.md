@@ -311,6 +311,28 @@ unauthenticated.
 
 **Console:** `http://127.0.0.1:3001/admin` (the menu's **Open Console**).
 
+**HTTP endpoints.** Two of these answer questions people ask of a running server, and one of them
+is a trap:
+
+| Endpoint | What it answers |
+|---|---|
+| `GET /health` | Is it alive? `{"status":"UP", …}`. The one to use in a script or a check |
+| `GET /status` | What is it serving? Per-capability readiness, and call counts per tool |
+| `GET /version` | Which suite version is running |
+| `GET /admin` | The console (see §4) |
+| `GET /` | **The MCP SSE stream.** It answers `200` and then holds the connection open for ever, because that is what an event stream does |
+
+> **Do not health-check `GET /`.** It is the MCP transport, not a landing page. `curl` with no
+> `-m`, or `Invoke-WebRequest`, will appear to hang — one attempt in testing blocked for over two
+> minutes before being killed. Use `/health`:
+>
+> ```
+> curl -s -m 5 http://127.0.0.1:3001/health
+> ```
+>
+> A client configured for this server connects to `/` deliberately and keeps that connection; that
+> is working as intended and is not what you want from a shell.
+
 **What ships**, in the suite's `Servers/suite/` folder
 (`~/Applications/KSL/.support/Servers/suite/`):
 

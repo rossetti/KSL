@@ -56,6 +56,19 @@ class ArtifactRouteTest {
     }
 
     @Test
+    @DisplayName("the listing route reports what a result holds")
+    fun listsArtifacts() {
+        withServer(storeWithArtifacts()) { port ->
+            val (code, body) = get(port, "/results/res1/artifacts")
+            assertEquals(200, code, "the suite must serve the listing route, as the REST transport does")
+            // Without this route a client had to already know a name to fetch it, so an artifact whose
+            // link was never handed out was unreachable. Both files, including the nested one.
+            assertEquals(true, "report.html" in body, "expected report.html in $body")
+            assertEquals(true, "plots/welch.png" in body, "expected the nested artifact in $body")
+        }
+    }
+
+    @Test
     @DisplayName("a stored artifact is served at the URL its ref advertises")
     fun servesAnArtifact() {
         val store = storeWithArtifacts()

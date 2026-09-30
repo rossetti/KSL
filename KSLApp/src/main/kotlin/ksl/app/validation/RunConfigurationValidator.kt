@@ -308,10 +308,15 @@ object RunConfigurationValidator {
                     message = "Lower bound ${control.lowerBound} exceeds upper bound ${control.upperBound}."
                 )
             } else if (control.value < control.lowerBound || control.value > control.upperBound) {
+                // Name the value the run will actually use. "Will be clamped" leaves the reader to
+                // work out to what, and a reader who skips this warning then reads a result computed
+                // at a different setting than the one they asked for with nothing saying so.
+                val effective = control.value.coerceIn(control.lowerBound, control.upperBound)
                 builder.warning(
                     path = controlPath,
                     code = "NUMERIC_CONTROL_VALUE_OUT_OF_BOUNDS",
-                    message = "Value ${control.value} is outside [${control.lowerBound}, ${control.upperBound}] and will be clamped by the control setter."
+                    message = "Value ${control.value} is outside [${control.lowerBound}, ${control.upperBound}]; " +
+                        "the control setter will clamp it to $effective, and the run will use $effective."
                 )
             }
         }

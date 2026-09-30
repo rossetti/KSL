@@ -24,6 +24,7 @@ import ksl.app.comparison.ResponseCategory
 
 import ksl.app.config.ReportFormat
 import ksl.utilities.io.report.extensions.MCBDirection
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -65,10 +66,12 @@ class ComparisonReportRendererTest {
         assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
         assertEquals(2, out.written.size)
         val names = out.written.map { it.fileName.toString() }.sorted()
-        assertEquals(
-            listOf("comparison-boxplot-NumBusy.md", "comparison-boxplot-NumBusy.txt"),
-            names
-        )
+        // The stem now carries a hash of what identifies the analysis, so it is matched by shape
+        // rather than spelled out -- pinning the hash would be pinning an implementation detail.
+        // What matters and is asserted: one stem, two extensions, and it is stable (below).
+        assertTrue(names.all { it.startsWith("comparison-boxplot-NumBusy-") }, "unexpected names: $names")
+        assertEquals(listOf("md", "txt"), names.map { it.substringAfterLast('.') })
+        assertEquals(1, names.map { it.substringBeforeLast('.') }.distinct().size, "one stem: $names")
         for (p in out.written) assertTrue(Files.exists(p))
     }
 
@@ -130,7 +133,68 @@ class ComparisonReportRendererTest {
         )
         assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
         assertEquals(1, out.written.size)
-        assertEquals("comparison-mca-NumBusy.md", out.written.single().fileName.toString())
+        val mcaName = out.written.single().fileName.toString()
+        // d0 is the default indifference zone, l0.95 the difference level: the two parameters a
+        // reader compares runs by are spelled out, the rest is hashed. See fileStem.
+        assertTrue(
+            mcaName.startsWith("comparison-mca-NumBusy-d0-l0.95-") && mcaName.endsWith(".md"),
+            "unexpected name: $mcaName"
+        )
+    }
+
+    @Test
+    @DisplayName("two indifference zones produce two reports, and the first survives")
+    fun differentDeltasDoNotOverwriteEachOther() {
+        val model = mm1Selection()
+        fun render(delta: Double) = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN),
+            indifferenceZone = delta,
+        )
+
+        val first = render(0.0)
+        val second = render(0.5)
+
+        assertTrue(first.errors.isEmpty() && second.errors.isEmpty(), "unexpected errors")
+        val a = first.written.single()
+        val b = second.written.single()
+
+        // The defect this closes: both calls used to land on comparison-mca-NumBusy.md, so the second
+        // overwrote the first at the same URL with nothing on the page saying it had changed -- and the
+        // tools tell the agent to hand that URL to the user.
+        assertTrue(a != b, "a different indifference zone must be a different file: $a")
+        assertTrue(Files.exists(a), "the first report must still exist after the second render")
+        assertTrue(Files.exists(b))
+        assertTrue(a.fileName.toString().contains("-d0-"), "the delta is visible in the name: $a")
+        assertTrue(b.fileName.toString().contains("-d0.5-"), "and distinguishes them: $b")
+
+        // Neither write replaced anything, which is what `replaced` exists to report.
+        assertTrue(first.replaced.isEmpty() && second.replaced.isEmpty(), "nothing should be overwritten")
+    }
+
+    @Test
+    @DisplayName("the same analysis rendered twice reuses its file and says it replaced it")
+    fun sameAnalysisIsIdempotentAndReportsReplacement() {
+        val model = mm1Selection()
+        fun render() = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN),
+        )
+
+        val first = render()
+        val second = render()
+
+        // Stability matters as much as distinctness: an identical analysis must not accumulate files,
+        // or a caching layer keyed on the URL would miss every time.
+        assertEquals(first.written.single(), second.written.single(), "the same analysis is the same file")
+        assertTrue(first.replaced.isEmpty(), "the first write created the file")
+        assertEquals(listOf(second.written.single()), second.replaced, "the second overwrote it, and says so")
     }
 
     @Test
@@ -199,7 +263,11 @@ class ComparisonReportRendererTest {
         )
         assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
         assertEquals(1, out.written.size)
-        assertEquals("comparison-ciplot-NumBusy.md", out.written.single().fileName.toString())
+        val ciName = out.written.single().fileName.toString()
+        assertTrue(
+            ciName.startsWith("comparison-ciplot-NumBusy-l0.95-") && ciName.endsWith(".md"),
+            "unexpected name: $ciName"
+        )
     }
 
     @Test

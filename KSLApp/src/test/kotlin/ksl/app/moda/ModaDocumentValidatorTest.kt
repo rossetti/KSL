@@ -18,6 +18,8 @@
 
 package ksl.app.moda
 
+import java.io.File
+import java.nio.file.Paths
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -35,6 +37,22 @@ import org.junit.jupiter.api.DisplayName
 class ModaDocumentValidatorTest {
 
     private val validator = ModaDocumentValidator()
+
+    /**
+     *  A path that is absolute **in this platform's own terms**, which is what the validator asks
+     *  (`Paths.get(path).isAbsolute`).
+     *
+     *  A hard-coded `/data/scores.csv` is absolute only on POSIX: on Windows a leading slash with no
+     *  drive letter is root-relative, so the validator correctly did not warn and this test failed there.
+     *  Deriving the root keeps the fixture honest on both.
+     *
+     *  Note what this does **not** cover: a document authored on one platform and validated on the other
+     *  — a POSIX absolute path checked on Windows, or the reverse — still draws no portability warning,
+     *  though that is precisely the case the warning exists for. Deliberately left alone here; see the
+     *  0.3.10 backlog.
+     */
+    private val absolutePathForThisPlatform: String =
+        File.listRoots().first().toPath().resolve("data").resolve("scores.csv").toString()
 
     private fun soundDocument(): ModaDocument = ModaDocument(
         name = "Sound",
@@ -341,8 +359,16 @@ class ModaDocumentValidatorTest {
     @Test
     @DisplayName("an absolute path is remarked on because the study will not travel")
     fun anAbsolutePathIsRemarkedOnBecauseTheStudyWillNotTravel() {
+        // Guard the fixture itself: if it is not absolute here, the assertion below would pass or fail
+        // for the wrong reason, which is how this test came to be green on one platform and red on another.
+        assertTrue(
+            Paths.get(absolutePathForThisPlatform).isAbsolute,
+            "the fixture '$absolutePathForThisPlatform' must be absolute on this platform for the test to mean anything"
+        )
         val document = soundDocument().copy(
-            source = ModaSourceReference.DelimitedFile("/data/scores.csv", "alternative", listOf("Cost", "Delay"))
+            source = ModaSourceReference.DelimitedFile(
+                absolutePathForThisPlatform, "alternative", listOf("Cost", "Delay")
+            )
         )
         assertTrue(
             warningsOf(document).any { it.element == "source" && it.message.contains("absolute") },

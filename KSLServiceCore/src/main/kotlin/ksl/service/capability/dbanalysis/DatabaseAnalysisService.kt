@@ -196,8 +196,23 @@ class DatabaseAnalysisService : AutoCloseable {
         prettyPrint: Boolean = false,
     ): DbQueryResult {
         val selection = ComparisonSelectionModel(listOf(source))
-        if (experimentNames == null) selection.selectAll()
-        else experimentNames.forEach { selection.toggleExperiment(it, true) }
+        if (experimentNames == null) {
+            selection.selectAll()
+        } else {
+            // A name that matches nothing used to be toggled and silently ignored, so a typo surfaced
+            // as "needs at least 2 experiments ... Currently: 1" -- a true statement that points at the
+            // wrong thing. Naming the unmatched ones puts the message where the mistake is.
+            val available = selection.allExperiments.map { it.name }
+            val unmatched = experimentNames.filterNot { it in available }
+            if (unmatched.isNotEmpty()) {
+                return DbQueryResult.Invalid(
+                    "No experiment named " + unmatched.joinToString(", ") { "'" + it + "'" } +
+                        " is in this database. Available: " +
+                        (if (available.isEmpty()) "(none)" else available.sorted().joinToString(", ")) + ".",
+                )
+            }
+            experimentNames.forEach { selection.toggleExperiment(it, true) }
+        }
 
         val validation = selection.validateForResponse(responseName, AnalysisType.MULTIPLE_COMPARISON)
         if (!validation.ok) return DbQueryResult.Invalid(validation.reason ?: "Comparison request is not analyzable.")
@@ -273,6 +288,13 @@ class DatabaseAnalysisService : AutoCloseable {
         level: Double = 0.95,
         formats: Set<ReportFormat> = setOf(ReportFormat.HTML),
         reportsDir: Path,
+        /**
+         *  Which MCB direction to render. Defaults to both, which is what this always did — and what
+         *  left a caller to know that a time in system is a "smaller is better" measure and read the
+         *  right half. Naming a direction removes the guess.
+         */
+        direction: ksl.utilities.io.report.extensions.MCBDirection =
+            ksl.utilities.io.report.extensions.MCBDirection.BOTH,
     ): DbReportResult {
         val selection = ComparisonSelectionModel(listOf(handle.source))
         if (experimentNames == null) selection.selectAll()
@@ -288,6 +310,7 @@ class DatabaseAnalysisService : AutoCloseable {
             observations = selection.gatherObservationsFor(responseName),
             outputDir = reportsDir,
             formats = formats,
+            direction = direction,
             indifferenceZone = delta,
             altConfidenceLevel = level,
             diffConfidenceLevel = level,
@@ -295,7 +318,10 @@ class DatabaseAnalysisService : AutoCloseable {
             showAltCIPlot = true,
             showBoxPlot = true,
         )
-        return DbReportResult.Ok(outcome.written.map { it.fileName.toString() })
+        return DbReportResult.Ok(
+            outcome.written.map { it.fileName.toString() },
+            outcome.replaced.map { it.fileName.toString() },
+        )
     }
 
     /**

@@ -59,7 +59,17 @@ object ComparisonReportRenderer {
      *  HTML output (if any) for host-side browser-open. */
     data class WriteOutcome(
         val written: List<Path>,
-        val errors: List<String>
+        val errors: List<String>,
+        /**
+         *  Files in [written] that already existed and were overwritten.
+         *
+         *  Normally empty, because a report's file name now carries the parameters that identify its
+         *  analysis, so two different analyses land on two different files. It is non-empty when the
+         *  identical analysis is rendered twice — harmless — and it is reported so that a URL handed
+         *  out earlier silently becoming a different report cannot happen again without something
+         *  saying so.
+         */
+        val replaced: List<Path> = emptyList()
     ) {
         /** Convenience accessor — the HTML file in [written] (if any).
          *  Hosts that want to open the HTML in a browser after a
@@ -131,7 +141,14 @@ object ComparisonReportRenderer {
                 yAxisLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
             )
         }
-        return writeAll(doc, outputDir, fileStem("comparison-boxplot", responseName), formats)
+        return writeAll(
+            doc, outputDir,
+            fileStem(
+                "comparison-boxplot", responseName,
+                identity = listOf(responseName) + observations.keys.sorted(),
+            ),
+            formats,
+        )
     }
 
     /**
@@ -223,7 +240,20 @@ object ComparisonReportRenderer {
                 yAxisLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
             )
         }
-        return writeAll(doc, outputDir, fileStem("comparison-mca", responseName), formats)
+        return writeAll(
+            doc, outputDir,
+            fileStem(
+                "comparison-mca", responseName,
+                // The indifference zone and the difference level are what a reader compares runs by,
+                // so they are spelled out; the rest is hashed.
+                visible = listOf(tag("d", indifferenceZone), tag("l", diffConfidenceLevel)),
+                identity = listOf(
+                    responseName, direction, indifferenceZone, altConfidenceLevel,
+                    diffConfidenceLevel, probCorrectSelection, showAltCIPlot, showBoxPlot,
+                ) + observations.keys.sorted(),
+            ),
+            formats,
+        )
     }
 
     /**
@@ -302,7 +332,15 @@ object ComparisonReportRenderer {
             paragraph(headerSentence(sourceLabel, observations, responseName))
             plot(ciPlot, caption = resolvedCaption)
         }
-        return writeAll(doc, outputDir, fileStem("comparison-ciplot", responseName), formats)
+        return writeAll(
+            doc, outputDir,
+            fileStem(
+                "comparison-ciplot", responseName,
+                visible = listOf(tag("l", level)),
+                identity = listOf(responseName, level, referencePoint) + observations.keys.sorted(),
+            ),
+            formats,
+        )
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -326,6 +364,7 @@ object ComparisonReportRenderer {
         Files.createDirectories(outputDir)
         val written = mutableListOf<Path>()
         val errors = mutableListOf<String>()
+        val replaced = mutableListOf<Path>()
         for (fmt in formats) {
             try {
                 val ext = when (fmt) {
@@ -334,6 +373,7 @@ object ComparisonReportRenderer {
                     ReportFormat.TEXT -> "txt"
                 }
                 val path = outputDir.resolve("$stem.$ext")
+                if (Files.exists(path)) replaced.add(path)
                 when (fmt) {
                     ReportFormat.HTML -> doc.writeHtml(path = path)
                     ReportFormat.MARKDOWN -> doc.writeMarkdown(path = path)
@@ -344,11 +384,47 @@ object ComparisonReportRenderer {
                 errors.add("${fmt.name}: ${t.message ?: t::class.simpleName ?: "unknown error"}")
             }
         }
-        return WriteOutcome(written, errors)
+        return WriteOutcome(written, errors, replaced)
     }
 
-    private fun fileStem(prefix: String, key: String): String {
+    /**
+     *  A report's file name, carrying enough of its parameters that two different analyses cannot
+     *  land on the same file.
+     *
+     *  This used to be prefix + response alone, which meant a second call differing only in the
+     *  indifference zone overwrote the first — at the same URL, with nothing on the page saying it had
+     *  changed. The tools hand that URL to a user, so a link given out earlier later showed a
+     *  different analysis.
+     *
+     *  [visible] holds the one or two parameters a reader is most likely to be comparing, spelled out
+     *  so the file is recognisable. [identity] holds **everything** that distinguishes the analysis,
+     *  including the experiment set, hashed to eight characters — spelling all of it out would make an
+     *  unusable file name, and omitting any of it would let two analyses collide again. Rendering the
+     *  same analysis twice still produces the same name, so nothing accumulates.
+     */
+    private fun fileStem(
+        prefix: String,
+        key: String,
+        visible: List<String> = emptyList(),
+        identity: List<Any?> = emptyList()
+    ): String {
         val sanitised = key.replace(Regex("[^A-Za-z0-9._-]"), "_").take(60)
-        return "$prefix-$sanitised"
+        val shown = visible.joinToString("") { "-" + it }
+        val suffix = if (identity.isEmpty()) "" else "-" + shortHash(identity)
+        return "$prefix-$sanitised$shown$suffix"
+    }
+
+    /** Eight hex characters of SHA-256 over the parts, joined by a separator they cannot contain. */
+    private fun shortHash(parts: List<Any?>): String =
+        java.security.MessageDigest.getInstance("SHA-256")
+            .digest(parts.joinToString("\u0000").toByteArray())
+            .take(4).joinToString("") { "%02x".format(it) }
+
+    /** A number in a file name: trimmed so 0.95 is `0.95`, not `0.9500000000000001`. */
+    private fun tag(label: String, value: Double): String {
+        val text = if (value == value.toLong().toDouble()) value.toLong().toString()
+        else java.math.BigDecimal(value).setScale(4, java.math.RoundingMode.HALF_UP)
+            .stripTrailingZeros().toPlainString()
+        return label + text
     }
 }

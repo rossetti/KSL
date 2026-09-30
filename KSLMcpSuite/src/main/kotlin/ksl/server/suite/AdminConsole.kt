@@ -48,10 +48,23 @@ object AdminConsole {
     /** How many recent events the live feed shows (a bounded current-run window). */
     private const val FEED_LIMIT = 10
 
-    /** True when a request's remote address is the local loopback — the gate for machine-local ops. */
-    fun isLoopbackHost(host: String): Boolean {
-        val h = host.trim().lowercase()
-        return h == "localhost" || h == "::1" || h == "0:0:0:0:0:0:0:1" || h.startsWith("127.")
+    /**
+     * True when a peer address is the local loopback — the gate for machine-local ops.
+     *
+     * Takes an **address**, never a resolved name, and the distinction is the whole point. Ktor's
+     * `remoteHost` calls `InetSocketAddress.getHostName()`, which resolves; `remoteAddress` calls
+     * `getHostString()`, which does not. On a stock machine 127.0.0.1 has no reverse mapping, the
+     * resolver falls back to the literal, and either accessor happens to work — which is why gating
+     * on the name survived testing. Give 127.0.0.1 a name in the hosts file, as Docker Desktop does
+     * with `kubernetes.docker.internal`, and a name-based gate refuses every machine-local request.
+     *
+     * `::ffff:127.0.0.1` is the IPv4-mapped form a dual-stack bind can produce, and a bracketed
+     * `[::1]` is what some clients present; both are loopback and both were refused before.
+     */
+    fun isLoopbackAddress(address: String): Boolean {
+        val h = address.trim().lowercase().removeSurrounding("[", "]")
+        if (h == "localhost" || h == "::1" || h == "0:0:0:0:0:0:0:1") return true
+        return h.removePrefix("::ffff:").startsWith("127.")
     }
 
     /** The full operator console. [loopback] gates the machine-local action controls (client config, etc.). */
@@ -103,6 +116,8 @@ object AdminConsole {
     private fun clientsSection(clients: List<AgentConfigurator.ClientState>, loopback: Boolean): String {
         val anyConfigured = clients.any { it.present }
         val allConfigured = clients.isNotEmpty() && clients.all { it.present }
+        // Whether each assistant is *running*, which decides whether it has read the entry Connect wrote.
+        val running = AssistantProcesses.runningByAgent(clients.map { it.agent })
         val rows = if (clients.isEmpty()) {
             "<tr><td colspan='2' class='detail'>No coding assistant found on this machine (Claude Desktop, Cursor, Windsurf, or Codex).</td></tr>"
         } else {
@@ -111,13 +126,44 @@ object AdminConsole {
                     "<span class='ok' title='${escape(c.path)}'>connected</span>"
                 else
                     "<span class='muted'>not connected</span>"
-                "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge</td></tr>"
+                // An assistant that is configured AND still running has not re-read its configuration,
+                // which is the whole of why the KSL tools have not appeared. Saying so is the point.
+                val note = when {
+                    c.present && running[c.agent] == AssistantProcesses.Running.YES ->
+                        " <span class='muted' title='A running assistant is still using the configuration " +
+                            "it loaded at start-up. Quit it fully and start it again.'>&mdash; running; " +
+                            "restart it to load the tools</span>"
+                    c.present && running[c.agent] == AssistantProcesses.Running.NO ->
+                        " <span class='muted'>&mdash; not running; the tools load when you start it</span>"
+                    else -> ""
+                }
+                "<tr><td class='cap'>${escape(c.agent)}</td><td>$badge$note</td></tr>"
             }
         }
         // A standing reminder once configured — the tools appear only after the assistant restarts.
-        val connectedNote = if (anyConfigured)
-            "<div class=\"hint\">&#10003; Connected &mdash; <b>restart your assistant</b> so it loads the KSL tools.</div>"
-        else ""
+        // Sharpened when one is still running, because "restart" is the step students get wrong: on
+        // Windows an assistant's process can outlive its window, and it then comes back with the
+        // configuration it already had.
+        //
+        // Hedged deliberately. Measured 2026-09-27 on Windows 11 with MSIX Claude Desktop 2.9939.2.0
+        // and the menu-bar preference off, closing the window ended every process, so stating flatly
+        // that the process keeps running sends a student to a Task Manager with nothing in it — which
+        // would discredit the one note this panel exists to show. Whether it survives under other
+        // settings is untested, so the advice says "may" and still says where to look.
+        val stillRunning = clients.any { it.present && running[it.agent] == AssistantProcesses.Running.YES }
+        val connectedNote = when {
+            // Both branches carry the same instruction -- "restart your assistant" -- so the console has
+            // one recognisable ask and AdminConsoleTest can pin it regardless of what happens to be
+            // running on the machine rendering the page. The running branch adds why it is not done yet.
+            stillRunning ->
+                "<div class=\"hint\">&#10003; Connected, but your assistant is <b>still running</b> and is " +
+                    "using the configuration it loaded before that, so you must <b>restart your assistant</b> " +
+                    "completely &mdash; on Windows the process may keep running after you close the " +
+                    "window, so check the notification area and Task Manager.</div>"
+            anyConfigured ->
+                "<div class=\"hint\">&#10003; Connected &mdash; <b>restart your assistant</b> so it loads the KSL tools.</div>"
+            else -> ""
+        }
         val controls = when {
             !loopback ->
                 "<div class='hint'>Assistant setup is available from the console on the server's own machine.</div>"
