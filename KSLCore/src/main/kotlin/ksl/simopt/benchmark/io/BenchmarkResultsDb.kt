@@ -282,7 +282,9 @@ class BenchmarkResultsDb @JvmOverloads constructor(
                     cpuTimeMillis = run.cpuTimeMillis,
                     gap = run.gap,
                     gapType = run.gapType?.name,
-                    errorMessage = run.errorMessage
+                    errorMessage = run.errorMessage,
+                    substreamsConsumed = run.substreamsConsumed,
+                    substreamOverrun = run.substreamOverrun
                 )
             )
             runId++
@@ -761,18 +763,25 @@ class BenchmarkResultsDb @JvmOverloads constructor(
      *  null, listed as "table.column". Empty for a file created by this version.
      */
     private val myNotNullLegacyColumns: List<String> by lazy {
-        NULLABLE_COLUMNS.filter { (table, column) -> isNotNull(table, column) }
+        NULLABLE_COLUMNS.filter { (table, column) -> columnNotNull(table, column) == true }
             .map { (table, column) -> "$table.$column" }
     }
 
-    private fun isNotNull(tableName: String, columnName: String): Boolean {
-        val rowSet = fetchCachedRowSet("PRAGMA table_info($tableName)") ?: return false
+    /** Columns added after R1.7 that a file created by R1.7 does not have. */
+    private val myMissingColumns: List<String> by lazy {
+        ADDED_COLUMNS.filter { (table, column) -> columnNotNull(table, column) == null }
+            .map { (table, column) -> "$table.$column" }
+    }
+
+    /** Whether the column is NOT NULL, or null when the table has no such column. */
+    private fun columnNotNull(tableName: String, columnName: String): Boolean? {
+        val rowSet = fetchCachedRowSet("PRAGMA table_info($tableName)") ?: return null
         while (rowSet.next()) {
             if (rowSet.getString("name").equals(columnName, ignoreCase = true)) {
                 return rowSet.getInt("notnull") == 1
             }
         }
-        return false
+        return null
     }
 
     /**
@@ -781,9 +790,10 @@ class BenchmarkResultsDb @JvmOverloads constructor(
      *  refused, and at the first write rather than hours into a run.
      */
     private fun requireWritableSchema() {
-        check(myNotNullLegacyColumns.isEmpty()) {
-            "This benchmark database was created by KSL R1.7, whose schema cannot store NaN solver " +
-                    "state or single-replication variances (NOT NULL: ${myNotNullLegacyColumns.joinToString()}). " +
+        check(myNotNullLegacyColumns.isEmpty() && myMissingColumns.isEmpty()) {
+            "This benchmark database was created by KSL R1.7, whose schema cannot store what this " +
+                    "version writes (NOT NULL: ${myNotNullLegacyColumns.joinToString().ifEmpty { "none" }}; " +
+                    "missing: ${myMissingColumns.joinToString().ifEmpty { "none" }}). " +
                     "Its results are intact and readable, but it cannot be written to or resumed. " +
                     "Start a new database file."
         }
@@ -806,6 +816,12 @@ class BenchmarkResultsDb @JvmOverloads constructor(
             "tblIterationTraceState" to "stateValue",
             "tblRunResponse" to "variance",
             "tblVerification" to "variance"
+        )
+
+        /** Columns added in R1.7.1, which a file created by R1.7 lacks. */
+        private val ADDED_COLUMNS: List<Pair<String, String>> = listOf(
+            "tblRun" to "substreamsConsumed",
+            "tblRun" to "substreamOverrun"
         )
 
         fun tableDefinitions(): Set<ksl.utilities.io.dbutil.DbTableData> {

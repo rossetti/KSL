@@ -105,8 +105,18 @@ data class BenchmarkRunResult(
     val cpuTimeMillis: Long?,
     val gap: Double?,
     val gapType: GapType?,
-    val errorMessage: String? = null
-)
+    val errorMessage: String? = null,
+    val substreamsConsumed: Long? = null,
+    val substreamBlockSize: Int? = null
+) {
+    /**
+     *  True when the cell consumed more sub-streams than its reserved block, and so ran on streams
+     *  belonging to the next cell's block; null when consumption was not tracked.
+     */
+    val substreamOverrun: Boolean?
+        get() = if (substreamsConsumed == null || substreamBlockSize == null) null
+        else substreamsConsumed > substreamBlockSize
+}
 
 /**
  *  The recorded outcome of all cells of one problem within a benchmark experiment,

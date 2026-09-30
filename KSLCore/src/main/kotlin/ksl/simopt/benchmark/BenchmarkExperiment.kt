@@ -15,6 +15,7 @@ import ksl.simopt.solvers.ReplicationBudgetStoppingCriterion
 import ksl.simopt.solvers.SolutionQualityEvaluatorIfc
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverResult
+import ksl.simopt.solvers.concurrent.SubstreamUsage
 import ksl.simopt.solvers.concurrent.ConcurrentSolverRunner
 import ksl.simopt.solvers.concurrent.ConfirmationOptions
 import ksl.simopt.solvers.concurrent.ConfirmationOutcome
@@ -306,6 +307,8 @@ class BenchmarkExperiment(
         } finally {
             runner.shutdown()
         }
+        // Every member has been released by now, so its consumption is known.
+        val substreamUsage = tasks.indices.map { evaluatorFactory.substreamUsage(it) }
         // confirmation and verification share a dedicated evaluator, provisioned as an
         // extra member index so it gets its own stream block
         var confirmationOutcome: ConfirmationOutcome? = null
@@ -346,7 +349,7 @@ class BenchmarkExperiment(
         }
         return recordProblem(
             problemCase, problemDefinition, startingPoints, memberResults,
-            confirmationOutcome, verification
+            confirmationOutcome, verification, substreamUsage
         )
     }
 
@@ -428,6 +431,9 @@ class BenchmarkExperiment(
 
         override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) =
             inner.release(studyIndexOf(memberIndex), evaluator, reusable)
+
+        override fun substreamUsage(memberIndex: Int): SubstreamUsage? =
+            inner.substreamUsage(studyIndexOf(memberIndex))
     }
 
     private fun recordProblem(
@@ -436,7 +442,8 @@ class BenchmarkExperiment(
         startingPoints: Map<Int, InputMap>,
         memberResults: List<SolverMemberResult>,
         confirmationOutcome: ConfirmationOutcome?,
-        verification: Solution?
+        verification: Solution?,
+        substreamUsage: List<SubstreamUsage?>
     ): ProblemBenchmarkResult {
         // orient objectives so that smaller is always better for basis/gap computations
         val orientation = problemDefinition.objFncFactor
@@ -489,7 +496,9 @@ class BenchmarkExperiment(
                 cpuTimeMillis = member.cpuTimeMillis,
                 gap = gap,
                 gapType = if (gap != null) gapType else null,
-                errorMessage = member.error?.message
+                errorMessage = member.error?.message,
+                substreamsConsumed = substreamUsage[cellIndex]?.consumed,
+                substreamBlockSize = substreamUsage[cellIndex]?.blockSize
             )
         }
         // With confirmation disabled this is where the REPORTED winner is chosen. The members it

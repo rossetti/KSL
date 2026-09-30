@@ -94,7 +94,11 @@ data class RunTableData(
     var cpuTimeMillis: Long? = null,
     var gap: Double? = null,
     var gapType: String? = null,
-    var errorMessage: String? = null
+    var errorMessage: String? = null,
+    /** Sub-streams the cell consumed; null when not tracked. */
+    var substreamsConsumed: Long? = null,
+    /** True when the cell ran past its sub-stream block into the next cell's streams. */
+    var substreamOverrun: Boolean? = null
 ) : DbTableData("tblRun", listOf("runId"))
 
 /**

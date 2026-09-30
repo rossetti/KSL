@@ -65,7 +65,10 @@ class BenchmarkResultsDbTest {
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
-    private fun sphereProblem(name: String): ProblemCase {
+    private fun sphereProblem(
+        name: String,
+        substreamBlockSize: Int = ksl.simopt.solvers.concurrent.ConcurrentRunOptions.DEFAULT_SUBSTREAM_BLOCK_SIZE
+    ): ProblemCase {
         val inputNames = listOf("x1", "x2")
         return ProblemCase(
             name = name,
@@ -89,7 +92,7 @@ class BenchmarkResultsDbTest {
                         val x2 = inputs.getValue("x2")
                         mapOf(OBJ to x1 * x1 + x2 * x2 + 0.1 * stream.randU01())
                     }
-                })
+                }, substreamBlockSize = substreamBlockSize)
             },
             tags = mapOf("family" to "sphere", "noiseLevel" to "LOW")
         )
@@ -290,6 +293,40 @@ class BenchmarkResultsDbTest {
             reopened.saveSummary(runExperiment(traces = false, name = "afterLegacy"))
         }
         assertTrue(e.message!!.contains("created by KSL R1.7")) { e.message }
+    }
+
+    @Test
+    @DisplayName("A cell that runs past its sub-stream block is recorded as an overrun")
+    fun substreamOverrunIsRecorded() {
+        val db = BenchmarkResultsDb("overrun.db", tempDir).also { openDatabases += it }
+        fun run(name: String, blockSize: Int) = BenchmarkExperiment(
+            name = name,
+            problems = listOf(sphereProblem("sphere_$name", substreamBlockSize = blockSize)),
+            solverCases = listOf(shcCase("shcO", 5)),
+            macroReplications = 1,
+            replicationBudgetPerRun = BUDGET,
+            numWorkers = 1
+        ).run()
+        // A budget of 60 replications cannot fit a block of 10 sub-streams.
+        val small = db.saveSummary(run("smallBlock", 10))
+        val smallRuns = db.runs(small)
+        assertTrue(smallRuns.all { it.substreamOverrun == true && (it.substreamsConsumed ?: 0L) > 10L }) {
+            smallRuns.map { it.substreamsConsumed to it.substreamOverrun }.toString()
+        }
+        val normal = db.saveSummary(run("defaultBlock", ksl.simopt.solvers.concurrent.ConcurrentRunOptions.DEFAULT_SUBSTREAM_BLOCK_SIZE))
+        assertTrue(db.runs(normal).all { it.substreamOverrun == false && it.substreamsConsumed != null })
+    }
+
+    @Test
+    @DisplayName("A database missing R1.7.1's run columns refuses writes")
+    fun missingRunColumnsAreRefused() {
+        val db = BenchmarkResultsDb("missingColumns.db", tempDir).also { openDatabases += it }
+        db.executeCommand("ALTER TABLE tblRun DROP COLUMN substreamOverrun")
+        val reopened = BenchmarkResultsDb("missingColumns.db", tempDir).also { openDatabases += it }
+        val e = assertThrows(IllegalStateException::class.java) {
+            reopened.saveSummary(runExperiment(traces = false, name = "missingColumnsExp"))
+        }
+        assertTrue(e.message!!.contains("tblRun.substreamOverrun")) { e.message }
     }
 
     @Test
