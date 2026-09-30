@@ -310,6 +310,15 @@ class ISCSolver @JvmOverloads constructor(
      *  not yet equal-budget parity with the solvers that stop within an iteration, and the
      *  complementary problem — that ISC may also UNDER-spend a large budget, since nothing makes it
      *  use one — is a question about the algorithm's configuration rather than about this test.
+     *
+     *  **One phase step can be many times the budget.** With `deltaC > 0` and responses noisy
+     *  relative to it, a single local search or clean-up runs to completion before the budget is
+     *  checked. On a one-dimensional bimodal problem with variance 100 and `deltaC = 0.25`, a run
+     *  consumed 40,975 replications at budgets of 1,000, 10,000 and 100,000 alike: 41 times over the
+     *  smallest. An equal-budget comparison that includes ISC is therefore not equal unless the
+     *  phase caps (`globalBudget`, `maxLocalPhaseReplications`, `maxCleanUpReplicationsPerSystem`)
+     *  are set to fit it, and in a concurrent benchmark the overrun can also run past the member's
+     *  sub-stream block, which the benchmark records per cell.
      */
     override fun isStoppingCriteriaSatisfied(): Boolean {
         if (phase == Phase.DONE) {

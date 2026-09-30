@@ -265,6 +265,37 @@ class ISCSolverTest {
     }
 
     /**
+     * Pins a known limitation rather than a goal. With `deltaC > 0` and noise large relative to it, a
+     * single phase step runs to completion before the budget is checked, so consumption does not
+     * respond to the budget at all: the same at 1,000 and 10,000, and far above 1,000. The R1.7
+     * release notes said ISC now stops when told to; that holds only between phases. A budget-aware
+     * ISC would change this, and this test should then be rewritten deliberately, not loosened.
+     */
+    @Test
+    fun aSinglePhaseCanExceedTheBudgetWhenDeltaCIsPositive() {
+        fun consumed(budget: Int): Int {
+            val pd = problem()
+            val isc = ISCSolver(
+                problemDefinition = pd,
+                evaluator = IscTestSupport.FunctionEvaluator(pd, ::bimodal, variance = 100.0),
+                streamNum = 1,
+                replicationsPerEvaluation = 3,
+                deltaC = 0.25
+            )
+            isc.solutionQualityEvaluator = ReplicationBudgetStoppingCriterion(budget)
+            isc.runAllIterations()
+            return isc.numReplicationsRequested
+        }
+        val atOneThousand = consumed(1_000)
+        val atTenThousand = consumed(10_000)
+        assertEquals(atOneThousand, atTenThousand) {
+            "consumption responded to the budget ($atOneThousand vs $atTenThousand); if ISC is now " +
+                "budget-aware within a phase, rewrite this test"
+        }
+        assertTrue(atOneThousand > 10 * 1_000) { "expected a large overrun, consumed $atOneThousand" }
+    }
+
+    /**
      * A budget small enough to bite during the global phase must still leave a usable answer.
      * `mainIterationsEnded` finalizes an interrupted orchestration, so a stopped run reports an
      * incumbent and a finite interval rather than the default infinite one.
