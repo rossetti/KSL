@@ -310,4 +310,24 @@ class GuidedPathReplayTest {
         assertEquals(layout, layout.withReadableOrientation(listOf("In", "Out")),
             "turning the locations would detach them from the path, which is not turned")
     }
+
+    @Test
+    fun twoLanesOfOneAisleAreDrawnApartAndALoneLinkIsNot() {
+        val def = defined().copy(
+            links = listOf(
+                GuidedPathLinkDef("AB", "A", "B", numZones = 4),
+                GuidedPathLinkDef("BA", "B", "A", numZones = 4),
+                GuidedPathLinkDef("BC", "B", "C", numZones = 2)
+            )
+        )
+        val g = replay(listOf(def)).vehicles.guidePaths.getValue("Floor")
+        val (a1, b1) = g.linkEnds("AB")!!
+        val (b2, a2) = g.linkEnds("BA")!!
+        assertTrue(a1.y != 0.0 && a1.y == b1.y, "the up lane sits off the centre line, parallel to it")
+        assertEquals(-a1.y, a2.y, 1e-12, "and the down lane sits the same distance off the other side")
+        assertEquals(a1.x, a2.x, 1e-12); assertEquals(b1.x, b2.x, 1e-12)
+        val (b3, c3) = g.linkEnds("BC")!!
+        assertEquals(WorldPoint(100.0, 0.0), b3, "a link with no twin stays on its centre line")
+        assertEquals(WorldPoint(100.0, 50.0), c3)
+    }
 }

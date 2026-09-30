@@ -287,9 +287,16 @@ class ReplayModel(
         return BoundingBox.union(box, guidePathBounds())
     }
 
-    /** Bounding box of every guide path's drawn intersections, or null when the trace has no guide path. */
+    /**
+     * Bounding box of every guide path as drawn, its intersections and its links' ends (a lane of a two-lane
+     * aisle sits to one side of its intersections), or null when the trace has no guide path.
+     */
     fun guidePathBounds(): BoundingBox? = BoundingBox.of(
-        vehicles.guidePaths.values.asSequence().flatMap { g -> g.intersectionPoints.values.asSequence().map { it.x to it.y } }
+        vehicles.guidePaths.values.asSequence().flatMap { g ->
+            g.intersectionPoints.values.asSequence().map { it.x to it.y } +
+                g.definition.links.asSequence().mapNotNull { g.linkEnds(it.name) }
+                    .flatMap { (a, b) -> sequenceOf(a.x to a.y, b.x to b.y) }
+        }
     )
 
     /**

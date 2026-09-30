@@ -80,6 +80,16 @@ class VehicleShippedLayoutTest {
     }
 
     @Test
+    @DisplayName("the vehicle models featured in the pack and gallery are shipped models")
+    fun theFeaturedVehiclesAreShipped() {
+        val (bundleId, models) = manifest()
+        val featured = ksl.examples.general.animationbundle.showcase.FeaturedVehicles
+        assertEquals(bundleId, featured.BUNDLE_ID)
+        val shipped = models.map { it.first }.toSet()
+        assertTrue(shipped.containsAll(featured.modelIds), "featured ${featured.modelIds}, shipped $shipped")
+    }
+
+    @Test
     @DisplayName("the app finds a shipped vehicle layout by bundle and model id")
     fun theLookupTheAppUsesResolves() {
         val (bundleId, models) = manifest()

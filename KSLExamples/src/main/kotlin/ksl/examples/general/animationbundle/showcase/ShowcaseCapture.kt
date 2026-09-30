@@ -65,10 +65,14 @@ object ShowcaseCapture {
         entry("Example16NetworkRumor", { Example16NetworkRumor.buildModel() }, { Example16NetworkRumor.buildLayout(it) }),
         entry("Example17TandemBlocking", { Example17TandemBlocking.buildModel() }, { Example17TandemBlocking.buildLayout(it) }),
         entry("Example18ConveyorTestRepair", { Example18ConveyorTestRepair.buildModel() }, { Example18ConveyorTestRepair.buildLayout(it) }),
-    )
+    ) + FeaturedVehicles.modelIds.associateWith { id ->
+        // The featured vehicle models have no hand-written layout of their own; their shipped one is a
+        // scaffold polished in place, so there is nothing to write beside it.
+        ModelEntry({ FeaturedVehicles.build(id) }, null)
+    }
 
     /** A capturable model: how to build it, and how to build the example's own hand-written layout. */
-    private class ModelEntry(val build: () -> Model, val dslLayout: (Model) -> AnimationLayout)
+    private class ModelEntry(val build: () -> Model, val dslLayout: ((Model) -> AnimationLayout)?)
 
     private fun entry(name: String, build: () -> Model, layout: (Model) -> AnimationLayout) =
         name to ModelEntry(build, layout)
@@ -113,9 +117,9 @@ object ShowcaseCapture {
         // intent (which elements matter, what they are called), while the auto-layout carries what the run
         // actually did. Polishing usually wants both.
         val dslLayoutFile = outDir.resolve("$name.dsl.lay.json")
-        val dslLayoutWritten = runCatching {
-            model.dslLayout(build()).writeToFile(dslLayoutFile)
-        }.isSuccess
+        val dslLayoutWritten = model.dslLayout?.let { layoutOf ->
+            runCatching { layoutOf(build()).writeToFile(dslLayoutFile) }.isSuccess
+        } ?: false
 
         val existed = Files.exists(layoutFile) && Files.size(layoutFile) > 200
         if (!existed) {

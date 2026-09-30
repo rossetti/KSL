@@ -74,12 +74,31 @@ class GuidedPathGeometry(
     /** A place named by an intersection or by one of its station aliases, resolved to where it is drawn. */
     fun placePoint(name: String): WorldPoint? = points[name] ?: placeAliases[name]?.let { points[it] }
 
-    /** The two drawn ends of link [name], from its begin end to its end, or null when either end is unknown. */
+    /** Links with an opposed twin: another link joining the same two intersections the other way. */
+    private val opposed: Set<String> = definition.links.filter { l ->
+        definition.links.any { it.name != l.name && it.from == l.to && it.to == l.from }
+    }.map { it.name }.toSet()
+
+    /**
+     * The two drawn ends of link [name], from its begin end to its end, or null when either end is unknown.
+     *
+     * Two one-way links joining the same intersections in opposite directions are two lanes of one aisle, and
+     * drawn on their shared centre line they would look like one lane with carts passing through each other.
+     * Each is drawn a little to its own side of the centre line instead, as a road draws its lanes, and the
+     * carts on it follow it. The shift is a fraction of a zone, so the two lanes read as a pair.
+     */
     fun linkEnds(name: String): Pair<WorldPoint, WorldPoint>? {
         val link = links[name] ?: return null
         val a = points[link.from] ?: return null
         val b = points[link.to] ?: return null
-        return a to b
+        if (name !in opposed) return a to b
+        val length = kotlin.math.sqrt(dist2(a, b))
+        if (length <= 0.0) return a to b
+        val shift = minOf(length / link.numZones.coerceAtLeast(1) * LANE_SHARE_OF_ZONE, length * LANE_SHARE_OF_LINK)
+        // Perpendicular to the direction of travel, so the twin, running the other way, lands on the other side.
+        val nx = (b.y - a.y) / length * shift
+        val ny = -(b.x - a.x) / length * shift
+        return WorldPoint(a.x + nx, a.y + ny, a.z) to WorldPoint(b.x + nx, b.y + ny, b.z)
     }
 
     /**
@@ -133,6 +152,13 @@ class GuidedPathGeometry(
             kotlin.math.sqrt(dist2(a, b)) / l.numZones.coerceAtLeast(1)
         }.filter { it > 0.0 }
         return if (lengths.isEmpty()) null else lengths.sum() / lengths.size
+    }
+
+    private companion object {
+        /** How far a lane of an opposed pair sits from the shared centre line, as a share of one zone. */
+        const val LANE_SHARE_OF_ZONE = 0.18
+        /** And never more than this share of the link, so a short link's lanes stay close. */
+        const val LANE_SHARE_OF_LINK = 0.08
     }
 
     private fun dist2(p: WorldPoint, q: WorldPoint): Double =

@@ -181,13 +181,16 @@ class VehicleReplayTest {
                 val entries = moves.filter { it.transporterName == name }.map { it.simTime }
                 for ((a, b) in changes.zipWithNext()) {
                     val snapshot = TransporterSnapshot(a.state, a.halted)
-                    if (!snapshot.isStill || b.simTime <= a.simTime) continue
+                    // An interval of floating-point noise between events at one instant holds no stillness to check.
+                    if (!snapshot.isStill || b.simTime - a.simTime <= 1e-9 * maxOf(1.0, abs(b.simTime))) continue
                     if (entries.any { it > a.simTime && it < b.simTime }) {
                         problems += "$label: $name entered a zone while ${snapshot.state} at ${a.simTime}"
                         continue
                     }
+                    // Just before the stillness ends: a zone entered at that very instant (a zero-length
+                    // intersection, the moment travel resumes) is the next movement, not movement while still.
                     val p = v.transporterPositionAt(name, a.simTime) ?: continue
-                    val q = v.transporterPositionAt(name, b.simTime) ?: continue
+                    val q = v.transporterPositionAt(name, b.simTime - (b.simTime - a.simTime) * 1e-6) ?: continue
                     if (!near(p.x, q.x) || !near(p.y, q.y)) {
                         problems += "$label: $name moved while ${snapshot.state} over ${a.simTime}..${b.simTime}"
                     }
