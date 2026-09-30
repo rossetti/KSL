@@ -61,6 +61,30 @@ fun DistancesModel.proposeCoordinates(
             }
         }
     }
+    val (xs, ys) = classicalMdsAxes(dist)
+
+    // Uniform (shape-preserving) scale + center into the box.
+    val xMin = xs.min(); val xMax = xs.max(); val yMin = ys.min(); val yMax = ys.max()
+    val xr = (xMax - xMin).coerceAtLeast(1e-9)
+    val yr = (yMax - yMin).coerceAtLeast(1e-9)
+    val scale = minOf((width - 2 * margin) / xr, (height - 2 * margin) / yr)
+    val cx = (xMin + xMax) / 2.0; val cy = (yMin + yMax) / 2.0
+    return locs.indices.associate {
+        locs[it].name to LayoutPoint(width / 2.0 + (xs[it] - cx) * scale, height / 2.0 + (ys[it] - cy) * scale)
+    }
+}
+
+/**
+ * Classical (Torgerson) multidimensional scaling: two coordinate axes whose pairwise distances best
+ * reproduce [dist], a square, symmetric matrix that may contain infinite entries for unknown pairs.
+ * Unknown pairs are filled by shortest paths (Floyd–Warshall), and any pair still unreachable takes
+ * twice the largest finite distance, so disconnected parts are placed apart rather than failing. The
+ * result is centred on the origin in the matrix's own units; orientation is arbitrary.
+ *
+ * @param dist the distance matrix; modified in place by the completion
+ */
+internal fun classicalMdsAxes(dist: Array<DoubleArray>): Pair<DoubleArray, DoubleArray> {
+    val n = dist.size
     for (k in 0 until n) for (i in 0 until n) for (j in 0 until n) {
         val through = dist[i][k] + dist[k][j]
         if (through < dist[i][j]) dist[i][j] = through
@@ -83,16 +107,5 @@ fun DistancesModel.proposeCoordinates(
         val v = eig.getEigenvector(idx)
         return DoubleArray(n) { v.getEntry(it) * scale }
     }
-    val xs = axis(0)
-    val ys = axis(1)
-
-    // Uniform (shape-preserving) scale + center into the box.
-    val xMin = xs.min(); val xMax = xs.max(); val yMin = ys.min(); val yMax = ys.max()
-    val xr = (xMax - xMin).coerceAtLeast(1e-9)
-    val yr = (yMax - yMin).coerceAtLeast(1e-9)
-    val scale = minOf((width - 2 * margin) / xr, (height - 2 * margin) / yr)
-    val cx = (xMin + xMax) / 2.0; val cy = (yMin + yMax) / 2.0
-    return locs.indices.associate {
-        locs[it].name to LayoutPoint(width / 2.0 + (xs[it] - cx) * scale, height / 2.0 + (ys[it] - cy) * scale)
-    }
+    return axis(0) to axis(1)
 }

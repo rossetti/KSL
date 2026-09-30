@@ -159,6 +159,38 @@ class LayoutReaderConformanceTest {
         )
     }
 
+    /**
+     * The guide path sections (R1.7.1), in the shape the desktop writes: a layout that places and
+     * styles a guide path and a transporter must read in the web player the same way.
+     */
+    @Test
+    fun readsTheGuidePathSections() {
+        val json = """
+            {
+              "guidedPaths": [
+                { "spaceName": "Agv:Space", "offset": { "x": 40.0, "y": 300.0, "z": 0.0 }, "scale": 2.5,
+                  "floorOffsetPerZ": { "x": 3.0, "y": 0.0, "z": 0.0 }, "linkColor": "#7f7f7f", "linkWidth": 2.0,
+                  "showZones": true, "showIntersections": true, "closureColor": "#d62728", "label": "Floor" }
+              ],
+              "guidedTransporters": [
+                { "name": "Cart1:Body", "shape": "SQUARE", "size": 14.0, "color": "#1f77b4",
+                  "loadedColor": "#2ca02c", "blockedColor": "#d62728", "haltedColor": null,
+                  "imageRef": null, "label": null }
+              ]
+            }
+        """.trimIndent()
+        val layout = AnimationLayout.fromJson(json)
+        val path = layout.guidedPaths.single()
+        assertEquals("Agv:Space", path.spaceName)
+        assertEquals(2.5, path.scale)
+        assertEquals(3.0, assertNotNull(path.floorOffsetPerZ).x)
+        val cart = layout.guidedTransporters.single()
+        assertEquals("Cart1:Body", cart.name)
+        assertEquals("#2ca02c", cart.loadedColor)
+        // And a document without the sections still reads, with them empty.
+        assertTrue(AnimationLayout.fromJson("{}").guidedPaths.isEmpty())
+    }
+
     /** An empty document must produce a usable layout rather than throwing, so a bare trace still plays. */
     @Test
     fun readsAMinimalDocument() {

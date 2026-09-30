@@ -18,6 +18,9 @@
 
 package ksl.animation
 
+import ksl.modeling.fleet.FleetSystem
+import ksl.modeling.guidedpath.GuidedPathSpace
+import ksl.modeling.spatial.MovableResource
 import ksl.modeling.agent.AgentModel
 import ksl.modeling.agent.ContinuousProjection
 import ksl.modeling.agent.ContinuousVolume
@@ -66,6 +69,10 @@ import ksl.simulation.ModelElement
  *     [AnimationEvent.AgentRegistered] and [AnimationEvent.AgentStateEntered] (current statechart state),
  *     then [AnimationEvent.AgentPositionChanged] for each placed agent.
  *  7. Per captured [Response]/[Counter]: [AnimationEvent.ResponseObserved] (current value/statistics).
+ *  Also, per guide path space: its definition, each transporter's position, state and loads, and every
+ *  reserved or held closure; per captured fleet: each vehicle's state and open assignment; and each captured
+ *  movable resource's rest position. Their structure is emitted only at replication start, which a window
+ *  drops.
  *  8. Residual entity placement (the **position-resolution order**): any live entity *not* already placed
  *     by a queue (step 4), an allocation (step 2), or a conveyor (step 5) is given a *rest* placement via
  *     [AnimationEvent.MoveCompleted] at its `currentLocation`, but only when that location is Cartesian
@@ -118,8 +125,26 @@ class AnimationStateSnapshotter(
         // (2)-(4) Element aggregates.
         for (element in model.getModelElements()) {
             when (element) {
+                is GuidedPathSpace -> {
+                    // Its captures are checked by its own emitter, member by member.
+                    element.emitAnimationSnapshot()
+                    element.transporters.forEach { t -> t.manifest.forEach { placedIds += it.id } }
+                }
+                is FleetSystem -> {
+                    // A fleet's agents are its dispatching machinery, not things to draw; its vehicles
+                    // are drawn by their bodies, and its own state is the vehicles' states and tasks.
+                    if (!captureSpec.captures(ElementKind.FLEET, element.name)) continue
+                    element.emitAnimationSnapshot()
+                }
                 is Resource -> {
-                    if (!captureSpec.captures(ElementKind.RESOURCE, element.name)) continue
+                    // A transporter or a mover is a Resource too; gate it by its own kind.
+                    if (!captureSpec.captures(elementKindOf(element) ?: ElementKind.RESOURCE, element.name)) continue
+                    if (element is MovableResource) {
+                        val loc = element.currentLocation
+                        if (loc.x.isFinite() && loc.y.isFinite()) {
+                            sink.emit(AnimationEvent.SpatialElementMoveCompleted(now, element.spatialName, loc.x, loc.y, loc.z))
+                        }
+                    }
                     sink.emit(
                         AnimationEvent.ResourceStateChanged(
                             now, element.name, element.state.name, element.numBusy, element.capacity

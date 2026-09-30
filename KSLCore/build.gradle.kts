@@ -110,6 +110,11 @@ dependencies {
 // this is good because the user can then provide their own logging specification
 tasks.jar {
     exclude("logback.xml")
+    // Read back at run time (for example into an animation trace's header) so a result can say which
+    // library produced it. Absent when running from classes rather than the jar.
+    manifest {
+        attributes("Implementation-Version" to project.version)
+    }
 }
 
 tasks.test {

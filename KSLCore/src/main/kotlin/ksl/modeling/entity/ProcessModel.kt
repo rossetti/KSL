@@ -2596,7 +2596,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // Animate the spatial element itself (e.g. a movable/transport resource). The mover's own state
                 // flags say why it is moving — transporting an entity, repositioning empty, or returning home —
                 // so the renderer can style it and draw the carried entity (10.8/C2). Guarded; no cost without a sink.
-                emitAnimation {
+                // A selected capture that leaves this mover out omits its motion.
+                val moverCaptured = model.animationSink.captureSpec?.captures(
+                    ksl.animation.ElementKind.MOVABLE_RESOURCE, spatialElement.spatialName
+                ) ?: true
+                if (moverCaptured) emitAnimation {
                     val mover = spatialElement.modelElement as? ksl.modeling.spatial.MovableResource
                     val mode = when {
                         mover?.isReturningHome == true -> ksl.animation.MoverMode.RETURNING_HOME
@@ -2628,7 +2632,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 (spatialElement.modelElement as? ksl.modeling.spatial.MovableResource)
                     ?.recordMove(d, t)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > spatial element ${spatialElement.spatialName} completed move to ${toLoc.name}" }
-                emitAnimation { AnimationEvent.SpatialElementMoveCompleted(time, spatialElement.spatialName, toLoc.x, toLoc.y, toLoc.z) }
+                if (moverCaptured) {
+                    emitAnimation { AnimationEvent.SpatialElementMoveCompleted(time, spatialElement.spatialName, toLoc.x, toLoc.y, toLoc.z) }
+                }
             }
 
             override suspend fun moveWith(

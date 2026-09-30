@@ -25,7 +25,15 @@ import ksl.modeling.agent.ContinuousVolume
 import ksl.modeling.agent.GridGeometrySpec
 import ksl.modeling.agent.GridProjection
 import ksl.modeling.agent.VoxelProjection
+import ksl.modeling.agv.AgvSystem
+import ksl.modeling.agv.bodyNameOf
 import ksl.modeling.entity.Conveyor
+import ksl.modeling.fleet.FleetSystem
+import ksl.modeling.guidedpath.GuidedPathSpace
+import ksl.modeling.guidedpath.GuidedTransporter
+import ksl.modeling.guidedpath.intersectionDefs
+import ksl.modeling.guidedpath.linkDefs
+import ksl.modeling.guidedpath.toDef
 import ksl.modeling.entity.EntityType
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
@@ -120,6 +128,50 @@ data class EntityTypeInfo(
 data class LocationInfo(val name: String, val x: Double? = null, val y: Double? = null)
 
 /**
+ * A guide path known before a run: its network, laid out (intersections always have coordinates once
+ * the network is built), its links and its transporters, in the same vocabulary the trace uses so a
+ * preview, a capture selection and a layout check all name the same things.
+ */
+@Serializable
+data class GuidedPathInfo(
+    val networkName: String,
+    val spaceName: String,
+    val intersections: List<GuidedPathIntersectionDef> = emptyList(),
+    val links: List<GuidedPathLinkDef> = emptyList(),
+    val transporters: List<GuidedTransporterDef> = emptyList()
+)
+
+/** A fleet vehicle: [bodyName] is what moves (the name movement events carry), [agentName] its controller. */
+@Serializable
+data class FleetVehicleInfo(
+    val name: String,
+    val bodyName: String? = null,
+    val agentName: String? = null,
+    val loadCapacity: Int = 1
+)
+
+/**
+ * A fleet system known before a run. [kind] is `AGV` for a guided-path fleet and `FREE_PATH` for one that
+ * moves over a spatial model; [networkName] names the guide path an AGV fleet runs on.
+ *
+ * A fleet dispatches through agents of its own: [dispatcherAgentName] and each vehicle's `agentName`.
+ * They appear in a trace as registered agents, but they are control machinery rather than things to
+ * draw, so a viewer should hide them; their names are listed here so it can.
+ */
+@Serializable
+data class FleetInfo(
+    val name: String,
+    val kind: String,
+    val networkName: String? = null,
+    val vehicles: List<FleetVehicleInfo> = emptyList(),
+    val dispatcherAgentName: String? = null
+) {
+    /** Every control agent this fleet registers: the dispatcher's and each vehicle's. */
+    val controlAgentNames: List<String>
+        get() = listOfNotNull(dispatcherAgentName) + vehicles.mapNotNull { it.agentName }
+}
+
+/**
  * The animatable elements a model exposes (9A.3): the structural model elements, plus spatial spaces
  * (from agent projections) and location names (from any `DistancesModel`). Built from a *probe* model —
  * no simulation — and used to drive the editor pick-lists and author-time validation (9A.5), so capture
@@ -147,7 +199,10 @@ data class AnimationInventory(
     val spaces: List<SpaceInfo> = emptyList(),
     val locations: List<String> = emptyList(),           // named spatial locations (DistancesModel + agent Context.location)
     val entityTypes: List<EntityTypeInfo> = emptyList(),  // entity/agent types + their processes (10.1a/10.1b)
-    val locationInfos: List<LocationInfo> = emptyList()  // named locations with positions where known (G1)
+    val locationInfos: List<LocationInfo> = emptyList(),  // named locations with positions where known (G1)
+    val guidedPaths: List<GuidedPathInfo> = emptyList(),  // guide path spaces, keyed by space name
+    val guidedTransporters: List<String> = emptyList(),   // transporters on guide paths (not in resources)
+    val fleets: List<FleetInfo> = emptyList()             // fleet systems (not in agentModels)
 ) {
     /** True when [responseName] is backed by a time-weighted response (`TWResponse`) rather than a tally. */
     fun isTimeWeighted(responseName: String): Boolean = responseName in timeWeightedResponses
@@ -172,6 +227,9 @@ data class AnimationInventory(
         // same-named processes across types via the entityId -> type join.
         ElementKind.PROCESS -> entityTypes.flatMap { t -> t.processes.map { "${t.typeName}.${it.name}" } }
         ElementKind.LOCATION -> locations
+        ElementKind.GUIDED_PATH -> guidedPaths.map { it.spaceName }
+        ElementKind.GUIDED_TRANSPORTER -> guidedTransporters
+        ElementKind.FLEET -> fleets.map { it.name }
     }
 }
 
@@ -218,6 +276,9 @@ fun elementKindOf(e: ModelElement): ElementKind? = when (e) {
     is EntityType -> ElementKind.ENTITY_TYPE
     is Queue<*> -> ElementKind.QUEUE
     is MovableResource -> ElementKind.MOVABLE_RESOURCE
+    // Before Resource: a transporter is a Resource, but it is drawn on its guide path, not in a box.
+    is GuidedTransporter -> ElementKind.GUIDED_TRANSPORTER
+    is GuidedPathSpace -> ElementKind.GUIDED_PATH
     is Resource -> ElementKind.RESOURCE
     is SResource -> ElementKind.RESOURCE
     is Conveyor -> ElementKind.CONVEYOR
@@ -228,6 +289,8 @@ fun elementKindOf(e: ModelElement): ElementKind? = when (e) {
     // no station emitter below (they are not `is Station`); their flow is traced via the StationNetwork.
     is NetworkIngress -> ElementKind.STATION
     is NetworkEgress -> ElementKind.STATION
+    // Before AgentModel: a fleet system is an agent model internally, but its agents are its own machinery.
+    is FleetSystem -> ElementKind.FLEET
     is AgentModel -> ElementKind.AGENT
     else -> null
 }
@@ -257,6 +320,9 @@ fun Model.animationInventory(): AnimationInventory {
     // Entity types are collected as KClasses (keyed by simpleName) so their @KSLAnimatedProcess members can be
     // reflected (10.1b); EntityType elements are handled here rather than in the when below.
     val entityClasses = LinkedHashMap<String, KClass<out ProcessModel.Entity>>()
+    val guidedPaths = mutableListOf<GuidedPathInfo>()
+    val guidedTransporters = LinkedHashSet<String>()
+    val fleets = mutableListOf<FleetInfo>()
 
     for (e in getModelElements()) {
         when (elementKindOf(e)) {
@@ -270,6 +336,34 @@ fun Model.animationInventory(): AnimationInventory {
                 (e as MovableResource).let { it.initialHomeBase ?: it.homeBase }?.name?.let { movableHomeBases[e.name] = it }
             }
             ElementKind.RESOURCE -> resources += e.name
+            ElementKind.GUIDED_TRANSPORTER -> guidedTransporters += e.name
+            ElementKind.GUIDED_PATH -> {
+                val space = e as GuidedPathSpace
+                guidedPaths += GuidedPathInfo(
+                    networkName = space.network.name,
+                    spaceName = space.name,
+                    intersections = space.network.intersectionDefs(),
+                    links = space.network.linkDefs(),
+                    transporters = space.transporters.map { it.toDef() }
+                )
+                // Station aliases are named places too, at their intersection's position.
+                for ((alias, intersection) in space.network.stationAliases) {
+                    locations += alias
+                    locationInfos.putIfAbsent(alias, LocationInfo(alias, intersection.x, intersection.y))
+                }
+            }
+            ElementKind.FLEET -> {
+                val fleet = e as FleetSystem
+                fleets += FleetInfo(
+                    name = fleet.name,
+                    kind = if (fleet is AgvSystem) "AGV" else "FREE_PATH",
+                    networkName = (fleet as? AgvSystem)?.network?.name,
+                    vehicles = fleet.vehicles.map { v ->
+                        FleetVehicleInfo(v.name, bodyNameOf(v), "${v.name}:Agent", v.loadCapacity)
+                    },
+                    dispatcherAgentName = "${fleet.dispatcher.name}:Agent"
+                )
+            }
             ElementKind.CONVEYOR -> {
                 conveyors += e.name
                 val conv = e as Conveyor
@@ -367,6 +461,9 @@ fun Model.animationInventory(): AnimationInventory {
         spaces = spaces.values.toList(),
         locations = locations.toList(),
         entityTypes = entityTypes,
-        locationInfos = locationInfos.values.toList()
+        locationInfos = locationInfos.values.toList(),
+        guidedPaths = guidedPaths.toList(),
+        guidedTransporters = guidedTransporters.toList(),
+        fleets = fleets.toList()
     )
 }

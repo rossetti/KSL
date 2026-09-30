@@ -196,6 +196,7 @@ class InterpolatedMovement @JvmOverloads constructor(
         // stop and turn; a halt does stop it, here, now.
         creditPartOfAStep()
         myHalted = true
+        emitMoveEnded(path.positionNow)
         onJourneyEnded?.invoke()
         endTheWait()
     }
@@ -260,7 +261,55 @@ class InterpolatedMovement @JvmOverloads constructor(
             arrive(to)
             return
         }
+        emitLegStarted(from, to)
         planNextStep()
+    }
+
+    /**
+     * The mover this movement animates, when it is a movable resource. A movable agent-resource is
+     * drawn from its agent's position events, so it is left alone here rather than drawn twice.
+     */
+    private val animatedMover: MovableResource?
+        get() = parent as? MovableResource
+
+    private fun moverCaptured(mover: MovableResource): Boolean =
+        model.animationSink.captureSpec?.captures(ksl.animation.ElementKind.MOVABLE_RESOURCE, mover.spatialName) ?: true
+
+    /**
+     * Emits one movement per leg, from where the vehicle actually is to where it is going, the same
+     * event the classic `move` verbs emit. Per leg rather than per step keeps the trace small; a
+     * renderer interpolates along the leg. A redirection or a resume starts a new leg, and so a new
+     * event, from the position it had reached.
+     */
+    private fun emitLegStarted(from: LocationIfc, to: LocationIfc) {
+        val mover = animatedMover ?: return
+        val sink = model.animationSink
+        if (!sink.isActive || !moverCaptured(mover)) return
+        val velocity = velocityOf()
+        val duration = legLength / velocity
+        val mode = when {
+            mover.isReturningHome -> ksl.animation.MoverMode.RETURNING_HOME
+            mover.isTransporting -> ksl.animation.MoverMode.TRANSPORTING
+            else -> ksl.animation.MoverMode.EMPTY
+        }
+        sink.emit(
+            ksl.animation.AnimationEvent.SpatialElementMoved(
+                time, mover.spatialName,
+                fromX = from.x, fromY = from.y, fromZ = from.z,
+                toX = to.x, toY = to.y, toZ = to.z,
+                velocity = velocity, duration = duration, arrivalTime = time + duration,
+                fromLocationName = from.name, toLocationName = to.name,
+                mode = mode
+            )
+        )
+    }
+
+    /** Emits the end of a movement at [at], whether the vehicle arrived there or stopped short. */
+    private fun emitMoveEnded(at: LocationIfc) {
+        val mover = animatedMover ?: return
+        val sink = model.animationSink
+        if (!sink.isActive || !moverCaptured(mover)) return
+        sink.emit(ksl.animation.AnimationEvent.SpatialElementMoveCompleted(time, mover.spatialName, at.x, at.y, at.z))
     }
 
     private fun planNextStep() {
@@ -333,6 +382,7 @@ class InterpolatedMovement @JvmOverloads constructor(
 
     private fun arrive(at: LocationIfc) {
         path.placeAt(at)
+        emitMoveEnded(at)
         destination = null
         plannedTarget = null
         legFrom = null

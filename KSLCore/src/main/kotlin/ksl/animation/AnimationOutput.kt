@@ -18,6 +18,12 @@
 
 package ksl.animation
 
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.elementNames
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import ksl.utilities.io.KSL
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.Closeable
@@ -116,6 +122,15 @@ class TraceFileReader(
     private val reader: BufferedReader
 ) : Closeable {
 
+    /**
+     *  How many lines [events] skipped because they named an event type this version does not
+     *  know. A trace written by a newer version can carry such events; skipping them, rather than
+     *  failing on the first, lets an older reader show everything it does understand. A line that
+     *  is not a well-formed event of a known type still fails.
+     */
+    var numSkippedUnknownEvents: Int = 0
+        private set
+
     /** Reads and decodes the header line. Call this once, before [events]. */
     fun readHeader(): AnimationTraceHeader {
         val line = reader.readLine() ?: error("empty trace: expected a header line")
@@ -131,7 +146,16 @@ class TraceFileReader(
         while (true) {
             val line = reader.readLine() ?: break
             if (line.isEmpty()) continue
-            yield(AnimationEvent.decodeFromLine(line))
+            val event = try {
+                AnimationEvent.decodeFromLine(line)
+            } catch (e: SerializationException) {
+                if (isUnknownEventType(line)) {
+                    numSkippedUnknownEvents++
+                    continue
+                }
+                throw e
+            }
+            yield(event)
         }
     }
 
@@ -149,8 +173,32 @@ class TraceFileReader(
             openTraceReader(path).use { bufferedReader ->
                 val traceReader = TraceFileReader(bufferedReader)
                 val header = traceReader.readHeader()
-                return header to traceReader.events().toList()
+                val events = traceReader.events().toList()
+                if (traceReader.numSkippedUnknownEvents > 0) {
+                    KSL.logger.warn {
+                        "Skipped ${traceReader.numSkippedUnknownEvents} event(s) of types this version does " +
+                                "not know in $path; the trace was written by a newer version (${header.kslVersion ?: "unknown"})."
+                    }
+                }
+                return header to events
             }
+        }
+
+        /** The serial names of every event type this version can decode. */
+        private val knownEventTypes: Set<String> by lazy {
+            AnimationEvent.serializer().descriptor.getElementDescriptor(1).elementNames.toSet()
+        }
+
+        /** True when [line] is a JSON object whose event type is not one this version knows. */
+        private fun isUnknownEventType(line: String): Boolean {
+            val element = try {
+                AnimationEvent.format.parseToJsonElement(line)
+            } catch (e: SerializationException) {
+                return false
+            }
+            val type = (element as? JsonObject)?.get("event")?.let { (it as? JsonPrimitive)?.contentOrNull }
+                ?: return false
+            return type !in knownEventTypes
         }
 
         /**

@@ -117,7 +117,8 @@ class NetworkSerializationTest {
         val a = assertNotNull(net.intersection("A"))
         assertEquals(0.0, a.length)
         assertEquals(1.0, a.velocityFactor)
-        assertTrue(a.x.isNaN())
+        // With no coordinates anywhere, the network is laid out from its link lengths (R1.7.1).
+        assertTrue(a.x.isFinite())
     }
 
     @Test

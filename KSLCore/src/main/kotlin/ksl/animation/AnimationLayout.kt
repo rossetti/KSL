@@ -120,6 +120,46 @@ data class ResourceLayoutElement(
 )
 
 /**
+ * How a guide path is drawn (V13). Keyed by [spaceName], the owning guide path space's unique name. The
+ * trace supplies the path's geometry; this places and styles it: [offset] and [scale] map the network's
+ * coordinates into the layout, [floorOffsetPerZ] separates floors by shifting each point by that vector
+ * times its height (so a multi-floor building does not draw its floors on top of each other), and the rest
+ * style links, zone ticks, intersections and closures. A network point (x, y, z) is drawn at
+ * offset + scale × (x, y) + z × floorOffsetPerZ.
+ */
+@Serializable
+data class GuidedPathLayoutElement(
+    val spaceName: String,
+    val offset: LayoutPoint = LayoutPoint(0.0, 0.0),
+    val scale: Double = 1.0,
+    val floorOffsetPerZ: LayoutPoint? = null,
+    val linkColor: String = "#7f7f7f",
+    val linkWidth: Double = 2.0,
+    val showZones: Boolean = true,
+    val showIntersections: Boolean = true,
+    val closureColor: String = "#d62728",
+    val label: String? = null
+)
+
+/**
+ * How a guided transporter is drawn (V13). Keyed by [name], the transporter's name. [loadedColor],
+ * [blockedColor] and [haltedColor] distinguish the stillnesses a viewer most needs to tell apart; each
+ * falls back to [color] when null.
+ */
+@Serializable
+data class GuidedTransporterLayoutElement(
+    val name: String,
+    val shape: LayoutShape = LayoutShape.SQUARE,
+    val size: Double = 14.0,
+    val color: String = "#1f77b4",
+    val loadedColor: String? = null,
+    val blockedColor: String? = null,
+    val haltedColor: String? = null,
+    val imageRef: String? = null,
+    val label: String? = null
+)
+
+/**
  * A movable/transport resource drawn as a glyph at its **interpolated** position while moving (8K.5). When at
  * rest it is drawn at the layout position of its [homeBase] station when known (so the editor preview matches
  * what the replay shows for a coordinate-free spatial model such as a `DistancesModel`), otherwise at its
@@ -433,7 +473,11 @@ data class AnimationLayout(
     /** Named spatial locations (`LocationIfc`): move endpoints, conveyor anchors, agent landmarks — the
      *  animation counterpart of a NetworkStation. Appended last (defaulted) for positional-constructor and
      *  wire safety, so old layouts keep loading and old code keeps constructing. */
-    val locations: List<LocationLayoutElement> = emptyList()
+    val locations: List<LocationLayoutElement> = emptyList(),
+    /** Guide path drawing (V13), keyed by space name. Appended last (defaulted) so old layouts keep loading. */
+    val guidedPaths: List<GuidedPathLayoutElement> = emptyList(),
+    /** Guided transporter styling (V13), keyed by transporter name. Appended last (defaulted). */
+    val guidedTransporters: List<GuidedTransporterLayoutElement> = emptyList()
 ) {
     /** The grid obstacle/cost overlay for the space named [spaceName], or null — the consume-side lookup (P5b/G2). */
     fun gridGeometry(spaceName: String): ksl.modeling.agent.GridGeometrySpec? =

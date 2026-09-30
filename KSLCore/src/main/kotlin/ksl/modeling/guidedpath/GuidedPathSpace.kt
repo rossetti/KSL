@@ -671,6 +671,31 @@ open class GuidedPathSpace @JvmOverloads constructor(
         myAnimationEmitter.emitTransporterState(transporter, state)
     }
 
+    /**
+     * Re-states this guide path for an animation window that opens mid-run: the definition, each
+     * transporter's position, state and loads, and every closure currently reserved or held. The
+     * live definition fires only at replication start, which a window drops.
+     */
+    internal fun emitAnimationSnapshot() {
+        myAnimationEmitter.beginReplication()
+        myAnimationEmitter.emitGuidedPathDefined()
+        for (transporter in myTransporters) {
+            transporter.frontZone?.let { myAnimationEmitter.emitTransporterMoved(transporter, it) }
+            myAnimationEmitter.emitTransporterState(transporter, transporter.transporterState)
+            for (load in transporter.manifest) myAnimationEmitter.emitLoadChange(transporter, load, boarded = true)
+        }
+        for (request in myZoneRequests.values) myAnimationEmitter.emitClosureChanged(request, "RESERVED")
+        for (allocation in myZoneAllocations.values) {
+            myAnimationEmitter.emitClosureChanged(allocation.request, "RESERVED")
+            myAnimationEmitter.emitClosureChanged(allocation.request, "HELD")
+        }
+    }
+
+    /** Emits a load going aboard or being set down, doing nothing when no animation sink is active. */
+    internal fun emitLoadChange(transporter: GuidedTransporter, load: ksl.modeling.entity.ProcessModel.Entity, boarded: Boolean) {
+        myAnimationEmitter.emitLoadChange(transporter, load, boarded)
+    }
+
     /** Emits a transporter's arrival in a zone, doing nothing when no animation sink is active. */
     internal fun emitTransporterMoved(transporter: GuidedTransporter, zone: Zone) {
         myAnimationEmitter.emitTransporterMoved(transporter, zone)
@@ -1998,6 +2023,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         for (link in network.links) {
             link.resetLink()
         }
+        myAnimationEmitter.beginReplication()
         for (transporter in myTransporters) {
             transporter.placeAtInitialPosition()
             // Nothing is owed yet, so this audits nothing; what it does is record that placement

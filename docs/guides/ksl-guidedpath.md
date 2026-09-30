@@ -62,6 +62,12 @@ vehicles, use `Conveyor` — see [§6, cells and zones](#cells-and-zones).
 turn penalties. Traversal time is exactly `zoneLength / (velocity *
 velocityFactor)`. Link direction in degrees and intersection coordinates
 are carried for layout and animation and are *never read by the engine*.
+Coordinates are optional, but all or none: a network with no intersection
+coordinates is laid out from its link lengths when it is built, so its
+drawn distances follow travel distances; a network with only some is
+refused, naming the intersections to complete. An intersection a link
+created on first mention can still be given coordinates later, as long as
+its length and velocity factor stay at their defaults.
 If turn cost matters to your answer, model it as a `velocityFactor` on the
 links either side of the turn, or as an intersection whose length
 represents the time to negotiate it.
@@ -923,6 +929,19 @@ Nothing to switch on. When an animation sink is active the system emits
 time a transporter enters a zone, and a `GuidedTransporterStateChanged`
 when one starts or stops. The guide path carries its own coordinates, so —
 unlike a conveyor — it needs no authored layout.
+
+Every guided event names the owning space (`spaceName`), which is unique
+even when two networks share a name. `GuidedPathDefined` also carries each
+link's length, each intersection's station aliases, and each transporter's
+size and capacity. A state change says whether the transporter was halted
+rather than idle, and while blocked, what it waits for and why (`ZONE`,
+`CLOSURE`, `DIRECTION_LOCK` or `SPUR_RESERVATION`); LOADING and UNLOADING
+are reported for the animation without changing the transporter's state or
+its statistics. `VehicleLoadBoarded` and `VehicleLoadAlighted` say which
+entity is aboard which vehicle, so a load is drawn on its cart. A fleet adds
+`AgvAssignmentEnded` and `FleetVehicleStateChanged`. A capture window that
+opens mid-run restates all of this at its start, and a selected capture
+leaves out a guide path, a transporter or a fleet it did not select.
 
 A fourth, `GuidedPathClosureChanged`, is the one that is not about a
 vehicle: it names the holder, the whole zone set, and whether the space is

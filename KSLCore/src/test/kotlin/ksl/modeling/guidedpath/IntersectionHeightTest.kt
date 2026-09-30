@@ -171,13 +171,15 @@ class IntersectionHeightTest {
         assertEquals(SHAFT, net.intersection("F1")!!.z, 0.0)
         assertEquals(0.0, net.intersection("G1")!!.z, 0.0)
 
-        // The deliberate asymmetry: no layout at all means no planar position and ground level.
+        // No layout at all: the network is laid out from its link lengths (R1.7.1), in the plane and at
+        // ground level, so a coordinate-free guide path can still be drawn.
         val bare = GuidedPathNetwork.builder("Bare")
             .link("L", "A", "B", length = 10.0, zoneLength = 10.0)
             .build()
         val a = bare.intersection("A")!!
-        assertTrue(a.x.isNaN(), "an unplaced junction should have no abscissa")
-        assertTrue(a.y.isNaN(), "an unplaced junction should have no ordinate")
+        val b = bare.intersection("B")!!
+        assertTrue(a.x.isFinite() && a.y.isFinite(), "a coordinate-free junction should be laid out")
+        assertEquals(10.0, kotlin.math.hypot(a.x - b.x, a.y - b.y), 1e-6, "laid out at its link length")
         assertFalse(a.z.isNaN(), "height has no 'unspecified' state and must never be not-a-number")
         assertEquals(0.0, a.z, 0.0, "an unplaced junction is at ground level")
     }
@@ -239,7 +241,8 @@ class IntersectionHeightTest {
         // rather than by omission.
         assertEquals(
             """{"event":"GuidedPathDefined","simTime":0.0,"networkName":"N",""" +
-                    """"intersections":[{"name":"A","x":1.0,"y":2.0,"z":12.0}],"links":[]}""",
+                    """"intersections":[{"name":"A","x":1.0,"y":2.0,"z":12.0,"aliases":[]}],"links":[],""" +
+                    """"transporters":[],"spaceName":null}""",
             AnimationEvent.encodeToLine(
                 AnimationEvent.GuidedPathDefined(
                     0.0, "N", listOf(GuidedPathIntersectionDef("A", 1.0, 2.0, SHAFT))
