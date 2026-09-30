@@ -156,6 +156,9 @@ class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = nul
     }
 
     override fun logLikelihood(x: Double): Double {
+        // Outside the support, where pdf is zero, the floor that PDFIfc uses; the log of a
+        // non-positive x would otherwise make this NaN.
+        if (x <= 0.0) return ln(Double.MIN_VALUE)
 //        val part1 = -(shape + 1.0)*ln(x)
 //        val part2 = shape*ln(scale)
 //        val part3 = -scale/x

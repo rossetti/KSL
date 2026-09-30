@@ -219,6 +219,16 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         return 0.5 * (lo + hi)
     }
 
+    /**
+     *  The log-density computed directly, so a point far in the tail keeps its true value where
+     *  `pdf` would underflow to zero: (shape - 1) ln x - x/scale - shape ln(scale) - ln Gamma(shape)
+     *  for x > 0, and the ln(Double.MIN_VALUE) floor where `pdf` is zero.
+     */
+    override fun logLikelihood(x: Double): Double {
+        if (x <= 0.0) return ln(Double.MIN_VALUE)
+        return (shape - 1.0) * ln(x) - x / scale - ln(scale) * shape - logGammaFunction(shape)
+    }
+
     override fun pdf(x: Double): Double {
         return if (x > 0.0) {
             //double norm = Math.log(myScale) * myShape + logGammaFunction(myShape);
