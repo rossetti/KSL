@@ -19,7 +19,6 @@ package ksl.utilities.distributions.fitting.mixture.partition
 
 import ksl.utilities.distributions.fitting.mixture.AdmissibilityCertificate
 import ksl.utilities.distributions.fitting.mixture.DataPartition
-import ksl.utilities.statistic.Histogram
 
 /**
  *  Places cuts at the deepest valleys of a histogram of the data.
@@ -35,11 +34,24 @@ import ksl.utilities.statistic.Histogram
  *  valid. When too few usable valleys are found, null is returned; the caller is expected to
  *  fall back to another generator rather than receive a partition that means nothing.
  *
- *  The bin count is set explicitly rather than left to automatic selection. KSL's automatic
- *  binning is tuned for display and can return as few as two bins for a widely gapped sample,
- *  which leaves no interior bin in which a valley could be found. Since the whole purpose here
- *  is to locate a gap, the resolution must be fine enough to contain one; the default rule is
- *  the square root of the sample size, bounded to a sensible range.
+ *  **Bins are spaced by rank, not by value, and a bin's height is its density.** Equal-width
+ *  bins have no resolution where a skewed sample actually lives: on a production lead-time
+ *  sample of 10,000 spanning four decades, fifty equal-width bins put 54% of the observations
+ *  in the first bin, and every valley detectable in the remainder lay above the 95th percentile,
+ *  so the generator could only ever report tail noise. Spacing the edges at equally spaced order
+ *  statistics puts the resolution where the observations are and makes the rule scale-free, which
+ *  matters because a positive quantity spanning decades is the ordinary case in input modeling
+ *  rather than an awkward one.
+ *
+ *  Unequal widths make the two changes inseparable. With equal-width bins a count is
+ *  proportional to a density and either may be compared; with rank-spaced bins every count is
+ *  the same by construction, so counts carry no information at all and the height compared must
+ *  be the count divided by the bin's width. A sparse stretch of the line then shows as a wide
+ *  bin of low density, which is the gap this generator is looking for.
+ *
+ *  The bin count is set explicitly rather than left to automatic selection, since KSL's automatic
+ *  binning is tuned for display and can return as few as two bins for a widely gapped sample.
+ *  The default rule is the square root of the sample size, bounded to a sensible range.
  */
 class HistogramValleyPartitionGenerator : PartitionGeneratorIfc {
 
@@ -58,20 +70,33 @@ class HistogramValleyPartitionGenerator : PartitionGeneratorIfc {
         if (!certificate.isFeasible(numGroups)) return null
         if (numGroups == 1) return DataPartition.single(sortedData.size)
 
-        val counts = binCounts(sortedData) ?: return null
-        if (counts.size < 3) return null
+        val histogram = binByRank(sortedData) ?: return null
+        val density = histogram.density
+        if (density.size < 3) return null
 
-        // A valley is an interior bin no larger than both neighbours. Depth is measured against
+        // A valley is an interior bin no taller than both neighbours. Depth is measured against
         // the smaller of the two surrounding peaks, so a shallow dip beside a tall mode does not
-        // outrank a genuine trough between two modest ones.
+        // outrank a genuine trough between two modest ones. A monotone tail therefore yields no
+        // valley at all, which is correct: a density that only falls has no trough in it.
+        //
+        // Depth is a ratio, taken as a difference of logarithms, rather than a difference of
+        // densities. Over a sample spanning decades the densities do too, so an absolute
+        // difference makes the deepest valley the one nearest the tallest mode whatever its
+        // shape, and the generator returns a cluster of cuts packed around the mode. What makes
+        // a trough a trough is how far the density falls relative to what surrounds it.
         val candidates = mutableListOf<Pair<Int, Double>>()
-        for (b in 1 until counts.size - 1) {
-            if (counts[b] <= counts[b - 1] && counts[b] <= counts[b + 1]) {
-                val leftPeak = (0 until b).maxOf { counts[it] }
-                val rightPeak = ((b + 1) until counts.size).maxOf { counts[it] }
-                val depth = minOf(leftPeak, rightPeak) - counts[b]
-                if (depth > 0) {
-                    candidates.add(b to depth.toDouble())
+        for (b in 1 until density.size - 1) {
+            if (density[b] <= density[b - 1] && density[b] <= density[b + 1]) {
+                val leftPeak = (0 until b).maxOf { density[it] }
+                val rightPeak = ((b + 1) until density.size).maxOf { density[it] }
+                val shallower = minOf(leftPeak, rightPeak)
+                val depth = if (density[b] > 0.0 && shallower > 0.0) {
+                    kotlin.math.ln(shallower) - kotlin.math.ln(density[b])
+                } else if (shallower > 0.0) {
+                    Double.MAX_VALUE     // an empty stretch is the deepest gap there is
+                } else 0.0
+                if (depth > 0.0) {
+                    candidates.add(b to depth)
                 }
             }
         }
@@ -83,7 +108,7 @@ class HistogramValleyPartitionGenerator : PartitionGeneratorIfc {
         val chosen = sortedSetOfCuts()
         for ((bin, _) in candidates) {
             if (chosen.size == numGroups - 1) break
-            val position = admissibleNear(certificate, binRightEdgeIndex(sortedData, counts, bin))
+            val position = admissibleNear(certificate, histogram.rightEdgeRank[bin])
             if (position <= 0 || position >= sortedData.size) continue
             if (chosen.contains(position)) continue
             chosen.add(position)
@@ -98,23 +123,45 @@ class HistogramValleyPartitionGenerator : PartitionGeneratorIfc {
 
     private fun sortedSetOfCuts(): java.util.TreeSet<Int> = java.util.TreeSet()
 
-    private fun binCounts(sortedData: DoubleArray): IntArray? {
+    /**
+     *  A histogram whose bins hold equal numbers of observations.
+     *
+     *  @param density the observations per unit of the line in each bin
+     *  @param rightEdgeRank the index into the sorted data of the first observation beyond each
+     *  bin, exact here because every edge is an order statistic
+     */
+    private class RankHistogram(val density: DoubleArray, val rightEdgeRank: IntArray)
+
+    /**
+     *  Bins the sample at equally spaced order statistics.
+     *
+     *  Ties can place two edges on the same value, giving a bin of zero width and an unbounded
+     *  density. Such a bin is a spike rather than a valley, so it takes the largest finite
+     *  density present instead of being dropped: that keeps the bin indices aligned with the
+     *  edges, and keeps a run of identical values from ever being read as a gap.
+     */
+    private fun binByRank(sortedData: DoubleArray): RankHistogram? {
         val n = sortedData.size
-        val lower = sortedData.first()
-        val upper = sortedData.last()
-        if (upper <= lower) return null           // constant data has no valley
-        val numBins = numberOfBins(n)
-        return try {
-            val breakPoints = Histogram.createBreakPoints(lower, upper, numBins)
-            val histogram = Histogram(breakPoints)
-            histogram.collect(sortedData)
-            val bins = histogram.bins
-            if (bins.isEmpty()) null else IntArray(bins.size) { bins[it].count.toInt() }
-        } catch (e: IllegalArgumentException) {
-            // Histogram rejecting the range or the bin count for degenerate data; the caller
-            // falls back. Narrow so a defect in binning is not mistaken for degenerate input.
-            null
+        if (n < 3) return null
+        if (sortedData.last() <= sortedData.first()) return null  // constant data has no valley
+        val numBins = numberOfBins(n).coerceAtMost(n)
+        if (numBins < 3) return null
+
+        val edgeRank = IntArray(numBins + 1) { (it.toLong() * n / numBins).toInt() }
+        edgeRank[numBins] = n
+        val density = DoubleArray(numBins)
+        for (b in 0 until numBins) {
+            val count = edgeRank[b + 1] - edgeRank[b]
+            val low = sortedData[edgeRank[b]]
+            val high = sortedData[(edgeRank[b + 1] - 1).coerceAtLeast(edgeRank[b])]
+            val width = high - low
+            density[b] = if (width > 0.0) count / width else Double.POSITIVE_INFINITY
         }
+        val largestFinite = density.filter { it.isFinite() }.maxOrNull() ?: return null
+        for (b in density.indices) {
+            if (!density[b].isFinite()) density[b] = largestFinite
+        }
+        return RankHistogram(density, IntArray(numBins) { edgeRank[it + 1] })
     }
 
     /**
@@ -127,18 +174,6 @@ class HistogramValleyPartitionGenerator : PartitionGeneratorIfc {
     private fun numberOfBins(n: Int): Int {
         val root = kotlin.math.ceil(kotlin.math.sqrt(n.toDouble())).toInt()
         return root.coerceIn(minimumBins, maximumBins)
-    }
-
-    /**
-     *  The index into the sorted data of the first observation beyond the supplied bin, obtained
-     *  by counting observations in the preceding bins.
-     */
-    private fun binRightEdgeIndex(sortedData: DoubleArray, counts: IntArray, bin: Int): Int {
-        var index = 0
-        for (b in 0..bin) {
-            index += counts[b]
-        }
-        return index.coerceIn(0, sortedData.size)
     }
 
     private fun admissibleNear(certificate: AdmissibilityCertificate, position: Int): Int {
