@@ -107,7 +107,9 @@ It walks the network, instantiates one calculator per source
 (inventory, backlog, edge, load builder, external supplier), each
 calculator attaches an observer to its source, and at each
 replication's end the formulation rolls up the calculators into a
-**(tier × line) grid** of responses plus a grand total. The network
+**(tier × line) grid** of responses plus two network-wide totals, one per
+cost basis: `:TotalCost` (dollars over the observed window) and
+`:TotalCostRate` (dollars per unit time). The network
 simulates with or without one attached; you can attach several to one
 network for comparative studies in a single run.
 
