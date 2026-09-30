@@ -753,6 +753,17 @@ class AnimationAppController(
     /** Remove the conveyor layout [name] (reverts to straight anchor-to-anchor drawing). */
     fun removeConveyorLayout(name: String) = setLayout(activeOrBlank().withConveyorRemoved(name))
 
+    /** Place and style a guide path (its geometry comes from the model). */
+    fun setGuidedPathLayout(element: ksl.animation.GuidedPathLayoutElement) =
+        setLayout(activeOrBlank().withGuidedPathLayout(element))
+    /** Remove a guide path's styling; it then draws with the defaults. */
+    fun removeGuidedPathLayout(spaceName: String) = setLayout(activeOrBlank().withGuidedPathRemoved(spaceName))
+    /** Style a guided transporter. */
+    fun setGuidedTransporterLayout(element: ksl.animation.GuidedTransporterLayoutElement) =
+        setLayout(activeOrBlank().withGuidedTransporterLayout(element))
+    /** Remove a guided transporter's styling; it then draws with the defaults. */
+    fun removeGuidedTransporterLayout(name: String) = setLayout(activeOrBlank().withGuidedTransporterRemoved(name))
+
     /** Add/replace a storage (named delay / type holding area) spanning a rectangle (#15). */
     fun addStorage(
         suspensionName: String, x: Double, y: Double, width: Double, height: Double,

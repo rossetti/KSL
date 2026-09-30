@@ -26,6 +26,8 @@ import ksl.animation.ElementKind
 import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.replay.conveyorDefinedEvents
+import ksl.app.animation.replay.guidedPathPreviewEvents
+import ksl.app.animation.replay.suggestedGuidedPathLayout
 import ksl.app.swing.animation.view.SimulationCanvas
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -223,6 +225,18 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
             conveyorButton = cb
             add(cb)
         }
+        // Guide paths and their transporters: their geometry is the model's, so they are placed and styled as a
+        // whole through a form rather than dragged.
+        if (controller.inventory.guidedPaths.isNotEmpty()) {
+            add(JButton("Guide Path").apply {
+                toolTipText = "Place and style a guide path: offset, scale, floor separation, colours"
+                addActionListener { openGuidedPathDialog() }
+            })
+            add(JButton("Transporter").apply {
+                toolTipText = "Style a guided transporter: shape, size, and the colours for loaded, blocked and halted"
+                addActionListener { openGuidedTransporterDialog() }
+            })
+        }
         // Storage: name a delay/type holding area, pick a style, then drag a rectangle to place it (#15).
         val sb = JButton("Storage").apply {
             toolTipText = "Add a storage (named delay / type holding area): pick a name + style, then drag a rectangle (Esc to cancel)"
@@ -411,6 +425,109 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         afterEdit()
         val seg = segCombo.selectedIndex - 1 // 0 is "(none)"
         if (seg >= 0) armConveyorRoute(name, seg)
+    }
+
+    // ── Guide path and transporter tools ──
+
+    /** Parses [text] as a number, or null when blank or not a number. */
+    private fun numberOrNull(text: String): Double? = text.trim().toDoubleOrNull()
+
+    /**
+     * Guide Path tool: pick a guide path and set where and how it is drawn. The fields open on the layout's
+     * current styling for that path, or, when it has none, on the defaults with the floor separation a
+     * climbing path would be given automatically, so accepting the form never draws floors on top of each other.
+     */
+    private fun openGuidedPathDialog() {
+        val infos = controller.inventory.guidedPaths
+        if (infos.isEmpty()) { JOptionPane.showMessageDialog(this, "This model has no guide paths."); return }
+        val nameCombo = JComboBox(infos.map { it.spaceName }.toTypedArray())
+        val offsetX = JTextField(6); val offsetY = JTextField(6); val scale = JTextField(6)
+        val floorX = JTextField(6); val floorY = JTextField(6)
+        val linkWidth = JTextField(4)
+        val linkColor = ColorSwatchField("#7f7f7f"); val closureColor = ColorSwatchField("#d62728")
+        val showZones = javax.swing.JCheckBox("zone ticks"); val showIntersections = javax.swing.JCheckBox("intersections")
+        val label = JTextField(12)
+        fun load() {
+            val key = nameCombo.selectedItem as String
+            val e = controller.layout.value?.guidedPaths?.firstOrNull { it.spaceName == key }
+                ?: suggestedGuidedPathLayout(infos.first { it.spaceName == key })
+            offsetX.text = trimNum(e.offset.x); offsetY.text = trimNum(e.offset.y); scale.text = trimNum(e.scale)
+            floorX.text = e.floorOffsetPerZ?.let { trimNum(it.x) } ?: ""; floorY.text = e.floorOffsetPerZ?.let { trimNum(it.y) } ?: ""
+            linkWidth.text = trimNum(e.linkWidth)
+            linkColor.hex = e.linkColor; closureColor.hex = e.closureColor
+            showZones.isSelected = e.showZones; showIntersections.isSelected = e.showIntersections
+            label.text = e.label ?: ""
+        }
+        load(); nameCombo.addActionListener { load() }
+        val form = JPanel(java.awt.GridLayout(0, 2, 6, 4)).apply {
+            add(JLabel("Guide path")); add(nameCombo)
+            add(JLabel("offset x, y")); add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(offsetX); add(offsetY) })
+            add(JLabel("scale")); add(scale)
+            add(JLabel("floor offset per unit height x, y")); add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 0)).apply { add(floorX); add(floorY) })
+            add(JLabel("link width (px)")); add(linkWidth)
+            add(JLabel("link colour")); add(linkColor)
+            add(JLabel("closure colour")); add(closureColor)
+            add(showZones); add(showIntersections)
+            add(JLabel("label")); add(label)
+        }
+        if (JOptionPane.showConfirmDialog(this, form, "Guide Path", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return
+        val fx = numberOrNull(floorX.text); val fy = numberOrNull(floorY.text)
+        controller.setGuidedPathLayout(ksl.animation.GuidedPathLayoutElement(
+            spaceName = nameCombo.selectedItem as String,
+            offset = ksl.animation.LayoutPoint(numberOrNull(offsetX.text) ?: 0.0, numberOrNull(offsetY.text) ?: 0.0),
+            scale = numberOrNull(scale.text)?.takeIf { it > 0.0 } ?: 1.0,
+            floorOffsetPerZ = if (fx == null && fy == null) null else ksl.animation.LayoutPoint(fx ?: 0.0, fy ?: 0.0),
+            linkColor = linkColor.hex, linkWidth = numberOrNull(linkWidth.text)?.takeIf { it > 0.0 } ?: 2.0,
+            showZones = showZones.isSelected, showIntersections = showIntersections.isSelected,
+            closureColor = closureColor.hex, label = label.text.trim().ifBlank { null }
+        ))
+        afterEdit()
+    }
+
+    /**
+     * Transporter tool: pick a transporter and style it. A blank loaded, blocked or halted colour leaves that state
+     * to the default drawing (the cart's colour, with a red ring when blocked and a grey one when halted).
+     */
+    private fun openGuidedTransporterDialog() {
+        val names = controller.inventory.guidedTransporters
+        if (names.isEmpty()) { JOptionPane.showMessageDialog(this, "This model has no guided transporters."); return }
+        val nameCombo = JComboBox(names.toTypedArray())
+        val shape = JComboBox(ksl.animation.LayoutShape.entries.toTypedArray())
+        val size = JTextField(5)
+        val color = ColorSwatchField("#1f77b4")
+        val loaded = JTextField(8); val blocked = JTextField(8); val halted = JTextField(8)
+        val label = JTextField(12)
+        fun load() {
+            val name = nameCombo.selectedItem as String
+            val e = controller.layout.value?.guidedTransporters?.firstOrNull { it.name == name }
+                ?: ksl.animation.GuidedTransporterLayoutElement(name)
+            shape.selectedItem = e.shape; size.text = trimNum(e.size); color.hex = e.color
+            loaded.text = e.loadedColor ?: ""; blocked.text = e.blockedColor ?: ""; halted.text = e.haltedColor ?: ""
+            label.text = e.label ?: ""
+        }
+        load(); nameCombo.addActionListener { load() }
+        val form = JPanel(java.awt.GridLayout(0, 2, 6, 4)).apply {
+            add(JLabel("Transporter")); add(nameCombo)
+            add(JLabel("shape")); add(shape)
+            add(JLabel("size")); add(size)
+            add(JLabel("colour")); add(color)
+            add(JLabel("loaded colour (blank: colour)")); add(loaded)
+            add(JLabel("blocked colour (blank: red ring)")); add(blocked)
+            add(JLabel("halted colour (blank: grey ring)")); add(halted)
+            add(JLabel("label")); add(label)
+        }
+        if (JOptionPane.showConfirmDialog(this, form, "Transporter", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return
+        controller.setGuidedTransporterLayout(ksl.animation.GuidedTransporterLayoutElement(
+            name = nameCombo.selectedItem as String,
+            shape = shape.selectedItem as ksl.animation.LayoutShape,
+            size = numberOrNull(size.text)?.takeIf { it > 0.0 } ?: 14.0,
+            color = color.hex,
+            loadedColor = loaded.text.trim().ifBlank { null },
+            blockedColor = blocked.text.trim().ifBlank { null },
+            haltedColor = halted.text.trim().ifBlank { null },
+            label = label.text.trim().ifBlank { null }
+        ))
+        afterEdit()
     }
 
     private fun armConveyorRoute(name: String, segmentIndex: Int) {
@@ -2549,9 +2666,12 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         val imageBase = controller.layoutFile.value?.toAbsolutePath()?.parent ?: controller.layoutsDir
         // Seed the preview with synthetic ConveyorDefined events from the inventory so the belt cells show on the
         // static Layout tab (they otherwise only appear during replay, which carries the real ConveyorDefined) — E2.
-        val conveyorEvents = conveyorDefinedEvents(controller.inventory.conveyorInfos)
+        // Guide paths likewise: their geometry is the model's, so the preview draws them from the inventory, with
+        // each transporter at its home base, through the same replay and scene a run uses.
+        val previewEvents = conveyorDefinedEvents(controller.inventory.conveyorInfos) +
+            guidedPathPreviewEvents(controller.inventory.guidedPaths)
         canvas.replay = layout?.let {
-            ReplayModel.build(AnimationSource(layout = it, header = AnimationTraceHeader(), events = conveyorEvents, assetBase = imageBase?.toString()))
+            ReplayModel.build(AnimationSource(layout = it, header = AnimationTraceHeader(), events = previewEvents, assetBase = imageBase?.toString()))
         }
         canvas.currentTime = 0.0
     }
@@ -2573,6 +2693,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     /** Inventory names offered for [kind] across its tab(s). */
     /** The Shipped-layout button as a user meets it: label and whether it can be clicked. */
     internal fun shippedButtonForTest(): Pair<String, Boolean> = shippedButton.text to shippedButton.isEnabled
+
+    /** The replay the editor preview is drawing, to check what the pre-run preview contains. */
+    internal fun previewReplayForTest(): ReplayModel? = canvas.replay
 
     internal fun clickShippedForTest() = shippedButton.doClick()
 

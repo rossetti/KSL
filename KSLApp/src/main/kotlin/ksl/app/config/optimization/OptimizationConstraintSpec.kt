@@ -122,6 +122,9 @@ data class LinearConstraintSpec(
  * @property penaltyFunction optional per-constraint penalty function
  *           overriding the problem-level default; `null` (the default)
  *           inherits [OptimizationProblemSpec.defaultResponsePenalty]
+ * @property indicator true when each replication's response is 0 or 1 (the
+ *           event happened or it did not), so feasibility is tested with an
+ *           exact binomial bound rather than a normal one; defaults to false
  */
 @Serializable
 data class ResponseConstraintSpec(
@@ -162,7 +165,15 @@ data class ResponseConstraintSpec(
         "When omitted, inherits [problem.defaultResponsePenalty].\n" +
         "type = 'withMemory' or 'dynamicPolynomial'."
     )
-    val penaltyFunction: PenaltyFunctionSpec? = null
+    val penaltyFunction: PenaltyFunctionSpec? = null,
+
+    @TomlComment(
+        "Boolean. true when each replication's response is 0 or 1 (a\n" +
+        "probability of an event, such as a missed deadline), so the\n" +
+        "feasibility test uses an exact binomial bound, which stays valid\n" +
+        "when the probability is near 0 or 1.  Default: false."
+    )
+    val indicator: Boolean = false
 ) {
     init {
         require(name.isNotBlank()) { "name must be non-blank" }
@@ -170,6 +181,9 @@ data class ResponseConstraintSpec(
         require(target.isFinite()) { "target must be finite; was $target" }
         require(tolerance >= 0.0 && tolerance.isFinite()) {
             "tolerance must be >= 0 and finite; was $tolerance"
+        }
+        require(!indicator || rhsValue in 0.0..1.0) {
+            "an indicator constraint's rhsValue is a probability, between 0 and 1; was $rhsValue"
         }
     }
 }

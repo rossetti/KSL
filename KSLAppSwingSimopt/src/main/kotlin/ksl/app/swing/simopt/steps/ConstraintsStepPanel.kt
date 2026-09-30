@@ -528,7 +528,7 @@ class ConstraintsStepPanel(
     // ── Table models ─────────────────────────────────────────────────────
 
     private class ResponseConstraintsTableModel : AbstractTableModel() {
-        private val columns = arrayOf("Name", "Inequality", "RHS", "Target", "Tolerance", "Penalty")
+        private val columns = arrayOf("Name", "Inequality", "RHS", "Target", "Tolerance", "Indicator", "Penalty")
         private var rows: List<ResponseConstraintSpec> = emptyList()
 
         fun setRows(newRows: List<ResponseConstraintSpec>) {
@@ -551,7 +551,8 @@ class ConstraintsStepPanel(
                 2 -> r.rhsValue
                 3 -> r.target
                 4 -> r.tolerance
-                5 -> renderPenalty(r.penaltyFunction)
+                5 -> if (r.indicator) "yes" else ""
+                6 -> renderPenalty(r.penaltyFunction)
                 else -> ""
             }
         }

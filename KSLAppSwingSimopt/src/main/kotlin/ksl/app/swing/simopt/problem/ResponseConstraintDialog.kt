@@ -103,6 +103,10 @@ class ResponseConstraintDialog(
     private val rhsField = JTextField(12)
     private val targetField = JTextField(12)
     private val toleranceField = JTextField(12)
+    private val indicatorCheckbox = JCheckBox("Indicator response (each replication is 0 or 1)").apply {
+        toolTipText = "<html>For a probability of an event, such as a missed deadline. Feasibility is then tested<br>" +
+            "with an exact binomial bound, which stays valid when the event is rare or almost certain.</html>"
+    }
 
     private val overrideCheckbox = JCheckBox("Override default penalty function")
     private val penaltyEditor = PenaltyFunctionEditor(
@@ -145,6 +149,7 @@ class ResponseConstraintDialog(
                 rhsField.text = spec.rhsValue.toString()
                 targetField.text = spec.target.toString()
                 toleranceField.text = spec.tolerance.toString()
+                indicatorCheckbox.isSelected = spec.indicator
                 val override = spec.penaltyFunction != null
                 overrideCheckbox.isSelected = override
                 penaltyEditor.isEnabled = override
@@ -200,15 +205,17 @@ class ResponseConstraintDialog(
         add(help, gbc(0, 6, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(4, 4, 8, 4)))
 
+        add(indicatorCheckbox, gbc(0, 7, width = 2, anchor = GridBagConstraints.WEST))
+
         // Override penalty section
-        add(overrideCheckbox, gbc(0, 7, width = 2, anchor = GridBagConstraints.WEST,
+        add(overrideCheckbox, gbc(0, 8, width = 2, anchor = GridBagConstraints.WEST,
             insets = Insets(8, 4, 2, 4)))
         add(penaltyEditor.apply {
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createTitledBorder("Per-constraint penalty"),
                 BorderFactory.createEmptyBorder(2, 6, 2, 6)
             )
-        }, gbc(0, 8, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        }, gbc(0, 9, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(2, 14, 2, 4)))
     }
 
@@ -237,6 +244,7 @@ class ResponseConstraintDialog(
         nameCombo.addActionListener { refreshOkEnablement() }
         leqRadio.addActionListener { refreshOkEnablement() }
         geqRadio.addActionListener { refreshOkEnablement() }
+        indicatorCheckbox.addActionListener { refreshOkEnablement() }
 
         // Filter — rebuild the combo's items on every keystroke.
         nameFilterField.document.addDocumentListener(object : DocumentListener {
@@ -291,6 +299,7 @@ class ResponseConstraintDialog(
         val tolerance = toleranceField.text.trim().toDoubleOrNull() ?: return null
         if (!rhs.isFinite() || !target.isFinite() || !tolerance.isFinite()) return null
         if (tolerance < 0.0) return null
+        if (indicatorCheckbox.isSelected && rhs !in 0.0..1.0) return null
         val ineq = if (geqRadio.isSelected) InequalityType.GREATER_THAN else InequalityType.LESS_THAN
         val penalty = if (overrideCheckbox.isSelected) penaltyEditor.value ?: return null else null
         return try {
@@ -300,7 +309,8 @@ class ResponseConstraintDialog(
                 inequalityType = ineq,
                 target = target,
                 tolerance = tolerance,
-                penaltyFunction = penalty
+                penaltyFunction = penalty,
+                indicator = indicatorCheckbox.isSelected
             )
         } catch (_: IllegalArgumentException) {
             null
@@ -332,6 +342,9 @@ class ResponseConstraintDialog(
             ?: return "Tolerance must be a number"
         if (!tolerance.isFinite()) return "Tolerance must be finite"
         if (tolerance < 0.0) return "Tolerance must be ≥ 0"
+        if (indicatorCheckbox.isSelected && rhs !in 0.0..1.0) {
+            return "An indicator's RHS is a probability, between 0 and 1"
+        }
         if (overrideCheckbox.isSelected) {
             val penaltyMsg = penaltyEditor.validationMessage()
             if (penaltyMsg != null) return "Penalty: $penaltyMsg"
@@ -340,6 +353,15 @@ class ResponseConstraintDialog(
         check(name.isNotBlank())
         return null
     }
+
+    /** Sets the indicator box as a user would, for tests. */
+    internal fun setIndicatorForTest(on: Boolean) { indicatorCheckbox.isSelected = on; refreshOkEnablement() }
+    /** Sets the RHS field as a user would, for tests. */
+    internal fun setRhsForTest(text: String) { rhsField.text = text }
+    /** The spec OK would return now, or null when the form is not valid. */
+    internal fun specForTest(): ResponseConstraintSpec? = buildSpecOrNull()
+    /** The status line under the form. */
+    internal fun statusForTest(): String = statusLabel.text
 
     private fun gbc(
         col: Int,

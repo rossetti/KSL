@@ -26,6 +26,8 @@ import ksl.animation.ClockDisplayElement
 import ksl.animation.ConveyorLayoutElement
 import ksl.animation.ElementLabel
 import ksl.animation.ElementKind
+import ksl.animation.GuidedPathLayoutElement
+import ksl.animation.GuidedTransporterLayoutElement
 import ksl.animation.HistogramDisplayElement
 import ksl.animation.LayoutPoint
 import ksl.animation.LayoutShape
@@ -323,6 +325,24 @@ fun AnimationLayout.withElementLabel(
 /** A copy with the conveyor layout [name] removed — 10.5d. */
 fun AnimationLayout.withConveyorRemoved(name: String): AnimationLayout =
     copy(conveyors = conveyors.filterNot { it.conveyorName == name })
+
+// ── Guide paths and transporters: placed and styled as a whole, not dragged (their geometry is the model's) ──
+
+/** A copy with the guide path styling for [element]'s space added or replaced. */
+fun AnimationLayout.withGuidedPathLayout(element: GuidedPathLayoutElement): AnimationLayout =
+    copy(guidedPaths = guidedPaths.filterNot { it.spaceName == element.spaceName } + element)
+
+/** A copy without the guide path styling for [spaceName]; the path then draws with the defaults. */
+fun AnimationLayout.withGuidedPathRemoved(spaceName: String): AnimationLayout =
+    copy(guidedPaths = guidedPaths.filterNot { it.spaceName == spaceName })
+
+/** A copy with the styling for transporter [element]'s name added or replaced. */
+fun AnimationLayout.withGuidedTransporterLayout(element: GuidedTransporterLayoutElement): AnimationLayout =
+    copy(guidedTransporters = guidedTransporters.filterNot { it.name == element.name } + element)
+
+/** A copy without the styling for transporter [name]; it then draws with the defaults. */
+fun AnimationLayout.withGuidedTransporterRemoved(name: String): AnimationLayout =
+    copy(guidedTransporters = guidedTransporters.filterNot { it.name == name })
 
 /** A copy with the [waypoints] of conveyor [name]'s segment at [segmentIndex] replaced — 10.5d. */
 fun AnimationLayout.withConveyorSegmentWaypoints(name: String, segmentIndex: Int, waypoints: List<LayoutPoint>): AnimationLayout =

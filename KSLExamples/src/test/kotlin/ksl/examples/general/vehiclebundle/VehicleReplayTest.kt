@@ -25,6 +25,8 @@ import ksl.app.animation.io.AnimationSource
 import ksl.app.animation.replay.ReplayModel
 import ksl.app.animation.replay.TransporterSnapshot
 import ksl.app.animation.replay.autoLayout
+import ksl.app.animation.replay.guidedPathPreviewEvents
+import ksl.animation.animationInventory
 import ksl.app.animation.geom.ViewTransform
 import ksl.app.animation.scene.Java2dSurface
 import ksl.app.animation.scene.SceneBuilder
@@ -95,6 +97,38 @@ class VehicleReplayTest {
     }
 
     private fun near(a: Double, b: Double) = abs(a - b) <= 1e-6 * maxOf(1.0, abs(a), abs(b))
+
+    /**
+     * Before any run, the editor's preview and the server's layout image draw each model's guide paths from its
+     * inventory, with every transporter that has a home base on the path placed there.
+     */
+    @Test
+    fun everyShippedVehicleModelPreviewsItsGuidePathsBeforeARun() {
+        val problems = mutableListOf<String>()
+        var placedAtHome = 0
+        for (builder in builders) {
+            val label = builder::class.simpleName
+            val inventory = builder.build(null, null as ExperimentRunParametersIfc?).animationInventory()
+            val events = guidedPathPreviewEvents(inventory.guidedPaths)
+            val model = ReplayModel.build(AnimationSource(null, ksl.animation.AnimationTraceHeader(), events))
+            if (model.vehicles.guidePaths.keys != inventory.guidedPaths.map { it.spaceName }.toSet()) {
+                problems += "$label: preview guide paths ${model.vehicles.guidePaths.keys}"
+            }
+            val homed = inventory.guidedPaths.flatMap { p ->
+                val places = p.intersections.flatMap { listOf(it.name) + it.aliases }.toSet()
+                p.transporters.filter { it.homeBase in places }.map { it.name }
+            }
+            placedAtHome += homed.size
+            homed.firstOrNull { model.vehicles.transporterPositionAt(it, 0.0) == null }
+                ?.let { problems += "$label: $it has a home base on the path but is not placed in the preview" }
+            val scene = SceneBuilder(ReplayModel.build(AnimationSource(model.autoLayout(events), ksl.animation.AnimationTraceHeader(), events))).buildStatic()
+            if (inventory.guidedPaths.isNotEmpty() && scene.commandsOf("guidePaths").isEmpty()) {
+                problems += "$label: the preview draws no guide path"
+            }
+        }
+        if (problems.isNotEmpty()) fail<Unit>(problems.joinToString("\n"))
+        assertTrue(placedAtHome > 0, "some shipped transporter has a home base, so placing it was exercised")
+    }
 
     @Test
     fun everyShippedVehicleModelReplaysIntoSomethingDrawable() {

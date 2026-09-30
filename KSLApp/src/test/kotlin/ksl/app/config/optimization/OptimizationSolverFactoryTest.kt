@@ -394,6 +394,33 @@ class OptimizationSolverFactoryTest {
             (response.penaltyFunction as ksl.simopt.problem.DynamicPolynomialPenalty).basePenalty)
     }
 
+    // ── 12b. An indicator response constraint reaches the engine and survives both codecs ──
+
+    @Test
+    fun `an indicator response constraint reaches the engine and survives both codecs`() {
+        val problem = OptimizationProblemSpec(
+            objectiveResponseName = firstResponseName(),
+            inputs = listOf(OptimizationInputSpec(name = firstInputKey(), lowerBound = 0.1, upperBound = 10.0)),
+            responseNames = listOf(secondResponseName()),
+            responseConstraints = listOf(
+                ResponseConstraintSpec(name = secondResponseName(), rhsValue = 0.05, indicator = true)
+            )
+        )
+        val cfg = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 2),
+            problem = problem
+        )
+        val solver = factory().build(cfg)
+        assertTrue(solver.problemDefinition.responseConstraints.first().indicator,
+            "the indicator flag must reach the engine, or the exact binomial bound is never used")
+        assertEquals(cfg, OptimizationRunConfigurationJson.decode(OptimizationRunConfigurationJson.encode(cfg)))
+        assertEquals(cfg, OptimizationRunConfigurationToml.decode(OptimizationRunConfigurationToml.encode(cfg)))
+        // An existing configuration without the key still reads, as a normal constraint.
+        val legacy = OptimizationRunConfigurationToml.encode(cfg).lines().filterNot { it.trim().startsWith("indicator") }
+        assertEquals(false, OptimizationRunConfigurationToml.decode(legacy.joinToString("\n"))
+            .problem!!.responseConstraints.first().indicator)
+    }
+
     // ── 13. Park-Kim (PFM) penalty spec translates to a ParkKimPenalty engine ──
 
     @Test

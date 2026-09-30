@@ -83,3 +83,18 @@ fun guidedPathPreviewEvents(infos: List<ksl.animation.GuidedPathInfo>): List<Ani
     }
     return out
 }
+
+/**
+ * The styling a guide path is given when a layout has none for it: the defaults, plus the floor separation
+ * auto-layout gives a path that climbs. The layout editor opens its Guide Path form on this, so accepting the
+ * form unchanged draws what a scaffolded layout would.
+ */
+fun suggestedGuidedPathLayout(info: ksl.animation.GuidedPathInfo): ksl.animation.GuidedPathLayoutElement {
+    val definition = AnimationEvent.GuidedPathDefined(
+        simTime = 0.0, networkName = info.networkName, intersections = info.intersections,
+        links = info.links, transporters = info.transporters, spaceName = info.spaceName
+    )
+    val floors = GuidedPathGeometry(info.spaceName, definition, null).suggestedFloorOffset()
+        ?: return ksl.animation.GuidedPathLayoutElement(info.spaceName)
+    return ksl.animation.GuidedPathLayoutElement(info.spaceName, offset = floors.second, floorOffsetPerZ = floors.first)
+}
