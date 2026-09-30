@@ -657,7 +657,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
         }
 
         /**
-         * Estimate the sample size for a proportion based on a normal approximation
+         * Estimate the sample size for a proportion based on a normal approximation: the smallest whole n
+         * with z(1-alpha/2)*sqrt(p(1-p)/n) <= desiredHW, and never less than 1.
          *
          * @param desiredHW the desired half-width (must be bigger than 0)
          * @param pEst    an estimate of the proportion (must be between 0 and 1)
@@ -675,7 +676,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             val a2 = a / 2.0
             val z = Normal.stdNormalInvCDF(1.0 - a2)
             val m = (z / desiredHW) * (z / desiredHW) * pEst * (1.0 - pEst)
-            return (m + .5).roundToLong()
+            // The smallest whole n with n >= m. Rounding m + 0.5 gave one too many when m was whole.
+            return maxOf(1L, ceil(m).toLong())
         }
 
         /**

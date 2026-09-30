@@ -61,4 +61,15 @@ class SampleSizeEstimationTest {
         assertEquals(2L, Statistic.estimateSampleSize(100.0, 1.0, 0.95))
         assertEquals(2L, Statistic.estimateSampleSize(1.0, 0.0, 0.95))
     }
+
+    @Test
+    fun theProportionEstimateRoundsUpAndIsNeverBelowOne() {
+        val z = Normal.stdNormalInvCDF(0.975)
+        for ((h, p) in listOf(0.05 to 0.5, 0.03 to 0.2, 0.1 to 0.9)) {
+            val m = (z / h) * (z / h) * p * (1.0 - p)
+            assertEquals(maxOf(1L, ceil(m).toLong()), Statistic.estimateProportionSampleSize(h, p, 0.95))
+        }
+        // A half-width so loose that m is below one still asks for one observation.
+        assertEquals(1L, Statistic.estimateProportionSampleSize(2.0, 0.5, 0.95))
+    }
 }
