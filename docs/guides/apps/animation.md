@@ -304,9 +304,9 @@ static preview draws the guide path, and each transporter at its home base, befo
 **Capturing a long run.** Only one replication is animated, so the Run tab opens a model at **one
 replication** even when the model itself defaults to ten or twenty; a saved configuration that states a
 count keeps it. Before every **Simulate** the app runs the model briefly to measure how much trace the run
-would write. When that is more than about 500 MB it says so and offers a specific shorter run, named in the
-model's own time unit, that writes about 25 MB: for the test-and-repair shop, **Run 3,300 minutes**, about
-seven shifts, which is plenty to watch. It changes only the replication length on the Run tab, and sets the warm-up to 0. **Run
+would write. When that is more than about 500 MB it says so and offers a specific shorter run that writes
+about 25 MB: for the test-and-repair shop, **Run 3,300 time units**, about seven of its 480-unit shifts,
+which is plenty to watch. It changes only the replication length on the Run tab, and sets the warm-up to 0. **Run
 anyway** and **Cancel** are the other choices. A model built for a year-long study, such as the
 test-and-repair shop on a guide path, would otherwise write gigabytes and never finish.
 

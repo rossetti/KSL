@@ -254,14 +254,15 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     /**
      * The question shown for a run whose trace would be large; see [simulateAfterEstimate]. It says how large and
-     * why, and offers a specific shorter run, named in the model's own time unit, that writes about
+     * why, and offers a specific shorter run, in time units, that writes about
      * [AnimationAppController.FIT_TRACE_BYTES] and changes nothing but the replication length (and the warm-up).
      */
     private fun askAboutLargeTrace(estimate: AnimationAppController.TraceEstimate): LargeTraceChoice {
         fun size(bytes: Long): String =
             if (bytes >= 1L shl 30) "%.1f GB".format(bytes / (1L shl 30).toDouble()) else "${(bytes shr 20).coerceAtLeast(1)} MB"
-        val unit = controller.modelTimeUnit?.name?.lowercase()?.let { if (it.endsWith("s")) it else it + "s" } ?: "time units"
-        fun length(value: Double) = "%,.0f %s".format(value, unit)
+        // "Time units", never the model's declared base unit: a model's numbers mean whatever its author decided
+        // a unit is, and the declared unit (often the default millisecond) says nothing reliable about that.
+        fun length(value: Double) = "%,.0f time units".format(value)
         val shorter = estimate.roundLengthFor(AnimationAppController.FIT_TRACE_BYTES)
         val shortenLabel = "Run ${length(shorter)}"
         val message = buildString {

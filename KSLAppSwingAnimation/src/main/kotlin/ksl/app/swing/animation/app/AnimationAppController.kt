@@ -158,8 +158,6 @@ class AnimationAppController(
     /** Sanitized probe-captured model name; empty when the probe failed. */
     val modelName: String
 
-    /** The model's base time unit, from the probe; null when the probe failed. */
-    val modelTimeUnit: ksl.simulation.ModelElement.TimeUnit?
 
     /** The animatable elements of the model (9A.3), captured at probe time; empty when the probe failed. */
     val inventory: AnimationInventory
@@ -174,7 +172,6 @@ class AnimationAppController(
         this.rvSnapshot = probe.rvSnapshot
         this.modelCatalog = probe.modelCatalog
         this.modelName = probe.modelName
-        this.modelTimeUnit = probe.timeUnit
         this.inventory = probe.inventory
         this.probeFailure = probe.failure
     }
@@ -186,8 +183,7 @@ class AnimationAppController(
         val modelCatalog: ModelCatalog?,
         val modelName: String,
         val inventory: AnimationInventory,
-        val failure: Throwable?,
-        val timeUnit: ksl.simulation.ModelElement.TimeUnit? = null
+        val failure: Throwable?
     )
 
     private fun probeModel(): ProbeResult = try {
@@ -202,8 +198,7 @@ class AnimationAppController(
             // Read the manifest from the descriptor (10.1c) — the single source a bundle also caches —
             // instead of re-extracting, so the editor and a cached bundle agree on one inventory.
             inventory = descriptor.animationInventory,
-            failure = null,
-            timeUnit = descriptor.baseTimeUnit
+            failure = null
         )
     } catch (t: Throwable) {
         ProbeResult(
