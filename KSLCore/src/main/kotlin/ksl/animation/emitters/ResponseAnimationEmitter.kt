@@ -21,6 +21,7 @@ package ksl.animation.emitters
 import ksl.animation.AnimationEvent
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 
@@ -34,15 +35,38 @@ import ksl.simulation.ModelElement
  * (`response.attachModelElementObserver(emitter)`); a single instance can observe
  * many variables because [update] receives the element that fired.
  *
+ * A time-weighted response reassigned the value it already has is not emitted again
+ * within a replication. Such a reassignment is real bookkeeping (it closes an interval
+ * of the time-weighted statistic) but draws nothing: the response's step is the same.
+ * Models reassign unchanged values freely, and at every transporter event a vehicle
+ * model's counts would otherwise fill most of its trace with them. A tally response or
+ * counter is always emitted, since a repeated tally value is a genuine observation.
+ *
  * @param name optional observer name
  */
 class ResponseAnimationEmitter(name: String? = null) : ModelElementObserver(name) {
+
+    /** The value last emitted for each time-weighted response, in [myLastEmittedReplication]. */
+    private val myLastEmitted = HashMap<TWResponse, Double>()
+    private var myLastEmittedReplication = -1
+
+    /** True when [response] holds the value already emitted for it in this replication. */
+    private fun isUnchanged(response: TWResponse): Boolean {
+        val replication = response.model.currentReplicationNumber
+        if (replication != myLastEmittedReplication) {
+            myLastEmitted.clear()
+            myLastEmittedReplication = replication
+        }
+        val value = response.value
+        return myLastEmitted.put(response, value) == value
+    }
 
     override fun update(modelElement: ModelElement) {
         val sink = modelElement.model.animationSink
         if (!sink.isActive) return
         when (modelElement) {
             is Response -> {
+                if (modelElement is TWResponse && isUnchanged(modelElement)) return
                 // Carry the current within-replication statistics so a renderer can show a live
                 // summary without recomputing (D11).
                 val s = modelElement.withinReplicationStatistic

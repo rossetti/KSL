@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import kotlin.math.hypot
@@ -185,6 +186,20 @@ class GuidedPathLayoutAndCaptureTest {
             return TraceFileReader.readAll(trace).second
         } finally {
             Files.deleteIfExists(trace)
+        }
+    }
+
+    @Test
+    fun aTraceDoesNotRepeatAnUnchangedTimeWeightedValue() {
+        // Including the reassignments a time-weighted response makes of itself at initialize and at the
+        // end of the replication, which close its statistic's intervals but draw nothing new.
+        val observed = capture(CaptureSpec(), length = 20.0).filterIsInstance<AnimationEvent.ResponseObserved>()
+            .filter { it.responseName.startsWith("Sys:NumTransporters") || it.responseName == "Sys:ZoneUtilization" }
+        assertTrue(observed.isNotEmpty(), "the fleet counts are captured")
+        for ((name, series) in observed.groupBy { it.responseName }) {
+            series.zipWithNext().firstOrNull { (a, b) -> a.value == b.value }?.let { (a, b) ->
+                fail<Unit>("$name was emitted again at ${b.simTime} with the value it already had at ${a.simTime}")
+            }
         }
     }
 
