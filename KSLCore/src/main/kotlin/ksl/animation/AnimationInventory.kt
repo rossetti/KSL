@@ -202,7 +202,8 @@ data class AnimationInventory(
     val locationInfos: List<LocationInfo> = emptyList(),  // named locations with positions where known (G1)
     val guidedPaths: List<GuidedPathInfo> = emptyList(),  // guide path spaces, keyed by space name
     val guidedTransporters: List<String> = emptyList(),   // transporters on guide paths (not in resources)
-    val fleets: List<FleetInfo> = emptyList()             // fleet systems (not in agentModels)
+    val fleets: List<FleetInfo> = emptyList(),            // fleet systems (not in agentModels)
+    val notCapturedByDefault: List<String> = emptyList()  // statistics a capture of everything leaves out
 ) {
     /** True when [responseName] is backed by a time-weighted response (`TWResponse`) rather than a tally. */
     fun isTimeWeighted(responseName: String): Boolean = responseName in timeWeightedResponses
@@ -464,6 +465,7 @@ fun Model.animationInventory(): AnimationInventory {
         locationInfos = locationInfos.values.toList(),
         guidedPaths = guidedPaths.toList(),
         guidedTransporters = guidedTransporters.toList(),
-        fleets = fleets.toList()
+        fleets = fleets.toList(),
+        notCapturedByDefault = notCapturedByDefault().toList()
     )
 }

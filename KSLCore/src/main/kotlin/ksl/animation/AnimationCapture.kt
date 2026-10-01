@@ -216,14 +216,15 @@ class AnimationCapture(
         }
         // Responses and counters come from the model's curated statistical-variable lists.
         val responseEmitter = ResponseAnimationEmitter()
+        val offByDefault = model.notCapturedByDefault()
         for (response in model.responses) {
-            if (!captureSpec.captures(ElementKind.RESPONSE, response.name)) continue
+            if (!captureSpec.capturesStatistic(ElementKind.RESPONSE, response.name, offByDefault)) continue
             val element = response as ModelElement
             element.attachModelElementObserver(responseEmitter)
             unregisterActions.add { element.detachModelElementObserver(responseEmitter) }
         }
         for (counter in model.counters) {
-            if (!captureSpec.captures(ElementKind.COUNTER, counter.name)) continue
+            if (!captureSpec.capturesStatistic(ElementKind.COUNTER, counter.name, offByDefault)) continue
             val element = counter as ModelElement
             element.attachModelElementObserver(responseEmitter)
             unregisterActions.add { element.detachModelElementObserver(responseEmitter) }
