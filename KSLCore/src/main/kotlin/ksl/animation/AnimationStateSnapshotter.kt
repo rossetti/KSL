@@ -218,9 +218,10 @@ class AnimationStateSnapshotter(
             }
         }
 
-        // (5) Responses and counters from the model's curated lists.
+        // (5) Responses and counters from the model's curated lists, by the same rule capture registers them.
+        val offByDefault = model.notCapturedByDefault()
         for (response in model.responses) {
-            if (!captureSpec.captures(ElementKind.RESPONSE, response.name)) continue
+            if (!captureSpec.capturesStatistic(ElementKind.RESPONSE, response.name, offByDefault)) continue
             val s = response.withinReplicationStatistic
             sink.emit(
                 AnimationEvent.ResponseObserved(
@@ -230,7 +231,7 @@ class AnimationStateSnapshotter(
             )
         }
         for (counter in model.counters) {
-            if (!captureSpec.captures(ElementKind.COUNTER, counter.name)) continue
+            if (!captureSpec.capturesStatistic(ElementKind.COUNTER, counter.name, offByDefault)) continue
             sink.emit(AnimationEvent.ResponseObserved(now, counter.name, counter.value))
         }
 

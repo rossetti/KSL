@@ -106,7 +106,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
     collectLinkStatistics: Boolean = false,
     collectZoneStatistics: Boolean = false,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), ksl.animation.NotCapturedByDefaultIfc {
 
     init {
         network.attachTo(this.name)
@@ -298,6 +298,14 @@ open class GuidedPathSpace @JvmOverloads constructor(
         get() = myNumZoneTraversals
 
     private val myNumEventsScheduled = Counter(this, name = "${this.name}:NumEventsScheduled")
+
+    /**
+     * The counts of zone traversals and events scheduled are bookkeeping, changed thousands of times a shift and
+     * drawn from by nothing on a canvas, so an animation of everything leaves them out unless they are included
+     * by name.
+     */
+    override val notCapturedByDefault: Set<String>
+        get() = setOf(myNumZoneTraversals.name, myNumEventsScheduled.name)
 
     /** How many events the guide path put on the calendar: traversals, rear releases, and retries. */
     val numEventsScheduled: CounterCIfc

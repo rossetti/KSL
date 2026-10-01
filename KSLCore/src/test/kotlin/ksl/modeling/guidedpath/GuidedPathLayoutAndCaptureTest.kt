@@ -233,6 +233,24 @@ class GuidedPathLayoutAndCaptureTest {
     }
 
     @Test
+    fun theGuidePathsBookkeepingCountsAreLeftOutUnlessIncluded() {
+        fun counted(spec: CaptureSpec) = capture(spec, length = 20.0).filterIsInstance<AnimationEvent.ResponseObserved>()
+            .map { it.responseName }.toSet()
+        val everything = counted(CaptureSpec())
+        assertFalse("Sys:NumZoneTraversals" in everything || "Sys:NumEventsScheduled" in everything,
+            "a capture of everything leaves the bookkeeping counts out")
+        assertTrue("Sys:NumTransportersMoving" in everything, "and keeps the guide path's other statistics")
+        val asked = counted(CaptureSpec(include = listOf(ElementSelector(ElementKind.COUNTER, "Sys:NumZoneTraversals"))))
+        assertTrue("Sys:NumZoneTraversals" in asked, "including one by name puts it back")
+        assertFalse("Sys:NumEventsScheduled" in asked)
+        val windowed = counted(CaptureSpec(captureWindow = CaptureWindow(10.0, 20.0)))
+        assertFalse("Sys:NumZoneTraversals" in windowed, "and a window's opening restatement follows the same rule")
+        val m = Model("Inventory").also { Line(it) }
+        assertEquals(setOf("Sys:NumZoneTraversals", "Sys:NumEventsScheduled"),
+            m.animationInventory().notCapturedByDefault.toSet(), "the inventory says which, for the Capture tab")
+    }
+
+    @Test
     fun aSelectionThatOmitsTheGuidePathOmitsItsEvents() {
         val events = capture(CaptureSpec(CaptureMode.SELECTED, include = listOf(ElementSelector(ElementKind.RESPONSE, "Cart_Sys:NumTransports"))))
         assertTrue(events.none { it is AnimationEvent.GuidedPathDefined || it is AnimationEvent.GuidedTransporterMoved })
