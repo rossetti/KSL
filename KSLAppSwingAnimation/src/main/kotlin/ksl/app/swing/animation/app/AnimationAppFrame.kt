@@ -241,7 +241,7 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
             }
             when (askAboutLargeTrace(estimate)) {
                 LargeTraceChoice.SHORTEN -> {
-                    controller.shortenReplicationTo(estimate.lengthFor(AnimationAppController.FIT_TRACE_BYTES))
+                    controller.shortenReplicationTo(estimate.roundLengthFor(AnimationAppController.FIT_TRACE_BYTES))
                     controller.submit()
                 }
                 LargeTraceChoice.RUN -> controller.submit()
@@ -252,30 +252,38 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     private enum class LargeTraceChoice { SHORTEN, RUN, CANCEL }
 
-    /** The question shown for a run whose trace would be large; see [simulateAfterEstimate]. */
+    /**
+     * The question shown for a run whose trace would be large; see [simulateAfterEstimate]. It says how large and
+     * why, and offers a specific shorter run, named in the model's own time unit, that writes about
+     * [AnimationAppController.FIT_TRACE_BYTES] and changes nothing but the replication length (and the warm-up).
+     */
     private fun askAboutLargeTrace(estimate: AnimationAppController.TraceEstimate): LargeTraceChoice {
         fun size(bytes: Long): String =
-            if (bytes >= 1L shl 30) "%.1f GB".format(bytes / (1L shl 30).toDouble()) else "${bytes / (1L shl 20)} MB"
-        val shortened = estimate.lengthFor(AnimationAppController.FIT_TRACE_BYTES)
+            if (bytes >= 1L shl 30) "%.1f GB".format(bytes / (1L shl 30).toDouble()) else "${(bytes shr 20).coerceAtLeast(1)} MB"
+        val unit = controller.modelTimeUnit?.name?.lowercase()?.let { if (it.endsWith("s")) it else it + "s" } ?: "time units"
+        fun length(value: Double) = "%,.0f %s".format(value, unit)
+        val shorter = estimate.roundLengthFor(AnimationAppController.FIT_TRACE_BYTES)
+        val shortenLabel = "Run ${length(shorter)}"
         val message = buildString {
-            append("<html><body style='width: 380px'>")
-            append("Animating this run would write about <b>${size(estimate.bytes)}</b> of trace")
-            append(if (estimate.windowed) " for its capture window" else " for one replication of ${"%,.0f".format(estimate.replicationLength)}")
-            append(". A trace that large is slow to write and to play.<br><br>")
+            append("<html><body style='width: 400px'>")
+            append("This run would write about <b>${size(estimate.bytes)}</b> of animation trace")
+            append(if (estimate.windowed) " for its capture window of ${length(estimate.capturedSpan)}" else " for one replication of ${length(estimate.replicationLength)}")
+            append(". A trace that large takes minutes to write and is far longer than anyone will watch.<br><br>")
             if (!estimate.windowed) {
-                append("<b>Shorten to fit</b> runs ${"%,.1f".format(shortened)} instead (about ${size(AnimationAppController.FIT_TRACE_BYTES)}), ")
-                append("with no warm-up.<br><br>")
+                append("<b>$shortenLabel</b> runs the same model for ${length(shorter)} instead, writing about ")
+                append("${size(AnimationAppController.FIT_TRACE_BYTES)}. It changes only the replication length on the Run tab ")
+                append("(and sets the warm-up to 0); change it there afterwards if you want a different length.<br><br>")
             }
             append("On the Capture tab you can also record only the elements you want to watch, or a time window.")
-            append("<br><br><i>Estimated from a short trial run; the true size can differ.</i></body></html>")
+            append("<br><br><i>Estimated from a short trial run; the actual size can differ.</i></body></html>")
         }
-        val options = if (estimate.windowed) arrayOf("Run anyway", "Cancel") else arrayOf("Shorten to fit", "Run anyway", "Cancel")
+        val options = if (estimate.windowed) arrayOf("Run anyway", "Cancel") else arrayOf(shortenLabel, "Run anyway", "Cancel")
         val picked = JOptionPane.showOptionDialog(
             this, message, "Large animation trace", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-            null, options, options.last()
+            null, options, options.first()
         )
         return when (options.getOrNull(picked)) {
-            "Shorten to fit" -> LargeTraceChoice.SHORTEN
+            shortenLabel -> LargeTraceChoice.SHORTEN
             "Run anyway" -> LargeTraceChoice.RUN
             else -> LargeTraceChoice.CANCEL
         }

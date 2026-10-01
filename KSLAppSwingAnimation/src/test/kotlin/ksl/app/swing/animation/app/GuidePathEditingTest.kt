@@ -106,6 +106,8 @@ class GuidePathEditingTest {
             }
             assertEquals(listOf("Floors"), shown.first)
             assertEquals(listOf("Cart"), shown.second)
+            val counter = onEdt { CapturePanel(controller).shownStateForTest(ksl.animation.ElementKind.COUNTER, "Floors:NumZoneTraversals") }
+            assertEquals("Default (off)", counter, "the guide path's bookkeeping count reads as off by default")
         } finally {
             controller.close()
         }

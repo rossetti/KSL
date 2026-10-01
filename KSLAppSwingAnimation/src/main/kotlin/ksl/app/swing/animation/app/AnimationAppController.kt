@@ -158,6 +158,9 @@ class AnimationAppController(
     /** Sanitized probe-captured model name; empty when the probe failed. */
     val modelName: String
 
+    /** The model's base time unit, from the probe; null when the probe failed. */
+    val modelTimeUnit: ksl.simulation.ModelElement.TimeUnit?
+
     /** The animatable elements of the model (9A.3), captured at probe time; empty when the probe failed. */
     val inventory: AnimationInventory
 
@@ -171,6 +174,7 @@ class AnimationAppController(
         this.rvSnapshot = probe.rvSnapshot
         this.modelCatalog = probe.modelCatalog
         this.modelName = probe.modelName
+        this.modelTimeUnit = probe.timeUnit
         this.inventory = probe.inventory
         this.probeFailure = probe.failure
     }
@@ -182,7 +186,8 @@ class AnimationAppController(
         val modelCatalog: ModelCatalog?,
         val modelName: String,
         val inventory: AnimationInventory,
-        val failure: Throwable?
+        val failure: Throwable?,
+        val timeUnit: ksl.simulation.ModelElement.TimeUnit? = null
     )
 
     private fun probeModel(): ProbeResult = try {
@@ -197,7 +202,8 @@ class AnimationAppController(
             // Read the manifest from the descriptor (10.1c) — the single source a bundle also caches —
             // instead of re-extracting, so the editor and a cached bundle agree on one inventory.
             inventory = descriptor.animationInventory,
-            failure = null
+            failure = null,
+            timeUnit = descriptor.baseTimeUnit
         )
     } catch (t: Throwable) {
         ProbeResult(
@@ -1177,6 +1183,17 @@ class AnimationAppController(
     data class TraceEstimate(val bytes: Long, val replicationLength: Double, val capturedSpan: Double, val windowed: Boolean) {
         /** The replication length at which the run would write about [targetBytes], when it is not windowed. */
         fun lengthFor(targetBytes: Long): Double = replicationLength * targetBytes / bytes.coerceAtLeast(1)
+
+        /**
+         * [lengthFor] rounded down to two significant figures, so the offer reads as a length someone would
+         * choose (1,800 rather than 1,847.3) and never writes more than [targetBytes].
+         */
+        fun roundLengthFor(targetBytes: Long): Double {
+            val raw = lengthFor(targetBytes)
+            if (raw <= 0.0 || !raw.isFinite()) return raw
+            val magnitude = Math.pow(10.0, Math.floor(Math.log10(raw)) - 1)
+            return (Math.floor(raw / magnitude) * magnitude).coerceAtLeast(magnitude)
+        }
     }
 
     /** Counts what is written and keeps none of it. */
@@ -1237,8 +1254,8 @@ class AnimationAppController(
         /** A trace this large (bytes) is worth a question before running: it is slow to write and to load. */
         const val LARGE_TRACE_BYTES: Long = 500L * 1024 * 1024
 
-        /** What "shorten to fit" aims for, comfortably under [LARGE_TRACE_BYTES]. */
-        const val FIT_TRACE_BYTES: Long = 200L * 1024 * 1024
+        /** What a shortened run aims for: a trace that writes in seconds and is a few shifts long to watch. */
+        const val FIT_TRACE_BYTES: Long = 25L * 1024 * 1024
 
         /** This application's folder name under the working directory, e.g. `~/Documents/KSLWork/KSLAnimation/`. */
         const val APP_FOLDER: String = "KSLAnimation"

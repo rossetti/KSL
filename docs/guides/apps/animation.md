@@ -304,14 +304,18 @@ static preview draws the guide path, and each transporter at its home base, befo
 **Capturing a long run.** Only one replication is animated, so the Run tab opens a model at **one
 replication** even when the model itself defaults to ten or twenty; a saved configuration that states a
 count keeps it. Before every **Simulate** the app runs the model briefly to measure how much trace the run
-would write. When that is more than about 500 MB it says so and offers **Shorten to fit** (a run length that
-writes about 200 MB), **Run anyway**, or **Cancel**. A model built for a year-long study, such as the
+would write. When that is more than about 500 MB it says so and offers a specific shorter run, named in the
+model's own time unit (for example **Run 2,100 minutes**), that writes about 25 MB: a few shifts, which is
+plenty to watch. It changes only the replication length on the Run tab, and sets the warm-up to 0. **Run
+anyway** and **Cancel** are the other choices. A model built for a year-long study, such as the
 test-and-repair shop on a guide path, would otherwise write gigabytes and never finish.
 
 To keep a long run, capture only what you want to watch (Capture ▸ *Capture only selected elements*,
 with the guide path and the fleet included; a guide path brings its transporters with it) or a time
 window. Response observations are often most of a vehicle model's trace. Selecting *leaves out* what you
-did not choose, so include anything you mean to plot.
+did not choose, so include anything you mean to plot. A few statistics are left out unless you ask for them,
+and the Capture tab shows them as **Default (off)**: a guide path's counts of zone traversals and events
+scheduled, which change thousands of times a shift and draw nothing. Set one to **Include** to record it.
 
 ---
 

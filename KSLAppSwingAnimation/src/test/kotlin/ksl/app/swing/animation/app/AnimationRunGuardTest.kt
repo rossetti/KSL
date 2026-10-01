@@ -85,5 +85,8 @@ class AnimationRunGuardTest {
         assertTrue(share in 0.2..0.3, "a quarter of the run's time is about a quarter of the trace, got $share")
 
         assertEquals(1_000.0, full.lengthFor(full.bytes / 2), 1.0, "shorten-to-fit halves the run to halve the trace")
+        val offered = AnimationAppController.TraceEstimate(3_000_000_000L, 249_600.0, 249_600.0, false)
+            .roundLengthFor(AnimationAppController.FIT_TRACE_BYTES)
+        assertEquals(2_100.0, offered, "offered as a length someone would choose, rounded down: 2,181 reads 2,100")
     }
 }
