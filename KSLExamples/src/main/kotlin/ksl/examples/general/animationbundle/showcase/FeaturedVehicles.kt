@@ -23,12 +23,9 @@ import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
 /**
- * The vehicle models that join the animation pack and the published gallery, beside the animation examples.
- *
- * A chosen few rather than all ten the suite ships: each needs a layout a person has polished, and a long
- * vehicle run is a large trace, so the download stays lean and every vehicle page in it is one worth
- * watching. They are one of each thing a viewer should see: a loop shop, a shop with spills and a
- * maintenance closure, a two-lane warehouse grid, and a two-floor hospital.
+ * The vehicle models that join the animation pack and the published gallery, beside the animation examples:
+ * all ten the suite ships, so the gallery shows every vehicle model a student can open. Each needs a polished
+ * layout and a gallery blurb before the pack and the site are built.
  *
  * A showcase trace is one replication of one shift ([SHOWCASE_LENGTH] minutes) with no warm-up: long enough
  * to see congestion build and clear, short enough that the page loads.
@@ -38,8 +35,16 @@ object FeaturedVehicles {
     /** The vehicle examples bundle these come from, which is also where their shipped layouts are keyed. */
     const val BUNDLE_ID: String = "edu.uark.ksl.vehicle-examples"
 
-    /** The featured models, by bundle model id, in the order the pack and the gallery show them. */
-    val modelIds: List<String> = listOf("SimpleAgvShop", "GuidePathDisturbances", "TwoLaneWarehouse", "MultiFloorHospital")
+    /**
+     * The featured models, by bundle model id, in the order the pack and the gallery show them: the guide path
+     * from simplest to busiest, then the same shop modelled passively and actively, dispatching, the free
+     * path, and the two smaller studies.
+     */
+    val modelIds: List<String> = listOf(
+        "SimpleAgvShop", "GuidePathDisturbances", "TwoLaneWarehouse", "MultiFloorHospital",
+        "PassiveTransporterShop", "ActiveFleetShop", "DispatchingRulesRingShop", "FreePathFleetYard",
+        "PedestrianCrossing", "TestAndRepairShopWithGuidedTransporters"
+    )
 
     /** Simulated minutes captured for a showcase trace: one shift. */
     const val SHOWCASE_LENGTH: Double = 480.0
