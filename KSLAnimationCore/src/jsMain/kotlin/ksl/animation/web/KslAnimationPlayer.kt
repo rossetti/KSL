@@ -41,6 +41,8 @@ internal data class PlayerOptions(
     val autoPlay: Boolean = false,
     val showTransport: Boolean = true,
     val showLegend: Boolean = true,
+    /** Draw a faint line from each assigned fleet vehicle to its next stop; off unless the page asks. */
+    val showAssignments: Boolean = false,
     val loop: Boolean = true,
     /** Simulated time units per real second; null fits the whole run into [fitSeconds]. */
     val speed: Double? = null,
@@ -126,7 +128,7 @@ internal class KslAnimationPlayer(
         val replay = scaffoldIfNeeded(ReplayModel.build(source), source)
         model = replay
         images = ImageCache(source.assetBase)
-        builder = SceneBuilder(replay, SceneOptions(showLegend = options.showLegend))
+        builder = SceneBuilder(replay, SceneOptions(showLegend = options.showLegend, showAssignments = options.showAssignments))
 
         controller = PlaybackController(replay.timeRange).also { c ->
             val span = replay.timeRange.endInclusive - replay.timeRange.start

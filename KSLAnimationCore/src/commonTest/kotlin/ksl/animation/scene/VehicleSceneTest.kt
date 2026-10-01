@@ -124,9 +124,13 @@ class VehicleSceneTest {
             AnimationEvent.AgvAssignmentMade(1.0, "Fleet", "AGV1", 1, "Store", "Dock", bodyName = "Cart", networkName = "Net", loadEntityId = 7),
             AnimationEvent.VehicleLoadBoarded(20.0, 7, "AGV1", bodyName = "Cart")
         )
-        fun target(t: Double) = scene(events, t).commandsOf("assignments")
+        fun target(t: Double) = SceneBuilder(
+            ReplayModel.build(AnimationSource(AnimationLayout(), AnimationTraceHeader(), events)),
+            SceneOptions(showAssignments = true)
+        ).build(t).commandsOf("assignments")
             .filterIsInstance<DrawCmd.Polyline>().single().points.last()
         assertEquals(100.0 to 50.0, target(5.0), "to Store, where the load waits")
         assertEquals(0.0 to 0.0, target(25.0), "to Dock once it is aboard")
+        assertTrue(scene(events, 5.0).commandsOf("assignments").isEmpty(), "and none drawn unless asked for")
     }
 }

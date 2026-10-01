@@ -1257,8 +1257,8 @@ class SimulationCanvas : JPanel() {
     var showPlannedPaths: Boolean = true
         set(value) { field = value; repaint() }
 
-    /** Whether to draw a faint line from each assigned fleet vehicle to its task's next stop. Display gate. */
-    var showAssignments: Boolean = true
+    /** Whether to draw a faint line from each assigned fleet vehicle to its task's next stop. Off by default. */
+    var showAssignments: Boolean = false
         set(value) { field = value; repaint() }
 
     /** Whether to draw agents' velocity/force vector arrows when the trace carries them (G10). Display gate. */

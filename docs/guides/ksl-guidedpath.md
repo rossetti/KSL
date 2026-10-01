@@ -927,8 +927,8 @@ scenario over layouts does anyway, since the layout is structural.
 Nothing to switch on. From suite 0.4.0 the Animation app, the web player and
 exported animation pages draw what follows: the guide path with its zones,
 each transporter coloured by what it is doing, closures shaded, loads on the
-carts that carry them, and a faint line from an assigned vehicle to its next
-stop. The [Animation app guide](apps/animation.md#8-vehicles) covers the
+carts that carry them, and, on request, a line from an assigned vehicle to its
+next stop. The [Animation app guide](apps/animation.md#8-vehicles) covers the
 viewer's side.
 
 Not to be confused with the animation examples' *Warehouse AGV*
