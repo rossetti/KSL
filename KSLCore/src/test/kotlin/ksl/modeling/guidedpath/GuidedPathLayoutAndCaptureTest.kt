@@ -190,6 +190,35 @@ class GuidedPathLayoutAndCaptureTest {
     }
 
     @Test
+    fun aFleetCountIsAssignedOnlyWhenItChanges() {
+        // refreshFleetCounts runs after every transporter event. Reassigning an unchanged count recorded an
+        // observation, notified observers and emitted each time, which was most of an animated vehicle
+        // model's trace. A time-weighted response still closes its own interval at initialize and at the
+        // end of the replication by reassigning its value; those are its own, at the replication's ends.
+        val m = Model("FleetCounts")
+        Line(m)
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 20.0
+        val repeats = mutableListOf<String>()
+        val names = listOf(
+            "Sys:NumTransportersMoving", "Sys:NumTransportersBlocked", "Sys:NumTransportersIdle", "Sys:ZoneUtilization"
+        )
+        for (name in names) {
+            val response = m.getModelElement(name) as ksl.modeling.variable.TWResponse
+            response.attachModelElementObserver(object : ksl.observers.ModelElementObserver() {
+                override fun update(modelElement: ksl.simulation.ModelElement) {
+                    val t = modelElement.time
+                    if (t > 0.0 && t < 20.0 && response.value == response.previousValue) {
+                        repeats += "$name reassigned ${response.value} at $t"
+                    }
+                }
+            })
+        }
+        m.simulate()
+        assertTrue(repeats.isEmpty(), repeats.joinToString("\n"))
+    }
+
+    @Test
     fun aTraceDoesNotRepeatAnUnchangedTimeWeightedValue() {
         // Including the reassignments a time-weighted response makes of itself at initialize and at the
         // end of the replication, which close its statistic's intervals but draw nothing new.

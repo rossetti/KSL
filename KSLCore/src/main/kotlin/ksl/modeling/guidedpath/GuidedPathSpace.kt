@@ -1037,14 +1037,18 @@ open class GuidedPathSpace @JvmOverloads constructor(
             }
             covered += t.coveredZones.size
         }
-        myNumMoving.value = moving.toDouble()
-        myNumBlocked.value = blocked.toDouble()
-        myNumIdle.value = idle.toDouble()
-        myNumBlockedByVehicle.value = byVehicle.toDouble()
-        myNumBlockedByOccupier.value = byOccupier.toDouble()
-        myNumBlockedByPopulation.value = byPopulation.toDouble()
-        myNumBlockedByIdleVehicle.value = byIdleVehicle.toDouble()
-        myZoneUtilization.value = covered.toDouble() / network.zones.size
+        // Assigned only when they change. This runs after every transporter event, and a count that is
+        // reassigned its own value adds nothing to its time-weighted average, minimum or maximum, but
+        // still records an observation, notifies observers and emits: eight of each per event, which
+        // was most of an animated vehicle model's trace.
+        myNumMoving.assignIfChanged(moving.toDouble())
+        myNumBlocked.assignIfChanged(blocked.toDouble())
+        myNumIdle.assignIfChanged(idle.toDouble())
+        myNumBlockedByVehicle.assignIfChanged(byVehicle.toDouble())
+        myNumBlockedByOccupier.assignIfChanged(byOccupier.toDouble())
+        myNumBlockedByPopulation.assignIfChanged(byPopulation.toDouble())
+        myNumBlockedByIdleVehicle.assignIfChanged(byIdleVehicle.toDouble())
+        myZoneUtilization.assignIfChanged(covered.toDouble() / network.zones.size)
         if (collectZoneStatistics || collectLinkStatistics) {
             refreshZoneDetail()
         }
@@ -1061,19 +1065,19 @@ open class GuidedPathSpace @JvmOverloads constructor(
         val perLink = if (collectLinkStatistics) HashMap<Link, Int>(network.links.size) else null
         for (z in network.zones) {
             val isCovered = z.isCovered
-            myZoneCoverage[z]?.value = if (isCovered) 1.0 else 0.0
+            myZoneCoverage[z]?.assignIfChanged(if (isCovered) 1.0 else 0.0)
             when (z) {
                 is LinkZone -> if (perLink != null && isCovered) {
                     perLink[z.link] = (perLink[z.link] ?: 0) + 1
                 }
 
                 is IntersectionZone ->
-                    myIntersectionCoverage[z.intersection]?.value = if (isCovered) 1.0 else 0.0
+                    myIntersectionCoverage[z.intersection]?.assignIfChanged(if (isCovered) 1.0 else 0.0)
             }
         }
         if (perLink != null) {
             for ((link, response) in myLinkCoverage) {
-                response.value = (perLink[link] ?: 0).toDouble()
+                response.assignIfChanged((perLink[link] ?: 0).toDouble())
             }
         }
     }
@@ -2246,4 +2250,9 @@ open class GuidedPathSpace @JvmOverloads constructor(
         appendLine("transporters:")
         for (t in myTransporters) appendLine("  $t")
     }
+}
+
+/** Assigns [newValue] only when it differs from the current value; see `refreshFleetCounts`. */
+private fun TWResponse.assignIfChanged(newValue: Double) {
+    if (value != newValue) value = newValue
 }
