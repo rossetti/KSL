@@ -278,9 +278,10 @@ replay. The **KSL Vehicle Examples** bundle ships ten of them, each with a layou
   space that looks empty.
 - **Loads on the cart carrying them**, with a count beside the cart when more than one is aboard. A
   load aboard is not drawn again in the queue that also records it.
-- **Assignments**: a faint line from an assigned vehicle to its next stop, the pickup until its load is
-  aboard and then the drop-off. It is the one thing on screen that says why *that* vehicle is heading
-  there rather than a nearer one.
+- **Assignments**, on request: tick **Show assignments** in the Replay view bar for a faint line from
+  each assigned vehicle to its next stop, the pickup until its load is aboard and then the drop-off. It
+  says why *that* vehicle is heading there rather than a nearer one. Off by default, since with several
+  vehicles the lines cross the canvas. (A web page asks for them with `data-ksl-assignments="true"`.)
 - **Free-path fleets** draw their vehicles as movers, ringed orange while charging and grey when failed,
   flat, under tow or out of service.
 
@@ -300,11 +301,17 @@ path, so accepting it unchanged is a sensible start. **Transporter** sets a cart
 and optional colours for loaded, blocked and halted; leave blocked or halted blank to keep the ring. The
 static preview draws the guide path, and each transporter at its home base, before any run.
 
-**Capturing a long run.** The default captures everything, and in a vehicle model most of a trace is
-response observations rather than vehicles, often three quarters of it or more. For a long run, capture
-only the elements you want to watch (Capture ▸ *Capture only selected elements*, with the guide path
-and the fleet included; a guide path brings its transporters with it) or a time window. Selecting
-*leaves out* what you did not choose, so include anything you mean to plot.
+**Capturing a long run.** Only one replication is animated, so the Run tab opens a model at **one
+replication** even when the model itself defaults to ten or twenty; a saved configuration that states a
+count keeps it. Before every **Simulate** the app runs the model briefly to measure how much trace the run
+would write. When that is more than about 500 MB it says so and offers **Shorten to fit** (a run length that
+writes about 200 MB), **Run anyway**, or **Cancel**. A model built for a year-long study, such as the
+test-and-repair shop on a guide path, would otherwise write gigabytes and never finish.
+
+To keep a long run, capture only what you want to watch (Capture ▸ *Capture only selected elements*,
+with the guide path and the fleet included; a guide path brings its transporters with it) or a time
+window. Response observations are often most of a vehicle model's trace. Selecting *leaves out* what you
+did not choose, so include anything you mean to plot.
 
 ---
 

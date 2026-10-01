@@ -213,7 +213,17 @@ class AnimationAppController(
 
     // ── ConfigurationEditorState — pending overrides ────────────────────────
 
-    private val myRunOverrides = MutableStateFlow(ExperimentRunOverrides())
+    private val myRunOverrides = MutableStateFlow(forAnimation(ExperimentRunOverrides()))
+
+    /**
+     * [overrides] with one replication when they leave the count to a model whose default is more. Only one
+     * replication is animated, and the rest are run for nothing: a model built for a study defaults to ten or
+     * twenty. A count the configuration states is kept.
+     */
+    private fun forAnimation(overrides: ExperimentRunOverrides): ExperimentRunOverrides =
+        if (overrides.numberOfReplications == null && modelDefaults.numberOfReplications > 1) {
+            overrides.copy(numberOfReplications = 1)
+        } else overrides
     override val runOverrides: StateFlow<ExperimentRunOverrides> = myRunOverrides.asStateFlow()
 
     private val myControlOverrides = MutableStateFlow(ModelControlsExport(modelName = controlsSnapshot.modelName))
@@ -882,7 +892,7 @@ class AnimationAppController(
             )
         }
 
-        myRunOverrides.value = scenario.runOverrides ?: ExperimentRunOverrides()
+        myRunOverrides.value = forAnimation(scenario.runOverrides ?: ExperimentRunOverrides())
         myControlOverrides.value = scenario.controlOverrides
         myRVOverrides.value = scenario.rvOverrides
         myOutputConfig.value = config.outputConfig.copy(outputDirectory = null)
@@ -1126,6 +1136,63 @@ class AnimationAppController(
         }
     }
 
+    /**
+     * About how much animation trace the next [submit] would write, or null when there is no model or no finite
+     * run length to scale by.
+     *
+     * Measured, not guessed: the model is run once for a small share of its replication ([TRIAL_SHARE]) with the
+     * same capture selection and overlays, the trace counted as it is produced and thrown away, and the count
+     * scaled to the replication, or to the capture window when there is one. It is an estimate: a model whose
+     * activity changes after the opening share of its run writes faster or slower later. Control and random
+     * variable overrides are not applied to the trial. Runs on the calling thread; call it off the EDT.
+     */
+    fun estimateTrace(): TraceEstimate? {
+        if (!hasModel) return null
+        val length = myRunOverrides.value.applyTo(modelDefaults).lengthOfReplication
+        if (!length.isFinite() || length <= 0.0) return null
+        val trialLength = length * TRIAL_SHARE
+        val counter = CountingWriter()
+        val model = modelBuilder.build(null, null)
+        model.numberOfReplications = 1
+        model.lengthOfReplicationWarmUp = 0.0
+        model.lengthOfReplication = trialLength
+        val capture = ksl.animation.AnimationCapture(
+            model, ksl.animation.JsonLinesAnimationOutput(counter),
+            captureSpec = myCaptureSpec.value.copy(captureWindow = null), overlays = myOverlaySpec.value
+        )
+        try {
+            model.simulate()
+        } finally {
+            capture.close()
+        }
+        val window = myCaptureSpec.value.captureWindow
+        val span = if (window == null) length else (minOf(window.endTime, length) - window.startTime).coerceAtLeast(0.0)
+        return TraceEstimate((counter.count.toDouble() * span / trialLength).toLong(), length, span, window != null)
+    }
+
+    /**
+     * An estimate from [estimateTrace]: about [bytes] of trace for a replication of [replicationLength], of which
+     * [capturedSpan] is recorded ([windowed] when a capture window limits it).
+     */
+    data class TraceEstimate(val bytes: Long, val replicationLength: Double, val capturedSpan: Double, val windowed: Boolean) {
+        /** The replication length at which the run would write about [targetBytes], when it is not windowed. */
+        fun lengthFor(targetBytes: Long): Double = replicationLength * targetBytes / bytes.coerceAtLeast(1)
+    }
+
+    /** Counts what is written and keeps none of it. */
+    private class CountingWriter : java.io.Writer() {
+        var count: Long = 0
+            private set
+        override fun write(cbuf: CharArray, off: Int, len: Int) { count += len }
+        override fun write(str: String, off: Int, len: Int) { count += len }
+        override fun flush() {}
+        override fun close() {}
+    }
+
+    /** Shortens the replication to [length], for a run whose trace would be too large to animate. */
+    fun shortenReplicationTo(length: Double) =
+        updateRunOverride { it.copy(lengthOfReplication = length, lengthOfReplicationWarmUp = 0.0) }
+
     /** Cancels the in-flight run, if any. */
     fun cancel() {
         currentHandle?.cancel("Cancelled by user")
@@ -1164,6 +1231,15 @@ class AnimationAppController(
     }
 
     companion object {
+        /** The share of a replication the trace-size trial runs; see [estimateTrace]. */
+        const val TRIAL_SHARE: Double = 0.02
+
+        /** A trace this large (bytes) is worth a question before running: it is slow to write and to load. */
+        const val LARGE_TRACE_BYTES: Long = 500L * 1024 * 1024
+
+        /** What "shorten to fit" aims for, comfortably under [LARGE_TRACE_BYTES]. */
+        const val FIT_TRACE_BYTES: Long = 200L * 1024 * 1024
+
         /** This application's folder name under the working directory, e.g. `~/Documents/KSLWork/KSLAnimation/`. */
         const val APP_FOLDER: String = "KSLAnimation"
 

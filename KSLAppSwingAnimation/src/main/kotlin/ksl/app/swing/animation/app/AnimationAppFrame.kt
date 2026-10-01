@@ -217,9 +217,73 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     // ── Run action ──────────────────────────────────────────────────────────
 
+    /**
+     * Simulate, after checking how much trace the run would write.
+     *
+     * A run's trace can be far larger than anything worth animating: a model built for a year-long study writes
+     * gigabytes, which takes minutes to write and cannot be played. A short trial measures it first, off the
+     * EDT; over [AnimationAppController.LARGE_TRACE_BYTES] the user is told the estimate and chooses to shorten
+     * the run, run it anyway, or not run.
+     */
+    private fun simulateAfterEstimate() {
+        simulateButton.isEnabled = false
+        val previousGuidance = guidanceLabel.text
+        guidanceLabel.text = "Estimating the size of the animation trace…"
+        controller.edtScope.launch {
+            val estimate = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                runCatching { controller.estimateTrace() }.getOrNull()
+            }
+            guidanceLabel.text = previousGuidance
+            simulateButton.isEnabled = true
+            if (estimate == null || estimate.bytes <= AnimationAppController.LARGE_TRACE_BYTES) {
+                controller.submit()
+                return@launch
+            }
+            when (askAboutLargeTrace(estimate)) {
+                LargeTraceChoice.SHORTEN -> {
+                    controller.shortenReplicationTo(estimate.lengthFor(AnimationAppController.FIT_TRACE_BYTES))
+                    controller.submit()
+                }
+                LargeTraceChoice.RUN -> controller.submit()
+                LargeTraceChoice.CANCEL -> Unit
+            }
+        }
+    }
+
+    private enum class LargeTraceChoice { SHORTEN, RUN, CANCEL }
+
+    /** The question shown for a run whose trace would be large; see [simulateAfterEstimate]. */
+    private fun askAboutLargeTrace(estimate: AnimationAppController.TraceEstimate): LargeTraceChoice {
+        fun size(bytes: Long): String =
+            if (bytes >= 1L shl 30) "%.1f GB".format(bytes / (1L shl 30).toDouble()) else "${bytes / (1L shl 20)} MB"
+        val shortened = estimate.lengthFor(AnimationAppController.FIT_TRACE_BYTES)
+        val message = buildString {
+            append("<html><body style='width: 380px'>")
+            append("Animating this run would write about <b>${size(estimate.bytes)}</b> of trace")
+            append(if (estimate.windowed) " for its capture window" else " for one replication of ${"%,.0f".format(estimate.replicationLength)}")
+            append(". A trace that large is slow to write and to play.<br><br>")
+            if (!estimate.windowed) {
+                append("<b>Shorten to fit</b> runs ${"%,.1f".format(shortened)} instead (about ${size(AnimationAppController.FIT_TRACE_BYTES)}), ")
+                append("with no warm-up.<br><br>")
+            }
+            append("On the Capture tab you can also record only the elements you want to watch, or a time window.")
+            append("<br><br><i>Estimated from a short trial run; the true size can differ.</i></body></html>")
+        }
+        val options = if (estimate.windowed) arrayOf("Run anyway", "Cancel") else arrayOf("Shorten to fit", "Run anyway", "Cancel")
+        val picked = JOptionPane.showOptionDialog(
+            this, message, "Large animation trace", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+            null, options, options.last()
+        )
+        return when (options.getOrNull(picked)) {
+            "Shorten to fit" -> LargeTraceChoice.SHORTEN
+            "Run anyway" -> LargeTraceChoice.RUN
+            else -> LargeTraceChoice.CANCEL
+        }
+    }
+
     /** Simulate/Cancel toolbar bound to the controller's run lifecycle. */
     private fun buildRunToolbar(): JComponent = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT)).apply {
-        simulateButton.addActionListener { controller.submit() }
+        simulateButton.addActionListener { simulateAfterEstimate() }
         cancelButton.addActionListener { controller.cancel() }
         cancelButton.isEnabled = false
         add(simulateButton)
