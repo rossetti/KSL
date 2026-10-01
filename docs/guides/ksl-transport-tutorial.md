@@ -2683,6 +2683,9 @@ private val circuitLength = 400.0
 private val meanPreparation = 1.0
 
 private val maxPorters = 8
+
+/** A parking spur's length, which is also how far from the lobby its bay is drawn. */
+private val spurLength = 20.0
 ```
 
 `parkingSpur(i)` is a function rather than a constant because there is one per porter and the
@@ -2721,11 +2724,16 @@ private fun createHospitalNetwork(shaftLength: Double): GuidedPathNetwork {
     // A spur each rather than a shared lobby because porters "at the lobby" would be several
     // vehicles in one zone, which a guide path does not allow, and a porter left standing on the
     // circuit would deny that space to everyone else for the rest of the run.
+    //
+    // Drawn as a fan of bays beside the lobby, each at the spur's own length, so the drawing does not
+    // claim a spur is longer than it is. Coordinates are drawing only, as everywhere in this network.
     for (i in 1..maxPorters) {
-        builder.intersection("P$i", x = -16.0 - 6.0 * i, y = -16.0)
+        val degrees = 20.0 + (i - 1) * 140.0 / (maxPorters - 1)
+        val radians = Math.toRadians(degrees)
+        builder.intersection("P$i", x = spurLength * kotlin.math.cos(radians), y = spurLength * kotlin.math.sin(radians))
             .link(
-                "Spur$i", "G1", "P$i", length = 20.0, zoneLength = 20.0,
-                type = LinkType.SPUR, beginDirection = 225.0
+                "Spur$i", "G1", "P$i", length = spurLength, zoneLength = spurLength,
+                type = LinkType.SPUR, beginDirection = degrees
             )
             .station(parkingSpur(i), "P$i")
     }

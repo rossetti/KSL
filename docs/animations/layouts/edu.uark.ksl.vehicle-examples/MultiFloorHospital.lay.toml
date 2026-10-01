@@ -1,7 +1,7 @@
 title = "MultiFloorHospital"
 baseTimeUnit = null
-width = 134.72
-height = 36.32
+width = 131.10350819325745
+height = 57.38947258483123
 background = [  ]
 paths = [  ]
 queues = [  ]
@@ -36,7 +36,7 @@ label = "Lobby"
 
 [locations.position]
 x = 0.0
-y = 21.6
+y = 26.58980933132962
 z = 0.0
 
 [[locations]]
@@ -45,7 +45,7 @@ label = "WardA"
 
 [locations.position]
 x = 60.0
-y = 21.6
+y = 26.58980933132962
 z = 0.0
 
 [[locations]]
@@ -62,8 +62,8 @@ locationName = "Park1"
 label = "Park1"
 
 [locations.position]
-x = -22.0
-y = 5.600000000000001
+x = 18.79385241571817
+y = 33.43021219784299
 z = 0.0
 
 [[locations]]
@@ -71,8 +71,8 @@ locationName = "Park2"
 label = "Park2"
 
 [locations.position]
-x = -28.0
-y = 5.600000000000001
+x = 15.32088886237956
+y = 39.445561525060405
 z = 0.0
 
 [[locations]]
@@ -80,8 +80,8 @@ locationName = "Park3"
 label = "Park3"
 
 [locations.position]
-x = -34.0
-y = 5.600000000000001
+x = 10.000000000000002
+y = 43.91031740701839
 z = 0.0
 
 [[locations]]
@@ -89,8 +89,8 @@ locationName = "Park4"
 label = "Park4"
 
 [locations.position]
-x = -40.0
-y = 5.600000000000001
+x = 3.4729635533386083
+y = 46.28596439157378
 z = 0.0
 
 [[locations]]
@@ -98,8 +98,8 @@ locationName = "Park5"
 label = "Park5"
 
 [locations.position]
-x = -46.0
-y = 5.600000000000001
+x = -3.472963553338606
+y = 46.28596439157378
 z = 0.0
 
 [[locations]]
@@ -107,8 +107,8 @@ locationName = "Park6"
 label = "Park6"
 
 [locations.position]
-x = -52.0
-y = 5.600000000000001
+x = -9.999999999999996
+y = 43.9103174070184
 z = 0.0
 
 [[locations]]
@@ -116,8 +116,8 @@ locationName = "Park7"
 label = "Park7"
 
 [locations.position]
-x = -58.0
-y = 5.600000000000001
+x = -15.320888862379558
+y = 39.44556152506041
 z = 0.0
 
 [[locations]]
@@ -125,8 +125,8 @@ locationName = "Park8"
 label = "Park8"
 
 [locations.position]
-x = -64.0
-y = 5.600000000000001
+x = -18.793852415718167
+y = 33.430212197843
 z = 0.0
 
 [[guidedPaths]]
@@ -141,18 +141,18 @@ label = null
 
 [guidedPaths.offset]
 x = 0.0
-y = 21.6
+y = 26.58980933132962
 z = 0.0
 
 [guidedPaths.floorOffsetPerZ]
 x = 0.0
-y = -0.27
+y = -0.3323726166416202
 z = 0.0
 
 [[guidedTransporters]]
 name = "Porter1:Body"
 shape = "SQUARE"
-size = 1.35
+size = 2.892872774473361
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null
@@ -163,7 +163,7 @@ label = null
 [[guidedTransporters]]
 name = "Porter2:Body"
 shape = "SQUARE"
-size = 1.35
+size = 2.892872774473361
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null
@@ -174,7 +174,7 @@ label = null
 [[guidedTransporters]]
 name = "Porter3:Body"
 shape = "SQUARE"
-size = 1.35
+size = 2.892872774473361
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null
