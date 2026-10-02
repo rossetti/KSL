@@ -1,11 +1,12 @@
 
 import java.security.MessageDigest
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
-    id("org.jetbrains.dokka") version "2.1.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
+    id("org.jetbrains.dokka") version "2.2.0"
 }
 
 group = "io.github.rossetti"
@@ -611,13 +612,35 @@ val checkUpdaterCoverage by tasks.registering {
     }
 }
 
+/**
+ * The runtime libraries of an app or server, resolved by the root project itself.
+ *
+ * Under org.gradle.parallel a task may not resolve another project's configuration (Gradle refuses:
+ * "attempted without an exclusive lock"). Each target gets a configuration here that depends on that
+ * project, resolved like the project's own runtimeClasspath; the project's own jar is filtered out where
+ * it is read, since the payload ships it separately under the launcher-contract name.
+ */
+fun kslRuntimeOf(target: Project): Configuration =
+    configurations.maybeCreate("kslRuntime${target.name}").apply {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        val source = configurations.getByName("runtimeClasspath").attributes
+        attributes {
+            source.keySet().forEach { key ->
+                @Suppress("UNCHECKED_CAST")
+                attribute(key as Attribute<Any>, source.getAttribute(key)!!)
+            }
+        }
+        dependencies.add(project.dependencies.create(target))
+    }
+
 tasks.register("assembleKSLWork") {
     group = "distribution"
     description = "Assemble the KSLWork payload (shared lib/ + thin app JARs + kslpkg + launchers) under build/kslwork"
     dependsOn(validateKSLAppIcons)
     kslAppTargets.forEach { (app, _) ->
         dependsOn(app.tasks.named("jar"))
-        inputs.files(app.configurations.named("runtimeClasspath"))
+        inputs.files(kslRuntimeOf(app))
     }
     inputs.files(kslIconTargets.flatMap { target -> kslAppIconFiles(target) })
     dependsOn(kslBundleTools.tasks.named("shadowJar"))
@@ -625,7 +648,7 @@ tasks.register("assembleKSLWork") {
     // The suite trio: thin suite + tray jars (over lib/ + a shared server-lib/) and the fat bridge jar.
     listOf(kslSuite, kslServerTray).forEach { server ->
         dependsOn(server.tasks.named("jar"))
-        inputs.files(server.configurations.named("runtimeClasspath"))
+        inputs.files(kslRuntimeOf(server))
     }
     dependsOn(kslBridge.tasks.named("shadowJar"))
     inputs.files(kslBridge.tasks.named("shadowJar"))
@@ -637,19 +660,33 @@ tasks.register("assembleKSLWork") {
     inputs.file("distribution/bin/ksl.ps1")
     inputs.file("distribution/bin/ksl.cmd")
     outputs.dir(kslWorkDir)
+    // Resolved artifacts as providers over the root's own configurations (see kslRuntimeOf), read in doLast.
+    fun resolvedArtifactsOf(proj: Project) =
+        kslRuntimeOf(proj).incoming.artifacts.resolvedArtifacts.map { arts ->
+            arts.filterNot { (it.id.componentIdentifier as? ProjectComponentIdentifier)?.projectPath == proj.path }
+        }
+    val appArtifacts = kslAppTargets.map { (app, _) -> resolvedArtifactsOf(app) }
+    val serverArtifacts = listOf(kslSuite, kslServerTray).map { resolvedArtifactsOf(it) }
     doLast {
         val root = kslWorkDir.get().asFile
         root.deleteRecursively()
-        val runtimeCps = kslAppTargets.map { (app, _) -> app.configurations.named("runtimeClasspath").get() }
+        // module key -> version; a project dependency is keyed by its path, at one "version".
+        fun moduleOf(art: org.gradle.api.artifacts.result.ResolvedArtifactResult): Pair<String, String> =
+            when (val c = art.id.componentIdentifier) {
+                is org.gradle.api.artifacts.component.ModuleComponentIdentifier -> "${c.group}:${c.module}" to c.version
+                is ProjectComponentIdentifier -> "project${c.projectPath}" to "project"
+                else -> c.displayName to "?"
+            }
+        val runtimeArts = appArtifacts.map { it.get() }
 
         // Version-conflict guard: the shared lib/ must carry ONE version per artifact. From a
         // single commit this holds; if two apps ever resolve the same module to different
         // versions, fail loudly rather than silently ship both jars onto the classpath.
         val byModule = linkedMapOf<String, MutableSet<String>>()
-        runtimeCps.forEach { cp ->
-            cp.resolvedConfiguration.resolvedArtifacts.forEach { art ->
-                val id = art.moduleVersion.id
-                byModule.getOrPut("${id.group}:${id.name}") { sortedSetOf() }.add(id.version)
+        runtimeArts.forEach { arts ->
+            arts.forEach { art ->
+                val (module, version) = moduleOf(art)
+                byModule.getOrPut(module) { sortedSetOf() }.add(version)
             }
         }
         val conflicts = byModule.filterValues { it.size > 1 }
@@ -659,7 +696,7 @@ tasks.register("assembleKSLWork") {
 
         // shared lib/ = the complete union of the apps' runtime jars, deduped by filename.
         val libDir = root.resolve("lib").apply { mkdirs() }
-        runtimeCps.flatMap { it.files }.associateBy { it.name }.values
+        runtimeArts.flatMap { arts -> arts.map { it.file } }.associateBy { it.name }.values
             .forEach { it.copyTo(libDir.resolve(it.name), overwrite = true) }
 
         // each app: thin module jar (renamed to the stable launcher-contract name) + launcher.
@@ -708,13 +745,13 @@ tasks.register("assembleKSLWork") {
             // indexes, MCP SDK, Ktor, ...). server-lib/ goes AHEAD of lib/ on the classpath; dedup by filename.
             val suiteLibDir = suiteDir.resolve("server-lib").apply { mkdirs() }
             val suiteOverrides = sortedSetOf<String>()
-            listOf(kslSuite, kslServerTray).forEach { proj ->
-                proj.configurations.named("runtimeClasspath").get().resolvedConfiguration.resolvedArtifacts.forEach { art ->
-                    val id = art.moduleVersion.id
-                    val libVer = libModuleVersion["${id.group}:${id.name}"]
-                    if (libVer != id.version) {
+            serverArtifacts.forEach { arts ->
+                arts.get().forEach { art ->
+                    val (module, version) = moduleOf(art)
+                    val libVer = libModuleVersion[module]
+                    if (libVer != version) {
                         art.file.copyTo(suiteLibDir.resolve(art.file.name), overwrite = true)
-                        if (libVer != null) suiteOverrides += "${id.name} ${id.version} (lib/ has $libVer)"
+                        if (libVer != null) suiteOverrides += "${module.substringAfter(':')} $version (lib/ has $libVer)"
                     }
                 }
             }

@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -25,16 +25,16 @@ dependencies {
     api(project(":KSLApp"))
     // In-memory cache tier for the ResultStore (eviction/TTL/size under
     // concurrency); the persistent tier is a thin JSON-on-disk store.
-    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     // TOML codec for the server config document — the same `tomlkt` the KSLCore
     // run/optimization config codecs use (KSLCore keeps it `implementation`, so
     // it is not visible transitively; declared here for the server config).
-    implementation("net.peanuuutz.tomlkt:tomlkt:0.4.0")
+    implementation("net.peanuuutz.tomlkt:tomlkt:0.5.0")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // MM1 / LKInventory / SimOpt manifest-bundle fixtures (ManifestBundleFixtures +
     // the named ModelBuilderIfc classes) — the dogfood models the server tests
     // assemble into bundle JARs, replacing the retired classpath/ServiceLoader

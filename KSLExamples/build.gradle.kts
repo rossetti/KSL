@@ -18,7 +18,7 @@
 
 
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -41,7 +41,7 @@ dependencies {
     // content (e.g. BookExamplesBundle ServiceLoader discovery + model
     // build/run). It depends on nothing but KSLCore, so KSLExamples remains
     // a sink that no other module depends on.
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
     testImplementation(kotlin("test"))
 
     add("kslpkgClasspath", project(":KSLBundleTools"))

@@ -7,7 +7,7 @@
 // so this module is a thin presentation over that seam, packaged THIN over the shared lib/ like the
 // desktop apps. Start/Stop/Configure/capabilities/usage stay in the console, not the tray.
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
     application
 }
 
@@ -24,12 +24,12 @@ dependencies {
     // client-config. Brings KSLServiceCore -> KSLCore/KSLApp transitively (all in the shared lib/).
     implementation(project(":KSLServerManager"))
     implementation(project(":KSLAgentConfig"))                               // AgentConfigurator.ConfigResult (the --remove report rows)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")   // collect the controller's StateFlows
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")   // collect the controller's StateFlows
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -12,8 +12,8 @@
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -34,7 +34,7 @@ dependencies {
     // --- test suite (per-module; Phase 7) ---
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
     testImplementation(kotlin("test"))
 }
 

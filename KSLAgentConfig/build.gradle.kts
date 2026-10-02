@@ -8,8 +8,8 @@
 // codecs + JDK I/O. Consumed by the suite's setup CLI, the suite's loopback configure endpoint, and
 // KSLServerManager.
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -20,10 +20,10 @@ repositories { mavenCentral() }
 kotlin { jvmToolchain(21) }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0") // Claude Desktop config JSON
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0") // Claude Desktop config JSON
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
