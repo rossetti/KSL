@@ -2,7 +2,7 @@
 <!--
   Test logging defaults for KSLApp. Same purpose and shape as KSLCore's.
 
-  Without this file the tests inherit KSLCore's src/main/resources/logback.xml -- the config meant for
+  Without this file the tests inherit KSLCore's src/main/resources/logback.xml — the config meant for
   someone USING the library, whose root level is DEBUG and which also opens the rolling logs/*.log
   appenders. Under a test run that produced 77,000 DEBUG lines and 13 MB of captured output for this
   module alone. Gradle's console hides test output, so it was invisible from the command line and
