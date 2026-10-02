@@ -24,11 +24,11 @@ dependencies {
     implementation(project(":KSLAgentConfig"))  // AgentConfigurator + LaunchSpec (local client config)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")   // parse the admin DTOs from /admin
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")      // controller StateFlows + injected scope
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
+    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

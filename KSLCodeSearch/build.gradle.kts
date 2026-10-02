@@ -33,8 +33,8 @@ dependencies {
     implementation("org.apache.lucene:lucene-analysis-common:10.5.1")
     implementation("org.apache.lucene:lucene-queryparser:10.5.1")
     implementation("org.apache.lucene:lucene-queries:10.5.1")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
+    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     // ---- build-time extractor (never shipped) ----
     // Depend on main's compiled classes ONLY (classesDirs, not the full output): the full output is
@@ -43,10 +43,10 @@ dependencies {
     "genImplementation"(files(sourceSets["main"].output.classesDirs))
     "genImplementation"("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.0")
     "genImplementation"("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-    "genImplementation"("io.github.oshai:kotlin-logging-jvm:7.0.0")
+    "genImplementation"("io.github.oshai:kotlin-logging-jvm:8.0.4")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // Unit-test the build-time extractor directly (compiler-embeddable stays test/gen-only).
     testImplementation(sourceSets["gen"].output)

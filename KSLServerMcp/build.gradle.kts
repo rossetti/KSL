@@ -30,14 +30,14 @@ dependencies {
     // The MCP transport over the headless service core. Ktor and the MCP SDK
     // are isolated here; they never reach KSLServiceCore or KSLCore.
     implementation(project(":KSLServiceCore"))
-    implementation("io.modelcontextprotocol:kotlin-sdk:0.8.3")
+    implementation("io.modelcontextprotocol:kotlin-sdk:0.15.0")
     // Embedded HTTP engine for the Streamable HTTP (SSE) MCP transport.
     implementation("io.ktor:ktor-server-cio:3.6.0")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
+    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // Client engine for the HTTP transport integration test (the SSE client
     // plugin ships in ktor-client-core, pulled transitively by the MCP SDK).

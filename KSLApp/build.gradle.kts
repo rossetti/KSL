@@ -34,7 +34,7 @@ dependencies {
     // --- test suite (per-module; Phase 7) ---
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 }
 

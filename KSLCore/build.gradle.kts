@@ -37,13 +37,13 @@ repositories {
 
 dependencies {
 
-    api("io.github.oshai:kotlin-logging-jvm:7.0.7")  //TODO consider making implementation
+    api("io.github.oshai:kotlin-logging-jvm:8.0.4")  //TODO consider making implementation
     api("org.slf4j:slf4j-api:2.0.20")  //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation("ch.qos.logback:logback-classic:1.5.38")
+    implementation("ch.qos.logback:logback-classic:1.6.5")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation("ch.qos.logback:logback-core:1.5.38")
+    implementation("ch.qos.logback:logback-core:1.6.5")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") //TODO fix later, 0.7.0 has code breaking changes
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
@@ -80,7 +80,7 @@ dependencies {
 
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 
-    implementation("com.zaxxer:HikariCP:6.3.0")
+    implementation("com.zaxxer:HikariCP:7.1.0")
 
     // fastexcel — streaming xlsx writer/reader used by ExcelUtil
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel
@@ -102,7 +102,7 @@ dependencies {
     // KSLTestModels depends on KSLCore's MAIN, which builds before KSLCore's tests.
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 }
 

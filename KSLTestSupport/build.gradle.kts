@@ -21,7 +21,7 @@ repositories {
 dependencies {
 
     // Exposed so consumers' test code can use the JUnit extension API these helpers build on.
-    api("org.junit.jupiter:junit-jupiter:5.14.4")
+    api("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 kotlin {

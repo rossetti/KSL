@@ -41,7 +41,7 @@ dependencies {
     // content (e.g. BookExamplesBundle ServiceLoader discovery + model
     // build/run). It depends on nothing but KSLCore, so KSLExamples remains
     // a sink that no other module depends on.
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 
     add("kslpkgClasspath", project(":KSLBundleTools"))

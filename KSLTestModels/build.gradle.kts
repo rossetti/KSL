@@ -29,7 +29,7 @@ dependencies {
 
     // --- test suite (per-module; Phase 7) ---
     // KSLTestModels carries a tiny self-test of its own fixture bundles.
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 }
 
