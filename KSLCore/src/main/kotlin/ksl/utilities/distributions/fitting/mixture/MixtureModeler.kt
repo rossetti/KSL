@@ -1826,8 +1826,8 @@ class MixtureModeler(
          *  five and BIC choose two is looking at the two ends of that scale rather than at a
          *  contradiction.
          *
-         *  @param catalogSize the number of families the fitter may choose from, which the
-         *  extended criterion charges for
+         *  The function is given the number of families the fitter may choose from, which the
+         *  extended criterion charges for.
          */
         var defaultReportedCriteria: (catalogSize: Int) -> List<MixtureCriterionIfc> = { size ->
             listOf(

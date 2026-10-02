@@ -92,19 +92,6 @@ internal class SegmentationDP(
     private val myMinGroupSize: Int = certificate.minimumGroupSize
     private val myMinDistinct: Int = certificate.minimumDistinctValues
 
-    /**
-     *  Maximizes the objective over partitions into the supplied number of groups.
-     *
-     *  @param scores scores(g)(i) is the contribution of observation i when it is assigned to
-     *  group g. The outer size must equal the number of groups and each inner size the number of
-     *  observations.
-     *  @param numGroups the number of groups
-     *  @param incumbent a partition to retain when it also attains the optimum. Supplying the
-     *  current partition makes an iteration change only on a strict improvement, which is what
-     *  prevents a search from cycling between equally good partitions. It is validated against
-     *  every constraint before being scored; an incumbent that violates one is ignored rather
-     *  than returned.
-     */
     private var myNumTransitionsExamined: Long = 0
 
     /**
@@ -126,6 +113,19 @@ internal class SegmentationDP(
     val numTransitionsExamined: Long
         get() = myNumTransitionsExamined
 
+    /**
+     *  Maximizes the objective over partitions into the supplied number of groups.
+     *
+     *  @param scores scores(g)(i) is the contribution of observation i when it is assigned to
+     *  group g. The outer size must equal the number of groups and each inner size the number of
+     *  observations.
+     *  @param numGroups the number of groups
+     *  @param incumbent a partition to retain when it also attains the optimum. Supplying the
+     *  current partition makes an iteration change only on a strict improvement, which is what
+     *  prevents a search from cycling between equally good partitions. It is validated against
+     *  every constraint before being scored; an incumbent that violates one is ignored rather
+     *  than returned.
+     */
     fun maximize(
         scores: Array<DoubleArray>,
         numGroups: Int,

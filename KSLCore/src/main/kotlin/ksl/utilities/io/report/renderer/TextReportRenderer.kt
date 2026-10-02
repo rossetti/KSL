@@ -37,7 +37,7 @@ import java.nio.file.Path
  * - [ReportNode.Heading]        — heading text prefixed with `#` × level
  * - [ReportNode.Paragraph]      — text followed by a blank line
  * - [ReportNode.StatTable]      — delegates to `StatisticReporter.halfWidthSummaryReport`
- *                                 (detail=false) or [StatisticReporter.summaryReport]
+ *                                 (detail=false) or [ksl.utilities.io.StatisticReporter.summaryReport]
  *                                 followed by the full CSV statistics (detail=true)
  * - [ReportNode.WeightedStatTable] — key/value table of all [ksl.utilities.statistic.WeightedStatistic] properties
  * - [ReportNode.DataTable]      — column-padded text table
