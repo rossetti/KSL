@@ -36,7 +36,7 @@ dependencies {
     implementation("io.ktor:ktor-server-content-negotiation:3.2.3")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.2.3")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.32")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")

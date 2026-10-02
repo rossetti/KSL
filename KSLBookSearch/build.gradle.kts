@@ -29,7 +29,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.3")
     implementation("com.vladsch.flexmark:flexmark-html2md-converter:0.64.8")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")

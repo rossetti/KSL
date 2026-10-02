@@ -34,7 +34,7 @@ dependencies {
     // Embedded HTTP engine for the Streamable HTTP (SSE) MCP transport.
     implementation("io.ktor:ktor-server-cio:3.2.3")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.32")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")

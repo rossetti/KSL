@@ -34,7 +34,7 @@ dependencies {
     implementation("org.apache.lucene:lucene-queryparser:10.2.2")
     implementation("org.apache.lucene:lucene-queries:10.2.2")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 
     // ---- build-time extractor (never shipped) ----
     // Depend on main's compiled classes ONLY (classesDirs, not the full output): the full output is

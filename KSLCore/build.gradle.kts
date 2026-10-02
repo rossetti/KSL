@@ -38,12 +38,12 @@ repositories {
 dependencies {
 
     api("io.github.oshai:kotlin-logging-jvm:7.0.7")  //TODO consider making implementation
-    api("org.slf4j:slf4j-api:2.0.17")  //TODO consider making implementation
+    api("org.slf4j:slf4j-api:2.0.20")  //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation("ch.qos.logback:logback-classic:1.5.32")
+    implementation("ch.qos.logback:logback-classic:1.5.38")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation("ch.qos.logback:logback-core:1.5.32")
+    implementation("ch.qos.logback:logback-core:1.5.38")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") //TODO fix later, 0.7.0 has code breaking changes
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
@@ -76,7 +76,7 @@ dependencies {
     implementation("org.apache.derby:derbyclient:10.17.1.0")
     implementation("org.apache.derby:derbytools:10.17.1.0")
 
-    implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.postgresql:postgresql:42.7.13")
 
     implementation("org.xerial:sqlite-jdbc:3.50.2.0")
 

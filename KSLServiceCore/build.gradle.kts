@@ -41,7 +41,7 @@ dependencies {
     // discovery. KSLTestModels is the only example/model dependency the server
     // stack needs (KSLExamples is intentionally kept off the server classpath).
     testImplementation(project(":KSLTestModels"))
-    testRuntimeOnly("ch.qos.logback:logback-classic:1.5.32")
+    testRuntimeOnly("ch.qos.logback:logback-classic:1.5.38")
 }
 
 kotlin {
