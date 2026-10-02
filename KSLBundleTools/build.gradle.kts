@@ -56,7 +56,7 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "dataframe-excel")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-swing")
     }
-    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
     runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))

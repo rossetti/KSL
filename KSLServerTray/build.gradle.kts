@@ -25,7 +25,7 @@ dependencies {
     implementation(project(":KSLServerManager"))
     implementation(project(":KSLAgentConfig"))                               // AgentConfigurator.ConfigResult (the --remove report rows)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")   // collect the controller's StateFlows
-    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
     runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))

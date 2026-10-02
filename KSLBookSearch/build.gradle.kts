@@ -30,7 +30,7 @@ dependencies {
     // jsoup 1.21+ annotates its API with jspecify but does not ship it; Kotlin needs it to read those types.
     compileOnly("org.jspecify:jspecify:1.0.0")
     implementation("com.vladsch.flexmark:flexmark-html2md-converter:0.64.8")
-    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
     runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))

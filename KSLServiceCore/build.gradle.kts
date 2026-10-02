@@ -26,7 +26,7 @@ dependencies {
     // In-memory cache tier for the ResultStore (eviction/TTL/size under
     // concurrency); the persistent tier is a thin JSON-on-disk store.
     implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
-    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
     // TOML codec for the server config document — the same `tomlkt` the KSLCore
     // run/optimization config codecs use (KSLCore keeps it `implementation`, so
     // it is not visible transitively; declared here for the server config).

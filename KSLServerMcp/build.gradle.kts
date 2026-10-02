@@ -33,7 +33,7 @@ dependencies {
     implementation("io.modelcontextprotocol:kotlin-sdk:0.15.0")
     // Embedded HTTP engine for the Streamable HTTP (SSE) MCP transport.
     implementation("io.ktor:ktor-server-cio:3.6.0")
-    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
     runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))

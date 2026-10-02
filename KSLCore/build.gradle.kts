@@ -37,7 +37,7 @@ repositories {
 
 dependencies {
 
-    api("io.github.oshai:kotlin-logging-jvm:8.0.4")  //TODO consider making implementation
+    api("io.github.oshai:kotlin-logging-jvm:7.0.14")  //TODO consider making implementation
     api("org.slf4j:slf4j-api:2.0.20")  //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic

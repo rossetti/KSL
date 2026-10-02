@@ -33,7 +33,7 @@ dependencies {
     implementation("org.apache.lucene:lucene-analysis-common:10.5.1")
     implementation("org.apache.lucene:lucene-queryparser:10.5.1")
     implementation("org.apache.lucene:lucene-queries:10.5.1")
-    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
     runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     // ---- build-time extractor (never shipped) ----
@@ -43,7 +43,7 @@ dependencies {
     "genImplementation"(files(sourceSets["main"].output.classesDirs))
     "genImplementation"("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.0")
     "genImplementation"("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-    "genImplementation"("io.github.oshai:kotlin-logging-jvm:8.0.4")
+    "genImplementation"("io.github.oshai:kotlin-logging-jvm:7.0.14")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
