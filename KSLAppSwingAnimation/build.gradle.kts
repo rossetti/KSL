@@ -71,7 +71,7 @@ tasks.register<JavaExec>("renderFrames") {
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("ksl.app.swing.animation.examples.RenderFramesKt")
     jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
-    listOf("trace", "frames", "out", "w", "h").forEach { p ->
+    listOf("trace", "frames", "times", "out", "w", "h").forEach { p ->
         if (project.hasProperty(p)) systemProperty(p, project.property(p)!!)
     }
     // The renderer accepts an authored layout, but it cannot be passed as -Playout: Gradle's Project

@@ -16,7 +16,10 @@ import ksl.app.animation.io.load
  * `docs/guides/apps/animation.md` guide. Not part of the app.
  *
  * System properties: -Dtrace=<path.atf> [-Dlayout=<path.lay.json|.toml>] [-Dframes=N]
- *   [-Dout=<dir>] [-Dw=<px>] [-Dh=<px>]
+ *   [-Dtimes=t1,t2,...] [-Dout=<dir>] [-Dw=<px>] [-Dh=<px>]
+ *
+ * `times` renders those simulated instants instead of [n] evenly spaced ones: polishing looks at the moments a
+ * trace says are interesting (a queue at its longest, a cart blocked), which an even spacing rarely lands on.
  */
 fun main() {
     System.setProperty("java.awt.headless", "true")
@@ -42,8 +45,9 @@ fun main() {
     val t0 = replay.timeRange.start
     val t1 = replay.timeRange.endInclusive
     println("trace=$traceFile  events=${source.events.size}  timeRange=$t0..$t1")
-    for (i in 0 until n) {
-        val t = if (n <= 1) t1 else t0 + (t1 - t0) * i / (n - 1)
+    val times = System.getProperty("times")?.split(',')?.mapNotNull { it.trim().toDoubleOrNull() }
+        ?: (0 until n).map { i -> if (n <= 1) t1 else t0 + (t1 - t0) * i / (n - 1) }
+    for ((i, t) in times.withIndex()) {
         canvas.currentTime = t
         val image = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
         val g = image.createGraphics()
