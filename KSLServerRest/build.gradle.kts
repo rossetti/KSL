@@ -54,7 +54,8 @@ application {
     // config non-deterministic; the unique `logback-ksl-rest.xml` + this arg make
     // the REST config win regardless of classpath order. Applies to the `run` task
     // and the generated start scripts (the deployed launcher).
-    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=logback-ksl-rest.xml")
+    // MCP SDK 0.15 brings kotlin-logging 8, which prints a startup banner to stdout unless told not to.
+    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=logback-ksl-rest.xml", "-Dkotlin-logging.logStartupMessage=false")
 }
 
 kotlin {
