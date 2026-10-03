@@ -55,7 +55,8 @@ tasks.register<JavaExec>("renderAnimationPosters") {
     workingDir = rootDir
     jvmArgs("-Xmx4g", "-Djava.awt.headless=true")
     systemProperty("traces", rootDir.resolve("build/showcase").path)
-    systemProperty("layouts", rootDir.resolve("docs/animations/layouts/edu.uark.ksl.animation-examples").path)
+    // The root, not one bundle's folder: the gallery shows the vehicle bundle's models too.
+    systemProperty("layouts", rootDir.resolve("docs/animations/layouts").path)
     listOf("w", "h").forEach { p -> if (project.hasProperty(p)) systemProperty(p, project.property(p)!!) }
     doFirst {
         val out = project.findProperty("out")?.toString()
