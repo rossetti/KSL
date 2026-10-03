@@ -3,10 +3,10 @@
 // JSON-RPC both ways. It holds NONE of the heavy KSL state — no KSLCore, no Lucene indexes — so it
 // is a lightweight per-session process; all the weight lives in the one shared suite server.
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     application
-    id("com.gradleup.shadow") version "9.0.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "io.github.rossetti"
@@ -20,16 +20,16 @@ kotlin { jvmToolchain(21) }
 dependencies {
     // Both bridge halves come from the MCP SDK: StdioServerTransport (toward the client) and the
     // SSE client transport (toward the suite). No KSL modules — the bridge stays thin.
-    implementation("io.modelcontextprotocol:kotlin-sdk:0.8.3")
-    implementation("io.ktor:ktor-client-core:3.2.3")   // carries the client SSE plugin (io.ktor.client.plugins.sse.SSE)
-    implementation("io.ktor:ktor-client-cio:3.2.3")    // the HTTP engine
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
+    implementation("io.modelcontextprotocol:kotlin-sdk:0.15.0")
+    implementation("io.ktor:ktor-client-core:3.6.0")   // carries the client SSE plugin (io.ktor.client.plugins.sse.SSE)
+    implementation("io.ktor:ktor-client-cio:3.6.0")    // the HTTP engine
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.9.1")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

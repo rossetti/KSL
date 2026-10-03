@@ -31,7 +31,7 @@ class ConveyorQ @JvmOverloads constructor(
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *
-     * @param conveyable the request to remove from the queue
+     * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
      * @param afterTermination a function to invoke after the process is successfully terminated

@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
     application
 }
 
@@ -21,11 +21,11 @@ dependencies {
     // from ~/.ksl/bundles/); the tests load the bundles off the test classpath.
     // Keeping it out of `implementation` keeps the fixtures out of the distribution.
     testImplementation(project(":KSLTestModels"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 application {

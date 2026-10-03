@@ -7,8 +7,8 @@
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -29,7 +29,7 @@ dependencies {
 
     // --- test suite (per-module; Phase 7) ---
     // KSLTestModels carries a tiny self-test of its own fixture bundles.
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 }
 

@@ -65,7 +65,7 @@ object BookToolRegistry {
             required: List<String> = emptyList(),
             handler: (JsonObject) -> ksl.server.suite.ToolReply,
         ) {
-            addTool(name, description, ToolSchema(properties, required)) { request ->
+            addTool(name, description, ToolSchema(properties = properties, required = required)) { request ->
                 val args = request.arguments ?: buildJsonObject {}
                 val start = System.currentTimeMillis()
                 var ok = false

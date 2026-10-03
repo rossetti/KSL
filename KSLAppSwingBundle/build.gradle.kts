@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
     application
 }
 
@@ -19,8 +19,8 @@ dependencies {
     // KSLAppSwingCommon hosts the shared appearance/theming, the launchKslSwingApp
     // bootstrap, and the reusable workspace/validation widgets the Workbench recomposes.
     implementation(project(":KSLAppSwingCommon"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0")
 
     // NOTE: KSLExamples / KSLTestModels are intentionally NOT test dependencies.
     // Their ServiceLoader bundle registrations would leak into BundleLoader's
@@ -28,7 +28,7 @@ dependencies {
     // example bundles in addition to the JAR under test. The tests build their own
     // fixture bundle JARs instead (see support/TestJarBuilder).
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 application {

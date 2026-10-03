@@ -7,8 +7,8 @@
 // `shadow`, no mcp-sdk. Packages renamed ksl.code.mcp -> ksl.code.search and ksl.code.gen ->
 // ksl.code.search.gen so its classes never collide with the still-shipping KSLCodeMCPServer.
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -29,13 +29,13 @@ val kslVersion = (findProperty("kslVersion") as String?) ?: "develop"
 val gen: SourceSet by sourceSets.creating
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-    implementation("org.apache.lucene:lucene-core:10.2.2")
-    implementation("org.apache.lucene:lucene-analysis-common:10.2.2")
-    implementation("org.apache.lucene:lucene-queryparser:10.2.2")
-    implementation("org.apache.lucene:lucene-queries:10.2.2")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.apache.lucene:lucene-core:10.5.1")
+    implementation("org.apache.lucene:lucene-analysis-common:10.5.1")
+    implementation("org.apache.lucene:lucene-queryparser:10.5.1")
+    implementation("org.apache.lucene:lucene-queries:10.5.1")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     // ---- build-time extractor (never shipped) ----
     // Depend on main's compiled classes ONLY (classesDirs, not the full output): the full output is
@@ -43,11 +43,11 @@ dependencies {
     // classesDirs is built by compileKotlin alone, so gen sees the shared @Serializable model.
     "genImplementation"(files(sourceSets["main"].output.classesDirs))
     "genImplementation"("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.0")
-    "genImplementation"("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-    "genImplementation"("io.github.oshai:kotlin-logging-jvm:7.0.0")
+    "genImplementation"("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    "genImplementation"("io.github.oshai:kotlin-logging-jvm:7.0.14")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // Unit-test the build-time extractor directly (compiler-embeddable stays test/gen-only).
     testImplementation(sourceSets["gen"].output)

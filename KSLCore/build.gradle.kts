@@ -21,14 +21,14 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
-    id("org.jetbrains.dokka") version "2.1.0"
-    id("com.vanniktech.maven.publish") version "0.33.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
+    id("org.jetbrains.dokka") version "2.2.0"
+    id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
 group = "io.github.rossetti"
-version = "R1.7"
+version = "R1.7.1"
 
 repositories {
 
@@ -37,31 +37,31 @@ repositories {
 
 dependencies {
 
-    api("io.github.oshai:kotlin-logging-jvm:7.0.7")  //TODO consider making implementation
-    api("org.slf4j:slf4j-api:2.0.17")  //TODO consider making implementation
+    api("io.github.oshai:kotlin-logging-jvm:7.0.14")  //TODO consider making implementation
+    api("org.slf4j:slf4j-api:2.0.20")  //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation("ch.qos.logback:logback-classic:1.5.32")
+    implementation("ch.qos.logback:logback-classic:1.6.5")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation("ch.qos.logback:logback-core:1.5.32")
+    implementation("ch.qos.logback:logback-core:1.6.5")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") //TODO fix later, 0.7.0 has code breaking changes
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.11.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3") //TODO consider making implementation
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.14.0") //TODO consider making implementation
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
-    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.5.2")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.10.1")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1") //TODO consider making implementation
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.8.2") //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
     api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2") {//TODO update when version 1.0 stabilizes
         exclude(group = "org.jetbrains.kotlinx", module = "dataframe-excel")
     }
 
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.4.20")
 
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
     api("org.hipparchus:hipparchus-core:4.0.3")
@@ -76,25 +76,25 @@ dependencies {
     implementation("org.apache.derby:derbyclient:10.17.1.0")
     implementation("org.apache.derby:derbytools:10.17.1.0")
 
-    implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.postgresql:postgresql:42.7.13")
 
-    implementation("org.xerial:sqlite-jdbc:3.50.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 
-    implementation("com.zaxxer:HikariCP:6.3.0")
+    implementation("com.zaxxer:HikariCP:7.1.0")
 
     // fastexcel — streaming xlsx writer/reader used by ExcelUtil
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel
-    implementation("org.dhatim:fastexcel:0.20.1")
+    implementation("org.dhatim:fastexcel:0.20.2")
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
-    implementation("org.dhatim:fastexcel-reader:0.20.1")
+    implementation("org.dhatim:fastexcel-reader:0.20.2")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-html-jvm
-    implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.12.0")
 
     // https://mvnrepository.com/artifact/net.peanuuutz.tomlkt/tomlkt
     // api (not implementation) so KSLApp inherits tomlkt transitively; it is also
     // used directly by non-app KSLCore code (station/supplychain TOML serialization).
-    api("net.peanuuutz.tomlkt:tomlkt:0.4.0")
+    api("net.peanuuutz.tomlkt:tomlkt:0.5.0")
 
     // --- test suite (per-module; Phase 7) ---
     // Core-domain tests use shared example models (KSLTestModels) and JUnit helpers
@@ -102,7 +102,7 @@ dependencies {
     // KSLTestModels depends on KSLCore's MAIN, which builds before KSLCore's tests.
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 }
 
@@ -149,6 +149,13 @@ val fastTest by tasks.registering(Test::class) {
 
 kotlin {
     jvmToolchain(21)
+    // KSLCore's own classes carry Kotlin 2.2 metadata. That alone does not make the artifact usable from
+    // Kotlin 2.2: the published kotlin-stdlib dependency follows the compiler (2.4.20 for R1.7.1), so
+    // consumers need Kotlin 2.3+. Pinning `kotlin { coreLibrariesVersion = ... }` would be the lever.
+    compilerOptions {
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+    }
     //TODO revisit
 //    explicitApiWarning()
 }
@@ -201,6 +208,95 @@ dokka {
             localDirectory.set(file("src/main/kotlin"))
             remoteUrl("https://github.com/rossetti/KSL/tree/main/KSLCore/src/main/kotlin")
             remoteLineSuffix.set("#L")
+        }
+    }
+}
+
+// --- Publishing the API docs to KSLDocs (release step 14) ---------------------------------------------
+//
+// https://rossetti.github.io/KSLDocs/ is GitHub Pages serving `docs/` on the main branch of a separate
+// repository, rossetti/KSLDocs, and that folder is exactly Dokka's HTML output. `publishKSLDocs` replaces
+// it with a fresh build (a sync, so pages that no longer exist are removed too) and commits the result in
+// the KSLDocs checkout as "Release <version>". It pushes only with -PpushKSLDocs=true.
+//
+//   ./gradlew publishKSLDocs                          # build, sync, commit; review and push yourself
+//   ./gradlew publishKSLDocs -PpushKSLDocs=true       # ... and push
+//   ./gradlew publishKSLDocs -PkslDocsDir=/path/to/KSLDocs   # default: KSLDocs next to this repository
+
+val kslDocsRepoDir: File = (findProperty("kslDocsDir") as String?)?.let { file(it) }
+    ?: rootDir.resolveSibling("KSLDocs")
+val pushKSLDocs: Boolean = (findProperty("pushKSLDocs") as String?)?.toBoolean() ?: false
+
+/** Runs git in [dir] and returns its trimmed output, failing the build with git's own message on error. */
+fun gitIn(dir: File, vararg args: String): String {
+    val process = ProcessBuilder(listOf("git") + args).directory(dir).redirectErrorStream(true).start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    if (process.waitFor() != 0) throw GradleException("git ${args.joinToString(" ")} failed in $dir:\n$output")
+    return output
+}
+
+// Checked before Dokka runs, so a KSLDocs checkout that cannot take the commit fails in seconds, not after
+// a full documentation build.
+val checkKSLDocsRepo by tasks.registering {
+    group = "documentation"
+    description = "Checks the KSLDocs checkout is the right repository, on main, clean and current."
+    doLast {
+        val dir = kslDocsRepoDir
+        if (!dir.resolve(".git").exists()) throw GradleException(
+            "No KSLDocs checkout at $dir. Clone https://github.com/rossetti/KSLDocs there, or pass -PkslDocsDir=<path>."
+        )
+        val remote = gitIn(dir, "remote", "get-url", "origin")
+        if (!remote.contains("rossetti/KSLDocs")) throw GradleException("$dir's origin is $remote, not rossetti/KSLDocs.")
+        val branch = gitIn(dir, "branch", "--show-current")
+        if (branch != "main") throw GradleException("KSLDocs is on '$branch'; GitHub Pages serves main. Switch to main first.")
+        val dirty = gitIn(dir, "status", "--porcelain")
+        if (dirty.isNotEmpty()) throw GradleException("KSLDocs has uncommitted changes; commit or discard them first:\n$dirty")
+        gitIn(dir, "fetch", "--quiet", "origin")
+        val behind = gitIn(dir, "rev-list", "--count", "HEAD..origin/main").toInt()
+        if (behind > 0) throw GradleException("KSLDocs is $behind commit(s) behind origin/main; pull first.")
+    }
+}
+
+tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach { mustRunAfter(checkKSLDocsRepo) }
+
+tasks.register("publishKSLDocs") {
+    group = "documentation"
+    description = "Builds KSLCore's Dokka HTML and commits it to the KSLDocs checkout (push with -PpushKSLDocs=true)."
+    dependsOn(checkKSLDocsRepo, "dokkaGenerateHtml")
+    val dokkaHtml = layout.buildDirectory.dir("dokka/html")
+    val releaseVersion = version.toString()
+    val kslDir = rootDir
+    doLast {
+        val source = dokkaHtml.get().asFile
+        if (!source.resolve("index.html").isFile) throw GradleException("No Dokka output at $source.")
+        val docs = kslDocsRepoDir.resolve("docs")
+        docs.deleteRecursively()
+        source.copyRecursively(docs)
+
+        gitIn(kslDocsRepoDir, "add", "-A", "docs")
+        if (gitIn(kslDocsRepoDir, "status", "--porcelain").isEmpty()) {
+            logger.lifecycle("publishKSLDocs: KSLDocs already matches the $releaseVersion docs; nothing to commit.")
+            return@doLast
+        }
+        val kslCommit = gitIn(kslDir, "rev-parse", "--short", "HEAD")
+        val kslBranch = gitIn(kslDir, "branch", "--show-current")
+        val kslDirty = gitIn(kslDir, "status", "--porcelain", "--", "KSLCore/src/main").isNotEmpty()
+        if (kslDirty) logger.warn("publishKSLDocs: KSLCore/src/main has uncommitted changes; the docs include them.")
+        gitIn(
+            kslDocsRepoDir, "commit", "--quiet",
+            "-m", "Release $releaseVersion",
+            "-m", "Dokka HTML for KSLCore $releaseVersion, built from KSL $kslCommit ($kslBranch)" +
+                (if (kslDirty) " with uncommitted KSLCore source changes." else ".")
+        )
+        val commit = gitIn(kslDocsRepoDir, "rev-parse", "--short", "HEAD")
+        if (pushKSLDocs) {
+            gitIn(kslDocsRepoDir, "push", "--quiet", "origin", "main")
+            logger.lifecycle("publishKSLDocs: committed $commit (Release $releaseVersion) and pushed to rossetti/KSLDocs.")
+        } else {
+            logger.lifecycle(
+                "publishKSLDocs: committed $commit (Release $releaseVersion) in $kslDocsRepoDir. " +
+                    "Review it and push, or re-run with -PpushKSLDocs=true."
+            )
         }
     }
 }

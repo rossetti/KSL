@@ -45,8 +45,8 @@
  */
 
 plugins {
-    kotlin("multiplatform") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("multiplatform") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -154,7 +154,7 @@ kotlin {
             kotlin.setIncludes(sharedSources + ownSources)
             dependencies {
                 // The platform-agnostic artifact, NOT the `-jvm` one KSLCore declares.
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             }
         }
         val commonTest by getting {

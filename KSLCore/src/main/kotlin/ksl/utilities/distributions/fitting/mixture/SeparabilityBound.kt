@@ -187,7 +187,10 @@ object SeparabilityBound {
      *  effective range per component, and the search visits on the order of a quarter of a million
      *  candidates.
      *
-     *  @param case the design case
+     *  @param label the design case's name
+     *  @param weights the true mixture's weights
+     *  @param components the true mixture's components
+     *  @param types the parameter type of each component's family
      *  @param numRefinements how many coordinate-search passes to run on the merged moments
      *  @param numPoints the quadrature resolution
      */
