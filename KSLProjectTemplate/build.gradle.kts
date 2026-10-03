@@ -5,7 +5,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
 }
 
 // ── Your bundle's identity — EDIT THESE ──────────────────────────────────────
@@ -26,7 +26,7 @@ dependencies {
 
     // next line allows use of KSL libraries within the project
     // update the release number when new releases become available
-    api("io.github.rossetti:KSLCore:R1.7")
+    api("io.github.rossetti:KSLCore:R1.7.1")
     testImplementation(kotlin("test"))
     implementation(kotlin("stdlib-jdk8"))
 }

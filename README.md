@@ -192,7 +192,7 @@ Just add:
 ```
 api("io.github.rossetti:KSLCore:R1.7.1")
 ```
-To your build for the latest release.
+To your build for the latest release. R1.7.1 needs Kotlin 2.3 or later in your project.
 
 ## Release Notes
 
@@ -209,8 +209,8 @@ bundles actually live rather than in your home directory, in every application.
 **Current library release — R1.7.1.** Corrective: fixes to Student-t sample sizes, (r, Q) under lot
 demand, `PDFModeler` scoring and benchmark databases, each of which changed results silently.
 Probability constraints can be declared indicators and tested with an exact bound. Adds the trace
-events suite 0.4.0 needs to animate vehicles. Re-run rather than compare affected results; otherwise a
-drop-in for R1.7.
+events suite 0.4.0 needs to animate vehicles. Re-run rather than compare affected results. Requires Kotlin 2.3
+or later; otherwise a drop-in for R1.7.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;

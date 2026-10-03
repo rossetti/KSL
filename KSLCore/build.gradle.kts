@@ -149,8 +149,9 @@ val fastTest by tasks.registering(Test::class) {
 
 kotlin {
     jvmToolchain(21)
-    // Compiled by a newer Kotlin, but published readable by projects still on Kotlin 2.2
-    // (KSLProjectTemplate's and an older IntelliJ's): the metadata version follows the language version.
+    // KSLCore's own classes carry Kotlin 2.2 metadata. That alone does not make the artifact usable from
+    // Kotlin 2.2: the published kotlin-stdlib dependency follows the compiler (2.4.20 for R1.7.1), so
+    // consumers need Kotlin 2.3+. Pinning `kotlin { coreLibrariesVersion = ... }` would be the lever.
     compilerOptions {
         languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
         apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)

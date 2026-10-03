@@ -391,7 +391,8 @@ None of these changes a model's results.
 
 ### Dependencies
 
-Built with Kotlin 2.4.20 at language and API version 2.2, so projects on Kotlin 2.2 or later can use it.
+Built with Kotlin 2.4.20. **Requires Kotlin 2.3 or later**: its `kotlin-stdlib` dependency is 2.4.20,
+which a Kotlin 2.2 compiler cannot read. KSLProjectTemplate now uses 2.4.20.
 Updated where KSLCore exposes them to your code (`api`): kotlin-logging 7.0.14, slf4j 2.0.20,
 kotlinx-coroutines 1.11.0, kotlinx-serialization 1.11.0, lets-plot-kotlin 4.14.0 (image-export 4.8.2),
 tomlkt 0.5.0. Internal: logback 1.6.5 and postgresql 42.7.13 (both had published vulnerabilities),
