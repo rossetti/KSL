@@ -122,8 +122,8 @@ def plot(response, x, y, width, height, label, color="#1f77b4", window=None):
             "height": height, "windowDuration": window, "color": color, "label": label}
 
 
-def rename(kind, name, shown, dy):
-    return {"kind": kind, "name": name, "text": shown, "dy": dy}
+def rename(kind, name, shown, dy, dx=0.0):
+    return {"kind": kind, "name": name, "text": shown, "dx": dx, "dy": dy}
 
 
 def hide(kind, name):
@@ -178,3 +178,142 @@ def station_row(layout, facts, place, size, gap_factor=0.5, spacing_factor=0.62)
         queue["growthDegrees"] = 180.0
         queue["spacing"] = round(size * spacing_factor, 1)
         queue["maxShown"] = facts.max_shown(queue["queueName"])
+
+
+# ── vehicle models ──────────────────────────────────────────────────────────────────────────────────
+# A guide path's geometry is the model's, not the layout's: the layout only places it, by an offset, a
+# scale and a separation per floor (`offset + scale * (x, y) + z * floorOffsetPerZ`). So framing a vehicle
+# model means translating the path into the canvas and moving everything the auto-layout placed relative to
+# it by the same amount, never re-drawing the path.
+
+# Cart hues the state rings do not use: red marks blocked and grey marks halted, so neither may be a cart.
+CART_COLORS = ["#1f77b4", "#ff7f0e", "#9467bd", "#17becf", "#bcbd22", "#e377c2", "#8c564b", "#2ca02c"]
+
+
+class PathFacts:
+    """A guide path as the model defined it, from the trace's `GuidedPathDefined` events."""
+
+    def __init__(self, atf):
+        self.paths = {}
+        for line in pathlib.Path(atf).read_text().splitlines():
+            if '"GuidedPathDefined"' in line:
+                e = json.loads(line)
+                self.paths[e["spaceName"]] = e
+
+    def box(self, space, style):
+        """The path's drawn extent under [style]: (min x, min y, max x, max y)."""
+        g = self.paths[space]
+        scale = style.get("scale", 1.0)
+        floor = style.get("floorOffsetPerZ") or {"x": 0.0, "y": 0.0}
+        ox, oy = style["offset"]["x"], style["offset"]["y"]
+        xs = [ox + scale * i["x"] + i.get("z", 0.0) * floor["x"] for i in g["intersections"]]
+        ys = [oy + scale * i["y"] + i.get("z", 0.0) * floor["y"] for i in g["intersections"]]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    def mean_zone(self, space):
+        """The mean zone length, which is what a cart's glyph should be sized against."""
+        links = self.paths[space]["links"]
+        zones = [l["length"] / max(1, l.get("numZones", 1)) for l in links if l.get("length")]
+        return sum(zones) / len(zones) if zones else 10.0
+
+
+def frame_path(layout, facts, space, left, top, scale=None):
+    """Put guide path [space]'s top-left corner at ([left], [top]) and move every placed element with it.
+
+    Returns the path's new extent. Everything the auto-layout placed against the path (its stations'
+    locations, queues beside them, movers parked on it) moves by the same translation, so it stays where it
+    was relative to the path.
+    """
+    style = next(s for s in layout["guidedPaths"] if s["spaceName"] == space)
+    if scale is not None:
+        old = style.get("scale", 1.0)
+        style["scale"] = scale
+        # The floor separation is added after scaling, so it has to be scaled with the path or the floors
+        # stay at their old distance apart while everything else grows.
+        floor = style.get("floorOffsetPerZ")
+        if floor:
+            style["floorOffsetPerZ"] = {"x": floor["x"] * scale / old, "y": floor["y"] * scale / old, "z": 0.0}
+        for section in ("locations", "resources", "queues", "stations", "storages", "movableResources"):
+            for element in layout.get(section, []):
+                p = element.get("position")
+                if p:
+                    p["x"] = round(style["offset"]["x"] + (p["x"] - style["offset"]["x"]) * scale / old, 1)
+                    p["y"] = round(style["offset"]["y"] + (p["y"] - style["offset"]["y"]) * scale / old, 1)
+    x0, y0, _, _ = facts.box(space, style)
+    dx, dy = round(left - x0, 1), round(top - y0, 1)
+    style["offset"] = {"x": round(style["offset"]["x"] + dx, 1), "y": round(style["offset"]["y"] + dy, 1), "z": 0.0}
+    shift(layout, dx, dy)
+    return facts.box(space, style)
+
+
+def style_carts(layout, size, colors=None, labels=None, loaded=None):
+    """Give each cart its own hue (never a state ring's), a size, and optionally a label."""
+    colors = colors or CART_COLORS
+    for i, cart in enumerate(sorted(layout["guidedTransporters"], key=lambda c: c["name"])):
+        cart["size"] = size
+        cart["color"] = colors[i % len(colors)]
+        cart["loadedColor"] = loaded
+        if labels is not None:
+            cart["label"] = labels.get(cart["name"], cart["name"])
+
+
+def drop_types(layout, *names):
+    """Remove object classes that are not things a reader should look for (an arrival generator, say)."""
+    layout["objectClasses"] = [c for c in layout["objectClasses"] if c["typeName"] not in names]
+
+
+def drop_queues(layout, *names):
+    layout["queues"] = [q for q in layout["queues"] if q["queueName"] not in names]
+
+
+def ring_key(x, y, size, gap=None):
+    """A key for the rings the cart glyphs carry: red is blocked, grey is halted, no ring is idle or moving."""
+    gap = gap or size * 1.6
+    return [
+        text("Red ring: blocked by another cart", x, y, size, "#d62728"),
+        text("Grey ring: halted (breakdown, battery, gate)", x, y + gap, size, "#7f7f7f"),
+    ]
+
+
+def waiting_queue(layout, facts, queue, at, zone, below=0.0):
+    """Draw [queue] at location [at], growing away from the path to the left: where its members wait.
+
+    [below] drops it by that many zones, for a second queue at the same station.
+    """
+    loc = next(l for l in layout["locations"] if l["locationName"] == at)
+    x, y = loc["position"]["x"] - zone * 0.6, loc["position"]["y"] + below * zone
+    entry = next((q for q in layout["queues"] if q["queueName"] == queue), None)
+    if entry is None:
+        entry = {"queueName": queue}
+        layout["queues"].append(entry)
+    entry.update({"position": {"x": round(x, 1), "y": round(y, 1), "z": 0.0}, "growthDegrees": 180.0,
+                  "spacing": round(zone * 0.5, 1), "maxShown": facts.max_shown(queue)})
+    return x, y
+
+
+def cart_key(layout, x, y, size, names=None, gap=None):
+    """A key naming each cart in its own colour. Carts queue nose to tail on a guide path, so labels drawn on
+    the glyphs collide exactly when the picture is most interesting; a key in the panel never does."""
+    gap = gap or size * 1.6
+    carts = sorted(layout["guidedTransporters"], key=lambda c: c["name"])
+    return [text("■ " + (names or {}).get(c["name"], c["name"]), x, y + i * gap, size, c["color"])
+            for i, c in enumerate(carts)]
+
+
+def snap_locations(layout, facts, space):
+    """Re-place every location that names one of [space]'s intersections (or one of its aliases) exactly where
+    the path now draws it. Use after changing a path's floor separation, which moves upper-floor stations by
+    an amount no translation captures."""
+    style = next(s for s in layout["guidedPaths"] if s["spaceName"] == space)
+    scale = style.get("scale", 1.0)
+    floor = style.get("floorOffsetPerZ") or {"x": 0.0, "y": 0.0}
+    where = {}
+    for i in facts.paths[space]["intersections"]:
+        point = (style["offset"]["x"] + scale * i["x"] + i.get("z", 0.0) * floor["x"],
+                 style["offset"]["y"] + scale * i["y"] + i.get("z", 0.0) * floor["y"])
+        for name in [i["name"], *i.get("aliases", [])]:
+            where[name] = point
+    for loc in layout["locations"]:
+        if loc["locationName"] in where:
+            x, y = where[loc["locationName"]]
+            loc["position"] = {"x": round(x, 1), "y": round(y, 1), "z": 0.0}

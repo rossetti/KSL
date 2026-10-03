@@ -1,15 +1,12 @@
-title = "TwoLaneWarehouse"
+title = "Two-lane warehouse"
 baseTimeUnit = null
-width = 259.2
-height = 139.2
-background = [  ]
+width = 1192.0
+height = 640.0
 paths = [  ]
 queues = [  ]
 resources = [  ]
 stations = [  ]
-bars = [  ]
 plots = [  ]
-clocks = [  ]
 spaces = [  ]
 values = [  ]
 agentStateColors = {  }
@@ -19,32 +16,284 @@ storages = [  ]
 movableResources = [  ]
 processColors = {  }
 conveyors = [  ]
-labels = [  ]
 spaceGeometry = [  ]
 
 [[objectClasses]]
 typeName = "Pallet"
-shape = "CIRCLE"
-color = "#1f77b4"
-size = 10.0
+shape = "SQUARE"
+color = "#8c564b"
+size = 12.7
 imageRef = null
 label = null
 
-[[objectClasses]]
-typeName = "Source"
-shape = "CIRCLE"
-color = "#ff7f0e"
-size = 10.0
+[[background]]
+kind = "TEXT"
+text = "Two lanes per aisle"
+color = "#333333"
+strokeWidth = 1.0
 imageRef = null
-label = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 90.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Each aisle is a pair of one-way lanes, drawn side"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 120.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "by side, so carts going opposite ways pass instead"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 140.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "of waiting for each other. Pallets go from the three"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 160.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "pick faces to the dock; idle carts park on spurs"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 180.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "so they are out of the traffic."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 1"
+color = "#1f77b4"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 240.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 2"
+color = "#ff7f0e"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 262.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 3"
+color = "#9467bd"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 284.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 4"
+color = "#17becf"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 307.2
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 340.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 832.0
+y = 360.8
+z = 0.0
+
+[[bars]]
+responseName = "Fleet:NumVehiclesOnTask"
+width = 220.0
+height = 18.0
+maxValue = 4.0
+color = "#555555"
+label = "Carts on a task"
+
+[bars.position]
+x = 832.0
+y = 445.0
+z = 0.0
+
+[[bars]]
+responseName = "Fleet:AwaitingPickupHoldQ:NumInQ"
+width = 220.0
+height = 18.0
+maxValue = 5.0
+color = "#8c564b"
+label = "Pallets waiting at the picks"
+
+[bars.position]
+x = 832.0
+y = 495.0
+z = 0.0
+
+[[bars]]
+responseName = "Fleet:Space:NumTransportersBlocked"
+width = 220.0
+height = 18.0
+maxValue = 4.0
+color = "#d62728"
+label = "Carts blocked"
+
+[bars.position]
+x = 832.0
+y = 545.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 832.0
+y = 400.0
+z = 0.0
+
+[[labels]]
+kind = "LOCATION"
+name = "Pick0"
+text = "Pick 1"
+dx = 0.0
+dy = 26.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Pick1"
+text = "Pick 2"
+dx = 0.0
+dy = 26.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Pick2"
+text = "Pick 3"
+dx = 0.0
+dy = 26.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Dock"
+text = "Dock"
+dx = -30.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
 
 [[locations]]
 locationName = "Pick0"
 label = "Pick0"
 
 [locations.position]
-x = 0.0
-y = 120.0
+x = 70.0
+y = 444.0
 z = 0.0
 
 [[locations]]
@@ -52,8 +301,8 @@ locationName = "Pick1"
 label = "Pick1"
 
 [locations.position]
-x = 40.0
-y = 120.0
+x = 182.0
+y = 444.0
 z = 0.0
 
 [[locations]]
@@ -61,8 +310,8 @@ locationName = "Pick2"
 label = "Pick2"
 
 [locations.position]
-x = 80.0
-y = 120.0
+x = 294.0
+y = 444.0
 z = 0.0
 
 [[locations]]
@@ -70,30 +319,30 @@ locationName = "Dock"
 label = "Dock"
 
 [locations.position]
-x = 0.0
-y = -10.0
+x = 70.0
+y = 80.0
 z = 0.0
 
 [[guidedPaths]]
 spaceName = "Fleet:Space"
-scale = 1.0
+scale = 2.8
 floorOffsetPerZ = null
 linkColor = "#7f7f7f"
-linkWidth = 2.0
+linkWidth = 2.5
 showZones = true
 showIntersections = true
 closureColor = "#d62728"
 label = null
 
 [guidedPaths.offset]
-x = 0.0
-y = 0.0
+x = 70.0
+y = 108.0
 z = 0.0
 
 [[guidedTransporters]]
 name = "Cart1:Body"
 shape = "SQUARE"
-size = 8.125
+size = 22.9
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null
@@ -104,8 +353,8 @@ label = null
 [[guidedTransporters]]
 name = "Cart2:Body"
 shape = "SQUARE"
-size = 8.125
-color = "#1f77b4"
+size = 22.9
+color = "#ff7f0e"
 loadedColor = null
 blockedColor = null
 haltedColor = null
@@ -115,8 +364,8 @@ label = null
 [[guidedTransporters]]
 name = "Cart3:Body"
 shape = "SQUARE"
-size = 8.125
-color = "#1f77b4"
+size = 22.9
+color = "#9467bd"
 loadedColor = null
 blockedColor = null
 haltedColor = null
@@ -126,8 +375,8 @@ label = null
 [[guidedTransporters]]
 name = "Cart4:Body"
 shape = "SQUARE"
-size = 8.125
-color = "#1f77b4"
+size = 22.9
+color = "#17becf"
 loadedColor = null
 blockedColor = null
 haltedColor = null

@@ -253,6 +253,20 @@ tasks.register<JavaExec>("publishAnimationLayouts") {
     systemProperty("out", rootDir.resolve("docs/animations/layouts").path)
 }
 
+// The same for the vehicle examples bundle, whose layouts come from docs/animations/polish-<model>.py too.
+// Usage: ./gradlew :KSLExamples:publishVehicleLayouts
+tasks.register<JavaExec>("publishVehicleLayouts") {
+    group = "documentation"
+    description = "Publish the polished vehicle layouts as .lay.toml, keyed by bundle and model id."
+    dependsOn("vehicleExamplesBundleJar", "classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("ksl.examples.general.animationbundle.showcase.LayoutPublisherKt")
+    workingDir = rootDir
+    systemProperty("bundleJar", layout.buildDirectory.file("libs/vehicle-examples.jar").get().asFile.path)
+    systemProperty("polished", rootDir.resolve("build/showcase/polished").path)
+    systemProperty("out", rootDir.resolve("docs/animations/layouts").path)
+}
+
 // Build the downloadable animation pack: one playable page per bundled model, plus an index. Ships as
 // its own release asset, not inside the suite, so the install stays lean and the animations are opt-in.
 // Needs the browser player, which lives in the standalone KSLAnimationCore build:

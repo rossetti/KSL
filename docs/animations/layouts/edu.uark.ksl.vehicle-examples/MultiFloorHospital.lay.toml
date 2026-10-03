@@ -1,15 +1,12 @@
-title = "MultiFloorHospital"
+title = "Two-floor hospital"
 baseTimeUnit = null
-width = 131.10350819325745
-height = 57.38947258483123
-background = [  ]
+width = 1215.2
+height = 640.0
 paths = [  ]
 queues = [  ]
 resources = [  ]
 stations = [  ]
-bars = [  ]
 plots = [  ]
-clocks = [  ]
 spaces = [  ]
 values = [  ]
 agentStateColors = {  }
@@ -19,24 +16,417 @@ storages = [  ]
 movableResources = [  ]
 processColors = {  }
 conveyors = [  ]
-labels = [  ]
 spaceGeometry = [  ]
 
 [[objectClasses]]
 typeName = "Order"
 shape = "CIRCLE"
-color = "#1f77b4"
-size = 10.0
+color = "#2ca02c"
+size = 12.0
 imageRef = null
 label = null
+
+[[background]]
+kind = "TEXT"
+text = "First floor"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 20.0
+y = 85.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Ground floor"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 20.0
+y = 325.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Shaft down"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 75.02459033712734
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Shaft up"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 737.2
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Porters between two floors"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 90.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Porters carry orders between the lobby, a ward and"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 120.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "a pharmacy upstairs. Each shaft is a single zone, so"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 140.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "one porter at a time can use it; the queue for the"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 160.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "upper floor forms at the foot of the shaft, not at"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 180.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "the pharmacy. Idle porters park in the bays below"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "the lobby."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 220.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Porter 1"
+color = "#1f77b4"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 260.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Porter 2"
+color = "#ff7f0e"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 282.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Porter 3"
+color = "#9467bd"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 304.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 340.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 835.2
+y = 360.8
+z = 0.0
+
+[[bars]]
+responseName = "Agv:NumVehiclesOnTask"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#555555"
+label = "Porters on a task"
+
+[bars.position]
+x = 835.2
+y = 445.0
+z = 0.0
+
+[[bars]]
+responseName = "Agv:AwaitingPickupHoldQ:NumInQ"
+width = 220.0
+height = 18.0
+maxValue = 5.0
+color = "#2ca02c"
+label = "Orders waiting for a porter"
+
+[bars.position]
+x = 835.2
+y = 495.0
+z = 0.0
+
+[[bars]]
+responseName = "Agv:Space:NumTransportersBlocked"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#d62728"
+label = "Porters blocked"
+
+[bars.position]
+x = 835.2
+y = 545.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 835.2
+y = 400.0
+z = 0.0
+
+[[labels]]
+kind = "LOCATION"
+name = "Park1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park4"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park5"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park6"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park7"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park8"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Lobby"
+text = "Lobby"
+dx = -40.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "WardA"
+text = "Ward"
+dx = 0.0
+dy = 28.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Pharmacy"
+text = "Pharmacy"
+dx = 0.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
 
 [[locations]]
 locationName = "Lobby"
 label = "Lobby"
 
 [locations.position]
-x = 0.0
-y = 26.58980933132962
+x = 245.2
+y = 320.0
 z = 0.0
 
 [[locations]]
@@ -44,8 +434,8 @@ locationName = "WardA"
 label = "WardA"
 
 [locations.position]
-x = 60.0
-y = 26.58980933132962
+x = 485.2
+y = 320.0
 z = 0.0
 
 [[locations]]
@@ -53,8 +443,8 @@ locationName = "Pharmacy"
 label = "Pharmacy"
 
 [locations.position]
-x = 60.0
-y = 0.0
+x = 485.2
+y = 80.0
 z = 0.0
 
 [[locations]]
@@ -62,8 +452,8 @@ locationName = "Park1"
 label = "Park1"
 
 [locations.position]
-x = 18.79385241571817
-y = 33.43021219784299
+x = 320.4
+y = 347.4
 z = 0.0
 
 [[locations]]
@@ -71,8 +461,8 @@ locationName = "Park2"
 label = "Park2"
 
 [locations.position]
-x = 15.32088886237956
-y = 39.445561525060405
+x = 306.5
+y = 371.4
 z = 0.0
 
 [[locations]]
@@ -80,8 +470,8 @@ locationName = "Park3"
 label = "Park3"
 
 [locations.position]
-x = 10.000000000000002
-y = 43.91031740701839
+x = 285.2
+y = 389.3
 z = 0.0
 
 [[locations]]
@@ -89,8 +479,8 @@ locationName = "Park4"
 label = "Park4"
 
 [locations.position]
-x = 3.4729635533386083
-y = 46.28596439157378
+x = 259.1
+y = 398.8
 z = 0.0
 
 [[locations]]
@@ -98,8 +488,8 @@ locationName = "Park5"
 label = "Park5"
 
 [locations.position]
-x = -3.472963553338606
-y = 46.28596439157378
+x = 231.3
+y = 398.8
 z = 0.0
 
 [[locations]]
@@ -107,8 +497,8 @@ locationName = "Park6"
 label = "Park6"
 
 [locations.position]
-x = -9.999999999999996
-y = 43.9103174070184
+x = 205.2
+y = 389.3
 z = 0.0
 
 [[locations]]
@@ -116,8 +506,8 @@ locationName = "Park7"
 label = "Park7"
 
 [locations.position]
-x = -15.320888862379558
-y = 39.44556152506041
+x = 183.9
+y = 371.4
 z = 0.0
 
 [[locations]]
@@ -125,34 +515,34 @@ locationName = "Park8"
 label = "Park8"
 
 [locations.position]
-x = -18.793852415718167
-y = 33.430212197843
+x = 170.0
+y = 347.4
 z = 0.0
 
 [[guidedPaths]]
 spaceName = "Agv:Space"
-scale = 1.0
+scale = 4.0
 linkColor = "#7f7f7f"
-linkWidth = 2.0
+linkWidth = 3.0
 showZones = true
 showIntersections = true
 closureColor = "#d62728"
 label = null
 
 [guidedPaths.offset]
-x = 0.0
-y = 26.58980933132962
+x = 245.2
+y = 320.0
 z = 0.0
 
 [guidedPaths.floorOffsetPerZ]
 x = 0.0
-y = -0.3323726166416202
+y = -3.0
 z = 0.0
 
 [[guidedTransporters]]
 name = "Porter1:Body"
 shape = "SQUARE"
-size = 2.892872774473361
+size = 20.0
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null
@@ -163,8 +553,8 @@ label = null
 [[guidedTransporters]]
 name = "Porter2:Body"
 shape = "SQUARE"
-size = 2.892872774473361
-color = "#1f77b4"
+size = 20.0
+color = "#ff7f0e"
 loadedColor = null
 blockedColor = null
 haltedColor = null
@@ -174,8 +564,8 @@ label = null
 [[guidedTransporters]]
 name = "Porter3:Body"
 shape = "SQUARE"
-size = 2.892872774473361
-color = "#1f77b4"
+size = 20.0
+color = "#9467bd"
 loadedColor = null
 blockedColor = null
 haltedColor = null

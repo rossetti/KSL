@@ -1,13 +1,10 @@
-title = "TestAndRepairShopWithGuidedTransporters"
+title = "Test and repair shop"
 baseTimeUnit = null
-width = 112.075
-height = 5.2
-background = [  ]
+width = 1180.0
+height = 753.0
 paths = [  ]
 stations = [  ]
-bars = [  ]
 plots = [  ]
-clocks = [  ]
 spaces = [  ]
 values = [  ]
 agentStateColors = {  }
@@ -17,88 +14,258 @@ storages = [  ]
 movableResources = [  ]
 processColors = {  }
 conveyors = [  ]
-labels = [  ]
 spaceGeometry = [  ]
 
 [[objectClasses]]
 typeName = "Part"
 shape = "CIRCLE"
-color = "#1f77b4"
-size = 10.0
+color = "#ff7f0e"
+size = 14.0
 imageRef = null
 label = null
+
+[[background]]
+kind = "TEXT"
+text = "Test and repair, carried by hand"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 110.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "The textbook shop, with workers carrying parts along"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 140.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "a one-way aisle: diagnostics, three test stations,"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 160.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "repair, and back. A worker can be held up by the"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 180.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "worker in front of it, which the movable-resource"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "version of this shop cannot show. Idle workers park"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 220.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "on the spurs beside diagnostics."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 240.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Worker 1"
+color = "#1f77b4"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 280.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Worker 2"
+color = "#9467bd"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 302.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Worker 3"
+color = "#17becf"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 324.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 360.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 380.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Station cells: dark green busy, light green idle."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 800.0
+y = 400.0
+z = 0.0
 
 [[queues]]
 queueName = "DiagnosticWorkers:Q"
 growthDegrees = 180.0
-spacing = 2.84375
+spacing = 13.2
 maxShown = 7
 
 [queues.position]
-x = 93.3875
-y = -59.8
+x = 224.8
+y = 653.0
 z = 0.0
 
 [[queues]]
 queueName = "RepairWorkers:Q"
 growthDegrees = 180.0
-spacing = 2.84375
-maxShown = 3
+spacing = 13.2
+maxShown = 4
 
 [queues.position]
-x = 91.35625
-y = -52.4875
+x = 388.8
+y = 102.0
 z = 0.0
 
 [[queues]]
 queueName = "Test1:Q"
 growthDegrees = 180.0
-spacing = 2.84375
+spacing = 13.2
 maxShown = 3
 
 [queues.position]
-x = 95.41875
-y = -45.175
+x = 515.8
+y = 653.0
 z = 0.0
 
 [[queues]]
 queueName = "Test2:Q"
-growthDegrees = 180.0
-spacing = 2.84375
-maxShown = 5
+growthDegrees = 90.0
+spacing = 13.2
+maxShown = 7
 
 [queues.position]
-x = 95.41875
-y = -37.8625
+x = 668.0
+y = 624.8
 z = 0.0
 
 [[queues]]
 queueName = "Test3:Q"
-growthDegrees = 180.0
-spacing = 2.84375
+growthDegrees = 270.0
+spacing = 13.2
 maxShown = 5
 
 [queues.position]
-x = 95.41875
-y = -30.549999999999997
-z = 0.0
-
-[[queues]]
-queueName = "TransportWorkerPool:Q"
-growthDegrees = 180.0
-spacing = 2.84375
-maxShown = 3
-
-[queues.position]
-x = 87.7
-y = -23.237499999999997
+x = 668.0
+y = 130.2
 z = 0.0
 
 [[resources]]
 resourceName = "DiagnosticWorkers"
-size = 4.0625
-idleColor = "#2ca02c"
-busyColor = "#d62728"
+size = 22.0
+idleColor = "#c7e9c0"
+busyColor = "#31a354"
 failedColor = "#7f7f7f"
 inactiveColor = "#cccccc"
 idleImage = null
@@ -108,15 +275,15 @@ inactiveImage = null
 showValue = false
 
 [resources.position]
-x = 99.8875
-y = -59.8
+x = 260.0
+y = 653.0
 z = 0.0
 
 [[resources]]
 resourceName = "RepairWorkers"
-size = 4.0625
-idleColor = "#2ca02c"
-busyColor = "#d62728"
+size = 22.0
+idleColor = "#c7e9c0"
+busyColor = "#31a354"
 failedColor = "#7f7f7f"
 inactiveColor = "#cccccc"
 idleImage = null
@@ -126,15 +293,15 @@ inactiveImage = null
 showValue = false
 
 [resources.position]
-x = 99.8875
-y = -52.4875
+x = 435.0
+y = 102.0
 z = 0.0
 
 [[resources]]
 resourceName = "Test1"
-size = 4.0625
-idleColor = "#2ca02c"
-busyColor = "#d62728"
+size = 22.0
+idleColor = "#c7e9c0"
+busyColor = "#31a354"
 failedColor = "#7f7f7f"
 inactiveColor = "#cccccc"
 idleImage = null
@@ -144,15 +311,15 @@ inactiveImage = null
 showValue = false
 
 [resources.position]
-x = 99.8875
-y = -45.175
+x = 540.0
+y = 653.0
 z = 0.0
 
 [[resources]]
 resourceName = "Test2"
-size = 4.0625
-idleColor = "#2ca02c"
-busyColor = "#d62728"
+size = 22.0
+idleColor = "#c7e9c0"
+busyColor = "#31a354"
 failedColor = "#7f7f7f"
 inactiveColor = "#cccccc"
 idleImage = null
@@ -162,15 +329,15 @@ inactiveImage = null
 showValue = false
 
 [resources.position]
-x = 99.8875
-y = -37.8625
+x = 668.0
+y = 605.0
 z = 0.0
 
 [[resources]]
 resourceName = "Test3"
-size = 4.0625
-idleColor = "#2ca02c"
-busyColor = "#d62728"
+size = 22.0
+idleColor = "#c7e9c0"
+busyColor = "#31a354"
 failedColor = "#7f7f7f"
 inactiveColor = "#cccccc"
 idleImage = null
@@ -180,17 +347,264 @@ inactiveImage = null
 showValue = false
 
 [resources.position]
-x = 99.8875
-y = -30.549999999999997
+x = 668.0
+y = 150.0
 z = 0.0
+
+[[bars]]
+responseName = "ShopTransport:NumTransportersBlocked"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#d62728"
+label = "Workers blocked"
+
+[bars.position]
+x = 800.0
+y = 495.0
+z = 0.0
+
+[[bars]]
+responseName = "TransportWorkerPool:Q:NumInQ"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#ff7f0e"
+label = "Parts waiting for a worker"
+
+[bars.position]
+x = 800.0
+y = 545.0
+z = 0.0
+
+[[bars]]
+responseName = "NumInSystem"
+width = 220.0
+height = 18.0
+maxValue = 18.0
+color = "#555555"
+label = "Parts in the shop"
+
+[bars.position]
+x = 800.0
+y = 595.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 800.0
+y = 450.0
+z = 0.0
+
+[[labels]]
+kind = "RESOURCE"
+name = "DiagnosticWorkers"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "Test3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "RESOURCE"
+name = "RepairWorkers"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "DiagnosticWorkers:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -8.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test1:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -8.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test2:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -8.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Test3:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -8.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "RepairWorkers:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -8.0
+valueDy = 22.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "DiagnosticStation"
+text = "Diagnostics"
+dx = -72.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "TestStation1"
+text = "Test 1"
+dx = 0.0
+dy = -14.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "TestStation2"
+text = "Test 2"
+dx = 10.0
+dy = -14.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "TestStation3"
+text = "Test 3"
+dx = 10.0
+dy = -14.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "RepairStation"
+text = "Repair"
+dx = 0.0
+dy = -14.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park1"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park2"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Park3"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
 
 [[locations]]
 locationName = "DiagnosticStation"
 label = "DiagnosticStation"
 
 [locations.position]
-x = 0.0
-y = 0.0
+x = 260.0
+y = 605.0
 z = 0.0
 
 [[locations]]
@@ -198,8 +612,8 @@ locationName = "TestStation1"
 label = "TestStation1"
 
 [locations.position]
-x = 40.0
-y = 0.0
+x = 540.0
+y = 605.0
 z = 0.0
 
 [[locations]]
@@ -207,8 +621,8 @@ locationName = "TestStation2"
 label = "TestStation2"
 
 [locations.position]
-x = 50.0
-y = 0.0
+x = 610.0
+y = 605.0
 z = 0.0
 
 [[locations]]
@@ -216,8 +630,8 @@ locationName = "TestStation3"
 label = "TestStation3"
 
 [locations.position]
-x = 50.0
-y = -65.0
+x = 610.0
+y = 150.0
 z = 0.0
 
 [[locations]]
@@ -225,30 +639,30 @@ locationName = "RepairStation"
 label = "RepairStation"
 
 [locations.position]
-x = 25.0
-y = -65.0
+x = 435.0
+y = 150.0
 z = 0.0
 
 [[guidedPaths]]
 spaceName = "ShopTransport"
-scale = 1.0
+scale = 7.0
 floorOffsetPerZ = null
 linkColor = "#7f7f7f"
-linkWidth = 2.0
+linkWidth = 3.0
 showZones = true
 showIntersections = true
 closureColor = "#d62728"
 label = null
 
 [guidedPaths.offset]
-x = 0.0
-y = 0.0
+x = 260.0
+y = 605.0
 z = 0.0
 
 [[guidedTransporters]]
 name = "Worker1"
 shape = "SQUARE"
-size = 4.0625
+size = 24.5
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null
@@ -259,8 +673,8 @@ label = null
 [[guidedTransporters]]
 name = "Worker2"
 shape = "SQUARE"
-size = 4.0625
-color = "#1f77b4"
+size = 24.5
+color = "#9467bd"
 loadedColor = null
 blockedColor = null
 haltedColor = null
@@ -270,8 +684,8 @@ label = null
 [[guidedTransporters]]
 name = "Worker3"
 shape = "SQUARE"
-size = 4.0625
-color = "#1f77b4"
+size = 24.5
+color = "#17becf"
 loadedColor = null
 blockedColor = null
 haltedColor = null

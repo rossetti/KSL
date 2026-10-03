@@ -1,15 +1,11 @@
-title = "ActiveFleetShop"
+title = "Active fleet shop"
 baseTimeUnit = null
-width = 62.64
-height = 80.64
-background = [  ]
+width = 916.0
+height = 592.0
 paths = [  ]
-queues = [  ]
 resources = [  ]
 stations = [  ]
-bars = [  ]
 plots = [  ]
-clocks = [  ]
 spaces = [  ]
 values = [  ]
 agentStateColors = {  }
@@ -19,32 +15,226 @@ storages = [  ]
 movableResources = [  ]
 processColors = {  }
 conveyors = [  ]
-labels = [  ]
 spaceGeometry = [  ]
 
 [[objectClasses]]
 typeName = "Part"
 shape = "CIRCLE"
-color = "#1f77b4"
-size = 10.0
+color = "#2ca02c"
+size = 13.2
 imageRef = null
 label = null
 
-[[objectClasses]]
-typeName = "Source"
-shape = "CIRCLE"
-color = "#ff7f0e"
-size = 10.0
+[[background]]
+kind = "TEXT"
+text = "Active: the dispatcher decides"
+color = "#333333"
+strokeWidth = 1.0
 imageRef = null
-label = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 80.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Each part posts a task and waits to be collected."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 110.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A dispatcher commits the cart to a task, and the cart"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 130.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "carries it out. Turn on Show assignments to see each"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 150.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "commitment as a line to the cart's next stop."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 170.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Waiting to be collected"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 13.599999999999994
+y = 474.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 220.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 240.8
+z = 0.0
+
+[[queues]]
+queueName = "Agv:AwaitingPickupHoldQ"
+growthDegrees = 180.0
+spacing = 22.0
+maxShown = 6
+
+[queues.position]
+x = 163.6
+y = 502.0
+z = 0.0
+
+[[bars]]
+responseName = "Agv:NumVehiclesOnTask"
+width = 220.0
+height = 18.0
+maxValue = 1.0
+color = "#555555"
+label = "Cart on a task"
+
+[bars.position]
+x = 556.0
+y = 330.0
+z = 0.0
+
+[[bars]]
+responseName = "Agv:Dispatcher:TaskQ:NumInQ"
+width = 220.0
+height = 18.0
+maxValue = 4.0
+color = "#2ca02c"
+label = "Tasks not yet assigned"
+
+[bars.position]
+x = 556.0
+y = 380.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 556.0
+y = 285.0
+z = 0.0
+
+[[labels]]
+kind = "QUEUE"
+name = "Agv:AwaitingPickupHoldQ"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -10.0
+valueDy = 26.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "EntryStation"
+text = "Entry"
+dx = 0.0
+dy = 30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "ExitStation"
+text = "Exit"
+dx = -34.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "CartDepot"
+text = "Depot"
+dx = 30.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
 
 [[locations]]
 locationName = "EntryStation"
 label = "EntryStation"
 
 [locations.position]
-x = 0.0
-y = 72.0
+x = 190.0
+y = 502.0
 z = 0.0
 
 [[locations]]
@@ -52,8 +242,8 @@ locationName = "ExitStation"
 label = "ExitStation"
 
 [locations.position]
-x = 0.0
-y = -36.0
+x = 190.0
+y = 70.0
 z = 0.0
 
 [[locations]]
@@ -61,30 +251,30 @@ locationName = "CartDepot"
 label = "CartDepot"
 
 [locations.position]
-x = 54.0
-y = 72.0
+x = 406.0
+y = 502.0
 z = 0.0
 
 [[guidedPaths]]
 spaceName = "Agv:Space"
-scale = 1.0
+scale = 4.0
 floorOffsetPerZ = null
 linkColor = "#7f7f7f"
-linkWidth = 2.0
+linkWidth = 3.0
 showZones = true
 showIntersections = true
 closureColor = "#d62728"
 label = null
 
 [guidedPaths.offset]
-x = 0.0
-y = 0.0
+x = 190.0
+y = 214.0
 z = 0.0
 
 [[guidedTransporters]]
 name = "Cart:Body"
 shape = "SQUARE"
-size = 6.75
+size = 24.2
 color = "#1f77b4"
 loadedColor = null
 blockedColor = null

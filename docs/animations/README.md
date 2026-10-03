@@ -1,7 +1,7 @@
 # Showcase animation layouts
 
-The polished animation layouts that **ship with the KSL suite** — one for every model the animation bundle
-carries — and the scripts that produce them. Also the source of the gallery in the
+The polished animation layouts that **ship with the KSL suite** — one for every model the animation and
+vehicle examples bundles carry — and the scripts that produce them. Also the source of the gallery in the
 [Animation app guide](../guides/apps/animation.md).
 
 **[How to polish one →](polishing-playbook.md)** — the defect catalogue, in fix order, for both the
@@ -24,7 +24,8 @@ is a path lookup rather than a search.
 They ship as **TOML**, because `.lay.toml` is what the app writes when a student saves a layout: ours and
 theirs should be the same kind of file, and it is the one worth opening in an editor. The polish scripts
 write JSON into `build/showcase/polished/` and
-`./gradlew :KSLExamples:publishAnimationLayouts` converts it through the app's own codec, so the shipped
+`./gradlew :KSLExamples:publishAnimationLayouts` (or `publishVehicleLayouts` for the vehicle bundle)
+converts it through the app's own codec, so the shipped
 form cannot drift from what the app reads. The bundle's manifest decides which models need one, so a model
 added to the bundle fails that step until it has a layout.
 
