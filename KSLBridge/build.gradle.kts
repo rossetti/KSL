@@ -36,7 +36,8 @@ dependencies {
 application {
     mainClass.set("ksl.bridge.MainKt")
     // stdout is the MCP stdio channel; logging must go to stderr only.
-    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=logback-ksl-bridge.xml")
+    // MCP SDK 0.15 brings kotlin-logging 8, which prints a startup banner to stdout unless told not to.
+    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=logback-ksl-bridge.xml", "-Dkotlin-logging.logStartupMessage=false")
 }
 
 tasks.test { useJUnitPlatform() }

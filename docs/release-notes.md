@@ -24,6 +24,19 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.4.1 — a clean channel for MCP clients
+
+*3 October 2026.* KSLCore is untouched by this release.
+
+**The stdio bridge printed a line that was not protocol.** In 0.4.0 the bridge that Claude Desktop and
+other stdio MCP clients launch wrote `kotlin-logging: initializing...` to stdout before its first reply,
+and stdout is the protocol channel, so a client read a malformed message at the start of every session.
+0.4.0's MCP SDK update brought in a newer kotlin-logging, which prints that banner unless told not to.
+The bridge and the servers now tell it not to, and a bridge started with plain `java -jar` also keeps
+its own log lines off stdout.
+
+**Upgrading:** `ksl update`, or re-run the installer. Nothing in your assistant's configuration changes.
+
 ## 0.4.0 — vehicles you can watch
 
 *3 October 2026.* Built on KSLCore **R1.7.1**, the first suite release on the R1.7 line: it brings

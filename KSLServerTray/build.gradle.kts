@@ -40,6 +40,7 @@ application {
     applicationDefaultJvmArgs = listOf(
         "-Dapple.awt.UIElement=true",
         "-Dlogback.configurationFile=logback-ksl-server.xml",
+        "-Dkotlin-logging.logStartupMessage=false", // kotlin-logging 8 (via MCP SDK 0.15) prints a startup banner otherwise
     )
 }
 

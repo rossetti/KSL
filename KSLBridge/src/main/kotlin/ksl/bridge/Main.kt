@@ -31,6 +31,18 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlin.system.exitProcess
 
+// stdout is the MCP channel, so logging must be configured before the logger below exists: making it is
+// what starts logback and kotlin-logging, and top-level initializers run in the order they are written (so
+// setting these in main() is too late). The launcher passes both on the command line; this covers
+// `java -jar` too. Without the first, logback falls back to a configuration that logs to stdout; without
+// the second, kotlin-logging 8 prints "kotlin-logging: initializing..." there.
+private val quietLogging = run {
+    if (System.getProperty("logback.configurationFile") == null) {
+        System.setProperty("logback.configurationFile", "logback-ksl-bridge.xml")
+    }
+    System.setProperty("kotlin-logging.logStartupMessage", "false")
+}
+
 private val logger = KotlinLogging.logger {}
 
 private const val DEFAULT_URL = "http://127.0.0.1:3001/"
@@ -48,9 +60,6 @@ private const val DEFAULT_URL = "http://127.0.0.1:3001/"
  * stderr (logback-ksl-bridge.xml).
  */
 fun main(args: Array<String>) {
-    if (System.getProperty("logback.configurationFile") == null) {
-        System.setProperty("logback.configurationFile", "logback-ksl-bridge.xml")
-    }
     val url = resolveUrl(args)
     logger.info { "ksl-bridge starting: stdio <-> $url" }
 
