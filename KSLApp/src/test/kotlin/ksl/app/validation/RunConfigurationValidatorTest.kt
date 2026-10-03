@@ -147,6 +147,15 @@ class RunConfigurationValidatorTest {
                 "NUMERIC_CONTROL_VALUE_OUT_OF_BOUNDS"
             )
         )
+
+        // The warning must name the value the run will actually use. "Will be clamped" leaves the
+        // reader to work out to what, and a reader who skips the warning then reads a result computed
+        // at a setting they did not ask for, with nothing saying so.
+        val warning = result.warnings.single { it.code == "NUMERIC_CONTROL_VALUE_OUT_OF_BOUNDS" }
+        assertTrue(
+            "clamp it to" in warning.message && "the run will use" in warning.message,
+            "the warning must state the effective value: ${warning.message}"
+        )
     }
 
     @Test

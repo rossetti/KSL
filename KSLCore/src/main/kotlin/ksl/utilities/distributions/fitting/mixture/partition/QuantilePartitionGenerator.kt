@@ -32,6 +32,9 @@ import ksl.utilities.distributions.fitting.mixture.DataPartition
  *  Cuts are snapped to admissible positions and then repaired left to right so that every group
  *  meets the size and distinct-value requirements. When the requirements cannot be met, null is
  *  returned rather than a partition that the caller would have to validate.
+ *
+ *  Because it cuts by rank it is scale-free: the partition of a sample and of its logarithms is the
+ *  same. See the scale note on `PartitionGeneratorIfc`.
  */
 class QuantilePartitionGenerator : PartitionGeneratorIfc {
 

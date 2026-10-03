@@ -127,8 +127,8 @@ class GuidedPathNetwork private constructor(
         }
 
     /**
-     * The intersections and their station aliases, so that the animation layer can discover the
-     * addressable places before a run begins.
+     * The intersections, so that the animation layer can discover the addressable places before a
+     * run begins. Station aliases are not included; see `stationAliases`.
      */
     override val namedLocations: List<LocationIfc>
         get() = myIntersections.toList()
@@ -491,10 +491,23 @@ class GuidedPathNetwork private constructor(
         aName: String,
         val length: Double,
         val velocityFactor: Double,
-        override val x: Double,
-        override val y: Double,
-        override val z: Double
+        x: Double,
+        y: Double,
+        z: Double
     ) : AbstractLocation(aName) {
+
+        /**
+         * Layout coordinates. Given by the modeller, or, when no intersection of the network has any,
+         * laid out from the link lengths when the network is built. They affect nothing but drawing.
+         */
+        override var x: Double = x
+            internal set
+
+        override var y: Double = y
+            internal set
+
+        override var z: Double = z
+            internal set
 
         override val spatialModel: SpatialModel = this@GuidedPathNetwork
 
@@ -556,15 +569,19 @@ class GuidedPathNetwork private constructor(
         return i
     }
 
+    // Intersections created on first mention by a link, which a later intersection() call may give
+    // coordinates to.
+    private val myImplicitIntersections = HashSet<String>()
+
     private fun addLink(data: LinkData) {
         requireNotBuilt()
         if (myLinksByName.containsKey(data.name)) {
             throw GuidedPathNetworkException.duplicateName("link", data.name)
         }
         val begin = myIntersectionsByName[data.fromIntersection]
-            ?: addIntersection(IntersectionData(data.fromIntersection))
+            ?: addIntersection(IntersectionData(data.fromIntersection)).also { myImplicitIntersections += it.name }
         val end = myIntersectionsByName[data.toIntersection]
-            ?: addIntersection(IntersectionData(data.toIntersection))
+            ?: addIntersection(IntersectionData(data.toIntersection)).also { myImplicitIntersections += it.name }
         if (begin === end) {
             throw GuidedPathNetworkException.selfLoop(data.name, begin.name)
         }
@@ -599,6 +616,47 @@ class GuidedPathNetwork private constructor(
      * Completes construction: checks what could not be checked link by link, computes the distance
      * matrix, and freezes the network.
      */
+    /**
+     * Gives every intersection layout coordinates when none has any, and refuses a network in which
+     * some do and some do not.
+     *
+     * Coordinates only affect drawing, but a guide path with none cannot be drawn at all. When none
+     * are given, the intersections are placed by classical multidimensional scaling of the shortest
+     * path distances over the links, taken as undirected and weighted by length, so the picture's
+     * distances follow travel distances, in the link-length units. Signs are fixed so the first
+     * intersection has non-negative coordinates, which makes the result the same on every run. A
+     * network with only some coordinates is refused rather than half laid out, naming what to add.
+     */
+    private fun layOutIfCoordinateFree() {
+        val given = myIntersections.filter { it.x.isFinite() && it.y.isFinite() }
+        if (given.size == myIntersections.size) return
+        if (given.isNotEmpty()) {
+            val missing = myIntersections.filterNot { it.x.isFinite() && it.y.isFinite() }.map { it.name }
+            throw GuidedPathNetworkException(
+                "Network ($name): some intersections have layout coordinates and some do not ($missing). " +
+                        "Give every intersection x and y, or none, in which case the network is laid out " +
+                        "from its link lengths."
+            )
+        }
+        val n = myIntersections.size
+        val dist = Array(n) { i -> DoubleArray(n) { j -> if (i == j) 0.0 else Double.POSITIVE_INFINITY } }
+        for (link in myLinks) {
+            val i = link.beginIntersection.index
+            val j = link.endIntersection.index
+            if (link.length < dist[i][j]) {
+                dist[i][j] = link.length
+                dist[j][i] = link.length
+            }
+        }
+        val (xs, ys) = ksl.animation.classicalMdsAxes(dist)
+        val xSign = if (xs[0] < 0.0) -1.0 else 1.0
+        val ySign = if (ys[0] < 0.0) -1.0 else 1.0
+        for ((k, intersection) in myIntersections.withIndex()) {
+            intersection.x = xSign * xs[k]
+            intersection.y = ySign * ys[k]
+        }
+    }
+
     private fun finish() {
         check(!myIsBuilt) { "The network has already been built." }
         if (myIntersections.size < 2) {
@@ -618,6 +676,7 @@ class GuidedPathNetwork private constructor(
                 )
             }
         }
+        layOutIfCoordinateFree()
         // Zone names reach the modeler through messages and statistics, so they must identify.
         val seen = HashSet<String>(myZones.size)
         for (z in myZones) {
@@ -699,8 +758,26 @@ class GuidedPathNetwork private constructor(
             y: Double = Double.NaN,
             z: Double = 0.0
         ): Builder {
-            if (myNetwork.myIntersectionsByName.containsKey(name)) {
-                throw GuidedPathNetworkException.duplicateName("intersection", name)
+            val existing = myNetwork.myIntersectionsByName[name]
+            if (existing != null) {
+                // An intersection a link created on first mention may still be given its layout
+                // coordinates, so the order in which a network is written does not matter for drawing.
+                // Its length and velocity factor are fixed into its zone when it is created, so those
+                // can only come from declaring it before any link that names it.
+                if (name !in myNetwork.myImplicitIntersections) {
+                    throw GuidedPathNetworkException.duplicateName("intersection", name)
+                }
+                if (length != 0.0 || velocityFactor != 1.0) {
+                    throw GuidedPathNetworkException(
+                        "Intersection ($name) was created by a link before it was declared, so its length " +
+                                "and velocity factor can no longer be set. Declare it before any link that names it."
+                    )
+                }
+                existing.x = x
+                existing.y = y
+                existing.z = z
+                myNetwork.myImplicitIntersections -= name
+                return this
             }
             myNetwork.addIntersection(IntersectionData(name, length, velocityFactor, x, y, z))
             return this

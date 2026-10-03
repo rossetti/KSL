@@ -65,7 +65,10 @@ class BenchmarkResultsDbTest {
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
-    private fun sphereProblem(name: String): ProblemCase {
+    private fun sphereProblem(
+        name: String,
+        substreamBlockSize: Int = ksl.simopt.solvers.concurrent.ConcurrentRunOptions.DEFAULT_SUBSTREAM_BLOCK_SIZE
+    ): ProblemCase {
         val inputNames = listOf("x1", "x2")
         return ProblemCase(
             name = name,
@@ -89,7 +92,7 @@ class BenchmarkResultsDbTest {
                         val x2 = inputs.getValue("x2")
                         mapOf(OBJ to x1 * x1 + x2 * x2 + 0.1 * stream.randU01())
                     }
-                })
+                }, substreamBlockSize = substreamBlockSize)
             },
             tags = mapOf("family" to "sphere", "noiseLevel" to "LOW")
         )
@@ -217,6 +220,143 @@ class BenchmarkResultsDbTest {
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
+
+    // ── NaN values, write failures, legacy schemas, versions (R1.7.1) ─────────
+
+    @Test
+    @DisplayName("A NaN solver-state value is stored as null and the rest of its batch survives")
+    fun nanSolverStateIsStoredAsNull() {
+        val db = BenchmarkResultsDb("nanState.db", tempDir).also { openDatabases += it }
+        val summary = runPsoExperiment(captureState = true, name = "nanStateExp")
+        // An emptied swarm reports its diameter as NaN. One such value used to fail the whole batch,
+        // leaving the table empty beside solverStateCaptured = true.
+        val withNaN = summary.traces.mapValues { (_, points) ->
+            points.mapIndexed { i, p ->
+                if (i == 0) p.copy(solverState = p.solverState + ("swarmDiameter" to Double.NaN)) else p
+            }
+        }
+        val expId = db.saveSummary(summary.copy(traces = withNaN))
+        val expected = withNaN.values.sumOf { points -> points.sumOf { it.solverState.size } }
+        val states = db.traceStates(expId)
+        assertEquals(expected, states.size) { "every state value, NaN included, must have a row" }
+        assertTrue(states.any { it.stateName == "swarmDiameter" && it.stateValue == null })
+        assertTrue(states.count { it.stateValue != null } > 0)
+    }
+
+    @Test
+    @DisplayName("One replication per evaluation stores its responses with a null variance")
+    fun singleReplicationResponsesAreStored() {
+        val db = BenchmarkResultsDb("singleRep.db", tempDir).also { openDatabases += it }
+        val summary = BenchmarkExperiment(
+            name = "singleRepExp",
+            problems = listOf(sphereProblem("sphereSingle")),
+            solverCases = listOf(shcCase("shc1", 1)),
+            macroReplications = 1,
+            replicationBudgetPerRun = BUDGET,
+            numWorkers = 1
+        ).run()
+        val expId = db.saveSummary(summary)
+        val expected = summary.allRuns.sumOf { it.responseEstimates.size }
+        val rows = db.runResponses(expId)
+        assertEquals(expected, rows.size) { "a count-1 estimate's NaN variance lost the whole batch" }
+        assertTrue(rows.filter { it.count == 1.0 }.all { it.variance == null })
+    }
+
+    @Test
+    @DisplayName("A failed batch insert stops the write instead of being logged and lost")
+    fun aFailedInsertThrows() {
+        val db = BenchmarkResultsDb("failing.db", tempDir).also { openDatabases += it }
+        // A column the writer does not know about, NOT NULL and without a default, makes every
+        // insert into the table fail inside the shared insert routine.
+        db.executeCommand("DROP TABLE tblRunConstraint")
+        db.executeCommand(
+            "CREATE TABLE tblRunConstraint (runId INTEGER, responseName TEXT, estimate REAL, " +
+                "violation REAL, ciUpperLimit REAL, feasibleAtCI INTEGER, extra INTEGER NOT NULL)"
+        )
+        val e = assertThrows(IllegalStateException::class.java) { db.saveSummary(runConstrainedExperiment("failingExp")) }
+        assertTrue(e.message!!.contains("tblRunConstraint")) { e.message }
+    }
+
+    @Test
+    @DisplayName("A database with R1.7's NOT NULL columns is readable but refuses writes")
+    fun anR17SchemaIsRefusedForWriting() {
+        val db = BenchmarkResultsDb("legacy.db", tempDir).also { openDatabases += it }
+        val expId = db.saveSummary(runExperiment(traces = false, name = "beforeLegacy"))
+        db.executeCommand("DROP TABLE tblIterationTraceState")
+        db.executeCommand(
+            "CREATE TABLE tblIterationTraceState (runId INTEGER NOT NULL, iteration INTEGER NOT NULL, " +
+                "stateName TEXT NOT NULL, stateValue REAL NOT NULL, PRIMARY KEY (runId, iteration, stateName))"
+        )
+        val reopened = BenchmarkResultsDb("legacy.db", tempDir).also { openDatabases += it }
+        assertTrue(reopened.runs(expId).isNotEmpty()) { "an R1.7 database must stay readable" }
+        val e = assertThrows(IllegalStateException::class.java) {
+            reopened.saveSummary(runExperiment(traces = false, name = "afterLegacy"))
+        }
+        assertTrue(e.message!!.contains("created by KSL R1.7")) { e.message }
+    }
+
+    @Test
+    @DisplayName("A cell that runs past its sub-stream block is recorded as an overrun")
+    fun substreamOverrunIsRecorded() {
+        val db = BenchmarkResultsDb("overrun.db", tempDir).also { openDatabases += it }
+        fun run(name: String, blockSize: Int) = BenchmarkExperiment(
+            name = name,
+            problems = listOf(sphereProblem("sphere_$name", substreamBlockSize = blockSize)),
+            solverCases = listOf(shcCase("shcO", 5)),
+            macroReplications = 1,
+            replicationBudgetPerRun = BUDGET,
+            numWorkers = 1
+        ).run()
+        // A budget of 60 replications cannot fit a block of 10 sub-streams.
+        val small = db.saveSummary(run("smallBlock", 10))
+        val smallRuns = db.runs(small)
+        assertTrue(smallRuns.all { it.substreamOverrun == true && (it.substreamsConsumed ?: 0L) > 10L }) {
+            smallRuns.map { it.substreamsConsumed to it.substreamOverrun }.toString()
+        }
+        val normal = db.saveSummary(run("defaultBlock", ksl.simopt.solvers.concurrent.ConcurrentRunOptions.DEFAULT_SUBSTREAM_BLOCK_SIZE))
+        assertTrue(db.runs(normal).all { it.substreamOverrun == false && it.substreamsConsumed != null })
+    }
+
+    @Test
+    @DisplayName("A database missing R1.7.1's run columns refuses writes")
+    fun missingRunColumnsAreRefused() {
+        val db = BenchmarkResultsDb("missingColumns.db", tempDir).also { openDatabases += it }
+        db.executeCommand("ALTER TABLE tblRun DROP COLUMN substreamOverrun")
+        val reopened = BenchmarkResultsDb("missingColumns.db", tempDir).also { openDatabases += it }
+        val e = assertThrows(IllegalStateException::class.java) {
+            reopened.saveSummary(runExperiment(traces = false, name = "missingColumnsExp"))
+        }
+        assertTrue(e.message!!.contains("tblRun.substreamOverrun")) { e.message }
+    }
+
+    @Test
+    @DisplayName("A streamed experiment records its version, and a resume keeps the original")
+    fun aResumableRunRecordsItsVersion() {
+        val db = BenchmarkResultsDb("version.db", tempDir).also { openDatabases += it }
+        val experiment = BenchmarkExperiment(
+            name = "versionedExp",
+            problems = listOf(sphereProblem("sphereV")),
+            solverCases = listOf(shcCase("shcV", 5)),
+            macroReplications = 1,
+            replicationBudgetPerRun = BUDGET,
+            numWorkers = 1,
+            resultSink = db
+        )
+        experiment.kslVersion = "R1.7.1-test"
+        experiment.run()
+        assertEquals("R1.7.1-test", db.experiments().single().kslVersion)
+
+        val header = BenchmarkSummaryHeader(
+            experimentName = "resumedExp", macroReplications = 1, replicationBudgetPerRun = BUDGET,
+            confirmationTopK = null, confirmationReplications = null, verificationReplications = null,
+            numProblems = 1, solverCaseDescriptions = emptyMap(), startTime = Instant.fromEpochMilliseconds(0),
+            tracesCaptured = false, solverStateCaptured = false, kslVersion = "first"
+        )
+        val first = db.beginExperiment(header, resume = false)
+        val resumed = db.beginExperiment(header.copy(kslVersion = "second"), resume = true)
+        assertEquals(first, resumed)
+        assertEquals("first", db.experiments().single { it.expId == first }.kslVersion)
+    }
 
     @Test
     @DisplayName("A small experiment round-trips: every table row matches the in-memory summary")
@@ -559,7 +699,7 @@ class BenchmarkResultsDbTest {
             val stored = responsesByRun.getValue(row.runId).associateBy { it.responseName }
             fun estimate(name: String): EstimatedResponse {
                 val r = stored.getValue(name)
-                return EstimatedResponse(name, r.average, r.variance, r.count)
+                return EstimatedResponse(name, r.average, r.variance ?: Double.NaN, r.count)
             }
             Solution(
                 inputMap = problemDefinition.toInputMap(run.bestInputs.toMutableMap()),
@@ -647,7 +787,7 @@ class BenchmarkResultsDbTest {
 
         val diameters = states.filter { it.stateName == "swarmDiameter" }
             .sortedBy { it.iteration }
-            .map { it.stateValue }
+            .mapNotNull { it.stateValue }
         assertTrue(diameters.size >= 5) { "too few iterations to say anything about contraction" }
         assertTrue(diameters.all { it in 0.0..1.0 }) {
             "the normalized diameter left its documented range: $diameters"

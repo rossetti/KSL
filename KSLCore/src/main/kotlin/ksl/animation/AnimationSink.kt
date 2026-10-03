@@ -55,6 +55,14 @@ interface AnimationSink {
     val isActive: Boolean
 
     /**
+     * The capture selection an emitter must honour, or null when everything is captured. Emitters
+     * that are not registered per element (guide paths, fleets, conveyor cells, mover moves) consult
+     * it before emitting, so a selected capture really omits what it did not select.
+     */
+    val captureSpec: CaptureSpec?
+        get() = null
+
+    /**
      * Records [event]. Called only when [isActive] is `true`. Must not throw on
      * the simulation thread; implementations should fail soft (e.g. drop and log)
      * rather than disrupt the run.

@@ -607,7 +607,7 @@ open class Dispatcher @JvmOverloads constructor(
     internal fun releaseAnyVehicleFrom(task: Task) {
         assignmentFor(task)?.let { live ->
             live.requireRevocable()
-            releaseFrom(live)
+            releaseFrom(live, "CANCELLED")
         }
     }
 
@@ -619,8 +619,9 @@ open class Dispatcher @JvmOverloads constructor(
      * the vehicle-side steps in one place is what stops the two operations drifting apart: they
      * differ in what happens to the *task*, and should not differ in what happens to the vehicle.
      */
-    private fun releaseFrom(assignment: Assignment) {
+    private fun releaseFrom(assignment: Assignment, outcome: String = "REVOKED") {
         assignment.state = AssignmentState.REVOKED
+        system.emitAssignmentEnded(assignment, outcome)
         // Counted here rather than in `revoke`, for the same reason cancellations are counted in
         // `Task.transitionTo`: this is the one place an assignment becomes revoked, and two callers
         // reach it -- a policy re-tasking a vehicle, and a task being abandoned under one. Counting
@@ -717,6 +718,7 @@ open class Dispatcher @JvmOverloads constructor(
 
     internal fun completed(assignment: Assignment) {
         assignment.state = AssignmentState.COMPLETED
+        system.emitAssignmentEnded(assignment, "COMPLETED")
         if (assignment.task.state != TaskState.COMPLETED) {
             assignment.task.transitionTo(TaskState.COMPLETED)
         }

@@ -1,0 +1,175 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2026  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package ksl.server.suite
+
+import ksl.agent.config.AgentConfigurator
+import ksl.service.admin.SuiteStatus
+import ksl.service.usage.UsageSummary
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ *  The console could say whether an assistant's MCP entry had been *written*, never whether the
+ *  assistant was *running* — and the second is what decides whether it has read the first. These pin
+ *  the reporting, which is all Phase 6a ships; the quit-and-relaunch action waits on facts that can
+ *  only be established on Windows.
+ */
+class AssistantProcessesTest {
+
+    // Captured verbatim from a Windows 11 machine on 2026-09-27: MSIX Claude Desktop 2.9939.2.0, with
+    // three Claude Code sessions running as children of it. Both executables are named claude.exe, and
+    // neither the name nor the absence of a --type= flag tells the desktop's main process apart from a
+    // CLI session -- only the path does. Real strings, because a hand-written approximation is exactly
+    // what would have let the original false positive through.
+    private val windowsDesktopMain =
+        """C:\Program Files\WindowsApps\Claude_2.9939.2.0_x64__pzs8sxrjxfjjc\app\claude.exe"""
+    private val windowsClaudeCodeCli =
+        """C:\Users\grant\AppData\Roaming\Claude\claude-code\2.1.281\claude.exe --output-format stream-json""" +
+            """ --model claude-opus-5 --permission-prompt-tool stdio"""
+    private val macDesktopMain =
+        "/Applications/Claude.app/Contents/MacOS/Claude"
+
+    private fun claudeDesktop(vararg commandLines: String) =
+        AssistantProcesses.verdictsFrom(listOf("Claude Desktop"), commandLines.toList())["Claude Desktop"]
+
+    @Test
+    @DisplayName("Claude Code alone is not Claude Desktop running")
+    fun claudeCodeAloneIsNotTheAssistant() {
+        // The whole point. A student with the desktop app closed and a Claude Code session open must not
+        // be told to restart an assistant that is not there -- the false positive the markers' own KDoc
+        // promises to avoid, and the state this reports wrongly before the exclusion existed.
+        assertEquals(AssistantProcesses.Running.NO, claudeDesktop(windowsClaudeCodeCli))
+    }
+
+    @Test
+    @DisplayName("Claude Desktop running on Windows is detected, MSIX path and all")
+    fun windowsDesktopIsDetected() {
+        assertEquals(AssistantProcesses.Running.YES, claudeDesktop(windowsDesktopMain))
+    }
+
+    @Test
+    @DisplayName("the desktop app counts even when Claude Code sessions are running beside it")
+    fun desktopBesideCliIsStillRunning() {
+        // Exclusion is applied per command line, not per agent: the CLI lines must not veto the one line
+        // that really is the assistant. This is the machine the capture came from.
+        assertEquals(
+            AssistantProcesses.Running.YES,
+            claudeDesktop(windowsClaudeCodeCli, windowsDesktopMain, windowsClaudeCodeCli),
+        )
+    }
+
+    @Test
+    @DisplayName("the macOS bundle path still matches")
+    fun macDesktopIsDetected() {
+        // The exclusion is Windows-shaped; it must not cost the platform that was working already.
+        assertEquals(AssistantProcesses.Running.YES, claudeDesktop(macDesktopMain))
+    }
+
+    @Test
+    @DisplayName("this platform gives the JVM something to match on")
+    fun theGathererSeesSomething() {
+        // The caller-side coverage that was missing, and its absence is why Phase 6a shipped inert on
+        // Windows. Every verdictsFrom test above feeds it strings, so none of them can notice the
+        // gatherer returning nothing -- which is exactly what ProcessHandle.commandLine() does on
+        // Windows, where the JDK implements it for no process at all. Every verdict was UNKNOWN and the
+        // console's note could never render on the platform it was built for.
+        val seen = AssistantProcesses.visibleCommandLines()
+        assertTrue(
+            seen.isNotEmpty(),
+            "ProcessHandle exposed nothing about any process; every verdict would be UNKNOWN"
+        )
+        assertTrue(
+            seen.any { it.contains("java", ignoreCase = true) },
+            "this JVM's own process must be visible; got ${seen.size} entries, first: ${seen.take(3)}"
+        )
+    }
+
+    @Test
+    @DisplayName("no visible command lines is unknown, not 'not running'")
+    fun noCommandLinesIsUnknown() {
+        val agents = listOf("Claude Desktop", "Codex")
+        assertEquals(
+            agents.associateWith { AssistantProcesses.Running.UNKNOWN },
+            AssistantProcesses.verdictsFrom(agents, null),
+        )
+        assertEquals(
+            agents.associateWith { AssistantProcesses.Running.UNKNOWN },
+            AssistantProcesses.verdictsFrom(agents, emptyList()),
+        )
+    }
+
+    @Test
+    @DisplayName("an agent with no markers is unknown, never reported as not running")
+    fun unmatchableAgentIsUnknown() {
+        // A guessed "not running" would tell a student to start something already started. An agent this
+        // code has no fragments for -- or a platform that hides command lines, which an MSIX-packaged
+        // Windows install may -- has to say so rather than pick.
+        val verdicts = AssistantProcesses.runningByAgent(listOf("Some Future Assistant"))
+        assertEquals(AssistantProcesses.Running.UNKNOWN, verdicts["Some Future Assistant"])
+    }
+
+    @Test
+    @DisplayName("every configured agent gets a verdict")
+    fun everyAgentAnswered() {
+        val agents = listOf("Claude Desktop", "Cursor", "Windsurf", "Codex")
+        val verdicts = AssistantProcesses.runningByAgent(agents)
+        assertEquals(agents.toSet(), verdicts.keys, "the console joins these by name, so none may be missing")
+        assertTrue(verdicts.values.all { it in AssistantProcesses.Running.entries }, "no null verdicts")
+    }
+
+    @Test
+    @DisplayName("a configured assistant that is running is told to quit completely, not just restart")
+    fun runningAssistantGetsTheSharperInstruction() {
+        // Rendered with a real ClientState for whichever assistant is actually running on this machine,
+        // so the branch under test is the one a student sees. When none is running the weaker note is
+        // correct and is what this asserts instead.
+        val agents = listOf("Claude Desktop", "Cursor", "Windsurf", "Codex")
+        val runningAgent = AssistantProcesses.runningByAgent(agents)
+            .entries.firstOrNull { it.value == AssistantProcesses.Running.YES }?.key
+
+        val clients = listOf(
+            AgentConfigurator.ClientState(runningAgent ?: "Claude Desktop", present = true, path = "/x/config.json"),
+        )
+        val html = AdminConsole.renderConsole(
+            SuiteStatus(version = "test", capabilities = emptyList(), served = 0, lastActivityMillis = null),
+            UsageSummary(total = 0, ok = 0, byTool = emptyMap(), byCapability = emptyMap()),
+            emptyList(),
+            clients,
+            loopback = true,
+        )
+
+        if (runningAgent != null) {
+            assertTrue(
+                "still running" in html && "restart your assistant" in html,
+                "a running assistant must be told the restart it thinks it did was not one"
+            )
+            assertTrue(
+                "may keep running" in html,
+                "and why, hedged: on Windows the process can outlive the window, but it does not always"
+            )
+            assertTrue("Task Manager" in html, "and where to look on Windows, which is the failing case")
+        } else {
+            assertTrue(
+                "restart your assistant" in html,
+                "with nothing running, the standing reminder is the right note"
+            )
+        }
+    }
+}

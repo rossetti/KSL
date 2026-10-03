@@ -837,13 +837,17 @@ class Conveyor @JvmOverloads constructor(
      */
     private fun emitConveyorDefined() {
         val sink = model.animationSink
-        if (!sink.isActive) return
+        if (!sink.isActive || !isCaptured()) return
         val names = ArrayList<String>()
         val cells = ArrayList<Int>()
         for ((loc, cell) in entryCells) { names.add(loc); cells.add(cell.index) }
         for ((loc, cell) in exitCells) { names.add(loc); cells.add(cell.index) }
         sink.emit(AnimationEvent.ConveyorDefined(time, name, names, cells))
     }
+
+    /** Whether the capture selection includes this conveyor; its cell events are not registered per element. */
+    private fun isCaptured(): Boolean =
+        model.animationSink.captureSpec?.captures(ksl.animation.ElementKind.CONVEYOR, name) ?: true
 
     override fun replicationEnded() {
         myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / conveyorCells.size
@@ -1859,7 +1863,7 @@ class Conveyor @JvmOverloads constructor(
         private fun emitConveyorMove() {
             val fc = frontCell ?: return
             val sink = this@Conveyor.model.animationSink
-            if (sink.isActive) {
+            if (sink.isActive && isCaptured()) {
                 sink.emit(AnimationEvent.ConveyorItemMoved(this@Conveyor.time, entity.id, this@Conveyor.name, fc.index))
             }
         }

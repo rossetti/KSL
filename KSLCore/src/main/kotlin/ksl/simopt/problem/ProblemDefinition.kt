@@ -682,6 +682,8 @@ class ProblemDefinition @JvmOverloads constructor(
      *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
      *  @param penaltyFunction optional per-constraint penalty function. When `null` (the default),
      *  the constraint inherits [defaultResponsePenalty].
+     *  @param indicator true when the response is 0 or 1 per replication, so that feasibility is
+     *  tested with an exact binomial bound; see [ResponseConstraint]
      *  @return the constructed response constraint
      */
     @Suppress("unused")
@@ -691,10 +693,11 @@ class ProblemDefinition @JvmOverloads constructor(
         inequalityType: InequalityType = InequalityType.LESS_THAN,
         target: Double = 0.0,
         tolerance: Double = 0.0,
-        penaltyFunction: PenaltyFunction? = null
+        penaltyFunction: PenaltyFunction? = null,
+        indicator: Boolean = false
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
-        val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance, penaltyFunction)
+        val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance, penaltyFunction, indicator)
         myResponseConstraints.add(rc)
         myBoundPenalties = null
         return rc

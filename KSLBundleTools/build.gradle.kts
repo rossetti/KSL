@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
     application
-    id("com.gradleup.shadow") version "9.0.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "io.github.rossetti"
@@ -56,11 +56,11 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "dataframe-excel")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-swing")
     }
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.32")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 application {

@@ -42,6 +42,11 @@ import ksl.utilities.distributions.fitting.mixture.DataPartition
  *  restricted to positions that do not split a run of equal values, so the result is always a
  *  partition by value rather than by index.
  *
+ *  The objective is squared error on the raw scale. On a right-skewed sample that is cheapest to
+ *  reduce in the tail, so the cuts go there and a structural break low in the body can be missed at
+ *  every count: on 10,000 production lead times the k = 2 cut left 91.8% of the sample in one group.
+ *  See the scale note on `PartitionGeneratorIfc`.
+ *
  *  @param sortedData the observations in non-decreasing order, must not be empty
  *  @param maximumGroups the largest number of groups the tables should support, must be positive
  */

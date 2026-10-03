@@ -90,6 +90,8 @@ class AnimationBuilder {
     private val histograms = mutableListOf<HistogramDisplayElement>()
     private val storages = mutableListOf<StorageLayoutElement>()
     private val movableResources = mutableListOf<MovableResourceLayoutElement>()
+    private val guidedPaths = mutableListOf<GuidedPathLayoutElement>()
+    private val guidedTransporters = mutableListOf<GuidedTransporterLayoutElement>()
 
     /** Sets the drawing canvas size. */
     fun size(width: Double, height: Double) {
@@ -167,6 +169,19 @@ class AnimationBuilder {
      */
     fun movableResource(name: String, block: MovableResourceBuilder.() -> Unit = {}) {
         movableResources.add(MovableResourceBuilder(name).apply(block).build())
+    }
+
+    /**
+     * Places a guide path (V13), keyed by its space's name. Its geometry comes from the trace; [element]
+     * gives the offset, scale, floor separation and styling.
+     */
+    fun guidedPath(element: GuidedPathLayoutElement) {
+        guidedPaths.add(element)
+    }
+
+    /** Styles a guided transporter (V13), keyed by its name. */
+    fun guidedTransporter(element: GuidedTransporterLayoutElement) {
+        guidedTransporters.add(element)
     }
 
     /** Declares a movable resource by passing it directly; its trace name is taken from it (8K.1/8K.5). */
@@ -516,7 +531,8 @@ class AnimationBuilder {
         title, baseTimeUnit, width, height,
         objectClasses, background, paths, queues, resources, stations, bars, plots, clocks, spaces, values,
         agentStateColors, summaries, histograms, storages, movableResources,
-        spaceGeometry = spaceGeometry, locations = locations
+        spaceGeometry = spaceGeometry, locations = locations,
+        guidedPaths = guidedPaths.toList(), guidedTransporters = guidedTransporters.toList()
     )
 }
 

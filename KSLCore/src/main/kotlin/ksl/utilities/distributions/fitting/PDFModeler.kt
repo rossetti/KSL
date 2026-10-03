@@ -58,13 +58,24 @@ enum class EvaluationMethod {
 }
 
 /**
+ *  The automatic shift check bootstraps a confidence interval for the minimum, which draws from a
+ *  random-number stream. By default that is the next stream of the default provider, so a study that
+ *  also draws its samples from the default provider will find later stream numbers partly consumed.
+ *  Supply [bootstrapStreamProvider] (and optionally [bootstrapStreamNumber]) to keep fitting off the
+ *  study's streams.
+ *
  *  @param observations the data to analyze for fitting a probability distribution
  *  @param scoringModels the scoring models to use to evaluate the fitting process
  *  and recommend a distribution. By default, this is defaultScoringModels
+ *  @param bootstrapStreamNumber the stream the minimum's bootstrap draws from; 0 takes the
+ *  provider's next stream
+ *  @param bootstrapStreamProvider the provider the minimum's bootstrap draws from
  */
 class PDFModeler(
     observations: DoubleArray,
     private val scoringModels: Set<PDFScoringModel> = defaultScoringModels,
+    private val bootstrapStreamNumber: Int = 0,
+    private val bootstrapStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : PDFData {
     private val myData: DoubleArray = observations.copyOf()
 
@@ -101,7 +112,9 @@ class PDFModeler(
      *  Uses bootstrapping to estimate a confidence interval for the minimum
      */
     override fun confidenceIntervalForMinimum(numBootstrapSamples: Int, level: Double): Interval {
-        return confidenceIntervalForMinimum(myData, numBootstrapSamples, level)
+        return confidenceIntervalForMinimum(
+            myData, numBootstrapSamples, level, bootstrapStreamNumber, bootstrapStreamProvider
+        )
     }
 
     /**
@@ -367,7 +380,9 @@ class PDFModeler(
         config.rowsLimit = histogram.numberBins + 1
         // estimate left shift parameter
         val leftShift = estimateLeftShiftParameter(myData)
-        val minCI = confidenceIntervalForMinimum(myData)
+        val minCI = confidenceIntervalForMinimum(
+            myData, streamNumber = bootstrapStreamNumber, streamProvider = bootstrapStreamProvider
+        )
         val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Statistical Summary")
@@ -810,26 +825,36 @@ class PDFModeler(
 
         /**
          *  Uses bootstrapping to estimate a confidence interval for the minimum
+         *
+         *  @param streamNumber the stream the bootstrap draws from; 0 takes the provider's next stream
+         *  @param streamProvider the provider the bootstrap draws from
          */
         fun confidenceIntervalForMinimum(
             data: DoubleArray,
             numBootstrapSamples: Int = 399,
-            level: Double = 0.95
+            level: Double = 0.95,
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): Interval {
-            val bootStrap: Bootstrap = Bootstrap(data, BSEstimatorIfc.Minimum())
+            val bootStrap: Bootstrap = Bootstrap(data, BSEstimatorIfc.Minimum(), streamNumber, streamProvider)
             bootStrap.generateSamples(numBootstrapSamples)
             return bootStrap.percentileBootstrapCI(level)
         }
 
         /**
          *  Uses bootstrapping to estimate a confidence interval for the maximum
+         *
+         *  @param streamNumber the stream the bootstrap draws from; 0 takes the provider's next stream
+         *  @param streamProvider the provider the bootstrap draws from
          */
         fun confidenceIntervalForMaximum(
             data: DoubleArray,
             numBootstrapSamples: Int = 399,
-            level: Double = 0.95
+            level: Double = 0.95,
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): Interval {
-            val bootStrap: Bootstrap = Bootstrap(data, BSEstimatorIfc.Maximum())
+            val bootStrap: Bootstrap = Bootstrap(data, BSEstimatorIfc.Maximum(), streamNumber, streamProvider)
             bootStrap.generateSamples(numBootstrapSamples)
             return bootStrap.percentileBootstrapCI(level)
         }

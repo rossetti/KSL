@@ -292,13 +292,22 @@ class KslRestService(
      * The default reports to render for a run, derived from its capture toggles:
      * a Welch report when Welch analysis was captured, a trace report when
      * response tracing was captured. Null when the run captured neither (no
-     * post-run reporting — the common case). Report formatting uses sensible
-     * defaults (HTML); finer control can ride the request envelope later.
+     * post-run reporting — the common case), **in the formats `outputConfig.reports` names**.
+     *
+     * Those formats used to be ignored here: both reports took their default of HTML alone, so a config
+     * asking for MARKDOWN got HTML and nothing said otherwise.
+     *
+     * What `reports` does not mean, because its type cannot carry it: it is a set of *formats*, not of
+     * report kinds, so naming one does not cause a report to exist. A run that captured neither Welch
+     * analysis nor a response trace has nothing to render in any format.
      */
     private fun reportRequestFor(outputConfig: OutputConfig): ReportRequest? {
+        // Empty is the default rather than "no formats": a config that cleared the set was asking for
+        // the default, not for a report with no representation.
+        val formats = outputConfig.reports.map { it.name }.ifEmpty { listOf("HTML") }
         val request = ReportRequest(
-            welch = if (outputConfig.enableWelchAnalysis) WelchReport() else null,
-            trace = if (outputConfig.enableResponseTrace) TraceReport() else null,
+            welch = if (outputConfig.enableWelchAnalysis) WelchReport(formats = formats) else null,
+            trace = if (outputConfig.enableResponseTrace) TraceReport(formats = formats) else null,
         )
         return if (request.isEmpty) null else request
     }

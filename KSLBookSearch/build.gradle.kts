@@ -9,8 +9,8 @@
 // ksl.book.search (and ksl.book.gen -> ksl.book.search.gen) so its classes never collide with the
 // still-shipping KSLBookServer on a shared classpath.
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -21,18 +21,20 @@ repositories { mavenCentral() }
 kotlin { jvmToolchain(21) }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-    implementation("org.apache.lucene:lucene-core:10.2.2")
-    implementation("org.apache.lucene:lucene-analysis-common:10.2.2")
-    implementation("org.apache.lucene:lucene-queryparser:10.2.2")
-    implementation("org.apache.lucene:lucene-queries:10.2.2")
-    implementation("org.jsoup:jsoup:1.18.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.apache.lucene:lucene-core:10.5.1")
+    implementation("org.apache.lucene:lucene-analysis-common:10.5.1")
+    implementation("org.apache.lucene:lucene-queryparser:10.5.1")
+    implementation("org.apache.lucene:lucene-queries:10.5.1")
+    implementation("org.jsoup:jsoup:1.23.2")
+    // jsoup 1.21+ annotates its API with jspecify but does not ship it; Kotlin needs it to read those types.
+    compileOnly("org.jspecify:jspecify:1.0.0")
     implementation("com.vladsch.flexmark:flexmark-html2md-converter:0.64.8")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

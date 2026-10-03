@@ -493,10 +493,16 @@ abstract class FleetVehicle @JvmOverloads constructor(
     }
 
     /** Puts the vehicle on a charger and reports how long it must stay to fill the battery. */
+    /** True while the vehicle is on a charger. */
+    var isCharging: Boolean = false
+        private set
+
     internal fun beginCharging(): Double {
         val b = battery ?: return 0.0
         observeCharge()
         myFracTimeCharging?.value = 1.0
+        isCharging = true
+        system.emitVehicleState(this)
         // Net of the hotel load, which keeps drawing while the vehicle is on the charger. The
         // battery refuses a charging rate that does not outpace it, so this is positive.
         return ((b.capacity - rawCharge) / (b.chargingRate - b.chargePerTime)).coerceAtLeast(0.0)
@@ -509,6 +515,8 @@ abstract class FleetVehicle @JvmOverloads constructor(
         myFracTimeCharging?.value = 0.0
         myNumChargingSessions?.increment()
         observeCharge()
+        isCharging = false
+        system.emitVehicleState(this)
     }
 
 
@@ -534,7 +542,10 @@ abstract class FleetVehicle @JvmOverloads constructor(
         // Written by the failure model and the service verbs, never by a modeller: a vehicle is
         // broken or withdrawn by something that happened to it, and setting the flag directly would
         // leave the machinery that tracks it disagreeing with the flag.
-        internal set
+        internal set(value) {
+            field = value
+            system.emitVehicleState(this)
+        }
 
     /** How far the basis quantity has advanced, in whatever units the basis is measured in. */
     private fun basisValue(): Double = when (failureModel?.basis) {
@@ -749,7 +760,10 @@ abstract class FleetVehicle @JvmOverloads constructor(
         // Written by the failure model and the service verbs, never by a modeller: a vehicle is
         // broken or withdrawn by something that happened to it, and setting the flag directly would
         // leave the machinery that tracks it disagreeing with the flag.
-        internal set
+        internal set(value) {
+            field = value
+            system.emitVehicleState(this)
+        }
 
     /**
      * Whether the vehicle can carry on from where it stands.
@@ -795,6 +809,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
         val queue = towJourney(location, waiter)
         // Already there, or the substrate has no tow. Nothing was started, so nothing is under tow.
         if (queue == null) body.towVelocity = null
+        system.emitVehicleState(this)
         return queue
     }
 
@@ -823,7 +838,10 @@ abstract class FleetVehicle @JvmOverloads constructor(
     protected abstract fun outOfChargeInterruption(): Interruption.OutOfCharge
 
     /** Ends a tow, whether or not the vehicle actually had to go anywhere. */
-    internal fun endTow() = body.endTow()
+    internal fun endTow() {
+        body.endTow()
+        system.emitVehicleState(this)
+    }
 
     /**
      * Commands the body toward a location and reports whether a journey is now under way.
@@ -867,6 +885,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
         chargeClockStartedAt = time
         lowestCharge = Double.MAX_VALUE
         myFracTimeCharging?.value = 0.0
+        isCharging = false
         isFailed = false
         myFracTimeFailed?.value = 0.0
         pendingInterruption = null

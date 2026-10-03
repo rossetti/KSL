@@ -103,7 +103,9 @@ class MVNormalRV  @JvmOverloads constructor(
          *  supplied correlation matrix.
          *
          * @param correlation the correlation matrix as an array
-         * @param stream      the source for randomness
+         * @param streamNumber   the number of the stream requested from the provider
+         * @param streamProvider the provider of the stream
+         * @param name           the name of the random variable, or null
          * @return the created multi-variate normal
          */
         fun createStandardMVN(
@@ -123,7 +125,9 @@ class MVNormalRV  @JvmOverloads constructor(
          * @param means       the means for the distribution
          * @param stdDevs     an array holding the standard deviations
          * @param correlation the correlation matrix as an array
-         * @param stream      the source for randomness
+         * @param streamNumber   the number of the stream requested from the provider
+         * @param streamProvider the provider of the stream
+         * @param name           the name of the random variable, or null
          * @return the created multi-variate normal
          */
         fun createRV(

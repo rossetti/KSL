@@ -21,8 +21,10 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
 import ksl.utilities.statistic.Statistic
 import kotlin.math.sqrt
+import ksl.utilities.distributions.fitting.mixture.partition.HistogramValleyPartitionGenerator
 import ksl.utilities.distributions.fitting.mixture.partition.JenksPartitionGenerator
 import ksl.utilities.distributions.fitting.mixture.partition.PartitionGeneratorIfc
+import ksl.utilities.distributions.fitting.mixture.partition.QuantilePartitionGenerator
 import ksl.utilities.distributions.fitting.mixture.refine.BreakShiftRefiner
 import ksl.utilities.distributions.fitting.mixture.refine.PartitionRefinerIfc
 import ksl.utilities.distributions.fitting.mixture.refine.RefinementResult
@@ -167,6 +169,8 @@ data class MixtureCoverage(
  *  asked rather than letting the criterion choose. Null after an ordinary search. It changes what
  *  the results mean: the recommendation comes from the caller's counts, and the criterion values
  *  are evidence about that choice rather than a selection over a searched range.
+ *  @param generatorByGroupCount after a multi-start fit, the name of the partition generator whose
+ *  candidate won each number of components; empty after a single-generator fit
  */
 class MixtureModelingResults(
     val results: List<RankedMixture>,
@@ -178,7 +182,8 @@ class MixtureModelingResults(
     val refinementsByGroupCount: Map<Int, RefinementResult> = emptyMap(),
     private val sortedData: DoubleArray = DoubleArray(0),
     val criterion: MixtureCriterionIfc = MixtureBICCriterion(),
-    val specifiedComponentCounts: Set<Int>? = null
+    val specifiedComponentCounts: Set<Int>? = null,
+    val generatorByGroupCount: Map<Int, String> = emptyMap()
 ) {
 
     /**
@@ -438,6 +443,50 @@ class MixtureModelingResults(
     }
 
     /**
+     *  Where each criterion's preferred count sits in the range fitted, and whether the criterion
+     *  was still improving at the largest count, as data rather than prose. The summary and the
+     *  report are rendered from this, so what they say and what a caller can test cannot drift.
+     *
+     *  @param criteria the criteria to classify
+     */
+    fun criterionChoices(
+        criteria: List<MixtureCriterionIfc> = MixtureModeler.defaultReportedCriteria(catalogSize)
+    ): List<CriterionChoice> {
+        val profile = criterionProfile(criteria)
+        val counts = bestByNumComponents().keys
+        return criteria.mapNotNull { c ->
+            val values = profile[c.name] ?: return@mapNotNull null
+            val comparable = values.filterValues { it.isComparable }.mapValues { it.value.value }
+            CriterionChoice.classify(c.name, comparable, counts, c.smallerIsBetter)
+        }
+    }
+
+    /**
+     *  The criteria whose search did not finish: each preferred the largest count fitted, or the
+     *  smallest while still improving at the largest, so a wider range could change its answer.
+     *  Always empty when the counts were specified rather than searched, since every value then
+     *  sits at an end of the range by construction.
+     *
+     *  @param criteria the criteria to consult
+     */
+    fun unfinishedCriteria(
+        criteria: List<MixtureCriterionIfc> = MixtureModeler.defaultReportedCriteria(catalogSize)
+    ): List<CriterionChoice> {
+        if (numComponentsWasSpecified) return emptyList()
+        return criterionChoices(criteria).filter { it.isUnfinished }
+    }
+
+    /**
+     *  Whether any reported criterion's search was unfinished; see `unfinishedCriteria`. The range
+     *  is never widened automatically: this reports the condition so the caller can.
+     *
+     *  @param criteria the criteria to consult
+     */
+    fun isSearchUnfinished(
+        criteria: List<MixtureCriterionIfc> = MixtureModeler.defaultReportedCriteria(catalogSize)
+    ): Boolean = unfinishedCriteria(criteria).isNotEmpty()
+
+    /**
      *  What each criterion would choose, and whether it actually chose.
      *
      *  A criterion whose smallest value sits at the largest count fitted has not selected a
@@ -478,32 +527,36 @@ class MixtureModelingResults(
                 appendLine("  of candidates.")
                 appendLine()
             }
-            for (c in criteria) {
-                val values = profile[c.name] ?: continue
-                val comparable = values.filterValues { it.isComparable }
-                if (comparable.isEmpty()) {
-                    appendLine("  %-10s no comparable value".format(c.name))
+            for (choice in criterionChoices(criteria)) {
+                val chosen = choice.numComponents
+                if (chosen == null) {
+                    appendLine("  %-10s no comparable value".format(choice.criterionName))
                     continue
-                }
-                val chosen = if (c.smallerIsBetter) {
-                    comparable.minByOrNull { it.value.value }!!.key
-                } else {
-                    comparable.maxByOrNull { it.value.value }!!.key
                 }
                 if (numComponentsWasSpecified) {
                     // No boundary annotation: with a specified count every value sits at an end of
                     // the range by construction, so the warning would fire on every line of every
                     // report and mean nothing.
-                    appendLine("  %-10s prefers k = %d".format(c.name, chosen))
+                    appendLine("  %-10s prefers k = %d".format(choice.criterionName, chosen))
                     continue
                 }
-                val note = when (chosen) {
-                    counts.last() -> "  <- at the largest count fitted: it ran out of candidates " +
+                val note = when (choice.boundary) {
+                    ComponentCountBoundary.UPPER -> "  <- at the largest count fitted: it ran out of candidates " +
                             "rather than finding a best"
-                    counts.first() -> "  <- at the smallest count fitted"
+                    ComponentCountBoundary.LOWER -> if (choice.stillImprovingAtTop) {
+                        "  <- at the smallest count fitted, and still improving at k = ${counts.last()}: " +
+                                "the range may be too narrow"
+                    } else {
+                        "  <- at the smallest count fitted"
+                    }
                     else -> ""
                 }
-                appendLine("  %-10s chooses k = %d%s".format(c.name, chosen, note))
+                appendLine("  %-10s chooses k = %d%s".format(choice.criterionName, chosen, note))
+            }
+            val unfinished = unfinishedCriteria(criteria)
+            if (unfinished.isNotEmpty()) {
+                appendLine()
+                appendLine("  " + unfinishedSearchWarning(unfinished, counts.last()))
             }
         }
     }
@@ -598,7 +651,9 @@ class MixtureModelingResults(
         return ComponentCountEvidence(
             rows.sortedBy { it.numComponents },
             specifiedNumComponents,
-            componentCountAgreement(criteria)
+            componentCountAgreement(criteria),
+            criterionChoices(criteria),
+            unfinishedCriteria(criteria)
         )
     }
 
@@ -1603,12 +1658,105 @@ class MixtureModeler(
         generator: PartitionGeneratorIfc = JenksPartitionGenerator(mySortedData, maxRequested(numComponentsRange)),
         refiner: PartitionRefinerIfc = defaultRefiner(),
         selector: FamilySelectorIfc = defaultSelector()
+    ): MixtureModelingResults = fitWith(numComponentsRange, listOf(generator), refiner, selector)
+
+    /**
+     *  Fits each count once per generator and keeps, for each count, the candidate the ranking
+     *  criterion prefers.
+     *
+     *  A generator only supplies the starting partition for a non-convex search, so the choice of
+     *  generator can decide the result: on skewed samples the generators fail in different places
+     *  (Jenks spends its cuts in the tail, Quantile is scale-free, HistogramValley finds gaps in
+     *  density). Running several and keeping the best by criterion makes that choice a much smaller
+     *  decision, at the cost of fitting each count once per generator. The results record which
+     *  generator won each count.
+     *
+     *  A separate name rather than a `fit` overload, so that a plain `fit()` call stays unambiguous.
+     *
+     *  @param numComponentsRange the counts to fit
+     *  @param generators the generators to try at each count; by default Jenks, Quantile and
+     *  HistogramValley
+     *  @param refiner improves each generated partition
+     *  @param selector chooses one family per group
+     */
+    fun fitMultiStart(
+        numComponentsRange: Iterable<Int> = defaultNumComponentsRange,
+        generators: List<PartitionGeneratorIfc> = listOf(
+            JenksPartitionGenerator(mySortedData, maxRequested(numComponentsRange)),
+            QuantilePartitionGenerator(),
+            HistogramValleyPartitionGenerator()
+        ),
+        refiner: PartitionRefinerIfc = defaultRefiner(),
+        selector: FamilySelectorIfc = defaultSelector()
+    ): MixtureModelingResults {
+        require(generators.isNotEmpty()) { "At least one partition generator must be given" }
+        return fitWith(numComponentsRange, generators, refiner, selector)
+    }
+
+    /** The outcome of fitting one count with one generator. */
+    private class CountOutcome(
+        val ranked: RankedMixture? = null,
+        val fits: List<GroupFitResult>? = null,
+        val refinement: RefinementResult? = null,
+        val rejection: String? = null,
+        val truncation: String? = null
+    )
+
+    private fun fitCount(
+        k: Int,
+        generator: PartitionGeneratorIfc,
+        refiner: PartitionRefinerIfc,
+        selector: FamilySelectorIfc
+    ): CountOutcome {
+        val initial = generator.generate(mySortedData, k, certificate)
+            ?: return CountOutcome(rejection = "The generator ${generator.name} produced no valid partition")
+        val refinement = refiner.refine(mySortedData, initial, certificate, myCache)
+        val partition = refinement.partition
+        val fits = myCache.fitAll(mySortedData, partition)
+        val unfittable = fits.withIndex().filter { !it.value.hasCandidates }
+        if (unfittable.isNotEmpty()) {
+            // A mixture needs a component per group, so one unfittable group ends this k.
+            return CountOutcome(
+                fits = fits, refinement = refinement,
+                rejection = "No family fitted group(s) " + unfittable.joinToString { it.index.toString() }
+            )
+        }
+        val selection = selector.select(mySortedData, partition, fits, criterion)
+        // A capped search was truncated, not refused. The reported best for this count may not
+        // be its best, which is a different fact from the count being unusable.
+        val truncation = if (selection.wasCapped) {
+            "The ${selector.name} search was truncated after " +
+                    "${selection.numMixturesEvaluated} of ${selection.numCandidatesConsidered} " +
+                    "candidate combinations"
+        } else null
+        val candidate = selection.candidate
+            ?: return CountOutcome(
+                fits = fits, refinement = refinement, truncation = truncation,
+                rejection = "The ${selector.name} selector assembled no mixture"
+            )
+        return CountOutcome(
+            RankedMixture(candidate, criterion.evaluate(candidate, mySortedData)),
+            fits, refinement, null, truncation
+        )
+    }
+
+    /** Orders comparable values first, in the criterion's direction; incomparable ones follow. */
+    private val rankOrder: Comparator<RankedMixture>
+        get() = compareByDescending<RankedMixture> { it.criterionValue.isComparable }
+            .thenBy { if (criterion.smallerIsBetter) it.criterionValue.value else -it.criterionValue.value }
+
+    private fun fitWith(
+        numComponentsRange: Iterable<Int>,
+        generators: List<PartitionGeneratorIfc>,
+        refiner: PartitionRefinerIfc,
+        selector: FamilySelectorIfc
     ): MixtureModelingResults {
         val ranked = mutableListOf<RankedMixture>()
         val fitsByK = mutableMapOf<Int, List<GroupFitResult>>()
         val rejected = mutableMapOf<Int, String>()
         val truncated = mutableMapOf<Int, String>()
         val refinements = mutableMapOf<Int, RefinementResult>()
+        val generatorByK = mutableMapOf<Int, String>()
 
         for (k in numComponentsRange) {
             val reason = certificate.infeasibilityReason(k)
@@ -1616,47 +1764,30 @@ class MixtureModeler(
                 rejected[k] = reason
                 continue
             }
-            val initial = generator.generate(mySortedData, k, certificate)
-            if (initial == null) {
-                rejected[k] = "The generator ${generator.name} produced no valid partition"
+            val outcomes = generators.map { it to fitCount(k, it, refiner, selector) }
+            val successes = outcomes.filter { it.second.ranked != null }
+            if (successes.isEmpty()) {
+                // With one generator this is exactly the old behaviour: its own reason, and its
+                // fits and refinement kept for diagnosis. With several, every reason is kept.
+                val (_, only) = outcomes.first()
+                if (generators.size == 1) {
+                    only.fits?.let { fitsByK[k] = it }
+                    only.refinement?.let { refinements[k] = it }
+                    only.truncation?.let { truncated[k] = it }
+                }
+                rejected[k] = outcomes.joinToString("; ") { it.second.rejection ?: "no mixture" }
                 continue
             }
-            val refinement = refiner.refine(mySortedData, initial, certificate, myCache)
-            refinements[k] = refinement
-            val partition = refinement.partition
-            val fits = myCache.fitAll(mySortedData, partition)
-            fitsByK[k] = fits
-            val unfittable = fits.withIndex().filter { !it.value.hasCandidates }
-            if (unfittable.isNotEmpty()) {
-                // A mixture needs a component per group, so one unfittable group ends this k.
-                rejected[k] = "No family fitted group(s) " +
-                        unfittable.joinToString { it.index.toString() }
-                continue
-            }
-            val selection = selector.select(mySortedData, partition, fits, criterion)
-            if (selection.wasCapped) {
-                // The search was truncated, not refused. The reported best for this count may not
-                // be its best, which is a different fact from the count being unusable.
-                truncated[k] = "The ${selector.name} search was truncated after " +
-                        "${selection.numMixturesEvaluated} of ${selection.numCandidatesConsidered} " +
-                        "candidate combinations"
-            }
-            val candidate = selection.candidate
-            if (candidate == null) {
-                rejected[k] = "The ${selector.name} selector assembled no mixture"
-                continue
-            }
-            ranked.add(RankedMixture(candidate, criterion.evaluate(candidate, mySortedData)))
+            val (winner, outcome) = successes.minWith(compareBy(rankOrder) { it.second.ranked!! })
+            ranked.add(outcome.ranked!!)
+            outcome.fits?.let { fitsByK[k] = it }
+            outcome.refinement?.let { refinements[k] = it }
+            outcome.truncation?.let { truncated[k] = it }
+            if (generators.size > 1) generatorByK[k] = winner.name
         }
-        // Rank comparable values first, in the criterion's direction; incomparable values follow
-        // so that they can be reported but never win.
-        val sorted = ranked.sortedWith(
-            compareByDescending<RankedMixture> { it.criterionValue.isComparable }
-                .thenBy { if (criterion.smallerIsBetter) it.criterionValue.value else -it.criterionValue.value }
-        )
         return MixtureModelingResults(
-            sorted, certificate, fitsByK, rejected, myCache.hitRate, truncated, refinements,
-            mySortedData, criterion
+            ranked.sortedWith(rankOrder), certificate, fitsByK, rejected, myCache.hitRate, truncated,
+            refinements, mySortedData, criterion, generatorByGroupCount = generatorByK
         )
     }
 
@@ -1695,8 +1826,8 @@ class MixtureModeler(
          *  five and BIC choose two is looking at the two ends of that scale rather than at a
          *  contradiction.
          *
-         *  @param catalogSize the number of families the fitter may choose from, which the
-         *  extended criterion charges for
+         *  The function is given the number of families the fitter may choose from, which the
+         *  extended criterion charges for.
          */
         var defaultReportedCriteria: (catalogSize: Int) -> List<MixtureCriterionIfc> = { size ->
             listOf(

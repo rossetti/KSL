@@ -28,14 +28,25 @@ class AdminConsoleTest {
     private val unconfigured = listOf(AgentConfigurator.ClientState("Claude Desktop", present = false, path = "/x/claude.json"))
 
     @Test
-    @DisplayName("isLoopbackHost accepts loopback forms and rejects remote addresses")
+    @DisplayName("isLoopbackAddress accepts every loopback form and rejects remote addresses")
     fun loopbackGuard() {
-        assertTrue(AdminConsole.isLoopbackHost("127.0.0.1"))
-        assertTrue(AdminConsole.isLoopbackHost("localhost"))
-        assertTrue(AdminConsole.isLoopbackHost("::1"))
-        assertTrue(AdminConsole.isLoopbackHost("0:0:0:0:0:0:0:1"))
-        assertFalse(AdminConsole.isLoopbackHost("192.168.1.5"))
-        assertFalse(AdminConsole.isLoopbackHost("example.com"))
+        assertTrue(AdminConsole.isLoopbackAddress("127.0.0.1"))
+        assertTrue(AdminConsole.isLoopbackAddress("localhost"))
+        assertTrue(AdminConsole.isLoopbackAddress("::1"))
+        assertTrue(AdminConsole.isLoopbackAddress("0:0:0:0:0:0:0:1"))
+        assertFalse(AdminConsole.isLoopbackAddress("192.168.1.5"))
+        assertFalse(AdminConsole.isLoopbackAddress("example.com"))
+
+        // The IPv4-mapped form a dual-stack bind can produce, and the bracketed IPv6 some clients
+        // present. Both are loopback; both were refused before.
+        assertTrue(AdminConsole.isLoopbackAddress("::ffff:127.0.0.1"))
+        assertTrue(AdminConsole.isLoopbackAddress("[::1]"))
+
+        // The name Docker Desktop maps onto 127.0.0.1 in the hosts file. A gate that resolved the
+        // peer to a name saw this and refused every machine-local request on such a machine; a gate
+        // on the address never sees it. Asserting it is rejected is what keeps the predicate honest
+        // about taking an address: a *name* is not a loopback address, whatever it maps to.
+        assertFalse(AdminConsole.isLoopbackAddress("kubernetes.docker.internal"))
     }
 
     @Test

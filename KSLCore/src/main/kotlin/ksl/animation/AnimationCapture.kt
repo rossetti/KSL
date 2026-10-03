@@ -71,6 +71,8 @@ import java.nio.file.Path
  * @param overlays overlay-capture spec passed to the agent coordinators
  * @param asyncCapacity bounded-queue capacity used in [Mode.ASYNC]
  * @param description optional label written into the trace header (defaults to the model name)
+ * @param kslVersion the library version written into the trace header; defaults to the version in the
+ *   KSLCore jar's manifest, which is null when running from classes
  */
 class AnimationCapture(
     private val model: Model,
@@ -80,7 +82,8 @@ class AnimationCapture(
     private val captureSpec: CaptureSpec = CaptureSpec(),
     private val overlays: OverlaySpec = OverlaySpec.OFF,
     private val asyncCapacity: Int = AsyncAnimationSink.DEFAULT_CAPACITY,
-    private val description: String? = null
+    private val description: String? = null,
+    private val kslVersion: String? = libraryVersion
 ) : Closeable {
 
     /** The base-sink strategy. */
@@ -98,6 +101,7 @@ class AnimationCapture(
         output.writeHeader(
             AnimationTraceHeader(
                 baseTimeUnit = model.baseTimeUnit.name,
+                kslVersion = kslVersion,
                 description = description ?: model.name
             )
         )
@@ -125,6 +129,12 @@ class AnimationCapture(
         } + captureSpec.exclude.filter { it.kind == ElementKind.PROCESS }.map { it.name }).toSet()
         if (excludedTypes.isNotEmpty() || excludedProcesses.isNotEmpty()) {
             sink = EntityCaptureFilteringSink(sink, excludedTypes, excludedProcesses)
+        }
+        // Elements whose events are not registered per element (guide paths, fleets, conveyor cells,
+        // mover moves) read the selection off the sink when they emit. Only a non-default spec is
+        // installed, so the common capture-everything case costs nothing.
+        if (captureSpec.mode != CaptureMode.ALL || captureSpec.exclude.isNotEmpty()) {
+            sink = CaptureSpecSink(sink, captureSpec)
         }
         model.animationSink = sink
 
@@ -206,14 +216,15 @@ class AnimationCapture(
         }
         // Responses and counters come from the model's curated statistical-variable lists.
         val responseEmitter = ResponseAnimationEmitter()
+        val offByDefault = model.notCapturedByDefault()
         for (response in model.responses) {
-            if (!captureSpec.captures(ElementKind.RESPONSE, response.name)) continue
+            if (!captureSpec.capturesStatistic(ElementKind.RESPONSE, response.name, offByDefault)) continue
             val element = response as ModelElement
             element.attachModelElementObserver(responseEmitter)
             unregisterActions.add { element.detachModelElementObserver(responseEmitter) }
         }
         for (counter in model.counters) {
-            if (!captureSpec.captures(ElementKind.COUNTER, counter.name)) continue
+            if (!captureSpec.capturesStatistic(ElementKind.COUNTER, counter.name, offByDefault)) continue
             val element = counter as ModelElement
             element.attachModelElementObserver(responseEmitter)
             unregisterActions.add { element.detachModelElementObserver(responseEmitter) }
@@ -280,6 +291,12 @@ class AnimationCapture(
 
     companion object {
         /**
+         *  The KSLCore version recorded in the jar's manifest, written into each trace header so a
+         *  trace says which library produced it. Null when running from classes rather than the jar.
+         */
+        val libraryVersion: String? by lazy { AnimationCapture::class.java.`package`?.implementationVersion }
+
+        /**
          * Creates a [JsonLinesAnimationOutput] for [traceFile] and captures [model] into it — the
          * common case, so a caller needs only a model and a destination path.
          */
@@ -291,11 +308,21 @@ class AnimationCapture(
             captureSpec: CaptureSpec = CaptureSpec(),
             overlays: OverlaySpec = OverlaySpec.OFF,
             asyncCapacity: Int = AsyncAnimationSink.DEFAULT_CAPACITY,
-            description: String? = null
+            description: String? = null,
+            kslVersion: String? = libraryVersion
         ): AnimationCapture =
             AnimationCapture(
                 model, JsonLinesAnimationOutput.toFile(traceFile), mode, capturedReplications,
-                captureSpec, overlays, asyncCapacity, description
+                captureSpec, overlays, asyncCapacity, description, kslVersion
             )
     }
 }
+
+/**
+ * Carries the capture selection on the model's sink, so emitters that are not registered per element
+ * can honour it. Passes every event through; the selection is applied by the emitters themselves.
+ */
+private class CaptureSpecSink(
+    private val delegate: AnimationSink,
+    override val captureSpec: CaptureSpec
+) : AnimationSink by delegate

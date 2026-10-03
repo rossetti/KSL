@@ -40,4 +40,29 @@ interface MemberEvaluatorFactoryIfc {
      */
     fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) {
     }
+
+    /**
+     * How many sub-streams the member consumed against the block it was given, once it has been
+     * released; null when the factory does not track it or the member has not been released.
+     *
+     * A member that consumes more than its block runs on streams belonging to the next member's
+     * block, so the two are no longer independent and a concurrent study is no longer reproducible
+     * cell by cell. Recording it lets a finished study say which cells that happened to.
+     *
+     * @param memberIndex the member's index
+     */
+    fun substreamUsage(memberIndex: Int): SubstreamUsage? = null
+}
+
+/**
+ * A member's sub-stream consumption against its reserved block.
+ *
+ * @param consumed the number of sub-streams the member advanced its tape by
+ * @param blockSize the size of the block reserved for it
+ */
+data class SubstreamUsage(val consumed: Long, val blockSize: Int) {
+
+    /** True when the member ran past its block into the next member's streams. */
+    val isOverrun: Boolean
+        get() = consumed > blockSize
 }

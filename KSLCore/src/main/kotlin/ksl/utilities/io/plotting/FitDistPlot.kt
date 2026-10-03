@@ -4,7 +4,8 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSL
 import org.jetbrains.letsPlot.Figure
-import org.jetbrains.letsPlot.GGBunch
+import org.jetbrains.letsPlot.gggrid
+import org.jetbrains.letsPlot.ggsize
 import java.io.File
 import java.nio.file.Path
 
@@ -66,20 +67,8 @@ class FitDistPlot @JvmOverloads constructor(
         val p3 = ecdfPlot.buildPlot()
         val p4 = ppPlot.buildPlot()
 
-        val plot = GGBunch()
-            .addPlot(p1, 0, 0, 400, 300)
-            .addPlot(p2, 400, 0, 400, 300)
-            .addPlot(p3, 0, 300, 400, 300)
-            .addPlot(p4, 400, 300, 400, 300)
-//        val plots = listOf(p1, p2, p3, p4)
-//        val regions = listOf(listOf(0, 0, 400, 300), listOf(400, 0, 400, 300),
-//            listOf(0, 300, 400, 300), listOf(400, 300, 400, 300))
-//        val plot = ggbunch(plots, regions)
-
-// could not get gggrid() to work, something not supported
-//        val plots = listOf(p1, p2, p3, p4)
-//        return gggrid(plots, ncol = 2) + ggtitle(title) + ggsize(500, 500)
-        return plot
+        // A 2x2 grid of 400x300 cells, the layout the removed GGBunch gave by absolute offsets.
+        return gggrid(listOf(p1, p2, p3, p4), ncol = 2) + ggsize(800, 600)
     }
 
     /**

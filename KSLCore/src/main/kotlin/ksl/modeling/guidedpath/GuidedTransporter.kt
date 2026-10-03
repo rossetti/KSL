@@ -749,6 +749,12 @@ class GuidedTransporter @JvmOverloads constructor(
     private val myManifest = mutableListOf<ProcessModel.Entity>()
 
     /**
+     * The fleet vehicle this transporter is the body of, when it is one; recorded so the trace can
+     * join a vehicle's assignments to the transporter that moves.
+     */
+    internal var vehicleName: String? = null
+
+    /**
      * The loads currently aboard, in the order they were taken on.
      *
      * This is what makes carrying a **fact** rather than a claim. The transporter's moving state is
@@ -854,6 +860,7 @@ class GuidedTransporter @JvmOverloads constructor(
             "Transporter (${this.name}) was given ${myManifest.size} loads but holds $loadCapacity."
         }
         observeCapacity()
+        system.emitLoadChange(this, load, boarded = true)
     }
 
     /** Sets a load down. Refuses one that is not aboard. */
@@ -863,6 +870,7 @@ class GuidedTransporter @JvmOverloads constructor(
             "Load (${load.name}) is not aboard transporter (${this.name}) and cannot be set down."
         }
         observeCapacity()
+        system.emitLoadChange(this, load, boarded = false)
     }
 
     /**

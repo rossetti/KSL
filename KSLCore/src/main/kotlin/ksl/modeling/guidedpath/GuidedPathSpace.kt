@@ -106,7 +106,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
     collectLinkStatistics: Boolean = false,
     collectZoneStatistics: Boolean = false,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), ksl.animation.NotCapturedByDefaultIfc {
 
     init {
         network.attachTo(this.name)
@@ -298,6 +298,14 @@ open class GuidedPathSpace @JvmOverloads constructor(
         get() = myNumZoneTraversals
 
     private val myNumEventsScheduled = Counter(this, name = "${this.name}:NumEventsScheduled")
+
+    /**
+     * The counts of zone traversals and events scheduled are bookkeeping, changed thousands of times a shift and
+     * drawn from by nothing on a canvas, so an animation of everything leaves them out unless they are included
+     * by name.
+     */
+    override val notCapturedByDefault: Set<String>
+        get() = setOf(myNumZoneTraversals.name, myNumEventsScheduled.name)
 
     /** How many events the guide path put on the calendar: traversals, rear releases, and retries. */
     val numEventsScheduled: CounterCIfc
@@ -671,6 +679,31 @@ open class GuidedPathSpace @JvmOverloads constructor(
         myAnimationEmitter.emitTransporterState(transporter, state)
     }
 
+    /**
+     * Re-states this guide path for an animation window that opens mid-run: the definition, each
+     * transporter's position, state and loads, and every closure currently reserved or held. The
+     * live definition fires only at replication start, which a window drops.
+     */
+    internal fun emitAnimationSnapshot() {
+        myAnimationEmitter.beginReplication()
+        myAnimationEmitter.emitGuidedPathDefined()
+        for (transporter in myTransporters) {
+            transporter.frontZone?.let { myAnimationEmitter.emitTransporterMoved(transporter, it) }
+            myAnimationEmitter.emitTransporterState(transporter, transporter.transporterState)
+            for (load in transporter.manifest) myAnimationEmitter.emitLoadChange(transporter, load, boarded = true)
+        }
+        for (request in myZoneRequests.values) myAnimationEmitter.emitClosureChanged(request, "RESERVED")
+        for (allocation in myZoneAllocations.values) {
+            myAnimationEmitter.emitClosureChanged(allocation.request, "RESERVED")
+            myAnimationEmitter.emitClosureChanged(allocation.request, "HELD")
+        }
+    }
+
+    /** Emits a load going aboard or being set down, doing nothing when no animation sink is active. */
+    internal fun emitLoadChange(transporter: GuidedTransporter, load: ksl.modeling.entity.ProcessModel.Entity, boarded: Boolean) {
+        myAnimationEmitter.emitLoadChange(transporter, load, boarded)
+    }
+
     /** Emits a transporter's arrival in a zone, doing nothing when no animation sink is active. */
     internal fun emitTransporterMoved(transporter: GuidedTransporter, zone: Zone) {
         myAnimationEmitter.emitTransporterMoved(transporter, zone)
@@ -1012,14 +1045,18 @@ open class GuidedPathSpace @JvmOverloads constructor(
             }
             covered += t.coveredZones.size
         }
-        myNumMoving.value = moving.toDouble()
-        myNumBlocked.value = blocked.toDouble()
-        myNumIdle.value = idle.toDouble()
-        myNumBlockedByVehicle.value = byVehicle.toDouble()
-        myNumBlockedByOccupier.value = byOccupier.toDouble()
-        myNumBlockedByPopulation.value = byPopulation.toDouble()
-        myNumBlockedByIdleVehicle.value = byIdleVehicle.toDouble()
-        myZoneUtilization.value = covered.toDouble() / network.zones.size
+        // Assigned only when they change. This runs after every transporter event, and a count that is
+        // reassigned its own value adds nothing to its time-weighted average, minimum or maximum, but
+        // still records an observation, notifies observers and emits: eight of each per event, which
+        // was most of an animated vehicle model's trace.
+        myNumMoving.assignIfChanged(moving.toDouble())
+        myNumBlocked.assignIfChanged(blocked.toDouble())
+        myNumIdle.assignIfChanged(idle.toDouble())
+        myNumBlockedByVehicle.assignIfChanged(byVehicle.toDouble())
+        myNumBlockedByOccupier.assignIfChanged(byOccupier.toDouble())
+        myNumBlockedByPopulation.assignIfChanged(byPopulation.toDouble())
+        myNumBlockedByIdleVehicle.assignIfChanged(byIdleVehicle.toDouble())
+        myZoneUtilization.assignIfChanged(covered.toDouble() / network.zones.size)
         if (collectZoneStatistics || collectLinkStatistics) {
             refreshZoneDetail()
         }
@@ -1036,19 +1073,19 @@ open class GuidedPathSpace @JvmOverloads constructor(
         val perLink = if (collectLinkStatistics) HashMap<Link, Int>(network.links.size) else null
         for (z in network.zones) {
             val isCovered = z.isCovered
-            myZoneCoverage[z]?.value = if (isCovered) 1.0 else 0.0
+            myZoneCoverage[z]?.assignIfChanged(if (isCovered) 1.0 else 0.0)
             when (z) {
                 is LinkZone -> if (perLink != null && isCovered) {
                     perLink[z.link] = (perLink[z.link] ?: 0) + 1
                 }
 
                 is IntersectionZone ->
-                    myIntersectionCoverage[z.intersection]?.value = if (isCovered) 1.0 else 0.0
+                    myIntersectionCoverage[z.intersection]?.assignIfChanged(if (isCovered) 1.0 else 0.0)
             }
         }
         if (perLink != null) {
             for ((link, response) in myLinkCoverage) {
-                response.value = (perLink[link] ?: 0).toDouble()
+                response.assignIfChanged((perLink[link] ?: 0).toDouble())
             }
         }
     }
@@ -1998,6 +2035,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
         for (link in network.links) {
             link.resetLink()
         }
+        myAnimationEmitter.beginReplication()
         for (transporter in myTransporters) {
             transporter.placeAtInitialPosition()
             // Nothing is owed yet, so this audits nothing; what it does is record that placement
@@ -2220,4 +2258,9 @@ open class GuidedPathSpace @JvmOverloads constructor(
         appendLine("transporters:")
         for (t in myTransporters) appendLine("  $t")
     }
+}
+
+/** Assigns [newValue] only when it differs from the current value; see `refreshFleetCounts`. */
+private fun TWResponse.assignIfChanged(newValue: Double) {
+    if (value != newValue) value = newValue
 }

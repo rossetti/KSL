@@ -59,10 +59,36 @@ class InventoryPolicyReorderPointReorderQuantityTest {
     }
 
     @Test
-    fun `initialReorderPointDelta rejects values below 1`() {
+    fun `initialReorderPointDelta rejects values below 0`() {
         val sc = freshSC()
         val p = InventoryPolicyReorderPointReorderQuantity(sc, 0, 5)
-        assertThrows<IllegalArgumentException> { p.initialReorderPointDelta = 0 }
+        assertThrows<IllegalArgumentException> { p.initialReorderPointDelta = -1 }
+    }
+
+    @Test
+    fun `a delta of 0 reaches the lowest reorder point the class accepts`() {
+        val sc = freshSC()
+        val p = InventoryPolicyReorderPointReorderQuantity(sc, 0, 5)
+        p.initialReorderPointDelta = 0
+        assertEquals(-5, p.reorderPoint)
+    }
+
+    @Test
+    fun `the delta is kept in step with the initial parameters`() {
+        val sc = freshSC()
+        val p = InventoryPolicyReorderPointReorderQuantity(sc, reorderPoint = 300, reorderQty = 200)
+        assertEquals(500, p.initialReorderPointDelta)
+        // Setting only Q holds r + Q fixed; it used to compute r from a stale delta of 1.
+        p.initialReorderQty = 250
+        assertEquals(250, p.reorderPoint)
+        assertEquals(250, p.reorderQty)
+    }
+
+    @Test
+    fun `building at r equal to minus Q records a delta of 0`() {
+        val sc = freshSC()
+        val p = InventoryPolicyReorderPointReorderQuantity(sc, reorderPoint = -5, reorderQty = 5)
+        assertEquals(0, p.initialReorderPointDelta)
     }
 
     @Test

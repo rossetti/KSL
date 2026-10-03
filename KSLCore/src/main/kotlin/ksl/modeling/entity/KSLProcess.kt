@@ -2352,6 +2352,9 @@ interface KSLProcessBuilder {
         // has the figure this paradigm reports.
         val system = transporter.system
         if (loadingDelay != ConstantRV.ZERO) {
+            // Reported to the animation only: the transporter's own state, and the statistics built
+            // on it, are unchanged by loading, so no existing figure moves.
+            system.emitTransporterState(transporter, ksl.modeling.guidedpath.TransporterState.LOADING)
             delay(loadingDelay, loadingPriority, "$suspensionName:loading")
         }
         val startedLoaded = system.time
@@ -2374,9 +2377,12 @@ interface KSLProcessBuilder {
         // the process work without the modeler having to say so.
         entity.currentLocation = transporter.currentLocation
         if (unLoadingDelay != ConstantRV.ZERO) {
+            system.emitTransporterState(transporter, ksl.modeling.guidedpath.TransporterState.UNLOADING)
             delay(unLoadingDelay, unLoadingPriority, "$suspensionName:unloading")
         }
         transporter.alight(entity)
+        // Back to what the transporter is actually doing, now the animation-only phase is over.
+        system.emitTransporterState(transporter, transporter.transporterState)
         val result = GuidedTransportResult(
             totalTime = system.time - request.requestedAt,
             approachTime = request.approachTime,

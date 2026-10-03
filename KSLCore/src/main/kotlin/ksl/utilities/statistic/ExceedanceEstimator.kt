@@ -84,7 +84,7 @@ class ExceedanceEstimator(thresholds: DoubleArray = doubleArrayOf(1.0), name: St
         }
 
     /**
-     * @param the ith threshold, must be in 0 but less than numThresholds
+     * @param i the index of the threshold, from 0 to numThresholds - 1
      * @return the frequency for the ith threshold
      */
     fun frequency(i: Int): Double {
@@ -92,7 +92,7 @@ class ExceedanceEstimator(thresholds: DoubleArray = doubleArrayOf(1.0), name: St
     }
 
     /**
-     * @param the ith threshold, must be in 0 but less than numThresholds
+     * @param i the index of the threshold, from 0 to numThresholds - 1
      * @return the proportion for the ith threshold
      */
     fun proportion(i: Int): Double {

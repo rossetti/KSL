@@ -31,9 +31,14 @@ enum class CaptureMode { ALL, SELECTED }
  * The kinds of animatable model elements a [CaptureSpec] can select and an animation inventory can
  * enumerate. Shared vocabulary between the capture configuration ([CaptureSpec]) and the renderer's
  * element bindings, so selection and layout key off one identifier space. (`SPACE` is an agent
- * projection's spatial space; station resources are reported as `RESOURCE`.)
+ * projection's spatial space; station resources are reported as `RESOURCE`.) `GUIDED_PATH` is a
+ * guide path space (named by the space element, which is unique), `GUIDED_TRANSPORTER` a transporter
+ * on one, and `FLEET` a fleet system, whose assignments are its own events.
  */
-enum class ElementKind { QUEUE, RESOURCE, RESPONSE, COUNTER, STATION, NETWORK, AGENT, CONVEYOR, MOVABLE_RESOURCE, SPACE, ENTITY_TYPE, PROCESS, LOCATION }
+enum class ElementKind {
+    QUEUE, RESOURCE, RESPONSE, COUNTER, STATION, NETWORK, AGENT, CONVEYOR, MOVABLE_RESOURCE, SPACE,
+    ENTITY_TYPE, PROCESS, LOCATION, GUIDED_PATH, GUIDED_TRANSPORTER, FLEET
+}
 
 /**
  * Identifies one animatable element by its [kind] and trace [name] (the name it emits under). Used in a
@@ -89,4 +94,12 @@ data class CaptureSpec(
         if (exclude.any { it.kind == kind && it.name == name }) return false
         return mode == CaptureMode.ALL || include.any { it.kind == kind && it.name == name }
     }
+
+    /**
+     * Whether a member of a captured owner is captured: the owner ([ownerKind], [ownerName]) must be
+     * captured and the member ([kind], [name]) must not be excluded. Selecting a guide path therefore
+     * brings its transporters with it, and an individual transporter can still be left out.
+     */
+    fun capturesMember(ownerKind: ElementKind, ownerName: String, kind: ElementKind, name: String): Boolean =
+        captures(ownerKind, ownerName) && exclude.none { it.kind == kind && it.name == name }
 }

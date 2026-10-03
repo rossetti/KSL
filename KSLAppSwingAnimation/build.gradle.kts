@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
     application
 }
 
@@ -14,15 +14,15 @@ dependencies {
     implementation(project(":KSLCore"))            // ksl.animation (event model, layout, sinks, emitters)
     implementation(project(":KSLApp"))             // ksl.app.* session/config/editor/bundle substrate
     implementation(project(":KSLAppSwingCommon"))  // theming, BundleModelPickerDialog, workspace, editor panels
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0")
 
     // Test fixtures (example models) live in KSLTestModels; the released app ships no
     // baked-in models — it discovers bundles from the workspace bundles dir (KSLWork/bundles) at runtime.
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 application {

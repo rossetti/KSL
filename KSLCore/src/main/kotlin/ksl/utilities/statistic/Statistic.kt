@@ -657,7 +657,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
         }
 
         /**
-         * Estimate the sample size for a proportion based on a normal approximation
+         * Estimate the sample size for a proportion based on a normal approximation: the smallest whole n
+         * with z(1-alpha/2)*sqrt(p(1-p)/n) <= desiredHW, and never less than 1.
          *
          * @param desiredHW the desired half-width (must be bigger than 0)
          * @param pEst    an estimate of the proportion (must be between 0 and 1)
@@ -675,11 +676,14 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             val a2 = a / 2.0
             val z = Normal.stdNormalInvCDF(1.0 - a2)
             val m = (z / desiredHW) * (z / desiredHW) * pEst * (1.0 - pEst)
-            return (m + .5).roundToLong()
+            // The smallest whole n with n >= m. Rounding m + 0.5 gave one too many when m was whole.
+            return maxOf(1L, ceil(m).toLong())
         }
 
         /**
-         * Estimate the sample size based on a normal approximation
+         * Estimate the sample size based on a normal approximation: the smallest whole n with
+         * z(1-alpha/2)*s/sqrt(n) <= desiredHW, and never less than 2, since a half-width needs at
+         * least two observations.
          *
          * @param desiredHW the desired half-width (must be bigger than 0)
          * @param stdDev    the standard deviation (must be bigger than or equal to 0)
@@ -695,12 +699,20 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             val a2 = a / 2.0
             val z = Normal.stdNormalInvCDF(1.0 - a2)
             val m = z * stdDev / desiredHW * (z * stdDev / desiredHW)
-            return (m + .5).roundToLong()
+            // The smallest whole n with n >= m, and never fewer than the two observations a
+            // half-width needs.
+            return maxOf(2L, ceil(m).toLong())
         }
 
         /**
          * Estimate the sample size based on iterating the half-width equation based on the
-         * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= desiredHW
+         * Student-T distribution: the smallest n >= 2 with t(1-alpha/2, n-1)*s/sqrt(n) <= desiredHW.
+         *
+         * The search starts at the normal-approximation answer from `estimateSampleSize`. Any n that
+         * meets the Student-T condition also meets the normal one, because t(1-alpha/2, n-1) exceeds
+         * the normal quantile for every finite degrees of freedom, so no smaller n can qualify. The
+         * Student-T half-width also falls strictly as n grows, so counting up from there stops at the
+         * smallest n that does.
          *
          * @param desiredHW the desired half-width (must be bigger than 0)
          * @param initStdDevEst  an initial estimate of the standard deviation (must be bigger than or equal to 0)
@@ -712,15 +724,12 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             require(desiredHW > 0.0) { "The desired half-width must be > 0" }
             require(initStdDevEst >= 0.0) { "The desired std. dev. must be >= 0" }
             require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
-            val a = 1.0 - level
-            val a2 = a / 2.0
-            val p = 1.0 - a2
-            var n = 1.0
-            do {
-                n = n + 1
-                val h = (StudentT.invCDF(n, p) * initStdDevEst) / sqrt(n)
-            } while (h <= desiredHW)
-            return n.toLong()
+            val p = 1.0 - (1.0 - level) / 2.0
+            var n = estimateSampleSize(desiredHW, initStdDevEst, level)
+            while (StudentT.invCDF(n - 1.0, p) * initStdDevEst / sqrt(n.toDouble()) > desiredHW) {
+                n++
+            }
+            return n
         }
 
         /**

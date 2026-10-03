@@ -7,7 +7,7 @@
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -21,7 +21,7 @@ repositories {
 dependencies {
 
     // Exposed so consumers' test code can use the JUnit extension API these helpers build on.
-    api("org.junit.jupiter:junit-jupiter:5.11.0")
+    api("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 kotlin {

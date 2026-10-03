@@ -453,15 +453,84 @@ abstract class FleetSystem @JvmOverloads constructor(
 
     /** Emits the one thing a viewer cannot infer from watching vehicles move: that a decision was
      *  made. Guarded, so it costs nothing when no animation sink is installed. */
+    /**
+     * Reports an AGV's loading or unloading phase to the animation, or with a null [phase] its actual
+     * state again once the phase is over. Animation only: nothing about the vehicle changes.
+     */
+    private fun emitLoadingPhase(vehicle: FleetVehicle, phase: ksl.modeling.guidedpath.TransporterState?) {
+        val transporter = (vehicle as? ksl.modeling.agv.AgvVehicle)?.transporter ?: return
+        transporter.system.emitTransporterState(transporter, phase ?: transporter.transporterState)
+    }
+
+    // The last fleet state reported per vehicle, so a state that did not change reports nothing.
+    private val myLastVehicleState = HashMap<FleetVehicle, String>()
+
+    /** The vehicle's state as the fleet sees it, most pressing first. */
+    private fun fleetStateOf(vehicle: FleetVehicle): String = when {
+        vehicle.isUnderTow -> "UNDER_TOW"
+        vehicle.isFailed -> "FAILED"
+        vehicle.isStranded -> "OUT_OF_CHARGE"
+        vehicle.isCharging -> "CHARGING"
+        vehicle.isOutOfService -> "OUT_OF_SERVICE"
+        vehicle.currentAssignment != null -> "ON_TASK"
+        else -> "AVAILABLE"
+    }
+
+    /** Emits the vehicle's fleet state when it has changed. Called wherever it may have. */
+    internal fun emitVehicleState(vehicle: FleetVehicle) {
+        val sink = model.animationSink
+        if (!sink.isActive) return
+        if (sink.captureSpec?.captures(ksl.animation.ElementKind.FLEET, this.name) == false) return
+        val state = fleetStateOf(vehicle)
+        if (myLastVehicleState[vehicle] == state) return
+        myLastVehicleState[vehicle] = state
+        sink.emit(
+            ksl.animation.AnimationEvent.FleetVehicleStateChanged(
+                time, this.name, vehicle.name, ksl.modeling.agv.bodyNameOf(vehicle), state, vehicle.stateOfCharge
+            )
+        )
+    }
+
+    /**
+     * Re-states the fleet for an animation window that opens mid-run: each vehicle's state and each
+     * open assignment, which were emitted before the window opened.
+     */
+    internal fun emitAnimationSnapshot() {
+        myLastVehicleState.clear()
+        for (v in myVehicles) {
+            val assignment = v.currentAssignment
+            if (assignment != null) emitAssignment(assignment) else emitVehicleState(v)
+        }
+    }
+
+    /** Emits the end of an assignment: COMPLETED, REVOKED or CANCELLED. */
+    internal fun emitAssignmentEnded(assignment: Assignment, outcome: String) {
+        val sink = model.animationSink
+        if (sink.isActive && sink.captureSpec?.captures(ksl.animation.ElementKind.FLEET, this.name) != false) {
+            sink.emit(
+                ksl.animation.AnimationEvent.AgvAssignmentEnded(
+                    time, this.name, assignment.vehicle.name, assignment.task.id, outcome
+                )
+            )
+        }
+        emitVehicleState(assignment.vehicle)
+    }
+
     internal fun emitAssignment(assignment: Assignment) {
         val sink = model.animationSink
         if (!sink.isActive) return
+        if (sink.captureSpec?.captures(ksl.animation.ElementKind.FLEET, this.name) == false) return
         sink.emit(
             ksl.animation.AnimationEvent.AgvAssignmentMade(
                 time, this.name, assignment.vehicle.name, assignment.task.id,
-                assignment.task.pickupLocation, assignment.task.destination
+                assignment.task.pickupLocation, assignment.task.destination,
+                bodyName = ksl.modeling.agv.bodyNameOf(assignment.vehicle),
+                networkName = (this as? ksl.modeling.agv.AgvSystem)?.network?.name,
+                loadEntityId = (assignment.task as? Dispatcher.TransportTask)?.load?.id,
+                taskKind = assignment.task::class.simpleName
             )
         )
+        emitVehicleState(assignment.vehicle)
     }
 
     /**
@@ -534,6 +603,8 @@ abstract class FleetSystem @JvmOverloads constructor(
             activate(a.control)
         }
         refreshFleetCounts()
+        myLastVehicleState.clear()
+        for (v in myVehicles) emitVehicleState(v)
     }
 
     /**
@@ -1190,6 +1261,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                 task.approachTime = time - task.assignedAt
                 task.failedBeforePickup = vehicle.cumulativeFailedTime - failedAtTourStart
                 if (task.loadingDelay != ConstantRV.ZERO) {
+                    emitLoadingPhase(vehicle, ksl.modeling.guidedpath.TransporterState.LOADING)
                     delay(task.loadingDelay,                // SUSPENDS
                         suspensionName = "${vehicle.name}:loading")
                 }
@@ -1219,6 +1291,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                 // for a study that needs it.
                 task.rideTime = time - task.pickedUpAt
                 if (task.unLoadingDelay != ConstantRV.ZERO) {
+                    emitLoadingPhase(vehicle, ksl.modeling.guidedpath.TransporterState.UNLOADING)
                     delay(task.unLoadingDelay,              // SUSPENDS
                         suspensionName = "${vehicle.name}:unloading")
                 }
@@ -1228,6 +1301,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                         failedAtTourStart - task.failedBeforePickup
                 task.load.currentLocation = space.requireLocation(task.destination)
                 vehicle.body.alight(task.load)
+                emitLoadingPhase(vehicle, null)
                 task.transitionTo(TaskState.COMPLETED)
                 // Discharged by its own last stop rather than by the tour ending. With one task
                 // those are the same instant; with several, a vehicle that waited for the tour

@@ -51,6 +51,48 @@ import ksl.service.config.ServerAuth
 import ksl.service.config.ServerConfig
 import ksl.service.config.ServerConfigToml
 import ksl.service.store.ArtifactStore
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.server.application.ApplicationCall
+import java.util.concurrent.ConcurrentHashMap
+
+private val logger = KotlinLogging.logger {}
+
+/**
+ * Addresses already reported as refused, so the WARN below fires once per distinct peer rather than
+ * once per request. A console page that keeps polling would otherwise bury the log it is trying to
+ * explain.
+ */
+private val refusedAddresses = ConcurrentHashMap.newKeySet<String>()
+
+/**
+ * Gates a machine-local admin endpoint on the peer **address**, refusing with the address that was
+ * rejected rather than a bare "Local-only endpoint."
+ *
+ * The silence was most of the cost of the original incident: the console rendered its remote-mode
+ * view, every local-only POST answered 403 with no reason, and nothing anywhere recorded what the
+ * gate had actually seen. Diagnosing it took a session of rebuilding, by hand, a fact the product
+ * already had.
+ *
+ * @return true when the request may proceed; false when it has already been answered
+ */
+private suspend fun ApplicationCall.allowLoopbackOnly(): Boolean {
+    val address = request.local.remoteAddress
+    if (AdminConsole.isLoopbackAddress(address)) return true
+    if (refusedAddresses.add(address)) {
+        logger.warn {
+            "Refused a machine-local admin request from ($address): it is not a loopback address. " +
+                "If this machine is the one running the server, something has given the request a " +
+                "non-loopback peer address -- check for a proxy, a port forward, or a container " +
+                "network in front of the server."
+        }
+    }
+    respondText(
+        "Local-only endpoint. Refused because the peer address ($address) is not loopback.",
+        ContentType.Text.Plain,
+        HttpStatusCode.Forbidden
+    )
+    return false
+}
 
 /**
  * The KSL MCP Suite serving helper: ONE long-running HTTP MCP server that aggregates a set of
@@ -158,6 +200,20 @@ object KslSuiteMcpServer {
             // artifact needs the Authorization header like every other non-public route. The default
             // deployment is loopback and open, so the link is directly clickable there.
             if (artifactStore != null) {
+                // The listing route, which the REST transport has had (`KslRestApp.kt:505`) and the suite
+                // had not: both mint the same URL shape, but only one of them could tell you what a
+                // result holds. Without it a client had to already know an artifact's name to fetch it,
+                // so a link that was never handed out was unreachable.
+                get("/results/{resultId}/artifacts") {
+                    val resultId = call.parameters["resultId"]!!
+                    call.respondText(
+                        adminJson.encodeToString(
+                            ListSerializer(ksl.service.capability.run.dto.ArtifactRef.serializer()),
+                            artifactStore.list(resultId),
+                        ),
+                        ContentType.Application.Json,
+                    )
+                }
                 get("/results/{resultId}/artifacts/{name...}") {
                     val resultId = call.parameters["resultId"]!!
                     val name = call.parameters.getAll("name")?.joinToString("/").orEmpty()
@@ -180,7 +236,7 @@ object KslSuiteMcpServer {
                 }
                 // The built-in web console (Phase E): the six operator regions, server-rendered.
                 get("/admin") {
-                    val loopback = AdminConsole.isLoopbackHost(call.request.local.remoteHost)
+                    val loopback = AdminConsole.isLoopbackAddress(call.request.local.remoteAddress)
                     call.respondText(
                         AdminConsole.renderConsole(
                             status = adminOps.status(),
@@ -231,10 +287,7 @@ object KslSuiteMcpServer {
                 // optional `bridge` override backs the console's Advanced field for a dev jar. Reachable
                 // ONLY over loopback (absent when hosted, where students configure their own client).
                 post("/admin/config/client") {
-                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
-                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
-                        return@post
-                    }
+                    if (!call.allowLoopbackOnly()) return@post
                     val bridge = call.request.queryParameters["bridge"]  // null/blank → auto-detect the bundled bridge
                     val url = call.request.queryParameters["url"] ?: "http://127.0.0.1:$port/"
                     val results = try {
@@ -253,10 +306,7 @@ object KslSuiteMcpServer {
                     call.respondText(body, ContentType.Text.Plain)
                 }
                 post("/admin/config/client/remove") {
-                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
-                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
-                        return@post
-                    }
+                    if (!call.allowLoopbackOnly()) return@post
                     val results = SetupCli.remove()
                     val body = if (results.isEmpty()) "No coding agents detected."
                     else results.joinToString("\n") { "${it.agent}: ${it.action} -> ${it.path}" }
@@ -265,10 +315,7 @@ object KslSuiteMcpServer {
                 // Machine-local op: write the [capabilities] flags to the config file. Takes effect on
                 // the next (launcher/host) restart — a server can't cleanly restart itself.
                 post("/admin/config/capabilities") {
-                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
-                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
-                        return@post
-                    }
+                    if (!call.allowLoopbackOnly()) return@post
                     val q = call.request.queryParameters
                     val cfg = ServerConfig.load()
                     val updated = cfg.copy(
@@ -291,10 +338,7 @@ object KslSuiteMcpServer {
                 // Machine-local op: set the usage-study detail level (off/counts/full) LIVE and persist it
                 // — the student's opt-out. Loopback-only, like the other config writes.
                 post("/admin/config/usage") {
-                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
-                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
-                        return@post
-                    }
+                    if (!call.allowLoopbackOnly()) return@post
                     val level = ksl.service.usage.UsageLevel.fromString(call.request.queryParameters["level"])
                     usage?.setLevel?.invoke(level)
                     call.respondText("Usage study set to ${level.name.lowercase()}.", ContentType.Text.Plain)
@@ -320,10 +364,7 @@ object KslSuiteMcpServer {
                 // Machine-local op: reveal the usage file's folder in the OS file browser — the hand-off aid
                 // (the student can't open a folder from a sandboxed browser, but the local server can).
                 post("/admin/usage/reveal") {
-                    if (!AdminConsole.isLoopbackHost(call.request.local.remoteHost)) {
-                        call.respondText("Local-only endpoint.", ContentType.Text.Plain, HttpStatusCode.Forbidden)
-                        return@post
-                    }
+                    if (!call.allowLoopbackOnly()) return@post
                     val dir = usage?.dir
                     val opened = dir != null && runCatching {
                         if (java.awt.Desktop.isDesktopSupported()) {

@@ -121,6 +121,24 @@ object KslMcpServer {
                         add(buildJsonObject { put("type", "string") })
                     }
                 }
+                // Only the run document takes inputs: the other document types have no scenarios to
+                // bind them against.
+                if (documentType == "RunConfiguration") {
+                    putJsonObject("inputs") {
+                        put("type", "object")
+                        put(
+                            "description",
+                            "Optional. Control and RV-parameter overrides as a flat {inputKey: value} " +
+                                "map, keyed exactly as describe_model advertises (a control's keyName, " +
+                                "or '<rvName>.<paramName>' for a random-variable parameter) — the same " +
+                                "form run_model takes. Use {scenarioName: {inputKey: value}} to give " +
+                                "different values per scenario, or a flat map to apply one set to every " +
+                                "scenario. This is the short way to write what controlOverrides and " +
+                                "rvOverrides express longhand; both may be used together, and expanded " +
+                                "entries are appended to any already in the document.",
+                        )
+                    }
+                }
             },
             required = listOf("config"),
         )
@@ -1069,7 +1087,10 @@ object KslMcpServer {
             name = "db_compare_report",
             description = "Render a multiple-comparison (MCB) report — intervals plus confidence-interval and " +
                 "box plots — as a downloadable artifact (structuredContent {artifacts:[...]}; fetch with " +
-                "get_artifact). Same preconditions as db_compare. Optional 'formats' (HTML default).",
+                "get_artifact). Same preconditions as db_compare. Optional 'formats' (HTML default), and " +
+                "optional 'direction' — MIN when smaller is better (a time in system, a cost), MAX when " +
+                "larger is better (a throughput, a fill rate), BOTH (the default) to render both halves " +
+                "and choose yourself.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("resultId") { put("type", "string") }
@@ -1078,6 +1099,15 @@ object KslMcpServer {
                     putJsonObject("delta") { put("type", "number") }
                     putJsonObject("level") { put("type", "number") }
                     putJsonObject("formats") { put("type", "array"); putJsonObject("items") { put("type", "string") } }
+                    putJsonObject("direction") {
+                        put("type", "string")
+                        putJsonArray("enum") { add("MIN"); add("MAX"); add("BOTH") }
+                        put(
+                            "description",
+                            "MIN when smaller is better, MAX when larger is better, BOTH to render both " +
+                                "(default). Naming it saves reading the wrong half of the report.",
+                        )
+                    }
                 },
                 required = listOf("resultId", "responseName"),
             ),

@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
 }
 
 group = "io.github.rossetti"
@@ -17,15 +17,15 @@ dependencies {
     implementation(project(":KSLCore"))
     // KSLApp hosts ksl.app.* (bundling/run/session/config), extracted from KSLCore.
     implementation(project(":KSLApp"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0")
     // FlatLaf — IntelliJ-flavored look-and-feel.  Used by
     // ksl.app.swing.common.appearance.LookAndFeel to bootstrap the
     // four Phase-6 Swing apps with a consistent modern appearance.
-    implementation("com.formdev:flatlaf:3.5.4")
+    implementation("com.formdev:flatlaf:3.7.2")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
 }
 
 kotlin {

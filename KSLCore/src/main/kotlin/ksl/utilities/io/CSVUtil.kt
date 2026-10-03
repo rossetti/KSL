@@ -207,7 +207,6 @@ object CSVUtil {
      *
      * @param header            the names of the columns as strings
      * @param array             the array to write
-     * @param applyQuotesToData if true the numeric data will be surrounded by quotes
      * @param pathToFile        the path to the file
      */
     @JvmStatic

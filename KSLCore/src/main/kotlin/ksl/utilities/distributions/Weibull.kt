@@ -118,6 +118,16 @@ class Weibull(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         }
     }
 
+    /**
+     *  The log-density computed directly, so a point far in the tail keeps its true value where
+     *  `pdf` would underflow to zero: ln(shape) - shape ln(scale) + (shape - 1) ln x - (x/scale)^shape
+     *  for x > 0, and the ln(Double.MIN_VALUE) floor where `pdf` is zero.
+     */
+    override fun logLikelihood(x: Double): Double {
+        if (x <= 0) return ln(Double.MIN_VALUE)
+        return ln(shape) - shape * ln(scale) + (shape - 1.0) * ln(x) - (x / scale).pow(shape)
+    }
+
     override fun pdf(x: Double): Double {
         if (x <= 0) {
             return 0.0

@@ -20,6 +20,8 @@ package ksl.utilities.distributions.fitting.mixture
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.estimators.ParameterEstimatorIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Fits continuous families to a group by delegating to KSL's continuous distribution modeler.
@@ -39,10 +41,19 @@ import ksl.utilities.distributions.fitting.estimators.ParameterEstimatorIfc
  *  @param estimators the candidate families to fit, defaulting to the modeler's full catalog
  *  @param automaticShifting whether the modeler may estimate a left shift for a group. A shift
  *  costs one additional estimated parameter, which is counted in the candidate.
+ *  @param bootstrapStreamNumber the stream the shift check's bootstrap draws from; 0 takes the
+ *  provider's next stream. Used only when [automaticShifting] is true.
+ *  @param bootstrapStreamProvider the provider the shift check's bootstrap draws from, so a study can
+ *  keep mixture fitting off its own streams. With the default stream number each group takes the
+ *  provider's next stream; a group answered from the fit cache takes none, so which stream a given
+ *  group gets can depend on the order the groups are fitted, but a run is reproducible for a given
+ *  provider.
  */
 class PDFComponentFitter(
     estimators: Set<ParameterEstimatorIfc> = PDFModeler.allEstimators,
-    val automaticShifting: Boolean = defaultAutomaticShifting
+    val automaticShifting: Boolean = defaultAutomaticShifting,
+    private val bootstrapStreamNumber: Int = 0,
+    private val bootstrapStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : ComponentFitterIfc {
 
     private val myEstimators: Set<ParameterEstimatorIfc> = estimators.toSet()
@@ -70,7 +81,11 @@ class PDFComponentFitter(
         val rejections = mutableListOf<ComponentRejection>()
 
         val results: List<EstimationResult> = try {
-            PDFModeler(groupData).estimateParameters(myEstimators, automaticShifting)
+            PDFModeler(
+                groupData,
+                bootstrapStreamNumber = bootstrapStreamNumber,
+                bootstrapStreamProvider = bootstrapStreamProvider
+            ).estimateParameters(myEstimators, automaticShifting)
         } catch (e: Exception) {
             // Deliberately broad, and deliberately not narrowed. This wraps the whole estimation
             // subsystem for one group rather than a single call, so the set of exceptions it can

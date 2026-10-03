@@ -34,6 +34,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -604,12 +605,24 @@ class KslMcpTools(
 
     /** A config-document scaffold result: the raw document as text (to edit and submit) plus
      *  the same parsed into `structuredContent` for typed access. */
-    private fun documentResult(documentType: String, encoded: String): CallToolResult {
+    private fun documentResult(
+        documentType: String,
+        encoded: String,
+        inputsExample: JsonObject? = null,
+    ): CallToolResult {
         val parsed = runCatching { json.parseToJsonElement(encoded) }.getOrNull()?.let(::sanitizeNonFinite)
         val structured = buildJsonObject {
             put("documentType", documentType)
             if (parsed is JsonObject) put("document", parsed)
+            if (inputsExample != null && inputsExample.isNotEmpty()) {
+                put("inputs", sanitizeNonFinite(inputsExample))
+            }
         }
+        // The text body stays *exactly* the encoded document and nothing else. Callers pipe it straight
+        // back into validate_run_config / validate_experiment_config, so it has to parse as JSON on its
+        // own -- two tests re-ingest it, and they caught an earlier version of this that appended an
+        // explanation after the closing brace. The inputs example therefore lives in structuredContent,
+        // where a client can read it without the document ceasing to be a document.
         return result(encoded, structured)
     }
 
@@ -640,7 +653,26 @@ class KslMcpTools(
         val modelId = arguments.string("modelId") ?: return error("missing required argument 'modelId'")
         val descriptor = registry.describeModel(bundleId, modelId)
             ?: return error("no model '$modelId' in bundle '$bundleId'")
-        return documentResult("RunConfiguration", RunConfigurationJson.encode(RunTemplates.runDocument(descriptor, modelId)))
+        // The template also advertises the short form, with one entry per input at its current value.
+        // Discoverability is the point: an rvOverrides entry's {rvName, paramName, value} shape appears
+        // nowhere a caller would look, and the report's author reached it only by reading the source.
+        // A filled-in example beside the document is where they looked first.
+        val inputs = buildJsonObject {
+            descriptor.controls.numericControls.forEach { put(it.keyName, it.value) }
+            descriptor.controls.stringControls.forEach { put(it.keyName, it.value) }
+            descriptor.rvParameterData.forEach {
+                put(
+                    it.rvName + ksl.utilities.random.rvariable.parameters.RVParameterSetter.rvParamConCatChar +
+                        it.paramName,
+                    it.paramValue,
+                )
+            }
+        }
+        return documentResult(
+            "RunConfiguration",
+            RunConfigurationJson.encode(RunTemplates.runDocument(descriptor, modelId)),
+            inputsExample = inputs,
+        )
     }
 
     /** `validate_run_config` — validates a RunConfiguration document without running it. */
@@ -817,6 +849,12 @@ class KslMcpTools(
      * storage (sufficient statistics, no per-replication arrays).
      */
     private suspend fun incrementalRunConfig(config: ksl.app.config.RunConfiguration, useCache: Boolean): CallToolResult {
+        // Validated here rather than only in `run_config`, because this is the one path both document
+        // and flattened runs funnel through. `run_model` and `submit_run` never validated at all, so an
+        // out-of-bounds control on those paths produced no warning anywhere -- a wider hole than
+        // `run_config` throwing its warnings away. Errors are left to the callers that already reject
+        // on them; taking warnings here changes no run's outcome, only what the result admits to.
+        val warnings = runCatching { runService.validateRunConfig(config).warnings }.getOrDefault(emptyList())
         val salt = CacheVersion.forRun(registry, config)
         // resultId is keyed off the original config (matches IncrementalRunCache's
         // own exactKey), so redirecting the run's output below is an execution
@@ -853,7 +891,7 @@ class KslMcpTools(
             return error("run failed: ${e.message}")
         }
         if (capturesOutput) writeRunMeta(cached) // annotate the content-hash run folder (discoverability)
-        return runResult(cached)
+        return runResult(cached, warnings)
     }
 
     /** Writes a human-readable `meta.json` into a run's result folder so the content-hash directory is
@@ -875,14 +913,28 @@ class KslMcpTools(
     }
 
     /**
-     * The default reports to render for a run, derived from its capture toggles:
-     * a Welch report when Welch analysis was captured, a trace report when
-     * response tracing was captured; null when neither (no post-run reporting).
+     * The reports to render for a run, derived from its capture toggles: a Welch report when Welch
+     * analysis was captured, a trace report when response tracing was; null when neither (no post-run
+     * reporting) — **in the formats `outputConfig.reports` names**.
+     *
+     * Those formats used to be ignored: both reports took their default of HTML alone, so a config
+     * asking for MARKDOWN got HTML and nothing said otherwise. That is the whole of what the field can
+     * mean on this path, and it now means it.
+     *
+     * What it does **not** mean, because its type cannot carry it: `reports` is a set of *formats*, not
+     * a set of report kinds, so naming a format does not cause a report to exist. A run that captured
+     * neither Welch analysis nor a response trace has nothing to render in any format, and
+     * `reports = ["HTML"]` alone produces no artifact. The field's own documentation describes it as
+     * driving "the Single app's pre-run auto-render workflow"; an agent reading the name as "make me a
+     * report" is reading a promise it never made, which is why the tool schema now says so as well.
      */
     private fun reportRequestFor(outputConfig: ksl.app.config.OutputConfig): ksl.service.capability.report.ReportRequest? {
+        // Empty is the default rather than "no formats": a config that cleared the set was asking for
+        // the default, not for a report with no representation.
+        val formats = outputConfig.reports.map { it.name }.ifEmpty { listOf("HTML") }
         val request = ksl.service.capability.report.ReportRequest(
-            welch = if (outputConfig.enableWelchAnalysis) ksl.service.capability.report.WelchReport() else null,
-            trace = if (outputConfig.enableResponseTrace) ksl.service.capability.report.TraceReport() else null,
+            welch = if (outputConfig.enableWelchAnalysis) ksl.service.capability.report.WelchReport(formats = formats) else null,
+            trace = if (outputConfig.enableResponseTrace) ksl.service.capability.report.TraceReport(formats = formats) else null,
         )
         return if (request.isEmpty) null else request
     }
@@ -900,12 +952,17 @@ class KslMcpTools(
         val (built, argError) = buildRun(arguments)
         if (argError != null) return argError
         built!!
+        // The submit path returns before the run finishes, so a warning reported only on the terminal
+        // result would reach the caller long after they could act on it -- and a caller that polls
+        // `get_run_result` may never read this envelope again. Report it here as well as there.
+        val warnings = runCatching { runService.validateRunConfig(built.config).warnings }.getOrDefault(emptyList())
         return when (val outcome = runApp.submitRun(built.config, built.key, built.request, useCache(arguments))) {
             is RunSubmitOutcome.AlreadyCached -> jobResult(buildJsonObject {
                 put("jobId", outcome.resultId)
                 put("status", JobStatus.TERMINAL.name)
                 put("resultId", outcome.resultId)
                 put("cached", true)
+                if (warnings.isNotEmpty()) put("warnings", warningsArray(warnings))
             })
             is RunSubmitOutcome.Started -> jobResult(buildJsonObject {
                 put("jobId", outcome.jobId)
@@ -913,6 +970,7 @@ class KslMcpTools(
                 put("resultId", outcome.resultId)
                 put("cached", false)
                 outcome.reusedReplications?.let { put("reusedReplications", it) }
+                if (warnings.isNotEmpty()) put("warnings", warningsArray(warnings))
             })
             is RunSubmitOutcome.AtCapacity ->
                 error("server is at capacity (${outcome.limit} concurrent runs); try again shortly")
@@ -987,6 +1045,124 @@ class KslMcpTools(
                 "Cancellation requested for job '$jobId'.",
                 buildJsonObject { put("jobId", jobId); put("cancelled", true); put("message", "cancellation requested: $reason") },
             )
+        }
+    }
+
+    /**
+     * Expands an `inputs` argument into the control and RV overrides a `RunConfiguration` carries, so a
+     * document-centric run can be written the way `run_model` already accepts — `{keyName: value}`,
+     * keyed exactly as `describe_model` advertises.
+     *
+     * Why this is an argument and not a field of the document. Two things were awkward to author: an
+     * `rvOverrides` entry whose `{rvName, paramName, value}` shape appears in no template and no tool
+     * description, and a control override that demands the whole ~14-field `ControlData` descriptor —
+     * about 2 KB of copied boilerplate for a two-scenario comparison that differs in one number.
+     * `RunInputs.bind` already resolves both from a flat map, against the model's own descriptors, and
+     * `run_model` already routes through it; only the document path did not.
+     *
+     * Putting `inputs` in the document instead would mean adding a field to `ScenarioSpec` — a format
+     * four consumers read. A document could then be saved with `inputs` and silently ignored by the
+     * desktop apps, which is worse than the boilerplate. As an argument it is expanded here and what
+     * reaches `RunConfiguration` is exactly what reaches it today: no format change, KSLCore's
+     * `ControlData` untouched, and the strict decoder's precise errors preserved.
+     *
+     * Two shapes are accepted: keyed by scenario name, `{"TwoPharmacists": {"Pharmacy.numPharmacists": 2}}`,
+     * or a flat map applied to every scenario for the single-scenario case. Existing
+     * `controlOverrides` / `rvOverrides` in the document are kept; expanded entries are appended, so
+     * the two ways of saying it compose rather than conflict.
+     *
+     * @return the config with inputs applied, or a fatal error in the second slot
+     */
+    private fun applyInputs(
+        config: RunConfiguration,
+        arguments: JsonObject?,
+    ): Pair<RunConfiguration?, CallToolResult?> {
+        val element = arguments?.get("inputs") ?: return config to null
+        val outer = element as? JsonObject
+            ?: return null to error("'inputs' must be an object of {inputKey: value}, optionally keyed by scenario name")
+        if (outer.isEmpty()) return config to null
+
+        // Keyed-by-scenario when every value is itself an object; otherwise a flat map for all scenarios.
+        val perScenario = outer.values.all { it is JsonObject }
+        val names = config.scenarios.map { it.name }
+        if (perScenario) {
+            val unknown = outer.keys.filterNot { it in names }
+            if (unknown.isNotEmpty()) {
+                return null to error(
+                    "'inputs' names scenario(s) " + unknown.joinToString(", ") { "'" + it + "'" } +
+                        " that are not in this configuration; it has " + names.joinToString(", ") { "'" + it + "'" },
+                )
+            }
+        }
+
+        val updated = mutableListOf<ksl.app.config.ScenarioSpec>()
+        for (scenario in config.scenarios) {
+            val inputs: Map<String, JsonElement> = if (perScenario) {
+                (outer[scenario.name] as? JsonObject) ?: emptyMap()
+            } else {
+                outer
+            }
+            if (inputs.isEmpty()) {
+                updated.add(scenario)
+                continue
+            }
+            // Bound against whichever reference the scenario carries. Both forms reach a descriptor:
+            // a bundle-and-model id names one exactly, and a provider id is enough on its own.
+            val descriptor = when (val ref = scenario.modelReference) {
+                is ksl.app.config.ModelReference.ByBundleAndModelId ->
+                    registry.describeModel(ref.bundleId, ref.modelId)
+                        ?: return null to error("no model '" + ref.modelId + "' in bundle '" + ref.bundleId + "'")
+                is ksl.app.config.ModelReference.ByProviderId ->
+                    registry.descriptorForModelId(ref.providerId)
+                        ?: return null to error("no model '" + ref.providerId + "' is known to this server")
+                else -> return null to error(
+                    "scenario '" + scenario.name + "' names its model in a form whose descriptor this " +
+                        "server cannot resolve (" + ref::class.simpleName + "), so 'inputs' cannot be " +
+                        "bound; write controlOverrides / rvOverrides directly, or reference the model " +
+                        "by provider id or by bundle and model id",
+                )
+            }
+            val bound = try {
+                RunInputs.bind(descriptor, inputs)
+            } catch (e: IllegalArgumentException) {
+                return null to error("scenario '" + scenario.name + "': " + (e.message ?: "invalid inputs"))
+            }
+            val existing = scenario.controlOverrides
+            updated.add(
+                scenario.copy(
+                    controlOverrides = existing.copy(
+                        modelName = existing.modelName.ifBlank { bound.controlOverrides.modelName },
+                        numericControls = existing.numericControls + bound.controlOverrides.numericControls,
+                        stringControls = existing.stringControls + bound.controlOverrides.stringControls,
+                        jsonControls = existing.jsonControls + bound.controlOverrides.jsonControls,
+                    ),
+                    rvOverrides = scenario.rvOverrides + bound.rvOverrides,
+                ),
+            )
+        }
+        return config.copy(scenarios = updated) to null
+    }
+
+    /**
+     * A document decode failure, with kotlinx's developer-facing advice replaced by something a caller
+     * can act on.
+     *
+     * The raw message for a misspelled key reads "Encountered an unknown key 'parameters' ... Use
+     * 'ignoreUnknownKeys = true' in 'Json {}' builder" — written for whoever maintains the server, and
+     * it points an agent at a fix it cannot make. The key it names is the useful part, so that is kept
+     * and the advice is replaced.
+     */
+    private fun documentError(kind: String, e: Exception): String {
+        val raw = e.message ?: return "invalid $kind document"
+        val unknownKey = Regex("""[Uu]nknown key '([^']+)'""").find(raw)?.groupValues?.get(1)
+        return if (unknownKey != null) {
+            "invalid $kind document: '$unknownKey' is not a field of this document at that position. " +
+                "Start from ${if (kind == "RunConfiguration") "run_template" else "the matching *_template tool"}, " +
+                "which emits every field with its default, and edit that — and note that a scenario's " +
+                "control and RV overrides can be given as a flat 'inputs' argument instead, keyed as " +
+                "describe_model advertises."
+        } else {
+            "invalid $kind document: $raw"
         }
     }
 
@@ -1066,11 +1242,16 @@ class KslMcpTools(
     suspend fun runConfig(arguments: JsonObject?): CallToolResult {
         val (text, argErr) = configDocText(arguments, "RunConfiguration")
         if (argErr != null) return argErr
-        val config = try {
+        val decoded = try {
             ConfigDocuments.decodeRun(text!!)
         } catch (e: Exception) {
-            return error("invalid RunConfiguration document: ${e.message}")
+            return error(documentError("RunConfiguration", e))
         }
+        // Applied before validation, so the validator sees the configuration that will actually run and
+        // its warnings describe the effective values rather than the document's.
+        val (config, inputsError) = applyInputs(decoded, arguments)
+        if (inputsError != null) return inputsError
+        config!!
         val validation = runService.validateRunConfig(config)
         if (!validation.isValid) return validationError(validation)
         return incrementalRunConfig(config, useCache(arguments))
@@ -1164,28 +1345,68 @@ class KslMcpTools(
      * ([getResult] / [getResponse] / [getDesignPoint]) remain for deep drill-down
      * on very large retained results.
      */
-    private fun runResult(stored: StoredResult, fromCache: Boolean, reused: Int = 0): CallToolResult =
-        result(runSummary(stored, fromCache), runStructured(stored, fromCache, reused))
+    private fun runResult(
+        stored: StoredResult,
+        fromCache: Boolean,
+        reused: Int = 0,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): CallToolResult =
+        result(runSummary(stored, fromCache, warnings), runStructured(stored, fromCache, reused, warnings))
 
-    private fun runResult(cached: CachedResult): CallToolResult =
-        runResult(cached.stored, cached.fromCache, cached.reusedReplications)
+    private fun runResult(
+        cached: CachedResult,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): CallToolResult =
+        runResult(cached.stored, cached.fromCache, cached.reusedReplications, warnings)
+
+    /**
+     * Pre-run validation warnings, in the shape `validate_run_config` already reports them, so a
+     * caller reads one form whether it validated first or not.
+     *
+     * These used to be computed and dropped. A run whose control value was out of bounds completed
+     * normally, reported numbers for the clamped setting, and said nothing — and `validate_run_config`
+     * is optional, so an agent that skipped it had no way to know. Warnings do not block a run; being
+     * invisible is what made them dangerous.
+     */
+    private fun warningsArray(warnings: List<ksl.app.validation.FieldError>): JsonArray =
+        buildJsonArray {
+            warnings.forEach {
+                add(buildJsonObject { put("path", it.path); put("message", it.message); put("code", it.code) })
+            }
+        }
 
     /** Full result payload + run metadata as one object (conforms to the run outputSchema). */
-    private fun runStructured(stored: StoredResult, fromCache: Boolean, reused: Int): JsonObject =
+    private fun runStructured(
+        stored: StoredResult,
+        fromCache: Boolean,
+        reused: Int,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): JsonObject =
         buildJsonObject {
             put("resultId", stored.resultId)
             put("cached", fromCache)
             if (reused > 0) put("reusedReplications", reused)
+            if (warnings.isNotEmpty()) put("warnings", warningsArray(warnings))
             // The full payload (type, summary, responses, items, best, iterations, …) wins on key conflicts.
             stored.payload.jsonObject.forEach { (k, v) -> put(k, v) }
         }
 
     /** A complete, lossless human summary of a run / experiment / optimization result. */
-    private fun runSummary(stored: StoredResult, fromCache: Boolean): String {
+    private fun runSummary(
+        stored: StoredResult,
+        fromCache: Boolean,
+        warnings: List<ksl.app.validation.FieldError> = emptyList(),
+    ): String {
         val p = stored.payload.jsonObject
         val type = p["type"]?.jsonPrimitive?.contentOrNull
         return buildString {
             appendLine("Result ${stored.resultId}${if (fromCache) " (cached)" else ""} — status: ${type ?: "unknown"}")
+            if (warnings.isNotEmpty()) {
+                appendLine()
+                appendLine("${warnings.size} warning(s) — this run did NOT use every value as written:")
+                warnings.forEach { appendLine("  - ${it.path}: ${it.message}") }
+                appendLine()
+            }
             when (type) {
                 "completed" -> {
                     p["summary"]?.jsonObject?.let { s ->
@@ -1461,8 +1682,65 @@ class KslMcpTools(
     private val externalDbDirs = ConcurrentHashMap<String, java.nio.file.Path>()
 
     /** The database directory for [resultId]: a registered external database, else the result's own output dir. */
+    /**
+     * The requested report formats, or an error naming a value that is not one.
+     *
+     * This used to be two `mapNotNull` calls, so `"PDF"` simply vanished: the tool answered with the
+     * formats it *could* make, advertised a `.pdf` URL that 404s, and said nothing about the one it had
+     * dropped. A caller asking for PDF wants to know it is not coming, and a dead link is the worst way
+     * to find out. `ReportFormat` is the whole of what is supported — HTML, MARKDOWN, TEXT.
+     *
+     * @return the parsed set (defaulting to HTML when none is named), or a failure to return verbatim
+     */
+    private fun reportFormats(arguments: JsonObject?): Pair<Set<ksl.app.config.ReportFormat>?, CallToolResult?> {
+        val named = (arguments?.get("formats") as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?: return setOf(ksl.app.config.ReportFormat.HTML) to null
+        val valid = ksl.app.config.ReportFormat.entries
+        val unknown = named.filterNot { s -> valid.any { it.name.equals(s, ignoreCase = true) } }
+        if (unknown.isNotEmpty()) {
+            return null to error(
+                "unsupported report format(s) " + unknown.joinToString(", ") { "'" + it + "'" } +
+                    "; valid formats are " + valid.joinToString(", ") { it.name },
+            )
+        }
+        val parsed = named.mapNotNull { s -> valid.firstOrNull { it.name.equals(s, ignoreCase = true) } }.toSet()
+        return parsed.ifEmpty { setOf(ksl.app.config.ReportFormat.HTML) } to null
+    }
+
     private fun dbDirFor(resultId: String): java.nio.file.Path =
         externalDbDirs[resultId] ?: artifactStore.outputDirFor(resultId)
+
+    /**
+     * The "this result has no database" answer, distinguishing it from "there is no such result".
+     *
+     * Those were the same answer — a bare `present: false` — and the guidance that came with it was
+     * actively wrong for the second case: it told the caller to re-run with the database enabled when
+     * the real problem was a bad id, so a typo sent them off to repeat a run they had already done.
+     *
+     * The message also goes in `structuredContent`, not only in the text. A client that reads the
+     * structured payload (the reason `db_status` puts it there) otherwise saw `present: false` with no
+     * guidance at all.
+     *
+     * @param extra additional structured fields a particular tool's output schema requires
+     */
+    private fun dbUnavailable(resultId: String, extra: JsonObject = JsonObject(emptyMap())): CallToolResult {
+        val known = externalDbDirs.containsKey(resultId) || resultId in resultStore.allIds()
+        val message = if (known) {
+            ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE
+        } else {
+            "No result '" + resultId + "' is known to this server, so there is no database to analyze. " +
+                "Check the resultId — a run returns it as 'resultId', and list_results shows the ids " +
+                "this server is holding. Re-running with the database enabled will not help if the id " +
+                "is wrong."
+        }
+        return result(message, buildJsonObject {
+            put("present", false)
+            put("code", if (known) "NO_DATABASE" else "UNKNOWN_RESULT_ID")
+            put("message", message)
+            extra.forEach { (k, v) -> put(k, v) }
+        })
+    }
 
     /**
      * `db_open_external` — open a pre-existing KSL database the server did not produce (a SQLite
@@ -1532,7 +1810,7 @@ class KslMcpTools(
     fun dbExperiments(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val experiments = resultDb.experiments(dbDirFor(resultId))
-            ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+            ?: return dbUnavailable(resultId)
         val element = json.encodeToJsonElement(
             kotlinx.serialization.builtins.ListSerializer(ksl.service.capability.dbanalysis.ExperimentInfoDto.serializer()),
             experiments,
@@ -1553,7 +1831,7 @@ class KslMcpTools(
         } else {
             dbOutcome
         }
-        return dbJsonResult(outcome, "summary")
+        return dbJsonResult(outcome, "summary", resultId)
     }
 
     /** `db_compare` — multiple-comparison (MCB) analysis of a response, as JSON. */
@@ -1573,6 +1851,7 @@ class KslMcpTools(
                 fallbackSource = inMemoryComparisonSource(resultId),
             ),
             "comparison",
+            resultId,
         )
     }
 
@@ -1603,7 +1882,7 @@ class KslMcpTools(
     fun dbViews(arguments: JsonObject?): CallToolResult {
         val resultId = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val names = resultDb.viewNames(dbDirFor(resultId))
-            ?: return result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+            ?: return dbUnavailable(resultId)
         val structured = buildJsonObject { putJsonArray("views") { names.forEach { add(it) } } }
         return result("${names.size} view(s): ${names.joinToString(", ")}", structured)
     }
@@ -1614,7 +1893,7 @@ class KslMcpTools(
         val view = arguments.string("view") ?: return error("missing required argument 'view'")
         val experiment = arguments.string("experiment")
         val limit = arguments.string("limit")?.toIntOrNull() ?: ksl.service.capability.dbanalysis.DEFAULT_VIEW_ROW_LIMIT
-        return dbJsonResult(resultDb.viewJson(dbDirFor(resultId), view, experiment, limit), "view")
+        return dbJsonResult(resultDb.viewJson(dbDirFor(resultId), view, experiment, limit), "view", resultId)
     }
 
     /** `db_compare_report` — render a comparison (MCB) report (with plots) as an artifact. */
@@ -1626,13 +1905,24 @@ class KslMcpTools(
         }
         val delta = arguments?.get("delta")?.jsonPrimitive?.doubleOrNull ?: 0.0
         val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
-        val formats = (arguments?.get("formats") as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-            ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
-            ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
+        val (formats, formatError) = reportFormats(arguments)
+        if (formatError != null) return formatError
+        formats!!
+        // Which half of the MCB output the report should carry. The renderer and KSLCore have had an
+        // MCBDirection all along; only the tool never exposed it, so an agent had to know that a time in
+        // system is a "smaller is better" measure and read the right half of a report containing both.
+        val direction = when (arguments.string("direction")?.uppercase()) {
+            null, "BOTH" -> ksl.utilities.io.report.extensions.MCBDirection.BOTH
+            "MAX", "LARGER", "LARGER_IS_BETTER" -> ksl.utilities.io.report.extensions.MCBDirection.MAX
+            "MIN", "SMALLER", "SMALLER_IS_BETTER" -> ksl.utilities.io.report.extensions.MCBDirection.MIN
+            else -> return error(
+                "unknown 'direction' '" + arguments.string("direction") +
+                    "'; valid values are MAX (larger is better), MIN (smaller is better), or BOTH",
+            )
+        }
         val outcome = resultDb.renderComparisonReport(
             dbDirFor(resultId), artifactStore.dirFor(resultId),
-            response, experiments, delta, level, formats,
+            response, experiments, delta, level, formats, direction,
         )
         return dbReportResult(outcome, resultId)
     }
@@ -1654,10 +1944,9 @@ class KslMcpTools(
         val experiment = arguments.string("experimentName") ?: return error("missing required argument 'experimentName'")
         val level = arguments?.get("level")?.jsonPrimitive?.doubleOrNull ?: 0.95
         val showPlots = arguments.string("showPlots")?.toBooleanStrictOrNull() ?: true
-        val formats = (arguments?.get("formats") as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-            ?.mapNotNull { s -> ksl.app.config.ReportFormat.entries.firstOrNull { it.name.equals(s, ignoreCase = true) } }
-            ?.toSet()?.ifEmpty { null } ?: setOf(ksl.app.config.ReportFormat.HTML)
+        val (formats, formatError) = reportFormats(arguments)
+        if (formatError != null) return formatError
+        formats!!
         val outcome = resultDb.renderExperimentSummaryReport(
             dbDirFor(resultId), artifactStore.dirFor(resultId),
             experiment, level, showPlots, formats,
@@ -1696,9 +1985,7 @@ class KslMcpTools(
             // output schema (required: ["artifacts"]); without it the SDK rejects the non-error
             // guidance result and the client sees a schema-validation error instead of the message.
             ksl.service.capability.dbanalysis.DbReportResult.NoDatabase ->
-                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject {
-                    put("present", false); putJsonArray("artifacts") {}
-                })
+                dbUnavailable(resultId, buildJsonObject { putJsonArray("artifacts") {} })
             is ksl.service.capability.dbanalysis.DbReportResult.Invalid ->
                 result(outcome.reason, buildJsonObject {
                     put("analyzable", false); put("reason", outcome.reason); putJsonArray("artifacts") {}
@@ -1708,6 +1995,14 @@ class KslMcpTools(
                 val structured = buildJsonObject {
                     putJsonArray("artifacts") {
                         refs.forEach { add(artifactJson(it)) }
+                    }
+                    // Normally absent: a report's file name carries the parameters identifying its
+                    // analysis, so two analyses are two files. Present means this render overwrote an
+                    // identical one — which is fine, and is reported because a URL handed out earlier
+                    // silently becoming a different report is the defect this naming closed.
+                    if (outcome.replaced.isNotEmpty()) {
+                        put("replaced", true)
+                        putJsonArray("replacedFiles") { outcome.replaced.forEach { add(it) } }
                     }
                 }
                 // Name the link for the file just written: this tool's whole point is producing a
@@ -1732,10 +2027,18 @@ class KslMcpTools(
     /** Maps a [ksl.service.capability.dbanalysis.DbQueryResult] to a tool result:
      *  JSON in structuredContent on success, or a non-error guidance result when
      *  there is no database / the request is not analyzable. */
-    private fun dbJsonResult(outcome: ksl.service.capability.dbanalysis.DbQueryResult, key: String): CallToolResult =
+    private fun dbJsonResult(
+        outcome: ksl.service.capability.dbanalysis.DbQueryResult,
+        key: String,
+        resultId: String? = null,
+    ): CallToolResult =
         when (outcome) {
             ksl.service.capability.dbanalysis.DbQueryResult.NoDatabase ->
-                result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject { put("present", false) })
+                if (resultId != null) dbUnavailable(resultId)
+                else result(ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE, buildJsonObject {
+                    put("present", false); put("code", "NO_DATABASE")
+                    put("message", ksl.service.capability.dbanalysis.NO_DATABASE_MESSAGE)
+                })
             is ksl.service.capability.dbanalysis.DbQueryResult.Invalid ->
                 result(outcome.reason, buildJsonObject { put("analyzable", false); put("reason", outcome.reason) })
             is ksl.service.capability.dbanalysis.DbQueryResult.Json -> {

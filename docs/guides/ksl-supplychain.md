@@ -107,7 +107,9 @@ It walks the network, instantiates one calculator per source
 (inventory, backlog, edge, load builder, external supplier), each
 calculator attaches an observer to its source, and at each
 replication's end the formulation rolls up the calculators into a
-**(tier × line) grid** of responses plus a grand total. The network
+**(tier × line) grid** of responses plus two network-wide totals, one per
+cost basis: `:TotalCost` (dollars over the observed window) and
+`:TotalCostRate` (dollars per unit time). The network
 simulates with or without one attached; you can attach several to one
 network for comparative studies in a single run.
 
@@ -598,6 +600,21 @@ is on the Dokka API site.
 - `InventoryPolicyReorderPointReorderQuantity` /
   `…OrderUpToLevel` / `…OrderUpToLevelPeriodic` — the three policy
   implementations.
+- Each `Inventory` reports two fill rates. `: First Fill Rate` scores
+  each demand 1 or 0 (filled entirely from stock on arrival, or not).
+  `: Unit Fill Rate` is units filled from stock on arrival over units
+  demanded, once per replication. With unit demand they agree; with
+  lot-sized demand only the unit fill rate credits a partially filled
+  lot, and it is the measure multi-echelon results usually report.
+
+**(r, Q) with lot-sized demand.** The (r, Q) policy orders the fewest
+whole batches of Q that lift the inventory position strictly above r,
+so after ordering the position lies in r+1 … r+Q. When every demand is
+a multiple of some lot size m, the difference between the position and
+r keeps its remainder modulo m for the whole run, so long-run results
+depend on the initial on-hand as well as on r and Q. Start each
+replication at r + Q to avoid this, and when an optimizer changes r,
+change the initial on-hand with it.
 
 **Demand surface**
 

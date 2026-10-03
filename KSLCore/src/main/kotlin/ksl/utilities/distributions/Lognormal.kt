@@ -160,6 +160,17 @@ class Lognormal(mean: Double = 1.0, variance: Double = 1.0, name: String? = null
         return exp(x)
     }
 
+    /**
+     *  The log-density computed directly, so a point far in the tail keeps its true value where
+     *  `pdf` would underflow to zero: -ln x - ln(sigma) - ln(2 pi)/2 - z^2/2 with
+     *  z = (ln x - mu)/sigma for x > 0, and the ln(Double.MIN_VALUE) floor where `pdf` is zero.
+     */
+    override fun logLikelihood(x: Double): Double {
+        if (x <= 0) return ln(Double.MIN_VALUE)
+        val z = (ln(x) - normalMean) / normalStdDev
+        return -ln(x) - ln(normalStdDev) - 0.5 * ln(2.0 * PI) - 0.5 * z * z
+    }
+
     override fun pdf(x: Double): Double {
         if (x <= 0) {
             return 0.0

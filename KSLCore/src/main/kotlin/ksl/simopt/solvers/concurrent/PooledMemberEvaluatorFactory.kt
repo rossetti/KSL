@@ -67,6 +67,7 @@ class PooledMemberEvaluatorFactory(
     private val myModelPool = ConcurrentLinkedQueue<Model>()
     private val myBorrowedModels = ConcurrentHashMap<Int, Model>()
     private val myTapePolicies = ConcurrentHashMap<Int, StreamTapePolicy>()
+    private val mySubstreamUsage = ConcurrentHashMap<Int, SubstreamUsage>()
     private val myValidatedFirstModel = AtomicBoolean(false)
 
     override fun createEvaluator(memberIndex: Int): EvaluatorIfc {
@@ -91,6 +92,7 @@ class PooledMemberEvaluatorFactory(
         val tapePolicy = myTapePolicies.remove(memberIndex)
         if (tapePolicy != null) {
             val consumed = tapePolicy.position - tapePolicy.initialPosition
+            mySubstreamUsage[memberIndex] = SubstreamUsage(consumed.toLong(), substreamBlockSize)
             if (consumed > substreamBlockSize) {
                 logger.warn {
                     "Member $memberIndex consumed $consumed sub-streams, exceeding its block " +
@@ -125,6 +127,8 @@ class PooledMemberEvaluatorFactory(
         }
         return model
     }
+
+    override fun substreamUsage(memberIndex: Int): SubstreamUsage? = mySubstreamUsage[memberIndex]
 
     companion object {
         val logger: KLogger = KotlinLogging.logger {}

@@ -21,14 +21,14 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
-    id("org.jetbrains.dokka") version "2.1.0"
-    id("com.vanniktech.maven.publish") version "0.33.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
+    id("org.jetbrains.dokka") version "2.2.0"
+    id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
 group = "io.github.rossetti"
-version = "R1.7"
+version = "R1.7.1"
 
 repositories {
 
@@ -37,31 +37,31 @@ repositories {
 
 dependencies {
 
-    api("io.github.oshai:kotlin-logging-jvm:7.0.7")  //TODO consider making implementation
-    api("org.slf4j:slf4j-api:2.0.17")  //TODO consider making implementation
+    api("io.github.oshai:kotlin-logging-jvm:7.0.14")  //TODO consider making implementation
+    api("org.slf4j:slf4j-api:2.0.20")  //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation("ch.qos.logback:logback-classic:1.5.32")
+    implementation("ch.qos.logback:logback-classic:1.6.5")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation("ch.qos.logback:logback-core:1.5.32")
+    implementation("ch.qos.logback:logback-core:1.6.5")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") //TODO fix later, 0.7.0 has code breaking changes
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.11.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3") //TODO consider making implementation
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.14.0") //TODO consider making implementation
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
-    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.5.2")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.10.1")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1") //TODO consider making implementation
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.8.2") //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
     api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2") {//TODO update when version 1.0 stabilizes
         exclude(group = "org.jetbrains.kotlinx", module = "dataframe-excel")
     }
 
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.4.20")
 
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
     api("org.hipparchus:hipparchus-core:4.0.3")
@@ -76,25 +76,25 @@ dependencies {
     implementation("org.apache.derby:derbyclient:10.17.1.0")
     implementation("org.apache.derby:derbytools:10.17.1.0")
 
-    implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.postgresql:postgresql:42.7.13")
 
-    implementation("org.xerial:sqlite-jdbc:3.50.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 
-    implementation("com.zaxxer:HikariCP:6.3.0")
+    implementation("com.zaxxer:HikariCP:7.1.0")
 
     // fastexcel — streaming xlsx writer/reader used by ExcelUtil
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel
-    implementation("org.dhatim:fastexcel:0.20.1")
+    implementation("org.dhatim:fastexcel:0.20.2")
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
-    implementation("org.dhatim:fastexcel-reader:0.20.1")
+    implementation("org.dhatim:fastexcel-reader:0.20.2")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-html-jvm
-    implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.12.0")
 
     // https://mvnrepository.com/artifact/net.peanuuutz.tomlkt/tomlkt
     // api (not implementation) so KSLApp inherits tomlkt transitively; it is also
     // used directly by non-app KSLCore code (station/supplychain TOML serialization).
-    api("net.peanuuutz.tomlkt:tomlkt:0.4.0")
+    api("net.peanuuutz.tomlkt:tomlkt:0.5.0")
 
     // --- test suite (per-module; Phase 7) ---
     // Core-domain tests use shared example models (KSLTestModels) and JUnit helpers
@@ -102,7 +102,7 @@ dependencies {
     // KSLTestModels depends on KSLCore's MAIN, which builds before KSLCore's tests.
     testImplementation(project(":KSLTestModels"))
     testImplementation(project(":KSLTestSupport"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation(kotlin("test"))
 }
 
@@ -110,6 +110,11 @@ dependencies {
 // this is good because the user can then provide their own logging specification
 tasks.jar {
     exclude("logback.xml")
+    // Read back at run time (for example into an animation trace's header) so a result can say which
+    // library produced it. Absent when running from classes rather than the jar.
+    manifest {
+        attributes("Implementation-Version" to project.version)
+    }
 }
 
 tasks.test {
@@ -144,6 +149,13 @@ val fastTest by tasks.registering(Test::class) {
 
 kotlin {
     jvmToolchain(21)
+    // KSLCore's own classes carry Kotlin 2.2 metadata. That alone does not make the artifact usable from
+    // Kotlin 2.2: the published kotlin-stdlib dependency follows the compiler (2.4.20 for R1.7.1), so
+    // consumers need Kotlin 2.3+. Pinning `kotlin { coreLibrariesVersion = ... }` would be the lever.
+    compilerOptions {
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+    }
     //TODO revisit
 //    explicitApiWarning()
 }

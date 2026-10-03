@@ -18,7 +18,6 @@
 
 package ksl.utilities.distributions
 
-import ksl.utilities.math.KSLMath
 import kotlin.math.exp
 import kotlin.math.ln
 
@@ -42,14 +41,27 @@ interface PDFIfc : DomainIfc, LogLikelihoodIfc {
      *  Computes the natural log of the pdf function evaluated at [x].
      *  Implementations may want to specify computationally efficient
      *  formulas for this function.
+     *
+     *  Only a density that is exactly zero, because [x] is outside the support or because the
+     *  density underflowed, is replaced by the floor ln(Double.MIN_VALUE), about -744.44. A small
+     *  positive density is a legitimate tail value and keeps its true logarithm; treating densities
+     *  below a numerical tolerance as zero added roughly 1,450 to BIC for each such observation and
+     *  depended on the units the data were recorded in. The floor is the logarithm of the smallest
+     *  positive double, so the result is continuous and increasing in the density.
+     *
+     *  A distribution that computes its log-density directly (Gamma, Lognormal, Weibull,
+     *  PearsonType5) returns the exact value even where `pdf` underflows, which can lie below the
+     *  floor. An observation astronomically far in a fitted tail then scores as badly as it really
+     *  does, and can score worse than one outside the support; both mark a candidate that fits
+     *  very poorly.
+     *
+     *  The floor keeps single-distribution BIC and AIC finite and rankable. The mixture code's
+     *  `MixtureLogLikelihood` deliberately returns negative infinity instead and leaves the decision
+     *  to its caller, since a mixture assigning no density to an observation is itself the finding.
      */
     override fun logLikelihood(x: Double): Double {
-        // pdf(x) needs to be >= 0, it is non-negative, what happens if it is 0.0
         val y = pdf(x)
-        // catch the numerical edge?
-        // use Double.MIN_VALUE somehow
-        if (y < 0) return ln(Double.MIN_VALUE)
-        if (KSLMath.equal(y, 0.0)) return ln(Double.MIN_VALUE)
+        if (y.isNaN() || y <= 0.0) return ln(Double.MIN_VALUE)
         return ln(y)
     }
 

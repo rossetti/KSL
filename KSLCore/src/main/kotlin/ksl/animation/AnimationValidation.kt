@@ -18,6 +18,10 @@
 
 package ksl.animation
 
+import ksl.modeling.fleet.FleetSystem
+import ksl.modeling.guidedpath.GuidedPathSpace
+import ksl.modeling.guidedpath.GuidedTransporter
+import ksl.modeling.entity.HoldQueue
 import ksl.modeling.agent.AgentLike
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.Resource
@@ -40,6 +44,8 @@ data class ValidationIssue(val kind: Kind, val name: String, val message: String
         UNMATCHED_MOVABLE_RESOURCE,
         UNMATCHED_RESPONSE,
         UNMATCHED_SELECTOR,
+        UNMATCHED_GUIDED_PATH,
+        UNMATCHED_GUIDED_TRANSPORTER,
         /** A type/process observed in a produced trace but absent from the manifest (10.1f nudge). */
         UNDECLARED_ENTITY_TYPE,
         UNDECLARED_PROCESS
@@ -86,6 +92,8 @@ fun AnimationLayout.validateAgainst(inventory: AnimationInventory): ValidationRe
     val queueNames = inventory.queues.toSet()
     val resourceNames = inventory.resources.toSet()
     val movableNames = inventory.movableResources.toSet()
+    val guidedPathNames = inventory.guidedPaths.map { it.spaceName }.toSet()
+    val guidedTransporterNames = inventory.guidedTransporters.toSet()
     val responseNames = (inventory.responses + inventory.counters).toSet()
     val issues = mutableListOf<ValidationIssue>()
 
@@ -97,8 +105,14 @@ fun AnimationLayout.validateAgainst(inventory: AnimationInventory): ValidationRe
 
     queues.forEach { check(it.queueName, queueNames, ValidationIssue.Kind.UNMATCHED_QUEUE, "queue") }
     resources.forEach { check(it.resourceName, resourceNames, ValidationIssue.Kind.UNMATCHED_RESOURCE, "resource") }
+    // A guided transporter styled as a movable resource is accepted: it moves, and a layout written before
+    // the guided sections existed still validates. Its own section is `guidedTransporters`.
     movableResources.forEach {
-        check(it.name, movableNames, ValidationIssue.Kind.UNMATCHED_MOVABLE_RESOURCE, "movable resource")
+        check(it.name, movableNames + guidedTransporterNames, ValidationIssue.Kind.UNMATCHED_MOVABLE_RESOURCE, "movable resource")
+    }
+    guidedPaths.forEach { check(it.spaceName, guidedPathNames, ValidationIssue.Kind.UNMATCHED_GUIDED_PATH, "guided path") }
+    guidedTransporters.forEach {
+        check(it.name, guidedTransporterNames, ValidationIssue.Kind.UNMATCHED_GUIDED_TRANSPORTER, "guided transporter")
     }
     bars.forEach { check(it.responseName, responseNames, ValidationIssue.Kind.UNMATCHED_RESPONSE, "bar response") }
     plots.forEach { check(it.responseName, responseNames, ValidationIssue.Kind.UNMATCHED_RESPONSE, "plot response") }
@@ -201,7 +215,10 @@ fun Model.scaffoldLayout(
     // column (movers are placed as movableResource(...) below; agent-resources animate from the trace). A modeler
     // can still add either from the editor's Resource/Queue tools.
     val movableList = elements.filterIsInstance<MovableResource>()
-    val resourceList = elements.filterIsInstance<Resource>().filterNot { it is MovableResource || it is AgentLike }
+    // Guided transporters are Resources too, but they are drawn on their guide path (placed below), not in a box.
+    val resourceList = elements.filterIsInstance<Resource>()
+        .filterNot { it is MovableResource || it is AgentLike || it is GuidedTransporter }
+    val guidedSpaces = elements.filterIsInstance<GuidedPathSpace>()
     val allQueues = elements.filterIsInstance<Queue<*>>()
     val stationList = elements.filterIsInstance<Station>()
     // The DistancesModel (if any) whose named locations the movers travel between; used to place those
@@ -218,8 +235,14 @@ fun Model.scaffoldLayout(
     val conveyorQueues = allQueues.filter { it.parent is Conveyor }.map { it.name }.toSet()
     // Honor each queue's reporting intent (P5): non-reporting queues (e.g. a movable resource's internal
     // :HomeBaseQ) are still captured, but not auto-placed — they otherwise clutter the starter layout.
+    // Guide path and fleet hold queues (riding, driving, awaiting pickup, in transit) are the machinery of
+    // transport: an entity in one is on or waiting for a vehicle, which the guide path drawing shows.
+    val transportQueues = allQueues.filter {
+        it.parent is GuidedPathSpace || (it is HoldQueue && it.parent is FleetSystem)
+    }.map { it.name }.toSet()
     val standaloneQueues = allQueues.filter {
-        it.name !in consumed && it.name !in agentQueues && it.name !in conveyorQueues && it.defaultReportingOption
+        it.name !in consumed && it.name !in agentQueues && it.name !in conveyorQueues &&
+                it.name !in transportQueues && it.defaultReportingOption
     }
     // Conveyors: place their chained entry/exit anchor locations (in the builder below) so the belt renders on the
     // pre-run Layout tab too — the app synthesizes belt geometry from the inventory but needs the anchors placed.
@@ -257,6 +280,24 @@ fun Model.scaffoldLayout(
         // resources, so transporters animate between resolved locations (Regime A / Phase 5: these are locations).
         distances?.let { placeLocations(it) }
         for (mr in movableList) movableResource(mr.name)
+
+        // Guide paths: fit each network's coordinates into the canvas below the columns. A multi-floor network
+        // draws its floors side by side (each unit of height shifts right by the network's own width), so they
+        // do not overlap. Transporters get default styling; their positions come from the trace.
+        for (space in guidedSpaces) {
+            val ints = space.network.intersections
+            val xMin = ints.minOf { it.x }; val xMax = ints.maxOf { it.x }
+            val yMin = ints.minOf { it.y }; val yMax = ints.maxOf { it.y }
+            val zMax = ints.maxOf { it.z }
+            val floors = if (zMax > 0.0) 2.0 else 1.0
+            val spanX = (xMax - xMin).coerceAtLeast(1e-9) * floors
+            val spanY = (yMax - yMin).coerceAtLeast(1e-9)
+            val scale = minOf((width - 2 * originX) / spanX, (height * 0.5 - originY) / spanY)
+            val offset = LayoutPoint(originX - xMin * scale, height * 0.45 - yMin * scale)
+            val floorShift = if (zMax > 0.0) LayoutPoint((xMax - xMin) * scale * 1.1 / zMax, 0.0) else null
+            guidedPath(GuidedPathLayoutElement(space.name, offset, scale, floorShift, label = space.name))
+            for (t in space.transporters) guidedTransporter(GuidedTransporterLayoutElement(t.name))
+        }
 
         // Conveyor belt anchors: place each conveyor's chained entry→exit locations in a horizontal lane, spaced by
         // cumulative cell length, so the belt (synthesized from the inventory) resolves and draws before the first

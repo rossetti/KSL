@@ -104,6 +104,7 @@ class FreePathBody internal constructor(
         }
         resource.isTransporting = true
         observeCapacity()
+        emitLoadChange(load, boarded = true)
     }
 
     override fun alight(load: ProcessModel.Entity) {
@@ -113,6 +114,23 @@ class FreePathBody internal constructor(
         myManifest.removeAll { it === load }
         if (myManifest.isEmpty()) resource.isTransporting = false
         observeCapacity()
+        emitLoadChange(load, boarded = false)
+    }
+
+    /** Emits a load going aboard or being set down, so a viewer can draw it on this vehicle. */
+    private fun emitLoadChange(load: ProcessModel.Entity, boarded: Boolean) {
+        val sink = resource.model.animationSink
+        if (!sink.isActive) return
+        if (sink.captureSpec?.captures(ksl.animation.ElementKind.MOVABLE_RESOURCE, resource.name) == false) return
+        val vehicleName = (resource.parent as? FleetVehicle)?.name ?: resource.name
+        val location = resource.currentLocation.name
+        sink.emit(
+            if (boarded) {
+                ksl.animation.AnimationEvent.VehicleLoadBoarded(time, load.id, vehicleName, resource.name, null, location)
+            } else {
+                ksl.animation.AnimationEvent.VehicleLoadAlighted(time, load.id, vehicleName, resource.name, null, location)
+            }
+        )
     }
 
     // ---- how it spent its time -----------------------------------------------------------------

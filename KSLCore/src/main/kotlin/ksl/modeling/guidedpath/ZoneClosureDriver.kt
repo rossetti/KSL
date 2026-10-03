@@ -86,7 +86,7 @@ class ZoneClosureDriver(
     private var nextHolderId = 1
 
     /** A holder per closure, because a holder is the identity of one closure and not of the driver. */
-    private inner class Closure(id: Int) : ZoneHolderIfc {
+    internal inner class Closure(id: Int) : ZoneHolderIfc {
         override val name: String = "${this@ZoneClosureDriver.name}_$id"
         override val awaitedZone: Zone? get() = null
     }

@@ -318,6 +318,94 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.7.1
+
+*3 October 2026.* Corrective. Each fix below changed a result without raising an error. Re-run rather
+than compare across the release: sample sizes, (r, Q) under lot demand, `PDFModeler` scores and
+supply-chain reports move.
+
+### Corrections to the R1.7 notes
+
+- ISC stops when told to only between phases. With `deltaC > 0`, a local search or clean-up phase runs
+  to completion regardless of the budget, so equal-budget comparisons including ISC are not
+  equal-effort. Documented on `ISCSolver`.
+- Solver-state capture stored nothing for a problem on which a solver reported NaN (fixed below).
+- The removed `GrandTotal` and the renamed cost responses are looked up by name, so old names compile
+  and fail at run time, often as a missing response or NaN. R1.7's *Changed — supply-chain costing*
+  lists the replacements.
+
+### Fixed
+
+- `Exponential.logLikelihood(x)` had the wrong sign on `x / mean` and accepted negative `x`.
+- `estimateSampleSizeViaStudentT` usually returned 2, could fail to return, and used n rather than
+  n − 1 degrees of freedom.
+- `estimateSampleSize` and `estimateProportionSampleSize` returned one too many when the bound was a
+  whole number.
+- (r, Q) policies ordered one batch too few when the shortfall below r was a multiple of Q. Unit
+  demand is unaffected.
+- The (r, Q) `RDelta` parameterization ignored the constructed r when only Q was set later.
+- Benchmark databases silently dropped any batch containing a NaN. NaN-capable columns are now
+  nullable, and a write that loses rows throws.
+- The log-likelihood floored small positive densities as if they were zero, inflating BIC and AIC for
+  candidates with points near a bound or in a tail. Gamma, Lognormal and Weibull now compute the
+  log-density directly; PearsonType5 no longer returns NaN for x ≤ 0.
+- A guide path reassigned its fleet counts after every transporter event. They are now assigned only
+  when they change; only those responses' within-replication observation counts move.
+- `HistogramValley` used equal-width bins, which found only tail noise on skewed data.
+
+### Changed — indicator constraints
+
+A response constraint whose sample variance was zero passed the feasibility test with no evidence,
+which favours rare-event constraints that a run happened never to see. `ResponseConstraint` and
+`ProblemDefinition.responseConstraint` gain `indicator = false`; a declared indicator is tested with the
+exact Clopper-Pearson bound. Undeclared constraints behave as before and warn once when they look like
+a zero-variance proportion.
+
+### Added
+
+- `Unit Fill Rate` on every supply-chain `Inventory`.
+- Benchmark runs record sub-stream use and overrun (`MemberEvaluatorFactoryIfc.substreamUsage`).
+- Resumable benchmark runs record the KSL version they started under.
+- `PDFModeler`, `PDFComponentFitter` and the min/max confidence intervals take an optional stream for
+  the bootstrap shift check.
+- `MixtureModelingResults` reports where each criterion's choice fell in the searched range and warns
+  when the search ended still improving.
+- `MixtureModeler.fitMultiStart` keeps the best fit across partition generators.
+
+### Added — animating vehicles
+
+None of these changes a model's results.
+
+- Trace readers skip unknown events and fields; the header records the writing KSL version.
+- New events: `VehicleLoadBoarded`, `VehicleLoadAlighted`, `FleetVehicleStateChanged`,
+  `AgvAssignmentEnded`. Guided events carry `spaceName`; the guide path definition lists its
+  transporters.
+- Traces omit a time-weighted value equal to the last one recorded in the replication.
+- `NotCapturedByDefaultIfc` lets an element keep statistics out of a capture-everything trace unless
+  named; the inventory lists them. Guide paths use it for their zone-traversal and event counts.
+- Free-path movement (`driveTo`, free-path fleets, `MovableAgentResource`) emits movement events.
+- Guided, fleet, conveyor and mover events honour capture selection; `GUIDED_PATH`,
+  `GUIDED_TRANSPORTER` and `FLEET` are selectable.
+- Guide paths without coordinates are laid out from link lengths.
+- Layouts gain `guidedPaths` and `guidedTransporters`.
+
+### Dependencies
+
+Built with Kotlin 2.4.20. **Requires Kotlin 2.3 or later**: its `kotlin-stdlib` dependency is 2.4.20,
+which a Kotlin 2.2 compiler cannot read. KSLProjectTemplate now uses 2.4.20.
+Updated where KSLCore exposes them to your code (`api`): kotlin-logging 7.0.14, slf4j 2.0.20,
+kotlinx-coroutines 1.11.0, kotlinx-serialization 1.11.0, lets-plot-kotlin 4.14.0 (image-export 4.8.2),
+tomlkt 0.5.0. Internal: logback 1.6.5 and postgresql 42.7.13 (both had published vulnerabilities),
+sqlite-jdbc 3.53.4.0, HikariCP 7.1.0, lets-plot-batik 4.10.1, fastexcel 0.20.2,
+kotlinx-html 0.12.0. Your project resolves the newer `api` versions unless it pins its own.
+
+### Breaking
+
+- Three `BenchmarkDbData` columns are now nullable.
+- `BenchmarkSummaryHeader`'s constructor gains a parameter (binary-incompatible).
+- An R1.7 benchmark database opens read-only; writing or resuming is refused with an explanation.
+- A guide path network with coordinates on some intersections but not all is rejected.
+
 ## R1.7
 
 *20 September 2026.* Three new subsystems, one corrected one, and a batch of fixes that were

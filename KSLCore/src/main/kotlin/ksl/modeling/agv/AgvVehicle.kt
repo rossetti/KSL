@@ -77,7 +77,7 @@ open class AgvVehicle @JvmOverloads constructor(
     internal val transporter: GuidedTransporter = GuidedTransporter(
         agvSystem.spaceSystem, initialPlacement, velocity, lengthInZones, zoneControlRule,
         "${this.name}:Body", physicalLength, loadCapacity
-    )
+    ).also { it.vehicleName = this.name }
 
     /**
      * The same thing, as the fleet's machinery sees it.
@@ -148,4 +148,14 @@ open class AgvVehicle @JvmOverloads constructor(
             this, time, currentLocationName, transporter.heldZones, transporter.transporterState,
             currentAssignment?.task, isCarryingALoad
         )
+}
+
+/**
+ * The name of the element that physically moves for [vehicle]: its guided transporter for an AGV, its
+ * movable resource for a free-path vehicle. It is the name the vehicle's movement events carry.
+ */
+internal fun bodyNameOf(vehicle: ksl.modeling.fleet.FleetVehicle): String? = when (vehicle) {
+    is AgvVehicle -> vehicle.transporter.name
+    is ksl.modeling.fleet.FreePathVehicle -> vehicle.resource.name
+    else -> null
 }

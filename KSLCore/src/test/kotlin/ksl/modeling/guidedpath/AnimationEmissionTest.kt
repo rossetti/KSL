@@ -306,8 +306,12 @@ class AnimationEmissionTest {
         // design -- `encodeDefaults = true`, whose own KDoc names `z = 0.0` as the example -- and a
         // recording made before heights existed still decodes, which `IntersectionHeightTest`
         // asserts against this same writer.
+        //
+        // R1.7.1 added more defaulted fields (aliases, link length, transporters, space name, and the
+        // state and closure details). Additive in the same way: tags unchanged, old recordings still
+        // decode (TraceCompatibilityTest replays one recorded by R1.7).
         assertEquals(
-            """{"event":"GuidedPathDefined","simTime":0.0,"networkName":"N","intersections":[{"name":"A","x":1.0,"y":2.0,"z":0.0}],"links":[{"name":"L","from":"A","to":"B","numZones":3,"bidirectional":false,"spur":true}]}""",
+            """{"event":"GuidedPathDefined","simTime":0.0,"networkName":"N","intersections":[{"name":"A","x":1.0,"y":2.0,"z":0.0,"aliases":[]}],"links":[{"name":"L","from":"A","to":"B","numZones":3,"bidirectional":false,"spur":true,"length":NaN}],"transporters":[],"spaceName":null}""",
             AnimationEvent.encodeToLine(
                 AnimationEvent.GuidedPathDefined(
                     0.0, "N",
@@ -317,25 +321,35 @@ class AnimationEmissionTest {
             )
         )
         assertEquals(
-            """{"event":"GuidedTransporterMoved","simTime":1.5,"transporterName":"Cart","networkName":"N","zoneName":"L.Zone2","linkName":"L","zoneIndex":2}""",
+            """{"event":"GuidedTransporterMoved","simTime":1.5,"transporterName":"Cart","networkName":"N","zoneName":"L.Zone2","linkName":"L","zoneIndex":2,"spaceName":null}""",
             AnimationEvent.encodeToLine(
                 AnimationEvent.GuidedTransporterMoved(1.5, "Cart", "N", "L.Zone2", "L", 2)
             )
         )
         assertEquals(
-            """{"event":"GuidedTransporterStateChanged","simTime":2.0,"transporterName":"Cart","networkName":"N","state":"BLOCKED"}""",
+            """{"event":"GuidedTransporterStateChanged","simTime":2.0,"transporterName":"Cart","networkName":"N","state":"BLOCKED","spaceName":null,"halted":false,"awaitedZoneName":null,"awaitedLinkName":null,"blockReason":null}""",
             AnimationEvent.encodeToLine(
                 AnimationEvent.GuidedTransporterStateChanged(2.0, "Cart", "N", "BLOCKED")
             )
         )
         assertEquals(
-            """{"event":"GuidedPathClosureChanged","simTime":3.0,"holderName":"Crew1","networkName":"N","zoneNames":["L.Zone1","L.Zone2"],"state":"HELD"}""",
+            """{"event":"GuidedPathClosureChanged","simTime":3.0,"holderName":"Crew1","networkName":"N","zoneNames":["L.Zone1","L.Zone2"],"state":"HELD","spaceName":null,"holderKind":null,"holderEntityId":null}""",
             AnimationEvent.encodeToLine(
                 AnimationEvent.GuidedPathClosureChanged(
                     3.0, "Crew1", "N", listOf("L.Zone1", "L.Zone2"), "HELD"
                 )
             )
         )
+        // The event types R1.7.1 added are pinned by tag in the same way.
+        val tags = listOf(
+            AnimationEvent.VehicleLoadBoarded(4.0, 7L, "Cart") to "VehicleLoadBoarded",
+            AnimationEvent.VehicleLoadAlighted(5.0, 7L, "Cart") to "VehicleLoadAlighted",
+            AnimationEvent.FleetVehicleStateChanged(6.0, "Fleet", "V1", state = "CHARGING") to "FleetVehicleStateChanged",
+            AnimationEvent.AgvAssignmentEnded(7.0, "Fleet", "V1", 3L, "COMPLETED") to "AgvAssignmentEnded"
+        )
+        for ((event, tag) in tags) {
+            assertTrue(AnimationEvent.encodeToLine(event).startsWith("""{"event":"$tag","""), tag)
+        }
     }
 
     @Test

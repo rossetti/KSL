@@ -124,7 +124,7 @@ object ConfirmationReplay {
     }
 
     private fun RunResponseTableData.toEstimate(): EstimatedResponse =
-        EstimatedResponse(responseName, average, variance, count)
+        EstimatedResponse(responseName, average, variance ?: Double.NaN, count)
 
     /**
      *  Replays one problem's selection under the supplied rule.

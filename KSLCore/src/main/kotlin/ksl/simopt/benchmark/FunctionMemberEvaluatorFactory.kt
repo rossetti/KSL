@@ -12,6 +12,7 @@ import ksl.simopt.evaluator.StreamTapePolicy
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.concurrent.ConcurrentRunOptions
 import ksl.simopt.solvers.concurrent.MemberEvaluatorFactoryIfc
+import ksl.simopt.solvers.concurrent.SubstreamUsage
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -57,6 +58,7 @@ class FunctionMemberEvaluatorFactory(
     }
 
     private val myTapePolicies = ConcurrentHashMap<Int, StreamTapePolicy>()
+    private val mySubstreamUsage = ConcurrentHashMap<Int, SubstreamUsage>()
 
     override fun createEvaluator(memberIndex: Int): EvaluatorIfc {
         require(memberIndex >= 0) { "The member index must be non-negative" }
@@ -83,6 +85,7 @@ class FunctionMemberEvaluatorFactory(
     override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) {
         val tapePolicy = myTapePolicies.remove(memberIndex) ?: return
         val consumed = tapePolicy.position - tapePolicy.initialPosition
+        mySubstreamUsage[memberIndex] = SubstreamUsage(consumed.toLong(), substreamBlockSize)
         if (consumed > substreamBlockSize) {
             logger.warn {
                 "Member $memberIndex consumed $consumed sub-streams, exceeding its block " +
@@ -91,6 +94,8 @@ class FunctionMemberEvaluatorFactory(
             }
         }
     }
+
+    override fun substreamUsage(memberIndex: Int): SubstreamUsage? = mySubstreamUsage[memberIndex]
 
     companion object {
         val logger: KLogger = KotlinLogging.logger {}

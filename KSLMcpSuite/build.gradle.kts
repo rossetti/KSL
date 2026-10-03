@@ -5,10 +5,10 @@
 // backends from the mcp-free KSLBookSearch / KSLCodeSearch libraries. Heavy state is built once and
 // shared across SSE sessions.
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     application
-    id("com.gradleup.shadow") version "9.0.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "io.github.rossetti"
@@ -33,14 +33,14 @@ dependencies {
     implementation(project(":KSLAgentConfig"))      // AgentConfigurator for the client-setup CLI
     implementation(project(":KSLBookSearch"))       // BookStore, BookSearch (mcp-free search library)
     implementation(project(":KSLCodeSearch"))       // CodeStore, CodeSearch (mcp-free search library)
-    implementation("io.modelcontextprotocol:kotlin-sdk:0.8.3")
-    implementation("io.ktor:ktor-server-cio:3.2.3")
-    implementation("io.ktor:ktor-server-core:3.2.3")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.18")
+    implementation("io.modelcontextprotocol:kotlin-sdk:0.15.0")
+    implementation("io.ktor:ktor-server-cio:3.6.0")
+    implementation("io.ktor:ktor-server-core:3.6.0")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
+    runtimeOnly("ch.qos.logback:logback-classic:1.6.5")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

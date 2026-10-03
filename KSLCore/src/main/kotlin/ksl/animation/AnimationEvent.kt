@@ -585,11 +585,17 @@ sealed class AnimationEvent {
 
     /**
      * The static guide path of a `GuidedPathTransportSystem` (emitted once per replication, at the
-     * system's initialize). [intersections] carry their own world coordinates, so unlike a conveyor
-     * the guide path needs no authored layout at all: a link is drawn between the two intersections
-     * it names, and a transporter reported on zone *k* of a link with *n* zones is placed by
-     * interpolating that fraction along it. [links] also say which are two-way and which are spurs,
-     * because those are the two features a viewer most needs to see when reading congestion.
+     * system's initialize). [intersections] carry world coordinates, so unlike a conveyor the guide
+     * path needs no authored layout: a link is drawn between the two intersections it names, and a
+     * transporter reported on zone *k* of a link with *n* zones is placed by interpolating that
+     * fraction along it. When a network is built without coordinates, KSL lays it out from its link
+     * lengths, so the coordinates are always finite. [links] also say which are two-way and which are
+     * spurs, because those are the two features a viewer most needs to see when reading congestion.
+     *
+     * [transporters] describes each vehicle's size and capacity, so a multi-zone vehicle can be drawn
+     * covering its zones. [spaceName] is the owning space element's unique name; every guided event
+     * carries it, so two networks that happen to share a name stay distinct. Key on it, not on
+     * [networkName].
      */
     @Serializable
     @SerialName("GuidedPathDefined")
@@ -597,7 +603,9 @@ sealed class AnimationEvent {
         override val simTime: Double,
         val networkName: String,
         val intersections: List<GuidedPathIntersectionDef> = emptyList(),
-        val links: List<GuidedPathLinkDef> = emptyList()
+        val links: List<GuidedPathLinkDef> = emptyList(),
+        val transporters: List<GuidedTransporterDef> = emptyList(),
+        val spaceName: String? = null
     ) : AnimationEvent()
 
     /**
@@ -611,6 +619,9 @@ sealed class AnimationEvent {
      * Blocking needs no event of its own here, and that is the point of sampling on entry: a
      * transporter that cannot claim the space ahead simply emits nothing and stays where the
      * renderer last put it, so congestion appears as stillness without anything having to say so.
+     *
+     * Zone names follow one rule, unique within a network: a link zone is named
+     * `<link name>.Zone<k>` and an intersection zone takes the intersection's name.
      */
     @Serializable
     @SerialName("GuidedTransporterMoved")
@@ -620,7 +631,8 @@ sealed class AnimationEvent {
         val networkName: String,
         val zoneName: String,
         val linkName: String? = null,
-        val zoneIndex: Int = 0
+        val zoneIndex: Int = 0,
+        val spaceName: String? = null
     ) : AnimationEvent()
 
     /**
@@ -637,7 +649,19 @@ sealed class AnimationEvent {
         override val simTime: Double,
         val transporterName: String,
         val networkName: String,
-        val state: String
+        val state: String,
+        val spaceName: String? = null,
+        /** True when the transporter was stopped by something outside it (a breakdown, a flat battery,
+         *  a gate) rather than being idle; the state then reads IDLE. */
+        val halted: Boolean = false,
+        /** While BLOCKED, the zone it is waiting to enter. */
+        val awaitedZoneName: String? = null,
+        /** While BLOCKED on a link rather than a zone, the link. */
+        val awaitedLinkName: String? = null,
+        /** While BLOCKED, why: ZONE (another vehicle holds it), CLOSURE (a closure holds or is draining
+         *  it), DIRECTION_LOCK (a two-way link is in use the other way) or SPUR_RESERVATION (another
+         *  vehicle has reserved the spur). */
+        val blockReason: String? = null
     ) : AnimationEvent()
 
     /**
@@ -662,7 +686,8 @@ sealed class AnimationEvent {
      * a viewer that shades the two differently should see both.
      *
      * [zoneNames] is the whole set, because a closure is taken all at once or not at all and a
-     * renderer shading half of one would be drawing a state the guide path cannot be in.
+     * renderer shading half of one would be drawing a state the guide path cannot be in. The names
+     * follow the rule given on [AnimationEvent.GuidedTransporterMoved].
      */
     @Serializable
     @SerialName("GuidedPathClosureChanged")
@@ -671,7 +696,13 @@ sealed class AnimationEvent {
         val holderName: String,
         val networkName: String,
         val zoneNames: List<String>,
-        val state: String
+        val state: String,
+        val spaceName: String? = null,
+        /** What holds the closure: ENTITY, CROSSING, CLOSURE (a closure driver) or OTHER. */
+        val holderKind: String? = null,
+        /** The holding entity's id when `holderKind` is ENTITY. Not an entity event: filtering an
+         *  entity type out of the capture must not remove the shading of the path it closed. */
+        val holderEntityId: Long? = null
     ) : AnimationEvent()
 
     /**
@@ -696,7 +727,75 @@ sealed class AnimationEvent {
         val vehicleName: String,
         val taskId: Long,
         val origin: String,
-        val destination: String
+        val destination: String,
+        /** The name of the vehicle's moving body, the name its movement events carry. */
+        val bodyName: String? = null,
+        /** The guide path network the vehicle runs on; null for a free-path fleet. */
+        val networkName: String? = null,
+        /** The load's entity id for a transport task; null for a task with no load. */
+        val loadEntityId: Long? = null,
+        /** The kind of task: TransportTask, LineTask or ServiceTask. */
+        val taskKind: String? = null
+    ) : AnimationEvent()
+
+    /**
+     * A vehicle's commitment to a task ended: `COMPLETED`, `REVOKED` (taken back, and the task returned
+     * to the board) or `CANCELLED` (taken back because the task was withdrawn). Without it a viewer
+     * cannot tell a finished assignment from one still under way.
+     */
+    @Serializable
+    @SerialName("AgvAssignmentEnded")
+    data class AgvAssignmentEnded(
+        override val simTime: Double,
+        val systemName: String,
+        val vehicleName: String,
+        val taskId: Long,
+        val outcome: String
+    ) : AnimationEvent()
+
+    /**
+     * What a fleet vehicle is doing, as the fleet sees it: AVAILABLE, ON_TASK, CHARGING, FAILED,
+     * OUT_OF_CHARGE, UNDER_TOW or OUT_OF_SERVICE. Emitted when it changes. A broken-down vehicle stopped
+     * mid-aisle otherwise draws exactly like a parked one.
+     */
+    @Serializable
+    @SerialName("FleetVehicleStateChanged")
+    data class FleetVehicleStateChanged(
+        override val simTime: Double,
+        val systemName: String,
+        val vehicleName: String,
+        val bodyName: String? = null,
+        val state: String,
+        /** The battery's charge, or NaN for a vehicle with no battery. */
+        val stateOfCharge: Double = Double.NaN
+    ) : AnimationEvent()
+
+    /**
+     * An entity went aboard a vehicle (a guided transporter, an AGV or a free-path vehicle). Paired with
+     * [AnimationEvent.VehicleLoadAlighted], it is what lets a viewer draw a carried load on its vehicle rather than
+     * leaving it where it was picked up. [bodyName] is the name the vehicle's movement events carry.
+     */
+    @Serializable
+    @SerialName("VehicleLoadBoarded")
+    data class VehicleLoadBoarded(
+        override val simTime: Double,
+        val entityId: Long,
+        val vehicleName: String,
+        val bodyName: String? = null,
+        val networkName: String? = null,
+        val locationName: String? = null
+    ) : AnimationEvent()
+
+    /** An entity was set down from a vehicle at [locationName]. See [AnimationEvent.VehicleLoadBoarded]. */
+    @Serializable
+    @SerialName("VehicleLoadAlighted")
+    data class VehicleLoadAlighted(
+        override val simTime: Double,
+        val entityId: Long,
+        val vehicleName: String,
+        val bodyName: String? = null,
+        val networkName: String? = null,
+        val locationName: String? = null
     ) : AnimationEvent()
 
     // ──────────────────────────────────────────────────────────────────────
@@ -946,6 +1045,10 @@ sealed class AnimationEvent {
             // Coordinate-free spatial models (e.g. DistancesModel) emit NaN positions; the renderer
             // resolves those by location name (8H.3). Allow NaN/Infinity so such traces serialize.
             allowSpecialFloatingPointValues = true
+            // A field added to an event after a reader was built must not make that reader fail.
+            // Every addition to the format is a defaulted field or a new event type, so an older
+            // reader ignores what it does not know and a newer one fills in the default.
+            ignoreUnknownKeys = true
         }
 
         /** Serializes [event] to a single-line JSON string (one `.atf` record). */
@@ -1002,6 +1105,8 @@ internal val AnimationEvent.entityIdOrNull: Long?
         is AnimationEvent.ConveyorDestinationReached -> entityId
         is AnimationEvent.ConveyorExited -> entityId
         is AnimationEvent.ConveyorItemMoved -> entityId
+        is AnimationEvent.VehicleLoadBoarded -> entityId
+        is AnimationEvent.VehicleLoadAlighted -> entityId
         is AnimationEvent.WaitingForProcess -> entityId
         is AnimationEvent.WaitForProcessCompleted -> entityId
         is AnimationEvent.BatchFormed -> batchEntityId
@@ -1027,13 +1132,17 @@ data class GuidedPathIntersectionDef(
     val name: String,
     val x: Double,
     val y: Double,
-    val z: Double = 0.0
+    val z: Double = 0.0,
+    /** The station names that address this intersection, so a place named by an alias can be drawn. */
+    val aliases: List<String> = emptyList()
 )
 
 /**
  * A link of a [AnimationEvent.GuidedPathDefined], running from intersection [from] to [to] and
- * divided into [numZones] equal zones. [bidirectional] and [spur] say which of the two features
- * that most affect congestion this link has.
+ * divided into [numZones] equal zones, named `<link name>.Zone1` to `<link name>.Zone<numZones>` from
+ * the [from] end. [bidirectional] and [spur] say which of the two features that most affect
+ * congestion this link has. [length] is the travel length, which can differ from the straight line
+ * between the two intersections; NaN when unknown.
  */
 @Serializable
 data class GuidedPathLinkDef(
@@ -1042,7 +1151,23 @@ data class GuidedPathLinkDef(
     val to: String,
     val numZones: Int,
     val bidirectional: Boolean = false,
-    val spur: Boolean = false
+    val spur: Boolean = false,
+    val length: Double = Double.NaN
+)
+
+/**
+ * A transporter on a [AnimationEvent.GuidedPathDefined]: [lengthInZones] zones long when fully on the
+ * path, carrying up to [loadCapacity] loads. [vehicleName] is the owning fleet vehicle's name when the
+ * transporter is an AGV's body (the name its assignments carry); null otherwise.
+ */
+@Serializable
+data class GuidedTransporterDef(
+    val name: String,
+    val lengthInZones: Int = 1,
+    val loadCapacity: Int = 1,
+    val physicalLength: Double = Double.NaN,
+    val homeBase: String? = null,
+    val vehicleName: String? = null
 )
 
 /** A laid-out node in a [AnimationEvent.NetworkDefined]: an agent [id] at world position ([x],[y]) — G7. */

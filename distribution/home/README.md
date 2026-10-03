@@ -17,6 +17,21 @@ That separation is the one thing worth remembering about the layout: *software h
 | `skills/` | Optional instructions that help an AI assistant drive the KSL MCP server correctly. See `skills/README.md`. |
 | `.support/` | Plumbing: the shared ~150 MB library every app runs on, the servers, and the command-line tools. Hidden on purpose (on Windows it carries the hidden attribute, since a leading dot means nothing there). You should not need to open it — the exception is the MCP server path, which the KSL Server app and the installer both print when you need it. |
 
+### Starting the server: use the app, not the folder
+
+The **KSL Server** app is how you start and stop the server. It puts an icon in the menu bar (macOS)
+or the notification area (Windows), shows whether the server is up, and opens the console.
+
+You are given the `.support/Servers/suite/` path because an AI assistant needs it in its own
+configuration — not because you need to run anything there yourself. Two things about that folder are
+worth knowing before you go looking:
+
+- **On Windows, `ksl-suite.cmd` opens a console window, and that window *is* the server.** It is
+  running, not reporting an error, and **closing the window stops the server**. The window says so
+  when it starts. Use it when you want the server's output in front of you; otherwise start the
+  server from the KSL Server app, which runs it without a window.
+- **Nothing in `.support/` is meant to be edited.** It is replaced wholesale on every update.
+
 ## Running
 
 KSL runs on **your own Java 21** — no runtime is bundled. If an app does not start, check that

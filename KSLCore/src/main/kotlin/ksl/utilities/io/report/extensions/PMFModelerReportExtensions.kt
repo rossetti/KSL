@@ -208,7 +208,7 @@ fun ReportBuilder.discreteVisualization(
  * 3. **Goodness of Fit Test** — test summary `DataTable` (DOF, statistic, p-value,
  *    conclusion at the given [confidenceLevel])
  * 4. **Dispersion Tests** — index of dispersion and Poisson variance test statistic
- *    from [DiscreteDistributionGOFIfc]
+ *    from [ksl.utilities.distributions.fitting.DiscreteDistributionGOFIfc]
  * 5. **Distribution Comparison** sub-section — [PMFComparisonPlot] overlaying the
  *    empirical PMF (from the fit's data) against the theoretical PMF (from the fitted distribution)
  *

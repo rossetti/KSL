@@ -945,7 +945,9 @@ supply-chain domain layer: its decision variables are supply-chain *controls*
 (the warehouse (R,Q) policy's `RDelta`/`Q` and each retailer (r,S) policy's
 `r`/`SDelta` — delta parameterizations that make every clamped combination
 valid, so the problem is purely box-constrained), and its objective is the
-cost formulation's network-wide grand total response.
+cost formulation's network-wide total over the observed window, `Costs:TotalCost`
+(the `CostBasis.PerReplication` total; see the supply-chain guide for the
+per-unit-time alternative).
 
 ## 11. The pilot study — setup, execution, results
 
