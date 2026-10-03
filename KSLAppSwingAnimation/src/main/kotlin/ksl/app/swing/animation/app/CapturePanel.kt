@@ -156,6 +156,15 @@ class CapturePanel(private val controller: AnimationAppController) : JPanel(Bord
             }
         }
 
+        /**
+         * The state as shown: a statistic its model leaves out of a capture of everything reads "Default (off)",
+         * so Default does not look as if it records something it does not.
+         */
+        fun shownStateOf(name: String): String {
+            val state = stateOf(name)
+            return if (state == DEFAULT && name in controller.inventory.notCapturedByDefault) OFF_BY_DEFAULT else state
+        }
+
         fun refresh() { if (names.isNotEmpty()) model.fireTableRowsUpdated(0, names.size - 1) }
 
         inner class StateTableModel : javax.swing.table.AbstractTableModel() {
@@ -164,7 +173,7 @@ class CapturePanel(private val controller: AnimationAppController) : JPanel(Bord
             override fun getColumnCount() = 2
             override fun getColumnName(c: Int) = cols[c]
             override fun isCellEditable(r: Int, c: Int) = c == 1
-            override fun getValueAt(r: Int, c: Int): Any = if (c == 0) names[r] else stateOf(names[r])
+            override fun getValueAt(r: Int, c: Int): Any = if (c == 0) names[r] else shownStateOf(names[r])
             override fun setValueAt(value: Any?, r: Int, c: Int) {
                 if (c == 1) { applyState(names[r], value as? String ?: DEFAULT); afterEdit() }
             }
@@ -251,6 +260,10 @@ class CapturePanel(private val controller: AnimationAppController) : JPanel(Bord
     internal fun stateForTest(kind: ElementKind, name: String): String =
         editorFor(kind, name)?.stateOf(name) ?: DEFAULT
 
+    /** The capture state as the table shows it, including "Default (off)". */
+    internal fun shownStateForTest(kind: ElementKind, name: String): String =
+        editorFor(kind, name)?.shownStateOf(name) ?: DEFAULT
+
     internal fun selectModeForTest(mode: CaptureMode) =
         (if (mode == CaptureMode.ALL) allButton else selectedButton).doClick()
 
@@ -264,6 +277,7 @@ class CapturePanel(private val controller: AnimationAppController) : JPanel(Bord
 
     private companion object {
         const val DEFAULT = "Default"; const val INCLUDE = "Include"; const val EXCLUDE = "Exclude"
+        const val OFF_BY_DEFAULT = "Default (off)"
         val STATES = arrayOf(DEFAULT, INCLUDE, EXCLUDE)
     }
 }

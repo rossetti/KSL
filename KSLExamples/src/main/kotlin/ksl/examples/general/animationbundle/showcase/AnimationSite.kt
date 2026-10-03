@@ -47,7 +47,9 @@ object AnimationSite {
         val watchFor: String,
         val page: String,
         val trace: String,
-        val traceBytes: Long
+        val traceBytes: Long,
+        /** Where the model's source is read; the vehicle models live outside the animation bundle's package. */
+        val sourceUrl: String = "$SOURCE_BASE/$id.kt"
     )
 
     data class Result(
@@ -68,7 +70,8 @@ object AnimationSite {
         catalogFile: Path,
         player: Path,
         outDir: Path,
-        captureMissing: Boolean = true
+        captureMissing: Boolean = true,
+        includeFeaturedVehicles: Boolean = true
     ): Result {
         require(Files.isRegularFile(player)) {
             "no player at $player. Build it first:\n  ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack"
@@ -78,7 +81,11 @@ object AnimationSite {
                 "it does not create one"
         }
         val catalog = readCatalog(catalogFile)
-        val (bundleId, modelIds) = AnimationsPackage.readManifest(bundleJar)
+        val (animationBundleId, animationModels) = AnimationsPackage.readManifest(bundleJar)
+        // The animation examples, then the featured vehicle models, each with the bundle its layout is keyed by.
+        val bundleOf: Map<String, String> = animationModels.associateWith { animationBundleId } +
+            (if (includeFeaturedVehicles) FeaturedVehicles.modelIds.associateWith { FeaturedVehicles.BUNDLE_ID } else emptyMap())
+        val modelIds = bundleOf.keys.toList()
 
         val siteTraces = outDir.resolve("traces").also { Files.createDirectories(it) }
         val pages = outDir.resolve("a").also { Files.createDirectories(it) }
@@ -87,7 +94,7 @@ object AnimationSite {
         // Resolve everything before writing anything. A model with no layout or no blurb is a person's job,
         // and finding out halfway through leaves a site that is half old and half new — the state in which
         // it is hardest to tell what is wrong.
-        val missingLayouts = modelIds.filter { !layoutsRoot.resolve(bundleId).resolve("$it.lay.toml").exists() }
+        val missingLayouts = modelIds.filter { !layoutsRoot.resolve(bundleOf.getValue(it)).resolve("$it.lay.toml").exists() }
         val missingBlurbs = modelIds.filter { it !in catalog }
         require(missingLayouts.isEmpty()) {
             "no polished layout for: ${missingLayouts.joinToString(", ")}\n" +
@@ -119,7 +126,7 @@ object AnimationSite {
 
             // JSON, not a copy of the .lay.toml. The browser carries its own layout reader and it parses
             // JSON only; handed TOML it fails with "Expected start of the object '{'" and draws nothing.
-            val layout = AnimationLayout.read(layoutsRoot.resolve(bundleId).resolve("$modelId.lay.toml"))
+            val layout = AnimationLayout.read(layoutsRoot.resolve(bundleOf.getValue(modelId)).resolve("$modelId.lay.toml"))
             val layoutFile = siteTraces.resolve("$modelId.lay.json")
             Files.writeString(layoutFile, layout.toJson())
             bytes += Files.size(layoutFile)
@@ -134,7 +141,8 @@ object AnimationSite {
                     watchFor = cat.watchFor,
                     page = "a/$modelId.html",
                     trace = "traces/$modelId.atf.gz",
-                    traceBytes = Files.size(gz)
+                    traceBytes = Files.size(gz),
+                    sourceUrl = if (modelId in FeaturedVehicles.modelIds) FeaturedVehicles.SOURCE_URL else "$SOURCE_BASE/$modelId.kt"
                 )
             )
         }
@@ -272,7 +280,7 @@ object AnimationSite {
             |        out yourself.
             |    </p>
             |    <p>
-            |        <a href="$SOURCE_BASE/${e.id}.kt">Read the model's source</a> — the simulation is not modified to
+            |        <a href="${e.sourceUrl}">Read the model's source</a> — the simulation is not modified to
             |        be animated; capture is a flag on a run.
             |    </p>
             |

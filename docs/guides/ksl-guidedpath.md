@@ -924,7 +924,20 @@ scenario over layouts does anyway, since the layout is structural.
 
 ### …animate it?
 
-Nothing to switch on. When an animation sink is active the system emits
+Nothing to switch on. From suite 0.4.0 the Animation app, the web player and
+exported animation pages draw what follows: the guide path with its zones,
+each transporter coloured by what it is doing, closures shaded, loads on the
+carts that carry them, and, on request, a line from an assigned vehicle to its
+next stop. The [Animation app guide](apps/animation.md#8-vehicles) covers the
+viewer's side.
+
+Not to be confused with the animation examples' *Warehouse AGV*
+(`Example06WarehouseAGV`), which is an agent model — `ksl.modeling.agent`,
+contract-net bidding on a grid — and has no guide path. The vehicles
+described here are `ksl.modeling.guidedpath`, `fleet` and `agv`, shipped as
+the *KSL Vehicle Examples* bundle.
+
+When an animation sink is active the system emits
 `GuidedPathDefined` once per replication, a `GuidedTransporterMoved` each
 time a transporter enters a zone, and a `GuidedTransporterStateChanged`
 when one starts or stops. The guide path carries its own coordinates, so —

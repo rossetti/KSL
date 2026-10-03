@@ -292,6 +292,27 @@ The objective response name **must not** also appear in `responseNames` (it is
 added automatically). A functional (deterministic non-linear) constraint takes a
 `ConstraintFunctionIfc` via `problem.functionalConstraint(...)`.
 
+**Declare a probability constraint an indicator.** When each replication's response is
+0 or 1 — a stockout happened or it did not — pass `indicator = true`:
+
+```kotlin
+problem.responseConstraint(
+    name = "Inventory:Item:StockoutOccurred",
+    rhsValue = 0.05,
+    inequalityType = InequalityType.LESS_THAN,
+    indicator = true
+)
+```
+
+Feasibility is then tested with the exact (Clopper-Pearson) binomial bound instead of a
+normal-theory interval (since R1.7.1). It matters when the event is rare: thirty
+replications that see no stockout have a sample variance of zero, the normal interval
+then has zero width, and the constraint is certified with no evidence at all, so a
+search keeps exactly those lucky evaluations. The exact bound for zero events in thirty
+replications at 99% is 0.142, which does not certify a 0.05 limit; zero in a hundred
+(0.045) does. The library cannot tell a 0/1 response from a deterministic one, which is
+why it is declared rather than detected.
+
 ### ...steer the search around a constraint (penalty functions)
 
 Every constraint carries a `PenaltyFunction` — a non-negative contribution added

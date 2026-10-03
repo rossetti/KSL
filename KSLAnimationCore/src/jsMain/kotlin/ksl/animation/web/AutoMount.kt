@@ -48,6 +48,7 @@ import org.w3c.dom.get
  *                         desktop viewer, so a run opens at the same speed wherever it is watched)
  *  - `data-ksl-transport` `false` to hide the controls (a decorative, autoplaying loop)
  *  - `data-ksl-legend`    `false` to hide the legend
+ *  - `data-ksl-assignments` `true` to draw a line from each assigned fleet vehicle to its next stop
  *  - `data-ksl-assets`    URL prefix for the layout's relative image references
  *  - `data-ksl-background` a hex page color behind the animation
  */
@@ -85,6 +86,7 @@ private fun mount(element: HTMLElement) {
         autoPlay = element.flag("data-ksl-autoplay", default = false),
         showTransport = element.flag("data-ksl-transport", default = true),
         showLegend = element.flag("data-ksl-legend", default = true),
+        showAssignments = element.flag("data-ksl-assignments", default = false),
         loop = element.flag("data-ksl-loop", default = true),
         speed = element.getAttribute("data-ksl-speed")?.toDoubleOrNull(),
         // Not a literal: PlayerOptions already carries this default, and a second copy here quietly gave a

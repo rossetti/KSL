@@ -1,0 +1,365 @@
+title = "Pedestrian crossing"
+baseTimeUnit = null
+width = 820.0
+height = 483.2
+paths = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+locations = [  ]
+
+[[objectClasses]]
+typeName = "Walker"
+shape = "CIRCLE"
+color = "#2ca02c"
+size = 9.6
+imageRef = null
+label = null
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 156.8
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 156.8
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 169.14285714285714
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 169.14285714285714
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 181.4857142857143
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 181.4857142857143
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 193.82857142857142
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 193.82857142857142
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 206.17142857142858
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 206.17142857142858
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 218.5142857142857
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 218.5142857142857
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 230.85714285714283
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 230.85714285714283
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#d9d9d9"
+strokeWidth = 5.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 362.4
+y = 243.2
+z = 0.0
+
+[[background.points]]
+x = 429.6
+y = 243.2
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Waiting to cross"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 412.0
+y = 293.2
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A crossing two populations want"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 60.0
+y = 50.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A cart runs up and down the aisle; pedestrians cross it. While walkers are on the crossing it is closed"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 60.0
+y = 85.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "to the cart (shaded amber), and the discipline decides when it reopens. This run lets walkers across in"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 60.0
+y = 107.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "bounded batches; two of the other three disciplines starve one side outright."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 60.0
+y = 129.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 60.0
+y = 393.2
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 60.0
+y = 414.0
+z = 0.0
+
+[[queues]]
+queueName = "WalkQ"
+growthDegrees = 90.0
+spacing = 12.5
+maxShown = 5
+
+[queues.position]
+x = 396.0
+y = 265.2
+z = 0.0
+
+[[bars]]
+responseName = "Walkway:NumWaitingToCross"
+width = 200.0
+height = 16.0
+maxValue = 3.0
+color = "#2ca02c"
+label = "Walkers waiting"
+
+[bars.position]
+x = 480.0
+y = 433.2
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 480.0
+y = 393.2
+z = 0.0
+
+[[storages]]
+suspensionName = "Crossing"
+style = "PROGRESS_BELT"
+width = 86.4
+height = 10.0
+growthDegrees = -90.0
+spacing = 10.0
+capacity = 0
+maxShown = 30
+byType = true
+label = null
+
+[storages.position]
+x = 396.0
+y = 243.2
+z = 0.0
+
+[[labels]]
+kind = "QUEUE"
+name = "WalkQ"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 16.0
+valueDy = 4.0
+valueVisible = true
+
+[[guidedPaths]]
+spaceName = "Sys"
+scale = 8.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 3.0
+showZones = true
+showIntersections = true
+closureColor = "#f2a900"
+label = null
+
+[guidedPaths.offset]
+x = 348.0
+y = 200.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart"
+shape = "SQUARE"
+size = 33.6
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

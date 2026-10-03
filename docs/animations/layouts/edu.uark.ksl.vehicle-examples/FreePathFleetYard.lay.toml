@@ -1,0 +1,412 @@
+title = "Free-path fleet yard"
+baseTimeUnit = null
+width = 540.0
+height = 222.0
+paths = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+guidedPaths = [  ]
+guidedTransporters = [  ]
+
+[[objectClasses]]
+typeName = "Pallet"
+shape = "SQUARE"
+color = "#8c564b"
+size = 8.0
+imageRef = null
+label = null
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#e3e3e3"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[background.points]]
+x = 300.0
+y = 0.0
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#e3e3e3"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 300.0
+y = 0.0
+z = 0.0
+
+[[background.points]]
+x = 0.0
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "LINE"
+text = null
+color = "#e3e3e3"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 12.0
+fontFamily = null
+
+[[background.points]]
+x = 0.0
+y = 200.0
+z = 0.0
+
+[[background.points]]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Pallets waiting"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 7.0
+fontFamily = null
+
+[[background.points]]
+x = 314.0
+y = 22.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "An open yard"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 11.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 40.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "No guide path and nothing that blocks: carts drive"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 7.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 56.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "straight between points, so the fleet's limit is"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 7.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 66.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "how many carts there are, not where they can go."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 7.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 76.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A cart carries up to four pallets from the press"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 7.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 86.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "to shipping; the count beside it is how many."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 7.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 96.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 1"
+color = "#1f77b4"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 8.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 116.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 2"
+color = "#9467bd"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 8.0
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 127.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "A ring in the cart's colour: carrying pallets."
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 6.5
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 140.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "An orange ring: charging. Grey: out of service."
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 6.5
+fontFamily = null
+
+[[background.points]]
+x = 360.0
+y = 149.0
+z = 0.0
+
+[[queues]]
+queueName = "Yard:AwaitingPickupHoldQ"
+growthDegrees = 90.0
+spacing = 10.0
+maxShown = 6
+
+[queues.position]
+x = 300.0
+y = 30.0
+z = 0.0
+
+[[bars]]
+responseName = "Yard:NumVehiclesOnTask"
+width = 130.0
+height = 8.0
+maxValue = 2.0
+color = "#555555"
+label = "Carts on a task"
+
+[bars.position]
+x = 360.0
+y = 178.0
+z = 0.0
+
+[[bars]]
+responseName = "Yard:AwaitingPickupHoldQ:NumInQ"
+width = 130.0
+height = 8.0
+maxValue = 4.0
+color = "#8c564b"
+label = "Pallets waiting at the press"
+
+[bars.position]
+x = 360.0
+y = 200.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 9.0
+
+[clocks.position]
+x = 360.0
+y = 166.0
+z = 0.0
+
+[[movableResources]]
+name = "Cart1:Body"
+shape = "SQUARE"
+color = "#1f77b4"
+size = 18.0
+imageRef = null
+label = null
+busyColor = "#1f77b4"
+idleImage = null
+busyImage = null
+homeBase = null
+
+[movableResources.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[movableResources]]
+name = "Cart2:Body"
+shape = "SQUARE"
+color = "#9467bd"
+size = 18.0
+imageRef = null
+label = null
+busyColor = "#9467bd"
+idleImage = null
+busyImage = null
+homeBase = null
+
+[movableResources.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[labels]]
+kind = "MOVABLE_RESOURCE"
+name = "Cart1:Body"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "MOVABLE_RESOURCE"
+name = "Cart2:Body"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Yard:AwaitingPickupHoldQ"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = 14.0
+valueDy = 0.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Depot"
+text = "Depot"
+dx = 0.0
+dy = 20.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Press"
+text = "Press"
+dx = -22.0
+dy = 20.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Ship"
+text = "Ship"
+dx = 0.0
+dy = 22.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "Depot"
+label = "Depot"
+
+[locations.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "Press"
+label = "Press"
+
+[locations.position]
+x = 300.0
+y = 0.0
+z = 0.0
+
+[[locations]]
+locationName = "Ship"
+label = "Ship"
+
+[locations.position]
+x = 0.0
+y = 200.0
+z = 0.0

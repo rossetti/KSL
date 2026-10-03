@@ -1,0 +1,319 @@
+title = "Passive transporter shop"
+baseTimeUnit = null
+width = 916.0
+height = 592.0
+paths = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Part"
+shape = "CIRCLE"
+color = "#2ca02c"
+size = 13.2
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Passive: the part drives"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 80.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Each part requests the cart, steers it to the entry,"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 110.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "rides it to the exit and releases it. The cart has"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 130.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "no plan of its own, so between parts it goes back"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 150.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "to its depot. Compare with the active shop."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 170.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Waiting for the cart"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 33.599999999999994
+y = 474.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Cart on its way"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 43.599999999999994
+y = 573.6
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 220.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 556.0
+y = 240.8
+z = 0.0
+
+[[queues]]
+queueName = "Carts:Q"
+growthDegrees = 180.0
+spacing = 22.0
+maxShown = 5
+
+[queues.position]
+x = 163.6
+y = 502.0
+z = 0.0
+
+[[queues]]
+queueName = "Space:AwaitingPickupHoldQ"
+growthDegrees = 180.0
+spacing = 22.0
+maxShown = 3
+
+[queues.position]
+x = 163.6
+y = 541.6
+z = 0.0
+
+[[bars]]
+responseName = "Space:NumTransportersMoving"
+width = 220.0
+height = 18.0
+maxValue = 1.0
+color = "#555555"
+label = "Cart moving"
+
+[bars.position]
+x = 556.0
+y = 330.0
+z = 0.0
+
+[[bars]]
+responseName = "Carts:Q:NumInQ"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#2ca02c"
+label = "Parts waiting for the cart"
+
+[bars.position]
+x = 556.0
+y = 380.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 556.0
+y = 285.0
+z = 0.0
+
+[[labels]]
+kind = "QUEUE"
+name = "Carts:Q"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -10.0
+valueDy = 26.0
+valueVisible = true
+
+[[labels]]
+kind = "QUEUE"
+name = "Space:AwaitingPickupHoldQ"
+text = null
+dx = 0.0
+dy = -12.0
+visible = false
+valueDx = -10.0
+valueDy = 26.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "EntryStation"
+text = "Entry"
+dx = 0.0
+dy = 30.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "ExitStation"
+text = "Exit"
+dx = -34.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "CartDepot"
+text = "Depot"
+dx = 30.0
+dy = 4.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "EntryStation"
+label = "EntryStation"
+
+[locations.position]
+x = 190.0
+y = 502.0
+z = 0.0
+
+[[locations]]
+locationName = "ExitStation"
+label = "ExitStation"
+
+[locations.position]
+x = 190.0
+y = 70.0
+z = 0.0
+
+[[locations]]
+locationName = "CartDepot"
+label = "CartDepot"
+
+[locations.position]
+x = 406.0
+y = 502.0
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Space"
+scale = 4.0
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 3.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 190.0
+y = 214.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart"
+shape = "SQUARE"
+size = 24.2
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null

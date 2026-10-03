@@ -62,13 +62,20 @@ fun layoutTraceCompatibility(layout: AnimationLayout, model: ReplayModel): Layou
     layout.queues.forEach { if (it.queueName !in model.queueNames) without += "queue '${it.queueName}'" }
     layout.values.forEach { if (it.responseName !in model.responseNames) without += "value '${it.responseName}'" }
     layout.movableResources.forEach { if (it.name !in model.spatialElementNames) without += "mover '${it.name}'" }
+    layout.guidedPaths.forEach { if (it.spaceName !in model.vehicles.guidePaths) without += "guide path '${it.spaceName}'" }
+    layout.guidedTransporters.forEach {
+        if (it.name !in model.vehicles.transporterNames) without += "transporter '${it.name}'"
+    }
 
     val laidResources = layout.resources.map { it.resourceName }.toSet()
     val laidQueues = layout.queues.map { it.queueName }.toSet()
     val laidMovers = layout.movableResources.map { it.name }.toSet()
     val unlaid = mutableListOf<String>()
-    model.resourceNames.forEach { if (it !in laidResources) unlaid += "resource '$it'" }
-    model.queueNames.forEach { if (it !in laidQueues) unlaid += "queue '$it'" }
+    // A guided transporter is a resource drawn on its guide path, and a fleet vehicle's body one drawn as its
+    // mover; neither is reported as an unplaced resource.
+    val transporters = model.vehicles.transporterNames + model.vehicles.fleetVehicleNames
+    model.resourceNames.forEach { if (it !in laidResources && it !in transporters) unlaid += "resource '$it'" }
+    model.queueNames.forEach { if (it !in laidQueues && !model.vehicles.isVehicleInternalQueue(it)) unlaid += "queue '$it'" }
     // Movers present in the trace but not placed won't show their motion — call that out (UX U3).
     model.spatialElementNames.forEach { if (it !in laidMovers) unlaid += "mover '$it'" }
 

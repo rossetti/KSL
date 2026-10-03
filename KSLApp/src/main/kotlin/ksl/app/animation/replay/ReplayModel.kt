@@ -187,7 +187,10 @@ class ReplayModel(
     /** Per-agent sampled velocity/force vectors over time (G10); empty unless the overlay was enabled. */
     private val agentVectors: Map<String, StepTimeline<AnimationEvent.AgentVectorSampled>> = emptyMap(),
     /** Transient location highlights (G-animated); empty unless the overlay was enabled. */
-    private val markerPulses: List<AnimationEvent.MarkerPulsed> = emptyList()
+    private val markerPulses: List<AnimationEvent.MarkerPulsed> = emptyList(),
+    /** Guide paths, guided transporters, closures, fleet assignments and carried loads; empty for a trace
+     *  with no vehicles. */
+    val vehicles: VehicleReplay = VehicleReplay.EMPTY
 ) {
     /** Spaces to draw as the backdrop: the layout's authored spaces, or — if it declares none — the
      *  spaces derived from the trace's `SpaceDefined` events (8K.6a). */
@@ -281,7 +284,28 @@ class ReplayModel(
         for (track in entityMotion.values.asSequence() + spatialMotion.values.asSequence()) {
             box = BoundingBox.union(box, track.bounds())
         }
-        return box
+        return BoundingBox.union(box, guidePathBounds())
+    }
+
+    /**
+     * Bounding box of every guide path as drawn, its intersections and its links' ends (a lane of a two-lane
+     * aisle sits to one side of its intersections), or null when the trace has no guide path.
+     */
+    fun guidePathBounds(): BoundingBox? = BoundingBox.of(
+        vehicles.guidePaths.values.asSequence().flatMap { g ->
+            g.intersectionPoints.values.asSequence().map { it.x to it.y } +
+                g.definition.links.asSequence().mapNotNull { g.linkEnds(it.name) }
+                    .flatMap { (a, b) -> sequenceOf(a.x to a.y, b.x to b.y) }
+        }
+    )
+
+    /**
+     * Where the vehicle carrying entity [id] is at [t], or null when the entity is not aboard one or the vehicle
+     * has no position. A carried load is drawn with its vehicle rather than wherever it was picked up.
+     */
+    fun carriedEntityPositionAt(id: Long, t: Double): WorldPoint? {
+        val body = vehicles.vehicleCarryingAt(id, t) ?: return null
+        return vehicles.transporterPositionAt(body, t) ?: spatialMotion[body]?.positionAt(t)
     }
 
     /** The interpolated position of an agent (by name) at [t], or null if it has no samples. */
@@ -510,6 +534,11 @@ class ReplayModel(
             val conveyorOccupied = LinkedHashMap<String, StepTimeline<Set<Int>>>()
             val perConveyorOccupied = HashMap<String, MutableSet<Int>>()
             val itemCell = HashMap<Long, Pair<String, Int>>() // entity -> (conveyor, current cell)
+            // Vehicle events (guide paths, transporters, closures, assignments, loads) are replayed on their own;
+            // a free-path place name resolves the way a move endpoint does.
+            val vehicleBuilder = GuidedPathReplayBuilder(source.layout) { name ->
+                anchorResolver.resolve(name) ?: anchorResolver.station(name)
+            }
 
             for (event in source.events) {
                 if (event.simTime < tMin) tMin = event.simTime
@@ -737,8 +766,9 @@ class ReplayModel(
                     is AnimationEvent.ProcessCompleted ->
                         entityProcess.getOrPut(event.entityId) { StepTimeline() }.add(event.simTime, "")
                     else -> {
-                        // Other events (seize/hold/signal/conveyor, sampled positions, station) are
-                        // consumed in later steps. They still contribute to the time range above.
+                        // Vehicle events are replayed by their own builder. Anything else still counts toward
+                        // the time range above.
+                        vehicleBuilder.accept(event)
                     }
                 }
             }
@@ -754,7 +784,7 @@ class ReplayModel(
                 storageMembers, entityStorage,
                 conveyorBlocked, conveyorGeom, conveyorMaxCell, conveyorOccupied, moverStates, torus, source.assetBase,
                 flowFieldOverlays = flowFieldOverlays, plannedPaths = plannedPaths, agentVectors = agentVectors,
-                markerPulses = markerPulses
+                markerPulses = markerPulses, vehicles = vehicleBuilder.build()
             )
         }
     }

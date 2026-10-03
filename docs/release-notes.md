@@ -24,6 +24,76 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.4.0 — vehicles you can watch
+
+*3 October 2026.* Built on KSLCore **R1.7.1**, the first suite release on the R1.7 line: it brings
+R1.7's vehicle transport, mixture fitting and sequential decision packages (experimental) and the
+fixes in both library releases. 0.3.9 was never published; its changes are listed here.
+
+**Vehicle models animate** in the Animation app, the web player and exported pages, all drawn by the
+same rules:
+
+- Guide paths from the model itself: links, zones, one-way arrows, spurs, separated floors.
+- Carts stand still while waiting. Red ring: blocked. Grey ring: halted (breakdown, battery, gate).
+- Closed zones are shaded.
+- Loads ride on their cart, with a count when there are several.
+- **Show assignments** draws each vehicle's next pickup and drop-off (off by default).
+- Free-path fleet vehicles are ringed when charging or out of service.
+
+**Vehicle Examples bundle:** ten models with polished layouts, under **Bundles ▸ Open Model…**, also
+in the animation pack and the [gallery](https://rossetti.github.io/KSL-Animations/).
+
+**Animation app**
+
+- Layout tab: **Guide Path** and **Transporter** tools; the preview draws the guide path with carts at
+  home.
+- Auto Layout no longer places a fleet's internal queues, agents or vehicle bodies.
+- Models open at one replication.
+- Before a run that would write a very large trace, the app offers a shorter run (in time units), to
+  run anyway, or to cancel.
+- The Capture tab marks statistics that are off by default.
+
+**Simulation Optimization app:** a constraint can be marked **Indicator response**, tested with an
+exact binomial bound. Configuration files gain `indicator`; older files read unchanged.
+
+**KSL Server**
+
+- **Machines with a `127.0.0.1 <name>` hosts entry work again.** The server's local-only routes
+  checked the caller's resolved name rather than its address, and refused every request on such a
+  machine. Docker Desktop writes that entry.
+- **Inputs are no longer dropped silently.** A clamped control is reported with the run's results; an
+  unknown result id is told apart from a missing database; an unmatched experiment or response is
+  named.
+- **Unsupported report formats are an error**, not ignored. Supported ones are now honoured over
+  both MCP and REST.
+- **Comparison report names changed**: they now carry the parameters that distinguish them, so two
+  comparisons differing only in `delta` no longer overwrite each other. Anything that hard-codes
+  `comparison-mca-<response>.html` must change.
+- `run_config` takes the same `inputs` as `run_model`. MCB comparisons take a `direction`. Artifacts
+  can be listed. `/health` is documented.
+- `render_animation_layout` takes `bundleId` and `modelId` to draw a model's guide paths.
+- Code search cites the KSLCore release it indexes, not `develop`.
+- On Windows, the console tells Claude Desktop apart from Claude Code when saying which assistant is
+  running.
+
+**Fixed**
+
+- Queue members are never drawn wider than their slot.
+- MODA's non-portable path warning recognises absolute paths in both Windows and Unix form.
+
+**Dependencies:** the suite runs on Kotlin 2.4.20 and the libraries KSLCore R1.7.1 updated, including
+logback 1.6.5 and the PostgreSQL driver 42.7.13, whose earlier versions had published vulnerabilities.
+The servers move to Ktor 3.6.0 and MCP SDK 0.15.0. Still Java 21; nothing to install.
+
+**Upgrading**
+
+- Re-run rather than compare results that R1.7 or R1.7.1 changed (see the library notes below).
+- An `Entity` subclass declaring `usesZoneSpace`, `releaseAllZones`, `leaveAllCrossings`,
+  `isUsingCrossing` or `isWaitingForZoneSpace` must rename it.
+- Supply-chain bundles built before R1.7 that use the old cost totals fail with `NoSuchMethodError`;
+  rebuild them against R1.7.1.
+- `bin/ksl` and `bin/ksl.ps1` are unchanged, so `ksl update` delivers this release as usual.
+
 ## 0.3.8 — a different model, without restarting
 
 *15 August 2026.* KSLCore is untouched by this release.

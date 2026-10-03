@@ -71,6 +71,7 @@ class SceneBuilder(
 ) {
 
     private val layout: AnimationLayout? = model.layout
+    private val vehicleParts = VehicleSceneParts(model, style)
 
     /**
      * The world rectangle a view should frame.
@@ -246,6 +247,7 @@ class SceneBuilder(
         if (options.showPlannedPaths && !static) layer("plannedPaths", DrawSpace.WORLD, plannedPathCommands(t))
         layer("background", DrawSpace.WORLD, backgroundCommands())
         layer("paths", DrawSpace.WORLD, pathCommands())
+        layer("guidePaths", DrawSpace.WORLD, vehicleParts.guidePathCommands(t, static))
         layer("conveyors", DrawSpace.WORLD, conveyorCommands(t, static))
         layer("stations", DrawSpace.WORLD, stationCommands())
         layer("locations", DrawSpace.WORLD, locationCommands())
@@ -259,7 +261,9 @@ class SceneBuilder(
             layer("agents", DrawSpace.WORLD, agentCommands(t))
             if (options.showVectors) layer("vectors", DrawSpace.WORLD, vectorCommands(t))
         }
+        if (options.showAssignments && !static) layer("assignments", DrawSpace.WORLD, vehicleParts.assignmentCommands(t))
         layer("movers", DrawSpace.WORLD, moverCommands(t, static))
+        layer("transporters", DrawSpace.WORLD, vehicleParts.transporterCommands(t, static))
         if (options.showMarkerPulses && !static) layer("pulses", DrawSpace.WORLD, pulseCommands(t))
         layer("labels", DrawSpace.WORLD, labelCommands(t, static))
         layer("clock", DrawSpace.WORLD, clockCommands(t, static))
@@ -453,18 +457,23 @@ class SceneBuilder(
                 )
             }
             if (static) continue
-            val members = model.queueMembersAt(q.queueName, t)
-            val length = if (members.isNotEmpty()) members.size else model.queueLengthAt(q.queueName, t)
+            // A load aboard a vehicle is drawn on the vehicle, not in the hold queue that also records it.
+            val members = model.queueMembersAt(q.queueName, t).filter { model.vehicles.vehicleCarryingAt(it, t) == null }
+            val length = if (members.isNotEmpty()) members.size
+                else if (model.vehicles.isVehicleHoldQueue(q.queueName)) 0 else model.queueLengthAt(q.queueName, t)
             for (i in 0 until minOf(length, q.maxShown)) {
                 val cx = q.position.x + i * q.spacing * dx
                 val cy = q.position.y + i * q.spacing * dy
                 val id = members.getOrNull(i)
                 val key = id?.let { model.entityTypeOf(it) ?: model.networkEntityTypeOf(it) }
+                // A member is never wider than its slot, or a queue laid out at a small world scale draws its
+                // members as one overlapping blob.
+                val dot = minOf(QUEUE_DOT_SIZE, q.spacing * 0.9)
                 if (key != null) {
-                    cmds.add(glyphFor(key, cx, cy, QUEUE_DOT_SIZE))
+                    cmds.add(glyphFor(key, cx, cy, dot))
                 } else {
                     // Length known but membership not identified: an anonymous dot still shows the queue filling.
-                    cmds.add(DrawCmd.Circle(cx, cy, Extent.world(QUEUE_DOT_SIZE / 2, minPx = 1.5), fill = QUEUE_HEAD))
+                    cmds.add(DrawCmd.Circle(cx, cy, Extent.world(dot / 2, minPx = 1.5), fill = QUEUE_HEAD))
                 }
             }
         }
@@ -570,6 +579,7 @@ class SceneBuilder(
             }
             if (model.entityServiceResourceAt(e.id, t) != null) continue
             if (model.entityQueueAt(e.id, t) != null) continue
+            if (model.vehicles.vehicleCarryingAt(e.id, t) != null) continue // drawn on its vehicle
             val storageKey = model.entityStorageAt(e.id, t)
             if (storageKey != null && layout?.storages?.any { it.suspensionName == storageKey } == true) continue
             val p = model.entityPositionAt(e.id, t) ?: continue
@@ -706,13 +716,19 @@ class SceneBuilder(
                 val color = RgbaColor.parse((if (transporting) mr.busyColor else null) ?: mr.color)
                 val image = (if (transporting) mr.busyImage else mr.idleImage) ?: mr.imageRef
                 cmds.add(DrawCmd.Glyph(cx, cy, Extent.world(mr.size, minPx = 3.0), mr.shape, color, image))
+                val aboard = if (static) emptyList() else model.vehicles.loadsAboardAt(mr.name, t)
                 if (transporting) {
                     val ringColor = mr.busyColor?.let { RgbaColor.parse(it) } ?: MOVER_BUSY_RING
                     cmds.add(DrawCmd.Circle(cx, cy, Extent.world(mr.size * 0.7, minPx = 5.6), stroke = ringColor, strokeWidth = 1.0))
-                    val ms = model.moverStateAt(mr.name, t)
-                    val key = ms?.carriedEntityId?.let { model.entityTypeOf(it) } ?: ms?.carriedEntityType ?: DEFAULT_TYPE
-                    cmds.add(glyphFor(key, cx, cy, mr.size * 0.55))
+                    if (aboard.isEmpty()) {
+                        val ms = model.moverStateAt(mr.name, t)
+                        val key = ms?.carriedEntityId?.let { model.entityTypeOf(it) } ?: ms?.carriedEntityType ?: DEFAULT_TYPE
+                        cmds.add(glyphFor(key, cx, cy, mr.size * 0.55))
+                    }
                 }
+                // A fleet vehicle's loads are known from boarding, whatever its mover mode says.
+                if (aboard.isNotEmpty()) cmds.addAll(vehicleParts.loadCommands(aboard, WorldPoint(cx, cy), mr.size))
+                if (!static) vehicleParts.fleetStateRing(mr.name, t, cx, cy, mr.size)?.let { cmds.add(it) }
             }
         }
         return cmds

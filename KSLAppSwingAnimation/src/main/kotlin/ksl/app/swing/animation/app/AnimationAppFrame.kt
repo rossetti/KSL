@@ -217,9 +217,82 @@ class AnimationAppFrame(private val controller: AnimationAppController) : JFrame
 
     // ── Run action ──────────────────────────────────────────────────────────
 
+    /**
+     * Simulate, after checking how much trace the run would write.
+     *
+     * A run's trace can be far larger than anything worth animating: a model built for a year-long study writes
+     * gigabytes, which takes minutes to write and cannot be played. A short trial measures it first, off the
+     * EDT; over [AnimationAppController.LARGE_TRACE_BYTES] the user is told the estimate and chooses to shorten
+     * the run, run it anyway, or not run.
+     */
+    private fun simulateAfterEstimate() {
+        simulateButton.isEnabled = false
+        val previousGuidance = guidanceLabel.text
+        guidanceLabel.text = "Estimating the size of the animation trace…"
+        controller.edtScope.launch {
+            val estimate = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                runCatching { controller.estimateTrace() }.getOrNull()
+            }
+            guidanceLabel.text = previousGuidance
+            simulateButton.isEnabled = true
+            if (estimate == null || estimate.bytes <= AnimationAppController.LARGE_TRACE_BYTES) {
+                controller.submit()
+                return@launch
+            }
+            when (askAboutLargeTrace(estimate)) {
+                LargeTraceChoice.SHORTEN -> {
+                    controller.shortenReplicationTo(estimate.roundLengthFor(AnimationAppController.FIT_TRACE_BYTES))
+                    controller.submit()
+                }
+                LargeTraceChoice.RUN -> controller.submit()
+                LargeTraceChoice.CANCEL -> Unit
+            }
+        }
+    }
+
+    private enum class LargeTraceChoice { SHORTEN, RUN, CANCEL }
+
+    /**
+     * The question shown for a run whose trace would be large; see [simulateAfterEstimate]. It says how large and
+     * why, and offers a specific shorter run, in time units, that writes about
+     * [AnimationAppController.FIT_TRACE_BYTES] and changes nothing but the replication length (and the warm-up).
+     */
+    private fun askAboutLargeTrace(estimate: AnimationAppController.TraceEstimate): LargeTraceChoice {
+        fun size(bytes: Long): String =
+            if (bytes >= 1L shl 30) "%.1f GB".format(bytes / (1L shl 30).toDouble()) else "${(bytes shr 20).coerceAtLeast(1)} MB"
+        // "Time units", never the model's declared base unit: a model's numbers mean whatever its author decided
+        // a unit is, and the declared unit (often the default millisecond) says nothing reliable about that.
+        fun length(value: Double) = "%,.0f time units".format(value)
+        val shorter = estimate.roundLengthFor(AnimationAppController.FIT_TRACE_BYTES)
+        val shortenLabel = "Run ${length(shorter)}"
+        val message = buildString {
+            append("<html><body style='width: 400px'>")
+            append("This run would write about <b>${size(estimate.bytes)}</b> of animation trace")
+            append(if (estimate.windowed) " for its capture window of ${length(estimate.capturedSpan)}" else " for one replication of ${length(estimate.replicationLength)}")
+            append(". A trace that large takes minutes to write and is far longer than anyone will watch.<br><br>")
+            if (!estimate.windowed) {
+                append("<b>$shortenLabel</b> runs the same model for ${length(shorter)} instead, writing about ")
+                append("${size(AnimationAppController.FIT_TRACE_BYTES)}. It changes only the replication length on the Run tab ")
+                append("(and sets the warm-up to 0); change it there afterwards if you want a different length.<br><br>")
+            }
+            append("On the Capture tab you can also record only the elements you want to watch, or a time window.")
+            append("<br><br><i>Estimated from a short trial run; the actual size can differ.</i></body></html>")
+        }
+        val options = if (estimate.windowed) arrayOf("Run anyway", "Cancel") else arrayOf(shortenLabel, "Run anyway", "Cancel")
+        val picked = JOptionPane.showOptionDialog(
+            this, message, "Large animation trace", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+            null, options, options.first()
+        )
+        return when (options.getOrNull(picked)) {
+            shortenLabel -> LargeTraceChoice.SHORTEN
+            "Run anyway" -> LargeTraceChoice.RUN
+            else -> LargeTraceChoice.CANCEL
+        }
+    }
+
     /** Simulate/Cancel toolbar bound to the controller's run lifecycle. */
     private fun buildRunToolbar(): JComponent = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT)).apply {
-        simulateButton.addActionListener { controller.submit() }
+        simulateButton.addActionListener { simulateAfterEstimate() }
         cancelButton.addActionListener { controller.cancel() }
         cancelButton.isEnabled = false
         add(simulateButton)

@@ -47,9 +47,13 @@ object AnimationsPackage {
         tracesDir: Path,
         layoutsRoot: Path,
         outDir: Path,
-        captureMissing: Boolean = true
+        captureMissing: Boolean = true,
+        includeFeaturedVehicles: Boolean = true
     ): Result {
         val (bundleId, modelIds) = readManifest(bundleJar)
+        // The animation examples, then the featured vehicle models, each keyed by its own bundle's layouts.
+        val sources = listOf(bundleId to modelIds) +
+            if (includeFeaturedVehicles) listOf(FeaturedVehicles.BUNDLE_ID to FeaturedVehicles.modelIds) else emptyList()
         val exporter = SelfContainedHtmlExporter.bundled()
             ?: error(
                 "no packaged animation player. Build it first:\n" +
@@ -59,8 +63,8 @@ object AnimationsPackage {
         val runs = ArrayList<AnimationRunRef>()
         val captured = ArrayList<String>()
         val skipped = ArrayList<String>()
-        for (modelId in modelIds) {
-            val layout = layoutsRoot.resolve(bundleId).resolve("$modelId.lay.toml")
+        for ((sourceBundle, sourceModels) in sources) for (modelId in sourceModels) {
+            val layout = layoutsRoot.resolve(sourceBundle).resolve("$modelId.lay.toml")
 
             // Every model the bundle ships needs a layout, including the ones this download omits. The
             // layouts are committed, so a missing one means the bundle gained a model nobody polished —

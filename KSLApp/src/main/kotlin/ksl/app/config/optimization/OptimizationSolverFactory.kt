@@ -153,7 +153,8 @@ class OptimizationSolverFactory(
                 inequalityType  = it.inequalityType.toEngine(),
                 target          = it.target,
                 tolerance       = it.tolerance,
-                penaltyFunction = it.penaltyFunction?.toEngine()
+                penaltyFunction = it.penaltyFunction?.toEngine(),
+                indicator       = it.indicator
             )
         }
         pd.defaultLinearPenalty   = spec.defaultLinearPenalty.toEngine()

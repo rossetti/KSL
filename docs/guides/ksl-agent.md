@@ -1037,7 +1037,7 @@ on the Dokka pages.
 | `PedestrianCrowdExample` | social-force dynamics (Helbing) over a `FlowField` on a richer 2D space |
 | `BuildingEvacuationExample` | multi-source distance field via `GridGraph.distanceField`; gradient descent instead of per-agent A* |
 | `FlockingExample` | Reynolds boids (separation + alignment + cohesion) |
-| `WarehouseAGVExample` | `MovableAgentResource` on a grid; AGV routing |
+| `WarehouseAGVExample` | `MovableAgentResource` on a grid; AGV routing (an agent model — for AGVs on a guide path that contend for aisle space, see [`ksl-guidedpath`](ksl-guidedpath.md)) |
 | `AutonomousDeliveryExample` | continuous space + travel + contract-net |
 | `AutonomousForkliftExample` | `AgentResource` with on/off-shift + reactive statechart |
 | `JobShopExample` | contract-net dispatch with no spatial component — typed messages only |

@@ -68,6 +68,9 @@ private const val RIGID_TOLERANCE = 1e-6
  *   layout are ignored; only the first and last present names constrain the result.
  */
 fun AnimationLayout.withReadableOrientation(readingOrder: List<String>): AnimationLayout {
+    // A guide path's geometry is the model's and is not turned with the locations, so turning them would
+    // detach every station from the path it sits on. A layout with a guide path keeps the model's orientation.
+    if (guidedPaths.isNotEmpty()) return this
     val placed = locations.mapNotNull { loc -> loc.position?.let { loc.locationName to it } }.toMap()
     if (placed.size < 2) return this
     val order = readingOrder.filter { it in placed }

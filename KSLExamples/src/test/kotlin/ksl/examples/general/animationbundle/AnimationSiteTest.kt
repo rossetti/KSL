@@ -1,6 +1,7 @@
 package ksl.examples.general.animationbundle
 
 import ksl.examples.general.animationbundle.showcase.AnimationSite
+import ksl.examples.general.animationbundle.showcase.FeaturedVehicles
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -34,8 +35,9 @@ class AnimationSiteTest {
         val text = ZipFile(bundleJar.toFile()).use { zip ->
             zip.getInputStream(zip.getEntry("META-INF/ksl/bundle.toml")).bufferedReader().readText()
         }
+        // The site shows the animation examples, then the featured vehicle models.
         return Regex("""^\s*modelId\s*=\s*"([^"]+)"""", RegexOption.MULTILINE)
-            .findAll(text).map { it.groupValues[1] }.toList()
+            .findAll(text).map { it.groupValues[1] }.toList() + FeaturedVehicles.modelIds
     }
 
     /**

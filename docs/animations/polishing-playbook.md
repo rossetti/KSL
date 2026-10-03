@@ -284,6 +284,31 @@ agent off the grid it is standing on.
 
 ---
 
+## Vehicle models are a different job too
+
+A guide path's geometry belongs to the model, so the layout never redraws it: it only places it, by an
+offset, a scale and a separation per floor. The ten `polish-<vehicle model>.py` scripts are the worked
+examples, and the kit's vehicle helpers carry the mechanics.
+
+- **Frame the path, then move everything with it.** `frame_path` sets the offset (and scale) and shifts every
+  placed element by the same amount. Scaling also scales the floor separation, which is added after the
+  scale. After changing the separation, `snap_locations` re-places stations at the intersections they name,
+  since upper-floor stations move by an amount no translation captures.
+- **North up.** A model's y axis usually points north and the screen's points down. A negative scale turns
+  the path through 180 degrees, a rotation and not a mirror, so the direction of travel survives.
+- **Red means blocked, so nothing else may be red.** Closures go amber; carts never take red, grey or orange
+  (blocked, halted, charging); resources beside the path drop the default red busy colour; a free-path
+  mover gets a `busyColor` of its own hue, or its carrying ring is drawn red.
+- **Name carts in a key, not on the glyph.** Carts queue nose to tail exactly when the picture is most
+  interesting, and labels on the glyphs collide there.
+- **Draw where loads wait.** The transport system's pickup hold is never auto-placed, and in an active fleet
+  it is the only place a waiting load is. When every load waits at one station, place the hold queue there;
+  when they wait at several, one queue would misplace most of them, so count them in a bar instead.
+- **A walk across the aisle is a delay.** Name it (`crossOnFoot` takes a `suspensionName`) and draw it as a
+  progress belt across the crossing; prove the trace is otherwise identical, as above.
+- **Render the moments that matter.** `renderFrames -Ptimes=t1,t2` draws chosen instants: a closure held, a
+  cart blocked, a queue at its longest. Even spacing rarely lands on them. Read the times from the trace.
+
 ## What the generator already does
 
 Worth knowing before polishing, so effort goes where it is needed. From the trace, `auto_layout` recovers:

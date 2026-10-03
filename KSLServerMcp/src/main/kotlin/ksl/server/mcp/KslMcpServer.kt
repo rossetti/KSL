@@ -604,10 +604,18 @@ object KslMcpServer {
                 "loop. Returns the image inline plus a downloadable artifact (get_artifact). Draws labeled, " +
                 "color-coded glyphs for the placed resources/queues/stations/movers/storages/displays and the " +
                 "paths; it is a static placement preview, not the live animation. 'layout' is a JSON or TOML " +
-                "AnimationLayout.",
+                "AnimationLayout. A layout styles a guide path but does not carry its geometry: pass the " +
+                "bundleId and modelId it was made for and the model's guide paths, with their transporters at " +
+                "their home bases, are drawn too.",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
                     putJsonObject("layout") { put("type", "string"); put("description", "A JSON or TOML AnimationLayout.") }
+                    putJsonObject("bundleId") {
+                        put("type", "string"); put("description", "Optional: the model's bundle, to draw its guide paths.")
+                    }
+                    putJsonObject("modelId") {
+                        put("type", "string"); put("description", "Optional: the model, to draw its guide paths.")
+                    }
                 },
                 required = listOf("layout"),
             ),

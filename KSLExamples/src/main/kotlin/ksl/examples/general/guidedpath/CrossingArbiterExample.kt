@@ -164,7 +164,8 @@ class CrossingArbiterExample(
 
     private inner class Walker : Entity("Walker") {
         val walk = process(isDefaultProcess = true) {
-            crossOnFoot(crossing, walkTime, walkQ)
+            // Named so an animation can draw the walkers on the crosswalk; a name changes no statistic.
+            crossOnFoot(crossing, walkTime, walkQ, suspensionName = "Crossing")
             walkersAcross++
         }
     }

@@ -32,7 +32,8 @@ import kotlin.io.path.Path
  * different picture on every rebuild, so an unrelated regeneration would rewrite fifteen binary files and
  * fill the site's history with churn nobody asked for.
  *
- * System properties: `-Dtraces=<dir> -Dlayouts=<dir> -Dout=<dir>` `[-Dw=<px>] [-Dh=<px>]`
+ * System properties: `-Dtraces=<dir> -Dlayouts=<dir> -Dout=<dir>` `[-Dw=<px>] [-Dh=<px>]`, where `layouts` is the
+ * root holding one folder per bundle (`docs/animations/layouts`).
  */
 fun main() {
     System.setProperty("java.awt.headless", "true")
@@ -55,7 +56,12 @@ fun main() {
 
     for (trace in traces) {
         val modelId = trace.name.removeSuffix(".atf")
-        val layout = File(layoutsDir, "$modelId.lay.toml").takeIf { it.isFile }
+        // The layouts root holds one folder per bundle; a model's layout is in whichever bundle ships it. A
+        // model without one is drawn from the auto-layout, which is never what the gallery should show, so
+        // say so rather than publish it quietly.
+        val layout = (listOf(layoutsDir) + (layoutsDir.listFiles { f: File -> f.isDirectory }?.sortedBy { it.name } ?: emptyList()))
+            .map { File(it, "$modelId.lay.toml") }.firstOrNull { it.isFile }
+        if (layout == null) println("warning: no shipped layout for $modelId under $layoutsDir; using the auto-layout")
         val source = AnimationSource.load(layout?.toPath()?.let { Path(it.toString()) }, Path(trace.path))
         var replay = ReplayModel.build(source)
         if (replay.layout == null) {

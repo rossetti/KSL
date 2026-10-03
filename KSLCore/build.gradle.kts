@@ -211,3 +211,92 @@ dokka {
         }
     }
 }
+
+// --- Publishing the API docs to KSLDocs (release step 14) ---------------------------------------------
+//
+// https://rossetti.github.io/KSLDocs/ is GitHub Pages serving `docs/` on the main branch of a separate
+// repository, rossetti/KSLDocs, and that folder is exactly Dokka's HTML output. `publishKSLDocs` replaces
+// it with a fresh build (a sync, so pages that no longer exist are removed too) and commits the result in
+// the KSLDocs checkout as "Release <version>". It pushes only with -PpushKSLDocs=true.
+//
+//   ./gradlew publishKSLDocs                          # build, sync, commit; review and push yourself
+//   ./gradlew publishKSLDocs -PpushKSLDocs=true       # ... and push
+//   ./gradlew publishKSLDocs -PkslDocsDir=/path/to/KSLDocs   # default: KSLDocs next to this repository
+
+val kslDocsRepoDir: File = (findProperty("kslDocsDir") as String?)?.let { file(it) }
+    ?: rootDir.resolveSibling("KSLDocs")
+val pushKSLDocs: Boolean = (findProperty("pushKSLDocs") as String?)?.toBoolean() ?: false
+
+/** Runs git in [dir] and returns its trimmed output, failing the build with git's own message on error. */
+fun gitIn(dir: File, vararg args: String): String {
+    val process = ProcessBuilder(listOf("git") + args).directory(dir).redirectErrorStream(true).start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    if (process.waitFor() != 0) throw GradleException("git ${args.joinToString(" ")} failed in $dir:\n$output")
+    return output
+}
+
+// Checked before Dokka runs, so a KSLDocs checkout that cannot take the commit fails in seconds, not after
+// a full documentation build.
+val checkKSLDocsRepo by tasks.registering {
+    group = "documentation"
+    description = "Checks the KSLDocs checkout is the right repository, on main, clean and current."
+    doLast {
+        val dir = kslDocsRepoDir
+        if (!dir.resolve(".git").exists()) throw GradleException(
+            "No KSLDocs checkout at $dir. Clone https://github.com/rossetti/KSLDocs there, or pass -PkslDocsDir=<path>."
+        )
+        val remote = gitIn(dir, "remote", "get-url", "origin")
+        if (!remote.contains("rossetti/KSLDocs")) throw GradleException("$dir's origin is $remote, not rossetti/KSLDocs.")
+        val branch = gitIn(dir, "branch", "--show-current")
+        if (branch != "main") throw GradleException("KSLDocs is on '$branch'; GitHub Pages serves main. Switch to main first.")
+        val dirty = gitIn(dir, "status", "--porcelain")
+        if (dirty.isNotEmpty()) throw GradleException("KSLDocs has uncommitted changes; commit or discard them first:\n$dirty")
+        gitIn(dir, "fetch", "--quiet", "origin")
+        val behind = gitIn(dir, "rev-list", "--count", "HEAD..origin/main").toInt()
+        if (behind > 0) throw GradleException("KSLDocs is $behind commit(s) behind origin/main; pull first.")
+    }
+}
+
+tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach { mustRunAfter(checkKSLDocsRepo) }
+
+tasks.register("publishKSLDocs") {
+    group = "documentation"
+    description = "Builds KSLCore's Dokka HTML and commits it to the KSLDocs checkout (push with -PpushKSLDocs=true)."
+    dependsOn(checkKSLDocsRepo, "dokkaGenerateHtml")
+    val dokkaHtml = layout.buildDirectory.dir("dokka/html")
+    val releaseVersion = version.toString()
+    val kslDir = rootDir
+    doLast {
+        val source = dokkaHtml.get().asFile
+        if (!source.resolve("index.html").isFile) throw GradleException("No Dokka output at $source.")
+        val docs = kslDocsRepoDir.resolve("docs")
+        docs.deleteRecursively()
+        source.copyRecursively(docs)
+
+        gitIn(kslDocsRepoDir, "add", "-A", "docs")
+        if (gitIn(kslDocsRepoDir, "status", "--porcelain").isEmpty()) {
+            logger.lifecycle("publishKSLDocs: KSLDocs already matches the $releaseVersion docs; nothing to commit.")
+            return@doLast
+        }
+        val kslCommit = gitIn(kslDir, "rev-parse", "--short", "HEAD")
+        val kslBranch = gitIn(kslDir, "branch", "--show-current")
+        val kslDirty = gitIn(kslDir, "status", "--porcelain", "--", "KSLCore/src/main").isNotEmpty()
+        if (kslDirty) logger.warn("publishKSLDocs: KSLCore/src/main has uncommitted changes; the docs include them.")
+        gitIn(
+            kslDocsRepoDir, "commit", "--quiet",
+            "-m", "Release $releaseVersion",
+            "-m", "Dokka HTML for KSLCore $releaseVersion, built from KSL $kslCommit ($kslBranch)" +
+                (if (kslDirty) " with uncommitted KSLCore source changes." else ".")
+        )
+        val commit = gitIn(kslDocsRepoDir, "rev-parse", "--short", "HEAD")
+        if (pushKSLDocs) {
+            gitIn(kslDocsRepoDir, "push", "--quiet", "origin", "main")
+            logger.lifecycle("publishKSLDocs: committed $commit (Release $releaseVersion) and pushed to rossetti/KSLDocs.")
+        } else {
+            logger.lifecycle(
+                "publishKSLDocs: committed $commit (Release $releaseVersion) in $kslDocsRepoDir. " +
+                    "Review it and push, or re-run with -PpushKSLDocs=true."
+            )
+        }
+    }
+}

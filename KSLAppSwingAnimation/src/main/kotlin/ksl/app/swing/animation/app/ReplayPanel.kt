@@ -167,6 +167,10 @@ class ReplayPanel(private val app: AnimationAppController) : JPanel(BorderLayout
         add(vectorsToggle.apply { addActionListener { canvas.showVectors = isSelected } })
         add(pulsesToggle.apply { addActionListener { canvas.showMarkerPulses = isSelected } })
         syncOverlayToggles() // nothing loaded yet: inert, but described normally
+        add(JCheckBox("Show assignments", false).apply {
+            toolTipText = "Draw a faint line from each assigned fleet vehicle to its next stop: the pickup, then the drop-off"
+            addActionListener { canvas.showAssignments = isSelected }
+        })
         add(stationItemsToggle.apply {
             toolTipText = "Show the items currently at each network station (off by default — the per-station glyphs are noisy)"
             addActionListener { canvas.showStationContents = isSelected }

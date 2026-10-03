@@ -1,0 +1,400 @@
+title = "Dispatching rules on a ring"
+baseTimeUnit = null
+width = 1035.0
+height = 660.0
+paths = [  ]
+queues = [  ]
+resources = [  ]
+stations = [  ]
+plots = [  ]
+spaces = [  ]
+values = [  ]
+agentStateColors = {  }
+summaries = [  ]
+histograms = [  ]
+storages = [  ]
+movableResources = [  ]
+processColors = {  }
+conveyors = [  ]
+spaceGeometry = [  ]
+
+[[objectClasses]]
+typeName = "Load"
+shape = "SQUARE"
+color = "#8c564b"
+size = 10.2
+imageRef = null
+label = null
+
+[[background]]
+kind = "TEXT"
+text = "Which cart goes?"
+color = "#333333"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 22.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 90.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Loads appear at the north and south pickups and go"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 120.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "to shipping, around a one-way ring. A dispatching"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 140.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "rule picks the cart for each load; this run uses"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 160.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Nearest vehicle, under which the cart sent is rarely"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 180.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "the one that has waited longest. The rule is an"
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 200.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "input, so the comparison is one model run six ways."
+color = "#666666"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 15.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 220.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 1"
+color = "#1f77b4"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 265.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 2"
+color = "#ff7f0e"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 287.4
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "■ Cart 3"
+color = "#9467bd"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 14.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 309.8
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Red ring: blocked by another cart"
+color = "#d62728"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 345.0
+z = 0.0
+
+[[background]]
+kind = "TEXT"
+text = "Grey ring: halted (breakdown, battery, gate)"
+color = "#7f7f7f"
+strokeWidth = 1.0
+imageRef = null
+fontSize = 13.0
+fontFamily = null
+
+[[background.points]]
+x = 655.0
+y = 365.8
+z = 0.0
+
+[[bars]]
+responseName = "Agv:NumVehiclesOnTask"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#555555"
+label = "Carts on a task"
+
+[bars.position]
+x = 655.0
+y = 450.0
+z = 0.0
+
+[[bars]]
+responseName = "Agv:AwaitingPickupHoldQ:NumInQ"
+width = 220.0
+height = 18.0
+maxValue = 3.0
+color = "#8c564b"
+label = "Loads waiting for a cart"
+
+[bars.position]
+x = 655.0
+y = 500.0
+z = 0.0
+
+[[clocks]]
+format = "0.0"
+label = "Time (min)"
+fontSize = 18.0
+
+[clocks.position]
+x = 655.0
+y = 405.0
+z = 0.0
+
+[[labels]]
+kind = "LOCATION"
+name = "NorthPickup"
+text = "North pickup"
+dx = 0.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "SouthPickup"
+text = "South pickup"
+dx = 0.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "Shipping"
+text = "Shipping"
+dx = 0.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "DepotA"
+text = "Depot A"
+dx = 14.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "DepotB"
+text = "Depot B"
+dx = 14.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[labels]]
+kind = "LOCATION"
+name = "DepotC"
+text = "Depot C"
+dx = 14.0
+dy = -16.0
+visible = true
+valueDx = 0.0
+valueDy = 14.0
+valueVisible = true
+
+[[locations]]
+locationName = "NorthPickup"
+label = "NorthPickup"
+
+[locations.position]
+x = 345.0
+y = 165.0
+z = 0.0
+
+[[locations]]
+locationName = "SouthPickup"
+label = "SouthPickup"
+
+[locations.position]
+x = 345.0
+y = 505.0
+z = 0.0
+
+[[locations]]
+locationName = "Shipping"
+label = "Shipping"
+
+[locations.position]
+x = 515.0
+y = 335.0
+z = 0.0
+
+[[locations]]
+locationName = "DepotA"
+label = "DepotA"
+
+[locations.position]
+x = 345.0
+y = 80.0
+z = 0.0
+
+[[locations]]
+locationName = "DepotB"
+label = "DepotB"
+
+[locations.position]
+x = 90.0
+y = 335.0
+z = 0.0
+
+[[locations]]
+locationName = "DepotC"
+label = "DepotC"
+
+[locations.position]
+x = 345.0
+y = 590.0
+z = 0.0
+
+[[guidedPaths]]
+spaceName = "Agv:Space"
+scale = -1.7
+floorOffsetPerZ = null
+linkColor = "#7f7f7f"
+linkWidth = 3.0
+showZones = true
+showIntersections = true
+closureColor = "#d62728"
+label = null
+
+[guidedPaths.offset]
+x = 345.0
+y = 335.0
+z = 0.0
+
+[[guidedTransporters]]
+name = "Cart1:Body"
+shape = "SQUARE"
+size = 17.5
+color = "#1f77b4"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart2:Body"
+shape = "SQUARE"
+size = 17.5
+color = "#ff7f0e"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
+
+[[guidedTransporters]]
+name = "Cart3:Body"
+shape = "SQUARE"
+size = 17.5
+color = "#9467bd"
+loadedColor = null
+blockedColor = null
+haltedColor = null
+imageRef = null
+label = null
