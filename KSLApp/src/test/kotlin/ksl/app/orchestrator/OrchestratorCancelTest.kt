@@ -65,10 +65,12 @@ class OrchestratorCancelTest {
                 experimentRunParameters: ExperimentRunParametersIfc?
             ): Model {
                 val model = Model(MM1_ID, autoCSVReports = false)
-                // Enough reps that the run is still active when cancel fires, but
-                // small enough that the test completes quickly if cancel is missed.
+                // Long enough that the run cannot finish before the test's cancel reaches it, and short
+                // enough that a missed cancel still ends well inside the timeout. At 30 x 100 time units
+                // the whole run took a few milliseconds, so a test thread paused that long (a 2-core CI
+                // runner building modules in parallel) saw it complete first and failed on CI only.
                 model.numberOfReplications = 30
-                model.lengthOfReplication = 100.0
+                model.lengthOfReplication = 100_000.0
                 GIGcQueue(model, numServers = 1, name = "MM1")
                 return model
             }
