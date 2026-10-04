@@ -198,15 +198,16 @@ To your build for the latest release. R1.7.1 needs Kotlin 2.3 or later in your p
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
 things released on separate cadences: the **library** (`KSLCore`, versioned R1.7.1, R1.7, R1.6.2, …) and
-the installable **suite** of applications and servers (versioned 0.4.2, 0.4.1, 0.4.0, …). A suite release
+the installable **suite** of applications and servers (versioned 0.4.3, 0.4.2, 0.4.1, …). A suite release
 does not imply a library release, or the reverse.
 
-**Current suite release — 0.4.2.** Vehicle models animate in the Animation app, web player and
+**Current suite release — 0.4.3.** Vehicle models animate in the Animation app, web player and
 exported pages, with blocked and halted carts marked apart. Ships the ten-model Vehicle Examples
 bundle, lets the Simulation Optimization app declare indicator constraints, and fixes the KSL Server
 on machines with a `127.0.0.1 <name>` hosts entry. 0.4.1 and 0.4.2 fix two 0.4.0 problems: the stdio
 bridge sent MCP clients a line that was not protocol, and the KSL Server did not start after an update
-from 0.3.x; 0.4.2 also returns the book's numbered tables with their data. Built on KSLCore R1.7.1.
+from 0.3.x; 0.4.2 also returns the book's numbered tables with their data, and 0.4.3 makes the tray's
+Quit stop the KSL Server on Windows. Built on KSLCore R1.7.1.
 
 **Current library release — R1.7.1.** Corrective: fixes to Student-t sample sizes, (r, Q) under lot
 demand, `PDFModeler` scoring and benchmark databases, each of which changed results silently.
