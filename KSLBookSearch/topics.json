@@ -1269,7 +1269,7 @@
     "spatial element tracking",
     "pickup delivery requests"
   ],
-  "sec-guidedPathTransporters": [
+  "sec-secAGVs": [
     "guided path transporters",
     "automated guided vehicles agv",
     "fixed path vehicle network",
@@ -1278,6 +1278,61 @@
     "spur and one way aisle",
     "idle vehicle obstruction",
     "free path versus guided path"
+  ],
+  "sec-secGuidedPathNetworks": [
+    "guided path network",
+    "links and intersections",
+    "zones and zone length",
+    "stations on a guide path",
+    "unidirectional and bidirectional links",
+    "spur links",
+    "vehicle path network concepts"
+  ],
+  "sec-secKSLGuidedPathConstructs": [
+    "GuidedPathNetwork builder",
+    "GuidedTransporter class",
+    "GuidedPathTransportSystem",
+    "GuidedTransporterPoolWithQ",
+    "guidedTransport function",
+    "zone control rule",
+    "transporter home base",
+    "ksl.modeling.guidedpath package"
+  ],
+  "sec-secSimpleAGV": [
+    "simple AGV system example",
+    "SimpleAGVExample",
+    "route length and zones traversed",
+    "ride time and approach time",
+    "AGV home spurs",
+    "two cart loop",
+    "loading and unloading time"
+  ],
+  "sec-secAGVDeadlock": [
+    "guided path deadlock",
+    "bidirectional link deadlock",
+    "spurs to avoid deadlock",
+    "idle vehicle obstruction",
+    "ReturnToHomeBaseRule",
+    "MoveToStagingAreaRule",
+    "GuidedPathDeadlockException",
+    "blocked by idle vehicle"
+  ],
+  "sec-secTestAndRepairGuided": [
+    "test and repair guided transporters",
+    "transport workers on a guide path",
+    "EndOfZoneControl",
+    "guided transport result",
+    "fraction of time blocked",
+    "transfer time",
+    "guided versus movable resource workers"
+  ],
+  "further-topics-in-guided-path-modeling": [
+    "zone closures spills maintenance",
+    "pedestrian crossings",
+    "fleet dispatching",
+    "active vehicles ksl.modeling.agv",
+    "multi floor guide paths",
+    "further guided path topics"
   ],
   "sec-secTQMWM": [
     "tandem queue with distances",
@@ -1348,7 +1403,7 @@
     "conveyor blocking entry cell",
     "multiple conveyor systems"
   ],
-  "summary-of-new-concepts": [
+  "8-summary": [
     "move moveWith transportWith",
     "MovableResourceWithQ",
     "DistancesModel summary",

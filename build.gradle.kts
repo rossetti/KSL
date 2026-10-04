@@ -347,7 +347,7 @@ val serverLauncherTemplate = """
       echo "Found: DOLLAR("DOLLARJAVA" -version 2>&1 | head -1)"
       exit 1
     fi
-    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_EXAMPLES/bundles" "-Dksl.builtinLayouts=DOLLARKSL_EXAMPLES/layouts"@SELFD@ -cp "DOLLARDIR/server-lib/*:DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
+    exec "DOLLARJAVA"@JVMARGS@ "-Dksl.builtinBundles=DOLLARKSL_EXAMPLES/bundles" "-Dksl.builtinLayouts=DOLLARKSL_EXAMPLES/layouts"@SELFD@ -cp "@SERVERLIB@DOLLARKSL_SUPPORT/lib/*:DOLLARDIR/@JAR@.jar" @MAIN@ "DOLLAR@"
 """.trimIndent()
 
 fun macLauncher(name: String, mainClass: String, jvmArgs: String): String =
@@ -359,9 +359,18 @@ fun cliLauncher(name: String, jvmArgs: String): String =
 
 // selfD: an extra -D naming this wrapper's own path, for the MCP stdio launcher only (see the
 // call site). Substituted BEFORE the DOLLAR pass so it can use DOLLARDIR like the template does.
-fun serverLauncher(name: String, jar: String, mainClass: String, jvmArgs: String, selfD: String = ""): String =
+// serverLib: the jar names in server-lib/, which the launcher names one by one rather than as
+// server-lib/*. An update unzips over the old install, and a jar a release stopped shipping stays
+// behind; with a wildcard both versions load, and 0.4.0's server died at startup on the Ktor 3.2.3
+// jars an update had left beside 3.6.0. Relative paths, because the launcher has cd'd to its own dir
+// (and Windows caps a batch line at 8191 characters, which 68 absolute paths would approach).
+fun serverLibClasspath(serverLib: List<String>, sep: String, slash: String): String =
+    serverLib.joinToString("") { "server-lib$slash$it$sep" }
+
+fun serverLauncher(name: String, jar: String, mainClass: String, jvmArgs: String, serverLib: List<String>, selfD: String = ""): String =
     serverLauncherTemplate.replace("@NAME@", name).replace("@JAR@", jar)
         .replace("@MAIN@", mainClass).replace("@JVMARGS@", jvmArgs).replace("@SELFD@", selfD)
+        .replace("@SERVERLIB@", serverLibClasspath(serverLib, ":", "/"))
         .replace("DOLLAR", "\$") + "\n"
 
 fun jarOf(task: org.gradle.api.tasks.TaskProvider<*>): java.io.File =
@@ -419,7 +428,7 @@ val winServerTemplate = """
     echo  Closing this window STOPS the server.
     echo  To run it without a window, use the KSL Server tray app.
     echo ============================================================
-    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\..\examples\bundles" "-Dksl.builtinLayouts=%~dp0..\..\..\examples\layouts"@SELFD@ -cp "%~dp0server-lib\*;%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
+    "%JAVA%"@JVMARGS@ "-Dksl.builtinBundles=%~dp0..\..\..\examples\bundles" "-Dksl.builtinLayouts=%~dp0..\..\..\examples\layouts"@SELFD@ -cp "@SERVERLIB@%~dp0..\..\lib\*;%~dp0@JAR@.jar" @MAIN@ %*
 """.trimIndent()
 
 val winCliTemplate = """
@@ -440,9 +449,10 @@ fun winAppLauncher(name: String, mainClass: String, jvmArgs: String) =
     (winAppTemplate.replace("@NAME@", name).replace("@MAIN@", mainClass)
         .replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
 
-fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: String, selfD: String = "") =
+fun winServerLauncher(name: String, jar: String, mainClass: String, jvmArgs: String, serverLib: List<String>, selfD: String = "") =
     (winServerTemplate.replace("@NAME@", name).replace("@JAR@", jar).replace("@MAIN@", mainClass)
-        .replace("@JVMARGS@", jvmArgs).replace("@SELFD@", selfD)).replace("\n", "\r\n") + "\r\n"
+        .replace("@JVMARGS@", jvmArgs).replace("@SELFD@", selfD)
+        .replace("@SERVERLIB@", serverLibClasspath(serverLib, ";", "\\"))).replace("\n", "\r\n") + "\r\n"
 
 fun winCliLauncher(name: String, jvmArgs: String) =
     (winCliTemplate.replace("@NAME@", name).replace("@JVMARGS@", jvmArgs)).replace("\n", "\r\n") + "\r\n"
@@ -758,24 +768,25 @@ tasks.register("assembleKSLWork") {
                 }
             }
 
+            val serverLib = suiteLibDir.listFiles { f -> f.name.endsWith(".jar") }?.map { it.name }?.sorted() ?: emptyList()
             val suiteJvm = jvmArgsOf(kslSuite)
             val trayJvm = jvmArgsOf(kslServerTray)
             val bridgeJvm = jvmArgsOf(kslBridge)
 
             // ksl-suite: the HTTP MCP server (thin over server-lib/ + lib/).
             suiteDir.resolve("ksl-suite").apply {
-                writeText(serverLauncher("ksl-suite", "ksl-suite-mcp", "ksl.server.suite.MainKt", suiteJvm)); setExecutable(true)
+                writeText(serverLauncher("ksl-suite", "ksl-suite-mcp", "ksl.server.suite.MainKt", suiteJvm, serverLib)); setExecutable(true)
             }
-            suiteDir.resolve("ksl-suite.cmd").writeText(winServerLauncher("ksl-suite", "ksl-suite-mcp", "ksl.server.suite.MainKt", suiteJvm))
+            suiteDir.resolve("ksl-suite.cmd").writeText(winServerLauncher("ksl-suite", "ksl-suite-mcp", "ksl.server.suite.MainKt", suiteJvm, serverLib))
 
             // ksl-server: the menu-bar/tray agent (thin over server-lib/ + lib/). Both sibling launcher
             // paths go in via -D (DOLLARDIR / %~dp0 resolve to Servers/suite/ at run time).
             val trayUnixD = " \"-Dksl.suite.launcher=DOLLARDIR/ksl-suite\" \"-Dksl.server.launcher=DOLLARDIR/ksl-server\""
             val trayWinD = " \"-Dksl.suite.launcher=%~dp0ksl-suite.cmd\" \"-Dksl.server.launcher=%~dp0ksl-server.cmd\""
             suiteDir.resolve("ksl-server").apply {
-                writeText(serverLauncher("ksl-server", "ksl-server", "ksl.server.tray.MainKt", trayJvm, trayUnixD)); setExecutable(true)
+                writeText(serverLauncher("ksl-server", "ksl-server", "ksl.server.tray.MainKt", trayJvm, serverLib, trayUnixD)); setExecutable(true)
             }
-            suiteDir.resolve("ksl-server.cmd").writeText(winServerLauncher("ksl-server", "ksl-server", "ksl.server.tray.MainKt", trayJvm, trayWinD))
+            suiteDir.resolve("ksl-server.cmd").writeText(winServerLauncher("ksl-server", "ksl-server", "ksl.server.tray.MainKt", trayJvm, serverLib, trayWinD))
 
             // ksl-bridge: the self-contained stdio<->HTTP bridge (fat jar; SetupCli auto-detects it here).
             suiteDir.resolve("ksl-bridge").apply { writeText(cliLauncher("ksl-bridge", bridgeJvm)); setExecutable(true) }
@@ -787,7 +798,7 @@ tasks.register("assembleKSLWork") {
                 require(icon.isFile) { "missing server icon asset: ${icon.path}" }
                 icon.copyTo(suiteDir.resolve(icon.name), overwrite = true)
             }
-            val guiExec = "-cp \"%~dp0server-lib\\*;%~dp0..\\..\\lib\\*;%~dp0ksl-server.jar\" ksl.server.tray.MainKt"
+            val guiExec = "-cp \"" + serverLibClasspath(serverLib, ";", "\\") + "%~dp0..\\..\\lib\\*;%~dp0ksl-server.jar\" ksl.server.tray.MainKt"
             suiteDir.resolve("ksl-server-gui.cmd").writeText(winServerGuiLauncher("ksl-server", guiExec, trayJvm, trayWinD))
 
             logger.lifecycle(
@@ -1058,4 +1069,31 @@ tasks.register<Delete>("uninstallKSLLocally") {
         System.getenv("APPDATA")?.let { delete("$it/Microsoft/Windows/Start Menu/Programs/KSL") }
     }
     doLast { logger.lifecycle("uninstallKSLLocally: removed $kslLocalDest") }
+}
+
+// Install the packaged suite, update over it as an older install is updated, and require the KSL Server
+// to start (see distribution/check-update-over-old-install.sh for why: 0.4.0 started on a fresh install
+// and died on an updated one). macOS and Linux only: the script drives install.sh and bin/ksl.
+// Usage: ./gradlew checkUpdateOverOldInstall      (a release check: releasing-suite.md step 3)
+val kslOldReleaseJar: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+dependencies { kslOldReleaseJar("io.ktor:ktor-http-jvm:3.2.3") }  // what 0.3.8 shipped in server-lib/
+
+tasks.register<Exec>("checkUpdateOverOldInstall") {
+    group = "verification"
+    description = "Install the suite zip, update over it with leftover old jars, and require the server to start."
+    dependsOn("packageKSLWork")
+    onlyIf("needs bash: install.sh and bin/ksl") { !kslHostIsWindows }
+    workingDir = projectDir
+    val oldJar = kslOldReleaseJar
+    val zip = layout.buildDirectory.file("ksl-suite.zip")
+    val scratch = layout.buildDirectory.dir("update-check")
+    doFirst {
+        commandLine(
+            "distribution/check-update-over-old-install.sh",
+            zip.get().asFile.path, scratch.get().asFile.path, oldJar.singleFile.path
+        )
+    }
 }
