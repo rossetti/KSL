@@ -52,6 +52,15 @@ class HtmlToMarkdown(private val baseUrl: String) {
             m.replaceWith(TextNode(stash(m.wholeText())))
         }
 
+        // Tables first: Quarto wraps every captioned (cross-referenced) table in a <figure> too, and the
+        // image rule below would reduce it to its caption, so the book's numbered tables reached the index
+        // with no data. Keep the table for flexmark, which writes it as a pipe table, with the caption as
+        // a line above it.
+        el.select("figure").filter { it.selectFirst("table") != null }.forEach { fig ->
+            fig.selectFirst("figcaption")?.let { cap -> cap.replaceWith(Element("p").text(cap.text().trim())) }
+            fig.unwrap()
+        }
+
         // figures: image with absolute URL so answers can link to the figure
         el.select("figure").forEach { fig ->
             val img = fig.selectFirst("img")

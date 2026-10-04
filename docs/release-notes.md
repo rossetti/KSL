@@ -37,6 +37,11 @@ ones, and the server loaded both. A fresh install was unaffected.
 - `ksl update` and the installers remove leftover jars from every `server-lib/` as well as `lib/`.
 - A release check now installs, updates over an older install and requires the server to start.
 
+**Book search returned numbered tables as captions with no data.** Quarto wraps every captioned table in
+a figure, and the book index kept only a figure's caption, so all 61 numbered tables (Table 8.2 among
+them) reached `get_section` and `search_textbook` without their rows. They now come with their data.
+The book index also gains search keywords for chapter 8's new guided-path sections.
+
 **Upgrading:** quit the KSL Server, then `ksl update`. Your current `ksl` delivers the new launchers,
 which is all the fix needs; the leftover jars are removed by the update after this one. If the update
 refuses because Claude Desktop or Codex is still running a KSL bridge, restart that app first.

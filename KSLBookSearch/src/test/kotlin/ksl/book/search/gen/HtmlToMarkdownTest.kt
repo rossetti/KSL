@@ -114,4 +114,26 @@ Count   = 12</code></pre></div>
         """.trimIndent()
         assertEquals("## A.2 Random Numbers\n\nBody.", convert(html))
     }
+
+    @Test
+    fun `a captioned table keeps its rows under its caption`() {
+        // What Quarto writes for a cross-referenced table: a figure whose caption sits beside the table. The
+        // figure rule used to replace the whole figure with its caption, so every numbered table in the book
+        // reached the index as a caption with no data.
+        val html = """
+            <div id="t" class="section level3"><h3>T</h3>
+            <div id="tbl-X" class="quarto-float quarto-figure quarto-figure-left anchored">
+            <figure class="quarto-float quarto-float-tbl figure">
+            <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl">Table&nbsp;8.2: Free and Guided</figcaption>
+            <div><table class="caption-top table">
+            <thead><tr class="header"><th>Carts</th><th>Guided completions</th></tr></thead>
+            <tbody><tr class="odd"><td>4</td><td>236</td></tr></tbody>
+            </table></div>
+            </figure></div></div>
+        """.trimIndent()
+        val out = convert(html)
+        assertTrue(out.contains("Table 8.2: Free and Guided") || out.contains("Table\u00a08.2: Free and Guided"), out)
+        assertTrue(Regex("""\|\s*4\s*\|\s*236\s*\|""").containsMatchIn(out), out)
+        assertTrue(out.indexOf("Free and Guided") < out.indexOf("236"), "the caption comes before the rows: $out")
+    }
 }
