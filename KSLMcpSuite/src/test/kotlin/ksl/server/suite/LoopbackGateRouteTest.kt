@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test
 import java.net.HttpURLConnection
 import java.net.URI
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -97,7 +98,15 @@ class LoopbackGateRouteTest {
             // fix, a machine whose 127.0.0.1 had a hosts-file name rendered the remote-mode console
             // here instead -- indistinguishable from a legitimately remote deployment.
             assertTrue("Apply &amp; Restart" in body, "capability apply is loopback-only: $body")
-            assertTrue("Connect" in body, "client config is loopback-only")
+            // Assistant setup is loopback-only too, but which controls it shows depends on what is installed
+            // here: Connect only when an assistant is present and not yet connected, nothing at all on a
+            // machine with none. Asserting "Connect" passed on a developer's Mac (whose "Connected" note
+            // contains it) and failed on CI, which has no assistant. The gate's refusal text is the same
+            // everywhere, so assert that it is absent.
+            assertFalse(
+                "Assistant setup is available from the console on the server's own machine" in body,
+                "client config is loopback-only, and this request was treated as remote: $body"
+            )
         }
     }
 
