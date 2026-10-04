@@ -24,6 +24,18 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.4.3 — Quit stops the KSL Server on Windows
+
+*4 October 2026.* KSLCore is untouched by this release.
+
+**On Windows, Quit in the KSL Server tray left the server running**, which then blocked `ksl update`
+until it was ended by hand. Quit found the server by its command line, which Java cannot read for
+another process on Windows, so it found nothing to stop.
+
+- The tray now stops the processes it started, the server and its launcher, whatever their command
+  lines say. A server it did not start is still left running.
+- The tray log records what Quit stopped.
+
 ## 0.4.2 — the KSL Server starts after an update
 
 *3 October 2026.* KSLCore is untouched by this release.

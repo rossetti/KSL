@@ -18,27 +18,37 @@
 
 package ksl.server.tray
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.server.manage.ServerManagerController
 import ksl.server.manage.ServerProcessInventory
 import java.nio.file.Path
 
+private val logger = KotlinLogging.logger {}
+
 /**
  * Manages the suite as a tray-owned child: resolve the installed `ksl-suite` launcher, start the suite
  * only when it is not already up, and on Quit stop only a suite that WE started (clean, no orphan; never
- * kills a suite someone else launched, e.g. a dev instance). All process work goes through the Phase-D
- * [ServerManagerController] seam.
+ * kills a suite someone else launched, e.g. a dev instance).
+ *
+ * Ours is known by the [Process] the launch returned, not by searching command lines: on Windows the JDK
+ * reports no command line for any other process, so a search finds nothing and Quit stopped nothing
+ * (0.4.2). The handle also reaches the server through the `cmd.exe` the Windows launcher runs in.
  */
 class SuiteChild(
     private val controller: ServerManagerController,
     private val healthUrl: String = ServerProcessInventory.DEFAULT_HEALTH_URL,
     private val port: Int? = null,
+    private val launcher: () -> Path? = InstallPaths::suiteLauncher,
 ) {
 
     @Volatile
-    private var startedByUs = false
+    private var child: Process? = null
+
+    /** The launcher process this tray started and has not yet stopped, if any. */
+    internal val started: ProcessHandle? get() = child?.toHandle()
 
     /** The `ksl-suite` launcher this agent would start, or null in a dev/classes run. */
-    fun resolveSuiteLauncher(): Path? = InstallPaths.suiteLauncher()
+    fun resolveSuiteLauncher(): Path? = launcher()
 
     /**
      * Start the suite child if it is not already answering /health and a launcher is resolvable. Returns
@@ -46,10 +56,14 @@ class SuiteChild(
      * dev run with no installed launcher.
      */
     fun startIfDown(): Boolean {
-        if (ServerProcessInventory.isSuiteRunning(healthUrl)) return false
-        val launcher = resolveSuiteLauncher() ?: return false
-        controller.startSuiteLauncher(launcher, port)
-        startedByUs = true
+        if (ServerProcessInventory.isSuiteRunning(healthUrl)) {
+            logger.info { "The KSL suite is already running; this tray will leave it running on Quit." }
+            return false
+        }
+        val path = resolveSuiteLauncher() ?: return false
+        val process = controller.startSuiteLauncher(path, port)
+        child = process
+        logger.info { "Started the KSL suite (pid ${process.pid()}) with $path" }
         return true
     }
 
@@ -63,6 +77,42 @@ class SuiteChild(
         return ServerProcessInventory.isSuiteRunning(healthUrl)
     }
 
-    /** On Quit: stop the suite only if we started it; returns the pids reaped (empty otherwise). */
-    fun stopIfOurs(): List<Long> = if (startedByUs) controller.stopSuite() else emptyList()
+    /**
+     * On Quit: stop the suite only if we started it; returns the pids reaped (empty otherwise).
+     *
+     * The tree is captured before anything is stopped: once the Windows `cmd.exe` is gone, the server
+     * under it can no longer be reached from here. Each process gets a normal stop first (SIGTERM on
+     * macOS/Linux, so the suite's shutdown hook runs) and a forced one if it outlives the grace period.
+     */
+    fun stopIfOurs(): List<Long> {
+        val root = child?.toHandle() ?: run {
+            logger.info { "Quit: this tray did not start the KSL suite; leaving it running." }
+            return emptyList()
+        }
+        val tree = deepestFirst(root)
+        val reaped = ServerProcessInventory.terminate(tree.map { it.pid() })
+        child = null
+        logger.info { "Quit: stopped the KSL suite this tray started; pids ${tree.map { it.pid() }}, reaped $reaped" }
+        if (ServerProcessInventory.isSuiteRunning(healthUrl)) {
+            logger.warn { "Quit: the KSL suite still answers $healthUrl after its process tree was stopped" }
+        }
+        return reaped
+    }
+}
+
+/**
+ * [root]'s descendants, deepest first, then [root]. The JDK does not order `descendants()`, and stopping a
+ * parent first can leave its children unreachable, so sort by the number of parent steps up to [root].
+ */
+internal fun deepestFirst(root: ProcessHandle): List<ProcessHandle> {
+    fun depth(handle: ProcessHandle): Int {
+        var steps = 0
+        var parent = handle.parent().orElse(null)
+        while (parent != null && parent.pid() != root.pid() && steps < 64) {
+            steps++
+            parent = parent.parent().orElse(null)
+        }
+        return steps
+    }
+    return root.descendants().toList().sortedByDescending(::depth) + root
 }
