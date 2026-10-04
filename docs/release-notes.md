@@ -24,6 +24,23 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.4.2 — the KSL Server starts after an update
+
+*3 October 2026.* KSLCore is untouched by this release.
+
+**After `ksl update` from 0.3.x, the KSL Server never started** (0.4.0 and 0.4.1): it stayed at
+"starting" and its console would not open. An update unpacks over the old install, and it removed old
+jars only from `lib/`, so 0.3.8's Ktor jars stayed in the server's own `server-lib/` beside the new
+ones, and the server loaded both. A fresh install was unaffected.
+
+- The server launchers now name the jars they load, so a leftover jar is ignored.
+- `ksl update` and the installers remove leftover jars from every `server-lib/` as well as `lib/`.
+- A release check now installs, updates over an older install and requires the server to start.
+
+**Upgrading:** quit the KSL Server, then `ksl update`. Your current `ksl` delivers the new launchers,
+which is all the fix needs; the leftover jars are removed by the update after this one. If the update
+refuses because Claude Desktop or Codex is still running a KSL bridge, restart that app first.
+
 ## 0.4.1 — a clean channel for MCP clients
 
 *3 October 2026.* KSLCore is untouched by this release.

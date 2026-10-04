@@ -123,6 +123,15 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 
 3. **Verify the payload.**
 
+   - **An update over an older install starts the server.** Installs the zip into a scratch folder,
+     plants an older release's jars, runs the real `ksl update --from` the zip, and requires
+     `/health` to answer UP (macOS / Linux). 0.4.0 shipped without this and its server died on every
+     updated install:
+
+     ```
+     ./gradlew checkUpdateOverOldInstall
+     ```
+
    - **The desktop icon families are complete.** This also runs during assembly, but invoke
      it directly when reviewing an artwork or export change:
 

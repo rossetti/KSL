@@ -93,18 +93,29 @@ fi
 # whole-suite update), and run AFTER extraction so a failed unpack cannot leave an install with no
 # lib/ at all.
 prune_stale_lib() {  # $1 = the payload zip
-  [ -d "$SUPPORT/lib" ] || return 0
-  unzip -Z1 "$1" 'lib/*' 2>/dev/null | sed 's|^lib/||' | grep . | sort > "$TMP/lib-shipped" || return 0
+  # lib/, and every server's own server-lib/: the servers' launchers name their jars, but an install
+  # made before 0.4.2 runs a launcher that takes server-lib/*, and 0.4.0 died at startup on the Ktor
+  # 3.2.3 jars an update had left beside 3.6.0. The directories come from the zip, like the jars.
+  local dir
+  for dir in lib $(unzip -Z1 "$1" 'Servers/*' 2>/dev/null | sed -n 's|^\(Servers/[^/]*/server-lib\)/.*|\1|p' | sort -u); do
+    prune_stale_dir "$1" "$dir"
+  done
+  return 0
+}
+
+prune_stale_dir() {  # $1 = the payload zip, $2 = a jar directory relative to the support root
+  [ -d "$SUPPORT/$2" ] || return 0
+  unzip -Z1 "$1" "$2/*" 2>/dev/null | sed "s|^$2/||" | grep -v / | grep . | sort > "$TMP/jars-shipped" || return 0
   # An empty listing means the query failed, not that the payload ships no jars. Deleting the whole
   # of lib/ on that reading would leave nothing runnable, so treat it as "say nothing, do nothing".
-  [ -s "$TMP/lib-shipped" ] || return 0
-  ls -1 "$SUPPORT/lib" 2>/dev/null | sort > "$TMP/lib-present"
-  n=0
+  [ -s "$TMP/jars-shipped" ] || return 0
+  ls -1 "$SUPPORT/$2" 2>/dev/null | sort > "$TMP/jars-present"
+  local n=0 stale
   while IFS= read -r stale; do
     [ -n "$stale" ] || continue
-    rm -f "$SUPPORT/lib/$stale" && n=$((n + 1))
-  done < <(comm -13 "$TMP/lib-shipped" "$TMP/lib-present")
-  [ "$n" -gt 0 ] && say "* removed $n stale jar(s) left by an earlier release"
+    rm -f "$SUPPORT/$2/$stale" && n=$((n + 1))
+  done < <(comm -13 "$TMP/jars-shipped" "$TMP/jars-present")
+  [ "$n" -gt 0 ] && say "* removed $n stale jar(s) from $2, left by an earlier release"
   return 0
 }
 

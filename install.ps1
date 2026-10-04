@@ -41,29 +41,36 @@ function Die([string]$m) { Write-Host "error: $m"; exit 1 }
 # rather than a hand-kept list, and run after extraction so a failed unpack cannot leave an install
 # with no lib\ at all. The twin of prune_stale_lib in install.sh; see the call site for why.
 function PruneStaleLib([string]$zip, [string]$support) {
-    $libDir = Join-Path $support "lib"
-    if (-not (Test-Path $libDir)) { return }
-    $shipped = @{}
+    # lib\, and every server's own server-lib\: an install made before 0.4.2 runs a launcher that
+    # takes server-lib\*, and 0.4.0 died at startup on the Ktor 3.2.3 jars an update had left beside
+    # 3.6.0. The directories come from the zip, like the jars.
+    $shipped = @{}   # relative directory -> set of jar names the payload ships there
     $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
     try {
         foreach ($e in $za.Entries) {
-            if ($e.FullName -notlike "lib/*") { continue }
             if ([string]::IsNullOrEmpty($e.Name)) { continue }   # directory entry
-            $shipped[$e.Name] = $true
+            $parent = $e.FullName.Substring(0, $e.FullName.Length - $e.Name.Length).TrimEnd('/')
+            if ($parent -ne "lib" -and $parent -notmatch '^Servers/[^/]+/server-lib$') { continue }
+            if (-not $shipped.ContainsKey($parent)) { $shipped[$parent] = @{} }
+            $shipped[$parent][$e.Name] = $true
         }
     }
     finally { $za.Dispose() }
     # An empty set means the read failed, not that the payload ships no jars. Pruning on that
     # reading would empty lib\ and leave nothing runnable.
     if ($shipped.Count -eq 0) { return }
-    $removed = 0
-    foreach ($f in Get-ChildItem -File -Path $libDir -ErrorAction SilentlyContinue) {
-        if (-not $shipped.ContainsKey($f.Name)) {
-            Remove-Item -Force $f.FullName -ErrorAction SilentlyContinue
-            $removed++
+    foreach ($rel in $shipped.Keys) {
+        $dir = Join-Path $support ($rel -replace '/', '\')
+        if (-not (Test-Path $dir)) { continue }
+        $removed = 0
+        foreach ($f in Get-ChildItem -File -Path $dir -ErrorAction SilentlyContinue) {
+            if (-not $shipped[$rel].ContainsKey($f.Name)) {
+                Remove-Item -Force $f.FullName -ErrorAction SilentlyContinue
+                $removed++
+            }
         }
+        if ($removed -gt 0) { Say "* removed $removed stale jar(s) from $rel, left by an earlier release" }
     }
-    if ($removed -gt 0) { Say "* removed $removed stale jar(s) left by an earlier release" }
 }
 
 # --- 1. Java 21+ ---
