@@ -25,6 +25,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.GraphicsEnvironment
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -739,15 +740,32 @@ object KSLFileUtil {
     }
 
     /**
-     *  Opens the file in the browser.
-     *  The file must be an HTML file and the system must have a default browser configured.
-     *  If the file is not an HTML file or if there is no default browser, an IOException may be thrown.
-      * @param file the HTML file to open, must not be null
+     *  Opens the file in the default browser, when there is one to open it in.
+     *
+     *  On a machine with no display (a headless JVM, a CI runner, a server), or where the desktop
+     *  cannot open a browser, the file is left where it is, its location is logged, and the call
+     *  returns normally. A program that writes plots or reports therefore runs unchanged on a desktop
+     *  and in a batch run. A failure of the browser itself is logged as a warning rather than thrown.
+     * @param file the HTML file to open, must not be null
      */
     fun openInBrowser(file: File) {
-        val desktop = Desktop.getDesktop()
-        desktop.browse(file.toURI())
+        if (!canBrowse()) {
+            logger.info { "No browser is available to open the file; it was written to ${file.absolutePath}" }
+            return
+        }
+        try {
+            Desktop.getDesktop().browse(file.toURI())
+        } catch (e: IOException) {
+            logger.warn { "The browser could not open ${file.absolutePath}: ${e.message}" }
+        } catch (e: UnsupportedOperationException) {
+            logger.warn { "The browser could not open ${file.absolutePath}: ${e.message}" }
+        }
     }
+
+    /** True when this JVM has a display and a desktop that can open a browser. */
+    private fun canBrowse(): Boolean =
+        !GraphicsEnvironment.isHeadless() && Desktop.isDesktopSupported() &&
+                Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)
 
     /**
      *  Opens the HTML file in the browser.  The file is created in the specified directory with the given file name.
@@ -785,10 +803,15 @@ object KSLFileUtil {
     /**
      * Opens a file dialog to select a file to open.
      * The dialog will open in the directory that the program was launched from.
+     * On a machine with no display, no dialog can be shown and null is returned.
      * @return the selected file or null if no file was selected
      */
     @Suppress("unused")
     fun chooseFile(): File? {
+        if (GraphicsEnvironment.isHeadless()) {
+            logger.info { "No display is available to choose a file" }
+            return null
+        }
         val dialog = FileDialog(null as Frame?, "Select File to Open")
         dialog.directory = this.programLaunchDirectory.toString()
         dialog.mode = FileDialog.LOAD

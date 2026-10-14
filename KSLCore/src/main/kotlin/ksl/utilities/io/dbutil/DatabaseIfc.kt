@@ -449,8 +449,10 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return a result holding all the records from the table
      */
     fun selectAll(tableName: String, schemaName: String? = defaultSchemaName): CachedRowSet? {
-        if (!containsTable(tableName) && !containsView(tableName)) {
-            logger.trace { "Table or View: $tableName does not exist in database $label" }
+        // look in the schema that was asked for; when none was given, in the default schema, as before
+        val schema = schemaName ?: defaultSchemaName
+        if (!containsTable(tableName, schema) && !containsView(tableName, schema)) {
+            logger.trace { "Table or View: $tableName does not exist in schema $schema of database $label" }
             return null
         }
         return if (schemaName != null) {
@@ -523,8 +525,10 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
-        if (!containsTable(tableName) && !containsView(tableName)) {
-            logger.trace { "Table or View: $tableName does not exist in database $label" }
+        // look in the schema that was asked for; when none was given, in the default schema, as before
+        val schema = schemaName ?: defaultSchemaName
+        if (!containsTable(tableName, schema) && !containsView(tableName, schema)) {
+            logger.trace { "Table or View: $tableName does not exist in schema $schema of database $label" }
             return null
         }
         val sql: String = if (schemaName == null) {
@@ -919,7 +923,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun <T : TabularData> selectTableDataIntoDbData(factory: () -> T): List<T> {
         val template = factory()
-        val rowSet: CachedRowSet? = selectAll(template.tableName)
+        val rowSet: CachedRowSet? = selectAll(template.tableName, template.schemaName ?: defaultSchemaName)
         val list = mutableListOf<T>()
         if (rowSet != null) {
             val iterator = ResultSetRowIterator(rowSet)

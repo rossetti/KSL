@@ -111,7 +111,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
         val myCI = node.stat.confidenceInterval(node.confidenceLevel)
         val myHW = node.stat.halfWidth(node.confidenceLevel)
         val myRows = listOf(
-            listOf("Count",              ctx.fmtProperty(node.stat.count)),
+            listOf("Count",              ctx.fmtCount(node.stat.count)),
             listOf("Average",            ctx.fmtProperty(node.stat.average)),
             listOf("Std Dev",            ctx.fmtProperty(node.stat.standardDeviation)),
             listOf("Std Error",          ctx.fmtProperty(node.stat.standardError)),
@@ -129,7 +129,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
             listOf("Lag-1 Covariance",   ctx.fmtProperty(node.stat.lag1Covariance)),
             listOf("Lag-1 Correlation",  ctx.fmtProperty(node.stat.lag1Correlation)),
             listOf("Von Neumann Stat",   ctx.fmtProperty(node.stat.vonNeumannLag1TestStatistic)),
-            listOf("Missing",            ctx.fmtProperty(node.stat.numberMissing))
+            listOf("Missing",            ctx.fmtCount(node.stat.numberMissing))
         )
         val myTable = MarkDown.Table(
             listOf("Property", "Value"),
@@ -150,7 +150,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
         val myFormats = listOf(MarkDown.ColFmt.LEFT) +
                 List(COMPACT_STAT_HEADERS.size - 1) { MarkDown.ColFmt.RIGHT }
         val myTable = MarkDown.Table(COMPACT_STAT_HEADERS, myFormats)
-        compactStatRows(node.stats, node.confidenceLevel, ctx::fmt).forEach { myTable.addRow(it) }
+        compactStatRows(node.stats, node.confidenceLevel, ctx::fmt, ctx::fmtCount).forEach { myTable.addRow(it) }
         myOutput.append(myTable.toString())
         myOutput.appendLine()
         if (node.detail) {
@@ -159,7 +159,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
             val myDiagFormats = listOf(MarkDown.ColFmt.LEFT) +
                     List(DIAGNOSTIC_STAT_HEADERS.size - 1) { MarkDown.ColFmt.RIGHT }
             val myDiagTable = MarkDown.Table(DIAGNOSTIC_STAT_HEADERS, myDiagFormats)
-            diagnosticStatRows(node.stats, ctx::fmt).forEach { myDiagTable.addRow(it) }
+            diagnosticStatRows(node.stats, ctx::fmt, ctx::fmtCount).forEach { myDiagTable.addRow(it) }
             myOutput.append(myDiagTable.toString())
             myOutput.appendLine()
         }
@@ -170,7 +170,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
         myOutput.appendLine("**${myCaption}**")
         myOutput.appendLine()
         val myRows = listOf(
-            listOf("Count",                   ctx.fmtProperty(node.stat.count)),
+            listOf("Count",                   ctx.fmtCount(node.stat.count)),
             listOf("Weighted Average",         ctx.fmtProperty(node.stat.weightedAverage)),
             listOf("Unweighted Average",       ctx.fmtProperty(node.stat.unWeightedAverage)),
             listOf("Weighted Sum",             ctx.fmtProperty(node.stat.weightedSum)),
@@ -178,7 +178,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
             listOf("Weighted Sum of Squares",  ctx.fmtProperty(node.stat.weightedSumOfSquares)),
             listOf("Min",                      ctx.fmtProperty(node.stat.min)),
             listOf("Max",                      ctx.fmtProperty(node.stat.max)),
-            listOf("Missing",                  ctx.fmtProperty(node.stat.numberMissing))
+            listOf("Missing",                  ctx.fmtCount(node.stat.numberMissing))
         )
         val myTable = MarkDown.Table(
             listOf("Property", "Value"),
@@ -206,7 +206,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
             myTable.addRow(
                 listOf(
                     ws.name,
-                    ctx.fmt(ws.count),
+                    ctx.fmtCount(ws.count),
                     ctx.fmt(ws.weightedAverage),
                     ctx.fmt(ws.unWeightedAverage),
                     ctx.fmt(ws.weightedSum),
@@ -214,7 +214,7 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
                     ctx.fmt(ws.weightedSumOfSquares),
                     ctx.fmt(ws.min),
                     ctx.fmt(ws.max),
-                    ctx.fmt(ws.numberMissing)
+                    ctx.fmtCount(ws.numberMissing)
                 )
             )
         }

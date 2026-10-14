@@ -2329,7 +2329,8 @@ interface KSLProcessBuilder {
      * @param unLoadingDelay how long it takes to unload it
      * @param loadingPriority orders the loading delay against other events at the same instant
      * @param unLoadingPriority orders the unloading delay likewise
-     * @param suspensionName names this suspension point when a process has several
+     * @param suspensionName names this suspension point when a process has several. The loading, ride and
+     *   unloading steps are named from it, or from the transporter's name when it is null
      * @return what the journey cost, including any time spent unable to claim the space ahead
      */
     suspend fun transportBy(
@@ -2347,6 +2348,9 @@ interface KSLProcessBuilder {
                     "(${request.entity.name})."
         }
         val transporter = request.transporter
+        // the steps below are named from this, so that a call that gives no name still produces
+        // names a layout can bind to, rather than "null:loading"
+        val stepName = suspensionName ?: transporter.name
         // The space layer, for the journey; the pool's transport system, for the total. They are the
         // same object in a passive model -- a transport system *is* a space -- but only the second
         // has the figure this paradigm reports.
@@ -2355,7 +2359,7 @@ interface KSLProcessBuilder {
             // Reported to the animation only: the transporter's own state, and the statistics built
             // on it, are unchanged by loading, so no existing figure moves.
             system.emitTransporterState(transporter, ksl.modeling.guidedpath.TransporterState.LOADING)
-            delay(loadingDelay, loadingPriority, "$suspensionName:loading")
+            delay(loadingDelay, loadingPriority, "$stepName:loading")
         }
         val startedLoaded = system.time
         // Aboard before the journey begins, which is what makes the loaded state a fact about the
@@ -2368,7 +2372,7 @@ interface KSLProcessBuilder {
         // hold returns nothing and the journey appears to have covered no ground at all.
         val route = transporter.currentRoute
         if (riding != null) {
-            hold(riding, suspensionName = "$suspensionName:transport:${transporter.name}")
+            hold(riding, suspensionName = "$stepName:transport:${transporter.name}")
         }
         request.rideTime = system.time - startedLoaded
         request.zonesTraversed = route?.zonesTraversed ?: 0
@@ -2378,7 +2382,7 @@ interface KSLProcessBuilder {
         entity.currentLocation = transporter.currentLocation
         if (unLoadingDelay != ConstantRV.ZERO) {
             system.emitTransporterState(transporter, ksl.modeling.guidedpath.TransporterState.UNLOADING)
-            delay(unLoadingDelay, unLoadingPriority, "$suspensionName:unloading")
+            delay(unLoadingDelay, unLoadingPriority, "$stepName:unloading")
         }
         transporter.alight(entity)
         // Back to what the transporter is actually doing, now the animation-only phase is over.
