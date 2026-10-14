@@ -197,6 +197,44 @@ open class ResourcePool @JvmOverloads constructor(
         return a
     }
 
+    /**
+     * Allocates exactly the given members, as they were promised to a waiting request when it was woken.
+     * The amounts must currently be allocatable from those members.
+     */
+    internal fun allocateFrom(
+        entity: ProcessModel.Entity,
+        members: Map<Resource, Int>,
+        queue: RequestQ,
+        allocationName: String? = null
+    ): ResourcePoolAllocation {
+        val amountNeeded = members.values.sum()
+        val a = ResourcePoolAllocation(entity, this, amountNeeded, queue, allocationName)
+        for ((resource, amt) in members) {
+            require(resource in myResources) { "Resource ${resource.name} is not a member of pool $name" }
+            val ra = resource.allocate(entity, amt, queue, allocationName)
+            ra.originatingPool = this
+            a.myAllocations.add(ra)
+        }
+        return a
+    }
+
+    /**
+     * Promises members' units to a waiting request, chosen by the selection and allocation rules the request's
+     * seize named (or the pool's defaults), as they would be chosen if it allocated now.
+     *
+     * @return false when the pool cannot supply the request now, in which case nothing is promised
+     */
+    internal fun promiseMembers(request: ProcessModel.Entity.ResourcePoolRequest): Boolean {
+        val selection = request.selectionRule ?: defaultResourceSelectionRule
+        val allocation = request.allocationRule ?: defaultResourceAllocationRule
+        val list = selectResources(selection, request.amountRequested)
+        if (list.isEmpty()) return false
+        for ((resource, amt) in makeAllocations(allocation, request.amountRequested, list)) {
+            request.promise(resource, amt)
+        }
+        return true
+    }
+
     fun deallocate(poolAllocation: ResourcePoolAllocation) {
         for (allocation in poolAllocation.allocations) {
             ProcessModel.logger.trace { "Resource Pool $name is deallocating from resource ${allocation.myResource.name}" }

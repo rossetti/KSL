@@ -6,6 +6,7 @@ import ksl.simulation.Model
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.math.abs
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -48,11 +49,15 @@ class TestAndRepairMatchTest {
     }
 
     /**
-     * Statistical-band comparison to the legacy when the legacy actually produces
-     * stationary observations (heavy load + slow warmup-to-steady can leave the
-     * legacy with NaN system time at short run lengths). When legacy is NaN we
-     * just report and skip the comparison — the standalone test above already
-     * verifies the station model runs cleanly.
+     * Compares the station model's system time with the legacy model's.
+     *
+     * Before R1.8 the legacy model's system time was usually NaN here and the comparison was skipped: its
+     * workers are shared between a transport pool and direct seizes, and a worker released by one route was
+     * never offered to the parts waiting for it by the other, so almost nothing left the system. Since R1.8
+     * the legacy model runs properly, and the comparison measures the station model's simplification, its
+     * independent transport pool: transport workers no longer compete with testing and repair, so parts move
+     * through faster. At R1.8 the station model's system time was 18% below the legacy's (337 against 414).
+     * The bound holds that gap where it stands.
      */
     @Test
     fun stationVsLegacyWhenComparable() {
@@ -68,10 +73,7 @@ class TestAndRepairMatchTest {
         mL.simulate()
         val legacyAvg = legacy.systemTime.acrossReplicationStatistic.average
 
-        if (legacyAvg.isNaN()) {
-            println("legacy system time is NaN at length=$length, warmup=$warmup; skipping comparison")
-            return
-        }
+        assertFalse(legacyAvg.isNaN(), "the legacy model must produce a system time")
 
         val mS = Model("StationTR", autoCSVReports = false)
         val station = TestAndRepairStation(mS, "TR")
@@ -82,9 +84,29 @@ class TestAndRepairMatchTest {
         val stationAvg = station.network.systemTime.acrossReplicationStatistic.average
 
         val relErr = abs(stationAvg - legacyAvg) / legacyAvg
+        println("legacy system time = $legacyAvg, station system time = $stationAvg, relative difference = $relErr")
         assertTrue(
-            relErr < 1.0,
-            "station system time $stationAvg vs legacy $legacyAvg differ by ${(relErr * 100).toInt()}% (>100%)"
+            stationAvg < legacyAvg && relErr < 0.25,
+            "station system time $stationAvg vs legacy $legacyAvg: expected the station model's independent " +
+                    "transport pool to make it faster, by less than 25%, but the difference is ${(relErr * 100).toInt()}%"
         )
+    }
+
+    /**
+     * The legacy chapter 8 model obeys Little's Law. Its workers are shared between a transport pool and direct
+     * seizes, which lost wakeups before R1.8 and let work in process grow through the run.
+     */
+    @Test
+    fun legacyModelObeysLittlesLaw() {
+        val m = Model("LegacyTRLittle", autoCSVReports = false)
+        val legacy = TestAndRepairShopResourceConstrained(m, "TR")
+        m.numberOfReplications = 3
+        m.lengthOfReplication = 50000.0
+        m.lengthOfReplicationWarmUp = 5000.0
+        m.simulate()
+        val l = legacy.numInSystem.acrossReplicationStatistic.average
+        val lambdaW = legacy.systemTime.acrossReplicationStatistic.average / 20.0
+        println("legacy chapter 8: NumInSystem = $l, lambda * W = $lambdaW")
+        assertTrue(abs(l - lambdaW) / lambdaW <= 0.05, "L = $l against lambda * W = $lambdaW")
     }
 }

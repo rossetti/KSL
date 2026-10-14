@@ -44,14 +44,18 @@ class ResourcePoolingTest {
 
         // Golden values — ResourcePoolExample
         // Fast config: 5 reps × 2 000 min, warm-up 500 | default KSL seed
-        private const val WIP1_AVG  = 2.3359260209570376
-        private const val WIP1_VAR  = 0.045363158043284495
-        private const val TIS1_AVG  = 4.619535201752069
-        private const val TIS1_VAR  = 0.2235867424425525
-        private const val WIP2_AVG  = 3.3907266405375323
-        private const val WIP2_VAR  = 0.26637661479564817
-        private const val TIS2_AVG  = 6.8597585975398925
-        private const val TIS2_VAR  = 0.8123299878393663
+        // Re-recorded for R1.8: George belongs to both pools, and a unit freed through one pool is now offered to
+        // the other pool's waiters, so both queues wait less. Before (R1.7.1): WIP1 2.3359260209570376,
+        // TIS1 4.619535201752069, WIP2 3.3907266405375323, TIS2 6.8597585975398925. WIP / TIS, the arrival rate,
+        // is unchanged in both pools.
+        private const val WIP1_AVG  = 2.284352362807182
+        private const val WIP1_VAR  = 0.022515516965894728
+        private const val TIS1_AVG  = 4.516120720684134
+        private const val TIS1_VAR  = 0.1308152088898576
+        private const val WIP2_AVG  = 3.1991255749644214
+        private const val WIP2_VAR  = 0.26883236839966956
+        private const val TIS2_AVG  = 6.482665370617167
+        private const val TIS2_VAR  = 0.9175267128202685
     }
 
     // ── Shared simulation state ───────────────────────────────────────────────

@@ -25,6 +25,9 @@ abstract class AbstractResourcePool<T: Resource>(
      */
     protected val myResources: MutableList<T> = mutableListOf()
 
+    /** True when [resource] is a member of this pool. */
+    internal fun isMember(resource: Resource): Boolean = myResources.any { it === resource }
+
     protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
     val numBusyUnits: TWResponseCIfc
         get() = myNumBusy

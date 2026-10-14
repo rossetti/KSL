@@ -133,7 +133,7 @@ class PoolWakeupBaselineTest {
     }
 
     @Test
-    @DisplayName("Changed by the pool wakeup rework by design: a pool whose members follow a capacity schedule")
+    @DisplayName("Changed by the pool wakeup rework by design (re-pinned): a pool whose members follow a capacity schedule")
     fun scheduledPool() {
         val m = simulate("baselineScheduledPool") { ScheduledPool(it) }
         assertQueue(m.queue, SCHEDULED_POOL_COUNT, SCHEDULED_POOL_WAIT)
@@ -146,6 +146,7 @@ class PoolWakeupBaselineTest {
         const val FIXED_POOL_COUNT = 3264.0
         const val FIXED_POOL_WAIT = 1.8650706870421305
         const val SCHEDULED_POOL_COUNT = 1682.0
-        const val SCHEDULED_POOL_WAIT = 4.419765484845876
+        // Since R1.8: a member back on shift now wakes the pool's waiters at once. Before (c06710b0c): 4.419765484845876
+        const val SCHEDULED_POOL_WAIT = 3.5992793301523984
     }
 }

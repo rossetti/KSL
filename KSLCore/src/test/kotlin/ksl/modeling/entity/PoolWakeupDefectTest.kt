@@ -21,7 +21,6 @@ package ksl.modeling.entity
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -29,8 +28,7 @@ import kotlin.test.assertNull
 
 /**
  *  Lost wakeups between pools and their members, one test per case (F1 to F4, and F6). Each is written as the
- *  behaviour the R1.8 pool wakeup rework must produce, so each fails on `develop` at `c06710b0c` and passes once
- *  the rework lands. They are disabled until then.
+ *  behaviour the R1.8 pool wakeup rework must produce: each failed on `develop` at `c06710b0c`.
  *
  *  In every case a single unit is freed at a known time and one entity is waiting for it through a different
  *  route than the one the unit was released through. The waiter should get the unit the moment it is freed.
@@ -172,7 +170,6 @@ class PoolWakeupDefectTest {
         }
     }
 
-    @Disabled("Enabled with the R1.8 pool wakeup rework")
     @Test
     @DisplayName("F1: a unit released through a pool reaches the member's own waiter")
     fun releasedThroughPoolReachesMemberWaiter() {
@@ -180,7 +177,6 @@ class PoolWakeupDefectTest {
         assertEquals(5.0, m.servedAt, 1e-9)
     }
 
-    @Disabled("Enabled with the R1.8 pool wakeup rework")
     @Test
     @DisplayName("F2: a unit released directly reaches the pool's waiter")
     fun releasedDirectlyReachesPoolWaiter() {
@@ -188,7 +184,6 @@ class PoolWakeupDefectTest {
         assertEquals(5.0, m.servedAt, 1e-9)
     }
 
-    @Disabled("Enabled with the R1.8 pool wakeup rework")
     @Test
     @DisplayName("F3: a unit released through one pool reaches another pool's waiter")
     fun overlappingPoolsShareTheWakeup() {
@@ -196,7 +191,6 @@ class PoolWakeupDefectTest {
         assertEquals(5.0, m.servedAt, 1e-9)
     }
 
-    @Disabled("Enabled with the R1.8 pool wakeup rework")
     @Test
     @DisplayName("F4: a member coming back on shift reaches the pool's waiter")
     fun memberBackOnShiftReachesPoolWaiter() {
@@ -204,7 +198,6 @@ class PoolWakeupDefectTest {
         assertEquals(5.0, m.servedAt, 1e-9)
     }
 
-    @Disabled("Enabled with the R1.8 pool wakeup rework")
     @Test
     @DisplayName("F6: an arrival at the same instant does not take a unit promised to a waiter")
     fun arrivalDoesNotTakePromisedUnit() {

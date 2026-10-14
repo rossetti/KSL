@@ -55,12 +55,25 @@ fun interface RequestQueueNotificationRuleIfc {
 }
 
 /**
- *  This request queue notification rule causes the queues holding requests associated with a
- *  resource to be notified in the order in which they were entered into their queues.  That is, a queue
- *  holding a request for the resource will be notified before a queue holding a request the entered
- *  its queue later (in time).
+ *  The default: units freed on a resource go to the waiting request that entered its queue first, across
+ *  every queue that may hold a request for the resource, whether the request names the resource or a pool
+ *  the resource belongs to. Each queue still offers its requests in its own discipline.
+ *
+ *  The resource applies this order itself, request by request, which an order of queues cannot express.
+ *  Its iterator, for anyone who calls it directly, gives the queues in the order they were registered.
  */
 object DefaultRequestQueueNotificationRule : RequestQueueNotificationRuleIfc {
+    override fun ruleIterator(set: Set<RequestQ>): Iterator<RequestQ> {
+        return set.iterator()
+    }
+}
+
+/**
+ *  Offers freed units queue by queue, in the order the queues were registered on the resource, each queue
+ *  taking what it can before the next is offered anything. This was the default before R1.8; set it as a
+ *  resource's `requestQNotificationRule` to reproduce results from that order.
+ */
+object RegistrationOrderNotificationRule : RequestQueueNotificationRuleIfc {
     override fun ruleIterator(set: Set<RequestQ>): Iterator<RequestQ> {
         return set.iterator()
     }

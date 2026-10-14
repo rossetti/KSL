@@ -72,6 +72,7 @@ class RequestQ @JvmOverloads constructor(
         val removed = super.remove(qObj, waitStats)
         if (removed) {
             qObj.clearResumePending()
+            qObj.clearPromises()
         }
         return removed
     }
@@ -79,6 +80,7 @@ class RequestQ @JvmOverloads constructor(
     override fun clear() {
         for (request in immutableList) {
             request.clearResumePending()
+            request.clearPromises()
         }
         super.clear()
     }
@@ -247,7 +249,31 @@ class RequestQ @JvmOverloads constructor(
     }
 
     private fun effectiveAvailableFor(resource: ResourceIfc): Int {
-        return resource.numAvailableUnits - pendingResumeAmountFor(resource)
+        // a resource's or pool's available units already exclude what has been promised to woken
+        // requests, in this queue or any other; only a guided transporter pool still counts its own
+        return if (resource is Resource || resource is ResourcePool || resource is MovableResourcePool) {
+            resource.numAvailableUnits
+        } else {
+            resource.numAvailableUnits - pendingResumeAmountFor(resource)
+        }
+    }
+
+    /**
+     * Promises a woken request the units it will take when it resumes, so that nothing else takes them
+     * first. A request for a guided transporter pool is not promised anything; that pool counts its own.
+     *
+     * @return false when the units are no longer there to promise
+     */
+    private fun promiseUnits(request: ProcessModel.Entity.Request, target: ResourceIfc): Boolean = when {
+        request is ProcessModel.Entity.ResourceRequest && target is Resource -> {
+            if (target.numAvailableUnits >= request.amountRequested) {
+                request.promise(target, request.amountRequested); true
+            } else false
+        }
+        request is ProcessModel.Entity.ResourcePoolRequest && target is ResourcePool -> target.promiseMembers(request)
+        request is ProcessModel.Entity.MovableResourcePoolRequest && target is MovableResourcePool ->
+            target.promiseMember(request)
+        else -> true
     }
 
     private fun selectWithinAvailable(
@@ -270,6 +296,81 @@ class RequestQ @JvmOverloads constructor(
             }
         }
         return list
+    }
+
+    /**
+     *  The first request in this queue, in its discipline, that units freed on [member] can serve now: one
+     *  that names [member] and fits in its available units, or one that names a pool [member] belongs to
+     *  and that the pool can supply. Requests already woken are skipped, and so are requests that do not
+     *  fit, as when units are freed today. A request selection rule, when the queue has one, limits which
+     *  requests are considered.
+     */
+    internal fun nextRequestServableBy(member: Resource): ProcessModel.Entity.Request? {
+        val rule = requestSelectionRule
+        val allowed: Set<ProcessModel.Entity.Request>? = if (rule == null) null else buildSet {
+            addAll(rule.selectRequests(member, this@RequestQ))
+            for (request in this@RequestQ) {
+                val target = request.resource
+                if (target is AbstractResourcePool<*> && target.isMember(member)) {
+                    addAll(rule.selectRequests(target, this@RequestQ))
+                }
+            }
+        }
+        // in the queue's own discipline order, which for a LIFO or random queue is not the list order
+        return filteredOrderedList { request ->
+            if (request.resumePending || (allowed != null && request !in allowed)) {
+                false
+            } else {
+                val target = request.resource
+                when {
+                    target === member -> request.amountRequested <= member.numAvailableUnits
+                    request is ProcessModel.Entity.ResourcePoolRequest && target is ResourcePool ->
+                        target.isMember(member) && target.canAllocate(
+                            request.selectionRule ?: target.defaultResourceSelectionRule, request.amountRequested
+                        )
+                    request is ProcessModel.Entity.MovableResourcePoolRequest && target is MovableResourcePool ->
+                        target.isMember(member) &&
+                                target.canAllocate(request.selectionRule ?: target.defaultMovableResourceSelectionRule)
+                    else -> false
+                }
+            }
+        }.firstOrNull()
+    }
+
+    /**
+     *  Removes a request whose entity will not resume to take what it was promised, because its process
+     *  was terminated while it waited, and offers the promised units to whoever else is waiting for them.
+     *  Without the offer they would sit free until the next release.
+     */
+    internal fun removeAbandoned(request: ProcessModel.Entity.Request) {
+        val promised = request.promises.keys.toList()
+        if (!remove(request, false) || promised.isEmpty() || executive.isEnded) return
+        for (member in promised) {
+            member.offerFreedUnits(
+                ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
+                "promise_abandoned_by_request_id=${request.id}"
+            )
+        }
+    }
+
+    /**
+     *  Wakes [request]: promises it the units it will take and schedules its resumption.
+     *
+     *  @return false when the units could not be promised, in which case it is not woken
+     */
+    internal fun wake(
+        request: ProcessModel.Entity.Request,
+        freed: Resource,
+        resumePriority: Int,
+        resumeSource: ResumeSource,
+        resumeDetail: String?
+    ): Boolean {
+        if (!promiseUnits(request, request.resource)) return false
+        val detail = "queue=$name, resource=${request.resource.name}, freed=${freed.name}, request_id=${request.id}, " +
+                "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
+        request.markResumePending(resumeSource, detail)
+        request.entity.scheduleResumeProcess(0.0, resumePriority, resumeSource, detail)
+        return true
     }
 
     /**
@@ -310,6 +411,7 @@ class RequestQ @JvmOverloads constructor(
         for (request in selected) {
             val detail = "queue=$name, resource=${resource.name}, request_id=${request.id}, " +
                     "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
+            if (!promiseUnits(request, resource)) continue
             request.markResumePending(resumeSource, detail)
             request.entity.scheduleResumeProcess(0.0, resumePriority, resumeSource, detail)
             sum = sum + request.amountRequested

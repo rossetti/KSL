@@ -285,9 +285,20 @@ open class Resource @JvmOverloads constructor(
             instantUtilTW.value = instantaneousUtil
         }
 
+    /**
+     * Units promised to entities that have been woken to take them and have not yet resumed. A waiting
+     * entity is not given its units when it is woken; it takes them when it resumes, at the same instant.
+     * In between, the units are promised to it, so that nothing else, another queue, another pool or a
+     * new arrival, can take them first.
+     */
+    internal var myPromisedUnits: Int = 0
+
+    /**
+     * The units that can be allocated now: the capacity less the busy units and less any units promised
+     * to a waiting entity that has been woken to take them.
+     */
     override val numAvailableUnits: Int
-        //get() = capacity - numBusy
-         get() = maxOf(0, capacity - numBusy)
+         get() = maxOf(0, capacity - numBusy - myPromisedUnits)
 
     override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
@@ -491,6 +502,7 @@ open class Resource @JvmOverloads constructor(
     override fun initialize() {
         super.initialize()
         entityAllocations.clear()
+        myPromisedUnits = 0
         startStateTime = 0.0
         numTimesSeized = 0
         numTimesReleased = 0
@@ -958,40 +970,55 @@ open class Resource @JvmOverloads constructor(
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
-        // myCapacityChangeQSet holds the queues that may have requests for this resource
-        if (myCapacityChangeQSet.size == 1) {
-            // there is only one queue, no reason to decide, just notify it
-            val queue = myCapacityChangeQSet.first()
-            //val n = queue.processWaitingRequests(available, priority)
-            val n = queue.processWaitingRequestsForResource(
-                this,
-                priority,
-                ResumeSource.REQUEST_Q_CAPACITY_INCREASE,
-                "capacity_increase_resource=$name, available=$available"
-            )
-            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $available available units." }
-            return
-        }
-        // there is more than 1 queue to notify, in what order should the notifications occur
-        // two logical orderings: 1) the order in which they were added (reflects when request occurred)
-        // 2) in descending order of the number of requests for the resource in the queues
-        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQSet)
-        var amountAvailable = available
-        while (itr.hasNext()) {
-            val queue = itr.next()
-            // need to ensure that notifications stop if all available will be allocated
-           // val n = queue.processWaitingRequests(amountAvailable, priority)
-            val n = queue.processWaitingRequestsForResource(
-                this,
-                priority,
-                ResumeSource.REQUEST_Q_CAPACITY_INCREASE,
-                "capacity_increase_resource=$name, available=$amountAvailable"
-            )
-            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $amountAvailable available units." }
-            amountAvailable = amountAvailable - n
-            // there is no point in notifying after the resource has no units available
-            if (amountAvailable == 0) {
-                break
+        offerFreedUnits(priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name, available=$available")
+    }
+
+    /**
+     * Offers this resource's available units to the requests waiting for them, wherever they wait: in the
+     * queues registered on this resource, and in [alsoQueue], the queue of an allocation just released,
+     * when that queue is not registered. A waiting request may name this resource or a pool it belongs to.
+     *
+     * Every way units become free calls this, whether released directly, released through a pool, or
+     * added by a capacity increase, so a unit freed one way is offered to the requests that asked for it
+     * another. Before R1.8 each way woke only the queue it came through, and a request waiting by another
+     * route could wait for the rest of the replication beside an idle unit.
+     *
+     * Under the default notification rule, the request that entered its queue first, across all of these
+     * queues, is offered the units first; each queue keeps its own discipline. A rule of the model's own
+     * offers them queue by queue, in the order it gives.
+     */
+    internal fun offerFreedUnits(
+        priority: Int,
+        source: ResumeSource,
+        detail: String?,
+        alsoQueue: RequestQ? = null
+    ) {
+        if (isInactive || numAvailableUnits <= 0) return
+        val queues: Set<RequestQ> =
+            if (alsoQueue == null || alsoQueue in myCapacityChangeQSet) myCapacityChangeQSet
+            else LinkedHashSet(myCapacityChangeQSet).apply { add(alsoQueue) }
+        if (queues.isEmpty()) return
+        if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
+            while (numAvailableUnits > 0) {
+                var bestQueue: RequestQ? = null
+                var best: ProcessModel.Entity.Request? = null
+                for (q in queues) {
+                    val candidate = q.nextRequestServableBy(this) ?: continue
+                    if (best == null || candidate.timeEnteredQueue < best.timeEnteredQueue) {
+                        bestQueue = q
+                        best = candidate
+                    }
+                }
+                if (best == null || !bestQueue!!.wake(best, this, priority, source, detail)) break
+            }
+        } else {
+            val itr = requestQNotificationRule.ruleIterator(queues)
+            while (itr.hasNext() && numAvailableUnits > 0) {
+                val q = itr.next()
+                while (numAvailableUnits > 0) {
+                    val candidate = q.nextRequestServableBy(this) ?: break
+                    if (!q.wake(candidate, this, priority, source, detail)) break
+                }
             }
         }
     }

@@ -191,6 +191,36 @@ open class MovableResourcePool(
         return allocation
     }
 
+    /** Allocates the given member, as it was promised to a waiting request when it was woken. */
+    internal fun allocateMember(
+        entity: ProcessModel.Entity,
+        member: MovableResource,
+        queue: RequestQ,
+        allocationName: String? = null
+    ): Allocation {
+        require(member in myResources) { "Movable resource ${member.name} is not a member of pool $name" }
+        val allocation = member.allocate(entity, 1, queue, allocationName)
+        allocation.originatingPool = this
+        return allocation
+    }
+
+    /**
+     * Promises a member to a waiting request, chosen by the rules and from the location its seize named
+     * (or the pool's defaults), as it would be chosen if it allocated now.
+     *
+     * @return false when no member is available, in which case nothing is promised
+     */
+    internal fun promiseMember(request: ProcessModel.Entity.MovableResourcePoolRequest): Boolean {
+        val list = selectMovableResources(request.selectionRule ?: defaultMovableResourceSelectionRule)
+        if (list.isEmpty()) return false
+        val location = request.requestLocation ?: return false
+        val member = selectMovableResourceForAllocation(
+            location, request.allocationRule ?: defaultMovableResourceAllocationRule, list
+        )
+        request.promise(member, 1)
+        return true
+    }
+
     fun deallocate(allocation: Allocation) {
         ProcessModel.logger.trace { "Movable Resource Pool $name is deallocating from resource ${allocation.myResource.name}" }
         allocation.myResource.deallocate(allocation)
