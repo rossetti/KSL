@@ -185,7 +185,10 @@ fun interface TransporterMovementGateIfc {
  * to enforce. The two share the abstractions that genuinely mean the same thing -- position and
  * velocity -- and nothing else.
  *
- * @param system the runtime this transporter belongs to
+ * @param system the guide path's runtime state, shared by every vehicle on it: who holds which zone,
+ *   who waits for whom, the reset between replications, and the fleet's congestion statistics. In a
+ *   passive model it is the model's `GuidedPathTransportSystem`. It is typed as the `GuidedPathSpace`
+ *   that system extends so that the active subsystem can build transporters too.
  * @param initialPlacement where it stands at the start of every replication
  * @param velocity how fast it travels, sampled per movement by default
  * @param lengthInZones how many zones it covers when fully on the guide path

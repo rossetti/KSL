@@ -30,6 +30,7 @@ import ksl.modeling.agent.sendMessage
 import ksl.modeling.agent.separation
 import ksl.modeling.agent.travelTo
 import ksl.modeling.entity.KSLProcess
+import ksl.modeling.variable.Counter
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -48,12 +49,17 @@ private object AgentGuideSnippets {
     class HeartbeatModel(parent: ModelElement, name: String? = null) :
         AgentModel(parent, name) {
 
+        val beats = Counter(this, "Beats")
+
         inner class Beat(aName: String) : PermanentAgent(aName) {
             init {
                 statechart {
                     initial("Off")
                     state("Off") { onTimeout(1.0) { transitionTo("On") } }
-                    state("On") { onTimeout(1.0) { transitionTo("Off") } }
+                    state("On") {
+                        onEntry { beats.increment() }
+                        onTimeout(1.0) { transitionTo("Off") }
+                    }
                 }
             }
         }
@@ -404,6 +410,7 @@ private object AgentGuideSnippets {
         val space = ContinuousProjection(birds, 0.0..200.0, 0.0..200.0, torus = true)
         val dynamics = Dynamics(space)
 
+        // a torus of side 200: positions that leave one edge come back at the other
         private fun wrap(p: Point2D): Point2D =
             Point2D(((p.x % 200.0) + 200.0) % 200.0, ((p.y % 200.0) + 200.0) % 200.0)
 

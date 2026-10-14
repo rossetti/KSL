@@ -139,13 +139,8 @@ parking spur of its own, and parts carried from entry to exit.
 
 ```kotlin
 val network = GuidedPathNetwork.builder("SimpleAgv")
-    .intersection("I1", x = 0.0, y = 72.0)
-    .intersection("I2", x = 48.0, y = 72.0)
-    .intersection("I3", x = 48.0, y = 0.0)
-    .intersection("I4", x = 0.0, y = 0.0)
-    .intersection("I5", x = 0.0, y = -36.0)
-    .intersection("I6", x = 54.0, y = 72.0)
-    .intersection("I7", x = 54.0, y = 0.0)
+    .intersection("I1").intersection("I2").intersection("I3").intersection("I4")
+    .intersection("I5").intersection("I6").intersection("I7")
     // The main loop, clockwise and one way.
     .link("Link1", "I1", "I2", length = 48.0, zoneLength = 12.0)
     .link("Link2", "I2", "I3", length = 72.0, zoneLength = 12.0)
@@ -160,6 +155,11 @@ val network = GuidedPathNetwork.builder("SimpleAgv")
     .station("ExitStation", "I5")
     .build()
 ```
+
+The intersections have no coordinates, and need none: travel is decided
+by link lengths, and coordinates are for drawing only (§1). A network with
+none is laid out from its link lengths when it is built; to draw it your
+own way, see [§4, …animate it?](#animate-it).
 
 Then the model. Note `spatialModel = network`: the parts travel on the
 guide path, so it is their spatial model too.
@@ -205,6 +205,19 @@ class AgvShop(parent: ModelElement) : ProcessModel(parent, "AgvShop") {
 
 That is the whole thing. `guidedTransport` asks for a cart, waits for one
 to arrive, is carried, and gives the cart back.
+
+**Say where a part starts.** A new entity is placed at the spatial model's
+default location, which for a guide-path network is the *first intersection
+declared*, and `guidedTransport` collects it from wherever it is unless
+`pickupLocation` says otherwise. So a part that sets neither is collected
+from whichever intersection happens to be written first, and reordering the
+`.intersection(...)` lines silently changes its journey. Set
+`currentLocation` at the top of the process, as above, or create the entity
+where it starts: `inner class Part : Entity(null, network.requireLocation("EntryStation"))`.
+
+**Name the arguments to `guidedTransport`.** Its parameters run `pool,
+destination, pickupLocation`, so a positional call reads backwards: the
+first location named is where the part is going, not where it is.
 
 **Three things in that model are load-bearing, and leaving any of them out
 produces a run that looks fine and is not.** The loop is one-way; the exit
@@ -937,6 +950,17 @@ contract-net bidding on a grid — and has no guide path. The vehicles
 described here are `ksl.modeling.guidedpath`, `fleet` and `agv`, shipped as
 the *KSL Vehicle Examples* bundle.
 
+The layout is drawn from the intersections' coordinates when the network
+has them, and from its link lengths when it has none. To draw it your own
+way, give every intersection coordinates; they change no result:
+
+```kotlin
+GuidedPathNetwork.builder("SimpleAgv")
+    .intersection("I1", x = 0.0, y = 72.0)
+    .intersection("I2", x = 48.0, y = 72.0)
+    // ... and the rest
+```
+
 When an animation sink is active the system emits
 `GuidedPathDefined` once per replication, a `GuidedTransporterMoved` each
 time a transporter enters a zone, and a `GuidedTransporterStateChanged`
@@ -1094,9 +1118,9 @@ contains a fleet that stopped working halfway through.
 `numObstructionsDetected` counts the instants; the replication-end warning
 naming transporters still waiting is what tells you a wait never ended.
 
-This is what parking spurs and staging areas are for, and it is why
-`homeBase` and `ReturnToHomeBaseRule` exist. In the simple AGV shop, with
-the carts left where they stop:
+This is what parking spurs are for, and it is why `homeBase` and
+`ReturnToHomeBaseRule` exist: a cart parked on a spur is off the running
+line. In the simple AGV shop, with the carts left where they stop:
 
 |  | carts sent home | carts left in place |
 |---|---|---|
@@ -1127,7 +1151,9 @@ because the fixes are opposite:
 - **`GuidedPathDeadlockException`** — a circular wait. Cannot resolve
   itself, so it raises and names the participants.
 - **`IdleTransporterObstruction`** — a transporter behind one that has
-  nothing scheduled. *Can* resolve itself the moment something dispatches
+  nothing scheduled. It is counted, and logged only at debug level; a
+  transporter waiting in a staging queue (below) is not one. *Can*
+  resolve itself the moment something dispatches
   the idle transporter, so it warns and counts. Set
   `strictObstructionPolicy = true` to promote it to an exception, and
   expect occasional false alarms in exchange for certainty.
@@ -1201,19 +1227,23 @@ vehicle. Send three carts to one staging intersection and one parks there
 while the other two stop on the approach.
 
 That is sometimes exactly what a layout intends — a queue of idle vehicles
-waiting their turn — but it has a consequence worth being concrete about,
-because it is counter-intuitive. **A cart stopped on the approach is still
-available.** It is in the pool, it can be allocated, and on a one-way link
-it cannot leave until whatever is in the staging zone moves. Worse, a
-transporter part-way along a link reports its location as that link's
-*far end*, so a cart queued for the staging area is ranked by
-`ClosestByNetworkDistanceRule` exactly as the cart already sitting there
-is — and ties go to whichever was declared first. A dispatching rule can
-therefore commit a job to a cart that cannot start on it.
+waiting their turn — and it is reported as one. A cart waiting behind the
+cart at its own staging area, or behind others queued for it, is not
+counted as an obstruction and is not named at the end of a replication.
+It is still waiting to move, though, so its time there counts as blocked,
+not idle, in `fracTimeBlocked`.
 
-Measure `fracTimeBlocked` across the fleet before believing a
-staging-area design. Where it matters, give each cart a spur of its own
-and use `ReturnToHomeBaseRule` instead.
+**A cart stopped on the approach is still available.** It is in the pool
+and can be allocated, but on a one-way link it cannot leave until whatever
+is in the staging zone moves. `ClosestByNetworkDistanceRule` measures each
+cart from the zone it holds, and at equal distance prefers the one with
+fewer zones still to enter, so it sends the cart at the front of the queue.
+A rule of your own that measures from where a cart will next turn would not
+tell them apart.
+
+A staging area on a through link puts that queue on the running line.
+Where loaded carts must pass it, give each cart a spur of its own and use
+`ReturnToHomeBaseRule` instead.
 
 ### How far this has been checked
 

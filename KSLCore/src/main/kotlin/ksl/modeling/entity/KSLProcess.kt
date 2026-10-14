@@ -697,8 +697,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -724,8 +725,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -745,8 +747,9 @@ interface KSLProcessBuilder {
      *  Requests a number of units of the indicated movable resource.
      *
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -769,8 +772,9 @@ interface KSLProcessBuilder {
      *  Requests a number of units of the indicated movable resource.
      *
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -791,8 +795,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -823,8 +828,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
      *  @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources.
      *  By default, the pool's default rule is used.
@@ -855,8 +861,9 @@ interface KSLProcessBuilder {
      *
      *  @param movableResourcePool the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -888,8 +895,9 @@ interface KSLProcessBuilder {
      *
      *  @param movableResourcePoolWithQ the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
      *  @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources.
      *  By default, the pool's default rule is used.
@@ -918,8 +926,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -950,8 +959,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -978,8 +988,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1006,8 +1017,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1038,8 +1050,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1070,8 +1083,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1098,8 +1112,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1124,8 +1139,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -2467,10 +2483,16 @@ interface KSLProcessBuilder {
      * process has to do something between being loaded and being unloaded, use the three verbs it
      * is built from instead.
      *
+     * Name the arguments. The destination comes before the pickup, so a positional call such as
+     * `guidedTransport(pool, "Workstation", "Entry")` reads backwards: it is a trip from Entry to
+     * Workstation.
+     *
      * @param pool the transporters to ask
      * @param destination the junction or station to be carried to
      * @param pickupLocation where the transporter should collect the entity, by default wherever
-     *   the entity already is
+     *   the entity already is. An entity that never set its location is where it was created: at the
+     *   location given to its constructor, or else at the spatial model's default location, which for
+     *   a guide-path network is the first intersection declared
      * @param loadingDelay how long it takes to load the entity
      * @param unLoadingDelay how long it takes to unload it
      * @param requestPriority orders this request against others made at the same instant

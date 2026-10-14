@@ -323,6 +323,15 @@ configurable via `seize`'s `resourceSelectionRule` and
 `resourceAllocationRule` parameters — see `ResourceComparators` and
 `ResourceRules` for the shipped strategies.
 
+**A member may also be seized on its own, or belong to more than one
+pool.** However a unit is freed (released directly, released through a
+pool, or added by a capacity increase), it is offered to every request
+that may want it: those naming the resource and those naming a pool it
+belongs to. The request that has waited longest gets it first, and each
+queue keeps its own discipline. To offer freed units queue by queue in the
+order the queues were registered, as before R1.8, set the resource's
+`initialRequestQueueNotificationRule` to `RegistrationOrderNotificationRule`.
+
 ### ...add a shift / capacity schedule
 
 A resource can follow a repeating `CapacitySchedule`. Items run in
@@ -358,6 +367,16 @@ class ShiftedModel(parent: ModelElement) : ProcessModel(parent) {
 The other change rule, `CapacityChangeRule.IGNORE`, lets the resource's
 capacity drop immediately; in-service jobs continue but the
 resource won't grant new units until the next on-shift block.
+
+For shifts decided by the model rather than a timetable, use a
+`ShiftControl` (`goOffShift()` / `goOnShift()`) or call `changeCapacity`
+with a `CapacityChangeNotice`. A notice with the default, infinite
+duration lasts until another change supersedes it, so going back on shift
+works whatever is busy, under either rule; under WAIT, going back on shift
+before the busy unit was released withdraws the off-shift change.
+`pendingCapacityChangeEndTime` says when a pending change ends (`NaN` when
+none is pending, infinity when it lasts until superseded). A member of a
+pool that comes back on shift is offered to the pool's waiters at once.
 
 ### ...run two stations in tandem
 
@@ -530,6 +549,26 @@ Three verbs make the conveyor lifecycle explicit:
 `exitConveyor` releases the cells.
 The combined `convey(conveyor, entry, exit)` verb does all three in one
 call when you don't need to interleave other work.
+
+### ...interrupt a delay
+
+One process can freeze another's delay: a breakdown interrupting the job
+in service, for example. The interrupting process is the one that waits
+out the interruption; the target resumes the rest of its delay afterwards
+(`interruptDelayAndContinue`) or starts it again (`interruptDelayAndRestart`).
+The target must be in the named delay when it is interrupted, so a process
+that may find it doing something else checks first:
+
+```kotlin
+if (machine.script.isInDelay("work")) {
+    interruptDelayAndContinue(machine.script, "work", repairTime)
+} else {
+    delay(repairTime)   // the machine was idle: down for the repair anyway
+}
+```
+
+Interrupting a process that is not in the named delay is an error that
+says what the target was doing.
 
 ### ...declare multiple processes on one entity
 

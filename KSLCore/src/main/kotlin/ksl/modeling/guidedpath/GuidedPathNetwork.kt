@@ -115,6 +115,11 @@ class GuidedPathNetwork private constructor(
      * The location the spatial model uses when none is given. Set to the first declared
      * intersection when the network is built, and settable afterwards to any intersection of this
      * network.
+     *
+     * A new entity is placed here unless it is created with a location of its own or its process
+     * sets `currentLocation`, so with the default, where an entity starts depends on which
+     * intersection was declared first. A transport that does not name its pickup collects the
+     * entity from wherever it is.
      */
     override var defaultLocation: LocationIfc
         get() = myDefaultLocation

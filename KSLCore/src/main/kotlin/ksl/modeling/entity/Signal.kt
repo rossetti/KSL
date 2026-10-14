@@ -28,6 +28,9 @@ import org.jetbrains.kotlinx.dataframe.Predicate
  * a KSLProcess.  A reference to this class can be used to signal specific, any, or all the
  * entities waiting to proceed within their process.
  *
+ * For a broadcast to agent statecharts, which has no suspended entities and cannot be waited on
+ * with `waitFor`, see `ksl.modeling.agent.AgentSignal`.
+ *
  * @param parent the parent (containing) model element
  * @param name the name of this signal
  * @param discipline the queue discipline for the internal queue that holds the waiting entities

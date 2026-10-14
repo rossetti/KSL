@@ -214,18 +214,24 @@ between two states on a timer. Compiles and runs as-is:
 
 ```kotlin
 import ksl.modeling.agent.AgentModel
+import ksl.modeling.variable.Counter
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
 class HeartbeatModel(parent: ModelElement, name: String? = null) :
     AgentModel(parent, name) {
 
+    val beats = Counter(this, "Beats")
+
     inner class Beat(aName: String) : PermanentAgent(aName) {
         init {
             statechart {
                 initial("Off")
                 state("Off") { onTimeout(1.0) { transitionTo("On") } }
-                state("On")  { onTimeout(1.0) { transitionTo("Off") } }
+                state("On")  {
+                    onEntry { beats.increment() }
+                    onTimeout(1.0) { transitionTo("Off") }
+                }
             }
         }
     }
@@ -379,11 +385,21 @@ class ControllerModel(parent: ModelElement) : AgentModel(parent) {
 }
 ```
 
-Five trigger kinds ship: `onEntry`, `onExit`, `onTimeout(duration)`,
+Six trigger kinds ship: `onEntry`, `onExit`, `onTimeout(duration)`,
 `onCondition({ … })`, `onSignal(signal)`, `onMessage<T>({ … })`.
 `transitionTo(stateName)` fires a transition from inside any handler.
-`onCondition` is polled at the executive's condition-action interval,
-not continuously.
+
+`onCondition` has no polling interval. It is tested once each time
+simulated time is about to advance, after every event at the current
+instant has run, and re-tested until no condition fires; it fires at
+most once per entry to its state. Because it sees the settled state of
+the instant, it is the right trigger for mirroring state another object
+owns, such as a resource's `numBusy`.
+
+`AgentSignal` is a statechart broadcast, distinct from
+`ksl.modeling.entity.Signal`, which suspended entities wait on; you
+cannot `waitFor` an `AgentSignal`. To fire one later, schedule it from
+the `AgentModel`: `schedule({ signal.fire() }, t)`.
 
 ### ...send and receive messages
 
@@ -587,6 +603,10 @@ the same prior state — run one controller process over the whole
 population:
 
 ```kotlin
+// a torus of side 200: positions that leave one edge come back at the other
+private fun wrap(p: Point2D): Point2D =
+    Point2D(((p.x % 200.0) + 200.0) % 200.0, ((p.y % 200.0) + 200.0) % 200.0)
+
 inner class FlockController : Agent("controller") {
     val script: KSLProcess = process(isDefaultProcess = true) {
         runDynamicsAll(
@@ -947,10 +967,25 @@ on the Dokka pages.
   `PermanentAgent` (with its opt-in `AgentPerformance`) when you want
   individual state-time or mailbox stats. Use a `Context` /
   `Population` to track transient cohorts.
-- **`onCondition` is polled, not continuous.** It fires when the
-  executive evaluates conditional actions, which is the same point
-  every conditional action in KSL is evaluated. For per-event
-  triggers, prefer `onSignal` or `onMessage`.
+- **Use `onCondition` to mirror state another object owns.** It is
+  tested after every event at an instant has run, so it sees the
+  instant's settled state. A signal fired from a process to report the
+  same change can arrive before a scheduled transition at that instant
+  has run, and a chart driven that way misses changes at back-to-back
+  handoffs. Keep `onSignal` and `onMessage` for events the chart itself
+  is told about.
+- **What an `AgentResource`'s statistics count.** `SeizeCount` counts
+  allocations, one per allocation whatever its amount, including direct
+  `allocate()` calls; it is starts of service, not completions or
+  throughput. `ScheduledUtil` is the time-average number busy over the
+  time-average capacity, the utilization of the capacity actually on
+  shift. `InstantaneousUtil` averages busy over capacity at each moment
+  across all time, counting time with no capacity as zero. With a
+  constant capacity they agree; with shifts they do not.
+- **`seizePriority` orders seizes, not the queue.** It is the priority
+  of the event that makes the request at that instant. Queue position
+  comes from the entity's `priority`, and only when the queue's
+  discipline is `RANKED`.
 - **Statechart actions run on the executive, not in a coroutine.**
   Don't call suspending functions inside `onEntry` / `onTimeout` / etc.
   For suspending work, transition to a state that triggers a separate
