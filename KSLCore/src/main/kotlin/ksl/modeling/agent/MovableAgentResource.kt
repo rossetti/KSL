@@ -213,7 +213,8 @@ open class MovableAgentResource @JvmOverloads constructor(
     // this package and below `guidedpath`, which is where a thing both of them need belongs. What
     // is here is the *geometry*: how far apart two points on this projection are, where a fraction
     // of the way between them is, and how to put the resource there. `travelTo` and `awaitTravel`
-    // are untouched and remain the way an agent moves itself; this is the way a fleet moves it.
+    // remain the way an agent moves itself, and this is the way a fleet moves it; the agent verbs
+    // book their trips here through recordMove, so the odometers count both.
 
     /** The plane this vehicle's positions are expressed in. One per projection. */
     val plane: ProjectionSpatialModel
@@ -315,6 +316,13 @@ open class MovableAgentResource @JvmOverloads constructor(
      */
     override val operatingTime: Double
         get() = myMovement.operatingTime
+
+    /**
+     *  Books a trip made by `travelTo` or `awaitTravel`, which move the vehicle without going through
+     *  its fleet movement, so that the odometers count every journey however it was commanded.
+     */
+    internal fun recordMove(distance: Double, duration: Double) =
+        myMovement.recordExternalMove(distance, duration)
 
     private fun pointOf(location: LocationIfc): Point2D =
         (location as? ProjectionSpatialModel.ProjectedLocation)?.point

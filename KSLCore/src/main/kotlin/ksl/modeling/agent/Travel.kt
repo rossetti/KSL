@@ -154,6 +154,7 @@ suspend fun <A : AgentLike> KSLProcessBuilder.travelTo(
     if (totalDistance <= stepSize) {
         delay(totalDistance / velocity)
         space.moveTo(agent, destination)
+        recordTrip(agent, totalDistance, agent.currentTime - startedAt)
         return TravelResult(
             startedAt = startedAt,
             arrivedAt = agent.currentTime,
@@ -178,6 +179,7 @@ suspend fun <A : AgentLike> KSLProcessBuilder.travelTo(
     }
     delay(stepDt)
     space.moveTo(agent, destination)
+    recordTrip(agent, totalDistance, agent.currentTime - startedAt)
 
     return TravelResult(
         startedAt = startedAt,
@@ -377,6 +379,8 @@ fun <A : AgentLike> KSLProcessBuilder.startTravel(
  */
 suspend fun <A : AgentLike> KSLProcessBuilder.awaitTravel(handle: TravelHandle<A>): TravelResult {
     if (!handle.isActive) return handle.result
+    val began = handle.agent.currentTime
+    val distanceBefore = handle.distanceTraveled
     var pos = handle.space.positionOf(handle.agent)
         ?: error("agent '${handle.agent.name}' has no position; was it removed from the context?")
 
@@ -429,5 +433,17 @@ suspend fun <A : AgentLike> KSLProcessBuilder.awaitTravel(handle: TravelHandle<A
         // the next iteration's plan-from-current-position picks up
         // the new destination naturally.
     }
+    // book what this call moved, whether it arrived or was cancelled
+    recordTrip(handle.agent, handle.distanceTraveled - distanceBefore, handle.agent.currentTime - began)
     return handle.result
+}
+
+/**
+ *  Books a trip on the odometers of a [MovableAgentResource], which count every journey however it was
+ *  commanded. Other agents have no odometers, and nothing is booked for them.
+ */
+private fun recordTrip(agent: AgentLike, distance: Double, duration: Double) {
+    if (agent is MovableAgentResource && (distance > 0.0 || duration > 0.0)) {
+        agent.recordMove(distance, duration)
+    }
 }

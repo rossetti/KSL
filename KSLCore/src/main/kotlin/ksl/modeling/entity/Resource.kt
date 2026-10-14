@@ -643,6 +643,98 @@ open class Resource @JvmOverloads constructor(
     val isPendingCapacityChange : Boolean
         get() = myCurrentChangeNotice != null
 
+    /**
+     * When the pending capacity change ends. `NaN` when no change is pending
+     * (see [isPendingCapacityChange]). Positive infinity when the pending change lasts until another
+     * change supersedes it (a notice with an infinite duration, as shift changes use), or when its end
+     * is not yet known because, under the WAIT rule, it is still waiting for busy units to be released.
+     *
+     * Under the IGNORE rule, a decrease that arrives while another is pending must not end before it.
+     * Check against this time before requesting such a change.
+     */
+    val pendingCapacityChangeEndTime: Double
+        get() {
+            val notice = myCurrentChangeNotice ?: return Double.NaN
+            return notice.changeEvent?.time ?: Double.POSITIVE_INFINITY
+        }
+
+    /**
+     * Schedules the end of a capacity change. A change with an infinite duration lasts until another
+     * change supersedes it, so it has no end event: one scheduled at infinity would never be placed on
+     * the calendar, and anything waiting for it would wait forever.
+     *
+     * @return true when an end was scheduled, false when the change is open-ended
+     */
+    private fun scheduleEndOfChange(notice: CapacityChangeNotice): Boolean {
+        if (notice.duration.isInfinite()) {
+            notice.changeEvent = null
+            return false
+        }
+        notice.changeEvent =
+            schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
+        logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${notice.changeEvent?.time}" }
+        return true
+    }
+
+    /** Cancels the end event of a change, if it has one on the calendar. */
+    private fun cancelEndOfChange(notice: CapacityChangeNotice?) {
+        val event = notice?.changeEvent ?: return
+        // an end that falls after the run's end was never placed on the calendar, so there is nothing to cancel
+        if (event.isScheduled) {
+            event.cancel = true
+        }
+    }
+
+    /**
+     * Under the IGNORE rule, makes the next waiting change current and applies it, once the current
+     * change has finished. A decrease that waited is applied now, as if it had just arrived; before
+     * R1.8 it became current without its decrease ever being applied.
+     */
+    private fun startNextWaitingChangeIgnoreRule() {
+        myCurrentChangeNotice = null
+        while (myWaitingChangeNotices.isNotEmpty()) {
+            val next = myWaitingChangeNotices.removeFirst()
+            logger.trace { "$time > Resource: $name, notice $next was waiting but is now being processed" }
+            if (next.capacity > capacity) {
+                processPositiveCapacityChange(next)
+            } else if (next.capacity < capacity) {
+                negativeChangeNoPendingChangeIgnoreRule(next)
+                if (myCurrentChangeNotice != null) {
+                    return
+                }
+            }
+        }
+    }
+
+    /**
+     * Under the WAIT rule, processes the waiting changes in order once the current change has
+     * finished, until one of them is pending (waiting for units, or applied with an end to come) or
+     * none are left. A change with an infinite duration is finished as soon as it is applied, so the
+     * next one starts at once rather than waiting for an end that never comes.
+     */
+    private fun startNextWaitingChangeWaitRule() {
+        myCurrentChangeNotice = null
+        while (myWaitingChangeNotices.isNotEmpty()) {
+            val next = myWaitingChangeNotices.removeFirst()
+            myCurrentChangeNotice = next
+            logger.trace { "$time > Resource: $name, notice $next was waiting but is now being processed" }
+            if (next.capacity > capacity) {
+                processPositiveCapacityChange(next)
+                if (scheduleEndOfChange(next)) {
+                    return
+                }
+                myCurrentChangeNotice = null
+            } else if (next.capacity < capacity) {
+                negativeChangeAfterPendingChangeWaitRule(next)
+                if (myCurrentChangeNotice != null) {
+                    return
+                }
+            } else {
+                myCurrentChangeNotice = null
+            }
+        }
+    }
+
     override fun afterReplication() {
         super.afterReplication()
         myWaitingChangeNotices.clear()
@@ -704,9 +796,9 @@ open class Resource @JvmOverloads constructor(
             // in the case of the IGNORE rule a waiting change will have already scheduled
             // its end of change event.
             if (isPendingCapacityChange) {
-                myCurrentChangeNotice?.changeEvent?.cancel = true
+                cancelEndOfChange(myCurrentChangeNotice)
                 for (notice in myWaitingChangeNotices) {
-                    notice.changeEvent?.cancel = true
+                    cancelEndOfChange(notice)
                 }
                 myWaitingChangeNotices.clear()
                 myCurrentChangeNotice = null
@@ -728,16 +820,8 @@ open class Resource @JvmOverloads constructor(
             logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice has been completed" }
             // if the rule was IGNORE, it was previously scheduled, no need to schedule
             // check if there are more changes
-            if (myWaitingChangeNotices.isEmpty()) {
-                // no more pending changes
-                myCurrentChangeNotice = null
-                logger.trace { "$time > Resource: $name, no more pending capacity changes" }
-            } else {
-                // not empty need to process the next one
-                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                // no need to schedule because already scheduled upon arrival
-                logger.trace { "$time > Resource: $name, starting the processing of $myCurrentChangeNotice" }
-            }
+            // start the next waiting change, if any, applying its change now
+            startNextWaitingChangeIgnoreRule()
         }
     }
 
@@ -758,14 +842,11 @@ open class Resource @JvmOverloads constructor(
         if (myCurrentChangeNotice!!.amountNeeded == 0) {
             // the capacity change has been filled
             logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice has been completed" }
-            // it does not schedule its duration until it gets all the needed change
-            // schedule the end of its processing
-            myCurrentChangeNotice!!.changeEvent = schedule(
-                this::capacityChangeAction, myCurrentChangeNotice!!.duration,
-                message = myCurrentChangeNotice, priority = myCurrentChangeNotice!!.priority
-            )
-            logger.trace { "$time > Resource: $name, scheduled the duration for notice $myCurrentChangeNotice" }
-            logger.trace { "$time > Resource: $name, notice's original start time = ${myCurrentChangeNotice?.createTime}, new end time ${myCurrentChangeNotice!!.changeEvent!!.time}" }
+            // it does not schedule its duration until it gets all the needed change. A change that lasts
+            // until superseded is finished now, so the changes waiting behind it can start.
+            if (!scheduleEndOfChange(myCurrentChangeNotice!!)) {
+                startNextWaitingChangeWaitRule()
+            }
         }
     }
 
@@ -804,10 +885,13 @@ open class Resource @JvmOverloads constructor(
             if (notice.capacity >= capacity) {
                 // notice the above >= with = meaning keep the current capacity
                 // positive change with a negative change pending, cancel the pending negative change
-                myCurrentChangeNotice?.changeEvent?.cancel = true
+                cancelEndOfChange(myCurrentChangeNotice)
                 // make there be no pending change after the positive change
                 myCurrentChangeNotice = null
                 // assume that the positive change cancels all waiting negative changes
+                for (waiting in myWaitingChangeNotices) {
+                    cancelEndOfChange(waiting)
+                }
                 myWaitingChangeNotices.clear()
                 // process the positive change now since there is no pending change anymore
                 if (notice.capacity > capacity) {
@@ -817,14 +901,19 @@ open class Resource @JvmOverloads constructor(
                 // negative change with change pending
                 // a change is scheduled, find end time of newly arriving negative change notice
                 val endTime = time + notice.duration
-                val pendingChangeEndTime = myCurrentChangeNotice!!.changeEvent!!.time
-                // do not permit an incoming negative change to "interrupt" an in-progress negative change, after is okay
-                require(endTime > pendingChangeEndTime) { "In coming negative capacity change, $notice, will be scheduled to complete before a pending change $myCurrentChangeNotice" }
+                val pendingChangeEndTime = pendingCapacityChangeEndTime
+                // do not permit an incoming negative change to "interrupt" an in-progress negative change,
+                // after is okay. A pending change that lasts until superseded has no end to compare with.
+                if (pendingChangeEndTime.isFinite()) {
+                    require(endTime > pendingChangeEndTime) {
+                        "$time > Resource: $name, the incoming capacity decrease $notice would end at $endTime, " +
+                                "before the pending change $myCurrentChangeNotice ends at $pendingChangeEndTime. " +
+                                "Check pendingCapacityChangeEndTime before requesting a decrease."
+                    }
+                }
                 // always schedule the end of the incoming change immediately
                 // capture the time of the change in the event time
-                notice.changeEvent =
-                    schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
-                logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${notice.changeEvent?.time}" }
+                scheduleEndOfChange(notice)
                 // there is a pending change in progress and a new change is arriving
                 // make the incoming change wait
                 myWaitingChangeNotices.add(notice)
@@ -920,11 +1009,11 @@ open class Resource @JvmOverloads constructor(
             // some of the change will need to be supplied when the busy resources are released
             logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
             notice.amountNeeded = decrease
-            // always schedule the end of the incoming change immediately
-            // capture the time of the change in the event time
-            notice.changeEvent =
-                schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
-            logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${notice.changeEvent?.time}" }
+            // always schedule the end of the incoming change immediately, unless it waited behind another
+            // change and its end was scheduled when it arrived
+            if (notice.changeEvent == null) {
+                scheduleEndOfChange(notice)
+            }
             // make the notice the current notice for processing
             myCurrentChangeNotice = notice
             logger.trace { "$time > Resource: $name, notice $notice is now being processed" }
@@ -936,6 +1025,20 @@ open class Resource @JvmOverloads constructor(
     }
 
     protected fun handleIncomingChangeNoticeWaitRule(notice: CapacityChangeNotice) {
+        val pending = myCurrentChangeNotice
+        if (pending != null && pending.duration.isInfinite() && pending.amountNeeded > 0 &&
+            notice.capacity >= capacity
+        ) {
+            // An open-ended decrease still waiting for busy units, and a change that undoes it, such as
+            // going back on shift before the unit was released: the decrease never takes effect.
+            logger.trace { "$time > Resource: $name, notice $notice withdraws the pending decrease $pending" }
+            myCurrentChangeNotice = null
+            if (myWaitingChangeNotices.isNotEmpty()) {
+                myWaitingChangeNotices.add(notice)
+                startNextWaitingChangeWaitRule()
+                return
+            }
+        }
         if (isPendingCapacityChange) {
             // there is a change in progress, make incoming change wait
             // a positive change or a negative change must wait for current change to complete
@@ -991,43 +1094,11 @@ open class Resource @JvmOverloads constructor(
             // if ending notice is same as current notice, we can stop the change associated with the current notice
             // if it was not the current, then the ending change notice was previously completed, nothing to do
             if (myCurrentChangeNotice == endingChangeNotice) {
-                myCurrentChangeNotice = null
-                if (myWaitingChangeNotices.isNotEmpty()) {
-                    // note that the waiting notice's end event has already been scheduled,
-                    //  we begin its official processing when releases occur
-                    myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                    logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice was waiting but is now being processed" }
-                }
-            } else {
-                // current notice is not the one that ended.  that means that the ending notice
-                // already finished and when it finished the current notice was set
-                // the current notice is set to finish some time in the future.
+                startNextWaitingChangeIgnoreRule()
             }
         } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
-            // finished processing the current change notice
-            myCurrentChangeNotice = null
-            // just completed change in full, check if there is a next one
-            if (myWaitingChangeNotices.isNotEmpty()) {
-                //  the change could be for positive or negative capacity
-                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice was waiting but is now being processed" }
-                if (myCurrentChangeNotice!!.capacity > capacity) {
-                    // positive change after completing previous change
-                    processPositiveCapacityChange(myCurrentChangeNotice!!)
-                    // schedule the end of the capacity change, has full duration
-                    myCurrentChangeNotice!!.changeEvent =
-                        schedule(
-                            this::capacityChangeAction,
-                            myCurrentChangeNotice!!.duration,
-                            message = myCurrentChangeNotice!!,
-                            priority = myCurrentChangeNotice!!.priority
-                        )
-                    logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${myCurrentChangeNotice!!.changeEvent?.time}" }
-                } else if (myCurrentChangeNotice!!.capacity < capacity) {
-                    // negative change after completing previous change
-                    negativeChangeAfterPendingChangeWaitRule(myCurrentChangeNotice!!)
-                }
-            }
+            // finished processing the current change notice; start the next one, if any
+            startNextWaitingChangeWaitRule()
         }
     }
 
@@ -1042,10 +1113,11 @@ open class Resource @JvmOverloads constructor(
             // may still be busy, idle, or if capacity is zero should be inactive
             // all units needed were taken by the process change
             logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
-            // schedule the end of the change, wait rule has full change for duration
-            notice.changeEvent =
-                schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
-            logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${notice.changeEvent?.time}" }
+            // schedule the end of the change, wait rule has full change for duration; a change that lasts
+            // until superseded is finished once applied
+            if (!scheduleEndOfChange(notice)) {
+                myCurrentChangeNotice = null
+            }
         } else {
             // not enough available, this means that at least part of the change will need to be in process
             // must decrease capacity, but required units are busy, must wait for needed units to be released
