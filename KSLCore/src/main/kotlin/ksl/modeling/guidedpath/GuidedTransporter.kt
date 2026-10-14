@@ -488,6 +488,13 @@ class GuidedTransporter @JvmOverloads constructor(
     internal var pendingPurpose: MovePurpose = MovePurpose.HOME
 
     /**
+     * Why the transporter is making its current journey; meaningful while [currentRoute] is not null.
+     * Kept separately from its state, which reads BLOCKED while it waits and so no longer says whether
+     * it is going to work or going home.
+     */
+    internal var journeyPurpose: MovePurpose = MovePurpose.HOME
+
+    /**
      * Who is suspended until this transporter finishes its current movement, and where, or null.
      *
      * A transporter travels over many events, so an entity riding it -- or waiting for it to come
@@ -899,9 +906,18 @@ class GuidedTransporter @JvmOverloads constructor(
     override val positionNow: LocationIfc
         get() = system.locationOf(this)
 
-    /** Distance along the guide path, which on a one-way network is not separation in space. */
-    override fun pathDistanceTo(destination: LocationIfc): Double =
-        system.network.distance(positionNow, destination)
+    /**
+     * Distance along the guide path, which on a one-way network is not separation in space. To a
+     * junction, it is measured from the zone this transporter holds, in the direction it faces, so a
+     * transporter part way along a link counts the rest of that link.
+     */
+    override fun pathDistanceTo(destination: LocationIfc): Double {
+        val from = frontZone
+        if (from != null && destination is GuidedPathNetwork.Intersection) {
+            return system.network.pathLength(from, travellingForward, destination)
+        }
+        return system.network.distance(positionNow, destination)
+    }
 
     override fun isReachable(destination: LocationIfc): Boolean =
         system.network.isReachable(positionNow, destination)

@@ -420,11 +420,37 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * a process that a subclass of Entity can follow.  Entity instances may use resources, signals,
      * hold queues, etc. as shared mutable state.  Entities may follow a process sequence if defined.
      *
-     * @param aName an optional name for the entity
+     * A new entity is placed at the spatial model's default location, which for a guide-path network is
+     * the first intersection declared, unless it is given a location of its own when it is created or
+     * its process sets `currentLocation`.
      */
-    open inner class Entity(aName: String? = null) : QObject(aName),
-        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc,
+    open inner class Entity private constructor(
+        aName: String?,
+        private val mySpatialElement: SpatialElement
+    ) : QObject(aName),
+        SpatialElementIfc by mySpatialElement, VelocityIfc,
         ZoneHolderIfc, ZoneHolderRecordIfc {
+
+        /**
+         * Creates an entity at the spatial model's default location.
+         *
+         * @param aName an optional name for the entity
+         */
+        constructor(aName: String? = null) : this(aName, SpatialElement(this@ProcessModel))
+
+        /**
+         * Creates an entity that starts at [initialLocation] rather than at the spatial model's default
+         * location, so where it starts does not depend on the order in which locations were declared.
+         *
+         * @param aName an optional name for the entity
+         * @param initialLocation where the entity starts; a location of this model's spatial model
+         */
+        constructor(aName: String?, initialLocation: LocationIfc) :
+                this(aName, SpatialElement(this@ProcessModel, initialLocation)) {
+            require(spatialModel.isValid(initialLocation)) {
+                "The location ${initialLocation.name} is not valid for spatial model ${spatialModel.name}"
+            }
+        }
 
         // ---- holding guide-path space ----------------------------------------------------------
 

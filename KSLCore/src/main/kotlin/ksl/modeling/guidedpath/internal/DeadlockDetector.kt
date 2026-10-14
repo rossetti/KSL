@@ -183,7 +183,10 @@ internal class DeadlockDetector(private val system: GuidedPathSpace) {
      */
     fun findObstruction(start: GuidedTransporter): IdleTransporterObstruction? {
         if (start.transporterState != TransporterState.BLOCKED) return null
-        val idle = obstructorsOf(start).firstOrNull { it.isPermanentlyStationary } ?: return null
+        // a transporter queueing for its own staging area behind the one already parked there is the
+        // queue the staging area is meant to form, not a journey held up by parking
+        val idle = obstructorsOf(start)
+            .firstOrNull { it.isPermanentlyStationary && !system.isStagingQueueWait(start, it) } ?: return null
         return IdleTransporterObstruction(
             time = system.time,
             blockedTransporterName = start.name,

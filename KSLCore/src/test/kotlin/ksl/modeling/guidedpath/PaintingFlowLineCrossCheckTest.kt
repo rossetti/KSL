@@ -23,6 +23,36 @@ import kotlin.test.assertTrue
  *  and the reason is not a length or a bearing that could be corrected: the two models mean
  *  different things by sending an idle vehicle to a staging area.
  *
+ *  ## Since R1.8
+ *
+ *  R1.8 changed two things this model exercises, and the comparison moved with them. The distance-based
+ *  allocation rules now measure a vehicle from the zone it holds, and at equal distance prefer the
+ *  vehicle with fewer zones still to enter. So a vehicle stopped at the end of link 11, behind the one
+ *  in I12, is no longer chosen ahead of it by declaration order. And a vehicle queueing for the staging
+ *  area behind the one parked there is no longer counted as an obstruction.
+ *
+ *  The first change was the mechanism this KDoc offers below as the reading the numbers support, and
+ *  removing it bears that out. **The flow times now agree**: system time z = 0.07 (0.14 and 0.07 for old
+ *  and new parts), where the R1.7.1 analysis below found 7.61 minutes, 3.9%, of extra flow time. The
+ *  paint queue wait is at z = 1.64, from well beyond, and the pack request wait agrees.
+ *
+ *  What remains are the two structural differences described under "Where the two tools genuinely
+ *  differ":
+ *
+ *  - **Diversion.** A vehicle on its way to the staging area can be diverted here and cannot be in the
+ *    reference implementation, so a part at the entry is collected sooner: 0.68 minutes against 0.87,
+ *    z = 8.6.
+ *  - **Classification.** That trip counts as busy there and as repositioning here. With fewer empty
+ *    moves wasted, the allocated-only utilization is further apart (0.518 against 0.693), while the
+ *    committed time still accounts for the reference implementation's busy figure, 0.6908 against 0.6930.
+ *
+ *  Obstructions per replication fell from about 25,000 to about 9,800. The rest are vehicles held up
+ *  behind a parked vehicle other than in the staging queue.
+ *
+ *  The two readings of a pending request now both agree on the workstation queue (z = 0.44 and 0.28),
+ *  so that queue no longer tells them apart; the pack queue still does. The sections that follow are the
+ *  R1.7.1 analysis, kept as the record of how the residual was diagnosed. Their figures are R1.7.1's.
+ *
  *  ## The layout
  *
  *  Sixteen links in ten-foot zones, one-way except the spur to the entry station, three vehicles at
@@ -322,7 +352,9 @@ class PaintingFlowLineCrossCheckTest {
         // The wider reading is the reference implementation's. It is better on the shop queues, which is where the choice
         // shows up at all: the narrower one sends a vehicle to the staging area twice as often and
         // the extra traffic reaches the stations.
-        for (name in listOf("workStationQueueWait", "packQueueWait")) {
+        // Since R1.8 both readings agree on the workstation queue (see the KDoc), so only the pack queue
+        // still tells them apart.
+        for (name in listOf("packQueueWait")) {
             assertTrue(
                 z.getValue(name) < zQueuedOnly.getValue(name),
                 "counting a request pending until collection should fit the reference better on $name, " +
@@ -330,14 +362,20 @@ class PaintingFlowLineCrossCheckTest {
             )
         }
 
+        // Agreement since R1.8, which removed the declaration-order tie that held vehicles behind the one
+        // in the staging area (see this class's KDoc).
+        for (name in listOf("systemTime", "oldPartSystemTime", "newPartSystemTime", "packRequestWait")) {
+            assertTrue(z.getValue(name) <= 1.0, "$name should agree with the reference: z = %.2f".format(z.getValue(name)))
+        }
+
         // NOT agreement: see this class's KDoc. Held where they stand so they cannot drift further
-        // without the reason being re-examined.
+        // without the reason being re-examined. Re-pinned for R1.8 (z then: paint queue 1.64 and 1.59,
+        // request waits 8.57 at the entry, 2.39, 3.88 and 3.22, AGV busy and utilization 94.2).
         val pinned = mapOf(
-            "systemTime" to 3.0, "oldPartSystemTime" to 3.0, "newPartSystemTime" to 3.0,
-            "paintQueueWait" to 13.0, "paintQueueLength" to 13.0,
-            "enterRequestWait" to 3.0, "workStationRequestWait" to 20.0,
-            "paintRequestWait" to 20.0, "newPaintRequestWait" to 17.0, "packRequestWait" to 14.0,
-            "agvNumberBusy" to 80.0, "agvUtilization" to 80.0
+            "paintQueueWait" to 3.0, "paintQueueLength" to 3.0,
+            "enterRequestWait" to 13.0, "workStationRequestWait" to 4.0,
+            "paintRequestWait" to 6.0, "newPaintRequestWait" to 5.0,
+            "agvNumberBusy" to 140.0, "agvUtilization" to 140.0
         )
         for ((name, limit) in pinned) {
             assertTrue(

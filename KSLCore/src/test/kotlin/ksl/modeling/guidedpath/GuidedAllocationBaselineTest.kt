@@ -32,12 +32,12 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 /**
- *  Baselines for the guided-path changes in R1.8, recorded on `develop` at `c06710b0c` before any change.
+ *  Pinned values for two guided-path models, so that any change to how transporters are chosen or how
+ *  obstructions are counted is seen and explained.
  *
- *  R1.8 stops counting a cart that queues behind the cart at its staging area as an obstruction, and measures a
- *  candidate transporter from the zone it holds rather than from the end of its link. Both are
- *  expected to move these numbers; they are pinned so that every move is seen and explained, and are
- *  updated deliberately when those changes land.
+ *  R1.8 stopped counting a cart that queues behind the cart at its staging area as an obstruction, and
+ *  measures a candidate transporter from the zone it holds rather than from the end of its link. The values
+ *  before those changes (`develop` at `c06710b0c`) are kept beside the current ones.
  */
 class GuidedAllocationBaselineTest {
 
@@ -80,7 +80,7 @@ class GuidedAllocationBaselineTest {
     }
 
     @Test
-    @DisplayName("Staging loop under the default allocation rule (expected to change in R1.8)")
+    @DisplayName("Staging loop under the default allocation rule")
     fun stagingLoop() {
         val m = Model("StagingLoopBaseline", autoCSVReports = false)
         val loop = StagingLoop(m)
@@ -97,7 +97,7 @@ class GuidedAllocationBaselineTest {
     }
 
     @Test
-    @DisplayName("Chapter 8 test-and-repair shop with guided transporters (reviewed if R1.8 moves it)")
+    @DisplayName("Chapter 8 test-and-repair shop with guided transporters")
     fun chapter8GuidedShop() {
         val m = Model("Ch8GuidedBaseline", autoCSVReports = false)
         val shop = TestAndRepairShopWithGuidedTransporters(m)
@@ -112,11 +112,15 @@ class GuidedAllocationBaselineTest {
     }
 
     companion object {
-        // Recorded on develop @ c06710b0c, before the R1.8 changes.
-        const val LOOP_OBSTRUCTIONS = 167.66666666666666
-        const val LOOP_BLOCKED_BY_IDLE = 0.13410235825249214
-        const val LOOP_FRAC_BLOCKED = "0.13102531925096605, 0.09268367909891655, 0.039194651663602524"
-        const val CH8_SYSTEM_TIME = 375.577127270315
-        const val CH8_TRANSFER_TIME = 17.72067045647517
+        // Since R1.8. Before (c06710b0c): obstructions 167.67, blocked by an idle vehicle 0.13410, and
+        // fracTimeBlocked 0.13103, 0.09268, 0.03919, nearly all of it the staging queue, and the first cart
+        // declared blocked most because the rule could not tell it from the cart in front of it.
+        const val LOOP_OBSTRUCTIONS = 0.33333333333333337
+        const val LOOP_BLOCKED_BY_IDLE = 8.842261068775479E-5
+        const val LOOP_FRAC_BLOCKED = "0.07214973115431222, 0.0647676949233117, 0.06384743632620969"
+
+        // Since R1.8. Before (c06710b0c): system time 375.577127270315, transfer time 17.72067045647517.
+        const val CH8_SYSTEM_TIME = 374.8466694550758
+        const val CH8_TRANSFER_TIME = 16.354477993200543
     }
 }
