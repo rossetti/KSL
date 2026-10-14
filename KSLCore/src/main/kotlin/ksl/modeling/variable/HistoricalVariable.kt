@@ -188,8 +188,10 @@ class HistoricalVariable @JvmOverloads constructor(
     }
 
     private fun stoppingAction(historicalVariable: HistoricalVariable){
-        executive.stop("Historical variable: ${historicalVariable.name}: Stopped replication = ${model.currentReplicationNumber} at time $time")
-        model.endSimulation("Ended all replications by historical variable: $name")
+        // end this replication now, and run no more: endSimulation() cannot be called while the
+        // replication is executing, which is exactly when the data run out
+        stopReplication("Historical variable: ${historicalVariable.name}: Stopped replication = ${model.currentReplicationNumber} at time $time")
+        model.endAfterCurrentReplication("Ended all replications by historical variable: $name")
     }
 
     private fun nextValue(): Double {

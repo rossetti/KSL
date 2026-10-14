@@ -24,6 +24,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.ParameterizedRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
@@ -119,6 +120,8 @@ open class EventGenerator @JvmOverloads constructor(
         get() = myTimeUntilFirstEventRV.initialRandomSource
         set(value) {
             require(model.isNotRunning) { "The model should not be running when changing the time until the first event." }
+            // the first event now has a process of its own, so it no longer follows the time between events
+            myFirstEventFollowsTimeBtwEvents = false
             myTimeUntilFirstEventRV.initialRandomSource = value
         }
 
@@ -135,6 +138,50 @@ open class EventGenerator @JvmOverloads constructor(
      */
     private val myTimeBtwEventsRV: RandomVariable =
         RandomVariable(this, timeBtwEventsRV, "${this.name}:TimeBtwEventsRV")
+
+    /**
+     *  True while the time until the first event follows the time between events. That is the case when the
+     *  generator was built from one random variable for both and the first-event process has not been given one
+     *  of its own since. A model built that way and then given a new time between events means the first event
+     *  to change too; without this link it kept the old distribution.
+     */
+    private var myFirstEventFollowsTimeBtwEvents: Boolean = timeUntilFirstRV === timeBtwEventsRV
+
+    /** The first-event process as built, used to recognise a change made to it from outside this generator. */
+    private val myBuiltFirstEventSource: RVariableIfc = myTimeUntilFirstEventRV.initialRandomSource
+
+    /** The first-event process as this generator last set it while following the time between events. */
+    private var myFollowedFirstEventSource: RVariableIfc = myTimeUntilFirstEventRV.initialRandomSource
+
+    /**
+     *  Brings the first-event process into step with the time between events before an experiment starts.
+     *
+     *  Done here rather than only in the setters, because a parameter override applied when the experiment is
+     *  set up replaces the time-between-events process directly, without going through this generator, and it
+     *  is applied before this runs. A first-event process that was changed from outside the generator, to
+     *  something other than how it was built or how this generator last set it, has a process of its own, and
+     *  the link ends.
+     */
+    override fun beforeExperiment() {
+        super.beforeExperiment()
+        if (!myFirstEventFollowsTimeBtwEvents) return
+        val first = myTimeUntilFirstEventRV.initialRandomSource
+        if (!sameProcess(first, myBuiltFirstEventSource) && !sameProcess(first, myFollowedFirstEventSource)) {
+            myFirstEventFollowsTimeBtwEvents = false
+            return
+        }
+        val btw = myTimeBtwEventsRV.initialRandomSource
+        if (btw !== first) {
+            myTimeUntilFirstEventRV.initialRandomSource = btw
+        }
+        myFollowedFirstEventSource = myTimeUntilFirstEventRV.initialRandomSource
+    }
+
+    /** The same object, or random variables of the same kind with the same parameters. */
+    private fun sameProcess(a: RVariableIfc, b: RVariableIfc): Boolean {
+        if (a === b) return true
+        return a is ParameterizedRV && b is ParameterizedRV && a.parameters == b.parameters
+    }
 
     override fun setTimeBetweenEvents(timeBtwEvents: RVariableIfc, maxNumEvents: Long) {
         validateMaxNumEventsAndTimeBtwEvents(timeBtwEvents, maxNumEvents)
@@ -187,6 +234,9 @@ open class EventGenerator @JvmOverloads constructor(
     override fun setInitialEventTimeProcesses(eventTimeProcess: RVariableIfc) {
         timeUntilFirstEvent = eventTimeProcess
         initialTimeBtwEvents = eventTimeProcess
+        // both now come from one random variable again, so the first event follows the time between events
+        myFirstEventFollowsTimeBtwEvents = true
+        myFollowedFirstEventSource = myTimeUntilFirstEventRV.initialRandomSource
     }
 
     /**

@@ -62,6 +62,22 @@ class DatabaseDataReaderTest {
     private fun connection(path: Path) = DatabaseConnectionRef(dbType = DbType.SQLITE, location = path.toString())
 
     @Test
+    fun `a DECIMAL column is read as numeric`() {
+        val dir = Files.createTempDirectory("dbreader_decimal")
+        val db = SQLiteDb("d.db", dir, deleteIfExists = true)
+        db.executeCommand("CREATE TABLE costs (amount DECIMAL(10,2), label TEXT)")
+        db.executeCommands(listOf("INSERT INTO costs VALUES (1.25, 'x')", "INSERT INTO costs VALUES (2.50, 'y')"))
+        val ref = DataSourceReference.Database(
+            connection = connection(dir.resolve("d.db")),
+            source = DbSource.Table("costs"),
+            layout = DatasetLayout.WIDE
+        )
+        val result = DatasetImporter.default.import(ref)
+        assertEquals(listOf("amount"), result.map { it.name })
+        assertContentEquals(doubleArrayOf(1.25, 2.5), result.first().data)
+    }
+
+    @Test
     fun `wide table yields one dataset per numeric column and skips text`() {
         val ref = DataSourceReference.Database(
             connection = connection(createDb()),

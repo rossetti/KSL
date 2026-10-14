@@ -1661,7 +1661,8 @@ class Model @JvmOverloads constructor(
      * replication will hang indefinitely.
      *
      * To end the *current replication early* from within model code use
-     * [ModelElement.stopReplication] instead.
+     * [ModelElement.stopReplication] instead, and to also run no further replications
+     * use [endAfterCurrentReplication].
      *
      * @param msg optional message recorded as the reason for stopping
      * @throws IllegalStateException if the Executive is currently dispatching
@@ -1673,19 +1674,27 @@ class Model @JvmOverloads constructor(
             "endSimulation() called while the Executive is running " +
             "(simTime=${myExecutive.currentTime}). " +
             "This has no effect on the current replication. " +
-            "Use ModelElement.stopReplication() to end a replication from within model code."
+            "Use ModelElement.stopReplication() to end a replication from within model code, " +
+            "and Model.endAfterCurrentReplication() to also run no further replications."
         }
         myReplicationProcess.end(msg)
     }
 
-//    /**
-//     * Causes the simulation to stop the current replication and not complete any additional replications
-//     *
-//     * @param msg A message to indicate why the simulation was stopped
-//     */
-//    private fun stopSimulation(msg: String?) {
-//        myReplicationProcess.stop(msg)
-//    }
+    /**
+     * Runs no further replications once the current one has finished.
+     *
+     * Unlike [endSimulation], this is safe to call from model code while a replication is
+     * executing, such as from an event or a process. The current replication runs to its end as
+     * usual, unless model code also ends it early with [ModelElement.stopReplication], and its
+     * statistics are collected. The experiment then ends with the stopping condition met, which
+     * [stoppedByCondition] reports, instead of running the remaining replications.
+     *
+     * @param msg optional message recorded as the reason for stopping
+     */
+    @JvmOverloads
+    fun endAfterCurrentReplication(msg: String? = null) {
+        myReplicationProcess.stop(msg)
+    }
 
     override fun toString(): String {
         val sb = StringBuilder()

@@ -43,8 +43,10 @@ import java.nio.file.Paths
  */
 object DatabaseDataReader {
 
+    // BigDecimal: KSLCore declares DECIMAL and NUMERIC columns as the exact values they hold
     private val NUMERIC_TYPES = setOf(
-        Double::class, Float::class, Int::class, Long::class, Short::class, Byte::class
+        Double::class, Float::class, Int::class, Long::class, Short::class, Byte::class,
+        java.math.BigDecimal::class
     )
 
     fun read(
@@ -165,8 +167,8 @@ object DatabaseDataReader {
 
     /**
      * Returns the named column as a DoubleArray when it is numeric (Double,
-     * Float, Int, Long, Short, Byte), dropping null cells; null when the
-     * column is non-numeric.
+     * Float, Int, Long, Short, Byte, BigDecimal), dropping null cells; null when
+     * the column is non-numeric.
      */
     private fun numericColumn(df: AnyFrame, name: String): DoubleArray? {
         val col = df.getColumn(name)
