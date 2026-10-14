@@ -103,7 +103,7 @@ open class Database @JvmOverloads constructor(
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
          * @param deleteIfExists If true, an existing database in the supplied directory with
          * the same name will be deleted and an empty database will be constructed.
-         * @param dbType The type of database (SQLite, Derby, DuckDb). The default is SQLite.
+         * @param dbType The type of database (SQLite, Derby. The default is SQLite.
          * @return a database
          */
         @JvmOverloads
