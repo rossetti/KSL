@@ -58,8 +58,6 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
     BATCH_QUEUE,
     BLOCKING_QUEUE_RECEIVER,
     BLOCKING_QUEUE_SENDER,
-    INTERRUPT_DELAY(mayResumeDelay = true),
-    INTERRUPT_DELAY_WITH_PROCESS(mayResumeDelay = true),
     BLOCK_UNTIL_PROCESS_COMPLETED,
     WAIT_FOR_CALLED_PROCESS,
     SUSPENSION_OBJECT,
@@ -707,6 +705,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  with the delay action
          */
         private var myDelayEvent: KSLEvent<Nothing>? = null
+
+        /** The length of the delay as it was started, so that a restart after an interrupt means that length. */
+        private var myDelayDuration: Double = Double.NaN
+
+        /** True while the current delay is frozen by an interrupt, between the cancel and the reschedule. */
+        private var myDelayInterrupted: Boolean = false
 
         private val myResumeAction = ResumeAction()
 
@@ -2533,6 +2537,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
+                myDelayDuration = delayDuration
+                myDelayInterrupted = false
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
@@ -2542,6 +2548,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
                 if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, suspensionName) }
                 require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: suspension name = $currentSuspendName : entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
+                // the delay is over: a finished delay must not be mistaken for a current one
+                myDelayEvent = null
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -2754,6 +2762,76 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 )
             }
 
+            override fun isInDelay(name: String): Boolean =
+                entity.currentProcess === this && entity.isScheduled &&
+                        entity.currentSuspendType == SuspendType.DELAY && !inMoveDelay && !inYieldDelay &&
+                        entity.currentSuspendName == name && entity.myDelayEvent != null
+
+            /** What the entity is doing, in words, for the error when an interrupt finds it elsewhere. */
+            private fun delayStateDescription(): String = when {
+                entity.currentProcess !== this -> "it is not executing this process"
+                entity.currentSuspendType == SuspendType.DELAY && inMoveDelay -> "it is moving"
+                entity.currentSuspendType == SuspendType.DELAY && inYieldDelay -> "it is yielding"
+                entity.currentSuspendType == SuspendType.DELAY -> "it is in delay '${entity.currentSuspendName}'"
+                entity.currentSuspendType == SuspendType.NONE -> "it is not suspended"
+                else -> "it is suspended (${entity.currentSuspendType}) as '${entity.currentSuspendName}'"
+            }
+
+            /**
+             *  The process to interrupt, once it is known to be in the named delay, or null when that delay is
+             *  already frozen by another interrupt, which is ignored with a warning.
+             */
+            private fun interruptTarget(process: KSLProcess, delayName: String): ProcessCoroutine? {
+                require(this != process) { "A process cannot interrupt itself!" }
+                val target = process as ProcessCoroutine
+                check(target.isInDelay(delayName)) {
+                    "r = ${model.currentReplicationNumber} : $time > cannot interrupt delay '$delayName' of " +
+                            "entity_id = ${target.entity.id}: ${target.delayStateDescription()}. " +
+                            "Check with isInDelay(\"$delayName\") before interrupting."
+                }
+                if (target.entity.myDelayInterrupted) {
+                    logger.warn {
+                        "r = ${model.currentReplicationNumber} : $time > delay '$delayName' of entity_id = " +
+                                "${target.entity.id} is already interrupted; this interrupt is ignored"
+                    }
+                    return null
+                }
+                return target
+            }
+
+            /** Freezes the target's delay and returns the priority to reschedule it at. */
+            private fun freezeDelay(target: ProcessCoroutine): Int {
+                val delayEvent = target.entity.myDelayEvent!!
+                // a delay ending after the run's end was never placed on the calendar, so there is nothing to cancel
+                if (delayEvent.isScheduled) {
+                    delayEvent.cancel = true
+                }
+                target.entity.myDelayInterrupted = true
+                return delayEvent.priority
+            }
+
+            /**
+             *  Schedules the rest of a frozen delay as a delay of its own, so that it ends the way any delay
+             *  ends. Nothing happens when the target no longer needs it: it was terminated, or it left the delay.
+             */
+            private fun rescheduleInterruptedDelay(target: ProcessCoroutine, duration: Double, priority: Int) {
+                val e = target.entity
+                if (!e.myDelayInterrupted || e.currentProcess !== target || e.currentSuspendType != SuspendType.DELAY) {
+                    return
+                }
+                e.myDelayInterrupted = false
+                if (executive.isEnded) {
+                    return
+                }
+                val eName = "Delay Event: duration = $duration suspension name = ${e.currentSuspendName} (after an interrupt)"
+                val delayEvent = target.delayAction.schedule(duration, priority = priority, name = eName)
+                delayEvent.entity = e
+                e.myDelayEvent = delayEvent
+                emitAnimation {
+                    AnimationEvent.DelayStarted(time, e.id, duration, delayEvent.time, e.currentSuspendName)
+                }
+            }
+
             override suspend fun interruptDelay(
                 process: KSLProcess,
                 delayName: String,
@@ -2761,25 +2839,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int,
                 postInterruptDelayTime: Double
             ) {
-                require(this != process) { "A process cannot interrupt itself!" }
                 require(interruptTime >= 0.0) { "The interrupt time must be >= 0.0" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
-                if (!process.entity.isScheduled) {
-                    return
+                val target = interruptTarget(process, delayName) ?: return
+                val priority = freezeDelay(target)
+                try {
+                    delay(interruptTime, interruptPriority)
+                } finally {
+                    // also when this process is terminated mid-interrupt: the target is not left frozen
+                    rescheduleInterruptedDelay(target, postInterruptDelayTime, priority)
                 }
-                if (delayName != process.entity.currentSuspendName) {
-                    return
-                }
-                val delayEvent = process.entity.myDelayEvent ?: return
-                // the process is experiencing the named delay
-                delayEvent.cancel = true
-                delay(interruptTime, interruptPriority)
-                process.entity.scheduleResumeProcess(
-                    postInterruptDelayTime,
-                    delayEvent.priority,
-                    ResumeSource.INTERRUPT_DELAY,
-                    "interrupted_delay=$delayName, original_delay_event_id=${delayEvent.id}"
-                )
             }
 
             override suspend fun interruptDelayAndRestart(
@@ -2788,8 +2857,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptTime: Double,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelay(process, delayName, interruptTime, interruptPriority, delayEvent.interEventTime)
+                val target = interruptTarget(process, delayName) ?: return
+                interruptDelay(target, delayName, interruptTime, interruptPriority, target.entity.myDelayDuration)
             }
 
             override suspend fun interruptDelayAndContinue(
@@ -2798,8 +2867,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptTime: Double,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelay(process, delayName, interruptTime, interruptPriority, delayEvent.timeRemaining)
+                val target = interruptTarget(process, delayName) ?: return
+                val remaining = maxOf(0.0, target.entity.myDelayEvent!!.time - time)
+                interruptDelay(target, delayName, interruptTime, interruptPriority, remaining)
             }
 
             override suspend fun interruptDelayWithProcess(
@@ -2809,26 +2879,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int,
                 postInterruptDelayTime: Double
             ) {
-                require(this != process) { "A process cannot interrupt itself!" }
                 require(this != interruptingProcess) { "This process cannot be used as the interrupting process" }
                 require(interruptingProcess != process) { "The interrupting process cannot be the same as the process being interrupted" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
-                if (!process.entity.isScheduled) {
-                    return
+                val target = interruptTarget(process, delayName) ?: return
+                val priority = freezeDelay(target)
+                try {
+                    waitFor(interruptingProcess, priority = interruptPriority)
+                } finally {
+                    rescheduleInterruptedDelay(target, postInterruptDelayTime, priority)
                 }
-                if (delayName != process.entity.currentSuspendName) {
-                    return
-                }
-                val delayEvent = process.entity.myDelayEvent ?: return
-                // the process is experiencing the named delay
-                delayEvent.cancel = true
-                waitFor(interruptingProcess, priority = interruptPriority)
-                process.entity.scheduleResumeProcess(
-                    postInterruptDelayTime,
-                    delayEvent.priority,
-                    ResumeSource.INTERRUPT_DELAY_WITH_PROCESS,
-                    "interrupted_delay=$delayName, original_delay_event_id=${delayEvent.id}, interrupting_process=${interruptingProcess.name}"
-                )
             }
 
             override suspend fun interruptDelayWithProcessAndRestart(
@@ -2837,13 +2897,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptingProcess: KSLProcess,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
+                val target = interruptTarget(process, delayName) ?: return
                 interruptDelayWithProcess(
-                    process,
-                    delayName,
-                    interruptingProcess,
-                    interruptPriority,
-                    delayEvent.interEventTime
+                    target, delayName, interruptingProcess, interruptPriority, target.entity.myDelayDuration
                 )
             }
 
@@ -2853,14 +2909,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptingProcess: KSLProcess,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelayWithProcess(
-                    process,
-                    delayName,
-                    interruptingProcess,
-                    interruptPriority,
-                    delayEvent.timeRemaining
-                )
+                val target = interruptTarget(process, delayName) ?: return
+                val remaining = maxOf(0.0, target.entity.myDelayEvent!!.time - time)
+                interruptDelayWithProcess(target, delayName, interruptingProcess, interruptPriority, remaining)
             }
 
             //TODO conveyor process commands
@@ -3239,6 +3290,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                // a terminated delay is over, and an interrupt that froze it must not reschedule it
+                myDelayEvent = null
+                myDelayInterrupted = false
                 // Release the entity itself, not only its entanglements. Successful completion clears
                 // the binding in afterSuccessfulProcessCompletion; termination must do the same, and
                 // must also leave the suspended state that the exception unwound from -- otherwise the

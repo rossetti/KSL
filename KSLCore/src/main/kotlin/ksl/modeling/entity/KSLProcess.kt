@@ -88,6 +88,26 @@ interface KSLProcess {
      */
     val processElapseTime: Double
         get() = processCompletionTime - processStartTime
+
+    /**
+     *  True when this process is currently in a delay with the given suspension name, so that the delay
+     *  can be interrupted. False when the process is in a delay with another name, is waiting for something
+     *  other than a delay, is moving, has not started, or has ended.
+     *
+     *  Interrupting a process that is not in the named delay is an error, so a process that may interrupt
+     *  another at a time when the target is not delaying checks first:
+     *  <pre>
+     *  if (machine.script.isInDelay("work")) {
+     *      interruptDelayAndContinue(machine.script, "work", repairTime)
+     *  } else {
+     *      delay(repairTime)   // the machine was idle: down for the repair anyway
+     *  }
+     *  </pre>
+     *
+     *  @param name the suspension name of the delay
+     *  @return true if the process is in that delay
+     */
+    fun isInDelay(name: String): Boolean
 }
 
 enum class SuspendType {
@@ -1674,9 +1694,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay for the specified
      * post interruption delay time.
@@ -1698,9 +1719,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay for the specified
      * post interruption delay time.
@@ -1724,9 +1746,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
      * delay time.  That is, it restarts its original delay.
@@ -1745,9 +1768,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
      * delay time.  That is, it restarts its original delay.
@@ -1768,9 +1792,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues with the post
      * interruption time being equal to the time remaining on the original delay at the time
@@ -1790,9 +1815,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues with the post
      * interruption time being equal to the time remaining on the original delay at the time
@@ -1814,9 +1840,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the specified post interruption delay time.  Note that this functionality
@@ -1840,9 +1867,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the specified post interruption delay time.  Note that this functionality
@@ -1874,9 +1902,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the full original delay time.  Note that this functionality
@@ -1897,9 +1926,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for time remaining on its original delay.  Note that this functionality
