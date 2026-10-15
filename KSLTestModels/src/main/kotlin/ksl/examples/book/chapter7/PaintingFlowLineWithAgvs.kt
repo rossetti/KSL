@@ -98,10 +98,11 @@ import ksl.utilities.random.rvariable.UniformRV
  *  A vehicle waiting in that queue is still in the pool and can still be allocated, which is worth
  *  understanding before reading the fleet statistics. It is not free to leave: link 11 is one-way,
  *  so the only route out of the queue is forward through I12, and until whatever is sitting there
- *  moves, a vehicle that has been allocated out of the queue cannot go and collect anybody. It also
- *  reports itself as being *at* I12 while it waits, because a transporter part way along a link is
- *  located at that link's far end, so the allocation rule ranks it exactly as it ranks the vehicle
- *  that has actually arrived.
+ *  moves, a vehicle that has been allocated out of the queue cannot go and collect anybody. The
+ *  allocation rule measures each vehicle from the zone it holds and, at equal distance, prefers the
+ *  one with fewer zones still to enter, so the vehicle standing at I12 is sent before the ones
+ *  queued behind it. (Before R1.8 a queued vehicle was located at I12, tied with the one there, and
+ *  could be chosen ahead of it.)
  *
  *  @param parent the containing model element
  *  @param numAgvs how many vehicles to run, three in the exercise
