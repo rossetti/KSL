@@ -101,6 +101,9 @@ data class TravelResult(
  *   - The final position is set exactly to [destination] (not the
  *     accumulated interpolation result, which could drift due to
  *     floating-point error over many steps).
+ *   - On a torus (`space.torus`) the agent goes the short way round, the distance
+ *     `space.distance` measures. Positions part way may lie outside the ranges, which the
+ *     projection stores as given; the final position is [destination].
  *
  *  Limitations (deliberate v1 scope):
  *   - **Uninterruptible.** Once started, the travel runs to
@@ -143,7 +146,7 @@ suspend fun <A : AgentLike> KSLProcessBuilder.travelTo(
         )
 
     val startedAt = agent.currentTime
-    val totalDistance = current.distanceTo(destination)
+    val totalDistance = space.distance(current, destination)
 
     // Already there — return immediately.
     if (totalDistance == 0.0) {
@@ -167,7 +170,7 @@ suspend fun <A : AgentLike> KSLProcessBuilder.travelTo(
     val numSteps = ceil(totalDistance / stepSize).toInt()
     val stepDist = totalDistance / numSteps
     val stepDt = stepDist / velocity
-    val direction = (destination - current).normalized()
+    val direction = space.delta(current, destination).normalized()
 
     var pos = current
     // Take numSteps - 1 interpolated steps; the final step jumps to
@@ -376,6 +379,8 @@ fun <A : AgentLike> KSLProcessBuilder.startTravel(
  *
  *  The agent's position is updated via [ContinuousProjection.moveTo]
  *  at each step, so concurrent spatial queries see the agent moving.
+ *  Distances and directions are measured by the projection, so on a
+ *  torus the agent goes the short way round, as with [travelTo].
  */
 suspend fun <A : AgentLike> KSLProcessBuilder.awaitTravel(handle: TravelHandle<A>): TravelResult {
     if (!handle.isActive) return handle.result
@@ -389,14 +394,14 @@ suspend fun <A : AgentLike> KSLProcessBuilder.awaitTravel(handle: TravelHandle<A
         // current destination. The redirect flag is reset here so
         // subsequent steps along the same leg don't replan again.
         handle.redirected = false
-        val remaining = pos.distanceTo(handle.destination)
+        val remaining = handle.space.distance(pos, handle.destination)
         if (remaining <= 0.0) {
             handle.endedAt = handle.agent.currentTime
             handle.isComplete = true
             break
         }
         val stepDist = kotlin.math.min(handle.stepSize, remaining)
-        val direction = (handle.destination - pos).normalized()
+        val direction = handle.space.delta(pos, handle.destination).normalized()
         val stepDt = stepDist / handle.velocity
 
         delay(stepDt)
@@ -424,7 +429,7 @@ suspend fun <A : AgentLike> KSLProcessBuilder.awaitTravel(handle: TravelHandle<A
         handle.distanceTraveled += stepDist
 
         // Arrived?
-        if (pos.distanceTo(handle.destination) <= 1e-9 && !handle.redirected) {
+        if (handle.space.distance(pos, handle.destination) <= 1e-9 && !handle.redirected) {
             handle.endedAt = handle.agent.currentTime
             handle.isComplete = true
             break
