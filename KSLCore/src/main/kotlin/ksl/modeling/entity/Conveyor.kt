@@ -93,11 +93,13 @@ fun List<Conveyor.Cell>.allAvailable() : Boolean {
  *
  * An entity trying to access the conveyor at an entry cell of the conveyor, waits until it can block the cell. A request
  * for entry on the conveyor will wait for the entry cell if the entry cell is unavailable (blocked or occupied) or if
- * another item is positioned to use the entry cell. There is one exception, so that items can enter nose to tail: the
- * request first in line at the entry may block the entry cell while the cell is still occupied by an item that is
- * fully on the conveyor, whose rear cell it is, and that the next cell move will move, provided no item riding on the
- * conveyor is waiting to move into the cell. The entering item then covers the entry cell as that item leaves it, and
- * items that always wait to enter are carried one every (cells per item) cell travel times.  Once
+ * another item is positioned to use the entry cell. Requests at an entry gain access in turn: a request waits while
+ * another request is ahead of it at the same entry, even if it would fit. By default, an item riding on the conveyor
+ * that is about to move into the entry cell goes first, and the request waits for it; `enteringPriorityAt` reverses
+ * this at an entry. So that items can enter nose to tail, the request whose turn it is may block the entry cell while
+ * the cell is still occupied by an item that is fully on the conveyor, whose rear cell it is, and that the next cell
+ * move will move. The entering item then covers the entry cell as that item leaves it, and items that always wait to
+ * enter are carried one every (cells per item) cell travel times.  Once
  * the entity has control of the entry cell, this creates a blockage on the conveyor, which may restrict conveyor movement.
  * For a non-accumulating conveyor the blockage stops all movement on the conveyor. For accumulating conveyors, the blockage
  * restricts movement behind the blocked cell.  Gaining control of the entry cell does not position the entity
@@ -387,11 +389,12 @@ class Conveyor @JvmOverloads constructor(
     }
 
     /**
-     *  By default, items riding on the conveyor have priority to enter entry cells over items
-     *  waiting to enter.  This default setting is false. By setting the priority to true, the items waiting to begin riding the
-     *  conveyor have priority to access over items already riding on the conveyor.
+     *  Sets who goes first at [entryLocation] when a request is waiting to enter and an item riding on the conveyor
+     *  is about to move into the entry cell. By default (false) the riding item goes first, and the request waits
+     *  until no riding item is about to move into the cell. With true, the waiting request goes first: it may take
+     *  control of the entry cell, and the riding item waits behind the blockage. Requests at an entry gain access in
+     *  turn either way.
      */
-    @Suppress("unused")
     fun enteringPriorityAt(entryLocation: String, priority: Boolean) {
         require(entryLocations.contains(entryLocation)) { "The location (${entryLocation}) is not an entry location for (${name})" }
         enteringPriority[entryLocation] = priority
@@ -803,6 +806,19 @@ class Conveyor @JvmOverloads constructor(
         }
         // every cell of a circular conveyor is covered and nothing is leaving
         return false
+    }
+
+    /**
+     *  True when a riding item is about to move into [entryCell]: its front cell is the cell just before the entry
+     *  cell, and it is going on past it, not exiting there and not stopping there at its destination.
+     */
+    private fun isRiderWaitingFor(entryCell: Cell): Boolean {
+        val previous = entryCell.previousCell ?: return false
+        val rider = previous.item ?: return false
+        if (rider.frontCell !== previous || rider.status == ItemStatus.EXITING || previous.isBlocked) {
+            return false
+        }
+        return !(previous.isExitCell && rider.destination == previous.location)
     }
 
     /**
@@ -1984,12 +2000,20 @@ class Conveyor @JvmOverloads constructor(
             if (positionedToEnter.containsKey(entryCell)){
                 return true
             }
+            // requests gain access in turn: one behind another request at the same entry waits, even if it would fit
+            if (!isFirstInLine()) {
+                return true
+            }
             // if the entry cell is the first cell in a non-circular conveyor
             // then we only need to test is it is unavailable
             if (!conveyor.isCircular){
                if (entryCell.isFirst){
-                   return entryCell.isUnavailable && !(isFirstInLine() && isVacatedByNextMove(entryCell))
+                   return entryCell.isUnavailable && !isVacatedByNextMove(entryCell)
                }
+            }
+            // unless entering items have priority here, a riding item about to move into the entry cell goes first
+            if (!enteringPriority[entryLocation]!! && isRiderWaitingFor(entryCell)) {
+                return true
             }
             // now we can test to see if space is available.
             val requestedCells = entryCell.previousCells(numCellsNeeded)
@@ -1999,16 +2023,14 @@ class Conveyor @JvmOverloads constructor(
             if (requestedCells.allAvailable()) {
                 return false
             }
-            // nor if only the entry cell is unavailable, because the item covering it leaves it on the next move,
-            // and no riding item is waiting to move into it
+            // nor if only the entry cell is unavailable, because the item covering it leaves it on the next move
             val behindEntryCell = requestedCells.dropLast(1)
-            val riderBehind = entryCell.previousCell?.isOccupied == true
-            return !(isFirstInLine() && behindEntryCell.allAvailable() && !riderBehind && isVacatedByNextMove(entryCell))
+            return !(behindEntryCell.allAvailable() && isVacatedByNextMove(entryCell))
         }
 
         /**
-         *  True when no request is ahead of this one in its entry location's access queue. Taking control of an
-         *  entry cell as its item leaves is for the request whose turn it is, never one that arrives meanwhile.
+         *  True when no request is ahead of this one in its entry location's access queue. A request gains access
+         *  only in its turn, never ahead of one that has waited longer.
          */
         private fun isFirstInLine(): Boolean = myAccessQueues[entryLocation]!!.peekFirst() === this
 

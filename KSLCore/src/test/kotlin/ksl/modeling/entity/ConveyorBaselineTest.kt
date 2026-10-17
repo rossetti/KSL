@@ -350,6 +350,90 @@ class ConveyorBaselineTest {
         }
     }
 
+    /**
+     *  Thirty items queued at In at time 0 ride nose to tail past Mid to Out; one request arrives at Mid at 1.0,
+     *  while the stream is passing, and rides to Out.
+     */
+    private class StreamPastMid(parent: ModelElement, type: Conveyor.Type, enteringPriority: Boolean) :
+        Scenario(parent, 100.0) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(type).velocity(12.0).cellSize(1)
+            .maxCellsAllowed(1).firstSegment("In", "Mid", 10).nextSegment("Out", 20).build()
+        var lastRiderPastMid = Double.NaN
+        var enteredAt = Double.NaN
+
+        init {
+            conveyor.enteringPriorityAt("Mid", enteringPriority)
+        }
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {}
+
+        inner class Rider(private val last: Boolean) : Entity() {
+            val work = process {
+                val cr = requestConveyor(conveyor, "In", 1)
+                rideConveyor(cr, "Out")
+                // the last rider's front reaches Out 20 cells after it was in the cell before Mid
+                if (last) lastRiderPastMid = time - 20.0 / 12.0
+                exitConveyor(cr)
+            }
+        }
+
+        inner class Entering : Entity() {
+            val work = process {
+                delay(1.0)
+                val cr = requestConveyor(conveyor, "Mid", 1)
+                enteredAt = time
+                rideConveyor(cr, "Out")
+                exitConveyor(cr)
+            }
+        }
+
+        override fun initialize() {
+            super.initialize()
+            for (i in 1..30) activate(Rider(i == 30).work)
+            activate(Entering().work)
+        }
+    }
+
+    /**
+     *  A rider stops at Mid, its destination, and holds that exit cell, just before the Mid entry, until 2.0. At Mid
+     *  a request for two cells arrives at 1.0, needing that cell too, and a request for one cell at 1.1, needing
+     *  only the entry cell, which is free.
+     */
+    private class SmallBehindLarge(parent: ModelElement) : Scenario(parent, 100.0) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(Conveyor.Type.ACCUMULATING).velocity(12.0)
+            .cellSize(1).maxCellsAllowed(2).firstSegment("In", "Mid", 10).nextSegment("Out", 20).build()
+        val granted = mutableListOf<String>()
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {}
+
+        inner class Holder : Entity() {
+            val work = process {
+                val cr = requestConveyor(conveyor, "In", 1)
+                rideConveyor(cr, "Mid")
+                delay(2.0 - time)
+                exitConveyor(cr)
+            }
+        }
+
+        inner class Request(private val label: String, private val at: Double, private val cells: Int) : Entity() {
+            val work = process {
+                delay(at)
+                val cr = requestConveyor(conveyor, "Mid", cells)
+                granted += label
+                rideConveyor(cr, "Out")
+                exitConveyor(cr)
+            }
+        }
+
+        override fun initialize() {
+            super.initialize()
+            granted.clear()
+            activate(Holder().work)
+            activate(Request("large", 1.0, 2).work)
+            activate(Request("small", 1.1, 1).work)
+        }
+    }
+
     private fun run(name: String, factory: (Model) -> Scenario): Scenario {
         val m = Model(name, autoCSVReports = false)
         val s = factory(m)
@@ -541,15 +625,19 @@ class ConveyorBaselineTest {
      *  stopped and started: no run may fail. A failure here is an internal check, such as two items in one cell.
      */
     @Test
-    @DisplayName("Random traffic never breaks the conveyor's own checks")
+    @DisplayName("Random traffic never breaks the conveyor's own checks, and requests at each entry gain access in turn")
     fun randomTraffic() {
         for (seed in 1..48) {
             val m = Model("random$seed", autoCSVReports = false)
-            RandomTraffic(m, seed)
+            val traffic = RandomTraffic(m, seed)
             m.numberOfReplications = 1
             m.lengthOfReplication = 20.0
             val error = runCatching { m.simulate() }.exceptionOrNull()
             assertEquals(null, error, "seed $seed: ${error?.message}")
+            for ((entry, granted) in traffic.granted) {
+                val asked = traffic.asked.getValue(entry)
+                assertEquals(asked.take(granted.size), granted, "seed $seed, entry $entry: access in turn")
+            }
         }
     }
 
@@ -562,6 +650,9 @@ class ConveyorBaselineTest {
             .firstSegment("A", "B", 8 + rnd.nextInt(6)).nextSegment("C", 6 + rnd.nextInt(6))
             .nextSegment(if (seed % 3 == 0) "A" else "D", 6 + rnd.nextInt(6)).build()
         private val mean = listOf(0.02, 0.05, 0.1, 0.3)[seed % 4]
+        val asked = mutableMapOf<String, MutableList<Int>>()
+        val granted = mutableMapOf<String, MutableList<Int>>()
+        private var created = 0
         private val generator = EntityGenerator(::Item, ExponentialRV(mean, seed * 7), ExponentialRV(mean, seed * 7 + 1))
 
         private fun stop(e: KSLEvent<Nothing>) {
@@ -579,10 +670,13 @@ class ConveyorBaselineTest {
         }
 
         private inner class Item : Entity() {
+            private val number = ++created
             val work = process(isDefaultProcess = true) {
                 val entry = listOf("A", "B", "C")[rnd.nextInt(3)]
                 val destinations = conveyor.exitLocations.filter { it != entry && conveyor.isReachable(entry, it) }
+                asked.getOrPut(entry) { mutableListOf() } += number
                 val cr = requestConveyor(conveyor, entry, 1 + rnd.nextInt(maxCells))
+                granted.getOrPut(entry) { mutableListOf() } += number
                 if (rnd.nextDouble() < 0.05) {
                     delay(0.1)
                     exitConveyor(cr)
@@ -602,17 +696,16 @@ class ConveyorBaselineTest {
         assertPin(Pin(5, 427, 2278560873L), run("c8") { HoldAtExit(it, Conveyor.Type.ACCUMULATING, 0.05, 0.4) })
 
     // ---- scenarios added before the R1.8 entry-rule and timing fixes; each names the fix expected to move it ----
-    // Pinned as found: the accumulating riders-first and entering-priority pins are equal because the
-    // entering priority had no effect.
 
     @Test
     @DisplayName("Entry in turn: two-cell and one-cell requests alternating at a mid-conveyor entry")
     fun mixedSizesMid() = assertPin(Pin(26, 520, 939594979L), run("p1") { MixedSizesMid(it) })
 
+    // before R1.8: Pin(26, 389, 3126792337), equal to entering priority's
     @Test
     @DisplayName("Riders first: requests at Mid compete with riders, accumulating")
     fun ridersFirstAccumulating() =
-        assertPin(Pin(26, 389, 3126792337L), run("p2a") { RidersAndEntering(it, Conveyor.Type.ACCUMULATING, false) })
+        assertPin(Pin(26, 389, 1734366974L), run("p2a") { RidersAndEntering(it, Conveyor.Type.ACCUMULATING, false) })
 
     @Test
     @DisplayName("Riders first: requests at Mid compete with riders, non-accumulating")
@@ -665,4 +758,30 @@ class ConveyorBaselineTest {
     @DisplayName("Restart: non-accumulating, an entity leaves Mid without riding, with a rider behind it")
     fun nonAccumulatingLeaveWithRiderBehind() =
         assertPin(Pin(2, 25, 915597255L), run("p5b") { LeaveWithRiderBehind(it, Conveyor.Type.NON_ACCUMULATING) })
+
+    /**
+     *  By default the request at Mid waits for the stream of riders to pass; with entering priority it takes the
+     *  entry at once and the riders wait behind it.
+     */
+    @Test
+    @DisplayName("Riders go first at an entry by default, and entering priority reverses it")
+    fun ridersFirstAndEnteringPriority() {
+        val cellTime = 1.0 / 12.0
+        for (type in Conveyor.Type.entries) {
+            val riders = run("riders$type") { StreamPastMid(it, type, false) } as StreamPastMid
+            assertEquals(true, riders.enteredAt >= riders.lastRiderPastMid,
+                "$type: the request waits for the stream: entered ${riders.enteredAt}, stream past ${riders.lastRiderPastMid}")
+            val entering = run("entering$type") { StreamPastMid(it, type, true) } as StreamPastMid
+            assertEquals(true, entering.enteredAt <= 1.0 + cellTime + 1e-9,
+                "$type: with entering priority the request goes first: entered ${entering.enteredAt}")
+        }
+    }
+
+    /** The small request fits first but waits its turn behind the large one. Before R1.8 it went first. */
+    @Test
+    @DisplayName("A request that fits waits its turn behind a larger request at the same entry")
+    fun smallWaitsBehindLarge() {
+        val s = run("inTurn") { SmallBehindLarge(it) } as SmallBehindLarge
+        assertEquals(listOf("large", "small"), s.granted)
+    }
 }
