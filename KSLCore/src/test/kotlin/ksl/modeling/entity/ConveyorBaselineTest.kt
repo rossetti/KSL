@@ -18,9 +18,11 @@
 
 package ksl.modeling.entity
 
+import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.util.zip.CRC32
@@ -38,7 +40,8 @@ import kotlin.test.assertEquals
  *  Two kinds of scenario:
  *  - **Unchanged** scenarios have no request waiting to enter while the conveyor moves: arrivals are spaced, or
  *    the conveyor is stopped or blocked when they arrive. Their pins must not move.
- *  - **Queued entry** scenarios have requests always waiting at an entry while the conveyor moves.
+ *  - **Queued entry** scenarios have requests always waiting at an entry while the conveyor moves. Since R1.8 those
+ *    items enter nose to tail, and these pins moved; the earlier pins are kept in comments.
  */
 class ConveyorBaselineTest {
 
@@ -295,42 +298,138 @@ class ConveyorBaselineTest {
 
     // ---- queued entry: requests always wait at an entry while the conveyor moves ------------------------------
 
+    // before R1.8: Pin(15, 1665, 3505887645)
     @Test
     @DisplayName("Queued entry: accumulating, one-cell items at the start")
     fun accumulatingQueued1() =
-        assertPin(Pin(15, 1665, 3505887645L), run("c1") { Straight(it, Conveyor.Type.ACCUMULATING, 1, 0.01) })
+        assertPin(Pin(29, 1769, 367452068L), run("c1") { Straight(it, Conveyor.Type.ACCUMULATING, 1, 0.01) })
 
+    // before R1.8: Pin(10, 1630, 1902342537)
     @Test
     @DisplayName("Queued entry: accumulating, two-cell items at the start")
     fun accumulatingQueued2() =
-        assertPin(Pin(10, 1630, 1902342537L), run("c2") { Straight(it, Conveyor.Type.ACCUMULATING, 2, 0.01) })
+        assertPin(Pin(14, 1664, 897217007L), run("c2") { Straight(it, Conveyor.Type.ACCUMULATING, 2, 0.01) })
 
+    // before R1.8: Pin(7, 1613, 2467643123)
     @Test
     @DisplayName("Queued entry: accumulating, three-cell items at the start")
     fun accumulatingQueued3() =
-        assertPin(Pin(7, 1613, 2467643123L), run("c3") { Straight(it, Conveyor.Type.ACCUMULATING, 3, 0.01) })
+        assertPin(Pin(9, 1629, 2894638361L), run("c3") { Straight(it, Conveyor.Type.ACCUMULATING, 3, 0.01) })
 
+    // before R1.8: Pin(15, 1665, 3505887645)
     @Test
     @DisplayName("Queued entry: non-accumulating, one-cell items at the start")
     fun nonAccumulatingQueued1() =
-        assertPin(Pin(15, 1665, 3505887645L), run("c4") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 1, 0.01) })
+        assertPin(Pin(29, 1769, 367452068L), run("c4") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 1, 0.01) })
 
+    // before R1.8: Pin(20, 1680, 2357046034)
     @Test
     @DisplayName("Queued entry: accumulating, one-cell items mid-conveyor")
     fun accumulatingQueuedMid() =
-        assertPin(Pin(20, 1680, 2357046034L), run("c5") { Straight(it, Conveyor.Type.ACCUMULATING, 1, 0.01, "Mid") })
+        assertPin(Pin(39, 1799, 693813790L), run("c5") { Straight(it, Conveyor.Type.ACCUMULATING, 1, 0.01, "Mid") })
 
+    // before R1.8: Pin(13, 1641, 1102945771)
     @Test
     @DisplayName("Queued entry: non-accumulating, two-cell items mid-conveyor")
     fun nonAccumulatingQueuedMid() =
-        assertPin(Pin(13, 1641, 1102945771L), run("c6") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 2, 0.01, "Mid") })
+        assertPin(Pin(19, 1679, 329283093L), run("c6") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 2, 0.01, "Mid") })
 
+    // before R1.8: Pin(25, 1695, 1041427740)
     @Test
     @DisplayName("Queued entry: circular")
-    fun circularQueued() = assertPin(Pin(25, 1695, 1041427740L), run("c7") { Circular(it, 0.01) })
+    fun circularQueued() = assertPin(Pin(49, 1829, 3050456766L), run("c7") { Circular(it, 0.01) })
 
+    /**
+     *  Items always waiting enter nose to tail: in steady state they arrive at Out one every k cell times, so a
+     *  12 per minute conveyor of 1-unit cells delivers 12 / k a minute. Before R1.8 an empty cell was left
+     *  between items, one every k + 1 cell times.
+     */
+    @Test
+    @DisplayName("Items always waiting enter nose to tail, on both types, at the start and mid-conveyor")
+    fun noseToTail() {
+        val cellTime = 1.0 / 12.0
+        for (type in Conveyor.Type.entries) for (entry in listOf("In", "Mid")) for (k in 1..3) {
+            val m = Model("noseToTail", autoCSVReports = false)
+            val s = Straight(m, type, k, 0.01, entry)
+            m.numberOfReplications = 1
+            m.lengthOfReplication = 100.0
+            m.simulate()
+            val label = "$type, entry $entry, $k cells"
+            val accessOrder = s.record.filter { it.contains(":access@") }.map { it.substringBefore(':').toInt() }
+            assertEquals(accessOrder.sorted(), accessOrder, "$label: requests gain access in the order they asked")
+            val arrivals = s.record.filter { it.contains(":arrive@") }.map { it.substringAfter('@').toDouble() }
+            val gaps = arrivals.zipWithNext { a, b -> b - a }.drop(10)
+            assertEquals(k * cellTime, gaps.min(), 1e-9, "$label: closest arrivals")
+            assertEquals(k * cellTime, gaps.max(), 1e-9, "$label: furthest arrivals")
+            // from the first arrival on, one item every k cell times
+            val expected = ((100.0 - arrivals.first()) / (k * cellTime)).toInt() + 1
+            assertEquals(expected.toDouble(), s.delivered.toDouble(), 1.0, "$label: delivered")
+        }
+    }
+
+    /**
+     *  Random traffic on both types, straight and circular, with items of up to three cells, three entries,
+     *  random destinations, exits held for a while, some requests that leave without riding, and the conveyor
+     *  stopped and started: no run may fail. A failure here is an internal check, such as two items in one cell.
+     */
+    @Test
+    @DisplayName("Random traffic never breaks the conveyor's own checks")
+    fun randomTraffic() {
+        for (seed in 1..48) {
+            val m = Model("random$seed", autoCSVReports = false)
+            RandomTraffic(m, seed)
+            m.numberOfReplications = 1
+            m.lengthOfReplication = 20.0
+            val error = runCatching { m.simulate() }.exceptionOrNull()
+            assertEquals(null, error, "seed $seed: ${error?.message}")
+        }
+    }
+
+    private class RandomTraffic(parent: ModelElement, seed: Int) : ProcessModel(parent, null) {
+        private val rnd = kotlin.random.Random(seed)
+        private val maxCells = 1 + seed % 3
+        private val conveyor = Conveyor.builder(this, "Belt")
+            .conveyorType(if (seed % 2 == 0) Conveyor.Type.ACCUMULATING else Conveyor.Type.NON_ACCUMULATING)
+            .velocity(12.0).cellSize(1).maxCellsAllowed(maxCells)
+            .firstSegment("A", "B", 8 + rnd.nextInt(6)).nextSegment("C", 6 + rnd.nextInt(6))
+            .nextSegment(if (seed % 3 == 0) "A" else "D", 6 + rnd.nextInt(6)).build()
+        private val mean = listOf(0.02, 0.05, 0.1, 0.3)[seed % 4]
+        private val generator = EntityGenerator(::Item, ExponentialRV(mean, seed * 7), ExponentialRV(mean, seed * 7 + 1))
+
+        private fun stop(e: KSLEvent<Nothing>) {
+            conveyor.stopConveyor()
+            schedule(::start, rnd.nextDouble(0.05, 0.4))
+        }
+
+        private fun start(e: KSLEvent<Nothing>) {
+            conveyor.startConveyor()
+            schedule(::stop, rnd.nextDouble(0.5, 3.0))
+        }
+
+        override fun initialize() {
+            schedule(::stop, rnd.nextDouble(0.5, 3.0))
+        }
+
+        private inner class Item : Entity() {
+            val work = process(isDefaultProcess = true) {
+                val entry = listOf("A", "B", "C")[rnd.nextInt(3)]
+                val destinations = conveyor.exitLocations.filter { it != entry && conveyor.isReachable(entry, it) }
+                val cr = requestConveyor(conveyor, entry, 1 + rnd.nextInt(maxCells))
+                if (rnd.nextDouble() < 0.05) {
+                    delay(0.1)
+                    exitConveyor(cr)
+                } else {
+                    rideConveyor(cr, destinations[rnd.nextInt(destinations.size)])
+                    if (rnd.nextDouble() < 0.3) delay(rnd.nextDouble(0.0, 0.3))
+                    exitConveyor(cr)
+                }
+            }
+        }
+    }
+
+    // before R1.8: Pin(5, 441, 2922862228)
     @Test
     @DisplayName("Queued entry: accumulating, the belt backs up behind an exit held for 0.4")
     fun accumulatingBackedUp() =
-        assertPin(Pin(5, 441, 2922862228L), run("c8") { HoldAtExit(it, Conveyor.Type.ACCUMULATING, 0.05, 0.4) })
+        assertPin(Pin(5, 427, 2278560873L), run("c8") { HoldAtExit(it, Conveyor.Type.ACCUMULATING, 0.05, 0.4) })
 }

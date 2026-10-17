@@ -1969,7 +1969,8 @@ interface KSLProcessBuilder {
      * If the number of cells are not immediately available the process is suspended until
      * the number of cells can be allocated (in full).  The request for the cells will
      * wait for the allocation in the queue associated with the start of the segment associated
-     * with the entry location of the conveyor. After this suspending function
+     * with the entry location of the conveyor. The request first in line may take control of the entry cell while
+     * the item ahead is still leaving it, so that items enter nose to tail. After this suspending function
      * returns, the entity holds the cells in the returned cell allocation, but the entity is
      * not on the conveyor. The entity can then decide to ride on the conveyor using the cell allocation or
      * release the cell allocation by exiting the conveyor without riding. The behavior of the

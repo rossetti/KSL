@@ -93,7 +93,11 @@ fun List<Conveyor.Cell>.allAvailable() : Boolean {
  *
  * An entity trying to access the conveyor at an entry cell of the conveyor, waits until it can block the cell. A request
  * for entry on the conveyor will wait for the entry cell if the entry cell is unavailable (blocked or occupied) or if
- * another item is positioned to use the entry cell.  Once
+ * another item is positioned to use the entry cell. There is one exception, so that items can enter nose to tail: the
+ * request first in line at the entry may block the entry cell while the cell is still occupied by an item that is
+ * fully on the conveyor, whose rear cell it is, and that the next cell move will move, provided no item riding on the
+ * conveyor is waiting to move into the cell. The entering item then covers the entry cell as that item leaves it, and
+ * items that always wait to enter are carried one every (cells per item) cell travel times.  Once
  * the entity has control of the entry cell, this creates a blockage on the conveyor, which may restrict conveyor movement.
  * For a non-accumulating conveyor the blockage stops all movement on the conveyor. For accumulating conveyors, the blockage
  * restricts movement behind the blocked cell.  Gaining control of the entry cell does not position the entity
@@ -745,6 +749,60 @@ class Conveyor @JvmOverloads constructor(
             }
         }
         return null
+    }
+
+    /**
+     *  True when [cell] is covered by an item that is fully on the conveyor, whose rear cell it is, and that the
+     *  next cell move will move. That move frees the cell, so a waiting request may take control of it now and
+     *  its item cover the cell as the item ahead leaves it: items enter nose to tail. If something stops the
+     *  item before the move, the entering item waits, positioned, until the cell is free.
+     */
+    private fun isVacatedByNextMove(cell: Cell): Boolean {
+        if (isStopped || cell.isBlocked) {
+            return false
+        }
+        val item = cell.item ?: return false
+        if (item.status != ItemStatus.ON || item.rearCell !== cell) {
+            return false
+        }
+        return if (conveyorType == Type.ACCUMULATING) {
+            movesOnNextMoveAccumulating(item)
+        } else {
+            if (hasBlockedCells()) {
+                return false
+            }
+            val leadCell = findLeadingCell(conveyorCells) ?: return false
+            findMovableCells(leadCell).any { it === cell }
+        }
+    }
+
+    /**
+     *  True when the next cell move of an accumulating conveyor moves [item]. The move takes the segments from
+     *  the last to the first, so an item moves when the cell ahead of its front cell is free, or is covered by an
+     *  item that itself moves, following the items ahead across segment boundaries. It stops where
+     *  [findLeadingCell] would: at a blocked cell, at an exit cell whose item is not leaving, and at an entry
+     *  cell that is blocked or that an item is positioned to enter.
+     */
+    private fun movesOnNextMoveAccumulating(item: ConveyorRequest): Boolean {
+        var current = item
+        repeat(conveyorCells.size) {
+            val front = current.frontCell ?: return false
+            if (front.isExitCell) {
+                if (front.isBlocked) {
+                    return false
+                }
+                if (current.status == ItemStatus.EXITING) {
+                    return true
+                }
+            }
+            val next = front.nextCell ?: return false
+            if (next.isBlocked || positionedToEnter[next] != null) {
+                return false
+            }
+            current = next.item ?: return true
+        }
+        // every cell of a circular conveyor is covered and nothing is leaving
+        return false
     }
 
     /**
@@ -1598,6 +1656,8 @@ class Conveyor @JvmOverloads constructor(
                 rescheduleConveyorMovement()
             }
         }
+        // the exit was blocked when the last cell move decided which waiting requests could take an entry cell
+        processRequestsWaitingToAccessConveyor()
     }
 
     /**
@@ -1928,16 +1988,29 @@ class Conveyor @JvmOverloads constructor(
             // then we only need to test is it is unavailable
             if (!conveyor.isCircular){
                if (entryCell.isFirst){
-                   return entryCell.isUnavailable
+                   return entryCell.isUnavailable && !(isFirstInLine() && isVacatedByNextMove(entryCell))
                }
             }
             // now we can test to see if space is available.
             val requestedCells = entryCell.previousCells(numCellsNeeded)
             require(requestedCells.size >= numCellsNeeded)
             { "r=${model.currentReplicationNumber}, $time > Requested number of cells ($numCellsNeeded) cannot ever be filled \n offending request: ${this.asString()}}" }
-            // it must wait if any previous cell is not available
-            return !requestedCells.allAvailable()
+            // it need not wait if all the cells are available
+            if (requestedCells.allAvailable()) {
+                return false
+            }
+            // nor if only the entry cell is unavailable, because the item covering it leaves it on the next move,
+            // and no riding item is waiting to move into it
+            val behindEntryCell = requestedCells.dropLast(1)
+            val riderBehind = entryCell.previousCell?.isOccupied == true
+            return !(isFirstInLine() && behindEntryCell.allAvailable() && !riderBehind && isVacatedByNextMove(entryCell))
         }
+
+        /**
+         *  True when no request is ahead of this one in its entry location's access queue. Taking control of an
+         *  entry cell as its item leaves is for the request whose turn it is, never one that arrives meanwhile.
+         */
+        private fun isFirstInLine(): Boolean = myAccessQueues[entryLocation]!!.peekFirst() === this
 
     }
 
@@ -2021,6 +2094,8 @@ class Conveyor @JvmOverloads constructor(
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : status = ${request.status}:exiting w/o riding" }
             // need to remove the blockage at the entry cell
             removeBlockage(request.entryCell)
+            // the entry cell is free now, not at the next cell move
+            processRequestsWaitingToAccessConveyor()
         }
     }
 
@@ -2059,6 +2134,8 @@ class Conveyor @JvmOverloads constructor(
             if (!isCellTraversalInProgress()) {
                 rescheduleConveyorMovement()
             }
+            // the exit was blocked when the last cell move decided which waiting requests could take an entry cell
+            processRequestsWaitingToAccessConveyor()
         }
 
         /**
