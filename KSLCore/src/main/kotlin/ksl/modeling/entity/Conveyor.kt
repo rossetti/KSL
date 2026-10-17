@@ -324,9 +324,10 @@ class Conveyor @JvmOverloads constructor(
     private var endCellTraversalEvent: KSLEvent<Nothing>? = null
 
     /**
-     *  Temporarily holds the stopped cell traversal event if the conveyor is stopped
+     *  The time that remained of a cell move when it was paused, or NaN when no move is paused. The next cell
+     *  move scheduled takes this time instead of a full cell travel time, so a pause costs exactly its length.
      */
-    private var stoppedCellTraversalEvent: KSLEvent<Nothing>? = null
+    private var pausedTimeRemaining: Double = Double.NaN
 
     /**
      *  indicates if the conveyor has been stopped via the stopConveyor() function
@@ -901,6 +902,8 @@ class Conveyor @JvmOverloads constructor(
             cell.isBlocked = false
         }
         positionedToEnter.clear()
+        pausedTimeRemaining = Double.NaN
+        isStopped = false
         emitConveyorDefined()
     }
 
@@ -966,37 +969,27 @@ class Conveyor @JvmOverloads constructor(
     }
 
     /**
-     *  If the conveyor has been stopped using the stopConveyor() function, this will start it moving.
+     *  If the conveyor has been stopped using the stopConveyor() function, this will start it moving: a cell
+     *  move that was in progress when it stopped completes in the time that remained of it.
      *  If the conveyor has not been stopped using the stopConveyor() function, this method does nothing.
      */
     @Suppress("unused")
     fun startConveyor() {
         if (isStopped) {
             isStopped = false
-            val event = stoppedCellTraversalEvent
-            if (event != null) {
-                if (event.time > time) {
-                    // The cancelled event is still in the future undo the cancellation
-                    event.cancel = false
-                    endCellTraversalEvent = event
-                } else {
-                    // the time of the cell traversal has passed, need to restart the conveyor
-                    // for simplicity we assume the full traversal time
-                    rescheduleConveyorMovement()
-                }
-            }
+            rescheduleConveyorMovement()
         }
     }
 
     /**
-     *  If a cell traversal is scheduled, it will be cancelled and movement on the conveyor
-     *  will not occur.
+     *  Stops all movement on the conveyor until startConveyor() is called. A cell move in progress is paused,
+     *  and completes after the restart in the time that remained of it, so a stop costs exactly its length.
+     *  Nothing moves the conveyor while it is stopped; items may still gain access, and wait to enter.
      */
     @Suppress("unused")
     fun stopConveyor() {
         isStopped = true
-        stoppedCellTraversalEvent = endCellTraversalEvent
-        cancelConveyorMovement()
+        pauseConveyorMovement()
     }
 
     enum class ItemStatus {
@@ -1555,20 +1548,40 @@ class Conveyor @JvmOverloads constructor(
         // reschedule movement themselves.
     }
 
+    /**
+     *  Pauses the cell move in progress, if there is one: its event is cancelled and the time that remained of it
+     *  is kept, for the next cell move scheduled to complete in. Used where all movement must stop: stopping the
+     *  conveyor, and any blockage on a non-accumulating conveyor.
+     */
+    private fun pauseConveyorMovement() {
+        if (isCellTraversalInProgress()) {
+            pausedTimeRemaining = endCellTraversalEvent!!.time - time
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): paused the cell move due at t = ${endCellTraversalEvent!!.time}, remaining = $pausedTimeRemaining" }
+            endCellTraversalEvent!!.cancel = true
+            endCellTraversalEvent = null
+        }
+    }
+
     private fun scheduleConveyorMovement() {
-//        require(!isCellTraversalInProgress()){"r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR ($name): Tried to schedule a cell traversal when one was already pending! \n ${toString()}"}
+        if (isStopped) {
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): scheduleConveyorMovement(): conveyor stopped, no traversal scheduled" }
+            return
+        }
         if (isCellTraversalInProgress()) {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): scheduleConveyorMovement(): cell traversal already pending, new traversal not scheduled" }
             return
         }
+        // a paused cell move completes in the time that remained of it
+        val moveTime = if (pausedTimeRemaining.isNaN()) cellTravelTime else pausedTimeRemaining
+        pausedTimeRemaining = Double.NaN
         endCellTraversalEvent = schedule(
             this::endOfCellTraversal,
-            cellTravelTime,
+            moveTime,
             priority = defaultMovementPriority,
             name = "End of Cell Traversal"
         )
         endCellTraversalEvent!!.name = "End of Cell Traversal"
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): scheduled event ( event_id = ${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + cellTravelTime)}" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): scheduled event ( event_id = ${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + moveTime)}" }
     }
 
     internal fun enqueueRequest(request: ConveyorRequest) {
@@ -1748,6 +1761,10 @@ class Conveyor @JvmOverloads constructor(
         internal fun blockEntryLocation() {
             state.blockEntryCell(this)
             entryCell.isBlocked = true
+            // any blockage stops a non-accumulating conveyor at once
+            if (conveyorType == Type.NON_ACCUMULATING) {
+                pauseConveyorMovement()
+            }
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : caused blockage for entry cell (${entryCell.cellNumber}) at location (${entryLocation})" }
         }
 
@@ -2238,8 +2255,8 @@ class Conveyor @JvmOverloads constructor(
             // handle cell traversal in progress differently by type of conveyor
             if (conveyorType == Type.NON_ACCUMULATING) {
                 // item has asked to ride non-accumulating conveyor and will block the cell
-                // cancel the current traversal
-                cancelConveyorMovement()
+                // pause the current traversal; it completes, after the ride starts, in the time that remained
+                pauseConveyorMovement()
                 // schedule the need for conveyance at the current time, this will cause the blockage
                 schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for current time = $time : Non-Accumulating" }

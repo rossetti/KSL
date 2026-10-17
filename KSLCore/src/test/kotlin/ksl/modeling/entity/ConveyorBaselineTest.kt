@@ -39,7 +39,9 @@ import kotlin.test.assertEquals
  *
  *  Two kinds of scenario:
  *  - **Unchanged** scenarios have no request waiting to enter while the conveyor moves: arrivals are spaced, or
- *    the conveyor is stopped or blocked when they arrive. Their pins must not move.
+ *    the conveyor is stopped or blocked when they arrive. Their pins did not move for the entry fixes of R1.8.
+ *    Those with a non-accumulating conveyor that moves while items board, and those that stop the conveyor, moved
+ *    in R1.8 when a cell move came to be paused rather than restarted.
  *  - **Queued entry** scenarios have requests always waiting at an entry while the conveyor moves. Since R1.8 those
  *    items enter nose to tail, and these pins moved; the earlier pins are kept in comments.
  */
@@ -455,28 +457,31 @@ class ConveyorBaselineTest {
     fun accumulatingSpaced() =
         assertPin(Pin(4, 119, 999187291L), run("u1") { Straight(it, Conveyor.Type.ACCUMULATING, 1, 0.5) })
 
+    // before R1.8: Pin(4, 112, 350020516)
     @Test
     @DisplayName("Unchanged: non-accumulating, spaced arrivals, entry at the start")
     fun nonAccumulatingSpaced() =
-        assertPin(Pin(4, 112, 350020516L), run("u2") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 1, 0.5) })
+        assertPin(Pin(4, 119, 999187291L), run("u2") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 1, 0.5) })
 
     @Test
     @DisplayName("Unchanged: accumulating, spaced two-cell items entering mid-conveyor")
     fun accumulatingSpacedMid() =
         assertPin(Pin(6, 123, 1501904748L), run("u3") { Straight(it, Conveyor.Type.ACCUMULATING, 2, 0.5, "Mid") })
 
+    // before R1.8: Pin(5, 117, 3399706916)
     @Test
     @DisplayName("Unchanged: non-accumulating, spaced three-cell items entering mid-conveyor")
     fun nonAccumulatingSpacedMid() =
-        assertPin(Pin(5, 117, 3399706916L), run("u4") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 3, 0.5, "Mid") })
+        assertPin(Pin(6, 123, 2453636893L), run("u4") { Straight(it, Conveyor.Type.NON_ACCUMULATING, 3, 0.5, "Mid") })
 
     @Test
     @DisplayName("Unchanged: accumulating, riding on past a destination")
     fun accumulatingRideOn() = assertPin(Pin(4, 141, 349066127L), run("u5") { RideOn(it, Conveyor.Type.ACCUMULATING) })
 
+    // before R1.8: Pin(1, 107, 2211216165)
     @Test
     @DisplayName("Unchanged: non-accumulating, riding on past a destination")
-    fun nonAccumulatingRideOn() = assertPin(Pin(1, 107, 2211216165L), run("u6") { RideOn(it, Conveyor.Type.NON_ACCUMULATING) })
+    fun nonAccumulatingRideOn() = assertPin(Pin(2, 115, 447664933L), run("u6") { RideOn(it, Conveyor.Type.NON_ACCUMULATING) })
 
     /**
      *  Before R1.8 the items that left without riding never finished: their exit completed the request but never
@@ -530,23 +535,26 @@ class ConveyorBaselineTest {
     @DisplayName("Unchanged: transfer between conveyors")
     fun transfer() = assertPin(Pin(6, 230, 144759797L), run("u8") { Transfer(it) })
 
+    // before R1.8: Pin(4, 117, 4156148379)
     @Test
     @DisplayName("Unchanged: accumulating, stopped and started")
-    fun accumulatingStopStart() = assertPin(Pin(4, 117, 4156148379L), run("u9") { StopStart(it, Conveyor.Type.ACCUMULATING) })
+    fun accumulatingStopStart() = assertPin(Pin(5, 119, 1790093574L), run("u9") { StopStart(it, Conveyor.Type.ACCUMULATING) })
 
+    // before R1.8: Pin(4, 110, 3180507172)
     @Test
     @DisplayName("Unchanged: non-accumulating, stopped and started")
     fun nonAccumulatingStopStart() =
-        assertPin(Pin(4, 110, 3180507172L), run("u10") { StopStart(it, Conveyor.Type.NON_ACCUMULATING) })
+        assertPin(Pin(5, 119, 1790093574L), run("u10") { StopStart(it, Conveyor.Type.NON_ACCUMULATING) })
 
     @Test
     @DisplayName("Unchanged: circular, spaced arrivals")
     fun circularSpaced() = assertPin(Pin(8, 129, 2709662911L), run("u11") { Circular(it, 0.5) })
 
+    // before R1.8: Pin(2, 101, 3953655155)
     @Test
     @DisplayName("Unchanged: non-accumulating, each item holds the exit for 0.3")
     fun nonAccumulatingHoldAtExit() =
-        assertPin(Pin(2, 101, 3953655155L), run("u12") { HoldAtExit(it, Conveyor.Type.NON_ACCUMULATING, 0.5, 0.3) })
+        assertPin(Pin(3, 106, 683012339L), run("u12") { HoldAtExit(it, Conveyor.Type.NON_ACCUMULATING, 0.5, 0.3) })
 
     // ---- queued entry: requests always wait at an entry while the conveyor moves ------------------------------
 
@@ -707,30 +715,34 @@ class ConveyorBaselineTest {
     fun ridersFirstAccumulating() =
         assertPin(Pin(26, 389, 1734366974L), run("p2a") { RidersAndEntering(it, Conveyor.Type.ACCUMULATING, false) })
 
+    // before R1.8: Pin(22, 368, 428472262)
     @Test
     @DisplayName("Riders first: requests at Mid compete with riders, non-accumulating")
     fun ridersFirstNonAccumulating() =
-        assertPin(Pin(22, 368, 428472262L), run("p2b") { RidersAndEntering(it, Conveyor.Type.NON_ACCUMULATING, false) })
+        assertPin(Pin(26, 389, 1734366974L), run("p2b") { RidersAndEntering(it, Conveyor.Type.NON_ACCUMULATING, false) })
 
     @Test
     @DisplayName("Entering priority: requests at Mid have priority over riders, accumulating")
     fun enteringPriorityAccumulating() =
         assertPin(Pin(26, 389, 3126792337L), run("p2c") { RidersAndEntering(it, Conveyor.Type.ACCUMULATING, true) })
 
+    // before R1.8: Pin(4, 155, 1337382434)
     @Test
     @DisplayName("Movement timing: non-accumulating, each item loads for 0.05 before riding")
     fun nonAccumulatingLoadThenRide() =
-        assertPin(Pin(4, 155, 1337382434L), run("p3") { LoadThenRide(it, Conveyor.Type.NON_ACCUMULATING) })
+        assertPin(Pin(6, 161, 622235305L), run("p3") { LoadThenRide(it, Conveyor.Type.NON_ACCUMULATING) })
 
+    // before R1.8: Pin(2, 32, 1412068310)
     @Test
     @DisplayName("Movement timing: accumulating, stopped from 0.2 to 0.7 with a rider asking during the stop")
     fun accumulatingStopWithRider() =
-        assertPin(Pin(2, 32, 1412068310L), run("p4a") { StopWithRider(it, Conveyor.Type.ACCUMULATING) })
+        assertPin(Pin(2, 32, 3077581115L), run("p4a") { StopWithRider(it, Conveyor.Type.ACCUMULATING) })
 
+    // before R1.8: Pin(2, 32, 3710179474)
     @Test
     @DisplayName("Movement timing: non-accumulating, stopped from 0.2 to 0.7 with a rider asking during the stop")
     fun nonAccumulatingStopWithRider() =
-        assertPin(Pin(2, 32, 3710179474L), run("p4b") { StopWithRider(it, Conveyor.Type.NON_ACCUMULATING) })
+        assertPin(Pin(2, 32, 3077581115L), run("p4b") { StopWithRider(it, Conveyor.Type.NON_ACCUMULATING) })
 
     // before R1.8: Pin(1, 15, 3778948367), A never arrived
     @Test
@@ -753,11 +765,11 @@ class ConveyorBaselineTest {
         }
     }
 
-    // before R1.8: Pin(1, 14, 3778948367), A never arrived
+    // before R1.8: Pin(1, 14, 3778948367), A never arrived; before the pausing fix: Pin(2, 25, 915597255)
     @Test
     @DisplayName("Restart: non-accumulating, an entity leaves Mid without riding, with a rider behind it")
     fun nonAccumulatingLeaveWithRiderBehind() =
-        assertPin(Pin(2, 25, 915597255L), run("p5b") { LeaveWithRiderBehind(it, Conveyor.Type.NON_ACCUMULATING) })
+        assertPin(Pin(2, 24, 2603167386L), run("p5b") { LeaveWithRiderBehind(it, Conveyor.Type.NON_ACCUMULATING) })
 
     /**
      *  By default the request at Mid waits for the stream of riders to pass; with entering priority it takes the
@@ -783,5 +795,42 @@ class ConveyorBaselineTest {
     fun smallWaitsBehindLarge() {
         val s = run("inTurn") { SmallBehindLarge(it) } as SmallBehindLarge
         assertEquals(listOf("large", "small"), s.granted)
+    }
+
+    /**
+     *  A stop costs exactly its length, on both types, and nothing moves the conveyor while it is stopped: the
+     *  first item's ten-cell trip of 0.833 takes 1.333 with a stop of 0.5. The second item asks to ride during the
+     *  stop, and enters as the paused cell move completes. Before R1.8 the trip took 1.367, or on a non-accumulating
+     *  conveyor 1.067, the boarding having moved it while stopped.
+     */
+    @Test
+    @DisplayName("A stop costs exactly its length, and a stopped conveyor does not move")
+    fun stopCostsItsLength() {
+        for (type in Conveyor.Type.entries) {
+            val s = run("stop$type") { StopWithRider(it, type) }
+            val arrival = s.record.first { it.startsWith("1:arrive@") }.substringAfter('@').toDouble()
+            assertEquals(10.0 / 12.0 + 0.5, arrival, 1e-9, "$type")
+        }
+    }
+
+    /**
+     *  On a non-accumulating conveyor a boarding stops the conveyor for exactly as long as the item takes to load:
+     *  for no time when it rides at once (the first item's 30-cell trip takes 2.5 with five boardings behind it),
+     *  and for 0.05 when it loads for 0.05 (ten boardings during the first item's trip add 0.5). Before R1.8 each
+     *  boarding restarted the cell move in progress.
+     */
+    @Test
+    @DisplayName("A non-accumulating conveyor stops for a boarding exactly as long as the loading takes")
+    fun boardingCostsItsLoadingTime() {
+        val cellTime = 1.0 / 12.0
+        val atOnce = run("atOnce") { HoldAtExit(it, Conveyor.Type.NON_ACCUMULATING, 0.5, 0.3) }
+        val first = atOnce.record.first { it.startsWith("1:arrive@") }.substringAfter('@').toDouble()
+        assertEquals(0.5 + 30 * cellTime, first, 1e-9, "boarding at once costs nothing")
+        val loading = run("loading") { LoadThenRide(it, Conveyor.Type.NON_ACCUMULATING) }
+        val arrival = loading.record.first { it.startsWith("1:arrive@") }.substringAfter('@').toDouble()
+        val boardingsDuringTrip = loading.record.count {
+            it.contains(":access@") && !it.startsWith("1:") && it.substringAfter('@').toDouble() < arrival
+        }
+        assertEquals(0.3 + 0.05 + 30 * cellTime + 0.05 * boardingsDuringTrip, arrival, 1e-9, "each loading costs 0.05")
     }
 }
