@@ -133,6 +133,20 @@ class RequestQ @JvmOverloads constructor(
         return count
     }
 
+    /**
+     *  True when a request in this queue is waiting for [resource], either directly or through a pool that
+     *  [resource] belongs to. Check this before unregistering this queue from [resource]
+     *  (`Resource.unregisterCapacityChangeQueue`), which refuses while it is true.
+     *  @param resource the resource to check
+     */
+    fun hasRequestsWaitingFor(resource: Resource): Boolean = myList.any { wants(it, resource) }
+
+    /** True when [request] wants units of [resource], directly or through a pool that [resource] belongs to. */
+    internal fun wants(request: ProcessModel.Entity.Request, resource: Resource): Boolean {
+        val target = request.resource
+        return target === resource || (target is AbstractResourcePool<*> && target.isMember(resource))
+    }
+
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *

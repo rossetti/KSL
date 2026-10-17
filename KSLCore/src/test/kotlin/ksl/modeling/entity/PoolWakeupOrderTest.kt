@@ -323,4 +323,167 @@ class PoolWakeupOrderTest {
         val m = simulate("twoQueues") { TwoQueues(it) }
         assertEquals(10.0, m.servedAt, 1e-9)
     }
+
+    /**
+     *  The mirror of [TwoQueues]: A holds R through R's own queue, and B waits in a separate queue that the
+     *  model never registered on R. The seize registers it, so A's release reaches B.
+     */
+    private class WaiterInSeparateQueue(parent: ModelElement) : ProcessModel(parent, null) {
+        val r = ResourceWithQ(this, name = "R")
+        private val otherQ = RequestQ(this, "OtherQ")
+        var servedAt = Double.NaN
+
+        inner class A : Entity() {
+            val work = process { val a = seize(r); delay(10.0); release(a) }
+        }
+
+        inner class B : Entity() {
+            val work = process { val a = seize(r, queue = otherQ); servedAt = time; delay(5.0); release(a) }
+        }
+
+        override fun initialize() {
+            servedAt = Double.NaN
+            activate(A().work)
+            activate(B().work, 1.0)
+        }
+    }
+
+    @Test
+    @DisplayName("A waiter in a separate queue is woken by a release through the resource's own queue")
+    fun separateQueueWaiterIsWoken() {
+        val m = simulate("separateQueue") { WaiterInSeparateQueue(it) }
+        assertEquals(10.0, m.servedAt, 1e-9)
+    }
+
+    /** A pool seized through a separate queue, its only member held directly until 10. */
+    private class PoolThroughSeparateQueue(parent: ModelElement) : ProcessModel(parent, null) {
+        val w = ResourceWithQ(this, name = "W")
+        val pool = ResourcePool(this, listOf(w), name = "P")
+        private val poolQ = RequestQ(this, "PoolQ")
+        var servedAt = Double.NaN
+
+        inner class Holder : Entity() {
+            val work = process { val a = seize(w); delay(10.0); release(a) }
+        }
+
+        inner class PoolWaiter : Entity() {
+            val work = process { val a = seize(pool, queue = poolQ); servedAt = time; delay(1.0); release(a) }
+        }
+
+        override fun initialize() {
+            servedAt = Double.NaN
+            activate(Holder().work)
+            activate(PoolWaiter().work, 1.0)
+        }
+    }
+
+    @Test
+    @DisplayName("A pool seized through a separate queue is woken when its member is released directly")
+    fun poolThroughSeparateQueueIsWoken() {
+        val m = simulate("poolSeparateQueue") { PoolThroughSeparateQueue(it) }
+        assertEquals(10.0, m.servedAt, 1e-9)
+    }
+
+    /**
+     *  One queue holding requests for two resources. X goes off shift at 5 and becomes inactive at 10, when its
+     *  busy unit is released, while one request waits for X and another for Y; only the entity waiting for X is
+     *  told.
+     */
+    private class SharedQueueInactive(parent: ModelElement) : ProcessModel(parent, null) {
+        val x = ResourceWithQ(this, name = "X")
+        val y = ResourceWithQ(this, name = "Y")
+        private val shared = RequestQ(this, "SharedQ")
+        private val xShift = ShiftControl(x)
+        val told = mutableListOf<String>()
+
+        inner class Holder(private val r: ResourceWithQ, private val until: Double) : Entity() {
+            val work = process { val a = seize(r); delay(until); release(a) }
+        }
+
+        inner class Waiter(private val label: String, private val r: ResourceWithQ) : Entity() {
+            val work = process { val a = seize(r, queue = shared); delay(1.0); release(a) }
+
+            override fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
+                queue: RequestQ, resource: Resource, request: Request
+            ) {
+                told += label
+            }
+        }
+
+        inner class Supervisor : Entity() {
+            val work = process { delay(5.0); xShift.goOffShift(); delay(10.0); xShift.goOnShift() }
+        }
+
+        override fun initialize() {
+            told.clear()
+            xShift.initialize()
+            activate(Holder(x, 10.0).work)
+            activate(Holder(y, 20.0).work)
+            activate(Waiter("forX", x).work, 1.0)
+            activate(Waiter("forY", y).work, 2.0)
+            activate(Supervisor().work)
+        }
+    }
+
+    /**
+     *  B waits in a separate queue for R from 1 to 10, and P's waiter waits for the pool from 2 to 15. At 5 a
+     *  probe checks both queues and tries to unregister them; at 30, with nothing waiting, it tries again.
+     */
+    private class Unregister(parent: ModelElement) : ProcessModel(parent, null) {
+        val r = ResourceWithQ(this, name = "R")
+        val w = ResourceWithQ(this, name = "W")
+        private val pool = ResourcePool(this, listOf(w), name = "P")
+        private val otherQ = RequestQ(this, "OtherQ")
+        private val poolQ = RequestQ(this, "PoolQ")
+        val waiting = mutableListOf<Boolean>()
+        val refused = mutableListOf<Boolean>()
+
+        inner class Holder(private val res: ResourceWithQ, private val until: Double) : Entity() {
+            val work = process { val a = seize(res); delay(until); release(a) }
+        }
+
+        inner class B : Entity() {
+            val work = process { val a = seize(r, queue = otherQ); delay(1.0); release(a) }
+        }
+
+        inner class PoolWaiter : Entity() {
+            val work = process { val a = seize(pool, queue = poolQ); delay(1.0); release(a) }
+        }
+
+        private fun attempt() {
+            waiting += otherQ.hasRequestsWaitingFor(r)
+            waiting += poolQ.hasRequestsWaitingFor(w)
+            refused += runCatching { r.unregisterCapacityChangeQueue(otherQ) }.isFailure
+            refused += runCatching { w.unregisterCapacityChangeQueue(poolQ) }.isFailure
+        }
+
+        inner class Probe : Entity() {
+            val work = process { delay(5.0); attempt(); delay(25.0); attempt() }
+        }
+
+        override fun initialize() {
+            waiting.clear()
+            refused.clear()
+            activate(Holder(r, 10.0).work)
+            activate(Holder(w, 15.0).work)
+            activate(B().work, 1.0)
+            activate(PoolWaiter().work, 2.0)
+            activate(Probe().work)
+        }
+    }
+
+    @Test
+    @DisplayName("A queue cannot be unregistered while it holds a request waiting for the resource")
+    fun unregisterRefusedWhileWaiting() {
+        val m = simulate("unregister") { Unregister(it) }
+        assertEquals(listOf(true, true, false, false), m.waiting, "waiting at 5, directly and through the pool; none at 30")
+        assertEquals(listOf(true, true, false, false), m.refused, "refused at 5; allowed at 30")
+    }
+
+    @Test
+    @DisplayName("Only requests for the resource that became inactive are told, in a queue shared with another")
+    fun inactiveNotificationIsForTheResourceOnly() {
+        val m = simulate("sharedInactive") { SharedQueueInactive(it) }
+        assertEquals(listOf("forX"), m.told)
+    }
 }

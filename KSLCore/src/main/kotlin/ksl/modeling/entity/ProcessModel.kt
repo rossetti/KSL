@@ -2366,6 +2366,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
+                // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
+                resource.registerCapacityChangeQueue(queue)
                 val request = ResourceRequest(amountNeeded, resource)
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
@@ -2478,6 +2480,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
+                // a queue a seize waits in is offered the members' freed units, whichever way they are freed
+                resourcePool.registerQueueOnMembers(queue)
                 val request = ResourcePoolRequest(amountNeeded, resourcePool)
                 var promised: Map<Resource, Int> = emptyMap()
                 request.selectionRule = resourceSelectionRule
@@ -2552,6 +2556,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
+                // a queue a seize waits in is offered the members' freed units, whichever way they are freed
+                movableResourcePool.registerQueueOnMembers(queue)
                 val request = MovableResourcePoolRequest(myMovableResourcePool = movableResourcePool)
                 var promisedMember: Resource? = null
                 request.requestLocation = requestLocation

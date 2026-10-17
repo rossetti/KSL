@@ -119,19 +119,32 @@ open class Resource @JvmOverloads constructor(
      *  that the notification will occur.  For the case of resources that have queue because
      *  of defined structure (ResourceWithQ, MovableResourceWithQ, ResourcePoolWithQ, MovableResourcePoolWithQ),
      *  the registration of the queue is automatic when the resource is constructed or when added to the pool.
-     *  If you use a general, not attached queue to hold requests (via the `seize()` function) then, you should
-     *  consider using this function to register the queue. A queue may be registered with more than one
-     *  resource and a resource may have many queues registered.
+     *  A general queue that a `seize()` waits in is registered by the seize, on the resource or on every member
+     *  of the pool, so that freed units reach the requests waiting in it however the units are freed. Calling
+     *  this function yourself is needed only to have a queue notified before any seize has used it. A queue
+     *  may be registered with more than one resource and a resource may have many queues registered.
      */
     fun registerCapacityChangeQueue(queue: RequestQ) {
         myCapacityChangeQSet.add(queue)
     }
 
     /**
-     *  This function permits a queue to be unregistered from a resource. If the queue was not registered,
-     *  then nothing occurs.
+     *  Unregisters a queue from this resource, so that units freed on it are no longer offered to the
+     *  requests in [queue]. If the queue was not registered, nothing occurs.
+     *
+     *  Use it only for a queue you have finished with. A seize that waits in [queue] registers it again, and
+     *  a request left waiting in an unregistered queue is reached only by releases made through that queue,
+     *  so it could wait beside idle units. For that reason this function throws while a request in [queue]
+     *  is waiting for this resource; check first with [RequestQ.hasRequestsWaitingFor].
+     *
+     *  @throws IllegalStateException if a request in [queue] is waiting for this resource, directly or
+     *  through a pool it belongs to
      */
     fun unregisterCapacityChangeQueue(queue: RequestQ) {
+        check(!queue.hasRequestsWaitingFor(this)) {
+            "Queue (${queue.name}) cannot be unregistered from resource ($name): it holds requests waiting " +
+                    "for it, which would then not be offered units freed on it. Check with hasRequestsWaitingFor() first."
+        }
         myCapacityChangeQSet.remove(queue)
     }
 
@@ -1166,16 +1179,23 @@ open class Resource @JvmOverloads constructor(
     protected fun resourceBecameInactive() {
         if (myCapacityChangeQSet.size == 1) {
             // there is only one queue, no reason to decide, just notify it
-            val queue = myCapacityChangeQSet.first()
-            for (request in queue) {
-                request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(queue, this, request)
-            }
+            notifyInactive(myCapacityChangeQSet.first())
             return
         }
         val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQSet)
         while (itr.hasNext()) {
-            val queue = itr.next()
-            for (request in queue) {
+            notifyInactive(itr.next())
+        }
+    }
+
+    /**
+     *  Tells the entities of the requests in [queue] that want this resource, directly or through a pool it
+     *  belongs to, that it became inactive. A queue may hold requests for other resources too, and those are
+     *  not told. The requests are copied first, because an entity may move its request out of the queue.
+     */
+    private fun notifyInactive(queue: RequestQ) {
+        for (request in queue.toList()) {
+            if (queue.wants(request, this)) {
                 request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(queue, this, request)
             }
         }
