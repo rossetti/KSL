@@ -291,4 +291,36 @@ class PoolWakeupOrderTest {
         val m = simulate("promiseBroken") { PromiseBroken(it) }
         assertEquals(20.0, m.servedAt, 1e-9)
     }
+
+    /**
+     *  A plain resource seized through two queues, with no pool involved: A holds it from 0 to 10 through a
+     *  separate queue, and B asks at 1 through the resource's own queue. Before R1.8 the release woke only A's
+     *  queue, and B waited beside an idle resource for the rest of the run.
+     */
+    private class TwoQueues(parent: ModelElement) : ProcessModel(parent, null) {
+        val r = ResourceWithQ(this, name = "R")
+        private val otherQ = RequestQ(this, "OtherQ")
+        var servedAt = Double.NaN
+
+        inner class A : Entity() {
+            val work = process { val a = seize(r, queue = otherQ); delay(10.0); release(a) }
+        }
+
+        inner class B : Entity() {
+            val work = process { val a = seize(r); servedAt = time; delay(5.0); release(a) }
+        }
+
+        override fun initialize() {
+            servedAt = Double.NaN
+            activate(A().work)
+            activate(B().work, 1.0)
+        }
+    }
+
+    @Test
+    @DisplayName("Releasing through one queue wakes a waiter in the resource's other queue")
+    fun releaseWakesTheOtherQueue() {
+        val m = simulate("twoQueues") { TwoQueues(it) }
+        assertEquals(10.0, m.servedAt, 1e-9)
+    }
 }
