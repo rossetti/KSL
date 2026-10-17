@@ -267,12 +267,52 @@ class ConveyorBaselineTest {
     fun nonAccumulatingRideOn() = assertPin(Pin(1, 107, 2211216165L), run("u6") { RideOn(it, Conveyor.Type.NON_ACCUMULATING) })
 
     /**
-     *  The items that leave without riding never finish: their exit completes the request but never resumes the
-     *  entity, which waits in the exiting hold queue for the rest of the run. Pinned as found.
+     *  Before R1.8 the items that left without riding never finished: their exit completed the request but never
+     *  resumed the entity, which waited in the exiting hold queue for the rest of the run. They now leave at once;
+     *  the riders' times are unchanged.
      */
+    // before R1.8: Pin(2, 112, 581193216)
     @Test
     @DisplayName("Unchanged: leaving the entry without riding")
-    fun exitWithoutRiding() = assertPin(Pin(2, 112, 581193216L), run("u7") { ExitWithoutRiding(it) })
+    fun exitWithoutRiding() = assertPin(Pin(6, 112, 4252308689L), run("u7") { ExitWithoutRiding(it) })
+
+    /** Takes the entry at 1, leaves without riding at 1.5, then asks again and rides to Out. */
+    private class LeaveThenRide(parent: ModelElement) : ProcessModel(parent, null) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(Conveyor.Type.ACCUMULATING).velocity(12.0)
+            .cellSize(1).maxCellsAllowed(1).firstSegment("In", "Out", 10).build()
+        var leftAt = Double.NaN
+        var arrivedAt = Double.NaN
+
+        inner class Item : Entity() {
+            val work = process {
+                delay(1.0)
+                val first = requestConveyor(conveyor, "In", 1)
+                delay(0.5)
+                exitConveyor(first)
+                leftAt = time
+                val second = requestConveyor(conveyor, "In", 1)
+                rideConveyor(second, "Out")
+                arrivedAt = time
+                exitConveyor(second)
+            }
+        }
+
+        override fun initialize() {
+            activate(Item().work)
+        }
+    }
+
+    @Test
+    @DisplayName("Leaving the entry without riding releases it at once, and the entity can ask again")
+    fun leaveThenRide() {
+        val m = Model("leaveThenRide", autoCSVReports = false)
+        val s = LeaveThenRide(m)
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 10.0
+        m.simulate()
+        assertEquals(1.5, s.leftAt, 1e-9, "no time passes leaving an entry it never rode from")
+        assertEquals(1.5 + 10.0 / 12.0, s.arrivedAt, 1e-9, "then rides the ten cells to Out")
+    }
 
     @Test
     @DisplayName("Unchanged: transfer between conveyors")

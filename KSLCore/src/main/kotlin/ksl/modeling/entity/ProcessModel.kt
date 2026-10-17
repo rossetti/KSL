@@ -3168,15 +3168,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = conveyorRequest.conveyor
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
+                // an entity that never rode has no item to move off the conveyor; its cells are released at once
+                val leavingFromEntry = conveyorRequest.isBlockingEntry
                 // schedules the need to exit the conveyor
                 conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
                 val exitLocation = conveyorRequest.currentLocation
-                isMoving = true
-                // hold here while entity exits the conveyor
-                inConveyorHold = true
-                hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
-                inConveyorHold = false
-                isMoving = false
+                if (!leavingFromEntry) {
+                    isMoving = true
+                    // hold here while entity exits the conveyor
+                    inConveyorHold = true
+                    hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
+                    inConveyorHold = false
+                    isMoving = false
+                }
                 entity.conveyorRequest = null
                 emitAnimation { AnimationEvent.ConveyorExited(time, entity.id, conveyor.name, exitLocation) }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
