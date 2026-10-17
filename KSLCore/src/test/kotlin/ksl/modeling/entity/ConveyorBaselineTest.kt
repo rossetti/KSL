@@ -56,6 +56,10 @@ class ConveyorBaselineTest {
         private var created = 0
         private val generator = EntityGenerator(::Item, ConstantRV(gap), ConstantRV(gap))
 
+        /** The order in which this item was created, from 1. */
+        protected val Entity.number: Int
+            get() = (this as Item).number
+
         protected fun Entity.mark(what: String) {
             record += "${(this as Item).number}:$what@${"%.9f".format(time)}"
         }
@@ -219,6 +223,130 @@ class ConveyorBaselineTest {
             delay(hold)
             exitConveyor(cr)
             item.mark("off")
+        }
+    }
+
+    /** Requests at the mid-conveyor entry, alternately two cells and one cell, always waiting. */
+    private class MixedSizesMid(parent: ModelElement) : Scenario(parent, 0.05) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(Conveyor.Type.ACCUMULATING).velocity(12.0)
+            .cellSize(1).maxCellsAllowed(2).firstSegment("In", "Mid", 10).nextSegment("Out", 20).build()
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {
+            val cr = requestConveyor(conveyor, "Mid", if (item.number % 2 == 1) 2 else 1)
+            item.mark("access")
+            rideConveyor(cr, "Out")
+            item.mark("arrive")
+            exitConveyor(cr)
+            item.mark("off")
+        }
+    }
+
+    /**
+     *  Every third item enters at Mid, the others at In and ride past Mid, so requests at Mid compete with riders.
+     *  With [enteringPriority], requests at Mid are given priority over riders.
+     */
+    private class RidersAndEntering(parent: ModelElement, type: Conveyor.Type, enteringPriority: Boolean) :
+        Scenario(parent, 0.1) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(type).velocity(12.0).cellSize(1)
+            .maxCellsAllowed(1).firstSegment("In", "Mid", 10).nextSegment("Out", 20).build()
+
+        init {
+            conveyor.enteringPriorityAt("Mid", enteringPriority)
+        }
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {
+            val cr = requestConveyor(conveyor, if (item.number % 3 == 0) "Mid" else "In", 1)
+            item.mark("access")
+            rideConveyor(cr, "Out")
+            item.mark("arrive")
+            exitConveyor(cr)
+            item.mark("off")
+        }
+    }
+
+    /** Each item takes 0.05 to load after gaining access, then rides. */
+    private class LoadThenRide(parent: ModelElement, type: Conveyor.Type) : Scenario(parent, 0.3) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(type).velocity(12.0).cellSize(1)
+            .maxCellsAllowed(1).firstSegment("In", "Mid", 10).nextSegment("Out", 20).build()
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {
+            val cr = requestConveyor(conveyor, "In", 1)
+            item.mark("access")
+            delay(0.05)
+            rideConveyor(cr, "Out")
+            item.mark("arrive")
+            exitConveyor(cr)
+            item.mark("off")
+        }
+    }
+
+    /** One item rides; the conveyor is stopped from 0.2 to 0.7, and a second item asks to ride at 0.4. */
+    private class StopWithRider(parent: ModelElement, type: Conveyor.Type) : Scenario(parent, 100.0) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(type).velocity(12.0).cellSize(1)
+            .maxCellsAllowed(1).firstSegment("In", "Out", 10).build()
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {}
+
+        inner class Rider(private val label: String, private val at: Double) : Entity() {
+            val work = process {
+                delay(at)
+                val cr = requestConveyor(conveyor, "In", 1)
+                record += "$label:access@${"%.9f".format(time)}"
+                rideConveyor(cr, "Out")
+                record += "$label:arrive@${"%.9f".format(time)}"
+                exitConveyor(cr)
+                record += "$label:off@${"%.9f".format(time)}"
+                delivered++
+            }
+        }
+
+        private fun stop(e: KSLEvent<Nothing>) = conveyor.stopConveyor()
+        private fun start(e: KSLEvent<Nothing>) = conveyor.startConveyor()
+
+        override fun initialize() {
+            super.initialize()
+            activate(Rider("1", 0.0).work)
+            activate(Rider("2", 0.4).work)
+            schedule(::stop, 0.2)
+            schedule(::start, 0.7)
+        }
+    }
+
+    /** A rides In to Out; X takes Mid at 0.3, with A behind it, holds it for 1.0 and leaves without riding. */
+    private class LeaveWithRiderBehind(parent: ModelElement, type: Conveyor.Type) : Scenario(parent, 100.0) {
+        val conveyor = Conveyor.builder(this, "Belt").conveyorType(type).velocity(12.0).cellSize(1)
+            .maxCellsAllowed(1).firstSegment("In", "Mid", 5).nextSegment("Out", 5).build()
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {}
+
+        inner class A : Entity() {
+            val work = process {
+                val cr = requestConveyor(conveyor, "In", 1)
+                record += "A:access@${"%.9f".format(time)}"
+                rideConveyor(cr, "Out")
+                record += "A:arrive@${"%.9f".format(time)}"
+                exitConveyor(cr)
+                record += "A:off@${"%.9f".format(time)}"
+                delivered++
+            }
+        }
+
+        inner class X : Entity() {
+            val work = process {
+                delay(0.3)
+                val cr = requestConveyor(conveyor, "Mid", 1)
+                record += "X:access@${"%.9f".format(time)}"
+                delay(1.0)
+                exitConveyor(cr)
+                record += "X:left@${"%.9f".format(time)}"
+                delivered++
+            }
+        }
+
+        override fun initialize() {
+            super.initialize()
+            activate(A().work)
+            activate(X().work)
         }
     }
 
@@ -472,4 +600,52 @@ class ConveyorBaselineTest {
     @DisplayName("Queued entry: accumulating, the belt backs up behind an exit held for 0.4")
     fun accumulatingBackedUp() =
         assertPin(Pin(5, 427, 2278560873L), run("c8") { HoldAtExit(it, Conveyor.Type.ACCUMULATING, 0.05, 0.4) })
+
+    // ---- scenarios added before the R1.8 entry-rule and timing fixes; each names the fix expected to move it ----
+    // Pinned as found: the accumulating riders-first and entering-priority pins are equal because the
+    // entering priority had no effect, and A never arrives in the restart scenarios.
+
+    @Test
+    @DisplayName("Entry in turn: two-cell and one-cell requests alternating at a mid-conveyor entry")
+    fun mixedSizesMid() = assertPin(Pin(26, 520, 939594979L), run("p1") { MixedSizesMid(it) })
+
+    @Test
+    @DisplayName("Riders first: requests at Mid compete with riders, accumulating")
+    fun ridersFirstAccumulating() =
+        assertPin(Pin(26, 389, 3126792337L), run("p2a") { RidersAndEntering(it, Conveyor.Type.ACCUMULATING, false) })
+
+    @Test
+    @DisplayName("Riders first: requests at Mid compete with riders, non-accumulating")
+    fun ridersFirstNonAccumulating() =
+        assertPin(Pin(22, 368, 428472262L), run("p2b") { RidersAndEntering(it, Conveyor.Type.NON_ACCUMULATING, false) })
+
+    @Test
+    @DisplayName("Entering priority: requests at Mid have priority over riders, accumulating")
+    fun enteringPriorityAccumulating() =
+        assertPin(Pin(26, 389, 3126792337L), run("p2c") { RidersAndEntering(it, Conveyor.Type.ACCUMULATING, true) })
+
+    @Test
+    @DisplayName("Movement timing: non-accumulating, each item loads for 0.05 before riding")
+    fun nonAccumulatingLoadThenRide() =
+        assertPin(Pin(4, 155, 1337382434L), run("p3") { LoadThenRide(it, Conveyor.Type.NON_ACCUMULATING) })
+
+    @Test
+    @DisplayName("Movement timing: accumulating, stopped from 0.2 to 0.7 with a rider asking during the stop")
+    fun accumulatingStopWithRider() =
+        assertPin(Pin(2, 32, 1412068310L), run("p4a") { StopWithRider(it, Conveyor.Type.ACCUMULATING) })
+
+    @Test
+    @DisplayName("Movement timing: non-accumulating, stopped from 0.2 to 0.7 with a rider asking during the stop")
+    fun nonAccumulatingStopWithRider() =
+        assertPin(Pin(2, 32, 3710179474L), run("p4b") { StopWithRider(it, Conveyor.Type.NON_ACCUMULATING) })
+
+    @Test
+    @DisplayName("Restart: accumulating, an entity leaves Mid without riding, with a rider behind it")
+    fun accumulatingLeaveWithRiderBehind() =
+        assertPin(Pin(1, 15, 3778948367L), run("p5a") { LeaveWithRiderBehind(it, Conveyor.Type.ACCUMULATING) })
+
+    @Test
+    @DisplayName("Restart: non-accumulating, an entity leaves Mid without riding, with a rider behind it")
+    fun nonAccumulatingLeaveWithRiderBehind() =
+        assertPin(Pin(1, 14, 3778948367L), run("p5b") { LeaveWithRiderBehind(it, Conveyor.Type.NON_ACCUMULATING) })
 }
