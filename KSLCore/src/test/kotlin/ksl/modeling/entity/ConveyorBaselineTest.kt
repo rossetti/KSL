@@ -603,7 +603,7 @@ class ConveyorBaselineTest {
 
     // ---- scenarios added before the R1.8 entry-rule and timing fixes; each names the fix expected to move it ----
     // Pinned as found: the accumulating riders-first and entering-priority pins are equal because the
-    // entering priority had no effect, and A never arrives in the restart scenarios.
+    // entering priority had no effect.
 
     @Test
     @DisplayName("Entry in turn: two-cell and one-cell requests alternating at a mid-conveyor entry")
@@ -639,13 +639,30 @@ class ConveyorBaselineTest {
     fun nonAccumulatingStopWithRider() =
         assertPin(Pin(2, 32, 3710179474L), run("p4b") { StopWithRider(it, Conveyor.Type.NON_ACCUMULATING) })
 
+    // before R1.8: Pin(1, 15, 3778948367), A never arrived
     @Test
     @DisplayName("Restart: accumulating, an entity leaves Mid without riding, with a rider behind it")
     fun accumulatingLeaveWithRiderBehind() =
-        assertPin(Pin(1, 15, 3778948367L), run("p5a") { LeaveWithRiderBehind(it, Conveyor.Type.ACCUMULATING) })
+        assertPin(Pin(2, 24, 3213235258L), run("p5a") { LeaveWithRiderBehind(it, Conveyor.Type.ACCUMULATING) })
 
+    /**
+     *  A is stopped behind X at Mid until X leaves at 1.3; the conveyor then carries it on. Before R1.8 it never
+     *  restarted.
+     */
+    @Test
+    @DisplayName("Leaving an entry without riding sets the items behind it moving again")
+    fun leavingAnEntryRestartsTheConveyor() {
+        for (type in Conveyor.Type.entries) {
+            val s = run("restart$type") { LeaveWithRiderBehind(it, type) }
+            val arrived = s.record.firstOrNull { it.startsWith("A:arrive@") }
+            assertEquals(true, arrived != null, "$type: A arrives: ${s.record}")
+            assertEquals(true, arrived!!.substringAfter('@').toDouble() > 1.3, "$type: after X leaves: $arrived")
+        }
+    }
+
+    // before R1.8: Pin(1, 14, 3778948367), A never arrived
     @Test
     @DisplayName("Restart: non-accumulating, an entity leaves Mid without riding, with a rider behind it")
     fun nonAccumulatingLeaveWithRiderBehind() =
-        assertPin(Pin(1, 14, 3778948367L), run("p5b") { LeaveWithRiderBehind(it, Conveyor.Type.NON_ACCUMULATING) })
+        assertPin(Pin(2, 25, 915597255L), run("p5b") { LeaveWithRiderBehind(it, Conveyor.Type.NON_ACCUMULATING) })
 }

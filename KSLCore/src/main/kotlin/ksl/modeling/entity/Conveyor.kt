@@ -1534,9 +1534,9 @@ class Conveyor @JvmOverloads constructor(
     private fun removeBlockage(blockedCell: Cell) {
         blockedCell.isBlocked = false // this unblocks the cell
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): removed blockage at cell (${blockedCell.cellNumber}) : type (${blockedCell.type}) : location (${blockedCell.location})" }
-        // no need to worry about event scheduling because removing a blockage occurs
-        // during the movement cycle, thus rescheduling at end of cycle will determine whether
-        // the blockage affects the movement
+        // Within a cell move, the rescheduling at the end of the move takes account of the blockage removed. The
+        // callers outside a cell move (leaving an entry without riding, starting to exit, riding on from an exit)
+        // reschedule movement themselves.
     }
 
     private fun scheduleConveyorMovement() {
@@ -2094,6 +2094,10 @@ class Conveyor @JvmOverloads constructor(
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : status = ${request.status}:exiting w/o riding" }
             // need to remove the blockage at the entry cell
             removeBlockage(request.entryCell)
+            // this is not within a cell move, so items stopped behind the blockage must be set moving again here
+            if (!isCellTraversalInProgress()) {
+                rescheduleConveyorMovement()
+            }
             // the entry cell is free now, not at the next cell move
             processRequestsWaitingToAccessConveyor()
         }
