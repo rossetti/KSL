@@ -435,6 +435,70 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.8
+
+*In preparation.* Corrective. Needs Kotlin 2.4 or later.
+
+Many fixes below change results without raising an error. Re-run rather than compare across the release, in
+particular models with resource pools, conveyors, guided paths, or antithetic sampling.
+
+### Fixed — resources and processes
+
+- Units freed on a pool member reached only the queue they came through. They now go to every waiting
+  request, whether it asked for the member, a pool it belongs to, or seized it through another queue.
+- A seize now registers the queue it waits in, so a separate queue is never missed.
+  `unregisterCapacityChangeQueue` refuses while requests wait; check with `RequestQ.hasRequestsWaitingFor`.
+- Interrupted delays resumed wrongly. Interrupting a process that is not in the named delay is now an
+  error; check with `isInDelay`.
+- A capacity change of infinite duration now lasts until superseded: going back on shift no longer throws
+  (IGNORE) or leaves the resource off shift (WAIT), and a decrease queued behind another is applied.
+
+### Fixed — conveyors
+
+- Waiting items enter nose to tail; an empty cell was left between them.
+- Requests at an entry are served in turn. Riding items go first unless `enteringPriorityAt` says
+  otherwise; that setting had no effect.
+- A non-accumulating conveyor no longer loses time at each boarding, and a stop costs exactly its length.
+  A stopped conveyor stays stopped.
+- Leaving an entry without riding no longer hangs the entity or the items behind it.
+
+### Fixed — guided paths and agents
+
+- The closest and furthest allocation rules measure a cart from the zone it holds.
+- A cart waiting at its staging area is not an obstruction. Obstructions are counted, not logged as
+  warnings.
+- A guided transport's loading and unloading delays are named after its transporter, not `null`.
+- Agent odometers count `travelTo` and `awaitTravel`, and travel on a torus takes the short way.
+
+### Fixed — random variables and statistics
+
+- Composite random variables now share one stream with their components. Antithetic instances pair
+  correctly, Monte Carlo integration with antithetic sampling is unbiased, and stream controls govern what
+  is sampled. `MVIndependentRV` and `MixtureRV` use their own copies of the variables given.
+- An event generator keeps its first event in step when only the time between events changes.
+- The BCa bootstrap interval is defined for tied data, and its acceleration is corrected, so every BCa
+  interval changes. Bootstrap and jackknife confidence levels must lie in (0, 1).
+- Printing a `Bootstrap` shows its bootstrap-t interval; it showed the BCa interval twice.
+
+### Fixed — other
+
+- Designed experiments simulate central composite designs.
+- `HistoricalVariable` with STOP ends the replication cleanly.
+- `toDataFrame` declares each column with the type of its values. `selectAll` and the exports honour the
+  schema given.
+- `showInBrowser()` no longer fails without a display.
+- Report tables print counts as whole numbers.
+
+### Documentation
+
+The agent, guided-path and entity guides are corrected and extended.
+
+### Added
+
+`isInDelay`, `Resource.pendingCapacityChangeEndTime`, `Model.endAfterCurrentReplication()`,
+`RegistrationOrderNotificationRule`, `RequestQ.hasRequestsWaitingFor`, `Entity(name, initialLocation)`,
+`canShareStream()`, `Bootstrap.canComputeBcaBootstrapCI()`.
+
 ## R1.7.1
 
 *3 October 2026.* Corrective. Each fix below changed a result without raising an error. Re-run rather

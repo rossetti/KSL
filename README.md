@@ -186,18 +186,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.7.1"
+version = "R1.8"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.7.1")
+api("io.github.rossetti:KSLCore:R1.8")
 ```
-To your build for the latest release. R1.7.1 needs Kotlin 2.3 or later in your project.
+To your build for the latest release. R1.8 needs Kotlin 2.4 or later in your project.
 
 ## Release Notes
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
-things released on separate cadences: the **library** (`KSLCore`, versioned R1.7.1, R1.7, R1.6.2, …) and
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.8, R1.7.1, R1.7, …) and
 the installable **suite** of applications and servers (versioned 0.4.3, 0.4.2, 0.4.1, …). A suite release
 does not imply a library release, or the reverse.
 
@@ -209,11 +209,10 @@ bridge sent MCP clients a line that was not protocol, and the KSL Server did not
 from 0.3.x; 0.4.2 also returns the book's numbered tables with their data, and 0.4.3 makes the tray's
 Quit stop the KSL Server on Windows. Built on KSLCore R1.7.1.
 
-**Current library release — R1.7.1.** Corrective: fixes to Student-t sample sizes, (r, Q) under lot
-demand, `PDFModeler` scoring and benchmark databases, each of which changed results silently.
-Probability constraints can be declared indicators and tested with an exact bound. Adds the trace
-events suite 0.4.0 needs to animate vehicles. Re-run rather than compare affected results. Requires Kotlin 2.3
-or later; otherwise a drop-in for R1.7.
+**Current library release — R1.8.** Corrective: fixes to resource pools, interrupted delays, shifts,
+conveyors, guided paths, composite random variables, the BCa bootstrap interval and central composite designs,
+many of which changed results silently. Re-run rather than compare affected results. Requires Kotlin 2.4 or
+later.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;
