@@ -20,6 +20,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.Normal
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -41,7 +42,13 @@ class MVGaussianCopula @JvmOverloads constructor(
     name: String? = null
 ) : MVRVariable(streamNum, streamProvider, name){
 
-    private val mvNormalRV: MVNormalRV = MVNormalRV.createStandardMVN(correlation, streamNum, streamProvider)
+    private val mvNormalRV: MVNormalRV =
+        MVNormalRV.createStandardMVN(correlation, streamNumber, streamProvider).also { it.drawFrom(rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        mvNormalRV.drawFrom(stream)
+    }
     private val myCorrelation = correlation
 
     val correlations: Array<DoubleArray>

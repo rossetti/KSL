@@ -152,3 +152,11 @@ abstract class RVariable(
     }
 
 }
+
+/**
+ *  True when this variable can draw from a stream it is given. A variable built from component variables that it
+ *  is given, such as [MVIndependentMarginals] or [MVIndependentRV], requires this of each component, so that the
+ *  components draw from its one stream. Every variable that extends [RVariable] can; another implementation of
+ *  [RVariableIfc] cannot, and such a composite refuses it.
+ */
+fun RVariableIfc.canShareStream(): Boolean = this is RVariable

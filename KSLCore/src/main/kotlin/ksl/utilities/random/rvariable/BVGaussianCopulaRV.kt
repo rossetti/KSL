@@ -19,6 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -42,7 +43,13 @@ class BVGaussianCopulaRV @JvmOverloads constructor(
     name: String? = null
 ) : MVRVariable(streamNum, streamProvider, name) {
 
-    private val bvGaussianCopula = BVGaussianCopula(bvnCorrelation, streamNum, streamProvider)
+    private val bvGaussianCopula =
+        BVGaussianCopula(bvnCorrelation, streamNumber, streamProvider).also { it.drawFrom(rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        bvGaussianCopula.drawFrom(stream)
+    }
 
     override val dimension: Int
         get() = bvGaussianCopula.dimension

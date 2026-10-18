@@ -48,8 +48,12 @@ import kotlin.test.assertEquals
  *  As pinned, a composite's components obtain their own streams from the provider by the composite's stream
  *  number. On the default stream that gives them streams other than the composite's, so its antithetic instance
  *  and its stream controls miss what it draws from; in an antithetic instance each component gets its own copy of
- *  the antithetic stream, so the components repeat one uniform. Both integration estimates are biased as pinned:
- *  1.1665 for an exact 1, and 7.008 for an exact 6.
+ *  the antithetic stream, so the components repeat one uniform. Both integration estimates were biased: 1.1665 for
+ *  an exact 1, and 7.008 for an exact 6.
+ *
+ *  Since R1.8 a composite's components draw from its own one stream. The pins that moved keep their earlier value
+ *  in a comment. On an explicit stream a composite samples as before, except those that used the caller's own
+ *  variables, which now use their own copies.
  */
 class CompositeStreamBaselineTest {
 
@@ -167,15 +171,15 @@ class CompositeStreamBaselineTest {
             "BivariateLogNormalRV" to checksum(multivariateDefault(bvLogNormal)),
         )
         assertEquals(mapOf(
-            "MVIndependentMarginals" to 2255609275L,
-            "MVIUniform" to 2737567969L,
-            "MVIndependentRV" to 3285106702L,
-            "MVNormalRV" to 2170920885L,
-            "MVGaussianCopula" to 3268498440L,
-            "MVGaussianCopulaRV" to 1999737977L,
-            "BVGaussianCopula" to 3612963942L,
-            "BVGaussianCopulaRV" to 1674548943L,
-            "BivariateLogNormalRV" to 3481885677L,
+            "MVIndependentMarginals" to 2459539415L, // before R1.8: 2255609275
+            "MVIUniform" to 3686034881L, // before R1.8: 2737567969
+            "MVIndependentRV" to 3625410729L, // before R1.8: 3285106702
+            "MVNormalRV" to 236388766L, // before R1.8: 2170920885
+            "MVGaussianCopula" to 3506545585L, // before R1.8: 3268498440
+            "MVGaussianCopulaRV" to 2283479003L, // before R1.8: 1999737977
+            "BVGaussianCopula" to 3506545585L, // before R1.8: 3612963942
+            "BVGaussianCopulaRV" to 2283479003L, // before R1.8: 1674548943
+            "BivariateLogNormalRV" to 4075207788L, // before R1.8: 3481885677
         ), actual)
     }
 
@@ -196,7 +200,7 @@ class CompositeStreamBaselineTest {
         assertEquals(mapOf(
             "MVIndependentMarginals" to 2414878693L,
             "MVIUniform" to 1444688561L,
-            "MVIndependentRV" to 2463742740L,
+            "MVIndependentRV" to 1444688561L, // before R1.8: 2463742740
             "MVNormalRV" to 3969352928L,
             "MVGaussianCopula" to 65484669L,
             "MVGaussianCopulaRV" to 890306250L,
@@ -248,7 +252,7 @@ class CompositeStreamBaselineTest {
         ), actual)
     }
 
-    /** The integral of 4x^2 y + y^2 over the unit square, exactly 1, with antithetic sampling, 2000 pairs. Biased as pinned. */
+    /** The integral of 4x^2 y + y^2 over the unit square, exactly 1, with antithetic sampling, 2000 pairs. */
     @Test
     @DisplayName("Multivariate integration with antithetic sampling")
     fun multivariateIntegration() {
@@ -259,7 +263,8 @@ class CompositeStreamBaselineTest {
         val mc = MCMultiVariateIntegration(f, iUniform(0, RNStreamProvider()))
         mc.desiredHWErrorBound = 1.0e-9
         mc.maxSampleSize = 2000
-        assertEquals(1.1664662127034517, mc.runSimulation())
+        // before R1.8: 1.1664662127034517
+        assertEquals(0.9991290471959257, mc.runSimulation())
     }
 
     /**

@@ -1,6 +1,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.Interval
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 
@@ -26,9 +27,15 @@ class MVIUniform @JvmOverloads constructor(
         for (interval in intervals) {
             require(interval.lowerLimit.isFinite()) {"The interval must be finite. The lower limit was -Infinity."}
             require(interval.upperLimit.isFinite()) {"The interval must be finite. The upper limit was +Infinity."}
-            list.add(UniformRV(interval.lowerLimit, interval.upperLimit, streamNum, streamProvider))
+            list.add(UniformRV(interval.lowerLimit, interval.upperLimit, streamNumber, streamProvider))
         }
-        myRV = MVIndependentMarginals(list, streamNum, streamProvider)
+        // the coordinates draw from this variable's one stream
+        myRV = MVIndependentMarginals(list, streamNumber, streamProvider).also { it.drawFrom(rnStream) }
+    }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        myRV.drawFrom(stream)
     }
 
     override fun generate(array: DoubleArray) {
